@@ -9,21 +9,16 @@ module Syskit
             # between already-dead processes
 
             all_dead_deployments = Set.new
-            for config in Syskit.conf.each_process_server_config
-                server = config.client
+            for server in Syskit.conf.each_process_server
                 dead_deployments = server.wait_termination(0)
                 dead_deployments.each do |p, exit_status|
-                    d = Deployment.all_deployments[p]
+                    d = Deployment.deployment_by_process(p)
                     if !d.finishing?
-                        Syskit.warn "#{p.name} unexpectedly died on #{config.name}"
+                        Syskit.warn "#{p.name} unexpectedly died on #{server}"
                     end
                     all_dead_deployments << d
                     d.dead!(exit_status)
                 end
-            end
-
-            for deployment in all_dead_deployments
-                deployment.cleanup_dead_connections
             end
         end
     end

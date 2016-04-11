@@ -388,31 +388,6 @@ module Syskit
                             end
                         end
                     end
-
-                    # This is really a system test. We simulate having pending new and
-                    # removed connections that are queued because some tasks are not set up,
-                    # and then kill the tasks involved. The resulting operation should work
-                    # fine (i.e. not creating the dead connections)
-                    it "handles pending new connections that involve a dead task" do
-                        source_task.connect_to(sink_task)
-                        ConnectionManagement.update(plan)
-                        source_task.execution_agent.stop!
-                        # This is normally done by Runtime.update_deployment_states
-                        source_task.execution_agent.cleanup_dead_connections
-                        ConnectionManagement.update(plan)
-                    end
-
-                    it "handles pending removed connections that involve a dead task" do
-                        source_task.connect_to(sink_task)
-                        syskit_configure(source_task)
-                        syskit_configure(sink_task)
-                        ConnectionManagement.update(plan)
-
-                        source_task.disconnect_ports(sink_task, [['out', 'in']])
-                        source_task.execution_agent.stop!
-                        source_task.execution_agent.cleanup_dead_connections
-                        ConnectionManagement.update(plan)
-                    end
                 end
 
                 it "triggers a deployment if a connection to a static port is removed on an already setup task" do
@@ -486,8 +461,8 @@ module Syskit
                     end
                     @source = syskit_stub_deploy_and_configure(task_m.with_conf('test0'))
                     @sink   = syskit_stub_deploy_and_configure(task_m.with_conf('test1'))
-                    plan.add_permanent(source.execution_agent)
-                    plan.add_permanent(sink.execution_agent)
+                    plan.add_permanent_task(source.execution_agent)
+                    plan.add_permanent_task(sink.execution_agent)
                     @source_orocos_task = source.orocos_task
                     @sink_orocos_task = sink.orocos_task
                     source.out_port.connect_to sink.in_port
@@ -719,6 +694,74 @@ _                   end
                     end
 
                     include ConnectionExecutionSharedTest
+                end
+            end
+    
+            describe "handling of dead deployments" do
+                attr_reader :source_task, :sink_task, :source_agent, :sink_agent, :source_orocos, :sink_orocos
+                before do
+                    unplug_connection_management
+                    task_m = Syskit::TaskContext.new_submodel do
+                        input_port 'in', '/double'
+                        output_port 'out', '/double'
+                    end
+                    @source_task = syskit_stub_deploy_configure_and_start(task_m.with_conf('source_task'))
+                    @sink_task = syskit_stub_deploy_configure_and_start(task_m.with_conf('sink_task'))
+                    @source_orocos = source_task.orocos_task
+                    @sink_orocos = sink_task.orocos_task
+                    plan.add_permanent_task(@source_agent = source_task.execution_agent)
+                    plan.add_permanent_task(@sink_agent = sink_task.execution_agent)
+
+                    source_task.out_port.connect_to sink_task.in_port
+                    Syskit::Runtime::ConnectionManagement.update(plan)
+                end
+
+                # This is really a system test. We simulate having pending new and
+                # removed connections that are queued because some tasks are not set up,
+                # and then kill the tasks involved. The resulting operation should work
+                # fine (i.e. not creating the dead connections)
+                it "handles pending new connections that involve a dead task" do
+                    ConnectionManagement.update(plan)
+                    source_agent.stop!
+                    ConnectionManagement.update(plan)
+                end
+
+                it "handles pending removed connections that involve a dead task" do
+                    ConnectionManagement.update(plan)
+                    source_task.disconnect_ports(sink_task, [['out', 'in']])
+                    source_agent.stop!
+                    ConnectionManagement.update(plan)
+                end
+
+                describe "connection add/remove hooks" do
+
+                    it "calls them on the remaining sinks" do
+                        plan.unmark_mission_task(source_task)
+                        assert_event_emission source_task.stop_event do
+                            source_task.stop!
+                        end
+                        assert Syskit::ActualDataFlow.has_edge?(source_orocos, sink_orocos)
+                        flexmock(sink_task).should_receive(:removing_input_port_connection).
+                            with(source_orocos, 'out', 'in').once.globally.ordered
+                        flexmock(sink_task).should_receive(:removed_input_port_connection).
+                            with(source_orocos, 'out', 'in').once.globally.ordered
+                        source_agent.stop!
+                        Syskit::Runtime::ConnectionManagement.update(plan)
+                    end
+
+                    it "calls them on the remaining sources" do
+                        plan.unmark_mission_task(sink_task)
+                        assert_event_emission sink_task.stop_event do
+                            sink_task.stop!
+                        end
+                        assert Syskit::ActualDataFlow.has_edge?(source_orocos, sink_orocos)
+                        flexmock(source_task).should_receive(:removing_output_port_connection).
+                            with('out', sink_orocos, 'in').once.globally.ordered
+                        flexmock(source_task).should_receive(:removed_output_port_connection).
+                            with('out', sink_orocos, 'in').once.globally.ordered
+                        sink_agent.stop!
+                        Syskit::Runtime::ConnectionManagement.update(plan)
+                    end
                 end
             end
         end

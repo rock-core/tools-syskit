@@ -71,6 +71,7 @@ module Syskit
         end
 
         def teardown
+            plug_connection_management
             ENV['PKG_CONFIG_PATH'] = @old_pkg_config
             super
 

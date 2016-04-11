@@ -181,6 +181,35 @@ module Syskit
                 end
                 false
             end
+
+            def disconnect_actual_ports(source_task, source_port, sink_task, sink_port)
+                source = source_task.port(source_port, false)
+                sink   = sink_task.port(sink_port, false)
+
+                if !source.disconnect_from(sink)
+                    warn "while disconnecting #{source_task}:#{source_port} => #{sink_task}:#{sink_port} returned false"
+                    warn "I assume that the ports are disconnected, but this should not have happened"
+                end
+
+            rescue Orocos::NotFound => e
+                terminating_deployments =
+                    plan.find_tasks(Syskit::Deployment).finishing.
+                    flat_map { |d| d.task_handles.values }
+
+                if !terminating_deployments.include?(source_task) && !terminating_deployments.include?(sink_task)
+                    warn "error while disconnecting #{source_task}:#{source_port} => #{sink_task}:#{sink_port}: #{e.message}"
+                    warn "I am assuming that the disconnection is actually effective, since one port does not exist anymore"
+                end
+            rescue Orocos::ComError => e
+                terminating_deployments =
+                    plan.find_tasks(Syskit::Deployment).finishing.
+                    flat_map { |d| d.task_handles.values }
+
+                if !terminating_deployments.include?(source_task) && !terminating_deployments.include?(sink_task)
+                    warn "Communication error while disconnecting #{source_task}:#{source_port} => #{sink_task}:#{sink_port}: #{e.message}"
+                    warn "I am assuming that the source component is dead and that therefore the connection is actually effective"
+                end
+            end
             
             # Remove port-to-port connections
             #
@@ -198,9 +227,6 @@ module Syskit
                             break
                         end
 
-                        source = source_task.port(source_port, false)
-                        sink   = sink_task.port(sink_port, false)
-
                         if syskit_source_task = find_setup_syskit_task_context_from_orocos_task(source_task)
                             syskit_source_task.removing_output_port_connection(source_port, sink_task, sink_port)
                         end
@@ -208,31 +234,7 @@ module Syskit
                             syskit_sink_task.removing_input_port_connection(source_task, source_port, sink_port)
                         end
 
-                        begin
-                            if !source.disconnect_from(sink)
-                                warn "while disconnecting #{source_task}:#{source_port} => #{sink_task}:#{sink_port} returned false"
-                                warn "I assume that the ports are disconnected, but this should not have happened"
-                            end
-
-                        rescue Orocos::NotFound => e
-                            terminating_deployments =
-                                plan.find_tasks(Syskit::Deployment).finishing.
-                                flat_map { |d| d.task_handles.values }
-
-                            if !terminating_deployments.include?(source_task) && !terminating_deployments.include?(sink_task)
-                                warn "error while disconnecting #{source_task}:#{source_port} => #{sink_task}:#{sink_port}: #{e.message}"
-                                warn "I am assuming that the disconnection is actually effective, since one port does not exist anymore"
-                            end
-                        rescue Orocos::ComError => e
-                            terminating_deployments =
-                                plan.find_tasks(Syskit::Deployment).finishing.
-                                flat_map { |d| d.task_handles.values }
-
-                            if !terminating_deployments.include?(source_task) && !terminating_deployments.include?(sink_task)
-                                warn "Communication error while disconnecting #{source_task}:#{source_port} => #{sink_task}:#{sink_port}: #{e.message}"
-                                warn "I am assuming that the source component is dead and that therefore the connection is actually effective"
-                            end
-                        end
+                        disconnect_actual_ports(source_task, source_port, sink_task, sink_port)
 
                         if syskit_source_task
                             syskit_source_task.removed_output_port_connection(source_port, sink_task, sink_port)

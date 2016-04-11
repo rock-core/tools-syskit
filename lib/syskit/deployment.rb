@@ -324,43 +324,15 @@ module Syskit
                 # processes
             end
 
-            # Removes any connection that points to tasks that were in this
-            # process, and that are therefore dead because of the process
-            # termination
-            def cleanup_dead_connections
-                return if !task_handles
-
-                # task_handles is only initialized when ready is reached ...
-                # so can be nil here
-                all_orocos_tasks = task_handles.values.to_set
-                all_orocos_tasks.each do |task|
-                    ActualDataFlow.each_in_neighbour(task) do |parent_task|
-                        if parent_task.process
-                            next if !parent_task.process.running?
-                            roby_task = Deployment.all_deployments[parent_task.process]
-                            next if roby_task.finishing? || roby_task.finished?
-                        end
-
-                        mappings = ActualDataFlow.edge_info(parent_task, task)
-                        mappings.each do |(source_port, sink_port), policy|
-                            begin
-                                parent_task.port(source_port).disconnect_from(task.port(sink_port, false))
-                            rescue Exception => e
-                                Syskit.warn "error while disconnecting #{parent_task}:#{source_port} from #{task}:#{sink_port} after #{task} died (#{e.message}). Assuming that both tasks are already dead."
-                            end
-                        end
-                    end
-
-                    ActualDataFlow.remove_vertex(task)
-                    RequiredDataFlow.remove_vertex(task)
-                end
-
-                if pending = relation_graph_for(Flows::DataFlow).pending_changes
-                    _, _, removed, _ = *pending
-                    removed.delete_if { |(source, sink), _| all_orocos_tasks.include?(source) || all_orocos_tasks.include?(sink) }
-                end
+            # Returns the deployment object that matches the given process
+            # object
+            # 
+            # @param process the deployment's process object. Note that it is
+            #   usually not a Ruby Process object, but a process representation
+            #   from orocosrb's process server infrastructure
+            def self.deployment_by_process(process)
+                all_deployments.fetch(process)
             end
-
         end
 end
 
