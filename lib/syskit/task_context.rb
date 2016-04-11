@@ -401,8 +401,10 @@ module Syskit
             def is_setup!
                 if all_inputs_connected?
                     self.executable = nil
+                    execution_engine.scheduler.report_action "configured and all inputs connected, marking as executable", self
                     Runtime.debug { "#{self} is setup and all its inputs are connected, set executable to nil and executable? = #{executable?}" }
                 else
+                    execution_engine.scheduler.report_action "configured, but some connections are pending", self
                     Runtime.debug { "#{self} is setup but some of its inputs are not connected, keep executable = #{executable?}" }
                 end
                 super

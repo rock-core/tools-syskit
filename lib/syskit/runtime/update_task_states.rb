@@ -6,12 +6,6 @@ module Syskit
             promise = task.setup(promise).
                 on_success do
                     task.is_setup!
-                    if task.all_inputs_connected?
-                        task.executable = nil
-                        execution_engine.scheduler.report_action "configured and all inputs connected, marking as executable", task
-                    else
-                        execution_engine.scheduler.report_action "configured, but some connections are pending", task
-                    end
                 end
 
             task.setting_up!(promise)

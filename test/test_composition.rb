@@ -261,5 +261,32 @@ describe Syskit::Composition do
             assert !cmp.out_port.connected_to?(task.in_port)
         end
     end
+
+    describe "the setup process" do
+        it "can go through it" do
+            cmp_m = Syskit::Composition.new_submodel
+            cmp = syskit_stub_deploy_and_configure(cmp_m)
+            assert cmp.setup?
+        end
+
+        # Test for a regression where the #all_inputs_connected? test that is
+        # specific to TaskContext was also applied to compositions
+        it "can go through it even if it has input ports" do
+            task_m = Syskit::TaskContext.new_submodel do
+                input_port 'in', '/double'
+                output_port 'out', '/double'
+            end
+            cmp_m = Syskit::Composition.new_submodel
+            cmp_m.add(task_m, as: 'test').with_arguments(conf: ['cmp'])
+            cmp_m.export cmp_m.test_child.in_port
+            cmp, task = syskit_generate_network(cmp_m, task_m.with_arguments(conf: ['test']))
+            cmp, task = syskit_stub_network([cmp, task])
+            task.out_port.connect_to cmp.in_port
+            syskit_configure(cmp)
+            task = syskit_stub_deploy_and_configure(task_m.with_arguments(conf: ['test']))
+            cmp = syskit_stub_deploy_and_configure(cmp_m)
+            assert cmp.setup?
+        end
+    end
 end
 
