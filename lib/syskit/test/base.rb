@@ -19,6 +19,7 @@ module Syskit
         end
 
         def teardown
+            plug_connection_management
             begin
                 super
             rescue ::Exception => e
@@ -34,6 +35,13 @@ module Syskit
             if teardown_failure
                 raise teardown_failure
             end
+        end
+
+        def plug_connection_management
+            RobyApp::Plugin.plug_handler_in_roby(execution_engine, :connection_management)
+        end
+        def unplug_connection_management
+            RobyApp::Plugin.unplug_handler_from_roby(execution_engine, :connection_management)
         end
 
         def assert_event_command_failed(expected_code_error = nil)

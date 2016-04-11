@@ -444,7 +444,7 @@ module Syskit
                     Runtime.method(:update_deployment_states), type: :external_events, description: 'syskit:update_deployment_states']
                 handlers[:update_task_states] = [
                     Runtime.method(:update_task_states), type: :external_events, description: 'syskit:update_task_states']
-                handlers[:update] = [
+                handlers[:connection_management] = [
                     Runtime::ConnectionManagement.method(:update), type: :propagation, late: true, description: 'syskit:connection_management_update']
                 handlers[:apply_requirement_modifications] = [
                     Runtime.method(:apply_requirement_modifications), type: :propagation, late: true, description: 'syskit:apply_requirement_modifications']
@@ -466,10 +466,20 @@ module Syskit
                 end
             end
 
+            def self.plug_handler_in_roby(roby_engine, *handlers)
+                handlers.each do |handler_name|
+                    m, options = roby_engine_propagation_handlers.fetch(handler_name)
+                    next if @handler_ids.has_key?(handler_name)
+                    @handler_ids[handler_name] = roby_engine.add_propagation_handler(options, &m)
+                end
+            end
+
             def self.unplug_handler_from_roby(roby_engine, *handlers)
                 if @handler_ids
                     handlers.each do |h|
-                        roby_engine.remove_propagation_handler(@handler_ids.delete(h))
+                        if h_id = @handler_ids.delete(h)
+                            roby_engine.remove_propagation_handler(h_id)
+                        end
                     end
                 end
             end
