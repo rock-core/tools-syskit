@@ -170,7 +170,7 @@ module Syskit
             end
 
             def setting_up!(promise)
-                promise.on_error do
+                promise.on_error do |e|
                     start_event.emit_failed(e)
                 end
                 promise.execute
