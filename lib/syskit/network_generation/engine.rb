@@ -503,11 +503,16 @@ module Syskit
             # Computes the set of requirement tasks that should be used for
             # deployment within the given plan
             def self.discover_requirement_tasks_from_plan(plan)
-                req_tasks = plan.find_local_tasks(InstanceRequirementsTask).
-                    find_all do |req_task|
-                        !req_task.failed? && !req_task.pending? &&
-                            req_task.planned_task && !req_task.planned_task.finished?
+                req_tasks = plan.find_local_tasks(InstanceRequirementsTask)
+                req_tasks = req_tasks.find_all do |req_task|
+                    if req_task.failed? || req_task.pending?
+                        false
+                    elsif planned_task = req_task.planned_task
+                        !planned_task.finished? || planned_task.being_repaired?
+                    else
+                        false
                     end
+                end
                 needed = plan.useful_tasks(with_transactions: false)
                 req_tasks.delete_if do |t|
                     !needed.include?(t)

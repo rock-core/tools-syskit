@@ -49,6 +49,24 @@ module Syskit
                 it "ignores InstanceRequirementsTask tasks that are pending" do
                     assert_equal [], Engine.discover_requirement_tasks_from_plan(plan)
                 end
+                it "ignores InstanceRequirementsTask tasks whose planend task has finished" do
+                    task = syskit_stub_deploy_configure_and_start(simple_component_model)
+                    task.stop!
+                    plan.unmark_mission_task(task)
+                    assert_event_emission task.stop_event
+                    assert_equal [], Engine.discover_requirement_tasks_from_plan(plan)
+                end
+                it "includes InstanceRequirementsTask tasks whose planned task have finished, but are being repaired" do
+                    task = syskit_stub_deploy_configure_and_start(simple_component_model)
+                    plan.add_permanent_task(task)
+                    planning_task = task.planning_task
+                    task.stop!
+                    repair = Roby::Tasks::Simple.new
+                    task.stop_event.handle_with(repair)
+                    repair.start!
+                    assert_event_emission task.stop_event
+                    assert_equal [planning_task], Engine.discover_requirement_tasks_from_plan(plan)
+                end
             end
 
             describe "#compute_system_network" do
