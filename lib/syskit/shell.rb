@@ -38,14 +38,12 @@ module Syskit
         # Helper method that makes sure that changed configuration files will
         # cause the relevant tasks to be reconfigured in the next re-deployment
         def mark_changed_configuration_as_not_reusable(changed)
-            engine.execute do
-                TaskContext.configured.each do |task_name, (syskit_model, current_conf, _)|
-                    changed_conf = changed[syskit_model.concrete_model]
+            TaskContext.configured.each do |task_name, (syskit_model, current_conf, _)|
+                changed_conf = changed[syskit_model.concrete_model]
 
-                    if changed_conf && current_conf.any? { |section_name| changed_conf.include?(section_name) }
-                        ::Robot.info "task #{task_name} needs reconfiguration"
-                        TaskContext.needs_reconfiguration << task_name
-                    end
+                if changed_conf && current_conf.any? { |section_name| changed_conf.include?(section_name) }
+                    ::Robot.info "task #{task_name} needs reconfiguration"
+                    TaskContext.needs_reconfiguration << task_name
                 end
             end
         end
@@ -64,20 +62,18 @@ module Syskit
         #   deployments matching this model will be stopped, otherwise all
         #   deployments are stopped.
         def stop_deployments(*models)
-            engine.execute do
-                if models.empty?
-                    models << Syskit::Deployment
-                end
-                models.each do |m|
-                    plan.find_tasks(m).
-                        each do |task|
-                            if task.kind_of?(Syskit::TaskContext)
-                                task.execution_agent.stop!
-                            else
-                                task.stop!
-                            end
+            if models.empty?
+                models << Syskit::Deployment
+            end
+            models.each do |m|
+                plan.find_tasks(m).
+                    each do |task|
+                        if task.kind_of?(Syskit::TaskContext)
+                            task.execution_agent.stop!
+                        else
+                            task.stop!
                         end
-                end
+                    end
             end
         end
         command :stop_deployments, 'stops deployment processes',
@@ -90,35 +86,33 @@ module Syskit
         #   supporting tasks matching the models will be restarted, otherwise all
         #   deployments are restarted.
         def restart_deployments(*models)
-            engine.execute do
-                protection = ShellDeploymentRestart.new
-                plan.add(protection)
-                protection.start!
+            protection = ShellDeploymentRestart.new
+            plan.add(protection)
+            protection.start!
 
-                if models.empty?
-                    models << Syskit::Deployment
-                end
-                done = Roby::AndGenerator.new
-                done.signals protection.stop_event
+            if models.empty?
+                models << Syskit::Deployment
+            end
+            done = Roby::AndGenerator.new
+            done.signals protection.stop_event
 
-                models.each do |m|
-                    agents = Set.new
-                    plan.find_tasks(m).
-                        each do |task|
-                            if task.kind_of?(Syskit::TaskContext)
-                                agents << task.execution_agent
-                            else
-                                agents << task
-                            end
+            models.each do |m|
+                agents = Set.new
+                plan.find_tasks(m).
+                    each do |task|
+                        if task.kind_of?(Syskit::TaskContext)
+                            agents << task.execution_agent
+                        else
+                            agents << task
                         end
-
-                    agents.each do |agent_task|
-                        agent_task.each_executed_task do |task|
-                            task.stop_event.handle_with(protection)
-                        end
-                        done << agent_task.stop_event
-                        agent_task.stop!
                     end
+
+                agents.each do |agent_task|
+                    agent_task.each_executed_task do |task|
+                        task.stop_event.handle_with(protection)
+                    end
+                    done << agent_task.stop_event
+                    agent_task.stop!
                 end
             end
             nil
@@ -146,9 +140,7 @@ module Syskit
         # It must be called after {#reload_config} to apply the new
         # configuration(s)
         def redeploy
-            engine.execute do
-                NetworkGeneration::Engine.resolve(plan)
-            end
+            NetworkGeneration::Engine.resolve(plan)
             nil
         end
         command :redeploy, 'redeploys the current network',
