@@ -13,8 +13,8 @@ module Syskit
             FileUtils.mkdir_p(path)
             plan.find_tasks(task_model).
                 each do |t|
-                Orocos.conf.save(t.orocos_task, path, name || t.orocos_task.name)
-            end
+                    Orocos.conf.save(t.orocos_task, path, name || t.orocos_task.name)
+                end
             nil
         end
         command :dump_task_config, 'saves configuration from running tasks into yaml files',
@@ -50,10 +50,18 @@ module Syskit
 
         class ShellDeploymentRestart < Roby::Task
             event :start, :controlable => true
-            event :stop do |context|
-                NetworkGeneration::Engine.resolve(plan)
-                emit :stop
+
+            poll do
+                if redeploy_event.pending? && !plan.syskit_has_async_resolution?
+                    redeploy_event.emit
+                end
             end
+
+            event :redeploy do |context|
+                Runtime.apply_requirement_modifications(plan, force: true)
+            end
+
+            forward :redeploy => :stop
         end
 
         # Stops deployment processes
@@ -94,7 +102,7 @@ module Syskit
                 models << Syskit::Deployment
             end
             done = Roby::AndGenerator.new
-            done.signals protection.stop_event
+            done.signals protection.redeploy_event
 
             models.each do |m|
                 agents = Set.new
@@ -140,7 +148,7 @@ module Syskit
         # It must be called after {#reload_config} to apply the new
         # configuration(s)
         def redeploy
-            NetworkGeneration::Engine.resolve(plan)
+            Runtime.apply_requirement_modifications(plan, force: true)
             nil
         end
         command :redeploy, 'redeploys the current network',

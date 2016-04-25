@@ -49,6 +49,7 @@ module Syskit
                 add_propagation_handler(type: :external_events,
                                         &Runtime.method(:update_task_states))
             plug_connection_management
+            unplug_apply_requirement_modifications
 
             if !Syskit.conf.disables_local_process_server?
                 Syskit::RobyApp::Plugin.connect_to_local_process_server
@@ -57,6 +58,15 @@ module Syskit
             Syskit.conf.register_process_server(
                 'stubs', Orocos::RubyTasks::ProcessManager.new(Roby.app.default_loader), "")
 
+        end
+
+        def plug_apply_requirement_modifications
+            @syskit_handler_ids[:apply_requirement_modifications] ||= execution_engine.
+                add_propagation_handler(type: :propagation, late: true,
+                                        &Runtime.method(:apply_requirement_modifications))
+        end
+        def unplug_apply_requirement_modifications
+            execution_engine.remove_propagation_handler(@syskit_handler_ids.delete(:apply_requirement_modifications))
         end
 
         def plug_connection_management

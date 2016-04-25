@@ -78,9 +78,12 @@ module Syskit
                     raise RuntimeError, "the current network resolution is not yet finished"
                 end
 
-                syskit_current_resolution.apply
-                syskit_current_resolution_keepalive.discard_transaction
-                @syskit_current_resolution = nil
+                begin
+                    syskit_current_resolution.apply
+                ensure
+                    syskit_current_resolution_keepalive.discard_transaction
+                    @syskit_current_resolution = nil
+                end
             end
         end
 

@@ -130,6 +130,11 @@ module Syskit
                 yield(group_by_name(name))
             end
 
+            # Remove a group
+            def remove_group(name)
+                groups.delete(name.to_str)
+            end
+
             # @api private
             #
             # Helper method to test whether an object is excluded from log
