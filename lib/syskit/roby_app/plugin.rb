@@ -204,7 +204,11 @@ module Syskit
                 Syskit.conf.register_process_server(
                    'ros', Orocos::ROS::ProcessManager.new(app.ros_loader), app.log_dir)
 
-                ENV['ORO_LOGFILE'] = File.join(app.log_dir, "orocos.orocosrb-#{::Process.pid}.txt")
+                if Orocos.orocos_logfile
+                    ENV['ORO_LOGFILE'] = Orocos.orocos_logfile
+                else
+                    ENV['ORO_LOGFILE'] = File.join(app.log_dir, "orocos.orocosrb-#{::Process.pid}.txt")
+                end
                 if Syskit.conf.only_load_models?
                     Orocos.load
                     if Orocos::ROS.available?
