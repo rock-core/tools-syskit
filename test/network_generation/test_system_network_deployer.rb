@@ -119,7 +119,8 @@ module Syskit
                     # Add it to the work plan
                     flexmock(plan).should_receive(:add).once.with(deployment_task).ordered.pass_thru
                     # Create the task
-                    deployment_task.should_receive(:task).with('task').and_return(deployed_task = flexmock).ordered
+                    deployment_task.should_receive(:task).explicitly.
+                        with('task').and_return(deployed_task = flexmock).ordered
                     # And finally replace the task with the deployed task
                     merge_solver.should_receive(:apply_merge_group).once.with(task => deployed_task)
                     subject.deploy(validate: false)
@@ -137,8 +138,10 @@ module Syskit
                     flexmock(deployment_models[0]).should_receive(:new).once.
                         with(on: 'machine').
                         and_return(deployment_task = flexmock(Roby::Task.new))
-                    deployment_task.should_receive(:task).with('task').once.and_return(task = flexmock)
-                    deployment_task.should_receive(:task).with('other_task').once.and_return(other_task = flexmock)
+                    deployment_task.should_receive(:task).explicitly.
+                        with('task').once.and_return(task = flexmock)
+                    deployment_task.should_receive(:task).explicitly.
+                        with('other_task').once.and_return(other_task = flexmock)
                     merge_solver.should_receive(:apply_merge_group).once.with(task0 => task)
                     merge_solver.should_receive(:apply_merge_group).once.with(task1 => other_task)
                     # And finally replace the task with the deployed task
@@ -165,8 +168,10 @@ module Syskit
                     flexmock(deployment_models[0]).should_receive(:new).once.
                         with(on: 'other_machine').
                         and_return(deployment_task1 = flexmock(Roby::Task.new))
-                    deployment_task0.should_receive(:task).with('task').once.and_return(task = flexmock)
-                    deployment_task1.should_receive(:task).with('other_task').once.and_return(other_task = flexmock)
+                    deployment_task0.should_receive(:task).explicitly.
+                        with('task').once.and_return(task = flexmock)
+                    deployment_task1.should_receive(:task).explicitly.
+                        with('other_task').once.and_return(other_task = flexmock)
                     merge_solver.should_receive(:apply_merge_group).once.with(task0 => task)
                     merge_solver.should_receive(:apply_merge_group).once.with(task1 => other_task)
                     # And finally replace the task with the deployed task

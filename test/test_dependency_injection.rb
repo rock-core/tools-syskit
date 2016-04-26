@@ -548,31 +548,6 @@ class TC_DependencyInjection < Minitest::Test
         assert_equal %w{bla}.to_set, obj.resolve_names
     end
 
-    def test_resolve_names_recursively_applies_on_instance_requirements
-        requirements = flexmock(Syskit::InstanceRequirements.new)
-        requirements.should_receive(:freeze)
-        requirements.should_receive(:resolve_names).and_return(Set.new).once
-        obj = DependencyInjection.new('name' => requirements)
-        obj.resolve_names
-    end
-
-    def test_resolve_names_recursively_applies_on_instance_requirements_using_the_same_mappings
-        mappings = Hash.new
-        requirements = flexmock(Syskit::InstanceRequirements.new)
-        requirements.should_receive(:freeze)
-        requirements.should_receive(:resolve_names).and_return(Set.new).with(mappings).once
-        obj = DependencyInjection.new('name' => requirements)
-        obj.resolve_names(mappings)
-    end
-
-    def test_resolve_names_returns_unresolved_names_from_recursive_instance_requirements
-        requirements = flexmock(Syskit::InstanceRequirements.new)
-        requirements.should_receive(:freeze)
-        requirements.should_receive(:resolve_names).and_return(['unresolved_name'])
-        obj = DependencyInjection.new('name' => requirements, 'another_name' => 'bla')
-        assert_equal %w{unresolved_name bla}.to_set, obj.resolve_names
-    end
-
     def test_selection_for_calls_resolve_if_needed
         c0 = Component.new_submodel
         di = DependencyInjection.new('value' => c0)

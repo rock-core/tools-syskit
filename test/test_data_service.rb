@@ -7,7 +7,7 @@ describe Syskit::Device do
         @device_m = Syskit::Device.new_submodel
         @devices = Hash.new
         robot = flexmock(devices: devices)
-        flexmock(task_m).new_instances.should_receive(:robot).and_return(robot)
+        flexmock(task_m).new_instances.should_receive(:robot).explicitly.and_return(robot)
     end
     
     describe "#find_device_attached_to" do

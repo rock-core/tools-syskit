@@ -271,11 +271,9 @@ describe Syskit::NetworkGeneration::MergeSolver do
                 cmp1 = cmp_m.use(task_m.out1_srv).instanciate(plan)
                 cmp2 = cmp_m.use(task_m.out2_srv).instanciate(plan)
                 solver = Syskit::NetworkGeneration::MergeSolver.new(plan)
-                flexmock(solver).should_receive(:merge).
-                    with(Syskit::TaskContext, Syskit::TaskContext).
+                flexmock(solver).should_receive(:apply_merge_group).
+                    with(->(mapping) { mapping.to_a.all? { |a, b| a.kind_of?(Syskit::TaskContext) && b.kind_of?(Syskit::TaskContext) } }).
                     pass_thru
-                flexmock(solver).should_receive(:merge).
-                    with(Syskit::Composition, Syskit::Composition).never
                 solver.merge_identical_tasks
                 plan.clear
             end

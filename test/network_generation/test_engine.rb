@@ -261,14 +261,14 @@ module Syskit
                 end
 
                 def should_not_create_new_task
-                    flexmock(existing_deployment_task).should_receive(:task).never
+                    flexmock(existing_deployment_task).should_receive(:task).explicitly.never
                     merge_solver.should_receive(:apply_merge_group).once.
                         with(task => existing_task)
                 end
 
                 def should_create_new_task
                     new_task = task_model.new
-                    flexmock(existing_deployment_task).should_receive(:task).once.
+                    flexmock(existing_deployment_task).should_receive(:task).explicitly.once.
                         with('task', any).and_return(new_task)
                     merge_solver.should_receive(:apply_merge_group).once.
                         with(task => new_task)
