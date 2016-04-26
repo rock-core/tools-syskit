@@ -21,6 +21,10 @@ module Syskit
             File.join(SYSKIT_ROOT_DIR, "test", "data")
         end
 
+        def app
+            Roby.app
+        end
+
         def setup
             @old_pkg_config = ENV['PKG_CONFIG_PATH'].dup
             Roby.app.app_dir = nil

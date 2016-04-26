@@ -144,19 +144,19 @@ describe Syskit::Models::TaskContext do
 
     describe "#has_model_for?" do
         it "returns true if the given oroGen model has a corresponding syskit model" do
-            orogen_model = OroGen::Spec::TaskContext.new(Orocos.default_project, "my_project::Task")
+            orogen_model = OroGen::Spec::TaskContext.new(app.default_orogen_project, "my_project::Task")
             syskit_model = Syskit::TaskContext.define_from_orogen(orogen_model)
             assert Syskit::TaskContext.has_model_for?(orogen_model)
         end
         it "returns false if the given oroGen model does not have a corresponding syskit model" do
-            orogen_model = OroGen::Spec::TaskContext.new(Orocos.default_project, "my_project::Task")
+            orogen_model = OroGen::Spec::TaskContext.new(app.default_orogen_project, "my_project::Task")
             assert !Syskit::TaskContext.has_model_for?(orogen_model)
         end
     end
 
     describe "#find_model_from_orogen_name" do
         it "returns the syskit model if there is one for an oroGen model with the given name" do
-            orogen_model = OroGen::Spec::TaskContext.new(Orocos.default_project, "my_project::Task")
+            orogen_model = OroGen::Spec::TaskContext.new(app.default_orogen_project, "my_project::Task")
             syskit_model = Syskit::TaskContext.define_from_orogen(orogen_model)
             assert_same syskit_model, Syskit::TaskContext.find_model_from_orogen_name("my_project::Task")
         end
@@ -167,21 +167,21 @@ describe Syskit::Models::TaskContext do
 
     describe "#has_submodel?" do
         it "returns false on unknown orogen models" do
-            model = OroGen::Spec::TaskContext.new(Orocos.default_project)
+            model = OroGen::Spec::TaskContext.new(app.default_orogen_project)
             assert !Syskit::TaskContext.has_model_for?(model)
         end
     end
 
     describe "#find_model_by_orogen" do
         it "returns nil on unknown orogen models" do
-            model = OroGen::Spec::TaskContext.new(Orocos.default_project)
+            model = OroGen::Spec::TaskContext.new(app.default_orogen_project)
             assert !Syskit::TaskContext.find_model_by_orogen(model)
         end
     end
 
     describe "#model_for" do
         it "raises ArgumentError on unknown orogen models" do
-            model = OroGen::Spec::TaskContext.new(Orocos.default_project)
+            model = OroGen::Spec::TaskContext.new(app.default_orogen_project)
             assert_raises(ArgumentError) { Syskit::TaskContext.model_for(model) }
         end
     end
@@ -195,14 +195,14 @@ describe Syskit::Models::TaskContext do
     describe "#define_from_orogen" do
         it "calls new_submodel to create the new model" do
             model = Syskit::TaskContext.new_submodel
-            orogen = OroGen::Spec::TaskContext.new(Orocos.default_project)
+            orogen = OroGen::Spec::TaskContext.new(app.default_orogen_project)
             flexmock(OroGen::RTT::TaskContext).should_receive(:new_submodel).with(orogen_model: orogen).once.and_return(model)
             assert_same model, Syskit::TaskContext.define_from_orogen(orogen)
         end
 
         it "creates the model from the superclass if it does not exist" do
-            orogen_parent = OroGen::Spec::TaskContext.new(Orocos.default_project)
-            orogen = OroGen::Spec::TaskContext.new(Orocos.default_project)
+            orogen_parent = OroGen::Spec::TaskContext.new(app.default_orogen_project)
+            orogen = OroGen::Spec::TaskContext.new(app.default_orogen_project)
             parent_model = Syskit::TaskContext.new_submodel
             orogen.subclasses orogen_parent
             flexmock(Syskit::TaskContext).
@@ -216,10 +216,10 @@ describe Syskit::Models::TaskContext do
         end
     
         it "reuses the model of the superclass if it has already been created" do
-            orogen_parent = OroGen::Spec::TaskContext.new(Orocos.default_project)
+            orogen_parent = OroGen::Spec::TaskContext.new(app.default_orogen_project)
             parent_model = Syskit::TaskContext.define_from_orogen(orogen_parent)
 
-            orogen = OroGen::Spec::TaskContext.new(Orocos.default_project)
+            orogen = OroGen::Spec::TaskContext.new(app.default_orogen_project)
             orogen.subclasses orogen_parent
             flexmock(Syskit::TaskContext).
                 should_receive(:define_from_orogen).with(orogen).
@@ -232,7 +232,7 @@ describe Syskit::Models::TaskContext do
         end
 
         it "properly defines state events" do
-            orogen = OroGen::Spec::TaskContext.new(Orocos.default_project) do
+            orogen = OroGen::Spec::TaskContext.new(app.default_orogen_project) do
                 error_states :CUSTOM_ERROR
                 exception_states :CUSTOM_EXCEPTION
                 fatal_states :CUSTOM_FATAL
@@ -252,13 +252,13 @@ describe Syskit::Models::TaskContext do
 
         describe "backward-compatible name registration" do
             it "registers the model as a global constant whose name is based on the oroGen model name" do
-                orogen_model = OroGen::Spec::TaskContext.new(Orocos.default_project, "my_project::Task")
+                orogen_model = OroGen::Spec::TaskContext.new(app.default_orogen_project, "my_project::Task")
                 syskit_model =
                     begin
-                        Roby.app.backward_compatible_naming = true
+                        app.backward_compatible_naming = true
                         Syskit::TaskContext.define_from_orogen(orogen_model, register: true)
                     ensure
-                        Roby.app.backward_compatible_naming = false
+                        app.backward_compatible_naming = false
                     end
 
                 with_log_level(Syskit, Logger::FATAL) do
@@ -268,26 +268,26 @@ describe Syskit::Models::TaskContext do
         end
 
         it "registers the model as a constant whose name is based on the oroGen model name, under OroGen" do
-            orogen_model = OroGen::Spec::TaskContext.new(Orocos.default_project, "my_project::Task")
+            orogen_model = OroGen::Spec::TaskContext.new(app.default_orogen_project, "my_project::Task")
             syskit_model = Syskit::TaskContext.define_from_orogen(orogen_model, register: true)
             assert_same syskit_model, OroGen::MyProject::Task
         end
 
         it "has a name derived from the oroGen model name" do
-            orogen_model = OroGen::Spec::TaskContext.new(Orocos.default_project, "my_project::Task")
+            orogen_model = OroGen::Spec::TaskContext.new(app.default_orogen_project, "my_project::Task")
             syskit_model = Syskit::TaskContext.define_from_orogen(orogen_model, register: true)
             assert_equal 'OroGen::MyProject::Task', syskit_model.name
         end
 
         it "issues a warning if requested to register a model as a constant that already exists" do
-            orogen_model = OroGen::Spec::TaskContext.new(Orocos.default_project, "definition_module::Task")
+            orogen_model = OroGen::Spec::TaskContext.new(app.default_orogen_project, "definition_module::Task")
             OroGen::DefinitionModule.const_set(:Task, (obj = Object.new))
             flexmock(Syskit::TaskContext).should_receive(:warn).once
             Syskit::TaskContext.define_from_orogen(orogen_model, register: true)
         end
         it "refuses to register the model as a constant if the constant already exists" do
             Syskit.logger.level = Logger::FATAL
-            orogen_model = OroGen::Spec::TaskContext.new(Orocos.default_project, "definition_module::Task")
+            orogen_model = OroGen::Spec::TaskContext.new(app.default_orogen_project, "definition_module::Task")
             OroGen::DefinitionModule.const_set(:Task, (obj = Object.new))
             syskit_model = Syskit::TaskContext.define_from_orogen(orogen_model, register: true)
             assert_same obj, ::OroGen::DefinitionModule::Task
@@ -317,11 +317,11 @@ describe Syskit::Models::TaskContext do
     describe "#has_dynamic_input_port?" do
         attr_reader :task_m, :opaque_t, :intermediate_t
         before do
-            typekit = OroGen::Spec::Typekit.new(Orocos.default_project, 'test')
+            typekit = OroGen::Spec::Typekit.new(app.default_orogen_project, 'test')
             @opaque_t = typekit.create_interface_opaque '/opaque', 0
             @intermediate_t = typekit.create_opaque '/intermediate', 0
             typekit.opaques << OroGen::Spec::OpaqueDefinition.new(opaque_t, intermediate_t, Hash.new, nil)
-            Orocos.default_loader.register_typekit_model(typekit)
+            app.default_loader.register_typekit_model(typekit)
 
             @task_m = Syskit::TaskContext.new_submodel do
                 dynamic_input_port 'test', '/opaque'
@@ -337,11 +337,11 @@ describe Syskit::Models::TaskContext do
     describe "#has_dynamic_output_port?" do
         attr_reader :task_m, :opaque_t, :intermediate_t
         before do
-            typekit = OroGen::Spec::Typekit.new(Orocos.default_project, 'test')
+            typekit = OroGen::Spec::Typekit.new(app.default_orogen_project, 'test')
             @opaque_t = typekit.create_interface_opaque '/opaque', 0
             @intermediate_t = typekit.create_opaque '/intermediate', 0
             typekit.opaques << OroGen::Spec::OpaqueDefinition.new(opaque_t, intermediate_t, Hash.new, nil)
-            Orocos.default_loader.register_typekit_model(typekit)
+            app.default_loader.register_typekit_model(typekit)
 
             @task_m = Syskit::TaskContext.new_submodel do
                 dynamic_output_port 'test', '/opaque'
