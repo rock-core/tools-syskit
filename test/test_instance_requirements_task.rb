@@ -26,9 +26,11 @@ describe Syskit::InstanceRequirementsTask do
             new_instances.should_receive(:resolve_system_network).and_raise(ArgumentError)
         Roby.logger.level = Logger::FATAL
         resolution = nil
-        assert_event_emission(req_task.failed_event) do
-            req_task.start!
-            resolution = plan.syskit_current_resolution
+        assert_raises(Roby::PlanningFailedError) do
+            assert_event_emission(req_task.failed_event) do
+                req_task.start!
+                resolution = plan.syskit_current_resolution
+            end
         end
         assert resolution.transaction_finalized?
         assert !resolution.transaction_committed?
@@ -42,9 +44,11 @@ describe Syskit::InstanceRequirementsTask do
             new_instances.should_receive(:apply_system_network_to_plan).and_raise(ArgumentError)
         Roby.logger.level = Logger::FATAL
         resolution = nil
-        assert_event_emission(req_task.failed_event) do
-            req_task.start!
-            resolution = plan.syskit_current_resolution
+        assert_raises(Roby::PlanningFailedError) do
+            assert_event_emission(req_task.failed_event) do
+                req_task.start!
+                resolution = plan.syskit_current_resolution
+            end
         end
         assert resolution.transaction_finalized?
         assert !resolution.transaction_committed?

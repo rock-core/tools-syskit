@@ -40,8 +40,10 @@ describe Syskit::Coordination::DataMonitoringTable do
         table = table_m.new(component)
         syskit_start(component)
         component.orocos_task.out.write(10)
-        inhibit_fatal_messages do
-            process_events
+        assert_raises(Roby::CodeError) do
+            inhibit_fatal_messages do
+                process_events
+            end
         end
         assert_kind_of Roby::CodeError, component.failure_reason
     end

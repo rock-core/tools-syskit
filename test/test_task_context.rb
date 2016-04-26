@@ -704,6 +704,7 @@ describe Syskit::TaskContext do
             task = syskit_stub_deploy_configure_and_start(Syskit::TaskContext.new_submodel)
             flexmock(task.orocos_task).should_receive(:stop).once.pass_thru
             task.interrupt!
+            plan.unmark_mission_task(task)
             assert_event_emission task.stop_event
         end
     end

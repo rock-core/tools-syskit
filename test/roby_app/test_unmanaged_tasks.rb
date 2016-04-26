@@ -3,12 +3,15 @@ require 'syskit/test/self'
 module Syskit
     module RobyApp
         describe UnmanagedTasksManager do
-            attr_reader :process_manager, :task_model, :unmanaged_task
+            attr_reader :process_manager, :task_model, :unmanaged_task, :task
 
             before do
                 @task_model = Syskit::TaskContext.new_submodel
                 @process_manager = Syskit.conf.process_server_for('unmanaged_tasks')
                 Syskit.conf.use_unmanaged_task task_model => 'unmanaged_deployment_test'
+                @task = syskit_deploy(task_model)
+                plan.unmark_mission_task(task)
+                plan.add_permanent_task(task)
             end
 
             after do
@@ -17,6 +20,7 @@ module Syskit
                         with_arguments(orocos_name: unmanaged_task.name).
                         first
                     if task
+                        plan.unmark_permanent_task(task)
                         process = task.execution_agent
                         if task.running?
                             assert_event_emission(task.stop_event) do
@@ -47,12 +51,7 @@ module Syskit
                 @unmanaged_task = nil
             end
 
-            it "allows to deploy the unmanaged task" do
-                syskit_deploy(task_model)
-            end
-
             it "allows to kill a started deployment that was not ready" do
-                task = syskit_deploy(task_model)
                 assert_event_emission(task.execution_agent.start_event) do
                     task.execution_agent.start!
                 end
@@ -62,7 +61,6 @@ module Syskit
             end
 
             it "configures and starts the task when it becomes available" do
-                task = syskit_deploy(task_model)
                 process_events
                 assert task.execution_agent.running?
                 assert !task.execution_agent.ready?
@@ -74,7 +72,6 @@ module Syskit
             end
 
             it "stopping the process causes the monitor thread to quit" do
-                task = syskit_deploy(task_model)
                 assert_event_emission(task.start_event) do
                     create_unmanaged_task
                 end
@@ -90,7 +87,6 @@ module Syskit
             end
 
             it "aborts the execution agent if the spawn thread fails in unexpected ways" do
-                task = syskit_deploy(task_model)
                 assert_event_emission(task.execution_agent.start_event)
                 inhibit_fatal_messages do
                     assert_event_emission(task.execution_agent.stop_event) do
@@ -100,7 +96,6 @@ module Syskit
             end
 
             it "aborts the execution agent if the monitor thread fails in unexpected ways" do
-                task = syskit_deploy(task_model)
                 assert_event_emission(task.execution_agent.ready_event) do
                     create_unmanaged_task
                 end
@@ -112,7 +107,6 @@ module Syskit
             end
 
             it "aborts the task if it becomes unavailable" do
-                task = syskit_deploy(task_model)
                 assert_event_emission(task.start_event) do
                     create_unmanaged_task
                 end
@@ -129,7 +123,6 @@ module Syskit
             end
 
             it "cleans up the tasks when killed" do
-                task = syskit_deploy(task_model)
                 assert_event_emission(task.start_event) do
                     create_unmanaged_task
                 end
@@ -144,7 +137,6 @@ module Syskit
             # UnmanagedProcess would fail when this happened but the current
             # implementation should be completely imprevious
             it "handles concurrently having the monitor fail and #kill being called" do
-                task = syskit_deploy(task_model)
                 assert_event_emission(task.start_event) do
                     create_unmanaged_task
                 end
