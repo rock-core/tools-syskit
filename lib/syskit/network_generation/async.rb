@@ -85,12 +85,12 @@ module Syskit
             end
 
             def finished?
-                !future.pending?
+                future.fulfilled? || future.rejected?
             end
 
             def join
                 result = future.value
-                if !future.fulfilled?
+                if future.rejected?
                     raise future.reason
                 end
                 result
