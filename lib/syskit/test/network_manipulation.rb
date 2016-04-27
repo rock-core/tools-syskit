@@ -741,7 +741,7 @@ module Syskit
                 end
 
                 if t = tasks.find { |t| !t.running? }
-                    raise "#{t} #{t.starting?} #{t.running?} #{t.finished?}"
+                    raise RuntimeError, "failed to start #{t}: starting=#{t.starting?} running=#{t.running?} finished=#{t.finished?}"
                 end
 
                 component
