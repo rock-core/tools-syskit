@@ -776,8 +776,9 @@ module Syskit
             #      'processor' => Cmp.use('pose' => RootCmp.pose_child))
             #   syskit_stub_deploy_and_start_composition(model)
             def syskit_stub_and_deploy(model = subject_syskit_model, recursive: true, as: syskit_default_stub_name(model), &block)
-                model = syskit_stub(model, recursive: recursive, as: as, &block)
-                syskit_deploy(model, compute_policies: false)
+                tasks = syskit_generate_network(model, &block)
+                tasks = syskit_stub_network(tasks)
+                tasks.first
             end
 
             # Stub a task, deploy it and configure it
