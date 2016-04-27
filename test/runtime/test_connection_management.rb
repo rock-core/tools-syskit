@@ -395,8 +395,10 @@ module Syskit
                         input_port('in', '/double').static
                         output_port 'out', '/double'
                     end
-                    source = syskit_stub_and_deploy(task_m.with_conf('source'))
-                    sink   = syskit_stub_and_deploy(task_m.with_conf('sink'))
+                    source_m = syskit_stub_requirements(task_m.with_conf('source'))
+                    sink_m   = syskit_stub_requirements(task_m.with_conf('sink'))
+                    source = syskit_stub_and_deploy(source_m)
+                    sink   = syskit_stub_and_deploy(sink_m)
                     source.out_port.connect_to sink.in_port
                     syskit_configure_and_start(source)
                     syskit_configure_and_start(sink)

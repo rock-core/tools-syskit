@@ -587,13 +587,13 @@ describe Syskit::TaskContext do
             prepare_task_for_setup(:STOPPED)
         end
         it "cleans up if the state is STOPPED and the task has never been configured" do
-            Syskit::TaskContext.configured['task'] = nil
+            Syskit::TaskContext.configured[task.orocos_name] = nil
             orocos_task.should_receive(:cleanup).once.ordered
             task.should_receive(:clean_dynamic_port_connections).once.ordered
             prepare_task_for_setup(:STOPPED)
         end
         it "cleans up if the state is STOPPED and the task's configuration changed" do
-            Syskit::TaskContext.configured['task'] = [nil, [], Set.new]
+            Syskit::TaskContext.configured[task.orocos_name] = [nil, [], Set.new]
             orocos_task.should_receive(:cleanup).once.ordered
             task.should_receive(:clean_dynamic_port_connections).once.ordered
             prepare_task_for_setup(:STOPPED)
@@ -643,7 +643,7 @@ describe Syskit::TaskContext do
             flexmock(task).should_receive(:ready_for_setup?).with(:PRE_OPERATIONAL).and_return(true)
             task.needs_reconfiguration!
             setup_task
-            assert_equal ['default'], Syskit::TaskContext.configured['task'][1]
+            assert_equal ['default'], Syskit::TaskContext.configured[task.orocos_name][1]
         end
         describe "ordering related to prepare_for_setup" do
             attr_reader :recorder

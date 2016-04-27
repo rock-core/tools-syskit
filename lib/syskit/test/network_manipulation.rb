@@ -62,17 +62,25 @@ module Syskit
                 to_instanciate = normalize_instanciation_models(to_instanciate)
                 placeholders = to_instanciate.map(&:as_plan)
                 if add_missions
-                    placeholders.each { |t| plan.add_mission_task(t) }
+                    placeholders.each do |t|
+                        plan.add_mission_task(t)
+                        t.planning_task.start_event.emit
+                    end
                 end
-                engine = NetworkGeneration::Engine.new(plan)
-                task_mapping = engine.compute_system_network(
-                    placeholders.map(&:planning_task),
-                    plan: plan,
-                    validate_generated_network: false)
+                task_mapping = plan.in_transaction do |trsc|
+                    engine = NetworkGeneration::Engine.new(plan)
+                    mapping = engine.compute_system_network(
+                        placeholders.map(&:planning_task),
+                        plan: trsc,
+                        validate_generated_network: false)
+                    trsc.commit_transaction
+                    mapping
+                end
                 placeholders.map do |task|
                     replacement = task_mapping[task.planning_task]
                     plan.replace_task(task, replacement)
-                    plan.remove_task(replacement.planning_task)
+                    plan.remove_task(task)
+                    replacement.planning_task.success_event.emit
                     replacement
                 end
             end
@@ -214,7 +222,7 @@ module Syskit
             #
             # @param [InstanceRequirements] task_m the task context model
             # @param [String] as the deployment name
-            def syskit_stub_task_context(model, as: syskit_default_stub_name(model), devices: true)
+            def syskit_stub_task_context_requirements(model, as: syskit_default_stub_name(model), devices: true)
                 model = model.to_instance_requirements
 
                 task_m = model.model.to_component_model.concrete_model
@@ -266,7 +274,7 @@ module Syskit
             # Helper for {#syskit_stub_model}
             #
             # @param [InstanceRequirements] model
-            def syskit_stub_composition(model, recursive: true, as: syskit_default_stub_name(model), devices: true)
+            def syskit_stub_composition_requirements(model, recursive: true, as: syskit_default_stub_name(model), devices: true)
                 model = syskit_stub_component(model, devices: devices)
 
                 if recursive
@@ -278,10 +286,10 @@ module Syskit
                             selected_service = child_model.service
                             child_model = child_model.to_component_model
                             if child_model.composition_model? 
-                                deployed_child = syskit_stub_composition(
+                                deployed_child = syskit_stub_composition_requirements(
                                     child_model, recursive: true, as: "#{as}_#{child_name}", devices: devices)
                             else
-                                deployed_child = syskit_stub_task_context(
+                                deployed_child = syskit_stub_task_context_requirements(
                                     child_model, as: "#{as}_#{child_name}", devices: devices)
                             end
                             if selected_service
@@ -300,7 +308,7 @@ module Syskit
             # Finds a driver model for a given device model, or create one if
             # there is none
             def syskit_stub_driver_model_for(model)
-                syskit_stub(model.find_all_drivers.first || model, devices: false)
+                syskit_stub_requirements(model.find_all_drivers.first || model, devices: false)
             end
 
             # Create a stub device of the given model
@@ -384,18 +392,24 @@ module Syskit
                 "stub#{syskit_stub_model_id}"
             end
 
+            # @deprecated use syskit_stub_requirements instead
+            def syskit_stub(*args, **options, &block)
+                Roby.warn_deprecated "syskit_stub has been renamed to syskit_stub_requirements to make the difference with syskit_stub_network more obvious"
+                syskit_stub_requirements(*args, **options, &block)
+            end
+
             # Create an InstanceRequirement instance that would allow to deploy
             # the given model
-            def syskit_stub(model = subject_syskit_model, recursive: true, as: syskit_default_stub_name(model), devices: true, &block)
+            def syskit_stub_requirements(model = subject_syskit_model, recursive: true, as: syskit_default_stub_name(model), devices: true, &block)
                 if model.respond_to?(:to_str)
                     model = syskit_stub_task_context_model(model, &block)
                 end
                 model = model.to_instance_requirements.dup
 
                 if model.composition_model?
-                    syskit_stub_composition(model, recursive: recursive, as: as, devices: devices)
+                    syskit_stub_composition_requirements(model, recursive: recursive, as: as, devices: devices)
                 else
-                    syskit_stub_task_context(model, as: as, devices: devices)
+                    syskit_stub_task_context_requirements(model, as: as, devices: devices)
                 end
             end
 
@@ -403,66 +417,95 @@ module Syskit
             def syskit_stub_network(root_tasks)
                 tasks = Set.new
                 dependency_graph = plan.task_relation_graph_for(Roby::TaskStructure::Dependency)
-                root_tasks.each do |t|
+                root_tasks = root_tasks.map do |t|
                     tasks << t
                     dependency_graph.depth_first_visit(t) do |child_t|
                         tasks << child_t
                     end
+
+                    if plan.mission_task?(t)
+                        [t, :mission_task]
+                    elsif plan.permanent_task?
+                        [t, :permanent_task]
+                    else
+                        [t]
+                    end
                 end
-                tasks = tasks.find_all do |t|
-                    if t.kind_of?(Composition)
+
+                mapped_tasks = Hash.new
+                plan.in_transaction do |trsc|
+                    compositions, nodes = tasks.map { |t| trsc[t] }.partition { |t| t.kind_of?(Composition) }
+                    compositions.each do |t|
                         t.model.each_master_driver_service do |srv|
                             t.arguments["#{srv.name}_dev"] ||=
                                 syskit_stub_device(srv.model, driver: t.model)
                         end
-                        false
-                    else true
                     end
-                end
 
-                merge_solver = NetworkGeneration::MergeSolver.new(plan)
-                merge_mappings = Hash.new
-                stubbed_tags = Hash.new
-                tasks.find_all(&:abstract?).each do |abstract_task|
-                    concrete_task =
-                        if abstract_task.kind_of?(Syskit::Actions::Profile::Tag)
-                            tag_id = [abstract_task.model.tag_name, abstract_task.model.profile.name]
-                            stubbed_tags[tag_id] ||= syskit_stub_network_abstract_task_context(abstract_task)
+                    merge_solver = NetworkGeneration::MergeSolver.new(trsc)
+                    merge_mappings = Hash.new
+                    stubbed_tags = Hash.new
+                    nodes.find_all(&:abstract?).each do |abstract_task|
+                        concrete_task =
+                            if abstract_task.kind_of?(Syskit::Actions::Profile::Tag)
+                                tag_id = [abstract_task.model.tag_name, abstract_task.model.profile.name]
+                                stubbed_tags[tag_id] ||= syskit_stub_network_abstract_task_context(abstract_task)
+                            else
+                                syskit_stub_network_abstract_task_context(abstract_task)
+                            end
+
+                        if !abstract_task.kind_of?(Syskit::TaskContext) # 'pure' proxied data services
+                            trsc.replace_task(abstract_task, concrete_task)
+                            merge_solver.register_replacement(abstract_task, concrete_task)
                         else
-                            syskit_stub_network_abstract_task_context(abstract_task)
+                            merge_mappings[abstract_task] = concrete_task
                         end
-
-                    if !abstract_task.kind_of?(Syskit::TaskContext) # 'pure' proxied data services
-                        plan.replace_task(abstract_task, concrete_task)
-                        merge_solver.register_replacement(abstract_task, concrete_task)
-                    else
-                        merge_mappings[abstract_task] = concrete_task
                     end
-                    concrete_task
+
+                    # NOTE: must NOT call #apply_merge_group with merge_mappings
+                    # directly. #apply_merge_group "replaces" the subnet represented
+                    # by the keys with the subnet represented by the values. In
+                    # other words, the connections present between two keys would
+                    # NOT be copied between the corresponding values
+                    merge_mappings.each do |original, replacement|
+                        merge_solver.apply_merge_group(original => replacement)
+                    end
+                    merge_solver.merge_identical_tasks
+                    trsc.static_garbage_collect
+
+                    merge_mappings = Hash.new
+                    nodes.each do |original_task|
+                        concrete_task = merge_solver.replacement_for(original_task)
+                        if !concrete_task.execution_agent
+                            merge_mappings[concrete_task] = syskit_stub_network_deployment(concrete_task)
+                        end
+                    end
+                    merge_mappings.each do |original, replacement|
+                        merge_solver.apply_merge_group(original => replacement)
+                    end
+
+                    mapped_tasks = Hash.new
+                    tasks.each do |plan_t|
+                        replacement_t = merge_solver.replacement_for(trsc[plan_t])
+                        mapped_tasks[plan_t] = trsc.may_unwrap(replacement_t)
+                    end
+                    trsc.commit_transaction
                 end
 
-                # NOTE: must NOT call #apply_merge_group with merge_mappings
-                # directly. #apply_merge_group "replaces" the subnet represented
-                # by the keys with the subnet represented by the values. In
-                # other words, the connections present between two keys would
-                # NOT be copied between the corresponding values
-                merge_mappings.each do |original, replacement|
-                    merge_solver.apply_merge_group(original => replacement)
+                root_mapped_tasks = root_tasks.map do |root_t, status|
+                    replacement_t = mapped_tasks[root_t]
+                    if replacement_t != root_t
+                        replacement_t.planned_by root_t.planning_task
+                        plan.send("add_#{status}", replacement_t)
+                    end
+                    replacement_t
                 end
-                merge_solver.merge_identical_tasks
-
-                merge_mappings = Hash.new
-                tasks.each do |original_task|
-                    concrete_task = merge_solver.replacement_for(original_task)
-                    if !concrete_task.execution_agent
-                        merge_mappings[concrete_task] = syskit_stub_network_deployment(concrete_task)
+                mapped_tasks.each do |old, new|
+                    if old != new
+                        plan.remove_task(old)
                     end
                 end
-                merge_mappings.each do |original, replacement|
-                    merge_solver.apply_merge_group(original => replacement)
-                end
-
-                root_tasks.map { |t| merge_solver.replacement_for(t) }
+                root_mapped_tasks
             end
 
             def syskit_stub_proxied_data_service(model)
@@ -509,7 +552,7 @@ module Syskit
                 task_m = task.concrete_model
                 deployment_model = syskit_stub_configured_deployment(task_m, as)
                 syskit_stub_conf(task_m, *task.arguments[:conf])
-                plan.add(deployer = deployment_model.new)
+                task.plan.add(deployer = deployment_model.new)
                 deployed_task = deployer.instanciate_all_tasks.first
 
                 new_args = task.arguments.find_all do |key, arg|
@@ -776,6 +819,9 @@ module Syskit
             #      'processor' => Cmp.use('pose' => RootCmp.pose_child))
             #   syskit_stub_deploy_and_start_composition(model)
             def syskit_stub_and_deploy(model = subject_syskit_model, recursive: true, as: syskit_default_stub_name(model), &block)
+                if model.respond_to?(:to_str)
+                    model = syskit_stub_task_context_model(model, &block)
+                end
                 tasks = syskit_generate_network(model, &block)
                 tasks = syskit_stub_network(tasks)
                 tasks.first

@@ -178,7 +178,8 @@ module Syskit
                         end
 
                         syskit_stub(child_m)
-                        parent = syskit_stub_and_deploy(parent_m)
+                        parent_m = syskit_stub(parent_m)
+                        parent = syskit_deploy(parent_m)
                         child  = parent.test_child
 
                         flexmock(child_m).new_instances.should_receive(:can_be_deployed_by?).
