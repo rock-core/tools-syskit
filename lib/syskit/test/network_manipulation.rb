@@ -409,7 +409,16 @@ module Syskit
                         tasks << child_t
                     end
                 end
-                tasks.delete_if { |t| t.kind_of?(Composition) }
+                tasks = tasks.find_all do |t|
+                    if t.kind_of?(Composition)
+                        t.model.each_master_driver_service do |srv|
+                            t.arguments["#{srv.name}_dev"] ||=
+                                syskit_stub_device(srv.model, driver: t.model)
+                        end
+                        false
+                    else true
+                    end
+                end
 
                 merge_solver = NetworkGeneration::MergeSolver.new(plan)
                 merge_mappings = Hash.new
