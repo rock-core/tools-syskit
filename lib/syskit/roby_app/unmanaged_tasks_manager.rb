@@ -119,14 +119,16 @@ module Syskit
                 processes.delete_if do |_, process|
                     begin
                         process.verify_threads_state
-                    rescue Exception
+                    rescue Exception => e
+                        Syskit.fatal "assuming #{process} died because the background thread died with"
+                        Roby.log_exception(e, Syskit, :fatal)
                         dead_processes << process
                     end
 
                     if process.dead?
                         dead_processes << process
-                        true
                     end
+                    dead_processes.include?(process)
                 end
                 dead_processes
             end

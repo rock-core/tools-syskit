@@ -106,6 +106,20 @@ module Syskit
                 end
             end
 
+            it "deregisters the process object of the process whose thread failed" do
+                assert_event_emission(task.execution_agent.ready_event) do
+                    create_unmanaged_task
+                end
+                process = task.execution_agent.orocos_process
+                process_manager = process.process_manager
+                begin
+                    flexmock(process).should_receive(:verify_threads_state).and_raise(ArgumentError)
+                    assert_equal [process], process_manager.wait_termination(0).to_a
+                    assert_equal Set[], process_manager.wait_termination(0)
+                ensure process_manager.processes['unmanaged_deployment_test'] = process
+                end
+            end
+
             it "aborts the task if it becomes unavailable" do
                 assert_event_emission(task.start_event) do
                     create_unmanaged_task
