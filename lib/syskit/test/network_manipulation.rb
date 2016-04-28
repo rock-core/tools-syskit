@@ -471,12 +471,10 @@ module Syskit
                             merge_mappings[abstract_task] = concrete_task
                         end
                     end
-
                     merge_mappings.each do |original, replacement|
                         merge_solver.apply_merge_group(original => replacement)
                     end
                     merge_solver.merge_identical_tasks
-                    trsc.static_garbage_collect
 
                     merge_mappings = Hash.new
                     trsc_tasks.each do |original_task|
@@ -503,6 +501,7 @@ module Syskit
                         end
                     end
 
+                    trsc.static_garbage_collect
                     trsc.commit_transaction
                 end
 
