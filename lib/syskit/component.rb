@@ -160,6 +160,7 @@ module Syskit
             #   promise, to allow subclasses to schedule work 
             def setup(promise)
                 promise.on_success do
+                    freeze_delayed_arguments
                     if self.model.needs_stub?(self)
                         self.model.prepare_stub(self)
                     end

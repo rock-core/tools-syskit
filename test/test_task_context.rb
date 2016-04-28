@@ -612,12 +612,22 @@ describe Syskit::TaskContext do
             orocos_task.should_receive(:rtt_state).by_default.and_return(:BLA)
         end
 
-        def setup_task
+        def setup_task(task = self.task)
             promise = execution_engine.promise { }
             promise = task.setup(promise)
             promise.execute
             execution_engine.join_all_waiting_work
             promise.value!
+        end
+
+        it "freezes delayed arguments" do
+            task_m = Syskit::TaskContext.new_submodel
+            plan.add(task = task_m.new)
+            task = syskit_stub_network_deployment(task)
+            syskit_start_execution_agents(task)
+            assert_nil task.arguments[:conf]
+            setup_task(task)
+            assert_equal ['default'], task.arguments[:conf]
         end
 
         it "calls rtt_state exactly twice" do
