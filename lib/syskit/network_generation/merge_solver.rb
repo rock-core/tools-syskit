@@ -67,10 +67,6 @@ module Syskit
             # @return [Roby::Task]
             # @see #register_replacement
             def replacement_for(task)
-                if task.plan && task.plan != plan
-                    task = plan[task]
-                end
-
                 if replacement = @resolved_replacements[task]
                     # Verify that this is still a leaf in the replacement graph
                     if task_replacement_graph.leaf?(replacement)
