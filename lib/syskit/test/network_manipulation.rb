@@ -898,6 +898,24 @@ module Syskit
                 component = syskit_configure(component, recursive: recursive, except: except)
                 syskit_start(component, recursive: recursive, except: except)
             end
+
+            # Export the dataflow and hierarchy to SVG
+            def syskit_export_to_svg(plan = self.plan, suffix: '')
+                basename = 'syskit-export-%i%s.%s.svg'
+
+                counter = 0
+                Dir.glob('syskit-export-*') do |file|
+                    if file =~ /syskit-export-(\d+)/
+                        counter = [counter, Integer($1)].max
+                    end
+                end
+
+                dataflow = basename % [counter + 1, suffix, 'dataflow']
+                hierarchy = basename % [counter + 1, suffix, 'hierarchy']
+                Syskit::Graphviz.new(plan).to_file('dataflow', 'svg', dataflow)
+                Syskit::Graphviz.new(plan).to_file('hierarchy', 'svg', hierarchy)
+                ::Robot.info "exported plan to #{dataflow} and #{hierarchy}"
+            end
         end
     end
 end
