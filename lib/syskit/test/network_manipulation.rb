@@ -545,7 +545,7 @@ module Syskit
                     task_m = task_m.new_submodel(name: "#{task_m.name}-stub")
                 end
 
-                arguments = task.arguments
+                arguments = task.arguments.dup
                 task_m.each_master_driver_service do |srv|
                     arguments["#{srv.name}_dev"] ||=
                         syskit_stub_device(srv.model, driver: task_m)
