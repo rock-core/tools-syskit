@@ -433,14 +433,13 @@ module Syskit
                 end
 
                 mapped_tasks = Hash.new
+                # NOTE: must NOT call #apply_merge_group with merge_mappings
+                # directly. #apply_merge_group "replaces" the subnet represented
+                # by the keys with the subnet represented by the values. In
+                # other words, the connections present between two keys would
+                # NOT be copied between the corresponding values
                 plan.in_transaction do |trsc|
-                    compositions, nodes = tasks.map { |t| trsc[t] }.partition { |t| t.kind_of?(Composition) }
-                    compositions.each do |t|
-                        t.model.each_master_driver_service do |srv|
-                            t.arguments["#{srv.name}_dev"] ||=
-                                syskit_stub_device(srv.model, driver: t.model)
-                        end
-                    end
+                    trsc_tasks = tasks.map { |t| trsc[t] }
 
                     merge_solver = NetworkGeneration::MergeSolver.new(trsc)
                     tasks.each do |plan_t|
@@ -448,16 +447,24 @@ module Syskit
                     end
                     merge_mappings = Hash.new
                     stubbed_tags = Hash.new
-                    nodes.find_all(&:abstract?).each do |abstract_task|
+                    trsc_tasks.each do |task|
+                        task.model.each_master_driver_service do |srv|
+                            task.arguments["#{srv.name}_dev"] ||=
+                                syskit_stub_device(srv.model, driver: task.model)
+                        end
+                    end
+
+                    trsc_tasks.find_all(&:abstract?).each do |abstract_task|
                         concrete_task =
                             if abstract_task.kind_of?(Syskit::Actions::Profile::Tag)
                                 tag_id = [abstract_task.model.tag_name, abstract_task.model.profile.name]
-                                stubbed_tags[tag_id] ||= syskit_stub_network_abstract_task_context(abstract_task)
+                                stubbed_tags[tag_id] ||= syskit_stub_network_abstract_component(abstract_task)
                             else
-                                syskit_stub_network_abstract_task_context(abstract_task)
+                                syskit_stub_network_abstract_component(abstract_task)
                             end
 
-                        if !abstract_task.kind_of?(Syskit::TaskContext) # 'pure' proxied data services
+
+                        if abstract_task.placeholder_task? && !abstract_task.kind_of?(Syskit::TaskContext) # 'pure' proxied data services
                             trsc.replace_task(abstract_task, concrete_task)
                             merge_solver.register_replacement(abstract_task, concrete_task)
                         else
@@ -465,11 +472,6 @@ module Syskit
                         end
                     end
 
-                    # NOTE: must NOT call #apply_merge_group with merge_mappings
-                    # directly. #apply_merge_group "replaces" the subnet represented
-                    # by the keys with the subnet represented by the values. In
-                    # other words, the connections present between two keys would
-                    # NOT be copied between the corresponding values
                     merge_mappings.each do |original, replacement|
                         merge_solver.apply_merge_group(original => replacement)
                     end
@@ -477,9 +479,9 @@ module Syskit
                     trsc.static_garbage_collect
 
                     merge_mappings = Hash.new
-                    nodes.each do |original_task|
+                    trsc_tasks.each do |original_task|
                         concrete_task = merge_solver.replacement_for(original_task)
-                        if !concrete_task.execution_agent
+                        if concrete_task.kind_of?(TaskContext) && !concrete_task.execution_agent
                             merge_mappings[concrete_task] = syskit_stub_network_deployment(concrete_task)
                         end
                     end
@@ -536,7 +538,7 @@ module Syskit
                 task_m
             end
 
-            def syskit_stub_network_abstract_task_context(task)
+            def syskit_stub_network_abstract_component(task)
                 task_m = task.concrete_model
                 if task_m.respond_to?(:proxied_data_services)
                     task_m = syskit_stub_proxied_data_service(task_m)
