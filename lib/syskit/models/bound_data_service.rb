@@ -250,10 +250,23 @@ module Syskit
                 if task.model == self
                     # !!! task is a BoundDataService
                     return task
-                elsif !task.fullfills?(component_model)
+                elsif task.model <= component_model # This is stronger than #fullfills?
+                    Syskit::BoundDataService.new(task, self)
+                elsif task.fullfills?(component_model)
+                    # Fullfills, but does not inherit ? component_model is a data service proxies
+                    if !component_model.placeholder_task?
+                        raise InternalError, "#{component_model} was expected to be a placeholder task, but is not"
+                    end
+                    base_model = component_model.superclass
+                    if base_model_srv = base_model.find_data_service(name)
+                        # The data service is from a concrete task model
+                        Syskit::BoundDataService.new(task, base_model_srv)
+                    else
+                        task.find_data_service_from_type(model)
+                    end
+                else
                     raise ArgumentError, "cannot bind #{self} on #{task}: does not fullfill #{component_model}"
                 end
-                Syskit::BoundDataService.new(task, self)
             end
 
             # Creates, in the given plan, a new task matching this service in

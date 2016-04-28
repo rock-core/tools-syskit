@@ -140,11 +140,11 @@ module Syskit
                         service_selections.unshift child_model.overload_info.service_selection
                         child_model = child_model.parent_model
                     end
-                    selected_service_m = service_selections.inject(target_srv.model) do |srv, selections|
-                        if selected_srv = selections[srv]
+                    selected_service_m = service_selections.inject(target_srv) do |srv, selections|
+                        if selected_srv = selections[srv.model]
                             if task.model <= selected_srv.component_model
                                 selected_srv
-                            else selected_srv.as_real_model.model
+                            else selected_srv.as_real_model
                             end
                         else break srv
                         end

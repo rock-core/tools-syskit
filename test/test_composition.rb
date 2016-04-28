@@ -54,6 +54,13 @@ describe Syskit::Composition do
             result = composition.find_required_composition_child_from_role('test', composition_m)
             assert_equal composition.test_child.test1_srv.as(base_srv_m), result
         end
+        it "can map a service to a placeholder task" do
+            composition_m = Syskit::Composition.new_submodel
+            composition_m.add base_srv_m, as: 'test'
+            composition = syskit_stub_and_deploy(composition_m)
+            required = composition.find_required_composition_child_from_role('test')
+            assert_equal composition.test_child.each_data_service.first, required
+        end
     end
 
     describe "port access" do

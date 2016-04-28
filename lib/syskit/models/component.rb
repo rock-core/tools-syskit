@@ -1030,6 +1030,13 @@ module Syskit
                     end
                 end
             end
+
+            # Wether this model represents a placeholder for data services
+            #
+            # @see Models::PlaceholderTask
+            def placeholder_task?
+                false
+            end
         end
     end
 
@@ -1147,6 +1154,14 @@ module Syskit
             def find_port(name)
                 find_output_port(name) || find_input_port(name)
             end
+
+            def placeholder_task?
+                true
+            end
+        end
+
+        def placeholder_task?
+            true
         end
 
         def proxied_data_services

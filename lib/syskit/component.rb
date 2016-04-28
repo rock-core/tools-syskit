@@ -65,6 +65,13 @@ module Syskit
                 new_task
             end
 
+            # Wether this component instance is a placeholder for data services
+            #
+            # @see Models::PlaceholderTask
+            def placeholder_task?
+                false
+            end
+
             # Returns a set of hints that should be used to disambiguate the
             # deployment of this task.
             #

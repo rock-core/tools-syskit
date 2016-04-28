@@ -134,6 +134,38 @@ describe Syskit::Models::BoundDataService do
         it" raises ArgumentError if the provided component model is of an invalid type" do
             assert_raises(ArgumentError) { srv_m.bind(Syskit::TaskContext.new_submodel.new) }
         end
+
+        describe "behaviour related to placeholder models" do
+            attr_reader :srv_m, :other_srv_m, :component_m, :placeholder_m, :task_m
+            before do
+                @srv_m = Syskit::DataService.new_submodel
+                @other_srv_m = Syskit::DataService.new_submodel
+                @component_m   = Syskit::TaskContext.new_submodel
+                component_m.provides srv_m, as: 'test'
+                @placeholder_m = Syskit.proxy_task_model_for([component_m, other_srv_m])
+                @task_m = component_m.new_submodel
+                task_m.provides other_srv_m, as: 'other'
+            end
+            it "resolves a placeholder model's base model service by name" do
+                # Add an ambiguous service to ensure that #bind resolves the
+                # right one
+                task_m.provides srv_m, as: 'ambiguous'
+                task = task_m.new
+                assert_equal component_m.test_srv.bind(task), placeholder_m.test_srv.bind(task)
+            end
+            it "resolves a placeholder service by type" do
+                task = task_m.new
+                assert_equal task.other_srv, placeholder_m.find_data_service_from_type(other_srv_m).bind(task)
+            end
+
+            it "raises if trying to resolve an ambiguous service" do
+                task_m.provides other_srv_m, as: 'ambiguous'
+                task = task_m.new
+                assert_raises(Syskit::AmbiguousServiceSelection) do
+                    placeholder_m.find_data_service_from_type(other_srv_m).bind(task)
+                end
+            end
+        end
     end
 
     describe "#fullfills?" do
