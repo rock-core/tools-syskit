@@ -257,10 +257,14 @@ module Syskit
                 end
             end
 
-            def render(model, options = Hash.new)
+            def render_require_section(model)
                 if model.respond_to?(:definition_location)
                     ComponentNetworkBaseView.html_defined_in(page, model, with_require: true)
                 end
+            end
+
+            def render(model, options = Hash.new)
+                render_require_section(model)
                 @current_model = model
             end
 
