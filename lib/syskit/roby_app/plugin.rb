@@ -257,58 +257,38 @@ module Syskit
                 Syskit.conf.deployments.clear
             end
 
-            def self.load_all_models_files_in(app, prefix_name)
-                search_path = app.auto_load_search_path
-                files = app.find_files_in_dirs(
-                    "models", prefix_name, "ROBOT",
-                    path: search_path,
-                    all: true,
-                    order: :specific_last,
-                    pattern: /\.rb$/)
-
-                files.each do |path|
-                    suffix = File.basename(File.dirname(path))
-                    begin
-                        if [prefix_name, app.robot_name, app.robot_type].include?(suffix)
-                            app.require(path)
-                        else
-                            Roby.info "not loading #{path}: not matching robot name"
-                        end
-                    rescue OroGen::NotFound => e
-                        if Syskit.conf.ignore_missing_orogen_projects_during_load?
-                            ::Robot.warn "ignored file #{path}: #{e.message}"
-                        else raise
-                        end
-                    end
-                end
-            end
-
             def self.require_models(app)
                 if has_local_process_server?
                     connect_to_local_process_server(app)
                 end
 
-                # Load the data services and task models
-                if app.auto_load_models?
-                    prefixes = ['services', 'devices', 'compositions', 'profiles']
-                    if Roby.app.backward_compatible_naming?
-                        prefixes << 'blueprints'
-                    end
-
-                    prefixes.each do |prefix_name|
-                        load_all_models_files_in(app, prefix_name)
-                    end
-
-                    # Also require all the available oroGen projects
-                    app.default_loader.each_available_project_name do |name|
-                        app.using_task_library name
-                    end
-                end
-                if app.auto_load_all? || app.auto_load_all_task_libraries?
-                    app.auto_load_all_task_libraries
-                end
                 app.isolate_load_errors("while reloading deployment definitions") do
                     Syskit.conf.reload_deployments
+                end
+            end
+
+            def self.auto_require_models(app)
+                # Load the data services and task models
+                prefixes = ['services', 'devices', 'compositions', 'profiles']
+                if Roby.app.backward_compatible_naming?
+                    prefixes << 'blueprints'
+                end
+
+                if Syskit.conf.ignore_missing_orogen_projects_during_load?
+                    ignored_exceptions = [OroGen::NotFound]
+                end
+                prefixes.each do |prefix_name|
+                    app.load_all_model_files_in(
+                        prefix_name, ignored_exceptions: ignored_exceptions)
+                end
+
+                # Also require all the available oroGen projects
+                app.default_loader.each_available_project_name do |name|
+                    app.using_task_library name
+                end
+
+                if app.auto_load_all? || app.auto_load_all_task_libraries?
+                    app.auto_load_all_task_libraries
                 end
             end
 
