@@ -462,13 +462,6 @@ module Syskit
                 mismatched_inputs
             end
 
-            # Returns the merge graph for all tasks in {#plan}
-            def complete_merge_graph
-                all_tasks = plan.find_local_tasks(Syskit::Component).
-                    to_set
-                direct_merge_mappings(all_tasks)
-            end
-
             def merge_identical_tasks
                 log_timepoint_group_start 'syskit-merge-solver'
                 dataflow_graph.enable_concrete_connection_graph
