@@ -443,6 +443,9 @@ module Syskit
                     end
 
                     merge_solver = NetworkGeneration::MergeSolver.new(trsc)
+                    tasks.each do |plan_t|
+                        merge_solver.register_replacement(plan_t, trsc[plan_t])
+                    end
                     merge_mappings = Hash.new
                     stubbed_tags = Hash.new
                     nodes.find_all(&:abstract?).each do |abstract_task|
@@ -486,26 +489,27 @@ module Syskit
 
                     mapped_tasks = Hash.new
                     tasks.each do |plan_t|
-                        replacement_t = merge_solver.replacement_for(trsc[plan_t])
+                        replacement_t = merge_solver.replacement_for(plan_t)
                         mapped_tasks[plan_t] = trsc.may_unwrap(replacement_t)
                     end
+
+                    root_tasks.each do |root_t, status|
+                        replacement_t = mapped_tasks[root_t]
+                        if replacement_t != root_t
+                            replacement_t.planned_by trsc[root_t.planning_task]
+                            trsc.send("add_#{status}", replacement_t)
+                        end
+                    end
+
                     trsc.commit_transaction
                 end
 
-                root_mapped_tasks = root_tasks.map do |root_t, status|
-                    replacement_t = mapped_tasks[root_t]
-                    if replacement_t != root_t
-                        replacement_t.planned_by root_t.planning_task
-                        plan.send("add_#{status}", replacement_t)
-                    end
-                    replacement_t
-                end
                 mapped_tasks.each do |old, new|
                     if old != new
                         plan.remove_task(old)
                     end
                 end
-                root_mapped_tasks
+                root_tasks.map { |t, _| mapped_tasks[t] }
             end
 
             def syskit_stub_proxied_data_service(model)
