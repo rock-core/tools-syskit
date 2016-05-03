@@ -9,6 +9,12 @@ module Syskit
 
             attr_reader :dataflow_graph
 
+            # Mapping from the orocos_task objects to the corresponding
+            # Syskit::Task in the plan
+            #
+            # @see find_setup_syskit_task_context_from_orocos_task
+            attr_reader :orocos_task_to_setup_syskit_task
+
             def scheduler
                 plan.execution_engine.scheduler
             end
@@ -16,6 +22,12 @@ module Syskit
             def initialize(plan)
                 @plan = plan
                 @dataflow_graph = plan.task_relation_graph_for(Flows::DataFlow)
+                @orocos_task_to_setup_syskit_task = Hash.new
+                plan.find_tasks(Syskit::TaskContext).each do |t|
+                    if t.setup?
+                        orocos_task_to_setup_syskit_task[t.orocos_task] = t
+                    end
+                end
             end
 
             def self.update(plan)
@@ -144,10 +156,11 @@ module Syskit
                 return new, removed
             end
 
+            # Returns the Syskit::TaskContext in the plan that manages an orocos task
+            #
+            # @return [nil,Syskit::TaskContext]
             def find_setup_syskit_task_context_from_orocos_task(orocos_task)
-                klass = TaskContext.model_for(orocos_task.model)
-                task = plan.find_tasks(klass.concrete_model).not_finishing.not_finished.
-                    find { |t| t.setup? && (t.orocos_task == orocos_task) }
+                orocos_task_to_setup_syskit_task[orocos_task]
             end
 
             # Checks whether the removal of some connections require to run the
