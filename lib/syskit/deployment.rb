@@ -105,13 +105,7 @@ module Syskit
                 model.each_orogen_deployed_task_context_model(&block)
             end
 
-            # Returns an task instance that represents the given task in this
-            # deployment.
-            def task(name, model = nil)
-                if finishing? || finished?
-                    raise InvalidState, "#{self} is either finishing or already finished, you cannot call #task"
-                end
-
+            def deployed_orogen_model_by_name(name)
                 orogen_task_deployment = each_orogen_deployed_task_context_model.
                     find { |act| name == name_mappings[act.name] }
                 if !orogen_task_deployment
@@ -119,10 +113,24 @@ module Syskit
                     mappings  = name_mappings.map { |k,v| "#{k} => #{v}" }.join(", ")
                     raise ArgumentError, "no task called #{name} in #{self.class.deployment_name}, available tasks are #{available} using name mappings #{name_mappings}"
                 end
+                orogen_task_deployment
+            end
 
-                orogen_task_model = TaskContext.model_for(orogen_task_deployment.task_model)
+            def deployed_model_by_orogen_model(orogen_model)
+                TaskContext.model_for(orogen_model.task_model)
+            end
+
+            # Returns an task instance that represents the given task in this
+            # deployment.
+            def task(name, model = nil)
+                if finishing? || finished?
+                    raise InvalidState, "#{self} is either finishing or already finished, you cannot call #task"
+                end
+
+                orogen_task_deployment = deployed_orogen_model_by_name(name)
+                orogen_task_model = deployed_model_by_orogen_model(orogen_task_deployment)
                 if model
-                    if !(model <= orogen_task_model)
+                    if !model.fullfills?(orogen_task_model)
                         raise ArgumentError, "incompatible explicit selection #{model} for the model of #{name} in #{self}"
                     end
                 else
@@ -159,7 +167,7 @@ module Syskit
                 end
 
                 spawn_options = spawn_options.merge(
-                    output: "%m-%p.txt", 
+                    output: "%m-%p.txt",
                     wait: false,
                     cmdline_args: options)
 
@@ -487,7 +495,7 @@ module Syskit
                         raise InternalError, "expected #{orocos_process}'s reported tasks to include mapped_task_name, but got handles only for invalid_name"
                     end
                 end
-                
+
                 remote_tasks.each_value do |task|
                     task.handle.process = nil
                 end
@@ -599,7 +607,7 @@ module Syskit
 
             # Returns the deployment object that matches the given process
             # object
-            # 
+            #
             # @param process the deployment's process object. Note that it is
             #   usually not a Ruby Process object, but a process representation
             #   from orocosrb's process server infrastructure
@@ -608,5 +616,3 @@ module Syskit
             end
         end
 end
-
-

@@ -60,6 +60,12 @@ module Syskit
                 @orogen_model
             end
 
+            def each_deployed_task_model
+                model.each_deployed_task_model do |name, model|
+                    yield(name_mappings[name] || name, model)
+                end
+            end
+
             # Enumerate the oroGen specification for the deployed tasks
             #
             # @yieldparam [OroGen::Spec::TaskDeployment]

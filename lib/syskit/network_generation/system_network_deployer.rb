@@ -181,10 +181,9 @@ module Syskit
                 deployed_models = Hash.new
                 available_deployments.each do |process_server_name, deployment_models|
                     deployment_models.each do |model|
-                        model.each_orogen_deployed_task_context_model do |deployed_task|
-                            task_model = TaskContext.model_for(deployed_task.task_model)
+                        model.each_deployed_task_model do |name, task_model|
                             deployed_models[task_model] ||= Set.new
-                            deployed_models[task_model] << [process_server_name, model, deployed_task.name]
+                            deployed_models[task_model] << [process_server_name, model, name]
                         end
                     end
                 end
@@ -234,4 +233,3 @@ module Syskit
         end
     end
 end
-
