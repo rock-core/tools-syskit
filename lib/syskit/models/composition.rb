@@ -523,13 +523,86 @@ module Syskit
             #
             # On a composition, it always returns false. This method is defined
             # for consistency for the other kinds of Component objects.
-            def has_dynamic_input_port?(name); false end
+            def has_dynamic_input_port?(name, type = nil); false end
 
             # Returns true if +name+ is a valid dynamic output port.
             #
             # On a composition, it always returns false. This method is defined
             # for consistency for the other kinds of Component objects.
-            def has_dynamic_output_port?(name); false end
+            def has_dynamic_output_port?(name, type = nil); false end
+
+            # @api private
+            #
+            # Context object under which the dynamic data service blocks are
+            # evaluated
+            #
+            # The composition's version adds the ability to access the children
+            # and require dynamic services on them
+            class DynamicServiceInstantiationContext < DynamicDataService::InstantiationContext
+                class Child < BasicObject
+                    def initialize(context, child)
+                        @context = context
+                        @child = child
+                    end
+
+                    def require_dynamic_service(dynamic_service_name, as: nil, **dyn_options)
+                        @child = @context.specialized_child(@child)
+                        srv = @child.model.require_dynamic_service(dynamic_service_name, as: as, **dyn_options)
+                        srv.attach(@child)
+                    end
+
+                    def method_missing(m, *args, &block)
+                        if m.to_s =~ /_port$/
+                            @child.send(m, *args, &block)
+                        else
+                            super
+                        end
+                    end
+                end
+
+                def initialize(component_model, name, dynamic_service, **options)
+                    @specialized = Set.new
+                    super
+                end
+
+                def specialized_child(child)
+                    child_name = child.child_name
+                    if !@specialized.include?(child_name)
+                        @specialized << child_name
+                        component_model.overload child_name, child.specialize
+                    end
+                    component_model.find_child(child_name)
+                end
+
+                def export(port, **options)
+                    component_model.export(port, **options)
+                end
+
+                def add(*args, **options, &block)
+                    child = component_model.add(*args, **options, &block)
+                    Child.new(self, child)
+                end
+
+                def overload(*args, **options, &block)
+                    child = component_model.overload(*args, **options, &block)
+                    Child.new(self, child)
+                end
+
+                def method_missing(m, *args, &block)
+                    if m.to_s =~ /_child$/
+                        Child.new(self, component_model.send(m, *args, &block))
+                    else
+                        super
+                    end
+                end
+            end
+
+            # @api private
+            #
+            # (see Component#create_dynamic_instantiation_context)
+            def create_dynamic_instantiation_context(name, dynamic_service, **options)
+                DynamicServiceInstantiationContext.new(self, name, dynamic_service, **options)
+            end
 
             # Explicitly create the given connections between children of this
             # composition.

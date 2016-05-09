@@ -121,6 +121,13 @@ module Syskit
                 narrow_model
             end
 
+            def specialize
+                new_ir = dup
+                new_model = base_model.specialize
+                new_ir.add_models([new_model])
+                new_ir
+            end
+
             def invalidate_dependency_injection
                 @di = nil
                 invalidate_template

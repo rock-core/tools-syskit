@@ -1030,5 +1030,67 @@ describe Syskit::Models::Composition do
             assert !cmp_m.child_port?(cmp2_m.test_child.test_srv.out_port)
         end
     end
+
+    describe "dynamic services" do
+        attr_reader :cmp_m, :task_m, :srv_m
+        before do
+            @task_m = Syskit::TaskContext.new_submodel do
+                output_port 'out', '/double'
+            end
+            @srv_m = Syskit::DataService.new_submodel do
+                output_port 'double_out', '/double'
+            end
+            @cmp_m = Syskit::Composition.new_submodel
+        end
+        it "exposes the means to export a child port" do
+            srv_m = self.srv_m
+            cmp_m.add task_m, as: 'test'
+            cmp_m.dynamic_service srv_m, as: 'test' do
+                export test_child.out_port
+                provides srv_m, as: name
+            end
+            cmp_m.require_dynamic_service 'test', as: 'dyn'
+            assert_equal cmp_m.test_child.out_port, cmp_m.exported_outputs['out']
+        end
+
+        it "exposes the means to add a new child" do
+            srv_m, task_m = self.srv_m, self.task_m
+            cmp_m.dynamic_service srv_m, as: 'test' do
+                add task_m, as: 'test'
+                export test_child.out_port
+                provides srv_m, as: name
+            end
+            cmp_m.require_dynamic_service 'test', as: 'dyn'
+            assert_equal task_m, cmp_m.test_child.model
+        end
+
+        it "exposes the means to overload a child" do
+            srv_m = self.srv_m
+            subtask_m = task_m.new_submodel
+            cmp_m.add task_m, as: 'test'
+            cmp_m.dynamic_service srv_m, as: 'test' do
+                overload 'test', subtask_m
+                export test_child.out_port
+                provides srv_m, as: name
+            end
+            cmp_m.require_dynamic_service 'test', as: 'dyn'
+            assert_equal subtask_m, cmp_m.test_child.model
+        end
+
+        it "exposes the means to require the dynamic services of a child" do
+            srv_m = self.srv_m
+            task_m.dynamic_service srv_m, as: 'test' do
+                provides srv_m, as: name
+            end
+            cmp_m.add task_m, as: 'test'
+            cmp_m.dynamic_service srv_m, as: 'test' do
+                test_child.require_dynamic_service 'test', as: 'dyn'
+                export test_child.out_port
+                provides srv_m, as: name
+            end
+            cmp_m.require_dynamic_service 'test', as: 'dyn'
+            assert_equal cmp_m.test_child.out_port, cmp_m.test_child.dyn_srv.double_out_port.to_component_port
+        end
+    end
 end
 

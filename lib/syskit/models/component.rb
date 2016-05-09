@@ -545,6 +545,18 @@ module Syskit
                 dyn.instanciate(service_name, **dyn_options)
             end
 
+            # @api private
+            #
+            # Creation of a {DynamicDataService} instantiation context
+            #
+            # {DynamicDataService#instantiate} delegates to this method to
+            # create the context in which the dynamic service setup block should
+            # be evaluated. It allows subclasses to provide specific additional
+            # APIs
+            def create_dynamic_instantiation_context(name, dynamic_service, **options)
+                DynamicDataService::InstantiationContext.new(self, name, dynamic_service, **options)
+            end
+
             def each_port; end
             def each_input_port; end
             def each_output_port; end

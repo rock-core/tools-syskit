@@ -114,7 +114,7 @@ module Syskit
             #   options are available to the block as an 'options' local variable
             # @return [BoundDynamicDataService]
             def instanciate(name, **options)
-                instantiator = InstantiationContext.new(component_model, name, self, **options)
+                instantiator = component_model.create_dynamic_instantiation_context(name, self, **options)
                 instantiator.instance_eval(&block)
                 if !instantiator.service
                     raise InvalidDynamicServiceBlock.new(self), "the block #{block} used to instantiate the dynamic service #{name} on #{component_model.short_name} with options #{options} did not provide any service"
