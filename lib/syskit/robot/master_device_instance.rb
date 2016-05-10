@@ -310,6 +310,7 @@ module Syskit
             # dependency injections for it
             def use(dependency_injection)
                 requirements.use(dependency_injection)
+                self
             end
 
             # Specify deployment selection hints for the device's driver
