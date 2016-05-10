@@ -313,6 +313,12 @@ module Syskit
                 self
             end
 
+            # Add arguments to the underlying device driver
+            def with_arguments(arguments = Hash.new)
+                requirements.with_arguments(arguments)
+                self
+            end
+
             # Specify deployment selection hints for the device's driver
 	    def prefer_deployed_tasks(hints)
 		requirements.prefer_deployed_tasks(hints)
