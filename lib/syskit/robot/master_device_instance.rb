@@ -312,11 +312,6 @@ module Syskit
                 requirements.use(dependency_injection)
             end
 
-            # Specify frame selection for the device's driver
-            def use_frames(frame_mappings)
-                requirements.use_frames(frame_mappings)
-            end
-
             # Specify deployment selection hints for the device's driver
 	    def prefer_deployed_tasks(hints)
 		requirements.prefer_deployed_tasks(hints)
