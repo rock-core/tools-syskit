@@ -4,11 +4,15 @@ module Syskit
         # available on it.
         class RobotDefinition
             def initialize
-                @devices    = Hash.new
+                @devices = Hash.new
             end
 
             # The devices that are available on this robot
             attr_reader :devices
+
+            # Modify the raw requirements to add context information
+            def inject_di_context(requirements)
+            end
 
             def clear
                 invalidate_dependency_injection

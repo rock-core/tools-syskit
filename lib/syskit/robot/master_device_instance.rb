@@ -331,11 +331,11 @@ module Syskit
                 self
             end
 
-
             # Returns the InstanceRequirements object that can be used to
             # represent this device
             def to_instance_requirements
                 result = requirements.dup
+                robot.inject_di_context(result)
                 result.select_service(driver_model)
                 result
             end

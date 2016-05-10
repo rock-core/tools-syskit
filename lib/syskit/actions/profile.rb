@@ -95,9 +95,9 @@ module Syskit
                 #   part of
                 attr_reader :profile
 
-                def initialize(profile, *args, &block)
+                def initialize(profile)
                     @profile = profile
-                    super(*args, &block)
+                    super()
                 end
 
                 def invalidate_dependency_injection
