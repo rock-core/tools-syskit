@@ -28,17 +28,6 @@ module Syskit
             # @return [Set<(Syskit::Component,Syskit::Component)>]
             attr_reader :invalid_merges
 
-            class << self
-                # If true, this is a directory path into which SVGs are generated
-                # for each steps of the network generation
-                attr_accessor :tracing_directory
-
-                # If tracing_directory is set, the options that should be used to
-                # generate the graphs
-                attr_accessor :tracing_options
-            end
-            @tracing_options = { :remove_compositions => true }
-
             # The {Roby::DRoby::EventLogger} object on which we log performance
             # information
             attr_reader :event_logger
@@ -113,6 +102,14 @@ module Syskit
                     break
                 end
 
+                if self.class.trace?
+                    remove_compositions = true
+                    if merged_task_to_task.each_key.any? { |t| t.kind_of?(Syskit::Composition) }
+                        remove_compositions = false
+                    end
+                    self.class.trace_export(plan, phase: 1, highlights: (merged_task_to_task.keys + merged_task_to_task.values), remove_compositions: remove_compositions)
+                end
+
                 merged_task_to_task.each do |merged_task, task|
                     if merged_task == task
                         raise "trying to merge a task onto itself: #{merged_task}"
@@ -138,6 +135,52 @@ module Syskit
                     end
                     register_replacement(merged_task, task)
                 end
+
+                if self.class.trace?
+                    self.class.trace_export(plan, phase: 2, highlights: merged_task_to_task.values, remove_compositions: remove_compositions)
+                end
+            end
+
+            def self.enable_tracing
+                @@trace_enabled = true
+            end
+
+            def self.disable_tracing
+                @@trace_enabled = false
+            end
+
+            def self.trace?
+                @@trace_enabled
+            end
+
+            def self.trace_file_pattern
+                @@trace_file_pattern
+            end
+
+            def self.trace_file_pattern=(pattern)
+                @@trace_file_pattern = pattern
+            end
+
+            @@trace_file_pattern = "syskit-trace-%04i.%i"
+            @@trace_enabled = false
+            @@trace_count = 0
+            @@trace_last_phase = 1
+            
+            def self.trace_next_file(phase)
+                if @@trace_last_phase >= phase
+                    @@trace_count += 1
+                end
+                @@trace_last_phase = phase
+                trace_file_pattern % [@@trace_count, phase]
+            end
+
+            def self.trace_export(plan, phase: 1, highlights: [], **dataflow_options)
+                basename  = trace_next_file(phase)
+                dataflow = basename + ".dataflow.svg"
+                hierarchy = basename + ".hierarchy.svg"
+                Syskit::Graphviz.new(plan).to_file('dataflow', 'svg', dataflow, highlights: highlights, **dataflow_options)
+                Syskit::Graphviz.new(plan).to_file('hierarchy', 'svg', hierarchy, highlights: highlights)
+                ::Robot.info "#{self} exported trace plan to #{dataflow} and #{hierarchy}"
             end
 
             # Create a new solver on the given plan and perform
