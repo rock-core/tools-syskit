@@ -118,17 +118,25 @@ module Syskit
                     page.push("Resolved Requirements", "<pre>#{html}</pre>")
                 end
 
-                @task = begin
-                            if method == :compute_system_network
-                                compute_system_network(model, plan)
-                            else instanciate_model(model, plan, instanciate_options)
-                            end
-                        rescue Exception => e
-                            if view_partial_plans? then
-                                exception = e
-                            else raise
-                            end
-                        end
+                begin
+                    if method == :compute_system_network
+                        tic = Time.now
+                        @task = compute_system_network(model, plan)
+                        timing = Time.now - tic
+                    else
+                        @task = instanciate_model(model, plan, instanciate_options)
+                    end
+                rescue Exception => e
+                    if view_partial_plans? then
+                        exception = e
+                    else raise
+                    end
+                end
+
+                render_options[:name] ||= model.object_id.to_s
+                if timing
+                    page.push("", "<p>Network generated in %.3f</p>" % [timing], id: "timing-#{name}")
+                end
 
                 hierarchy_options = self.hierarchy_options.
                     merge(render_options).
@@ -139,6 +147,7 @@ module Syskit
                     merge(dataflow)
                 dataflow_options = process_options('dataflow', model, dataflow_options)
 
+
                 render_plan
                 if exception
                     raise exception
@@ -148,7 +157,7 @@ module Syskit
             def process_options(kind, model, options)
                 options = Kernel.normalize_options options
 
-                name = options[:name] || model.object_id.to_s
+                name = options[:name]
                 if options[:id]
                     options[:id] = options[:id] % "#{kind}-#{name}"
                 end
