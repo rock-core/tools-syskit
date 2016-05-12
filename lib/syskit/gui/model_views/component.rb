@@ -17,7 +17,7 @@ module Syskit::GUI
             end
 
             def render_doc(model)
-                if doc && model.doc
+                if model.doc
                     page.push nil, page.main_doc(model.doc)
                 end
             end
