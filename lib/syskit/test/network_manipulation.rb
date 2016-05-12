@@ -122,8 +122,10 @@ module Syskit
                     to { emit *not_running.map(&:start_event) }
 
                 begin
-                    syskit_engine ||= Syskit::NetworkGeneration::Engine.new(plan)
-                    syskit_engine.resolve(**(Hash[on_error: :commit].merge(resolve_options)))
+                    syskit_engine_resolve_handle_plan_export do
+                        syskit_engine ||= Syskit::NetworkGeneration::Engine.new(plan)
+                        syskit_engine.resolve(**(Hash[on_error: :commit].merge(resolve_options)))
+                    end
                 rescue Exception => e
                     expect_execution do
                         requirement_tasks.each { |t| t.failed_event.emit(e) }
@@ -143,9 +145,28 @@ module Syskit
                     requirement_tasks.each { |t| t.success_event.emit if !t.finished? }
                 end
 
+                root_tasks = root_tasks.map(&:task)
+                if root_tasks.size == 1
+                    return root_tasks.first
+                elsif root_tasks.size > 1
+                    return root_tasks
+                end
+            end
+
+            def syskit_engine_resolve_handle_plan_export
+                failed = false
+                yield
+            rescue Exception => e
+                failed = true
+                raise
+            ensure
                 if Roby.app.public_logs?
                     filename = name.gsub("/", "_")
                     dataflow_base, hierarchy_base = filename + "-dataflow", filename + "-hierarchy"
+                    if failed
+                        dataflow_base += "-FAILED"
+                        hierarchy_base += "-FAILED"
+                    end
                     dataflow = File.join(Roby.app.log_dir, "#{dataflow_base}.svg")
                     hierarchy = File.join(Roby.app.log_dir, "#{hierarchy_base}.svg")
                     while File.file?(dataflow) || File.file?(hierarchy)
@@ -157,13 +178,6 @@ module Syskit
 
                     Graphviz.new(plan).to_file('dataflow', 'svg', dataflow)
                     Graphviz.new(plan).to_file('hierarchy', 'svg', hierarchy)
-                end
-
-                root_tasks = root_tasks.map(&:task)
-                if root_tasks.size == 1
-                    return root_tasks.first
-                elsif root_tasks.size > 1
-                    return root_tasks
                 end
             end
 
