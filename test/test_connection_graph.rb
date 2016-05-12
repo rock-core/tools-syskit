@@ -35,6 +35,14 @@ module Syskit
                 assert_equal Hash[['out1', 'in1'] => Hash.new, ['out2', 'in2'] => Hash.new],
                     subject.edge_info(source, sink)
             end
+            it "passes if trying to update the policy of a connection with itself" do
+                subject.add_edge(source, sink,
+                                 ['out1', 'in1'] => Hash.new)
+                subject.add_edge(source, sink,
+                                 ['out2', 'sink2'] => Hash.new, ['out1', 'in1'] => Hash.new)
+                assert_equal Hash[['out1', 'in1'] => Hash.new, ['out2', 'sink2'] => Hash.new],
+                    subject.edge_info(source, sink)
+            end
             it "raises if trying to change the policy of an existing connection" do
                 subject.add_edge(source, sink,
                     ['out1', 'in1'] => Hash.new)
