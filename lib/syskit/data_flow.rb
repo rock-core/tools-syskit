@@ -36,6 +36,19 @@ module Syskit
         def initialize(*args, **options)
             super
             @modified_tasks = Set.new
+            @concrete_connection_graph = nil
+        end
+
+        # @api private
+        #
+        # Graph class used to cache concrete connections once
+        # {#enable_concrete_connection_graph} has been called
+        class ConcreteConnectionGraph < ConnectionGraph
+            def merge_info(source, sink, current_mappings, additional_mappings)
+                current_mappings.merge(additional_mappings) do |_, old_options, new_options|
+                    Syskit.update_connection_policy(old_options, new_options)
+                end
+            end
         end
 
         def enable_concrete_connection_graph(compute: true)
@@ -43,7 +56,7 @@ module Syskit
                 if compute
                     compute_concrete_connection_graph
                 else
-                    ConnectionGraph.new
+                    ConcreteConnectionGraph.new
                 end
         end
 
@@ -52,7 +65,7 @@ module Syskit
         # Computes the concrete connection graph from the DataFlow information
         def compute_concrete_connection_graph
             current_graph, @concrete_connection_graph = @concrete_connection_graph, nil
-            graph = ConnectionGraph.new
+            graph = ConcreteConnectionGraph.new
             each_vertex do |task|
                 next if !task.kind_of?(Syskit::TaskContext)
 
@@ -73,6 +86,10 @@ module Syskit
 
         def disable_concrete_connection_graph
             @concrete_connection_graph = nil
+        end
+
+        def concrete_connection_graph_enabled?
+            !!@concrete_connection_graph
         end
 
         # Called by the relation graph management to update the DataFlow

@@ -26,6 +26,12 @@ module Syskit
                 tasks[i] = cmp[i].test_child
             end
         end
+
+        after do
+            if subject.concrete_connection_graph_enabled?
+                subject.disable_concrete_connection_graph
+            end
+        end
         
         describe "#each_concrete_in_connection" do
             it "yields nothing if there are no input connections" do
@@ -44,6 +50,18 @@ module Syskit
                 cmp[1].out_port.connect_to tasks[0].in_port
                 cmp[1].test_child.remove_sink(cmp[1])
                 assert_equal [], subject.each_concrete_in_connection(tasks[0]).to_a
+            end
+            it "assumes that #concrete_connection_graph is authoritative if enabled" do
+                cmp[1].out_port.connect_to   tasks[0].in_port
+                tasks[2].out_port.connect_to tasks[0].in_port
+                cmp[3].out_port.connect_to   cmp[0].in_port
+                subject.enable_concrete_connection_graph
+                # Remove one actual concrete connection from the graph, and make
+                # sure that #each_concrete_in_connection misses that connection
+                subject.concrete_connection_graph.remove_edge(tasks[1], tasks[0])
+                assert_equal Set[[tasks[2], 'out', 'in', Hash.new],
+                                 [tasks[3], 'out', 'in', Hash.new]],
+                    subject.each_concrete_in_connection(tasks[0]).to_set
             end
         end
 
@@ -64,6 +82,55 @@ module Syskit
                 tasks[0].out_port.connect_to cmp[1].in_port
                 cmp[1].remove_sink(cmp[1].test_child)
                 assert_equal [], subject.each_concrete_out_connection(tasks[0]).to_a
+            end
+            it "assumes that #concrete_connection_graph is authoritative if enabled" do
+                tasks[0].out_port.connect_to tasks[1].in_port
+                tasks[0].out_port.connect_to cmp[2].in_port
+                cmp[0].out_port.connect_to   cmp[3].in_port
+                subject.enable_concrete_connection_graph
+                # Remove one actual concrete connection from the graph, and make
+                # sure that #each_concrete_in_connection misses that connection
+                subject.concrete_connection_graph.remove_edge(tasks[0], tasks[1])
+                assert_equal Set[['out', 'in', tasks[2], Hash.new],
+                                 ['out', 'in', tasks[3], Hash.new]],
+                    subject.each_concrete_out_connection(tasks[0]).to_set
+            end
+        end
+
+        describe "#compute_concrete_connection_graph" do
+            it "builds a graph that represents all the concrete connections" do
+                dataflow = Flows::DataFlow.new
+                dataflow.add_vertex(task = Syskit::TaskContext.new)
+                flexmock(dataflow).should_receive(:each_concrete_in_connection).
+                    and_iterates([source1 = Object.new, 'out', 'in', Hash.new],
+                                 [source2 = Object.new, 'out', 'in', Hash.new])
+                expected = [
+                    [source1, task, ['out', 'in'] => Hash.new],
+                    [source2, task, ['out', 'in'] => Hash.new]]
+
+                graph = dataflow.compute_concrete_connection_graph
+                assert_equal expected.to_set, graph.each_edge.to_set
+            end
+            it "ignores non-TaskContext vertices" do
+                dataflow = Flows::DataFlow.new
+                dataflow.add_vertex(task = Syskit::Composition.new)
+                flexmock(dataflow).should_receive(:each_concrete_in_connection).
+                    and_iterates([source1 = Object.new, 'out', 'in', Hash.new],
+                                 [source2 = Object.new, 'out', 'in', Hash.new])
+                graph = dataflow.compute_concrete_connection_graph
+                assert graph.each_edge.empty?
+            end
+        end
+
+        describe DataFlow::ConcreteConnectionGraph do
+            it "updates the policy when replacing vertices" do
+                concrete_graph = DataFlow::ConcreteConnectionGraph.new
+                old_source, new_source, sink = Object.new, Object.new, Object.new
+                concrete_graph.add_edge(old_source, sink, ['out', 'in'] => Hash.new, ['other_out', 'in'] => Hash.new)
+                concrete_graph.add_edge(new_source, sink, ['out', 'in'] => Hash[type: :data])
+                concrete_graph.replace_vertex(old_source, new_source)
+                assert_equal Hash[['out', 'in'] => Hash[type: :data], ['other_out', 'in'] => Hash.new],
+                    concrete_graph.edge_info(new_source, sink)
             end
         end
 
