@@ -456,7 +456,7 @@ module Syskit
             # and the oroGen's input port specifications. See the user's guide
             # for more details
             #
-            # It directly modifies the policies in the data flow graph
+            # It updates DataFlow#concrete_connection_policies
             def compute_connection_policies
                 # We only act on deployed tasks, as we need to know how the
                 # tasks are triggered (what activity / priority / ...)
@@ -478,14 +478,19 @@ module Syskit
                     break
                 end
 
+                dataflow_graph = plan.task_relation_graph_for(Flows::DataFlow)
+                connection_graph = dataflow_graph.compute_concrete_connection_graph
+                policy_graph = Flows::DataFlow::ConcreteConnectionGraph.new
                 deployed_tasks.each do |source_task|
-                    source_task.each_concrete_output_connection do |source_port_name, sink_port_name, sink_task, policy|
-                        new_policy = policy_for(source_task, source_port_name, sink_port_name, sink_task, policy)
-                        policy.merge!(new_policy)
-                        # TODO: Announce that the policy changed to the relation
-                        # management code
+                    connection_graph.each_out_neighbour(source_task) do |sink_task|
+                        mappings = connection_graph.edge_info(source_task, sink_task)
+                        computed_policies = mappings.map_value do |(source_port_name, sink_port_name), policy|
+                            policy_for(source_task, source_port_name, sink_port_name, sink_task, policy)
+                        end
+                        policy_graph.add_edge(source_task, sink_task, computed_policies)
                     end
                 end
+                #dataflow_graph.reset_computed_policies(policy_graph)
                 result
             end
 

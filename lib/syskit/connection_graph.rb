@@ -68,20 +68,30 @@ module Syskit
             add_edge(source_task, sink_task, mappings)
         end
 
+        def freeze_edge_info(mappings)
+            mappings.each do |pair, policy|
+                pair.freeze
+                policy.freeze
+            end.freeze
+        end
+
         def add_edge(source_task, sink_task, mappings)
             if mappings.empty?
                 raise ArgumentError, "the connection set is empty"
             end
+            freeze_edge_info(mappings)
             super
         end
 
         def merge_info(source, sink, current_mappings, additional_mappings)
-            current_mappings.merge(additional_mappings) do |k, v1, v2|
+            merged = current_mappings.merge(additional_mappings) do |k, v1, v2|
                 if v1 != v2
                     raise ArgumentError, "cannot override policy information by default: trying to override the policy between #{source} and #{sink} from #{k}: #{v1} to #{k}: #{v2}"
                 end
                 v1
             end
+            freeze_edge_info(merged)
+            merged
         end
 
         # Removes the given set of connections between +source_task+ and
