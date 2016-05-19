@@ -11,11 +11,8 @@ module Syskit
             end
             @profiles = Array.new
 
-            # A definition object created with {#define}
-            #
-            # In addition to the {InstanceRequirements} duties, it also adds
-            # information about the link of the requirements with its profile
-            class Definition < InstanceRequirements
+            # An {InstanceRequirements} object created from a profile {Definition}
+            class ProfileInstanceRequirements < InstanceRequirements
                 # The profile this definition comes from
                 #
                 # @return [Profile]
@@ -28,19 +25,11 @@ module Syskit
                 # for UIs
                 attr_predicate :advanced?, true
 
-                # @!method resolved?
-                # @!method resolved=(flag)
-                #
-                # Whether this definition has been injected with its profile's
-                # DI information
-                attr_predicate :resolved?
-
-                def initialize(profile, name, resolved: false)
+                def initialize(profile, name, advanced: false)
                     super()
                     self.profile = profile
-                    self.advanced = false
+                    self.advanced = advanced
                     self.name = name
-                    @resolved = resolved
                 end
 
                 # Return a definition that has a different underlying profile
@@ -54,16 +43,19 @@ module Syskit
                     end
                 end
 
-                # Create an action model that encapsulate this definition
-                def to_action_model
-                    if resolved?
-                        action_model = super(doc || "defined in #{profile}")
-                        action_model.advanced = advanced?
-                        action_model.name = "#{name}_def"
-                        action_model
-                    else
-                        profile.resolved_definition(name).to_action_model
-                    end
+                def to_action_model(profile = self.profile, doc = self.doc)
+                    action_model = super(doc)
+                    action_model.advanced = advanced?
+                    action_model
+                end
+            end
+
+            class Definition < ProfileInstanceRequirements
+                def to_action_model(profile = self.profile, doc = self.doc)
+                    action_model = profile.resolved_definition(name).
+                        to_action_model(profile, doc || "defined in #{profile}")
+                    action_model.advanced = advanced?
+                    action_model
                 end
             end
 
@@ -166,7 +158,7 @@ module Syskit
                     "#{profile.name}.robot"
                 end
             end
-            
+
             def initialize(name = nil, register: false)
                 @name = name
                 @permanent_model = false
@@ -401,12 +393,16 @@ module Syskit
             # @raise [ArgumentError] if the definition does not exist
             # @see definition
             def resolved_definition(name)
-                req = definition(name)
+                req = definitions[name]
+                unless req
+                    raise ArgumentError,
+                        "profile #{self.name} has no definition called #{name}"
+                end
 
-                result = Definition.new(self, name, resolved: true)
+                result = ProfileInstanceRequirements.new(
+                    self, name, advanced: req.advanced?)
                 result.merge(req)
                 inject_di_context(result)
-                result.name = req.name
                 result.doc(req.doc)
                 result
             end
@@ -536,7 +532,7 @@ module Syskit
                     yield(action_model)
                 end
             end
-            
+
             # Whether a tag with this name exists
             def has_tag?(name)
                 !!tags[name]
@@ -579,7 +575,7 @@ module Syskit
                     '_def'.freeze => :find_definition_by_name,
                     '_dev'.freeze => :find_device_requirements_by_name) || super
             end
-            
+
             include MetaRuby::DSLs::FindThroughMethodMissing
             include Roby::DRoby::V5::DRobyConstant::Dump
         end
@@ -597,7 +593,7 @@ module Syskit
             def profile(name, &block)
                 if const_defined_here?(name)
                     profile = const_get(name)
-                else 
+                else
                     profile = Profile.new("#{self.name}::#{name}", register: true)
                     const_set(name, profile)
                 end
@@ -610,5 +606,3 @@ module Syskit
         Module.include ProfileDefinitionDSL
     end
 end
-
-

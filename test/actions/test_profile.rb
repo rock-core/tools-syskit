@@ -336,5 +336,99 @@ describe Syskit::Actions::Profile do
             assert_equal ['test1', 'test2'], profile.each_definition.map(&:name)
         end
     end
-end
 
+    describe "#definition" do
+        attr_reader :profile
+        before do
+            @profile = Syskit::Actions::Profile.new
+            task_m = Syskit::TaskContext.new_submodel
+            profile.define 'test', task_m
+        end
+
+        it "returns a definition object that points to the profile" do
+            req = profile.definition('test')
+            assert_kind_of Syskit::Actions::Profile::Definition, req
+            assert_same profile, req.profile
+            assert_equal 'test', req.name
+        end
+
+        it "raises ArgumentError if the definition does not exist" do
+            assert_raises(ArgumentError) do
+                profile.definition('does_not_exist')
+            end
+        end
+
+        it "returns a duplicate of the profile's own definition object" do
+            refute_same profile.definitions['test'], profile.definition('test')
+        end
+
+        it "returns a new object each time" do
+            refute_same profile.definition('test'), profile.definition('test')
+        end
+
+        it "does not inject the DI context" do
+            flexmock(profile).should_receive(:inject_di_context).never
+            profile.definition('test')
+        end
+
+        it "returns a non-resolved definition object in #definition" do
+            flexmock(profile).should_receive(:inject_di_context).never
+            profile.definition('test')
+        end
+    end
+
+    describe Syskit::Actions::Profile::Definition do
+        describe "#to_action_model" do
+            attr_reader :profile
+            before do
+                @profile = Syskit::Actions::Profile.new
+                task_m = Syskit::TaskContext.new_submodel
+                task_m.argument :arg
+                profile.define 'test', task_m
+            end
+
+            it "applies changes done to the requirement to the generated action model" do
+                d = profile.resolved_definition('test').with_arguments(arg: 10)
+                task = d.to_action_model.instanciate(plan)
+                assert_equal 10, task.arguments[:arg]
+            end
+        end
+    end
+
+    describe "#resolved_definition" do
+        attr_reader :profile
+        before do
+            @profile = Syskit::Actions::Profile.new
+            task_m = Syskit::TaskContext.new_submodel
+            profile.define 'test', task_m
+        end
+
+        it "returns an instance requirements object that points to the profile" do
+            req = profile.resolved_definition('test')
+            assert_same profile, req.profile
+            assert_equal 'test', req.name
+        end
+
+        it "raises ArgumentError if the definition does not exist" do
+            assert_raises(ArgumentError) do
+                profile.resolved_definition('does_not_exist')
+            end
+        end
+
+        it "returns an object that is not the profile's own definition object" do
+            refute_same profile.definitions['test'], profile.resolved_definition('test')
+        end
+
+        it "returns a new object each time" do
+            refute_same profile.resolved_definition('test'), profile.resolved_definition('test')
+        end
+
+        it "injects the DI context" do
+            expected_req = nil
+            flexmock(profile).should_receive(:inject_di_context).
+                with(->(req) { expected_req = req }).once
+            resolved_req = profile.resolved_definition('test')
+            assert_same expected_req, resolved_req
+        end
+    end
+end
