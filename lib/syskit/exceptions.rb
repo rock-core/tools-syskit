@@ -287,9 +287,9 @@ module Syskit
 
                 still_abstract.each do |task|
                     if task.respond_to?(:proxied_data_services)
-                        deployed_models = engine.compute_deployed_models
+                        component_models = Syskit::Component.each_submodel.to_a
                         per_service_candidates = task.proxied_data_services.map do |m|
-                            deployed_models.find_all { |deployed_m| deployed_m.fullfills?(m) }.to_set
+                            component_models.find_all { |component_m| component_m.fullfills?(m) }.to_set
                         end
                         candidates = per_service_candidates.inject { |a, b| a & b } || Set.new
                     else
