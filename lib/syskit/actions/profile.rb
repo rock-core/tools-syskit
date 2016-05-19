@@ -11,6 +11,8 @@ module Syskit
             end
             @profiles = Array.new
 
+            dsl_attribute :doc
+
             # An {InstanceRequirements} object created from a profile {Definition}
             class ProfileInstanceRequirements < InstanceRequirements
                 # The profile this definition comes from
@@ -596,6 +598,7 @@ module Syskit
                 else
                     profile = Profile.new("#{self.name}::#{name}", register: true)
                     const_set(name, profile)
+                    profile.doc MetaRuby::DSLs.parse_documentation_block(/.*/, "profile")
                 end
                 if block
                     profile.instance_eval(&block)
