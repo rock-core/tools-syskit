@@ -18,6 +18,13 @@ module Syskit
 
                     def create_new_proxy_model(peer)
                         supermodel = peer.local_model(self.supermodel)
+                        # 2016-05: workaround broken log files in which types
+                        #          are marshalled as strings instead of type
+                        #          objects
+                        if message_type.respond_to?(:to_str)
+                            Roby.app.default_loader.resolve_type(message_type, define_dummy_type: true)
+                        end
+                        
                         local_model = supermodel.new_submodel(name: name, lazy_dispatch: lazy_dispatch, message_type: peer.local_object(message_type))
                         peer.register_model(local_model, remote_siblings)
                         local_model
