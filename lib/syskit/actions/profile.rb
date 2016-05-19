@@ -267,7 +267,17 @@ module Syskit
 
             # Whether self uses the given profile
             def uses_profile?(profile)
-                used_profiles.any? { |used_profile, _| used_profile == profile }
+                used_profiles.any? { |used_profile, _tags| used_profile == profile }
+            end
+
+            # Enumerate the profiles that have directly been imported in self
+            #
+            # @yieldparam [Profile] profile
+            def each_used_profile(&block)
+                return enum_for(__method__) unless block_given?
+                used_profiles.each do |profile, _tags|
+                    yield(profile)
+                end
             end
 
             # Adds the given profile DI information and registered definitions
@@ -385,6 +395,11 @@ module Syskit
                 end
             end
 
+            # Tests whether self has a definition with a given name
+            def has_definition?(name)
+                definitions.has_key?(name)
+            end
+
             # Returns the instance requirement object that represents the given
             # definition, with all the dependency injection information
             # contained in this profile applied
@@ -407,6 +422,30 @@ module Syskit
                 inject_di_context(result)
                 result.doc(req.doc)
                 result
+            end
+
+            # Enumerate all definitions available on this profile
+            #
+            # @yieldparam [Definition] definition the definition object as given
+            #   to {#define}
+            #
+            # @see each_resolved_definition
+            def each_definition(&block)
+                return enum_for(__method__) if !block_given?
+                definitions.each_key do |name|
+                    yield(definition(name))
+                end
+            end
+
+            # Enumerate all definitions on this profile and resolve them
+            #
+            # @yieldparam [Definition] definition the definition resolved with
+            #   {#resolved_definition}
+            def each_resolved_definition
+                return enum_for(__method__) if !block_given?
+                each_definition do |raw_def|
+                    yield(resolved_definition(raw_def.name))
+                end
             end
 
             def all_used_profiles
