@@ -85,6 +85,19 @@ module Syskit
                 end
             end
 
+            describe "#compute_system_network" do
+                it "runs the validate_abstract_network handler if asked to" do
+                    generator = SystemNetworkGenerator.new(plan)
+                    flexmock(generator).should_receive(:validate_abstract_network).once
+                    generator.compute_system_network([], validate_abstract_network: true)
+                end
+                it "runs the validate_generated_network handler if asked to" do
+                    generator = SystemNetworkGenerator.new(plan)
+                    flexmock(generator).should_receive(:validate_generated_network).once
+                    generator.compute_system_network([], validate_generated_network: true)
+                end
+            end
+
             describe "#generate" do
                 describe "handling of optional dependencies" do
                     attr_reader :cmp_m, :srv_m, :task_m, :syskit_engine

@@ -74,66 +74,6 @@ module Syskit
                 Syskit.conf.deployments
             end
 
-            # Computes the set of task context models that are available in
-            # deployments
-            def compute_deployed_models
-                deployed_models = Set.new
-
-                new_models = Set.new
-                available_deployments.each do |machine_name, deployment_models|
-                    deployment_models.each do |model|
-                        model.each_orogen_deployed_task_context_model do |deployed_task|
-                            new_models << TaskContext.model_for(deployed_task.task_model)
-                        end
-                    end
-                end
-
-                while !new_models.empty?
-                    deployed_models.merge(new_models)
-
-                    # First, add everything the new models fullfill
-                    fullfilled_models = Set.new
-                    new_models.each do |m|
-                        m.each_fullfilled_model do |fullfilled_m|
-                            next if !(fullfilled_m <= Syskit::Component) && !(fullfilled_m.kind_of?(Models::DataServiceModel))
-                            if !deployed_models.include?(fullfilled_m)
-                                fullfilled_models << fullfilled_m
-                            end
-                        end
-                    end
-                    deployed_models.merge(fullfilled_models)
-
-                    # No new fullfilled models, finish
-                    break if fullfilled_models.empty?
-
-                    # Look into which compositions we are able to instantiate
-                    # with the newly added fullfilled models
-                    new_models.clear
-                    Composition.each_submodel do |composition_m|
-                        next if deployed_models.include?(composition_m)
-                        available = composition_m.each_child.all? do |child_name, child_m|
-                            child_m.each_fullfilled_model.all? do |fullfilled_m|
-                                if !(fullfilled_m <= Syskit::Component) && !(fullfilled_m.kind_of?(Models::DataServiceModel))
-                                    true
-                                else
-                                    deployed_models.include?(fullfilled_m)
-                                end
-                            end
-                        end
-                        if available
-                            new_models << composition_m
-                        end
-                    end
-                end
-
-                deployed_models.delete(Syskit::TaskContext)
-                deployed_models.delete(Syskit::DataService)
-                deployed_models.delete(Syskit::Composition)
-                deployed_models.delete(Syskit::Component)
-
-                deployed_models
-            end
-
             # Transform the system network into a deployed network
             #
             # This does not access {#real_plan}

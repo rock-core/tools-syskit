@@ -220,11 +220,11 @@ module Syskit
                 log_timepoint 'postprocessing'
 
                 if validate_abstract_network
-                    validate_abstract_network
+                    self.validate_abstract_network
                     log_timepoint 'validate_abstract_network'
                 end
                 if validate_generated_network
-                    validate_generated_network
+                    self.validate_generated_network
                     log_timepoint 'validate_generated_network'
                 end
 
