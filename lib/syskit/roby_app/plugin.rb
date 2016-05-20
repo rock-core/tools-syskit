@@ -186,6 +186,11 @@ module Syskit
                     app.auto_load_all_task_libraries = true
                 end
 
+                if app.testing?
+                    Syskit.conf.logs.disable_conf_logging
+                    Syskit.conf.logs.disable_port_logging
+                end
+
                 setup_loaders(app)
 
                 if app.shell?
