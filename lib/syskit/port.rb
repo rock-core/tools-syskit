@@ -218,18 +218,35 @@ module Syskit
         def initialize(port, policy = Hash.new)
             @port = port.to_component_port
             @policy = policy
+            @disconnected = false
             @port.component.execute do |component|
-                @resolved_port = component.find_port(@port.name)
-                if !@resolved_port
-                    raise ArgumentError, "cannot find a port called #{@port.name} on #{component}"
+                if !@disconnected
+                    resolve(component)
                 end
-		@actual_port = resolved_port.to_actual_port
-                @reader = @actual_port.to_orocos_port.reader(policy)
             end
         end
 
         def model
             Models::OutputReader.new(port.model, policy)
+        end
+
+        # @api private
+        #
+        # Resolves the underlying reader object
+        def resolve(component)
+            @resolved_port = component.find_port(@port.name)
+            if !@resolved_port
+                raise ArgumentError, "cannot find a port called #{@port.name} on #{component}"
+            end
+            @actual_port = resolved_port.to_actual_port
+            @reader = @actual_port.to_orocos_port.reader(policy)
+        end
+
+        def disconnect
+            @disconnected = true
+            if reader
+                reader.disconnect
+            end
         end
 
         def read_new
@@ -264,12 +281,9 @@ module Syskit
             @port = port.to_component_port
             @policy = policy
             @port.component.execute do |component|
-                @resolved_port = component.find_port(@port.name)
-                if !@resolved_port
-                    raise ArgumentError, "cannot find a port called #{@port.name} on #{component}"
+                if !@disconnected
+                    resolve(component)
                 end
-		@actual_port = resolved_port.to_actual_port
-                @writer = @actual_port.to_orocos_port.writer(policy)
             end
         end
 
@@ -280,6 +294,25 @@ module Syskit
 	def ready?
 	    writer && actual_port.component.running?
 	end
+
+        def disconnect
+            @disconnected = true
+            if writer
+                writer.disconnect
+            end
+        end
+
+        # @api private
+        #
+        # Resolves the underlying writer object
+        def resolve(component)
+            @resolved_port = component.find_port(@port.name)
+            if !@resolved_port
+                raise ArgumentError, "cannot find a port called #{@port.name} on #{component}"
+            end
+            @actual_port = resolved_port.to_actual_port
+            @writer = @actual_port.to_orocos_port.writer(policy)
+        end
 
 	# Write a sample on the associated port
 	#
