@@ -82,6 +82,7 @@ describe Syskit::Actions::Profile do
         it "allows to transform the definition names" do
             src = Syskit::Actions::Profile.new
             src.define 'test', Syskit::TaskContext.new_submodel
+            assert_equal 'test', src.test_def.name
 
             dst = Syskit::Actions::Profile.new
             dst.use_profile src, transform_names: ->(name) { "modified_#{name}" }
@@ -186,7 +187,8 @@ describe Syskit::Actions::Profile do
             srv_task_m.provides srv_m, as: 'test'
             child_profile = Syskit::Actions::Profile.new
             child_profile.use_profile parent_profile, 'test' => srv_task_m
-            task = child_profile.test_def.arguments[:action].requirements.instanciate(plan)
+            task = child_profile.test_def.arguments[:action].
+                requirements.instanciate(plan)
             assert_kind_of srv_task_m, task.test_child
         end
     end

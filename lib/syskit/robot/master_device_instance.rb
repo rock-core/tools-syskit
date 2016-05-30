@@ -54,6 +54,7 @@ module Syskit
                 driver_model = driver_model.to_instance_requirements
                 @driver_model = driver_model.service
                 @requirements = driver_model.to_component_model
+                requirements.name = "#{name}_dev"
                 requirements.with_arguments(:"#{driver_model.service.name}_dev" => self)
                 requirements.with_arguments(**task_arguments)
 
@@ -193,7 +194,7 @@ module Syskit
                 com_bus.model.apply_attached_device_configuration_extensions(self)
                 self
             end
-            
+
             # Finds in {#driver_model}.component_model the data service that should be used to
             # interface with a combus
             #
@@ -218,7 +219,7 @@ module Syskit
 
             KNOWN_PARAMETERS = { :period => nil, :sample_size => nil, :device_id => nil }
 
-            ## 
+            ##
             # :method:device_id
             #
             # call-seq:
@@ -262,7 +263,7 @@ module Syskit
             #
             # @overload slave(slave_name)
             #   @arg [String] slave_name the name of a slave service on the
-            #     device's driver 
+            #     device's driver
             #   @return [Syskit::Robot::SlaveDeviceInstance]
             #
             # @overload slave(dynamic_service_name, :as => slave_name)
@@ -271,7 +272,7 @@ module Syskit
             #   @arg [String] slave_name the name of the slave as it should be
             #     created
             #   @return [Syskit::Robot::SlaveDeviceInstance]
-            #   
+            #
             def slave(slave_service, options = Hash.new)
                 options = Kernel.validate_options options, :as => nil
                 if existing_slave = slaves[slave_service]
@@ -392,4 +393,3 @@ module Syskit
         end
     end
 end
-

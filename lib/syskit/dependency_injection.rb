@@ -303,6 +303,7 @@ module Syskit
                 end
 
                 selected_instance, selected_requirements = nil, InstanceRequirements.new
+                requirements_name = nil
                 selections.each do |sel_m, required_m|
                     if sel_m.respond_to?(:to_task)
                         sel_task = sel_m.to_task
@@ -313,6 +314,9 @@ module Syskit
                     end
 
                     sel_m = sel_m.to_instance_requirements
+                    if sel_m.respond_to?(:name)
+                        requirements_name ||= sel_m.name
+                    end
                     if sel_m.service
                         if required_m
                             selected_services[required_m] = sel_m.service
@@ -325,6 +329,9 @@ module Syskit
                         end
                     end
                     selected_requirements.merge(sel_m.to_component_model, keep_abstract: true)
+                end
+                if selections.size == 1
+                    selected_requirements.name = requirements_name
                 end
 
                 if selected_instance && !selected_instance.fullfills?(requirements, requirements.arguments)

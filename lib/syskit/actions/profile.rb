@@ -389,9 +389,7 @@ module Syskit
             # @see definition resolved_definition
             def find_definition_by_name(name)
                 if req = definitions[name]
-                    req = req.dup
-                    req.name = name
-                    req
+                    req.dup
                 end
             end
 
@@ -419,6 +417,7 @@ module Syskit
                 result = ProfileInstanceRequirements.new(
                     self, name, advanced: req.advanced?)
                 result.merge(req)
+                result.name = req.name
                 inject_di_context(result)
                 result.doc(req.doc)
                 result
