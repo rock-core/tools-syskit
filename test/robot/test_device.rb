@@ -11,6 +11,18 @@ describe Syskit::Robot::MasterDeviceInstance do
         @device = robot.device device_m, as: 'dev'
     end
 
+    describe "#doc" do
+        it "sets the documentation to a given string" do
+            string = flexmock(to_str: 'test')
+            device.doc(string)
+            assert_equal 'test', device.doc
+        end
+        it "resets the documentation to nil if given nil" do
+            device.doc(nil)
+            assert_nil device.doc
+        end
+    end
+
     describe "#each_fullfilled_model" do
         it "should enumerate the device's device type model as well as the submodels it provides" do
             srv_m = Syskit::DataService.new_submodel
