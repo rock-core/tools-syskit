@@ -16,8 +16,12 @@ module Syskit
 
             # @return [Component] The component instance we are bound to
             attr_reader :component
-            # @return [Models::BoundDataService] the data service we are an
-            #   instance of. self is basically model.bind(component)
+            # The data service model we are an instance of.
+            #
+            # self is basically model.bind(component)
+            #
+            # @return [Models::BoundDataService] 
+            # @see service_model
             attr_reader :model
             # The data service name
             #
@@ -38,6 +42,13 @@ module Syskit
 
             def ==(other)
                 eql?(other)
+            end
+
+            # Returns the data service model
+            #
+            # @see model
+            def service_model
+                model.model
             end
 
             def initialize(component, model)
