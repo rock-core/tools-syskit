@@ -232,7 +232,7 @@ module Syskit
                 end
 
                 start_local_process_server = !Syskit.conf.only_load_models? &&
-                    !Syskit.conf.disables_process_server? &&
+                    !Syskit.conf.disables_local_process_server? &&
                     !(app.single? && app.simulation?)
 
                 if start_local_process_server

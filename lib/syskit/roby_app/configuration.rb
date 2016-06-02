@@ -6,7 +6,7 @@ module Syskit
         #
         # The main configuration instance is accessible as Syskit.conf or (if
         # running in a Roby application) as Conf.syskit
-        class Configuration < Roby::OpenStruct
+        class Configuration
             # The application that we are configuring
             # @return [Roby::Application]
             attr_reader :app
@@ -39,6 +39,14 @@ module Syskit
             # @return [LoggingConfiguration]
             attr_reader :logs
 
+            # Component configuration
+            #
+            # This returns an OpenStruct object in which component-specific
+            # configuration can be stored. Each component will in
+            # {TaskContext#configure} look for a value named as its deployed
+            # task name and apply configuration stored there (if there is any)
+            attr_reader :orocos
+
             # Controls whether the orogen types should be exported as Ruby
             # constants
             #
@@ -52,7 +60,6 @@ module Syskit
                 super()
 
                 @app = app
-                @logs = LoggingConfiguration.new
                 @process_servers = Hash.new
                 @load_component_extensions = true
                 @redirect_local_process_server = true
@@ -68,6 +75,7 @@ module Syskit
                 @ignore_load_errors = false
                 @buffer_size_margin = 0.1
                 @use_only_model_pack = false
+                clear
 
                 self.export_types = true
             end
@@ -80,9 +88,10 @@ module Syskit
             #
             # Note that it is called by {#initialize}
             def clear
-                super
                 @deployments = Hash.new { |h, k| h[k] = Set.new }
                 @deployed_tasks = Hash.new
+                @logs = LoggingConfiguration.new
+                @orocos = Roby::OpenStruct.new
             end
 
             # @deprecated access {#logs} for logging configuration
