@@ -8,6 +8,7 @@ module Syskit
                 Syskit.conf.register_process_server(
                     'stubs', Orocos::RubyTasks::ProcessManager.new(Roby.app.default_loader, task_context_class: Orocos::RubyTasks::StubTaskContext), "")
                 super
+                Syskit.conf.logs.disable_conf_logging
                 Syskit.conf.logs.disable_port_logging
             end
 
