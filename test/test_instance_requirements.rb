@@ -475,7 +475,7 @@ describe Syskit::InstanceRequirements do
             srv_m = @srv_m = Syskit::DataService.new_submodel
             @task_m = Syskit::TaskContext.new_submodel
             task_m.provides srv_m, as: 'test'
-                
+
 
             @cmp_m = Syskit::Composition.new_submodel
             cmp_m.add srv_m, as: 'test0'
@@ -680,5 +680,10 @@ describe Syskit::InstanceRequirements do
                 find_all_suitable_deployments_for(task).map(&:first)
         end
     end
-end
 
+    describe "droby marshalling" do
+        it "should be able to be marshalled and unmarshalled" do
+            assert_droby_compatible(Syskit::InstanceRequirements.new)
+        end
+    end
+end

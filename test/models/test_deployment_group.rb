@@ -8,7 +8,7 @@ module Syskit
                 app = Roby::Application.new
                 @conf = RobyApp::Configuration.new(app)
                 @loader = OroGen::Loaders::Base.new
-                @group = DeploymentGroup.new(conf: conf, loader: loader)
+                @group = DeploymentGroup.new
                 conf.register_process_server(
                     'test-mng', Orocos::RubyTasks::ProcessManager.new(loader), '')
             end
@@ -34,9 +34,9 @@ module Syskit
                     @deployment_m = Syskit::Deployment.new_submodel do
                         task 'task', task_m.orogen_model
                     end
-                    @other_group = DeploymentGroup.new(conf: conf, loader: loader)
-                    @other_deployment = other_group.use_deployment(deployment_m => 'other_', on: 'test-mng').first
-                    @self_deployment  = group.use_deployment(deployment_m => 'self_', on: 'test-mng').first
+                    @other_group = DeploymentGroup.new
+                    @other_deployment = other_group.use_deployment(deployment_m => 'other_', on: 'test-mng', process_managers: conf, loader: loader).first
+                    @self_deployment  = group.use_deployment(deployment_m => 'self_', on: 'test-mng', process_managers: conf, loader: loader).first
                 end
 
                 it "merges the argument's registered deployments with the local" do
@@ -58,7 +58,7 @@ module Syskit
                 end
 
                 it "passes if the two groups have the same deployment" do
-                    other_group.use_deployment(deployment_m => 'self_', on: 'test-mng').first
+                    other_group.use_deployment(deployment_m => 'self_', on: 'test-mng', process_managers: conf, loader: loader).first
                     group.use_group(other_group)
 
                     assert_equal other_deployment, group.find_deployment_from_task_name('other_task')
@@ -68,7 +68,7 @@ module Syskit
                 end
 
                 it "raises if the receiver and argument have clashing task names and leaves the receiver as-is" do
-                    clash = other_group.use_deployment(deployment_m => 'self_', on: 'test-mng').first
+                    clash = other_group.use_deployment(deployment_m => 'self_', on: 'test-mng', process_managers: conf, loader: loader).first
                     flexmock(self_deployment).should_receive(:==).with(clash).and_return(false)
                     assert_raises(TaskNameAlreadyInUse) do
                         group.use_group(other_group)
@@ -81,9 +81,9 @@ module Syskit
                 end
 
                 it "keeps the two groups separate" do
-                    group = DeploymentGroup.new(conf: conf, loader: loader)
+                    group = DeploymentGroup.new
                     group.use_group(other_group)
-                    other_group.use_deployment(deployment_m => 'self_', on: 'test-mng').first
+                    other_group.use_deployment(deployment_m => 'self_', on: 'test-mng', process_managers: conf, loader: loader).first
                     assert_equal Set[other_deployment],
                         group.find_all_deployments_from_process_manager('test-mng')
                     refute group.find_deployment_from_task_name('self_task')
@@ -100,8 +100,8 @@ module Syskit
                 end
 
                 it "registers the mapping from task models to available deployments" do
-                    first  = group.use_deployment(deployment_m => '1_', on: 'test-mng').first
-                    second = group.use_deployment(deployment_m => '2_', on: 'test-mng').first
+                    first  = group.use_deployment(deployment_m => '1_', on: 'test-mng', process_managers: conf, loader: loader).first
+                    second = group.use_deployment(deployment_m => '2_', on: 'test-mng', process_managers: conf, loader: loader).first
                     assert_equal Hash[task_m => Set[[first, '1_task'], [second, '2_task']]],
                         group.task_context_deployment_candidates
                 end
@@ -132,16 +132,16 @@ module Syskit
                 end
 
                 it "returns matching deployments with the exact task model" do
-                    first  = group.use_deployment(deployment_m => '1_', on: 'test-mng').first
-                    second = group.use_deployment(deployment_m => '2_', on: 'test-mng').first
+                    first  = group.use_deployment(deployment_m => '1_', on: 'test-mng', process_managers: conf, loader: loader).first
+                    second = group.use_deployment(deployment_m => '2_', on: 'test-mng', process_managers: conf, loader: loader).first
                     task = task_m.new
                     assert_equal Set[[first, '1_task'], [second, '2_task']],
                         group.find_all_suitable_deployments_for(task)
                 end
 
                 it "returns deployments valid for the task's concrete model if there are none for the actual" do
-                    first  = group.use_deployment(deployment_m => '1_', on: 'test-mng').first
-                    second = group.use_deployment(deployment_m => '2_', on: 'test-mng').first
+                    first  = group.use_deployment(deployment_m => '1_', on: 'test-mng', process_managers: conf, loader: loader).first
+                    second = group.use_deployment(deployment_m => '2_', on: 'test-mng', process_managers: conf, loader: loader).first
                     task = task_m.new
                     task.specialize
                     refute_same task.concrete_model, task.model
@@ -201,26 +201,37 @@ module Syskit
             end
 
             describe "#use_ruby_tasks" do
-                it "registers a configured deployment using the task model's #deployment_model call" do
-                    deployment_m = Syskit::Deployment.new_submodel
-                    task_m = Syskit::RubyTaskContext.new_submodel
+                attr_reader :deployment_m, :task_m
+                before do
+                    @deployment_m = Syskit::Deployment.new_submodel
+                    @task_m = Syskit::RubyTaskContext.new_submodel
                     flexmock(task_m).should_receive(:deployment_model).with('test').
                         and_return(deployment_m)
+                end
 
+                it "registers a configured deployment using the task model's #deployment_model call" do
                     expected = ConfiguredDeployment.new(
                         'test-mng', deployment_m, Hash['test' => 'test'],
                         'test', Hash.new)
                     flexmock(group).should_receive(:register_configured_deployment).
                         with(expected).once
-                    configured_deployment = group.use_ruby_tasks(Hash[task_m => 'test'], on: 'test-mng')
+                    configured_deployment = group.use_ruby_tasks(Hash[task_m => 'test'], on: 'test-mng', process_managers: conf)
                     assert_equal [expected], configured_deployment
+                end
+                it "raises if the process manager does not exist" do
+                    assert_raises(RobyApp::Configuration::UnknownProcessServer) do
+                        group.use_ruby_tasks(Hash[task_m => 'test'], on: 'does_not_exist')
+                    end
                 end
             end
 
             describe "#use_unmanaged_task" do
-                it "creates a deployment model and registers it" do
-                    task_m = Syskit::RubyTaskContext.new_submodel(name: 'Test')
+                attr_reader :task_m
+                before do
+                    @task_m = Syskit::RubyTaskContext.new_submodel(name: 'Test')
+                end
 
+                it "creates a deployment model and registers it" do
                     expected = lambda do |configured_deployment|
                         assert_equal 'test-mng', configured_deployment.process_server_name
                         assert_equal 'test', configured_deployment.process_name
@@ -233,10 +244,16 @@ module Syskit
 
                     flexmock(group).should_receive(:register_configured_deployment).
                         with(expected).once
-                    configured_deployment = group.use_unmanaged_task(Hash[task_m => 'test'], on: 'test-mng').
+                    configured_deployment = group.use_unmanaged_task(Hash[task_m => 'test'], on: 'test-mng', process_managers: conf).
                         first
 
                     assert_equal 'test-mng', configured_deployment.process_server_name
+                end
+
+                it "raises if the process manager does not exist" do
+                    assert_raises(RobyApp::Configuration::UnknownProcessServer) do
+                        group.use_unmanaged_task(Hash[task_m => 'test'], on: 'does_not_exist')
+                    end
                 end
             end
 
@@ -266,7 +283,7 @@ module Syskit
                     flexmock(group).should_receive(:register_configured_deployment).
                         once.with(expected)
 
-                    actual = group.use_deployment(task_m => 'test', on: 'test-mng').first
+                    actual = group.use_deployment(task_m => 'test', on: 'test-mng', process_managers: conf, loader: loader).first
                     assert expected[actual]
                 end
 
@@ -281,7 +298,7 @@ module Syskit
                     end
                     flexmock(group).should_receive(:register_configured_deployment).
                         once.with(expected)
-                    actual = group.use_deployment(deployment_m, on: 'test-mng').first
+                    actual = group.use_deployment(deployment_m, on: 'test-mng', process_managers: conf, loader: loader).first
                     assert expected[actual]
                 end
 
@@ -297,12 +314,11 @@ module Syskit
                     flexmock(group).should_receive(:register_configured_deployment).
                         once.with(expected)
                     flexmock(loader).should_receive(:task_model_from_name).and_raise(OroGen::NotFound)
-                    actual = group.use_deployment('test_deployment', on: 'test-mng').first
+                    actual = group.use_deployment('test_deployment', on: 'test-mng', process_managers: conf, loader: loader).first
                     assert expected[actual]
                 end
 
                 it "overrides the process server with the stub process server if simulation? is true" do
-                    group.simulation = true
                     expected = lambda do |configured_deployment|
                         assert_equal 'test-mng-sim',   configured_deployment.process_server_name
                         true
@@ -310,13 +326,13 @@ module Syskit
                     flexmock(group).should_receive(:register_configured_deployment).
                         once.with(expected)
 
-                    actual = group.use_deployment(task_m => 'test', on: 'test-mng').first
+                    actual = group.use_deployment(task_m => 'test', on: 'test-mng', process_managers: conf, loader: loader, simulation: true).first
                     assert expected[actual]
                 end
 
                 it "sets the name mappings to identity for deployments that are not prefixed" do
                     deployment_m.orogen_model.task 'task', task_m.orogen_model
-                    configured_deployment = group.use_deployment(deployment_m, on: 'test-mng').first
+                    configured_deployment = group.use_deployment(deployment_m, on: 'test-mng', process_managers: conf, loader: loader).first
                     assert_equal Hash['task' => 'task'], configured_deployment.name_mappings
                 end
             end
@@ -341,9 +357,9 @@ module Syskit
                         and_yield(deployment_m.orogen_model)
 
                     flexmock(group).should_receive(:use_deployment).
-                        with('test_deployment', on: 'test-mng', loader: loader).
+                        with('test_deployment', on: 'test-mng', process_managers: conf, loader: loader).
                         once
-                    group.use_deployments_from('test_project', on: 'test-mng')
+                    group.use_deployments_from('test_project', on: 'test-mng', process_managers: conf, loader: loader)
                 end
 
                 it "ignores uninstalled deployments" do
@@ -353,7 +369,7 @@ module Syskit
                         and_yield(flexmock(:install? => false))
 
                     flexmock(group).should_receive(:use_deployment).never
-                    group.use_deployments_from('test_project', on: 'test-mng')
+                    group.use_deployments_from('test_project', on: 'test-mng', process_managers: conf, loader: loader)
                 end
             end
         end

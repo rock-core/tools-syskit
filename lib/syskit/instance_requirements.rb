@@ -701,9 +701,7 @@ module Syskit
 
             def reset_deployment_selection
                 deployment_hints.clear
-                @deployment_group = Models::DeploymentGroup.new(
-                    conf: deployment_group.conf, loader: deployment_group.loader,
-                    simulation: deployment_group.simulation?)
+                @deployment_group = Models::DeploymentGroup.new
             end
 
             def use_configured_deployment(configured_deployment)

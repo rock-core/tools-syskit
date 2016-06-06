@@ -96,7 +96,7 @@ module Syskit
             #
             # Note that it is called by {#initialize}
             def clear
-                @deployment_group = Models::DeploymentGroup.new(conf: self, loader: app.default_loader)
+                @deployment_group = Models::DeploymentGroup.new
                 @logs = LoggingConfiguration.new
                 @orocos = Roby::OpenStruct.new
             end
@@ -263,10 +263,30 @@ module Syskit
             # @return [Float]
             attr_reader :buffer_size_margin
 
-            # The set of known process servers.
+            # @deprecated use {#sim_process_server_config_for} instead for
+            #   consistency with {#process_server_config_for}
             #
-            # It maps the server name to the Orocos::ProcessServer instance
-            attr_reader :process_servers
+            # (see #sim_process_server_config_for)
+            def sim_process_server(name)
+                sim_process_server_config_for(name)
+            end
+
+            # Ensures that a ruby process server is present with the given name
+            #
+            # It is used when running in simulation mode, to "fake" the task
+            # contexts
+            #
+            # @param [String] name the name of the original process server
+            # @return [ProcessServerConfig] the registered process server
+            def sim_process_server_config_for(name)
+                sim_name = "#{name}-sim"
+                unless process_servers[sim_name]
+                    mng = Orocos::RubyTasks::ProcessManager.new(app.default_loader,
+                        task_context_class: Orocos::RubyTasks::StubTaskContext)
+                    register_process_server(sim_name, mng, "")
+                end
+                process_server_config_for(sim_name)
+            end
 
             # Returns the set of options that should be given to Process.spawn
             # to start the given deployment model
@@ -322,16 +342,26 @@ module Syskit
                 process_servers[name.to_str]
             end
 
+            # Exception raised when trying to register a non-local process
+            # server while {#local_only?} is set
+            class LocalOnlyConfiguration < ArgumentError; end
+            # Exception raised when trying to access a process manager that does
+            # not exist
+            class UnknownProcessServer < ArgumentError; end
+            # Exception raised when trying to connect to a process manager that
+            # is already connected
+            class AlreadyConnected < ArgumentError; end
+
             # Returns the process server object named +name+
             #
             # @param [String] name the process server name
-            # @raise [ArgumentError] if no such process server exists
+            # @raise [UnknownProcessServer] if no such process server exists
             # @return [ProcessServerConfig]
             def process_server_config_for(name)
                 config = process_servers[name]
                 if config then config
                 else
-                    raise ArgumentError, "there is no registered process server called #{name}"
+                    raise UnknownProcessServer, "there is no registered process server called #{name}"
                 end
             end
 
@@ -392,9 +422,9 @@ module Syskit
             #
             # @return [Orocos::ProcessClient,Orocos::Generation::Project]
             #
-            # @raise [ArgumentError] if host is not 'localhost' and
+            # @raise [LocalOnlyConfiguration] if host is not 'localhost' and
             #   {#local_only?} is set
-            # @raise [ArgumentError] if there is already a process server
+            # @raise [AlreadyConnected] if there is already a process server
             #   registered with that name
             def connect_to_orocos_process_server(
                 name, host, port: Orocos::RemoteProcesses::DEFAULT_PORT,
@@ -416,9 +446,9 @@ module Syskit
                 end
 
                 if local_only? && host != 'localhost'
-                    raise ArgumentError, "in local only mode"
+                    raise LocalOnlyConfiguration, "in local only mode, one can only connect to process servers on 'localhost' (got #{host})"
                 elsif process_servers[name]
-                    raise ArgumentError, "we are already connected to a process server called #{name}"
+                    raise AlreadyConnected, "we are already connected to a process server called #{name}"
                 end
 
                 if host =~ /^(.*):(\d+)$/
@@ -490,25 +520,25 @@ module Syskit
             # @api deprecated use the object-based deployment API instead
             def use_ruby_tasks(mappings)
                 Roby.warn_deprecated "conf.use_ruby_tasks is deprecated, use the profile-level deployment API"
-                deployment_group.use_ruby_tasks(mappings)
+                deployment_group.use_ruby_tasks(mappings, process_managers: self)
             end
 
             # @api deprecated use the object-based deployment API instead
             def use_unmanaged_task(mappings)
                 Roby.warn_deprecated "conf.use_unmanaged_task is deprecated, use the profile-level deployment API"
-                deployment_group.use_unmanaged_task(mappings)
+                deployment_group.use_unmanaged_task(mappings, process_managers: self, loader: app.default_loader)
             end
 
             # @api deprecated use the object-based deployment API instead
             def use_deployment(*names, on: 'localhost', **run_options)
                 Roby.warn_deprecated "conf.use_deployment is deprecated, use the profile-level deployment API"
-                deployment_group.use_deployment(*names, on: on, **run_options)
+                deployment_group.use_deployment(*names, on: on, process_managers: self, loader: app.default_loader, **run_options)
             end
 
             # @api deprecated use the object-based deployment API instead
             def use_deployments_from(*names, on: 'localhost', **run_options)
                 Roby.warn_deprecated "conf.use_deployment is deprecated, use the profile-level deployment API"
-                deployment_group.use_deployment(*names, on: on, **run_options)
+                deployment_group.use_deployment(*names, on: on, process_managers: self, loader: app.default_loader, **run_options)
             end
         end
     end

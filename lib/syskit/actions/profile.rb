@@ -132,6 +132,13 @@ module Syskit
             # profile
             # @return [DependencyInjection]
             attr_reader :dependency_injection
+            # The deployments available on this profile
+            #
+            # @return [Models::DeploymentGroup]
+            attr_reader :deployment_group
+            # A set of deployment groups that can be used to narrow deployments
+            # on tasks
+            attr_reader :deployment_groups
 
             # Dependency injection object that signifies "select nothing for
             # this"
@@ -179,6 +186,8 @@ module Syskit
                 @dependency_injection = DependencyInjection.new
                 @robot = RobotDefinition.new(self)
                 @definition_location = caller_locations
+                @deployment_group = Syskit::Models::DeploymentGroup.new
+                @deployment_groups = Hash.new
                 super()
 
                 if register
@@ -187,9 +196,10 @@ module Syskit
             end
 
             def tag(name, *models)
-                tags[name] = Syskit.create_proxy_task_model_for(models,
-                                                                :extension => Tag,
-                                                                :as => "#{self}.#{name}_tag")
+                tags[name] = Syskit.create_proxy_task_model_for(
+                    models,
+                    extension: Tag,
+                    as: "#{self}.#{name}_tag")
                 tags[name].tag_name = name
                 tags[name].profile = self
                 tags[name]
@@ -301,6 +311,7 @@ module Syskit
                 invalidate_dependency_injection
                 tags = resolve_tag_selection(profile, tags)
                 used_profiles.push([profile, tags])
+                deployment_group.use_group(profile.deployment_group)
 
                 # Register the definitions, but let the user override
                 # definitions of the given profile locally
@@ -449,10 +460,86 @@ module Syskit
                 end
             end
 
+            # (see Models::DeploymentGroup#find_deployed_task_by_name)
+            def find_deployed_task_by_name(task_name)
+                deployment_group.find_deployed_task_by_name(task_name)
+            end
+
+            # (see Models::DeploymentGroup#has_deployed_task?)
+            def has_deployed_task?(task_name)
+                deployment_group.has_deployed_task?(task_name)
+            end
+
+            # (see Models::DeploymentGroup#use_group)
+            def use_group(deployment_group)
+                deployment_group.use_group(deployment_group)
+            end
+
+            # (see Models::DeploymentGroup#use_ruby_tasks)
+            def use_ruby_tasks(mappings, on: 'ruby_tasks')
+                deployment_group.use_ruby_tasks(mappings, on: on)
+            end
+
+            # (see Models::DeploymentGroup#use_unmanaged_task)
+            def use_ruby_tasks(mappings, on: 'ruby_tasks')
+                deployment_group.use_unmanaged_task(mappings, on: on)
+            end
+
+            # (see Models::DeploymentGroup#use_deployment)
+            def use_deployment(*names, on: 'localhost', loader: deployment_group.loader, **run_options)
+                deployment_group.use_deployment(*names, on: on, loader: loader, **run_options)
+            end
+
+            # (see Models::DeploymentGroup#use_deployments_from)
+            def use_deployments_from(project_name, loader: deployment_group.loader, **use_options)
+                deployment_group.use_deployments_from(project_name, loader: loader, **use_options)
+            end
+
+            # Create a deployment group to specify definition deployments
+            #
+            # This only defines the group, but does not declare that the profile
+            # should use it. To use a group in a profile, do the following:
+            #
+            # @example
+            #   create_deployment_group 'left_arm' do
+            #       use_deployments_from 'left_arm'
+            #   end
+            #   use_group left_arm_deployment_group
+            #
+            def define_deployment_group(name, &block)
+                group = Syskit::Models::DeploymentGroup.new
+                group.instance_eval(&block)
+                deployment_groups[name] = group
+            end
+
+            # Whether this profile has a group with the given name
+            def has_deployment_group?(name)
+                deployment_groups.has_key?(name)
+            end
+
+            # Returns a deployment group defined with {#create_deployment_group}
+            def find_deployment_group_by_name(name)
+                deployment_groups[name]
+            end
+
+            # Returns a device from the profile's robot definition
+            def find_device_requirements_by_name(device_name)
+                robot.devices[device_name].to_instance_requirements.dup
+            end
+
+            # Returns the tag object for a given name
+            def find_tag_by_name(name)
+                tags[name]
+            end
+
+            # Returns all profiles that are used by self
             def all_used_profiles
                 resolve_used_profiles(Array.new, Set.new)
             end
 
+            # @api private
+            #
+            # Recursively lists all profiles that are used by self
             def resolve_used_profiles(list, set)
                 new_profiles = used_profiles.find_all do |p, _|
                     !set.include?(p)
@@ -471,6 +558,7 @@ module Syskit
             # @param [InstanceRequirements] req the instance requirement object
             # @return [void]
             def inject_di_context(req)
+                req.deployment_group.use_group(deployment_group)
                 req.push_dependency_injection(resolved_dependency_injection)
                 super if defined? super
                 nil
@@ -504,6 +592,8 @@ module Syskit
                 @robot = Robot::RobotDefinition.new
                 definitions.clear
                 @dependency_injection = DependencyInjection.new
+                @deployment_groups = Hash.new
+                @deployment_group = Syskit::Models::DeploymentGroup.new
                 used_profiles.clear
                 super if defined? super
 
@@ -607,7 +697,9 @@ module Syskit
                     self, m,
                     '_tag'.freeze => :has_tag?,
                     '_def'.freeze => :has_definition?,
-                    '_dev'.freeze => :has_device?) || super
+                    '_dev'.freeze => :has_device?,
+                    '_task'.freeze => :has_deployed_task?,
+                    '_deployment_group'.freeze => :has_deployment_group?) || super
             end
 
             def find_through_method_missing(m, args)
@@ -615,7 +707,9 @@ module Syskit
                     self, m, args,
                     '_tag'.freeze => :find_tag,
                     '_def'.freeze => :find_definition_by_name,
-                    '_dev'.freeze => :find_device_requirements_by_name) || super
+                    '_dev'.freeze => :find_device_requirements_by_name,
+                    '_task' => :find_deployed_task_by_name,
+                    '_deployment_group' => :find_deployment_group_by_name) || super
             end
 
             include MetaRuby::DSLs::FindThroughMethodMissing
