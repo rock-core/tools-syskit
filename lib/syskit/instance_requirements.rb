@@ -30,6 +30,11 @@ module Syskit
             attr_reader :pushed_selections
             protected :pushed_selections
 
+            # The deployments that should be used for self
+            #
+            # @return [Models::DeploymentGroup]
+            attr_reader :deployment_group
+
             # A set of hints for deployment disambiguation
             #
             # @see prefer_deployed_tasks
@@ -106,6 +111,7 @@ module Syskit
                 @specialization_hints = Set.new
                 @dynamics = Dynamics.new(NetworkGeneration::PortDynamics.new('Requirements'), Hash.new)
                 @can_use_template = true
+                @deployment_group = Models::DeploymentGroup.new
             end
 
             # HACK: allows CompositionChild#to_instance_requirements to return a
@@ -125,6 +131,7 @@ module Syskit
                 @deployment_hints = old.deployment_hints.dup
                 @specialization_hints = old.specialization_hints.dup
                 @context_selections = old.context_selections.dup
+                @deployment_group = old.deployment_group.dup
                 @can_use_template = old.can_use_template?
             end
 
@@ -454,6 +461,7 @@ module Syskit
                 @selections.merge(other_spec.selections)
                 @pushed_selections.merge(other_spec.pushed_selections)
                 @context_selections.merge(other_spec.context_selections)
+                @deployment_group.use_group(other_spec.deployment_group)
 
                 @deployment_hints |= other_spec.deployment_hints
                 @specialization_hints |= other_spec.specialization_hints
@@ -691,11 +699,33 @@ module Syskit
                 self
             end
 
-            # @deprecated use {#prefer_deployed_tasks} instead
-            def use_deployments(*patterns)
-                Roby.warn_deprecated "InstanceRequirements#use_deployments is deprecated. Use #prefer_deployed_tasks instead"
+            def reset_deployment_selection
+                deployment_hints.clear
+                @deployment_group = Models::DeploymentGroup.new(
+                    conf: deployment_group.conf, loader: deployment_group.loader,
+                    simulation: deployment_group.simulation?)
+            end
+
+            def use_configured_deployment(configured_deployment)
                 invalidate_template
-                prefer_deployed_tasks(*patterns)
+                deployment_group.register_configured_deployment(configured_deployment)
+                self
+            end
+
+            # Declare the deployment that should be used for self
+            def use_deployment(*spec, **options)
+                invalidate_template
+                deployment_group.use_deployment(*spec, **options)
+                self
+            end
+
+            # Add deployments into the deployments this subnet should be using
+            #
+            # @param [Models::DeploymentGroup] deployment_group
+            def use_deployment_group(deployment_group)
+                invalidate_template
+                self.deployment_group.use_group(deployment_group)
+                self
             end
 
             # Add some hints to disambiguate deployment.

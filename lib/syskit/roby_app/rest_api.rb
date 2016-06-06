@@ -173,7 +173,7 @@ module Syskit
             #       }
             #
             get '/deployments/registered' do
-                registered_info = syskit_conf.each_configured_deployment.map do |d|
+                registered_info = syskit_conf.deployment_group.each_configured_deployment.map do |d|
                     next if deployment_manager.used_in_override?(d)
                     make_configured_deployment_info(d)
                 end

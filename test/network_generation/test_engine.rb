@@ -56,7 +56,7 @@ module Syskit
                 end
                 it "ignores InstanceRequirementsTask tasks that failed" do
                     execute { planning_task.start! }
-                    
+
                     expect_execution { planning_task.failed_event.emit }.to do
                         have_error_matching Roby::PlanningFailedError.match.
                             with_origin(original_task)
@@ -112,7 +112,7 @@ module Syskit
                     @planning_task = original_task.planning_task
                     syskit_engine.work_plan.add_permanent_task(@final_task = simple_component_model.new)
                     @required_instances = Hash[original_task.planning_task => final_task]
-                    syskit_stub_deployment_model(simple_component_model)
+                    syskit_stub_configured_deployment(simple_component_model)
                 end
 
                 it "replaces toplevel tasks by their deployed equivalent" do
@@ -170,7 +170,7 @@ module Syskit
                     tasks.delete(proxy)
                     new_task = tasks.first
 
-                    assert_child_of proxy.stop_event, new_task.start_event, 
+                    assert_child_of proxy.stop_event, new_task.start_event,
                         Roby::EventStructure::SyskitConfigurationPrecedence
                 end
 
@@ -198,7 +198,8 @@ module Syskit
                         cmp_m  = Syskit::Composition.new_submodel
                         cmp_m.add task_m, as: 'test'
 
-                        cmp = syskit_stub_and_deploy(cmp_m)
+                        syskit_stub_configured_deployment(task_m)
+                        cmp = syskit_deploy(cmp_m)
                         original_task = cmp.test_child
                         flexmock(task_m).new_instances.should_receive(:can_be_deployed_by?).
                             with(->(proxy) { proxy.__getobj__ == cmp.test_child }).and_return(false)
@@ -227,7 +228,7 @@ module Syskit
                             end
                         end
 
-                        syskit_stub_requirements(child_m)
+                        syskit_stub_configured_deployment(child_m)
                         parent_m = syskit_stub_requirements(parent_m)
                         parent = syskit_deploy(parent_m)
                         child  = parent.test_child
@@ -382,7 +383,7 @@ module Syskit
             describe "synthetic tests" do
                 it "deploys a mission as mission" do
                     task_model = Syskit::TaskContext.new_submodel
-                    deployment = syskit_stub_deployment_model(task_model, 'task')
+                    syskit_stub_configured_deployment(task_model, 'task')
                     plan.add_mission_task(original_task = task_model.as_plan)
                     deployed = syskit_deploy(original_task, add_mission: false)
                     assert plan.mission_task?(deployed)
@@ -390,7 +391,7 @@ module Syskit
 
                 it "deploys a permanent task as permanent" do
                     task_model = Syskit::TaskContext.new_submodel
-                    deployment = syskit_stub_deployment_model(task_model, 'task')
+                    syskit_stub_configured_deployment(task_model, 'task')
                     plan.add_permanent_task(original_task = task_model.as_plan)
                     deployed = syskit_deploy(original_task, add_mission: false)
                     assert plan.permanent_task?(deployed)
@@ -401,7 +402,7 @@ module Syskit
                     composition_model = Syskit::Composition.new_submodel do
                         add task_model, as: 'child'
                     end
-                    deployment = syskit_stub_deployment_model(task_model, 'task')
+                    syskit_stub_configured_deployment(task_model, 'task')
 
                     deployed = syskit_deploy(composition_model)
                     # This deregisters the task from the list of requirements in the
@@ -418,7 +419,7 @@ module Syskit
 
                 it "reconfigures a toplevel task if its configuration changed" do
                     task_model = Syskit::TaskContext.new_submodel
-                    deployment = syskit_stub_deployment_model(task_model, 'task')
+                    syskit_stub_configured_deployment(task_model, 'task')
 
                     deployed_task = syskit_deploy(task_model)
                     planning_task = deployed_task.planning_task
@@ -439,7 +440,7 @@ module Syskit
                     composition_model = Syskit::Composition.new_submodel do
                         add task_model, as: 'child'
                     end
-                    deployment = syskit_stub_deployment_model(task_model, 'task')
+                    syskit_stub_configured_deployment(task_model, 'task')
 
                     cmp, original_cmp = syskit_deploy(composition_model.use('child' => task_model))
                     child = cmp.child_child.to_task
@@ -458,7 +459,7 @@ module Syskit
                     composition_model = Syskit::Composition.new_submodel do
                         add task_model, as: 'child'
                     end
-                    deployment = syskit_stub_deployment_model(task_model, 'task')
+                    syskit_stub_configured_deployment(task_model, 'task')
 
                     syskit_deploy(composition_model.use('child' => task_model))
                     plan.execution_engine.garbage_collect
@@ -478,7 +479,7 @@ module Syskit
                         add task_model, as: 'child'
                         export child_child.out_port
                     end
-                    deployment = syskit_stub_deployment_model(task_model, 'task')
+                    syskit_stub_configured_deployment(task_model, 'task')
                     cmp, _ = syskit_deploy(composition_model)
                     assert_equal Hash[['out', 'out'] => Hash.new], cmp.child_child[cmp, Syskit::Flows::DataFlow]
                 end
@@ -503,7 +504,8 @@ module Syskit
                     task_m = Syskit::TaskContext.new_submodel
                     task_m.argument :arg0
                     task_m.argument :arg1
-                    task = syskit_stub_and_deploy(task_m.with_arguments(arg0: 10))
+                    syskit_stub_configured_deployment(task_m)
+                    task = syskit_deploy(task_m.with_arguments(arg0: 10))
                     cmp_m = Syskit::Composition.new_submodel
                     cmp_m.add(task_m, as: 'test').with_arguments(arg1: 20)
                     cmp = syskit_deploy(cmp_m)
@@ -581,7 +583,7 @@ module Syskit
                         cmp_m.add srv_m, as: 'test'
                         cmp_m.export cmp_m.test_child.out_port
 
-                        syskit_stub_deployment_model(task_m, 'deployed-task')
+                        syskit_stub_configured_deployment(task_m, 'deployed-task')
                         cmp1 = syskit_deploy(cmp_m.use(task_m.out1_srv))
                         cmp2 = syskit_deploy(cmp_m.use(task_m.out2_srv))
                         refute_same cmp1, cmp2
@@ -601,7 +603,7 @@ module Syskit
                         cmp_m.add srv_m, as: 'test'
                         cmp_m.export cmp_m.test_child.out_port
 
-                        syskit_stub_deployment_model(task_m, 'deployed-task')
+                        syskit_stub_configured_deployment(task_m, 'deployed-task')
                         cmp1 = syskit_deploy(cmp_m.use(task_m.out1_srv))
                         cmp2 = cmp_m.use(task_m.out2_srv).as_plan
                         cmp1.depends_on cmp2
@@ -615,4 +617,3 @@ module Syskit
         end
     end
 end
-

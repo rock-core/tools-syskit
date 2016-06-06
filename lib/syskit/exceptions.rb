@@ -229,7 +229,7 @@ module Syskit
         end
 
         # Exception raised in composition instanciations if a selected component
-        # model provides multipe services that fullfills a child's model 
+        # model provides multipe services that fullfills a child's model
         class AmbiguousServiceMapping < AmbiguousServiceSelection
             attr_reader :composition_model
             attr_reader :child_name
@@ -520,8 +520,8 @@ module Syskit
                     end
                 end
 
-                tasks.each do |task, (parents, possible_deployments, deployment_hints)|
-                    has_free_deployment = possible_deployments.any? { |_, _, _, existing| existing.empty? }
+                tasks.each do |task, (_parents, possible_deployments, deployment_hints)|
+                    has_free_deployment = possible_deployments.any? { |_, _, existing| existing.empty? }
                     pp.breakable
                     if has_free_deployment
                         pp.text "#{task}: multiple possible deployments, choose one with #prefer_deployed_tasks(deployed_task_name)"
@@ -537,9 +537,9 @@ module Syskit
                     end
 
                     pp.nest(2) do
-                        possible_deployments.each do |process_server_name, deployment, task_name, existing|
+                        possible_deployments.each do |configured_deployment, task_name, existing|
                             pp.breakable
-                            pp.text "task #{task_name} from deployment #{deployment.orogen_model.name} defined in #{deployment.orogen_model.project.name} on #{process_server_name}"
+                            pp.text "task #{task_name} from deployment #{configured_deployment.orogen_model.name} defined in #{configured_deployment.orogen_model.project.name} on #{configured_deployment.process_server_name}"
                             pp.nest(2) do
                                 existing.each do |task, parents|
                                     pp.breakable
@@ -720,7 +720,7 @@ module Syskit
                 end
             end
         end
-    
+
         # Exception raised by CompositionModel#instanciate when multiple
         # specializations can be applied
         class AmbiguousSpecialization < Ambiguous
@@ -785,7 +785,7 @@ module Syskit
             def initialize(model_a, model_b)
                 @model_a, @model_b = model_a, model_b
             end
-            
+
             def pretty_print(pp)
                 pp.text "models #{model_a.short_name} and #{model_b.short_name} are incompatible"
             end
@@ -840,7 +840,7 @@ module Syskit
             attr_reader :model_b
             attr_reader :port_name
             def initialize(model_a, model_b, port_name)
-                @model_a, @model_b, @port_name = 
+                @model_a, @model_b, @port_name =
                     model_a, model_b, port_name
             end
 
@@ -990,5 +990,3 @@ module Syskit
             end
         end
 end
-
-

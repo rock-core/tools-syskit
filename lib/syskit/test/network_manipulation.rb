@@ -14,6 +14,7 @@ module Syskit
             def setup
                 @__test_created_deployments = Array.new
                 @__test_overriden_configurations = Array.new
+                @__test_deployment_group = Models::DeploymentGroup.new
                 super
             end
 
@@ -21,9 +22,6 @@ module Syskit
                 super
                 @__test_overriden_configurations.each do |model, manager|
                     model.configuration_manager = manager
-                end
-                @__test_created_deployments.each do |d|
-                    Syskit.conf.deregister_configured_deployment(d)
                 end
             end
 
@@ -36,11 +34,15 @@ module Syskit
             end
 
             def use_deployment(*args)
-                @__test_created_deployments.concat(Syskit.conf.use_deployment(*args).to_a)
+                @__test_deployment_group.use_deployment(*args)
             end
 
             def use_ruby_tasks(*args)
-                @__test_created_deployments.concat(Syskit.conf.use_ruby_tasks(*args).to_a)
+                @__test_deployment_group.use_ruby_tasks(*args)
+            end
+
+            def use_unmanaged_task(*args)
+                @__test_deployment_group.use_unmanaged_task(*args)
             end
 
             def normalize_instanciation_models(to_instanciate)
@@ -103,28 +105,27 @@ module Syskit
                 to_instanciate = to_instanciate.flatten # For backward-compatibility
                 to_instanciate = normalize_instanciation_models(to_instanciate)
 
-                emit_calls = Set.new
                 placeholder_tasks = to_instanciate.map do |act|
-                    if act.respond_to?(:to_action)
-                        act = act.to_action
-                    end
+                    act = act.to_action if act.respond_to?(:to_action)
                     plan.add(task = act.as_plan)
-                    if add_mission
-                        plan.add_mission_task(task)
-                    end
+                    plan.add_mission_task(task) if add_mission
                     task
                 end.compact
                 root_tasks = placeholder_tasks.map(&:as_service)
                 requirement_tasks = placeholder_tasks.map(&:planning_task)
+                requirement_tasks.each do |task|
+                    task.requirements.deployment_group.use_group!(@__test_deployment_group)
+                end
 
                 not_running = requirement_tasks.find_all { |t| !t.running? }
                 expect_execution { not_running.each(&:start!) }.
                     to { emit *not_running.map(&:start_event) }
 
+                resolve_options = Hash[on_error: :commit].merge(resolve_options)
                 begin
                     syskit_engine_resolve_handle_plan_export do
                         syskit_engine ||= Syskit::NetworkGeneration::Engine.new(plan)
-                        syskit_engine.resolve(**(Hash[on_error: :commit].merge(resolve_options)))
+                        syskit_engine.resolve(**resolve_options)
                     end
                 rescue Exception => e
                     expect_execution do
@@ -156,7 +157,7 @@ module Syskit
             def syskit_engine_resolve_handle_plan_export
                 failed = false
                 yield
-            rescue Exception => e
+            rescue Exception
                 failed = true
                 raise
             ensure
@@ -191,9 +192,8 @@ module Syskit
                 model
             end
 
-            def syskit_stub_configured_deployment(
-                    task_model = nil, name = nil,
-                    remote_task: self.syskit_stub_resolves_remote_tasks?, &block)
+            def syskit_stub_configured_deployment(task_model = nil, name = nil,
+                remote_task: syskit_stub_resolves_remote_tasks?, register: true, &block)
 
                 if task_model
                     task_model = task_model.to_component_model
@@ -218,12 +218,13 @@ module Syskit
                     end
                 end
 
-                process_server.register_deployment_model(deployment_model.orogen_model)
-                configured_deployment = Models::ConfiguredDeployment.
-                    new('stubs', deployment_model, Hash[name => name],
-                        name, Hash[task_context_class: task_context_class])
-                Syskit.conf.register_configured_deployment(configured_deployment)
-                configured_deployment
+                deployment = Models::ConfiguredDeployment.new(
+                    'stubs', deployment_model, Hash[name => name], name,
+                    Hash[task_context_class: task_context_class])
+                if register
+                    @__test_deployment_group.register_configured_deployment(deployment)
+                end
+                deployment
             end
 
             # Create a new stub deployment model that can deploy a given task
@@ -241,7 +242,8 @@ module Syskit
             def syskit_stub_deployment_model(
                     task_model = nil, name = nil,
                     remote_task: self.syskit_stub_resolves_remote_tasks?, &block)
-                configured_deployment = syskit_stub_configured_deployment(task_model, name, remote_task: remote_task, &block)
+                configured_deployment = syskit_stub_configured_deployment(task_model,
+                    name, remote_task: remote_task, &block)
                 configured_deployment.model
             end
 
@@ -302,9 +304,10 @@ module Syskit
 
                 syskit_stub_conf(task_m, *model.arguments[:conf])
 
-                syskit_stub_deployment_model(task_m, as)
-                model.deployment_hints.clear
-                model.prefer_deployed_tasks(as)
+                deployment = syskit_stub_configured_deployment(task_m, as, register: false)
+                model.reset_deployment_selection
+                model.use_configured_deployment(deployment)
+                model
             end
 
             # Create empty configuration sections for the given task model
@@ -332,7 +335,7 @@ module Syskit
                             child_model = selected_child.selected
                             selected_service = child_model.service
                             child_model = child_model.to_component_model
-                            if child_model.composition_model? 
+                            if child_model.composition_model?
                                 deployed_child = syskit_stub_composition_requirements(
                                     child_model, recursive: true, as: "#{as}_#{child_name}", devices: devices)
                             else
@@ -612,7 +615,8 @@ module Syskit
                     remote_task: self.syskit_stub_resolves_remote_tasks?)
 
                 task_m = task.concrete_model
-                deployment_model = syskit_stub_configured_deployment(task_m, as)
+                deployment_model = syskit_stub_configured_deployment(task_m, as,
+                    remote_task: remote_task, register: false)
                 syskit_stub_conf(task_m, *task.arguments[:conf])
                 task.plan.add(deployer = deployment_model.new)
                 deployed_task = deployer.instanciate_all_tasks.first
@@ -635,7 +639,7 @@ module Syskit
                         t.execution_agent
                     end
                 end.compact
-                
+
                 not_running = agents.find_all { |t| !t.running? }
                 not_ready   = agents.find_all { |t| !t.ready? }
                 expect_execution { not_running.each(&:start!) }.
@@ -813,7 +817,7 @@ module Syskit
                     end.to_run
                 end
             end
-            
+
             class NoStartFixedPoint < RuntimeError
                 attr_reader :tasks
 
@@ -1084,4 +1088,3 @@ module Syskit
         end
     end
 end
-

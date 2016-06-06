@@ -92,15 +92,13 @@ module Syskit
             done.signals protection.redeploy_event
 
             models.each do |m|
-                agents = Set.new
-                plan.find_tasks(m).
-                    each do |task|
-                        if task.kind_of?(Syskit::TaskContext)
-                            agents << task.execution_agent
-                        else
-                            agents << task
-                        end
+                agents = plan.find_tasks(m).each_with_object(Set.new) do |task, result|
+                    if task.kind_of?(Syskit::TaskContext)
+                        result << task.execution_agent
+                    else
+                        result << task
                     end
+                end
 
                 agents.each do |agent_task|
                     agent_task.each_executed_task do |task|

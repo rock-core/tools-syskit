@@ -59,32 +59,42 @@ describe Syskit::RobyApp::Configuration do
            "provides the same orocos task name" do
             deployment1_m = stub_deployment 'deployment1'
             deployment2_m = stub_deployment 'deployment2'
-            conf.use_deployment deployment1_m
-            assert_raises(Syskit::TaskNameAlreadyInUse) do
-                conf.use_deployment deployment2_m
+            deprecated_feature do
+                conf.use_deployment deployment1_m
+                assert_raises(Syskit::TaskNameAlreadyInUse) do
+                    conf.use_deployment deployment2_m
+                end
             end
         end
         it "does not raise if the same deployment is configured "\
            "with a different mapping" do
             deployment1_m = stub_deployment 'deployment1'
-            conf.use_deployment deployment1_m
-            conf.use_deployment deployment1_m => 'prefix_'
+            deprecated_feature do
+                conf.use_deployment deployment1_m
+                conf.use_deployment deployment1_m => 'prefix_'
+            end
         end
         it "does not raise if the same deployment is registered again" do
             deployment1_m = stub_deployment 'deployment1'
-            conf.use_deployment deployment1_m
-            conf.use_deployment deployment1_m
+            deprecated_feature do
+                conf.use_deployment deployment1_m
+                conf.use_deployment deployment1_m
+            end
         end
         it "registers the same deployment only once" do
             deployment1_m = stub_deployment 'deployment1'
-            conf.use_deployment deployment1_m
-            conf.use_deployment deployment1_m
-            assert_equal 1, conf.deployments['localhost'].size
+            deprecated_feature do
+                conf.use_deployment deployment1_m
+                conf.use_deployment deployment1_m
+            end
+            assert_equal 1, conf.deployment_group.find_all_deployments_from_process_manager('localhost').size
         end
         it "should allow registering on another process server" do
             deployment1_m = stub_deployment 'deployment1'
-            conf.use_deployment deployment1_m, on: 'test'
-            assert_equal 1, conf.deployments['test'].size
+            deprecated_feature do
+                conf.use_deployment deployment1_m, on: 'test'
+            end
+            assert_equal 1, conf.deployment_group.find_all_deployments_from_process_manager('test').size
         end
         it "raises OroGen::NotFound if the deployment does not exist" do
             e = assert_raises(OroGen::NotFound) do

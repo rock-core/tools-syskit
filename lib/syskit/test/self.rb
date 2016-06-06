@@ -20,6 +20,18 @@ module Syskit
         end
 
         def setup
+            if ENV['TEST_ENABLE_COVERAGE'] == '1'
+                null_io = File.open('/dev/null', 'w')
+                current_formatter = Syskit.logger.formatter
+                Syskit.warn "running tests with logger in DEBUG mode"
+                Syskit.logger = Logger.new(null_io)
+                Syskit.logger.level = Logger::DEBUG
+                Syskit.logger.formatter = current_formatter
+            else
+                Syskit.warn "running tests with logger in FATAL mode"
+                Syskit.logger.level = Logger::FATAL + 1
+            end
+
             @old_pkg_config = ENV['PKG_CONFIG_PATH'].dup
             Roby.app.app_dir = nil
             Roby.app.search_path.clear
@@ -56,7 +68,9 @@ module Syskit
             end
 
             Syskit.conf.register_process_server(
-                'stubs', Orocos::RubyTasks::ProcessManager.new(Roby.app.default_loader, task_context_class: Orocos::RubyTasks::StubTaskContext), "", host_id: 'syskit')
+                'stubs', Orocos::RubyTasks::ProcessManager.new(
+                    Roby.app.default_loader,
+                    task_context_class: Orocos::RubyTasks::StubTaskContext), "", host_id: 'syskit')
             Syskit.conf.logs.create_configuration_log(File.join(app.log_dir, 'properties'))
 
             Orocos.forbid_blocking_calls
@@ -136,8 +150,3 @@ module Minitest
         include Syskit::Test::Self
     end
 end
-
-
-
-
-

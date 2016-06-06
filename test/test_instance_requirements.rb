@@ -658,5 +658,27 @@ describe Syskit::InstanceRequirements do
             Syskit::InstanceRequirements.new([task_m]).to_action_model
         end
     end
+
+    describe "the deployment groups" do
+        before do
+            @task_m = Syskit::RubyTaskContext.new_submodel
+            @ir = Syskit::InstanceRequirements.new([@task_m])
+        end
+        it "annotates the instanciated task with the deployment group" do
+            deployment = @ir.deployment_group.
+                use_ruby_tasks(Hash[@task_m => 'test'], on: 'stubs')
+            task = @ir.instanciate(plan)
+            assert_equal deployment, task.requirements.deployment_group.
+                find_all_suitable_deployments_for(task).map(&:first)
+        end
+        it "applies the group post-template" do
+            @ir.instanciate(plan)
+            deployment = @ir.deployment_group.
+                use_ruby_tasks(Hash[@task_m => 'test'], on: 'stubs')
+            task = @ir.instanciate(plan)
+            assert_equal deployment, task.requirements.deployment_group.
+                find_all_suitable_deployments_for(task).map(&:first)
+        end
+    end
 end
 

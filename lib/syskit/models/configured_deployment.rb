@@ -60,7 +60,16 @@ module Syskit
                 @orogen_model
             end
 
+            # Enumerate the tasks that are deployed by this configured
+            # deployment
+            #
+            # Unlike {#each_orogen_deployed_task_context_model}, it enumerates
+            # the Syskit task context model
+            #
+            # @yieldparam [String] name the task name
+            # @yieldparam [Models::TaskCOntext] the task model
             def each_deployed_task_model
+                return enum_for(__method__) if !block_given?
                 model.each_deployed_task_model do |name, model|
                     yield(name_mappings[name] || name, model)
                 end

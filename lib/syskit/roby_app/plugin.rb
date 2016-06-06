@@ -427,7 +427,6 @@ module Syskit
             # setup
             def self.clear_config(app)
                 Syskit.conf.clear
-                Syskit.conf.deployments.clear
             end
 
             def self.auto_require_models(app)

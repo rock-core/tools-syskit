@@ -12,39 +12,35 @@ module Syskit
             attr_reader :plan
             attr_reader :event_logger
             attr_reader :merge_solver
-
-            attr_reader :task_context_deployment_candidates
+            attr_reader :default_deployment_group
 
             def initialize(plan, event_logger: plan.event_logger,
-                           merge_solver: MergeSolver.new(plan))
+                           merge_solver: MergeSolver.new(plan),
+                           default_deployment_group: Syskit.conf.deployment_group)
 
                 @plan = plan
                 @event_logger = event_logger
                 @merge_solver = merge_solver
-                @task_context_deployment_candidates = compute_task_context_deployment_candidates
-            end
-
-            # Returns the set of deployments that are available for this network
-            # generation
-            def available_deployments
-                Syskit.conf.deployments
+                @default_deployment_group = default_deployment_group
             end
 
             def deploy(validate: true)
+                debug "Deploying the system network"
+
+                deployment_groups = propagate_deployment_groups
+
                 debug do
-                    debug "Deploying the system network"
-                    debug "Available deployments"
+                    debug "Deployment candidates"
                     log_nest(2) do
-                        task_context_deployment_candidates.each do |model, deployments|
-                            if !deployments
-                                debug "#{model}: no deployments"
-                            elsif deployments.size == 1
-                                debug "#{model}: #{deployments.first}"
-                            else
-                                debug "#{model}"
-                                log_nest(2) do
-                                    deployments.each do |deployment|
-                                        debug deployment.to_s
+                        deployment_groups.each do |task, group|
+                            candidates = group.find_all_suitable_deployments_for(task)
+                            log_pp :debug, task
+                            log_nest(2) do
+                                if candidates.empty?
+                                    debug "no deployments"
+                                else
+                                    candidates.each do |deployment|
+                                        log_pp :debug, deployment
                                     end
                                 end
                             end
@@ -54,55 +50,148 @@ module Syskit
                 end
 
                 all_tasks = plan.find_local_tasks(TaskContext).to_a
-                selected_deployments, missing_deployments = select_deployments(all_tasks)
+                selected_deployments, missing_deployments = select_deployments(all_tasks, deployment_groups)
                 log_timepoint 'select_deployments'
 
                 apply_selected_deployments(selected_deployments)
                 log_timepoint 'apply_selected_deployments'
 
                 if validate
-                    validate_deployed_network
+                    validate_deployed_network(deployment_groups)
                     log_timepoint 'validate_deployed_network'
                 end
 
                 return missing_deployments
             end
 
-            def select_deployments(tasks)
-                used_deployments = Set.new
-                missing_deployments = Set.new
-                selected_deployments = Hash.new
+            # @api private
+            #
+            # A DFS visitor that propagates the deployment group attribute in
+            # the plan hierarchy
+            class DeploymentGroupVisitor < RGL::DFSVisitor
+                attr_reader :default_group
+                attr_reader :deployment_groups
 
-                all_tasks = plan.find_local_tasks(TaskContext).to_a
-                all_tasks.each do |task|
-                    next if task.execution_agent
-                    if !(selected = find_suitable_deployment_for(task))
-                        missing_deployments << task
-                    elsif used_deployments.include?(selected)
-                        debug do
-                            machine, configured_deployment, task_name = *selected
-                            "#{task} resolves to #{configured_deployment}.#{task_name} on #{machine} for its deployment, but it is already used"
+                attr_predicate :use_cow?
+
+                def initialize(graph, default_group, use_cow: true)
+                    super(graph)
+                    @default_group = default_group
+                    @deployment_groups = Hash.new
+                    @use_cow = use_cow
+                end
+
+                def handle_start_vertex(root_task)
+                    return if !root_task.kind_of?(Syskit::Component)
+                    task_group = root_task.requirements.deployment_group
+                    group =
+                        if task_group.empty?
+                            default_group
+                        else task_group
                         end
-                        missing_deployments << task
+
+                    deployment_groups[root_task] =
+                        if use_cow?
+                            [true, group]
+                        else
+                            [false, group.dup]
+                        end
+                end
+
+                def self.update_deployment_groups(deployment_groups, task, added_group, use_cow: true)
+                    shared, existing_group = deployment_groups[task]
+                    if existing_group
+                        if existing_group.eql?(added_group)
+                            return
+                        elsif shared
+                            existing_group = existing_group.dup
+                        end
+                        existing_group.use_group(added_group)
+                        deployment_groups[task] = [false, existing_group]
+                    elsif use_cow
+                        deployment_groups[task] = [true, added_group]
                     else
-                        used_deployments << selected
-                        selected_deployments[task] = selected
+                        deployment_groups[task] = [false, added_group.dup]
                     end
                 end
-                return selected_deployments, missing_deployments
-            end
 
-            def find_suitable_deployment_for(task)
-                # task.model would be wrong here as task.model could be the
-                # singleton class (if there are dynamic services)
-                candidates = task_context_deployment_candidates[task.model]
-                if !candidates || candidates.empty?
-                    candidates = task_context_deployment_candidates[task.concrete_model]
-                    if !candidates || candidates.empty?
-                        debug { "no deployments found for #{task} (#{task.concrete_model})" }
+                def propagate_deployment_group(parent_task, child_task)
+                    if !parent_task.kind_of?(Syskit::Component)
+                        if child_task.kind_of?(Syskit::Component) && !deployment_groups[child_task]
+                            handle_start_vertex(child_task)
+                        end
+                        return
+                    elsif !child_task.kind_of?(Syskit::Component)
                         return
                     end
+
+                    child_group = child_task.requirements.deployment_group
+                    if !child_group.empty?
+                        deployment_groups[child_task] =
+                            if use_cow?
+                                [true, child_group]
+                            else
+                                [false, child_group.dup]
+                            end
+                    else
+                        _, parent_group = deployment_groups[parent_task]
+                        DeploymentGroupVisitor.update_deployment_groups(
+                            deployment_groups, child_task, parent_group, use_cow: use_cow?)
+                    end
                 end
+
+                def handle_tree_edge(parent_task, child_task)
+                    propagate_deployment_group(parent_task, child_task)
+                end
+                def handle_forward_edge(parent_task, child_task)
+                    propagate_deployment_group(parent_task, child_task)
+                end
+            end
+
+            # @api private
+            #
+            # Create a hash of task instances to the deployment group that
+            # should be used for that instance
+            def propagate_deployment_groups(use_cow: true)
+                dependency_graph = plan.task_relation_graph_for(Roby::TaskStructure::Dependency)
+
+                all_groups = Hash.new
+                dependency_graph.each_vertex do |task|
+                    if dependency_graph.root?(task)
+                        visitor = DeploymentGroupVisitor.new(
+                            dependency_graph, default_deployment_group, use_cow: use_cow)
+                        visitor.handle_start_vertex(task)
+                        dependency_graph.depth_first_visit(task, visitor) {}
+
+                        visitor.deployment_groups.each do |task, (_shared, task_group)|
+                            DeploymentGroupVisitor.update_deployment_groups(all_groups, task, task_group, use_cow: use_cow)
+                        end
+                    end
+                end
+
+                groups = Hash.new
+                all_groups.each do |task, (_shared, task_group)|
+                    groups[task] = task_group
+                end
+
+                # 'groups' here includes only the tasks that are in the
+                # dependency graph. Make sure we add entries for the rest as
+                # well
+                plan.find_local_tasks(Syskit::Component).each do |task|
+                    if !groups.has_key?(task)
+                        task_group = task.requirements.deployment_group
+                        groups[task] =
+                            if task_group.empty?
+                                default_deployment_group
+                            else task_group
+                            end
+                    end
+                end
+                groups
+            end
+
+            def find_suitable_deployment_for(task, deployment_groups)
+                candidates = deployment_groups[task].find_all_suitable_deployments_for(task)
 
                 if candidates.size > 1
                     debug { "#{candidates.size} deployments available for #{task} (#{task.concrete_model}), trying to resolve" }
@@ -121,13 +210,37 @@ module Syskit
                 end
             end
 
+            def select_deployments(tasks, deployment_groups)
+                used_deployments = Set.new
+                missing_deployments = Set.new
+                selected_deployments = Hash.new
+
+                tasks.each do |task|
+                    next if task.execution_agent
+                    if !(selected = find_suitable_deployment_for(task, deployment_groups))
+                        missing_deployments << task
+                    elsif used_deployments.include?(selected)
+                        debug do
+                            machine, configured_deployment, task_name = *selected
+                            "#{task} resolves to #{configured_deployment}.#{task_name} on #{machine} for its deployment, but it is already used"
+                        end
+                        missing_deployments << task
+                    else
+                        used_deployments << selected
+                        selected_deployments[task] = selected
+                    end
+                end
+                return selected_deployments, missing_deployments
+            end
+
             def apply_selected_deployments(selected_deployments)
                 deployment_tasks = Hash.new
                 selected_deployments.each do |task, selected|
-                    machine, configured_deployment, task_name = *selected
+                    configured_deployment, task_name = *selected
 
                     deployment_task =
-                        (deployment_tasks[[machine, configured_deployment]] ||= configured_deployment.new(on: machine))
+                        (deployment_tasks[[configured_deployment]] ||= configured_deployment.new)
+
                     if Syskit.conf.permanent_deployments?
                         plan.add_permanent_task(deployment_task)
                     else
@@ -144,11 +257,11 @@ module Syskit
             # is valid
             #
             # @raise [MissingDeployments] if some tasks could not be deployed
-            def validate_deployed_network
-                verify_all_tasks_deployed
+            def validate_deployed_network(deployment_groups)
+                verify_all_tasks_deployed(deployment_groups)
             end
 
-            def verify_all_tasks_deployed
+            def verify_all_tasks_deployed(deployment_groups)
                 not_deployed = plan.find_local_tasks(TaskContext).
                     not_finished.not_abstract.
                     find_all { |t| !t.execution_agent }
@@ -156,11 +269,11 @@ module Syskit
                 if !not_deployed.empty?
                     tasks_with_candidates = Hash.new
                     not_deployed.each do |task|
-                        candidates = task_context_deployment_candidates[task.concrete_model] || []
-                        candidates = candidates.map do |process_server_name, deployment, task_name|
+                        candidates = deployment_groups[task].find_all_suitable_deployments_for(task)
+                        candidates = candidates.map do |configured_deployment, task_name|
                             existing = plan.find_local_tasks(task.model).
                                 find_all { |t| t.orocos_name == task_name }
-                            [process_server_name, deployment, task_name, existing]
+                            [configured_deployment, task_name, existing]
                         end
 
                         tasks_with_candidates[task] = candidates
@@ -170,26 +283,6 @@ module Syskit
                 end
             end
 
-            # Computes a mapping from task models to the set of registered
-            # deployments that apply on these task models
-            #
-            # @return [{Model<TaskContext>=>[(String,Model<Deployment>,String)]}]
-            #   mapping from task context models to a set of
-            #   (process_server_name,deployment_model,task_name) tuples representing
-            #   the known ways this task context model could be deployed
-            def compute_task_context_deployment_candidates
-                deployed_models = Hash.new
-                available_deployments.each do |process_server_name, deployment_models|
-                    deployment_models.each do |model|
-                        model.each_deployed_task_model do |name, task_model|
-                            deployed_models[task_model] ||= Set.new
-                            deployed_models[task_model] << [process_server_name, model, name]
-                        end
-                    end
-                end
-                deployed_models
-            end
-
             # Try to resolve a set of deployment candidates for a given task
             #
             # @param [Array<(String,Model<Deployment>,String)>] candidates set
@@ -197,13 +290,13 @@ module Syskit
             #   (process_server_name,deployment_model,task_name) tuples
             # @param [Syskit::TaskContext] task the task context for which
             #   candidates are possible deployments
-            # @return [(String,Model<Deployment>,String),nil] the resolved
+            # @return [(Model<Deployment>,String),nil] the resolved
             #   deployment, if finding a single best candidate was possible, or
             #   nil otherwise.
             def resolve_deployment_ambiguity(candidates, task)
                 if task.orocos_name
                     debug { "#{task} requests orocos_name to be #{task.orocos_name}" }
-                    resolved = candidates.find { |_, _, task_name| task_name == task.orocos_name }
+                    resolved = candidates.find { |_, task_name| task_name == task.orocos_name }
                     if !resolved
                         debug { "cannot find requested orocos name #{task.orocos_name}" }
                     end
@@ -212,7 +305,7 @@ module Syskit
                 hints = task.deployment_hints
                 debug { "#{task}.deployment_hints: #{hints.map(&:to_s).join(", ")}" }
                 # Look to disambiguate using deployment hints
-                resolved = candidates.find_all do |_, deployment_model, task_name|
+                resolved = candidates.find_all do |deployment_model, task_name|
                     task.deployment_hints.any? do |rx|
                         rx == deployment_model || rx === task_name
                     end
@@ -220,8 +313,8 @@ module Syskit
                 if resolved.size != 1
                     info do
                         info { "ambiguous deployment for #{task} (#{task.model})" }
-                        candidates.each do |machine, deployment_model, task_name|
-                            info { "  #{task_name} of #{deployment_model.short_name} on #{machine}" }
+                        candidates.each do |deployment_model, task_name|
+                            info { "  #{task_name} of #{deployment_model.short_name} on #{deployment_model.process_server_name}" }
                         end
                         break
                     end

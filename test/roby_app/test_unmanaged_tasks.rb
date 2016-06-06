@@ -8,10 +8,10 @@ module Syskit
             before do
                 @task_model = Syskit::TaskContext.new_submodel
                 @process_manager = Syskit.conf.process_server_for('unmanaged_tasks')
-                Syskit.conf.use_unmanaged_task task_model => 'unmanaged_deployment_test'
-                task = syskit_deploy(task_model)
-                @deployment_task = task.execution_agent
-                execute { plan.remove_task(task) }
+                use_unmanaged_task task_model => 'unmanaged_deployment_test'
+                @task = syskit_deploy(task_model)
+                plan.unmark_mission_task(task)
+                plan.add_permanent_task(task)
             end
 
             after do
@@ -150,4 +150,3 @@ module Syskit
         end
     end
 end
-
