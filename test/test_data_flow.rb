@@ -32,6 +32,113 @@ module Syskit
                 subject.disable_concrete_connection_graph
             end
         end
+
+        describe "#forward_input_ports" do
+            attr_reader :cmp, :task, :dataflow_graph, :plan
+            before do
+                @plan = Roby::Plan.new
+                @dataflow_graph = plan.task_relation_graph_for(Syskit::DataFlow)
+                plan.add(@cmp = cmp_m.new)
+                plan.add(@task = task_m.new)
+                cmp.depends_on task, role: 'test'
+            end
+            it "creates connections between a composition's input port and a task" do
+                cmp.forward_input_ports(task, ['in', 'in'] => Hash.new)
+                assert_equal Hash[['in', 'in'] => Hash.new],
+                    dataflow_graph.edge_info(cmp, task)
+            end
+            it "raises if the ports are not input ports" do
+                assert_raises(DataFlow::Extension::NotInputPort) do
+                    cmp.forward_input_ports(task, ['out', 'in'] => Hash.new)
+                end
+                assert_raises(DataFlow::Extension::NotInputPort) do
+                    cmp.forward_input_ports(task, ['in', 'out'] => Hash.new)
+                end
+            end
+            it "raises if the ports do not exist" do
+                assert_raises(DataFlow::Extension::NotInputPort) do
+                    cmp.forward_input_ports(task, ['does_not_exist', 'in'] => Hash.new)
+                end
+                assert_raises(DataFlow::Extension::NotInputPort) do
+                    cmp.forward_input_ports(task, ['in', 'does_not_exist'] => Hash.new)
+                end
+            end
+            it "does not create an edge in the connection graph if the mappings are empty" do
+                cmp.forward_input_ports(task, Hash.new)
+                refute dataflow_graph.has_edge?(cmp, task)
+            end
+        end
+
+        describe "#forward_output_ports" do
+            attr_reader :cmp, :task, :dataflow_graph, :plan
+            before do
+                @plan = Roby::Plan.new
+                @dataflow_graph = plan.task_relation_graph_for(Syskit::DataFlow)
+                plan.add(@cmp = cmp_m.new)
+                plan.add(@task = task_m.new)
+                cmp.depends_on task, role: 'test'
+            end
+            it "creates connections between a composition's output port and a task" do
+                task.forward_output_ports(cmp, ['out', 'out'] => Hash.new)
+                assert_equal Hash[['out', 'out'] => Hash.new],
+                    dataflow_graph.edge_info(task, cmp)
+            end
+            it "raises if the ports are not output ports" do
+                assert_raises(DataFlow::Extension::NotOutputPort) do
+                    task.forward_output_ports(cmp, ['out', 'in'] => Hash.new)
+                end
+                assert_raises(DataFlow::Extension::NotOutputPort) do
+                    task.forward_output_ports(cmp, ['in', 'out'] => Hash.new)
+                end
+            end
+            it "raises if the ports do not exist" do
+                assert_raises(DataFlow::Extension::NotOutputPort) do
+                    task.forward_output_ports(cmp, ['does_not_exist', 'out'] => Hash.new)
+                end
+                assert_raises(DataFlow::Extension::NotOutputPort) do
+                    task.forward_output_ports(cmp, ['out', 'does_not_exist'] => Hash.new)
+                end
+            end
+            it "does not create an edge in the connection graph if the mappings are empty" do
+                task.forward_output_ports(cmp, Hash.new)
+                refute dataflow_graph.has_edge?(task, cmp)
+            end
+        end
+
+        describe "#connect_ports" do
+            attr_reader :source, :sink, :dataflow_graph, :plan
+            before do
+                @plan = Roby::Plan.new
+                @dataflow_graph = plan.task_relation_graph_for(Syskit::DataFlow)
+                plan.add(@source = task_m.new)
+                plan.add(@sink = task_m.new)
+            end
+            it "registers the connection between the ports" do
+                source.connect_ports sink, ['out', 'in'] => Hash.new
+                assert_equal Hash[['out', 'in'] => Hash.new],
+                    dataflow_graph.edge_info(source, sink)
+            end
+            it "raises if the ports have an invalid direction" do
+                assert_raises(DataFlow::Extension::NotOutputPort) do
+                    source.connect_ports sink, ['in', 'in'] => Hash.new
+                end
+                assert_raises(DataFlow::Extension::NotInputPort) do
+                    source.connect_ports sink, ['out', 'out'] => Hash.new
+                end
+            end
+            it "raises if one of the ports do not exist" do
+                assert_raises(DataFlow::Extension::NotOutputPort) do
+                    source.connect_ports sink, ['does_not_exist', 'in'] => Hash.new
+                end
+                assert_raises(DataFlow::Extension::NotInputPort) do
+                    source.connect_ports sink, ['out', 'does_not_exist'] => Hash.new
+                end
+            end
+            it "does not add an edge in the graph if the mappings are empty" do
+                source.connect_ports sink, Hash.new
+                refute dataflow_graph.has_edge?(source, sink)
+            end
+        end
         
         describe "#each_concrete_in_connection" do
             it "yields nothing if there are no input connections" do
