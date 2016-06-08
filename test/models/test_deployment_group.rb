@@ -228,7 +228,7 @@ module Syskit
             describe "#use_unmanaged_task" do
                 attr_reader :task_m
                 before do
-                    @task_m = Syskit::RubyTaskContext.new_submodel(name: 'Test')
+                    @task_m = Syskit::TaskContext.new_submodel(name: 'Test', orogen_model_name: 'test::Task')
                 end
 
                 it "creates a deployment model and registers it" do
@@ -246,8 +246,30 @@ module Syskit
                         with(expected).once
                     configured_deployment = group.use_unmanaged_task(Hash[task_m => 'test'], on: 'test-mng', process_managers: conf).
                         first
+                    expected[configured_deployment]
 
                     assert_equal 'test-mng', configured_deployment.process_server_name
+                end
+
+                it "resolves a task model given as string" do
+                    flexmock(loader).should_receive(:task_model_from_name).with('test::Task').
+                        and_return(task_m.orogen_model).once
+                    expected = lambda do |configured_deployment|
+                        assert_equal 'test-mng', configured_deployment.process_server_name
+                        assert_equal 'test', configured_deployment.process_name
+                        assert_equal Hash['test' => 'test'], configured_deployment.name_mappings
+                        task_name, task_model = configured_deployment.each_deployed_task_model.first
+                        assert_equal 'test', task_name
+                        assert_equal task_m, task_model
+                        true
+                    end
+                    flexmock(group).should_receive(:register_configured_deployment).
+                        with(expected).once
+
+                    deprecated_feature do
+                        group.use_unmanaged_task(Hash['test::Task' => 'test'], on: 'test-mng',
+                                                 process_managers: conf, loader: loader)
+                    end
                 end
 
                 it "raises if the process manager does not exist" do

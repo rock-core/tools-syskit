@@ -211,15 +211,16 @@ module Syskit
 
             # Declare tasks that are going to be started by some other process,
             # but whose tasks are going to be integrated in the syskit network
-            def use_unmanaged_task(mappings, on: 'unmanaged_tasks', process_managers: Syskit.conf)
+            def use_unmanaged_task(mappings, on: 'unmanaged_tasks', process_managers: Syskit.conf, loader: Roby.app.default_loader)
                 # Verify that the process manager exists
                 process_managers.process_server_config_for(on)
 
                 model_to_name = mappings.map do |task_model, name|
                     if task_model.respond_to?(:to_str)
+                        Roby.warn_deprecated "specifying the task model as string is deprecated. Load the task library and use Syskit's task class"
                         task_model_name = task_model
                         task_model = Syskit::TaskContext.find_model_from_orogen_name(task_model_name)
-                        if !task_model
+                        unless task_model
                             raise ArgumentError, "#{task_model_name} is not a known oroGen model name"
                         end
                     end
