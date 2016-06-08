@@ -1,17 +1,5 @@
 require 'syskit/test/self'
 
-if ENV['TEST_ENABLE_COVERAGE'] == '1' || rand > 0.5
-    null_io = File.open('/dev/null', 'w')
-    current_formatter = Syskit.logger.formatter
-    Syskit.warn "running tests with logger in DEBUG mode"
-    Syskit.logger = Logger.new(null_io)
-    Syskit.logger.level = Logger::DEBUG
-    Syskit.logger.formatter = current_formatter
-else
-    Syskit.warn "running tests with logger in FATAL mode"
-    Syskit.logger.level = Logger::FATAL + 1
-end
-
 require './test/suite_models'
 require './test/suite_robot'
 require './test/suite_roby_app'
