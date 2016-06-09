@@ -32,7 +32,17 @@ module Syskit
             end
 
             # Add all deployments in 'other' to self
+            #
+            # Unlike {#use_group!}, it will raise
+            #
+            # @param [#to_deployment_group] other the group that should be
+            #   merged in self
+            # @raise [TaskNameAlreadyInUse] if different deployments in 'other' and in
+            #   'self' use the same task name. Use {#use_group!} if you want to
+            #   override deployments in self instead.
+            # @see use_group!
             def use_group(other)
+                other = other.to_deployment_group
                 @deployed_tasks = @deployed_tasks.merge(other.deployed_tasks) do |task_name, self_deployment, other_deployment|
                     if self_deployment != other_deployment
                         raise TaskNameAlreadyInUse.new(
@@ -49,7 +59,15 @@ module Syskit
             end
 
             # Add all deployments in 'other' to self
+            #
+            # Unlike with {#use_group}, it will override tasks existing in self
+            # by tasks from the argument that have the same name
+            #
+            # @param [#to_deployment_group] other the group that should be
+            #   merged in self
+            # @see use_group
             def use_group!(other)
+                other = other.to_deployment_group
                 @deployed_tasks.merge!(other.deployed_tasks) do |task_name, self_deployment, other_deployment|
                     if self_deployment != other_deployment
                         deployments[self_deployment.process_server_name].delete(self_deployment)
@@ -343,6 +361,17 @@ module Syskit
                     end
                 end
                 result
+            end
+
+            # Method expected by {#use_group} and {#use_group!} to normalize an
+            # object to a DeploymentGroup object
+            #
+            # Define this method on objects that can be used as deployment
+            # groups to make their usage transparent
+            #
+            # This returns self
+            def to_deployment_group
+                self
             end
         end
     end
