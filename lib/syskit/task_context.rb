@@ -767,8 +767,8 @@ module Syskit
                 end
 
                 # Then set configuration stored in Syskit.conf
-                if Syskit.conf.send("#{orocos_name}?")
-                    config = Syskit.conf.send(orocos_name)
+                if Syskit.conf.orocos.send("#{orocos_name}?")
+                    config = Syskit.conf.orocos.send(orocos_name)
                     apply_configuration(config)
                 end
 

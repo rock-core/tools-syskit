@@ -192,6 +192,16 @@ describe Syskit::InputWriter do
         assert_equal task.in_port, port_writer.resolved_port
         assert_equal task.orocos_task.port('in'), port_writer.writer.port
     end
+    it "does not bind the actual writer if the port was already disconnected" do
+        task_m = Syskit::TaskContext.new_submodel do
+            input_port 'in', '/double'
+        end
+        task = syskit_stub_deploy_and_configure(task_m)
+        writer = task.in_port.writer
+        flexmock(writer).should_receive(:resolve).never
+        writer.disconnect
+        syskit_start(task)
+    end
 end
 
 describe Syskit::OutputReader do
@@ -208,6 +218,16 @@ describe Syskit::OutputReader do
         syskit_start(task)
         assert_equal task.out_port, port_reader.resolved_port
         assert_equal task.orocos_task.port('out'), port_reader.reader.port
+    end
+    it "does not bind the actual reader if the port was already disconnected" do
+        task_m = Syskit::TaskContext.new_submodel do
+            output_port 'out', '/double'
+        end
+        task = syskit_stub_deploy_and_configure(task_m)
+        reader = task.out_port.reader
+        flexmock(reader).should_receive(:resolve).never
+        reader.disconnect
+        syskit_start(task)
     end
 end
 

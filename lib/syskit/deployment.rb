@@ -147,7 +147,7 @@ module Syskit
                 if task.orocos_task.respond_to?(:model=)
                     task.orocos_task.model = task.model.orogen_model
                 end
-                if Syskit.conf.conf_log_enabled?
+                if Syskit.conf.logs.conf_logs_enabled?
                     task.orocos_task.log_all_configuration(Orocos.configuration_log)
                 end
             end

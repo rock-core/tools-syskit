@@ -116,19 +116,37 @@ describe Syskit::Coordination::TaskScriptExtension do
     end
 
     describe "input port access" do
-        attr_reader :component, :srv_m
+        attr_reader :component, :srv_m, :task_m
 
         before do
             @srv_m = srv_m = Syskit::DataService.new_submodel { input_port 'srv_in', '/double' }
-            @component = syskit_stub_deploy_and_configure 'Task' do
+            @task_m = Syskit::TaskContext.new_submodel do
                 input_port 'in', '/double'
-                provides srv_m, as: 'test'
             end
+            task_m.provides srv_m, as: 'test'
+            @component = syskit_stub_deploy_and_configure task_m
         end
 
         it "returns input port instances" do
             port = component.script.in_port
             assert_kind_of Syskit::InputPort, port
+        end
+
+        it "disconnects the writer on the script's task shutdown" do
+            cmp_m = Syskit::Composition.new_submodel
+            cmp_m.add task_m, as: 'test'
+            writer = nil
+            cmp_m.script do
+                writer = test_child.in_port.writer
+            end
+            cmp = syskit_stub_deploy_configure_and_start(cmp_m)
+            actual_writer = writer.writer
+            assert actual_writer.connected?
+            plan.unmark_mission_task(cmp)
+            assert_event_emission cmp.stop_event do
+                cmp.stop!
+            end
+            assert !actual_writer.connected?
         end
 
         it "gives access to input ports when created at the instance level" do
@@ -177,19 +195,37 @@ describe Syskit::Coordination::TaskScriptExtension do
     end
 
     describe "output port access" do
-        attr_reader :component, :srv_m
+        attr_reader :component, :srv_m, :task_m
 
         before do
-            @srv_m = srv_m = Syskit::DataService.new_submodel { output_port 'srv_out', '/double' }
-            @component = syskit_stub_deploy_and_configure 'Task' do
+            @srv_m = Syskit::DataService.new_submodel { output_port 'srv_out', '/double' }
+            @task_m = Syskit::TaskContext.new_submodel do
                 output_port 'out', '/double'
-                provides srv_m, as: 'test'
             end
+            task_m.provides srv_m, as: 'test'
+            @component = syskit_stub_deploy_and_configure task_m
         end
 
         it "returns output port instances" do
             port = component.script.out_port
             assert_kind_of Syskit::OutputPort, port
+        end
+
+        it "disconnects the reader on the script's task shutdown" do
+            cmp_m = Syskit::Composition.new_submodel
+            cmp_m.add task_m, as: 'test'
+            reader = nil
+            cmp_m.script do
+                reader = test_child.out_port.reader
+            end
+            cmp = syskit_stub_deploy_configure_and_start(cmp_m)
+            actual_reader = reader.reader
+            assert actual_reader.connected?
+            plan.unmark_mission_task(cmp)
+            assert_event_emission cmp.stop_event do
+                cmp.stop!
+            end
+            assert !actual_reader.connected?
         end
 
         it "gives access to output ports" do
