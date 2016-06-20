@@ -8,15 +8,20 @@ module Syskit
             include MetaRuby::DSLs::FindThroughMethodMissing
             include Syskit::Models::PortAccess
 
-            class << self
-                # Each subclass of DataServiceModel maps to a "base" module that
-                # all instances of DataServiceModel include.
-                #
-                # For instance, for DataServiceModel itself, it is DataService
-                #
-                # This attribute is the base module for this class of
-                # DataServiceModel
-                attr_accessor :base_module
+            # Create a model that is root for a model hierarchy
+            #
+            # This is used to create e.g. Syskit::DataService
+            #
+            # The result of this method must be assigned to a constant. It is
+            # marked as permanent w.r.t. MetaRuby's model management.
+            def self.new_permanent_root(parent: nil)
+                model = new(project: OroGen::Spec::Project.blank)
+                model.root = true
+                model.permanent_model = true
+                if parent
+                    model.provides parent
+                end
+                model
             end
 
             def initialize(project: Roby.app.default_orogen_project)
