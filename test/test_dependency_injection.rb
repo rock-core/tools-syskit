@@ -65,7 +65,7 @@ describe Syskit::DependencyInjection do
             di = Syskit::DependencyInjection.new(
                 'child' => Syskit::DependencyInjection.nothing, srv_m => task_m)
             _, requirements, _ = di.selection_for('child', srv_m)
-            assert_equal Syskit.proxy_task_model_for([srv_m]), requirements.model
+            assert_equal srv_m.placeholder_model, requirements.model
         end
         it "will accept DependencyInjection.do_not_inherit as a selection, thus falling back to more general selections" do
             srv_m  = Syskit::DataService.new_submodel
@@ -157,8 +157,8 @@ describe Syskit::DependencyInjection do
 
         it "resolves the component model of bound data services" do
             srv_m = Syskit::DataService.new_submodel
-            proxy_m = Syskit.proxy_task_model_for([srv_m])
-            proxy2_m = Syskit.proxy_task_model_for([srv_m])
+            proxy_m = srv_m.placeholder_model
+            proxy2_m = srv_m.placeholder_model
             task_m = Syskit::TaskContext.new_submodel
             task_m.provides srv_m, as: 'test'
 

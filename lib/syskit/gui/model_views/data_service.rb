@@ -23,13 +23,13 @@ module Syskit::GUI
 
                 providers = Array.new
                 Syskit::TaskContext.each_submodel do |component_m|
-                    next if component_m.respond_to?(:proxied_data_services)
+                    next if component_m.placeholder?
                     if component_m.fullfills?(model)
                         providers << [component_m.name, component_m]
                     end
                 end
                 Syskit::Composition.each_submodel do |composition_m|
-                    next if composition_m.respond_to?(:proxied_data_services)
+                    next if composition_m.placeholder?
                     next if composition_m.is_specialization?
                     if composition_m.fullfills?(model)
                         providers << [composition_m.name, composition_m]

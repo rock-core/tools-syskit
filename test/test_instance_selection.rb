@@ -92,10 +92,9 @@ describe Syskit::InstanceSelection do
 
     describe "#port_mappings" do
         it "merges the port mappings from all selected services" do
-            stub_t, other_stub_t = self.stub_t, self.other_stub_t
-            srv1_m = Syskit::DataService.new_submodel { output_port 'out1', other_stub_t }
-            srv2_m = Syskit::DataService.new_submodel { output_port 'out2', stub_t }
-            proxy_task_m = Syskit::Component.proxy_task_model([srv1_m, srv2_m])
+            srv1_m = Syskit::DataService.new_submodel { output_port 'out1', '/double' }
+            srv2_m = Syskit::DataService.new_submodel { output_port 'out2', '/int' }
+            proxy_task_m = Syskit::Models::Placeholder.for([srv1_m, srv2_m])
             task_m = Syskit::TaskContext.new_submodel do
                 output_port 'task_out1', other_stub_t
                 output_port 'task_out2', stub_t
@@ -106,10 +105,9 @@ describe Syskit::InstanceSelection do
             assert_equal Hash['out1' => 'task_out1', 'out2' => 'task_out2'], mappings
         end
         it "detects colliding mappings and raises AmbiguousPortMappings" do
-            stub_t, other_stub_t = self.stub_t, self.other_stub_t
-            srv1_m = Syskit::DataService.new_submodel { output_port 'out', other_stub_t }
-            srv2_m = Syskit::DataService.new_submodel { output_port 'out', stub_t }
-            proxy_task_m = Syskit::Component.proxy_task_model([srv1_m, srv2_m])
+            srv1_m = Syskit::DataService.new_submodel { output_port 'out', '/double' }
+            srv2_m = Syskit::DataService.new_submodel { output_port 'out', '/int' }
+            proxy_task_m = Syskit::Models::Placeholder.for([srv1_m, srv2_m])
             task_m = Syskit::TaskContext.new_submodel do
                 output_port 'task_out1', other_stub_t
                 output_port 'task_out2', stub_t
@@ -121,10 +119,9 @@ describe Syskit::InstanceSelection do
             end
         end
         it "ignores colliding but identical mappings" do
-            other_stub_t = self.other_stub_t
-            srv1_m = Syskit::DataService.new_submodel { output_port 'out', other_stub_t }
-            srv2_m = Syskit::DataService.new_submodel { output_port 'out', other_stub_t }
-            proxy_task_m = Syskit::Component.proxy_task_model([srv1_m, srv2_m])
+            srv1_m = Syskit::DataService.new_submodel { output_port 'out', '/double' }
+            srv2_m = Syskit::DataService.new_submodel { output_port 'out', '/double' }
+            proxy_task_m = Syskit::Models::Placeholder.for([srv1_m, srv2_m])
             task_m = Syskit::TaskContext.new_submodel do
                 output_port 'task_out', other_stub_t
             end
@@ -134,5 +131,3 @@ describe Syskit::InstanceSelection do
         end
     end
 end
-
-

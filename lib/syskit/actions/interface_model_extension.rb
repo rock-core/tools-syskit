@@ -27,7 +27,7 @@ module Syskit
             def use_profile_tags(profile)
                 tag_map = Hash.new
                 profile.each_tag do |tag|
-                    tagged_models = [*tag.proxied_data_services]
+                    tagged_models = [*tag.proxied_data_service_models]
                     tag_map[tag.tag_name] = @profile.tag(tag.tag_name, *tagged_models)
                 end
                 tag_map

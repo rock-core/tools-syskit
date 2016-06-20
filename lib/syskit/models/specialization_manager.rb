@@ -222,7 +222,7 @@ module Syskit
                         raise ArgumentError, "there is no child called #{child_name} in #{composition_model.short_name}"
                     end
 
-                    merged = Syskit.proxy_task_model_for(child_models).merge(child_m.model)
+                    merged = Placeholder.for(child_models).merge(child_m.model)
                     if merged == child_m.model
                         raise ArgumentError, "#{child_models.map(&:short_name).sort.join(",")} does not specify a specialization of #{child_m.model}"
                     end

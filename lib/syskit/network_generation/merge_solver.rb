@@ -237,7 +237,7 @@ module Syskit
                     next if task == merged_task 
 
                     debug { "  #{merged_task}" }
-                    if merged_task.respond_to?(:proxied_data_services)
+                    if merged_task.placeholder?
                         debug "    data service proxy"
                         next
                     elsif !merged_task.plan 
@@ -344,7 +344,7 @@ module Syskit
                     end
                 end
 
-                if merged_children.each_value.any? { |t| t.respond_to?(:proxied_data_services) }
+                if merged_children.each_value.any? { |t| t.placeholder? }
                     info "rejected: compositions still have unresolved children"
                     return false
                 end

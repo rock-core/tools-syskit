@@ -37,8 +37,7 @@ module Syskit::GUI
                 producers, consumers = Set.new, Set.new
                 [Syskit::Component,Syskit::DataService].each do |base_model|
                     base_model.each_submodel do |submodel|
-                        next if submodel.respond_to?(:proxied_data_services)
-                        next if (submodel.respond_to?(:private_specialization?) && submodel.private_specialization?) || !submodel.name
+                        next if submodel.placeholder?
                         submodel.each_output_port do |port|
                             if port.type.name == type.name
                                 producers << [page.link_to(submodel), port.name]

@@ -359,7 +359,7 @@ describe Syskit::InstanceRequirements do
         end
         it "accepts selecting services from placeholder tasks if the set of models in the task matches the set of models in the instance requirements" do
             srv_m  = Syskit::DataService.new_submodel
-            task_m = Syskit.proxy_task_model_for([srv_m])
+            task_m = srv_m.placeholder_model
 
             req = Syskit::InstanceRequirements.new([srv_m])
             srv = task_m.find_data_service_from_type(srv_m)

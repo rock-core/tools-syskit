@@ -149,7 +149,7 @@ describe Syskit::Models::BoundDataService do
                 @other_srv_m = Syskit::DataService.new_submodel
                 @component_m   = Syskit::TaskContext.new_submodel
                 component_m.provides srv_m, as: 'test'
-                @placeholder_m = Syskit.proxy_task_model_for([component_m, other_srv_m])
+                @placeholder_m = Syskit::Models::Placeholder.for([other_srv_m], component_model: component_m)
                 @task_m = component_m.new_submodel
                 task_m.provides other_srv_m, as: 'other'
             end
@@ -241,7 +241,7 @@ describe Syskit::Models::BoundDataService do
         end
 
         it "returns true for service proxies that list provided services" do
-            proxy = Syskit.proxy_task_model_for([parent])
+            proxy = parent.placeholder_model
             assert service.fullfills?(proxy)
         end
     end

@@ -116,7 +116,7 @@ module Syskit
                 else m
                 end
             end
-            expected = Syskit.proxy_task_model_for(proxied_models)
+            expected = Syskit::Models::Placeholder.for(proxied_models)
             if srv
                 expected = srv.attach(expected)
             end

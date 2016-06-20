@@ -737,10 +737,10 @@ module Syskit
                 # This needs to be cleared here and not in
                 # Component.clear_model. The main reason is that we need to
                 # clear them on every component model class,
-                # including the models that are marked as permanent
-                Syskit::Component.proxy_task_models.clear
+                # including the models that are markes as permanent
+                Syskit::Component.placeholder_models.clear
                 Syskit::Component.each_submodel do |sub|
-                    sub.proxy_task_models.clear
+                    sub.placeholder_models.clear
                 end
 
                 # require_models is where the deployments get loaded, so

@@ -65,10 +65,11 @@ module Syskit
                 new_task
             end
 
-            # Wether this component instance is a placeholder for data services
+            # Whether this component instance is a placeholder for an abstract
+            # combination of a component model and data services
             #
-            # @see Models::PlaceholderTask
-            def placeholder_task?
+            # @see Models::Placeholder
+            def placeholder?
                 false
             end
 

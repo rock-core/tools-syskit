@@ -712,8 +712,8 @@ module Syskit
             def format_task_label(task, task_colors = Hash.new)
                 label = []
 
-                if task.respond_to?(:proxied_data_services)
-                    name = task.proxied_data_services.map do |model|
+                if task.placeholder?
+                    name = task.proxied_data_service_models.map do |model|
                         model.name
                     end
                     if ![Syskit::Component, Syskit::TaskContext, Syskit::Composition].include?(task.model.superclass) &&

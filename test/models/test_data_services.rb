@@ -59,18 +59,18 @@ module Test_DataServiceModel
         assert_raises(ArgumentError) { DataServiceDefinitionTest.send(dsl_service_type_name, 'image') }
     end
 
-    def test_proxy_task_model
+    def test_placeholder_model
         model = new_submodel
-        proxy_model = model.proxy_task_model
-        assert(proxy_model <= Component)
-        assert(proxy_model.fullfills?(model))
-        assert_equal([model], proxy_model.proxied_data_services.to_a)
+        placeholder_model = model.placeholder_model
+        assert(placeholder_model <= Component)
+        assert(placeholder_model.fullfills?(model))
+        assert_equal([model], placeholder_model.proxied_data_service_models.to_a)
     end
 
-    def test_proxy_task_model_caches_model
+    def test_placeholder_model_caches_model
         model = new_submodel
-        proxy_model = model.proxy_task_model
-        assert_same proxy_model, model.proxy_task_model
+        placeholder_model = model.placeholder_model
+        assert_same placeholder_model, model.placeholder_model
     end
 
     def test_model_output_port
@@ -228,17 +228,17 @@ module Test_DataServiceModel
                      model.port_mappings_for(model))
     end
 
-    def test_create_proxy_task
+    def test_create_placeholder_task
         model = new_submodel(name: "A")
-        task = model.create_proxy_task
+        task = model.create_placeholder_task
         assert task.abstract?
-        assert_kind_of model.proxy_task_model, task
+        assert_kind_of model.placeholder_model, task
     end
 
     def test_instanciate
         model = new_submodel(name: "A")
         task = model.instanciate(plan)
-        assert_kind_of model.proxy_task_model, task
+        assert_kind_of model.placeholder_model, task
     end
 
     def test_it_can_be_droby_marshalled_and_unmarshalled

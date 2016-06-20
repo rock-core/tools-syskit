@@ -999,102 +999,12 @@ describe Syskit::Models::Component do
         end
     end
 
-
     describe "#create_proxy_task" do
         it "creates an abstract task of the same model" do
             c = Syskit::Component.new_submodel
             task = c.create_proxy_task
             assert_kind_of c, task
             assert task.abstract?
-        end
-    end
-
-    describe "#create_proxy_task_model_for" do
-        before do
-            @srv_m = Syskit::DataService.new_submodel do
-                output_port 'out_p', '/double'
-            end
-        end
-
-        describe "pure proxies of data services" do
-            it "creates a task model that represents a data service" do
-                proxy_m = Syskit.create_proxy_task_model_for([@srv_m])
-                assert_equal Syskit::Component, proxy_m.supermodel
-                assert proxy_m.find_data_service_from_type(@srv_m)
-            end
-            describe "the proxy model" do
-                before do
-                    @proxy_m = Syskit.create_proxy_task_model_for([@srv_m])
-                end
-                it "does not respond to an unknown port" do
-                    refute @proxy_m.respond_to?(:not_a_port)
-                end
-                it "responds to a known port" do
-                    assert @proxy_m.respond_to?(:out_p_port)
-                end
-            end
-        end
-
-        describe "proxies based on task models" do
-            before do
-                @task_m = Syskit::TaskContext.new_submodel
-            end
-
-            it "creates a task model that represents a data service" do
-                proxy_m = Syskit.create_proxy_task_model_for([@task_m, @srv_m])
-                assert_equal @task_m, proxy_m.supermodel
-                assert proxy_m.find_data_service_from_type(@srv_m)
-            end
-            describe "the proxy model" do
-                before do
-                    @proxy_m = Syskit.create_proxy_task_model_for([@task_m, @srv_m])
-                end
-                it "does not respond to an unknown port" do
-                    refute @proxy_m.respond_to?(:not_a_port)
-                end
-                it "responds to a known port" do
-                    assert @proxy_m.respond_to?(:out_p_port)
-                end
-            end
-        end
-    end
-
-    describe "#can_merge?" do
-        describe "handling of dynamic services" do
-            attr_reader :srv0, :srv1, :task_m
-            before do
-                base_srv = Syskit::DataService.new_submodel
-                @srv0 = base_srv.new_submodel
-                @srv1 = base_srv.new_submodel
-                @task_m = Syskit::TaskContext.new_submodel do
-                    dynamic_service base_srv, as: 'test' do
-                        provides options[:srv]
-                    end
-                end
-            end
-
-            it "returns false if there are mismatching dynamic services" do
-                task0_m = task_m.specialize
-                task0_m.require_dynamic_service 'test', srv: srv0, as: 'srv'
-                task1_m = task_m.specialize
-                task1_m.require_dynamic_service 'test', srv: srv1, as: 'srv'
-                refute task0_m.can_merge?(task1_m)
-            end
-            it "handles multiple levels of specialization" do
-                task0_m = task_m.specialize
-                task0_m.require_dynamic_service 'test', srv: srv0, as: 'srv'
-                task1_m = task_m.specialize
-                task1_m.require_dynamic_service 'test', srv: srv1, as: 'srv'
-                refute task0_m.specialize.can_merge?(task1_m)
-            end
-
-            it "returns false if two dynamic services have the same type but different options" do
-                task0_m = task_m.specialize
-                task0_m.require_dynamic_service 'test', srv: srv0, as: 'srv', port_name: 'test'
-                task1_m = task_m.specialize
-                task1_m.require_dynamic_service 'test', srv: srv0, as: 'srv', port_name: 'test2'
-                refute task0_m.can_merge?(task1_m)
-            end
         end
     end
 end

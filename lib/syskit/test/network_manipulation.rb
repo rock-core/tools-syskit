@@ -275,13 +275,13 @@ module Syskit
                 model = model.to_instance_requirements
 
                 task_m = model.model.to_component_model.concrete_model
-                if task_m.respond_to?(:proxied_data_services)
+                if task_m.placeholder?
                     superclass = if task_m.superclass <= Syskit::TaskContext
                                      task_m.superclass
                                  else Syskit::TaskContext
                                  end
 
-                    services = task_m.proxied_data_services
+                    services = task_m.proxied_data_service_models
                     task_m = superclass.new_submodel(name: "#{task_m.to_s}-stub")
                     services.each_with_index do |srv, idx|
                         srv.each_input_port do |p|
@@ -517,7 +517,7 @@ module Syskit
                                 syskit_stub_network_abstract_component(abstract_task)
                             end
 
-                        if abstract_task.placeholder_task? && !abstract_task.kind_of?(Syskit::TaskContext) # 'pure' proxied data services
+                        if abstract_task.placeholder? && !abstract_task.kind_of?(Syskit::TaskContext) # 'pure' proxied data services
                             trsc.replace_task(abstract_task, concrete_task)
                             merge_solver.register_replacement(abstract_task, concrete_task)
                         else
@@ -570,13 +570,13 @@ module Syskit
                 root_tasks.map { |t, _| mapped_tasks[t] }
             end
 
-            def syskit_stub_proxied_data_service(model)
+            def syskit_stub_placeholder(model)
                 superclass = if model.superclass <= Syskit::TaskContext
                                  model.superclass
                              else Syskit::TaskContext
                              end
 
-                services = model.proxied_data_services
+                services = model.proxied_data_service_models
                 task_m = superclass.new_submodel(name: "#{model.to_s}-stub")
                 services.each_with_index do |srv, idx|
                     srv.each_input_port do |p|
@@ -596,8 +596,8 @@ module Syskit
 
             def syskit_stub_network_abstract_component(task)
                 task_m = task.concrete_model
-                if task_m.respond_to?(:proxied_data_services)
-                    task_m = syskit_stub_proxied_data_service(task_m)
+                if task_m.placeholder?
+                    task_m = syskit_stub_placeholder(task_m)
                 elsif task_m.abstract?
                     task_m = task_m.new_submodel(name: "#{task_m.name}-stub")
                 end

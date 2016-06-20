@@ -70,32 +70,25 @@ module Syskit
                 end
             end
 
-            module Models
-                # Model-level API for {Profile::Tag}
-                module Tag
-                    # The name of this tag
-                    # @return [String]
-                    attr_accessor :tag_name
-                    # The profile this tag has been defined on
-                    # @return [Profile]
-                    attr_accessor :profile
-                end
-            end
-
+            # Instance-level API for tags
             module Tag
-                include Syskit::PlaceholderTask
-
                 def can_merge?(other)
-                    return false if !super
+                    return false unless super
 
                     other.kind_of?(Tag) &&
                         other.model.tag_name == model.tag_name &&
                         other.model.profile == model.profile
                 end
+            end
 
-                module ClassExtension
-                    include Models::Tag
-                end
+            module Models
+                Tag = Syskit::Models::Placeholder.
+                    new_specialized_placeholder(task_extension: Profile::Tag) do
+                        # The name of this tag
+                        attr_accessor :tag_name
+                        # The profile this tag has been defined on
+                        attr_accessor :profile
+                    end
             end
 
             # Whether this profile should be kept across app setup/cleanup
@@ -196,9 +189,8 @@ module Syskit
             end
 
             def tag(name, *models)
-                tags[name] = Syskit.create_proxy_task_model_for(
+                tags[name] = Models::Tag.create_for(
                     models,
-                    extension: Tag,
                     as: "#{self}.#{name}_tag")
                 tags[name].tag_name = name
                 tags[name].profile = self

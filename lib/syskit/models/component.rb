@@ -37,7 +37,7 @@ module Syskit
                 super
                 data_services.clear
                 dynamic_services.clear
-                # Note: the proxy_task_models cache is cleared separately. The
+                # Note: the placeholder_models cache is cleared separately. The
                 # reason is that we need to clear it on permanent and
                 # non-permanent models alike, including component models that
                 # are defined in syskit. The normal procedure is to call
@@ -75,7 +75,7 @@ module Syskit
             # Generic data service selection method, based on a service type
             # and an optional service name. It implements the following
             # algorithm:
-            #  
+            #
             #  * only services that match +target_model+ are considered
             #  * if there is only one service of that type and no pattern is
             #    given, that service is returned
@@ -119,7 +119,7 @@ module Syskit
             def stub(&block)
                 stub_modules.first.class_eval(&block)
             end
-            
+
             # Apply what's necessary for this component (from the underlying
             # component implementation) to be a proper component stub
             def prepare_stub(component)
@@ -160,7 +160,7 @@ module Syskit
                 end
             end
 
-            # Generic instanciation of a component. 
+            # Generic instanciation of a component.
             #
             # It creates a new task from the component model using
             # Component.new, adds it to the plan and returns it.
@@ -249,7 +249,7 @@ module Syskit
 
 	    # Defined to be compatible, in port mapping code, with the data services
             def port_mappings_for(model)
-                if model.kind_of?(Class) 
+                if model.kind_of?(Class)
                     if fullfills?(model)
                         mappings = Hash.new
                         model.each_port do |port|
@@ -329,7 +329,7 @@ module Syskit
                     elsif !to.respond_to?(:to_str)
                         raise ArgumentError, "unexpected value given in port mapping: #{to}, expected a string"
                     else
-                        normalized_mappings[from] = to 
+                        normalized_mappings[from] = to
                     end
                 end
 
@@ -424,7 +424,7 @@ module Syskit
             # ports that are not mapped to the task are automatically created
             # (provided a corresponding dynamic_input_port or
             # dynamic_output_port declaration exists on the oroGen model).
-            # 
+            #
             # @param [Syskit::DataService] service_model the service model
             # @param [Hash] port_mappings explicit port mappings needed to
             #   resolve the service's ports  to the task's ports
@@ -510,7 +510,7 @@ module Syskit
                 return enum_for(:each_required_dynamic_service) if !block_given?
                 each_data_service do |_, srv|
                     if srv.dynamic?
-                        yield(srv) 
+                        yield(srv)
                     end
                 end
             end
@@ -838,65 +838,68 @@ module Syskit
                 false
             end
 
-            # [Hash{Array<DataService> => Models::Task}] a cache of models
-            # creates in #proxy_task_model
-            attribute(:proxy_task_models) { Hash.new }
+            # @api private
+            #
+            # Cache of models created by {Placeholder}
+            attribute(:placeholder_models) { Hash.new }
 
-            # Creates a new proxy task model, subclass of self, that provides
-            # the given services
+            # @api private
             #
-            # You usually want to use {proxy_task_model}
-            #
-            # @option options [String] :extension (Syskit::PlaceholderTask) the
-            #   module that is used to make the new task a placeholder task
-            # @option options [String,nil] :as (nil) the
-            #   name of the newly created model. By default, uses the name
-            #   of the extension module with the list of service models in
-            #   brackets (i.e. PlaceholderTask<Component,Srv>)
-            #
-            # @return [Model<Component>]
-            def create_proxy_task_model(service_models, as: nil, extension: PlaceholderTask)
-                name_models = service_models.map(&:to_s).sort.join(",")
-                if self != Syskit::Component
-                    name_models = "#{self},#{name_models}"
+            # Find an existing placeholder model based on self for the given
+            # service models
+            def find_placeholder_model(service_models, placeholder_type = Placeholder)
+                if by_type = placeholder_models[service_models]
+                    by_type[placeholder_type]
                 end
-                model = specialize(as || ("#{extension}<%s>" % [name_models]))
-                model.abstract
-                model.concrete_model = nil
-                model.include extension
-                model.proxied_task_context_model = self
-                model.proxied_data_services = service_models.dup
-		model.fullfilled_model = [self] + model.proxied_data_services.to_a
-                model.update_proxy_mappings
-
-                service_models.each_with_index do |m, i|
-                    model.provides m, as: "m#{i}"
-                end
-                model
             end
 
-            # Create a task model that can be used as a placeholder in a Roby
-            # plan for this task model and the following service models.
+            # @api private
             #
-            # @option options [Boolean] :force (false) always create a new
-            #   proxy, do not look into the cache
-            #
-            # @see Syskit.proxy_task_model_for
-            def proxy_task_model(service_models)
-                service_models = service_models.to_set
-                if task_model = proxy_task_models[service_models]
-                    return task_model
-                end
-                name = service_models.map(&:to_s).sort.join(",")
-                if self != Syskit::Component
-                    name = "#{self}<#{name}>"
-                elsif service_models.size > 1
-                    name = "<#{name}>"
-                end
+            # Register a new placeholder model for the given service models and
+            # placeholder type
+            def register_placeholder_model(placeholder_m, service_models, placeholder_type = Placeholder)
+                by_type = (placeholder_models[service_models] ||= Hash.new)
+                by_type[placeholder_type] = placeholder_m
+            end
 
-                model = create_proxy_task_model(service_models, as: name)
-                proxy_task_models[service_models] = model
-                model
+            # @api private
+            #
+            # Deregister a placeholder model
+            def deregister_placeholder_model(placeholder_m)
+                key = placeholder_m.proxied_data_service_models.to_set
+                if by_type = placeholder_models.delete(key)
+                    by_type.delete_if { |_, m| m == placeholder_m }
+                    if !by_type.empty?
+                        placeholder_models[key] = by_type
+                    end
+                    true
+                end
+            end
+
+            # Clears all registered submodels
+            def deregister_submodels(set)
+                super
+
+                if @placeholder_models
+                    set.each do |m|
+                        if m.placeholder?
+                            deregister_placeholder_model(m)
+                        end
+                    end
+                end
+                true
+            end
+
+            # @deprecated use {Models::Placeholder.create_for} instead
+            def create_proxy_task_model(service_models, as: nil, extension: Placeholder)
+                Roby.warn_deprecated "Component.create_proxy_task_model is deprecated, use Syskit::Models::Placeholder.create_for instead"
+                extension.create_for(service_models, component_model: self, as: as)
+            end
+
+            # @deprecated use {Models::Placeholder.for} instead
+            def proxy_task_model(service_models, as: nil, extension: Placeholder)
+                Roby.warn_deprecated "Component.proxy_task_model is deprecated, use Syskit::Models::Placeholder.for instead"
+                extension.for(service_models, component_model: self, as: as)
             end
 
             # Create a Roby task that can be used as a placeholder for self in
@@ -909,8 +912,22 @@ module Syskit
                 task
             end
 
+            # Wether this model represents a placeholder for data services
+            #
+            # @see Placeholder
+            def placeholder?
+                false
+            end
+
+            # Wether this model truly represents a component model
+            #
+            # @see Placeholder
+            def component_model?
+                true
+            end
+
             # Adds a new port to this model based on a known dynamic port
-            # 
+            #
             # @param [String] name the new port's name
             # @param [Orocos::Spec::DynamicInputPort] port the port model, as
             #   returned for instance by Orocos::Spec::TaskContext#find_dynamic_input_ports
@@ -923,7 +940,7 @@ module Syskit
             end
 
             # Adds a new port to this model based on a known dynamic port
-            # 
+            #
             # @param [String] name the new port's name
             # @param [Orocos::Spec::DynamicOutputPort] port the port model, as
             #   returned for instance by Orocos::Spec::TaskContext#find_dynamic_output_ports
@@ -1048,9 +1065,9 @@ module Syskit
             # data service mappings will be computed and either self or another
             # placeholder task model will be returned
             def merge(other_model)
-                if other_model.respond_to?(:proxied_data_services)
+                if other_model.kind_of?(Syskit::Models::BoundDataService)
                     return other_model.merge(self)
-                elsif other_model.kind_of?(Syskit::Models::BoundDataService)
+                elsif other_model.placeholder?
                     return other_model.merge(self)
                 end
 
@@ -1098,240 +1115,6 @@ module Syskit
                     end
                 end
             end
-
-            # Wether this model represents a placeholder for data services
-            #
-            # @see Models::PlaceholderTask
-            def placeholder_task?
-                false
-            end
-
-            # Whether this is a component model
-            def component_model?
-                true
-            end
-        end
-    end
-
-    # Model used to create a placeholder task from a concrete task model,
-    # when a mix of data services and task context model cannot yet be
-    # mapped to an actual task context model yet
-    module PlaceholderTask
-        module ClassExtension
-            attr_accessor :proxied_data_services
-
-            attr_accessor :proxied_task_context_model
-
-            def to_instance_requirements
-                Syskit::InstanceRequirements.new([self])
-            end
-
-            def each_fullfilled_model(&block)
-                fullfilled_model.each(&block)
-            end
-
-            # Whether this proxies only services or not
-            def component_model?
-                proxied_task_context_model != Component
-            end
-
-            def fullfilled_model
-                result = Set.new
-                if component_model?
-                    proxied_task_context_model.each_fullfilled_model do |m|
-                        result << m
-                    end
-                end
-                proxied_data_services.each do |srv|
-                    srv.each_fullfilled_model do |m|
-                        result << m
-                    end
-                end
-                result
-            end
-
-            def each_required_model
-                return enum_for(:each_required_model) if !block_given?
-                if component_model?
-                    yield(proxied_task_context_model)
-                end
-                proxied_data_services.each do |m|
-                    yield(m)
-                end
-            end
-
-            def merge(other_model)
-                if other_model.kind_of?(Models::BoundDataService)
-                    return other_model.merge(self)
-                end
-
-                task_model, service_models, other_service_models = proxied_task_context_model, proxied_data_services, []
-                if other_model.respond_to?(:proxied_data_services)
-                    task_model = task_model.merge(other_model.proxied_task_context_model)
-                    other_service_models = other_model.proxied_data_services
-                else
-                    task_model = task_model.merge(other_model)
-                end
-
-                model_list = Models.merge_model_lists(service_models, other_service_models)
-
-                # Try to keep the type of submodels of PlaceholderTask for as
-                # long as possible. We re-create a proxy only when needed
-                if self <= task_model && model_list.all? { |m| service_models.include?(m) }
-                    return self
-                elsif other_model <= task_model && model_list.all? { |m| other_service_models.include?(m) }
-                    return other_model
-                end
-
-                model_list = Models.merge_model_lists([task_model], model_list)
-                Syskit.proxy_task_model_for(model_list)
-            end
-
-            def each_output_port
-                return enum_for(:each_output_port) if !block_given?
-                @output_port_models.each_value do |list|
-                    list.each { |p| yield(p) }
-                end
-            end
-
-            def each_input_port
-                return enum_for(:each_input_port) if !block_given?
-                @input_port_models.each_value do |list|
-                    list.each { |p| yield(p) }
-                end
-            end
-
-            def each_port
-                return enum_for(:each_port) if !block_given?
-                each_output_port { |p| yield(p) }
-                each_input_port { |p| yield(p) }
-            end
-
-            def find_output_port(name)
-                if list = @output_port_models[name]
-                    list.first
-                end
-            end
-
-            def find_input_port(name)
-                if list = @input_port_models[name]
-                    list.first
-                end
-            end
-
-            def find_port(name)
-                find_output_port(name) || find_input_port(name)
-            end
-
-            def has_port?(name)
-                @input_port_models.has_key?(name.to_s) ||
-                    @output_port_models.has_key?(name.to_s)
-            end
-
-            def update_proxy_mappings
-                @output_port_models = Hash.new
-                @input_port_models = Hash.new
-                each_required_model do |m|
-                    m.each_output_port do |port|
-                        (@output_port_models[port.name] ||= Array.new) << port.attach(self)
-                    end
-                    m.each_input_port  do |port|
-                        (@input_port_models[port.name] ||= Array.new) << port.attach(self)
-                    end
-                end
-            end
-
-            def placeholder_task?
-                true
-            end
-
-            def has_through_method_missing?(m)
-                MetaRuby::DSLs.has_through_method_missing?(
-                    self, m,
-                    '_port'.freeze => :has_port?) || super
-            end
-
-            def find_through_method_missing(m, args)
-                MetaRuby::DSLs.find_through_method_missing(
-                    self, m, args,
-                    '_port'.freeze => :find_port) || super
-            end
-
-            include MetaRuby::DSLs::FindThroughMethodMissing
-        end
-
-        def placeholder_task?
-            true
-        end
-
-        def proxied_data_services
-            self.model.proxied_data_services
-        end
-    end
-
-    # Resolves the base task model and set of service models that should be used
-    # to create a proxy task model for the given component and/or service models
-    #
-    # @param [Array<Model<Component>,Model<DataService>>] set of component and
-    #   services that will be proxied
-    # @return [Model<Component>,Array<Model<DataService>>,(BoundDataService,nil)
-    #
-    # This is a helper method for {create_proxy_task_model_for} and
-    # {proxy_task_model_for}
-    def self.resolve_proxy_task_model_requirements(models)
-        service = nil
-        models = models.map do |m|
-            if m.respond_to?(:component_model)
-                service = m
-                m.component_model
-            else m
-            end
-        end
-        task_models, service_models = models.partition { |t| t <= Component }
-        if task_models.empty?
-            return Component, service_models, service
-        elsif task_models.size == 1
-            task_model = task_models.first
-            service_models.delete_if { |srv| task_model.fullfills?(srv) }
-            return task_model, service_models, service
-        else
-            raise ArgumentError, "cannot create a proxy for multiple component models at the same time"
-        end
-    end
-
-    # This method creates a task model that is an aggregate of all the provided
-    # models (components and services)
-    #
-    # @option options (see Component#create_proxy_task_model)
-    def self.create_proxy_task_model_for(models, options = Hash.new)
-        task_model, service_models, _ = resolve_proxy_task_model_requirements(models)
-        task_model.create_proxy_task_model(service_models, options)
-    end
-
-    # This method creates a task model that can be used to represent the
-    # models listed in +models+ in a plan. The returned task model is
-    # obviously abstract
-    #
-    # @option options [Boolean] :force (false) if false, the returned model will
-    #   be a plain component model if the models argument contains only a
-    #   component model. Otherwise, a proxy task model will always be returned
-    # @option options [String] name if given, it is used to name the returned
-    #   model. See {Component#create_proxy_task_model) for more details
-    def self.proxy_task_model_for(models)
-        task_model, service_models, service = resolve_proxy_task_model_requirements(models)
-
-        # If all that is required is a proper task model, just return it
-        task_model =
-            if service_models.empty?
-                task_model
-            else
-                task_model.proxy_task_model(service_models)
-            end
-        
-        if service
-            service.attach(task_model)
-        else task_model
         end
     end
 end
-

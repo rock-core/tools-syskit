@@ -9,7 +9,6 @@ require './test/suite_runtime'
 require './test/suite_coordination'
 require './test/suite_droby'
 
-require './test/test_abstract_placeholders'
 require './test/test_bound_data_service'
 require './test/test_port'
 require './test/test_data_service'

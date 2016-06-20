@@ -39,7 +39,7 @@ Qt::Application.new(ARGV)
 Scripts.setup
 
 task_contexts = Syskit::TaskContext.each_submodel.
-    find_all { |m| !(m <= Syskit::PlaceholderTask) && !m.private_specialization? }
+    find_all { |m| !m.placeholder? && !m.private_specialization? }
 compositions = Syskit::Composition.each_submodel.
     find_all { |m| !m.is_specialization? }
 data_services = Syskit::DataService.each_submodel

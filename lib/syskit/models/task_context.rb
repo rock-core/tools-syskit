@@ -40,22 +40,6 @@ module Syskit
                 super || component.orocos_task.kind_of?(Orocos::RubyTasks::StubTaskContext)
             end
 
-            # Clears all registered submodels
-            #
-            # On TaskContext, it also clears all orogen-to-syskit model mappings
-            def deregister_submodels(set)
-                super
-
-                if @proxy_task_models
-                    set.each do |m|
-                        if m.respond_to?(:proxied_data_services)
-                            proxy_task_models.delete(m.proxied_data_services.to_set)
-                        end
-                    end
-                end
-                true
-            end
-
             def clear_registration_as_constant
                 super
 

@@ -563,7 +563,7 @@ describe Syskit::Models::Composition do
             context = Syskit::DependencyInjectionContext.new(
                 Syskit::DependencyInjection.new('test' => Syskit::DependencyInjection.nothing, srv_m => task_m))
             task = cmp_m.instanciate(plan, context)
-            assert_kind_of Syskit.proxy_task_model_for([srv_m]), task.test_child
+            assert_kind_of srv_m.placeholder_model, task.test_child
             assert_kind_of task_m, task.control_child
         end
 
@@ -967,7 +967,7 @@ describe Syskit::Models::Composition do
         it "says that a specialized composition fullfills another if it has at least the same specializations" do 
             spec0_m, srv0_m = create_specialized_model
             spec1_m, srv1_m = create_specialized_model
-            composite_m = Syskit.proxy_task_model_for([srv0_m, srv1_m])
+            composite_m = Syskit::Models::Placeholder.for([srv0_m, srv1_m])
             spec2_m = root_m.narrow(Syskit::DependencyInjection.new('srv' => composite_m))
             assert_equal 2, spec2_m.applied_specializations.size
             assert spec2_m.new_submodel.fullfills?(spec1_m)
@@ -999,13 +999,13 @@ describe Syskit::Models::Composition do
         end
         it "simplifies task proxy models when merging one" do
             spec0_m, srv0_m = create_specialized_model
-            proxy_m = Syskit.proxy_task_model_for([srv0_m])
+            proxy_m = srv0_m.placeholder_model
             result = spec0_m.merge(proxy_m)
             assert_equal spec0_m, result
         end
         it "simplifies task proxy models when being merged in one" do
             spec0_m, srv0_m = create_specialized_model
-            proxy_m = Syskit.proxy_task_model_for([srv0_m])
+            proxy_m = srv0_m.placeholder_model
             result = proxy_m.merge(spec0_m)
             assert_equal spec0_m, result
         end
