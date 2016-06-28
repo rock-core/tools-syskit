@@ -8,10 +8,13 @@ module Syskit
             orogen_model.output_port(*args, &block)
         end
 
-        def self.deployment_model(task_name)
+        # Create a deployment model for this RubyTaskContext
+        #
+        # The deployment is created with a single task named 'task'
+        def self.deployment_model
             orogen_model = self.orogen_model
             @deployment_model ||= Deployment.new_submodel(name: "Deployment::RubyTasks::#{name}") do
-                task task_name, orogen_model
+                task 'task', orogen_model
             end
         end
     end
