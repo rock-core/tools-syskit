@@ -332,8 +332,7 @@ module Syskit
 
             # Start a process server on the local machine, and register it in
             # Syskit.process_servers under the 'localhost' name
-            def self.start_local_process_server(
-                    port = Orocos::RemoteProcesses::DEFAULT_PORT, redirect: true)
+            def self.start_local_process_server(port = 0, redirect: true)
                 if Syskit.conf.process_servers['localhost']
                     raise ArgumentError, "there is already a process server called 'localhost' running"
                 end
@@ -342,14 +341,18 @@ module Syskit
                     FileUtils.mkdir_p(Roby.app.log_dir)
                 end
 
-                spawn_options = Hash[chdir: Roby.app.log_dir, pgroup: true]
+                tcp_server = TCPServer.new('127.0.0.1', 0)
+                spawn_options = Hash[tcp_server => tcp_server, chdir: Roby.app.log_dir, pgroup: true]
                 if redirect
                     spawn_options[:err] = :out
                     spawn_options[:out] = File.join(Roby.app.log_dir, 'local_process_server.txt')
                 end
 
-                @server_pid  = Kernel.spawn 'orocos_process_server', "--port=#{port}", "--debug", spawn_options
-                @server_port = port
+                @server_pid  = Kernel.spawn \
+                    'syskit', 'process_server', "--fd=#{tcp_server.fileno}", "--log-dir=#{Roby.app.log_dir}", "--debug",
+                    spawn_options
+                @server_port = tcp_server.local_address.ip_port
+                tcp_server.close
                 nil
             end
 
@@ -391,6 +394,7 @@ module Syskit
 
                 # Do *not* manage the log directory for that one ...
                 Syskit.conf.register_process_server('localhost', client, app.log_dir)
+                client
             end
 
             # Loads the oroGen deployment model for the given name and returns
