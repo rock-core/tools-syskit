@@ -36,6 +36,9 @@ module Syskit
             argument :name_mappings, :default => nil
             argument :spawn_options, :default=> nil
 
+            # The underlying process object
+            attr_reader :orocos_process
+
             # An object describing the underlying pocess server
             #
             # @return [RobyApp::Configuration::ProcessServerConfig]
@@ -45,6 +48,8 @@ module Syskit
 
             def initialize(options = Hash.new)
                 super
+
+                @task_handles = Hash.new
                 if !self.spawn_options
                     self.spawn_options = Hash.new
                 end
@@ -109,7 +114,7 @@ module Syskit
             # deployment.
             def task(name, model = nil)
                 if finishing? || finished?
-                    raise ArgumentError, "#{self} is either finishing or already finished, you cannot call #task"
+                    raise InvalidState, "#{self} is either finishing or already finished, you cannot call #task"
                 end
 
                 orogen_task_deployment = each_orogen_deployed_task_context_model.
@@ -135,7 +140,7 @@ module Syskit
                     if orocos_task = task_handles[name]
                         initialize_running_task(task, orocos_task)
                     else
-                        raise Internal, "no handle under then #{name} in #{self} for #{task}"
+                        raise InternalError, "no handle under then #{name} in #{self} for #{task} (got #{task_handles.keys.sort.join(", ")})"
                     end
                 end
                 task
@@ -146,9 +151,6 @@ module Syskit
                 task.orocos_task = orocos_task
                 if task.orocos_task.respond_to?(:model=)
                     task.orocos_task.model = task.model.orogen_model
-                end
-                if Syskit.conf.logs.conf_logs_enabled?
-                    task.orocos_task.log_all_configuration(Orocos.configuration_log)
                 end
             end
 
@@ -187,7 +189,7 @@ module Syskit
                 @orocos_process = process_server_config.client.start(
                     process_name, model.orogen_model, name_mappings, spawn_options)
 
-                Deployment.all_deployments[@orocos_process] = self
+                Deployment.all_deployments[orocos_process] = self
                 start_event.emit
             end
 
@@ -215,43 +217,54 @@ module Syskit
                 end
             end
 
-            poll do
-                next if ready?
-
-                if orocos_process.wait_running(0)
-                    ready_event.emit
-
-                    @task_handles = Hash.new
-                    each_parent_object(Roby::TaskStructure::ExecutionAgent) do |task|
-                        if orocos_task = task.orocos_task
-                            task_handles[task.orocos_name] = orocos_task
-                        end
+            on :start do |event|
+                handles_from_plan = Hash.new
+                each_parent_object(Roby::TaskStructure::ExecutionAgent) do |task|
+                    if orocos_task = task.orocos_task
+                        handles_from_plan[task.orocos_name] = orocos_task
                     end
+                end
+                schedule_ready_event_monitor(handles_from_plan)
+            end
 
-                    errors = Hash.new
-                    model.each_orogen_deployed_task_context_model do |activity|
-                        name = orocos_process.get_mapped_name(activity.name)
-                        if !task_handles[name]
-                            begin
-                                orocos_task = orocos_process.task(name)
-                            rescue ArgumentError => e
-                                errors[name] = e
-                                next
-                            end
-
-                            orocos_task.process = orocos_process
-                            task_handles[name] =  orocos_task
-                        end
+            # @api private
+            #
+            # Schedule a promise to resolve the task handles
+            #
+            # It will reschedule itself until the process is ready, and will
+            # emit the ready event when it happens
+            def schedule_ready_event_monitor(handles_from_plan)
+                promise = execution_engine.promise(description: "#{self}:ready_event_monitor") do
+                    orocos_process.resolve_all_tasks(handles_from_plan)
+                end.on_success do |handles|
+                    if running? && !finishing? && handles
+                        setup_task_handles(handles)
+                        ready_event.emit
                     end
+                end
+                ready_event.achieve_asynchronously(promise, emit_on_success: false)
+            end
 
-                    each_parent_object(Roby::TaskStructure::ExecutionAgent) do |task|
-                        if error = errors[task.orocos_name]
-                            task.failed_to_start!(error)
-                        elsif orocos_task = task_handles[task.orocos_name]
-                            initialize_running_task(task, orocos_task)
-                        else
-                            raise Internal, "#{task} is supported by #{self} but there does not seem to be any task called #{task.orocos_name} on #{self}"
-                        end
+            # @api private
+            def setup_task_handles(task_handles)
+                model.each_orogen_deployed_task_context_model do |act|
+                    name = orocos_process.get_mapped_name(act.name)
+                    if !task_handles[name]
+                        raise InternalError, "expected #{orocos_process}'s reported tasks to include mapped_task_name, but got handles only for invalid_name"
+                    end
+                end
+                
+                @task_handles = task_handles
+
+                task_handles.each do |name, orocos_task|
+                    orocos_task.process = orocos_process
+                end
+
+                each_parent_object(Roby::TaskStructure::ExecutionAgent) do |task|
+                    if orocos_task = task_handles[task.orocos_name]
+                        initialize_running_task(task, orocos_task)
+                    else
+                        task.failed_to_start!("#{task} is supported by #{self} but there does not seem to be any task called #{task.orocos_name} on this deployment")
                     end
                 end
             end
@@ -268,25 +281,27 @@ module Syskit
             # Stops all tasks that are running on top of this deployment, and
             # kill the deployment
             event :stop do |context|
-                begin
-                    if task_handles
+                promise = execution_engine.promise(description: "#{self}.on(:stop)") do
+                    begin
                         task_handles.each_value do |t|
                             if t.rtt_state == :STOPPED
                                 t.cleanup(false)
                             end
                         end
+                    rescue Orocos::ComError
+                        # Assume that the process is killed as it is not reachable
                     end
-                rescue Orocos::ComError
-                    # Assume that the process is killed as it is not reachable
+                end.on_success do
+                    ready_to_die!
+                    begin
+                        orocos_process.kill(false)
+                    rescue Orocos::ComError
+                        # The underlying process server cannot be reached. Just emit
+                        # failed ourselves
+                        dead!(nil)
+                    end
                 end
-                ready_to_die!
-                begin
-                    orocos_process.kill(false)
-                rescue Orocos::ComError
-                    # The underlying process server cannot be reached. Just emit
-                    # failed ourselves
-                    dead!(nil)
-                end
+                stop_event.achieve_asynchronously(promise, emit_on_success: false)
             end
 
             # Called when the process is finished.

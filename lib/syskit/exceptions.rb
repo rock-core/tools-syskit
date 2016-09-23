@@ -7,6 +7,13 @@ module Syskit
 
         class InvalidPortMapping < SpecError; end
 
+        # Raised when an operation requests a certain task state, but was called
+        # in another
+        #
+        # For instance, Deployment#task raises this if the task is finishing or
+        # finished.
+        class InvalidState < RuntimeError; end
+
         # Raised when a provides declaration does not match the underlying task
         # interface
         class InvalidProvides < SpecError

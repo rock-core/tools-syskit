@@ -559,27 +559,40 @@ module Syskit
                 promise = prepare_for_setup(promise)
 
                 # This calls #configure
-                super(promise).
-                    on_success do
-                        if self.model.needs_stub?(self)
-                            self.model.prepare_stub(self)
-                        end
-                    end.
-                    then do
-                        state = orocos_task.rtt_state
-                        if state == :PRE_OPERATIONAL
-                            ::Robot.info "setting up #{self}"
-                            orocos_task.configure(false)
-                        else
-                            ::Robot.info "#{self} was already configured"
-                        end
-                    end.on_success do
-                        TaskContext.needs_reconfiguration.delete(orocos_name)
-                        TaskContext.configured[orocos_name] = [
-                            model,
-                            self.conf.dup,
-                            self.each_required_dynamic_service.to_set]
+                promise = super(promise)
+
+                if Syskit.conf.logs.conf_logs_enabled?
+                    promise = promise.then do
+                        orocos_task.property_names
                     end
+                end
+
+                promise.on_success do |property_names|
+                    if self.model.needs_stub?(self)
+                        self.model.prepare_stub(self)
+                    end
+                    if property_names # will be nil if conf logs are disabled
+                        property_names.each do |property_name|
+                            p = orocos_task.property(property_name)
+                            p.log_stream = orocos_task.create_property_log_stream(p)
+                            p.log_current_value
+                        end
+                    end
+                end.then do
+                    state = orocos_task.rtt_state
+                    if state == :PRE_OPERATIONAL
+                        ::Robot.info "setting up #{self}"
+                        orocos_task.configure(false)
+                    else
+                        ::Robot.info "#{self} was already configured"
+                    end
+                end.on_success do
+                    TaskContext.needs_reconfiguration.delete(orocos_name)
+                    TaskContext.configured[orocos_name] = [
+                        model,
+                        self.conf.dup,
+                        self.each_required_dynamic_service.to_set]
+                end
             end
 
             # Returns the start event object for this task
