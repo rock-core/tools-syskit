@@ -62,6 +62,7 @@ module Syskit
             Syskit.conf.register_process_server(
                 'stubs', Orocos::RubyTasks::ProcessManager.new(Roby.app.default_loader), "")
 
+            Orocos.forbid_blocking_calls
         end
 
         def plug_apply_requirement_modifications
@@ -83,6 +84,8 @@ module Syskit
         end
 
         def teardown
+            Orocos.allow_blocking_calls
+
             plug_connection_management
             ENV['PKG_CONFIG_PATH'] = @old_pkg_config
             super
