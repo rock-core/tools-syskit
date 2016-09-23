@@ -707,7 +707,10 @@ module Syskit
                     Syskit::Runtime::ConnectionManagement.update(component.plan)
                     current_state = pending.size
                     pending.delete_if do |t|
-                        if !t.setup? && t.ready_for_setup?
+                        should_setup = Orocos.allow_blocking_calls do
+                            !t.setup? && t.ready_for_setup?
+                        end
+                        if should_setup
                             Runtime.start_task_setup(t)
                             execution_engine.join_all_waiting_work
                             assert t.setup?, "ran the setup for #{t}, but t.setup? does not return true"
