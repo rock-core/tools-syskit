@@ -142,38 +142,26 @@ module Syskit
                 deployment_task.task("mapped_task_name")
             end
             it "does not do runtime initialization if it is not yet ready" do
-                deployment_task.should_receive(:initialize_running_task).never
+                flexmock(Syskit::TaskContext).new_instances.should_receive(:initialize_remote_handles).never
                 deployment_task.should_receive(:ready?).and_return(false)
                 deployment_task.task("mapped_task_name")
             end
             it "does runtime initialization if it is already ready" do
-                task = task_m.new
+                task = flexmock(task_m.new)
                 flexmock(task_m).should_receive(:new).and_return(task)
-                deployment_task.should_receive(:task_handles).
-                    and_return('mapped_task_name' => (orocos_task = Object.new))
-                deployment_task.should_receive(:initialize_running_task).with(task, orocos_task).once
+                deployment_task.should_receive(:remote_task_handles).
+                    and_return('mapped_task_name' => (remote_handles = Object.new))
+                task.should_receive(:initialize_remote_handles).with(remote_handles).once
                 deployment_task.should_receive(:ready?).and_return(true)
                 deployment_task.task("mapped_task_name")
             end
             it "raises InternalError if the name provided as argument matches the model, but task_handles does not contain it" do
-                deployment_task.should_receive(:task_handles).
+                deployment_task.should_receive(:remote_task_handles).
                     and_return('invalid_name' => flexmock)
                 deployment_task.should_receive(:ready?).and_return(true)
                 assert_raises(InternalError) do
                     deployment_task.task("mapped_task_name")
                 end
-            end
-        end
-
-        describe "#initialize_running_task" do
-            it "initializes orocos_task with the data known to the deployment" do
-                orocos_task = flexmock
-                deployment_task.should_receive(:task_handles).
-                    and_return(Hash['task_name' => orocos_task])
-
-                task = task_m.new
-                deployment_task.initialize_running_task(task, orocos_task)
-                assert_equal orocos_task, task.orocos_task
             end
         end
 
@@ -221,11 +209,12 @@ module Syskit
                 attr_reader :orocos_task
                 before do
                     process_server.should_receive(:start).and_return(process)
-                    @orocos_task = flexmock
-                    orocos_task.should_receive(rtt_state: :PRE_OPERATIONAL).
-                        by_default
-                    orocos_task.should_receive(:process=).
-                        with(process)
+                    @orocos_task = Orocos.allow_blocking_calls do
+                        Orocos::RubyTasks::TaskContext.new 'test'
+                    end
+                end
+                after do
+                    orocos_task.dispose
                 end
                 it "does not emit ready if the process is not ready yet" do
                     deployment_task.start!
@@ -245,10 +234,11 @@ module Syskit
                         argument :orocos_name
                         attr_accessor :orocos_task
                         terminates
+                        def initialize_remote_handles(handles); end
                     end
                     plan.add_permanent_task(task = task_m.new(orocos_name: name))
                     task.executed_by deployment_task
-                    task
+                    flexmock(task)
                 end
 
                 it "emits ready when the process is ready" do
@@ -257,12 +247,12 @@ module Syskit
                 end
                 it "resolves all deployment tasks into task_handles using mapped names" do
                     make_deployment_ready
-                    assert_equal orocos_task, deployment_task.task_handles['mapped_task_name']
+                    assert_equal orocos_task, deployment_task.remote_task_handles['mapped_task_name'].handle
                 end
                 it "initializes supported task contexts" do
                     task = add_deployed_task
-                    deployment_task.should_receive(:initialize_running_task).once.
-                        with(task, orocos_task)
+                    task.should_receive(:initialize_remote_handles).once.
+                        with(->(remote) { remote.handle == orocos_task })
                     make_deployment_ready
                 end
                 it "passes handles already assigned to existing TaskContext to resolve_all_tasks" do
@@ -307,16 +297,18 @@ module Syskit
                 attr_reader :orocos_task
                 before do
                     process_server.should_receive(:start).and_return(process)
-                    @orocos_task = flexmock
-                    orocos_task.should_receive(rtt_state: :PRE_OPERATIONAL).
-                        by_default
-                    orocos_task.should_receive(:process=).
-                        with(process)
+                    @orocos_task = Orocos.allow_blocking_calls do
+                        Orocos::RubyTasks::TaskContext.new 'test'
+                    end
+                    flexmock(@orocos_task)
                     process.should_receive(:resolve_all_tasks).
                         and_return('mapped_task_name' => orocos_task)
                     deployment_task.start!
                     assert_event_emission deployment_task.ready_event
                     plan.unmark_permanent_task(deployment_task)
+                end
+                after do
+                    @orocos_task.dispose
                 end
                 it "cleans up all stopped tasks" do
                     orocos_task.should_receive(:rtt_state).and_return(:STOPPED)

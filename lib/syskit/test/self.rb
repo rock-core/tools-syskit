@@ -42,6 +42,7 @@ module Syskit
                 Orocos.initialize
             end
             execution_engine.scheduler = Roby::Schedulers::Temporal.new(true, true, plan)
+            execution_engine.scheduler.enabled = false
 
             @robot = Syskit::Robot::RobotDefinition.new
 
@@ -61,6 +62,7 @@ module Syskit
 
             Syskit.conf.register_process_server(
                 'stubs', Orocos::RubyTasks::ProcessManager.new(Roby.app.default_loader), "")
+            Syskit.conf.logs.create_configuration_log(File.join(app.log_dir, 'properties'))
 
             Orocos.forbid_blocking_calls
         end

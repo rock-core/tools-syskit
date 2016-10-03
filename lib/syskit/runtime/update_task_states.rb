@@ -2,7 +2,7 @@ module Syskit
     module Runtime
         def self.start_task_setup(task)
             execution_engine = task.execution_engine
-            promise = execution_engine.promise { }
+            promise = execution_engine.promise(description: "setup of #{task}") { }
             promise = task.setup(promise).
                 on_success do
                     task.is_setup!
@@ -65,7 +65,7 @@ module Syskit
                     end
 
 
-                    if state_count >= TaskContext::STATE_READER_BUFFER_SIZE
+                    if state_count >= Deployment::STATE_READER_BUFFER_SIZE
                         Runtime.warn "got #{state_count} state updates for #{t}, we might have lost some state updates in the process"
                     end
 

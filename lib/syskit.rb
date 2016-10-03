@@ -45,6 +45,7 @@ require 'syskit/component'
 require 'syskit/composition'
 require 'syskit/task_context'
 require 'syskit/ruby_task_context'
+require 'syskit/remote_state_getter'
 require 'syskit/deployment'
 require 'syskit/bound_data_service'
 

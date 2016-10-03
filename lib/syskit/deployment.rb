@@ -30,6 +30,10 @@ module Syskit
             extend Models::Deployment
             extend Logger::Hierarchy
 
+            # The size of the buffered connection created between this object
+            # and the remote task's state port
+            STATE_READER_BUFFER_SIZE = 200
+
             argument :process_name, :default => from(:model).deployment_name
             argument :log, :default => true
             argument :on, :default => 'localhost'
@@ -49,7 +53,7 @@ module Syskit
             def initialize(options = Hash.new)
                 super
 
-                @task_handles = Hash.new
+                @remote_task_handles = Hash.new
                 if !self.spawn_options
                     self.spawn_options = Hash.new
                 end
@@ -73,9 +77,10 @@ module Syskit
                 end
             end
 
-            # A name => Orocos::TaskContext instance mapping of all the task
-            # contexts running on this deployment
-            attr_reader :task_handles
+            # Handles to all remote tasks from this deployment
+            #
+            # @return [Hash<String,RemoteTaskHandles>]
+            attr_reader :remote_task_handles
 
             # The underlying Orocos::Process instance
             attr_reader :orocos_process
@@ -133,25 +138,17 @@ module Syskit
                 else
                     model = orogen_task_model
                 end
-                plan.add(task = model.new(:orocos_name => name_mappings[orogen_task_deployment.name]))
+                plan.add(task = model.new(orocos_name: name_mappings[orogen_task_deployment.name]))
                 task.executed_by self
                 task.orogen_model = orogen_task_deployment
                 if ready?
-                    if orocos_task = task_handles[name]
-                        initialize_running_task(task, orocos_task)
+                    if remote_task = remote_task_handles[name]
+                        task.initialize_remote_handles(remote_task)
                     else
-                        raise InternalError, "no handle under then #{name} in #{self} for #{task} (got #{task_handles.keys.sort.join(", ")})"
+                        raise InternalError, "no handle under then #{name} in #{self} for #{task} (got #{remote_task_handles.keys.sort.join(", ")})"
                     end
                 end
                 task
-            end
-
-            # Internal helper to set the #orocos_task
-            def initialize_running_task(task, orocos_task)
-                task.orocos_task = orocos_task
-                if task.orocos_task.respond_to?(:model=)
-                    task.orocos_task.model = task.model.orogen_model
-                end
             end
 
             ##
@@ -235,38 +232,73 @@ module Syskit
             # emit the ready event when it happens
             def schedule_ready_event_monitor(handles_from_plan)
                 promise = execution_engine.promise(description: "#{self}:ready_event_monitor") do
-                    orocos_process.resolve_all_tasks(handles_from_plan)
-                end.on_success do |handles|
-                    if running? && !finishing? && handles
-                        setup_task_handles(handles)
+                    if handles = orocos_process.resolve_all_tasks(handles_from_plan)
+                        handles.map_value do |_, remote_task|
+                            state_reader, state_getter = create_state_access(remote_task)
+                            RemoteTaskHandles.new(remote_task, state_reader, state_getter)
+                        end
+                    end
+                end.on_success do |remote_tasks|
+                    if running? && !finishing? && remote_tasks
+                        setup_task_handles(remote_tasks)
                         ready_event.emit
                     end
                 end
                 ready_event.achieve_asynchronously(promise, emit_on_success: false)
             end
 
+            # Representation of the handles needed by {Syskit::TaskContext} to
+            # get state updates from a remote task
+            #
+            # They are initialized once and for all since they won't change
+            # across TaskContext restarts, allowing us to save costly
+            # back-and-forth between the remote task and the local process
+            RemoteTaskHandles = Struct.new :handle, :state_reader, :state_getter
+
             # @api private
-            def setup_task_handles(task_handles)
+            def setup_task_handles(remote_tasks)
                 model.each_orogen_deployed_task_context_model do |act|
                     name = orocos_process.get_mapped_name(act.name)
-                    if !task_handles[name]
+                    if !remote_tasks.has_key?(name)
                         raise InternalError, "expected #{orocos_process}'s reported tasks to include mapped_task_name, but got handles only for invalid_name"
                     end
                 end
                 
-                @task_handles = task_handles
+                @remote_task_handles = remote_tasks
 
-                task_handles.each do |name, orocos_task|
-                    orocos_task.process = orocos_process
+                remote_tasks.each_value do |task|
+                    task.handle.process = orocos_process
                 end
 
                 each_parent_object(Roby::TaskStructure::ExecutionAgent) do |task|
-                    if orocos_task = task_handles[task.orocos_name]
-                        initialize_running_task(task, orocos_task)
+                    if remote_handles = remote_tasks[task.orocos_name]
+                        task.initialize_remote_handles(remote_handles)
                     else
                         task.failed_to_start!("#{task} is supported by #{self} but there does not seem to be any task called #{task.orocos_name} on this deployment")
                     end
                 end
+            end
+
+            # @api private
+            #
+            # Called asynchronously to initialize the {RemoteTaskHandles} object
+            # once and for all
+            def create_state_access(remote_task)
+                state_getter = RemoteStateGetter.new(
+                    remote_task,
+                    initial_state: remote_task.rtt_state)
+
+                if remote_task.model.extended_state_support?
+                    state_port = remote_task.raw_port('state')
+                    state_reader = state_port.reader(
+                        type: :buffer, size: STATE_READER_BUFFER_SIZE, init: true,
+                        transport: Orocos::TRANSPORT_CORBA)
+                    state_reader.extend Orocos::TaskContext::StateReader
+                    state_reader.state_symbols = remote_task.state_symbols
+                else
+                    state_reader = state_getter
+                end
+                return state_reader, state_getter
             end
 
 	    attr_predicate :ready_to_die?
@@ -283,9 +315,9 @@ module Syskit
             event :stop do |context|
                 promise = execution_engine.promise(description: "#{self}.on(:stop)") do
                     begin
-                        task_handles.each_value do |t|
-                            if t.rtt_state == :STOPPED
-                                t.cleanup(false)
+                        remote_task_handles.each_value do |remote_task|
+                            if remote_task.handle.rtt_state == :STOPPED
+                                remote_task.handle.cleanup(false)
                             end
                         end
                     rescue Orocos::ComError
@@ -327,9 +359,6 @@ module Syskit
                 model.each_orogen_deployed_task_context_model do |act|
                     name = orocos_process.get_mapped_name(act.name)
                     TaskContext.configured.delete(name)
-                end
-                each_parent_object(Roby::TaskStructure::ExecutionAgent) do |task|
-                    task.orocos_task = nil
                 end
 
                 # do NOT call cleanup_dead_connections here.

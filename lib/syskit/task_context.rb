@@ -54,7 +54,7 @@ module Syskit
             # [Orocos::TaskContext,Orocos::ROS::Node] the underlying remote task
             # context object. It is set only when the task context's deployment
             # is running
-            attr_accessor :orocos_task
+            attr_reader :orocos_task
             # [Orocos::Generation::TaskDeployment] the model of this deployment
             attr_accessor :orogen_model
             # The current state for the orogen task. It is a symbol that
@@ -62,6 +62,17 @@ module Syskit
             attr_reader :orogen_state
             # The last state before we went to orogen_state
             attr_reader :last_orogen_state
+
+            # @api private
+            #
+            # Initialize the communication with the remote task
+            #
+            # @param [Deployment::RemoteTaskHandles] remote_handles
+            def initialize_remote_handles(remote_handles)
+                @orocos_task       = remote_handles.handle
+                @orocos_task.model = model.orogen_model
+                @state_reader      = remote_handles.state_reader
+            end
 
             # @!attribute r tid
             #   @return [Integer] The thread ID of the thread running this task
@@ -270,15 +281,9 @@ module Syskit
                 orocos_task.property(name)
             end
 
-            def read_current_state
-                while update_orogen_state
                 end
-                @orogen_state
             end
 
-            # The size of the buffered connection created between this object
-            # and the remote task's state port
-            STATE_READER_BUFFER_SIZE = 200
 
             # If true, the current state (got from the component's state port)
             # is compared with the RTT state as reported by
@@ -322,45 +327,36 @@ module Syskit
             # @return [Orocos::TaskContext::StateReader]
             attr_reader :state_reader
 
-            # Create a state reader object to read the state from this task
-            # context
-            #
-            # @return [Orocos::TaskContext::StateReader]
-            def create_state_reader
-                @state_reader = orocos_task.state_reader(:type => :buffer, :size => STATE_READER_BUFFER_SIZE, :init => true, :transport => Orocos::TRANSPORT_CORBA)
-            end
-
             # Called at each cycle to update the orogen_state attribute for this
             # task using the values read from the state reader
             def update_orogen_state
-                if orogen_model.task_model.extended_state_support? && !state_reader
-                    create_state_reader
+                if !state_reader.connected?
+                    aborted_event.emit
+                    return
                 end
 
-                if state_reader
-                    if !state_reader.connected?
-                        aborted_event.emit
-                        return
-                    end
-
-                    if v = state_reader.read_new
-                        @last_orogen_state = orogen_state
-                        @orogen_state = v
-                    end
-                else
-                    new_state = orocos_task.rtt_state
-                    if new_state != @orogen_state
-                        @last_orogen_state = orogen_state
-                        @orogen_state = new_state
-                    end
+                if v = state_reader.read_new
+                    @last_orogen_state = orogen_state
+                    @orogen_state = v
                 end
-
-            rescue Exception => e
-                @orogen_state = nil
             end
 
             # The set of state names from which #configure can be called
             RTT_CONFIGURABLE_STATES = [:EXCEPTION, :STOPPED, :PRE_OPERATIONAL]
+
+            # @api private
+            #
+            # Pull all state changes that are still queued within the state
+            # reader and returns the last one
+            #
+            # It is destructive, as it does "forget" any pending state changes
+            # currently queued.
+            def read_current_state
+                while new_state = state_reader.read_new
+                    state = new_state
+                end
+                state || state_reader.read
+            end
 
             # Returns true if this component needs to be setup by calling the
             # #setup method, or if it can be used as-is
@@ -372,11 +368,6 @@ module Syskit
                 elsif !orogen_model || !orocos_task
                     return false
                 end
-
-                state ||= begin orocos_task.rtt_state
-                          rescue Orocos::ComError
-                              return false
-                          end
 
                 return RTT_CONFIGURABLE_STATES.include?(state)
             end
@@ -516,8 +507,9 @@ module Syskit
 
             def prepare_for_setup(promise)
                 promise.
-                    then { orocos_task.rtt_state }.
-                    on_success do |state|
+                    then do
+                        orocos_task.rtt_state
+                    end.on_success do |state|
                         needs_reconfiguration = true
                         if !ready_for_setup?(state)
                             raise InternalError, "#setup called on #{self} but we are not ready for setup"
@@ -601,30 +593,30 @@ module Syskit
             # event will be emitted when the it has successfully been
             # configured and started.
             event :start do |context|
-                # Create the state reader right now. Otherwise, we might not get
-                # the state updates related to the task's startup
-                if orogen_model.task_model.extended_state_support?
-                    create_state_reader
-                end
-
-                # At this point, we should have already created all the dynamic
-                # ports that are required ... check that
-                each_concrete_output_connection do |source_port, _|
-                    if !orocos_task.has_port?(source_port)
-                        raise Orocos::NotFound, "#{orocos_name}(#{orogen_model.name}) does not have a port named #{source_port}"
-                    end
-                end
-                each_concrete_input_connection do |_, _, sink_port, _|
-                    if !orocos_task.has_port?(sink_port)
-                        raise Orocos::NotFound, "#{orocos_name}(#{orogen_model.name}) does not have a port named #{sink_port}"
-                    end
-                end
-
                 ::Robot.info "starting #{to_s} (#{orocos_name})"
                 @last_orogen_state = nil
-                start_event.achieve_asynchronously(emit_on_success: false) do
+
+                expected_output_ports = each_concrete_output_connection.
+                    map { |port_name, _| port_name }
+                expected_input_ports = each_concrete_input_connection.
+                    map { |_, _, port_name, _| port_name }
+                promise = execution_engine.promise(description: "#{self}#start") do
+                    port_names = orocos_task.port_names.to_set
+                    # At this point, we should have already created all the dynamic
+                    # ports that are required ... check that
+                    expected_output_ports.each do |source_port|
+                        if !port_names.include?(source_port)
+                            raise Orocos::NotFound, "#{orocos_name}(#{orogen_model.name}) does not have a port named #{source_port}"
+                        end
+                    end
+                    expected_input_ports.each do |sink_port|
+                        if !port_names.include?(sink_port)
+                            raise Orocos::NotFound, "#{orocos_name}(#{orogen_model.name}) does not have a port named #{sink_port}"
+                        end
+                    end
                     orocos_task.start(false)
                 end
+                start_event.achieve_asynchronously(promise, emit_on_success: false)
             end
 
             # Handle a state transition by emitting the relevant events
@@ -696,7 +688,7 @@ module Syskit
                     interrupt_event.emit
                     aborted_event.emit
                 elsif execution_agent && !execution_agent.finishing?
-                    promise = execution_engine.promise { stop_orocos_task }.
+                    promise = execution_engine.promise(description: "#{self}#stop") { stop_orocos_task }.
                         on_success do |result|
                             if result == :aborted
                                 interrupt_event.emit
@@ -743,7 +735,6 @@ module Syskit
                     end
                 rescue ::Exception
                 end
-                @orocos_task = nil
             end
 
             # Interrupts the execution of this task context
@@ -753,16 +744,6 @@ module Syskit
 
             on :stop do |event|
                 ::Robot.info "stopped #{self}"
-
-                if state_reader
-                    begin
-                        state_reader.disconnect
-                    rescue Orocos::ComError
-                        # We ignore this. The process probably crashed or
-                        # something like that. In any case, this is handled by
-                        # the rest of the management
-                    end
-                end
             end
 
             # Default implementation of the configure method.
@@ -823,7 +804,7 @@ module Syskit
                 if name
                     self.orocos_name = name
                 end
-                @orocos_task = Orocos::RubyTaskContext.from_orogen_model(orocos_name, model.orogen_model)
+                self.orocos_task = Orocos::RubyTaskContext.from_orogen_model(orocos_name, model.orogen_model)
             end
 
             # Resolves the given Syskit::Port object into the actual Port object
