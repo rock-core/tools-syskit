@@ -75,7 +75,7 @@ module Syskit
 
             def self.finalize_model_loading(app)
                 if toplevel_object.respond_to?(:global_profile)
-                    ::Main.use_profile toplevel_object.global_profile
+                    app.app_module::Actions::Main.use_profile toplevel_object.global_profile
                 end
             end
 
