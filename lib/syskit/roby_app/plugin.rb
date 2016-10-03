@@ -237,9 +237,14 @@ module Syskit
 
                 if start_local_process_server
                     start_local_process_server(:redirect => Syskit.conf.redirect_local_process_server?)
+                    connect_to_local_process_server(app)
                 else
                     fake_client = Configuration::ModelOnlyServer.new(app.default_loader)
                     Syskit.conf.register_process_server('localhost', fake_client, app.log_dir)
+                end
+
+                app.isolate_load_errors("while reloading deployment definitions") do
+                    Syskit.conf.reload_deployments
                 end
 
                 rtt_core_model = app.default_loader.task_model_from_name("RTT::TaskContext")
@@ -263,13 +268,6 @@ module Syskit
             end
 
             def self.require_models(app)
-                if has_local_process_server?
-                    connect_to_local_process_server(app)
-                end
-
-                app.isolate_load_errors("while reloading deployment definitions") do
-                    Syskit.conf.reload_deployments
-                end
             end
 
             def self.auto_require_models(app)
