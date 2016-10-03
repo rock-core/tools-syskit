@@ -220,8 +220,9 @@ module Syskit
             @policy = policy
             @disconnected = false
             @port.component.execute do |component|
+                port = @port
                 if !@disconnected
-                    resolve(component)
+                    resolve(component).execute
                 end
             end
         end
@@ -239,7 +240,11 @@ module Syskit
                 raise ArgumentError, "cannot find a port called #{@port.name} on #{component}"
             end
             @actual_port = resolved_port.to_actual_port
-            @reader = @actual_port.to_orocos_port.reader(policy)
+            component.promise(description: "#{@actual_port}#reader for #{self}") do
+                @actual_port.to_orocos_port.reader(policy)
+            end.on_success do |reader|
+                @reader = reader
+            end
         end
 
         def disconnect
