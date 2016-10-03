@@ -40,6 +40,7 @@ require 'syskit/models/configured_deployment'
 # Instances
 require 'syskit/task_configuration_manager'
 require 'syskit/port'
+require 'syskit/property'
 require 'syskit/port_access'
 require 'syskit/component'
 require 'syskit/composition'

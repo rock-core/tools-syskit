@@ -197,7 +197,7 @@ module Syskit
                     return
                 end
 
-                Orocos.configuration_log_name = File.join(app.log_dir, 'properties')
+                Syskit.conf.logs.create_configuration_log(File.join(app.log_dir, 'properties'))
                 Orocos.disable_sigchld_handler = true
 
                 Syskit.conf.register_process_server(

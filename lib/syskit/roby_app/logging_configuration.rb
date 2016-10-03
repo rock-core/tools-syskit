@@ -83,6 +83,26 @@ module Syskit
             # See {#conf_log_enabled?}
             def disable_conf_logging; @conf_logs_enabled = false end
 
+            # The configuration log file
+            attr_accessor :configuration_log
+
+            # Create the configuration log file
+            def create_configuration_log(path)
+                @configuration_log = Pocolog::Logfiles.create(path)
+            end
+
+            # Returns the log stream that should be used for modifications to
+            # the given property
+            def log_stream_for(property)
+                stream_name = "#{property.task_context.orocos_name}.#{property.name}"
+                if !configuration_log.has_stream?(stream_name)
+                    configuration_log.create_stream(
+                        stream_name, property.type, property.log_metadata)
+                else
+                    configuration_log.stream(stream_name)
+                end
+            end
+
             # @!method port_logs_enabled?
             #
             # Signifies whether ports (i.e. data streams between components) is

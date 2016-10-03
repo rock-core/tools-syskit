@@ -888,6 +888,143 @@ module Syskit
             end
         end
 
+        describe "property handling" do
+            attr_reader :double_t, :task_m, :task
+            before do
+                @double_t = double_t = stub_type '/double'
+                @task_m = TaskContext.new_submodel do
+                    property 'test', double_t
+                end
+                @task = task_m.new
+            end
+
+            it "creates all properties at initialization time" do
+                assert(p = task.property('test'))
+                assert_equal 'test', p.name
+                assert_same double_t, p.type
+            end
+
+            describe "#has_property?" do
+                it "returns true if the property exists" do
+                    assert task.has_property?('test')
+                end
+                it "returns false if the property does not exist" do
+                    refute task.has_property?('does_not_exist')
+                end
+            end
+
+            describe "#property" do
+                it "returns the property object" do
+                    assert(p = task.property('test'))
+                    assert_kind_of Property, p
+                    assert_equal task, p.task_context
+                    assert_equal 'test', p.name
+                    assert_same double_t, p.type
+                end
+                it "raises Orocos::InterfaceObjectNotFound if the property does not exist" do
+                    assert_raises(Orocos::InterfaceObjectNotFound) do
+                        task.property('does_not_exist')
+                    end
+                end
+            end
+
+            describe "#each_property" do
+                it "yields the properties" do
+                    recorder = flexmock
+                    test_p = task.property('test')
+                    recorder.should_receive(:called).with(test_p).once
+                    task.each_property { |p| recorder.called(p) }
+                end
+                it "returns an enumerator if called without a block" do
+                    assert_equal [task.property('test')],
+                        task.each_property.to_a
+                end
+            end
+
+            describe "#commit_properties" do
+                attr_reader :task, :test_property, :remote_test_property
+                before do
+                    @task = syskit_stub_and_deploy(task_m)
+                    syskit_start_execution_agents(task)
+                    @test_property = task.property('test')
+                    Orocos.allow_blocking_calls do
+                        @remote_test_property = task.orocos_task.raw_property('test')
+                        remote_test_property.write(0.2)
+                    end
+                end
+                def mock_remote_property
+                    test_property.remote_property = @remote_test_property
+                    flexmock(@remote_test_property)
+                end
+
+                it "ignores properties that do not have an explicit value" do
+                    task.commit_properties.execute
+                    flexmock(Orocos::Property).new_instances.should_receive(:write).never
+                    execution_engine.join_all_waiting_work
+                    Orocos.allow_blocking_calls do
+                        assert_equal 0.2, remote_test_property.read
+                    end
+                end
+                it "writes the properties that have an explicit value" do
+                    test_property.write(0.1)
+                    flexmock(Orocos::Property).new_instances.should_receive(:write).once.
+                        with(Typelib.from_ruby(0.1, double_t)).
+                        pass_thru
+                    task.commit_properties.execute
+                    process_events
+                    Orocos.allow_blocking_calls do
+                        assert_equal 0.1, remote_test_property.read
+                    end
+                end
+                it "updates the property's #remote_value after it has been written" do
+                    test_property.write(0.1)
+                    property = flexmock
+                    property.should_receive(:write).once.
+                        globally.ordered
+                    test_property.remote_property = property
+                    flexmock(test_property).should_receive(:update_remote_value).once.
+                        globally.ordered.pass_thru
+                    task.commit_properties.execute
+                    process_events
+                    assert_equal Typelib.from_ruby(0.1, double_t), test_property.remote_value
+                end
+                it "updates the property's log after it has been written" do
+                    test_property.write(0.1)
+                    mock_remote_property.should_receive(:write).once.
+                        globally.ordered
+                    flexmock(test_property).should_receive(:update_log).once.
+                        globally.ordered.pass_thru
+                    task.commit_properties.execute
+                    process_events
+                end
+                it "queues errors from the update code as framework errors" do
+                    error_m = Class.new(RuntimeError)
+                    test_property.write(0.1)
+                    mock_remote_property.should_receive(:write).once
+                    flexmock(test_property).should_receive(:update_log).
+                        and_raise(error_m)
+                    task.commit_properties.execute
+                    flexmock(plan.execution_engine).should_receive(:add_framework_error).
+                        with(error_m, any).once.pass_thru
+                    assert_raises(error_m) do
+                        inhibit_fatal_messages do
+                            process_events
+                        end
+                    end
+                end
+                it "reports PropertyUpdateError if the write fails" do
+                    error_m = Class.new(RuntimeError)
+                    test_property.write(0.1)
+                    mock_remote_property.should_receive(:write).once.
+                        and_raise(error_m)
+                    task.commit_properties.execute
+                    flexmock(plan.execution_engine).should_receive(:add_framework_error).
+                        never
+                    assert_raises(PropertyUpdateError) do
+                        process_events
+                    end
+                end
+            end
         end
     end
 end

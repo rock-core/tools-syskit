@@ -131,11 +131,16 @@ module Syskit
 
             def initialize(arguments = Hash.new)
                 options, task_options = Kernel.filter_options arguments,
-                    :orogen_model => nil
+                    orogen_model: nil
                 super(task_options)
 
                 @orogen_model   = options[:orogen_model] ||
                     Orocos::Spec::TaskDeployment.new(nil, model.orogen_model)
+
+                @properties = Hash.new
+                self.model.orogen_model.each_property do |p|
+                    properties[p.name] = Property.new(self, p.name, p.type)
+                end
 
                 # All tasks start with executable? and setup? set to false
                 #
@@ -277,13 +282,70 @@ module Syskit
                 orocos_task.operation(name)
             end
 
-            def property(name)
-                orocos_task.property(name)
+            attr_reader :properties
+
+            # Enumerate this task's known properties
+            def each_property(&block)
+                properties.each_value(&block)
             end
 
+            # Whether this task has a property with the given name
+            def has_property?(name)
+                properties.has_key?(name)
+            end
+
+            # Returns the syskit-side representation of the given property
+            #
+            # Properties in Syskit are applied only at configuration time, or
+            # when #commit_properties is called
+            def property(name)
+                if p = properties[name]
+                    p
+                else
+                    raise Orocos::InterfaceObjectNotFound.new(self, name), "#{self} has no property called #{name}"
                 end
             end
 
+            # Event emitted when a property commit has successfully finished
+            event :properties_updated
+
+            # Apply the values set for the properties to the underlying node
+            def commit_properties(promise = self.promise(description: "#{self}#commit_properties"))
+                properties = each_property.map do |p|
+                    if p.has_value?
+                        [p, p.value.dup]
+                    end
+                end.compact
+
+                return promise if properties.empty?
+                
+                promise = promise.then(description: "write remote properties") do
+                    properties.map do |p, p_value|
+                        begin
+                            remote = (p.remote_property ||= orocos_task.raw_property(p.name))
+                            remote.write(p_value)
+                            [Time.now, p, nil]
+                        rescue ::Exception => e
+                            [Time.now, p, e]
+                        end
+                    end.compact
+                end.on_success(description: "update local data structures") do |result|
+                    result.each do |timestamp, property, error|
+                        if error
+                            execution_engine.add_error(PropertyUpdateError.new(error, property))
+                        else
+                            property.update_remote_value(property.value)
+                            property.update_log(timestamp)
+                        end
+                    end
+                end
+
+                # Handle possible errors within the framework code
+                promise.on_error do |error|
+                    execution_engine.add_framework_error(error, self)
+                end
+                promise
+            end
 
             # If true, the current state (got from the component's state port)
             # is compared with the RTT state as reported by
@@ -369,6 +431,7 @@ module Syskit
                     return false
                 end
 
+                state ||= read_current_state
                 return RTT_CONFIGURABLE_STATES.include?(state)
             end
 
@@ -508,8 +571,19 @@ module Syskit
             def prepare_for_setup(promise)
                 promise.
                     then do
-                        orocos_task.rtt_state
-                    end.on_success do |state|
+                        properties = Array.new
+                        orocos_task.property_names.each do |p_name|
+                            p = orocos_task.property(p_name)
+                            properties << [p, p.raw_read]
+                        end
+                        [properties, orocos_task.rtt_state]
+                    end.on_success do |properties, state|
+                        properties.each do |p, p_value|
+                            syskit_p = property(p.name)
+                            syskit_p.update_remote_value(p_value)
+                            syskit_p.update_log_metadata(p.log_metadata)
+                        end
+
                         needs_reconfiguration = true
                         if !ready_for_setup?(state)
                             raise InternalError, "#setup called on #{self} but we are not ready for setup"
@@ -549,28 +623,22 @@ module Syskit
                 end
 
                 promise = prepare_for_setup(promise)
-
                 # This calls #configure
                 promise = super(promise)
 
-                if Syskit.conf.logs.conf_logs_enabled?
-                    promise = promise.then do
-                        orocos_task.property_names
-                    end
-                end
-
-                promise.on_success do |property_names|
+                promise = promise.on_success do
                     if self.model.needs_stub?(self)
                         self.model.prepare_stub(self)
                     end
-                    if property_names # will be nil if conf logs are disabled
-                        property_names.each do |property_name|
-                            p = orocos_task.property(property_name)
-                            p.log_stream = orocos_task.create_property_log_stream(p)
-                            p.log_current_value
+                    if Syskit.conf.logs.conf_logs_enabled?
+                        each_property do |p|
+                            p.log_stream = Syskit.conf.logs.log_stream_for(p)
+                            p.update_log
                         end
                     end
-                end.then do
+                end
+                promise = commit_properties(promise)
+                promise.then do
                     state = orocos_task.rtt_state
                     if state == :PRE_OPERATIONAL
                         ::Robot.info "setting up #{self}"
@@ -788,8 +856,8 @@ module Syskit
             # component
             def apply_configuration(config_type)
                 config_type.each do |name, value|
-                    if orocos_task.has_property?(name)
-                        orocos_task.send("#{name}=", value)
+                    if has_property?(name)
+                        property(name).write(value)
                     else
                         ::Robot.warn "ignoring field #{name} in configuration of #{orocos_name} (#{model.name})"
                     end

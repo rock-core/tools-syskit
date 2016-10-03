@@ -967,6 +967,20 @@ module Syskit
                 end
             end
         end
+
+        class PropertyUpdateError < Roby::CodeError
+            attr_reader :property
+
+            def initialize(error, property)
+                @property = property
+                super(error, property.task_context)
+            end
+
+            def pretty_print(pp)
+                pp.text "#{self.class.name}: updating property #{property.name} failed with"
+                failure_point.pretty_print(pp)
+            end
+        end
 end
 
 
