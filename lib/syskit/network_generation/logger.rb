@@ -64,8 +64,8 @@ module Syskit
                     deployment = execution_agent
                     # Only setup the logger
                     deployment.orocos_process.setup_default_logger(
-                        :log_dir => deployment.log_dir,
-                        :remote => (deployment.host != 'localhost'))
+                        log_dir: deployment.log_dir,
+                        remote: (deployment.host != 'localhost'))
                 end
 
                 each_input_connection do |source_task, source_port_name, sink_port_name, policy|
