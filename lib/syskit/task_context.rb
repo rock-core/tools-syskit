@@ -881,7 +881,11 @@ module Syskit
             #
             # @return [Orocos::Port]
             def self_port_to_orocos_port(port)
-                orocos_task.find_port(port.type, port.name)
+                orocos_port = orocos_task.raw_port(port.name)
+                if orocos_port.type != port.type
+                    raise UnexpectedPortType.new(port, orocos_port.type)
+                end
+                orocos_port
             end
 
             # Adds a new port to this model based on a known dynamic port

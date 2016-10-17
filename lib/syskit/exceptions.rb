@@ -7,6 +7,9 @@ module Syskit
 
         class InvalidPortMapping < SpecError; end
 
+        # Exception raised when reader/writer resolution fails with an exception
+        class PortAccessFailure < Roby::CodeError; end
+
         # Raised when an operation requests a certain task state, but was called
         # in another
         #

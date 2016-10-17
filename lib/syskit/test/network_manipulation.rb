@@ -807,6 +807,18 @@ module Syskit
                 component
             end
 
+            def syskit_wait_ready(writer_or_reader, component: writer_or_reader.port.to_actual_port.component)
+                if !component.setup?
+                    syskit_configure(component)
+                end
+                if !component.running?
+                    syskit_start(component)
+                end
+
+                process_events
+                assert writer_or_reader.ready?, "#{writer_or_reader} was expected to be resolved and ready after the first execution cycle, but it's not"
+            end
+
             # Deploy the given composition, replacing every single data service
             # and task context by a ruby task context, allowing to then test.
             #

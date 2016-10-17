@@ -167,67 +167,166 @@ describe Syskit::Port do
 end
 
 describe Syskit::InputWriter do
-    it "validates the given samples if the writer is not yet accessible" do
-        task_m = Syskit::TaskContext.new_submodel do
+    attr_reader :task_m
+    before do
+        @task_m = Syskit::TaskContext.new_submodel do
             input_port 'in', '/double'
         end
-        policy = Hash[type: :buffer, size: 10]
-        plan.add_permanent_task(abstract_task = task_m.as_plan)
-        port_writer = abstract_task.in_port.writer(policy)
-        flexmock(Typelib).should_receive(:from_ruby).once.with([], abstract_task.in_port.type)
-        port_writer.write([])
     end
 
-    it "should be able to rebind to actual tasks that replaced the task" do
-        task_m = Syskit::TaskContext.new_submodel do
-            input_port 'in', '/double'
-        end
-        policy = Hash[type: :buffer, size: 10]
-        plan.add_permanent_task(abstract_task = task_m.as_plan)
-        port_writer = abstract_task.in_port.writer(policy)
+    it "resolves the writer" do
         task = syskit_stub_deploy_and_configure(task_m)
-        plan.replace(abstract_task, task)
-
-        syskit_start(task)
+        port_writer = task.in_port.writer
+        syskit_wait_ready(port_writer, component: task)
         assert_equal task.in_port, port_writer.resolved_port
         assert_equal task.orocos_task.port('in'), port_writer.writer.port
     end
-    it "does not bind the actual writer if the port was already disconnected" do
-        task_m = Syskit::TaskContext.new_submodel do
-            input_port 'in', '/double'
-        end
+    it "queues a PortAccessFailure error on the port's component if creating the port failed" do
+        error = Class.new(RuntimeError)
         task = syskit_stub_deploy_and_configure(task_m)
-        writer = task.in_port.writer
-        flexmock(writer).should_receive(:resolve).never
-        writer.disconnect
-        syskit_start(task)
+        in_port = Orocos.allow_blocking_calls { task.orocos_task.raw_port('in') }
+        flexmock(task.orocos_task).should_receive(:raw_port).
+            with('in').once.and_return(in_port)
+        flexmock(in_port).should_receive(:writer).once.and_raise(error)
+        port_writer = task.in_port.writer
+        assert_fatal_exception(Syskit::PortAccessFailure, original_exception: error, failure_point: task, tasks: [task]) do
+            syskit_wait_ready(port_writer)
+        end
+        refute port_writer.ready?
+    end
+    it "validates the given samples if the writer is not yet accessible" do
+        plan.add_permanent_task(abstract_task = task_m.as_plan)
+        port_writer = abstract_task.in_port.writer
+        flexmock(Typelib).should_receive(:from_ruby).once.with([], abstract_task.in_port.type)
+        port_writer.write([])
+    end
+    it "rebinds to actual tasks that replaced the task" do
+        plan.add_permanent_task(abstract_task = task_m.as_plan)
+        port_writer = abstract_task.in_port.writer
+        task = syskit_stub_deploy_and_configure(task_m)
+        plan.replace(abstract_task, task)
+
+        syskit_wait_ready(port_writer, component: task)
+        assert_equal task.in_port, port_writer.resolved_port
+        assert_equal task.orocos_task.port('in'), port_writer.writer.port
+    end
+
+    describe "#disconnect" do
+        attr_reader :task, :writer
+        before do
+            @task = syskit_stub_deploy_and_configure(task_m)
+            @writer = task.in_port.writer
+        end
+
+        it "asynchronously disconnects a port that is ready" do
+            syskit_wait_ready(writer)
+            writer.disconnect
+            process_events
+            refute writer.connected?
+        end
+
+        it "ensures that the port will not become ready if called before the resolution starts" do
+            task = syskit_stub_deploy_and_configure(task_m)
+            writer = task.in_port.writer
+            flexmock(writer).should_receive(:resolve).never
+            writer.disconnect
+            syskit_start(task)
+            process_events
+        end
+
+        it "ensures that the port will not become ready if resolution is progressing" do
+            task = syskit_stub_deploy_and_configure(task_m)
+            writer = task.in_port.writer
+            # Do not use syskit_start here. It would run all the event handlers,
+            # which in turn would give a change for the promises to finish and
+            # be processes
+            #
+            # #start! runs through the synchronous event processing codepath,
+            # and therefore does not call any handler
+            task.start!
+            writer.disconnect
+            process_events
+            refute writer.ready?
+        end
     end
 end
 
 describe Syskit::OutputReader do
-    it "should be able to rebind to actual tasks that replaced the task" do
-        task_m = Syskit::TaskContext.new_submodel do
+    attr_reader :task_m
+    before do
+        @task_m = Syskit::TaskContext.new_submodel do
             output_port 'out', '/double'
         end
-        policy = Hash[type: :buffer, size: 10]
-        plan.add_permanent_task(abstract_task = task_m.as_plan)
-        port_reader = abstract_task.out_port.reader(policy)
-        task = syskit_stub_deploy_and_configure(task_m)
-        plan.replace(abstract_task, task)
+    end
 
-        syskit_start(task)
+    it "resolves the reader" do
+        task = syskit_stub_deploy_and_configure(task_m)
+        port_reader = task.out_port.reader
+        syskit_wait_ready(port_reader)
         assert_equal task.out_port, port_reader.resolved_port
         assert_equal task.orocos_task.port('out'), port_reader.reader.port
     end
-    it "does not bind the actual reader if the port was already disconnected" do
-        task_m = Syskit::TaskContext.new_submodel do
-            output_port 'out', '/double'
-        end
+    it "queues a PortAccessFailure error on the port's component if creating the port failed" do
+        error = Class.new(RuntimeError)
         task = syskit_stub_deploy_and_configure(task_m)
-        reader = task.out_port.reader
-        flexmock(reader).should_receive(:resolve).never
-        reader.disconnect
-        syskit_start(task)
+        out_port = Orocos.allow_blocking_calls { task.orocos_task.raw_port('out') }
+        flexmock(task.orocos_task).should_receive(:raw_port).
+            with('out').once.and_return(out_port)
+        flexmock(out_port).should_receive(:reader).once.and_raise(error)
+        port_reader = task.out_port.reader
+        assert_fatal_exception(Syskit::PortAccessFailure, original_exception: error, failure_point: task, tasks: [task]) do
+            syskit_wait_ready(port_reader)
+        end
+        refute port_reader.ready?
+    end
+    it "rebinds to actual tasks that replaced the task" do
+        plan.add_permanent_task(abstract_task = task_m.as_plan)
+        port_reader = abstract_task.out_port.reader
+        task = syskit_stub_deploy_and_configure(task_m)
+        plan.replace(abstract_task, task)
+
+        syskit_wait_ready(port_reader, component: task)
+        assert_equal task.out_port, port_reader.resolved_port
+        assert_equal task.orocos_task.port('out'), port_reader.reader.port
+    end
+
+    describe "#disconnect" do
+        attr_reader :task, :reader
+        before do
+            @task = syskit_stub_deploy_and_configure(task_m)
+            @reader = task.out_port.reader
+        end
+
+        it "asynchronously disconnects a port that is ready" do
+            syskit_wait_ready(reader)
+            reader.disconnect
+            process_events
+            refute reader.connected?
+        end
+
+        it "ensures that the port will not become ready if called before the resolution starts" do
+            task = syskit_stub_deploy_and_configure(task_m)
+            reader = task.out_port.reader
+            flexmock(reader).should_receive(:resolve).never
+            reader.disconnect
+            syskit_start(task)
+            process_events
+        end
+
+        it "ensures that the port will not become ready if resolution is progressing" do
+            task = syskit_stub_deploy_and_configure(task_m)
+            reader = task.out_port.reader
+            # Do not use syskit_start here. It would run all the event handlers,
+            # which in turn would give a change for the promises to finish and
+            # be processes
+            #
+            # #start! runs through the synchronous event processing codepath,
+            # and therefore does not call any handler
+            task.start!
+            reader.disconnect
+            process_events
+            refute reader.ready?
+        end
     end
 end
 

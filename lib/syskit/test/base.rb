@@ -95,11 +95,15 @@ module Syskit
         # Verifies that +reader+ gets one sample within +timeout+ seconds
         def assert_has_one_new_sample(reader, timeout = 3)
             if reader.respond_to?(:to_orocos_port)
-                reader = reader.to_orocos_port
+                reader = Orocos.allow_blocking_calls do
+                    reader.to_orocos_port
+                end
             end
             if !reader.respond_to?(:read_new)
                 if reader.respond_to?(:reader)
-                    reader = reader.reader
+                    reader = Orocos.allow_blocking_calls do
+                        reader.reader
+                    end
                 end
             end
             run_engine(timeout) do

@@ -132,23 +132,6 @@ describe Syskit::Coordination::TaskScriptExtension do
             assert_kind_of Syskit::InputPort, port
         end
 
-        it "disconnects the writer on the script's task shutdown" do
-            cmp_m = Syskit::Composition.new_submodel
-            cmp_m.add task_m, as: 'test'
-            writer = nil
-            cmp_m.script do
-                writer = test_child.in_port.writer
-            end
-            cmp = syskit_stub_deploy_configure_and_start(cmp_m)
-            actual_writer = writer.writer
-            assert actual_writer.connected?
-            plan.unmark_mission_task(cmp)
-            assert_event_emission cmp.stop_event do
-                cmp.stop!
-            end
-            assert !actual_writer.connected?
-        end
-
         it "gives access to input ports when created at the instance level" do
             writer = nil
             component.script do
@@ -192,6 +175,54 @@ describe Syskit::Coordination::TaskScriptExtension do
                 assert_equal :non_existent_port, e.name
             end
         end
+
+        describe "writer disconnection at task stop" do
+            attr_reader :writer, :actual_writer, :cmp
+            before do
+                cmp_m = Syskit::Composition.new_submodel
+                cmp_m.add task_m, as: 'test'
+                writer = nil
+                cmp_m.script do
+                    writer = test_child.in_port.writer
+                end
+                @cmp = syskit_stub_deploy_configure_and_start(cmp_m)
+                syskit_wait_ready(writer)
+                @writer = writer
+                @actual_writer = writer.writer
+                plan.unmark_mission_task(cmp)
+            end
+
+            it "asynchronously disconnects a writer on the script's task shutdown" do
+                assert_event_emission cmp.stop_event do
+                    cmp.stop!
+                end
+                # Disconnection is asynchronous, need to process
+                process_events
+                refute actual_writer.connected?
+            end
+
+            it "gobbles ComError exceptions" do
+                flexmock(actual_writer).should_receive(:disconnect).and_raise(Orocos::ComError)
+                assert_event_emission cmp.stop_event do
+                    cmp.stop!
+                end
+                # Disconnection is asynchronous, need to process
+                process_events
+            end
+
+            it "forwards arbitrary exceptions" do
+                error = Class.new(RuntimeError)
+                flexmock(actual_writer).should_receive(:disconnect).and_raise(error)
+                assert_event_emission cmp.stop_event do
+                    cmp.stop!
+                end
+                # Disconnection is asynchronous, need to process
+                assert_adds_framework_error(error) do
+                    process_events
+                end
+            end
+        end
+
     end
 
     describe "output port access" do
@@ -211,21 +242,51 @@ describe Syskit::Coordination::TaskScriptExtension do
             assert_kind_of Syskit::OutputPort, port
         end
 
-        it "disconnects the reader on the script's task shutdown" do
-            cmp_m = Syskit::Composition.new_submodel
-            cmp_m.add task_m, as: 'test'
-            reader = nil
-            cmp_m.script do
-                reader = test_child.out_port.reader
+        describe "reader disconnection at task stop" do
+            attr_reader :reader, :actual_reader, :cmp
+            before do
+                cmp_m = Syskit::Composition.new_submodel
+                cmp_m.add task_m, as: 'test'
+                reader = nil
+                cmp_m.script do
+                    reader = test_child.out_port.reader
+                end
+                @cmp = syskit_stub_deploy_configure_and_start(cmp_m)
+                syskit_wait_ready(reader)
+                @reader = reader
+                @actual_reader = reader.reader
+                plan.unmark_mission_task(cmp)
             end
-            cmp = syskit_stub_deploy_configure_and_start(cmp_m)
-            actual_reader = reader.reader
-            assert actual_reader.connected?
-            plan.unmark_mission_task(cmp)
-            assert_event_emission cmp.stop_event do
-                cmp.stop!
+
+            it "asynchronously disconnects a reader on the script's task shutdown" do
+                assert_event_emission cmp.stop_event do
+                    cmp.stop!
+                end
+                # Disconnection is asynchronous, need to process
+                process_events
+                refute actual_reader.connected?
             end
-            assert !actual_reader.connected?
+
+            it "gobbles ComError exceptions" do
+                flexmock(reader.reader).should_receive(:disconnect).and_raise(Orocos::ComError)
+                assert_event_emission cmp.stop_event do
+                    cmp.stop!
+                end
+                # Disconnection is asynchronous, need to process
+                process_events
+            end
+
+            it "forwards arbitrary exceptions" do
+                error = Class.new(RuntimeError)
+                flexmock(actual_reader).should_receive(:disconnect).and_raise(error)
+                assert_event_emission cmp.stop_event do
+                    cmp.stop!
+                end
+                # Disconnection is asynchronous, need to process
+                assert_adds_framework_error(error) do
+                    process_events
+                end
+            end
         end
 
         it "gives access to output ports" do

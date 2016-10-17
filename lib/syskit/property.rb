@@ -85,12 +85,28 @@ module Syskit
             @value
         end
 
+        # For API compatibility with {Orocos::Property}. Identical to {#read}
+        def raw_read
+            read
+        end
+
         # Request updating this property with the given value
         #
         # The property will be updated only at the task's configuration time, or
         # when TaskContext#commit_properties is called.
-        def write(value)
+        #
+        # @param [Typelib::Type,Object] value the property value
+        # @param [Time] _timestamp ignored, for compatibility with
+        #   {Orocos::Property}
+        def write(value, _timestamp = nil)
             @value = Typelib.from_ruby(value, type)
+        end
+
+        # Remove the current value
+        #
+        # This will in effect ensure that the property won't get written
+        def clear_value
+            @value = nil
         end
 
         # Update the log stream with the currently none remote value
