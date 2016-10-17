@@ -706,12 +706,13 @@ module Syskit
                     end
                 end
 
-                if orogen_state == :RUNNING 
+                if orocos_task.runtime_state?(orogen_state)
                     if last_orogen_state && orocos_task.error_state?(last_orogen_state)
                         running_event.emit
                     end
+                end
 
-                elsif orogen_state == :STOPPED || orogen_state == :PRE_OPERATIONAL
+                if orogen_state == :STOPPED || orogen_state == :PRE_OPERATIONAL
                     if interrupt_event.pending?
                         interrupt_event.emit
                     elsif finishing?
@@ -719,7 +720,7 @@ module Syskit
                     else
                         success_event.emit
                     end
-                else
+                elsif orogen_state != :RUNNING
                     if event_name = state_event(orogen_state)
                         event(event_name).emit
                     else
