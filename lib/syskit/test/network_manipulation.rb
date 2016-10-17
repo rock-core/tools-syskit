@@ -711,9 +711,15 @@ module Syskit
                             !t.setup? && t.ready_for_setup?
                         end
                         if should_setup
-                            Runtime.start_task_setup(t)
-                            execution_engine.join_all_waiting_work
-                            assert t.setup?, "ran the setup for #{t}, but t.setup? does not return true"
+                            messages = capture_log(t, :info) do
+                                Runtime.start_task_setup(t)
+                                execution_engine.join_all_waiting_work
+                            end
+                            if t.failed_to_start?
+                                raise t.failure_reason
+                            else
+                                assert t.setup?, "ran the setup for #{t}, but t.setup? does not return true"
+                            end
                             true
                         else
                             t.setup?
@@ -764,6 +770,11 @@ module Syskit
                 tasks = Set.new
                 except = except.to_set
                 syskit_prepare_start(component, tasks, recursive: recursive, except: except)
+                messages = Hash.new { |h, k| h[k] = Array.new }
+                tasks.each do |t|
+                    flexmock(t).should_receive(:info).
+                        and_return { |msg| messages[t] << msg }
+                end
 
                 pending = tasks.dup
                 while !pending.empty?
@@ -798,6 +809,10 @@ module Syskit
                     if t.starting?
                         assert_event_emission t.start_event
                     end
+                end
+
+                messages.each do |t, messages|
+                    assert_equal ["starting #{t}"], messages
                 end
 
                 if t = tasks.find { |t| !t.running? }

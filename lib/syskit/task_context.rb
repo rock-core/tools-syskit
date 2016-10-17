@@ -134,6 +134,8 @@ module Syskit
                     orogen_model: nil
                 super(task_options)
 
+                self.logger = ::Robot.logger
+
                 @orogen_model   = options[:orogen_model] ||
                     Orocos::Spec::TaskDeployment.new(nil, model.orogen_model)
 
@@ -581,7 +583,7 @@ module Syskit
                             _, current_conf, dynamic_services = TaskContext.configured[orocos_name]
                             if current_conf
                                 if current_conf == self.conf && dynamic_services == each_required_dynamic_service.to_set
-                                    ::Robot.info "not reconfiguring #{self}: the task is already configured as required"
+                                    info "not reconfiguring #{self}: the task is already configured as required"
                                     needs_reconfiguration = false
                                 end
                             end
@@ -590,11 +592,11 @@ module Syskit
                     end.
                     then do |needs_reconfiguration, port_names, state|
                         if state == :EXCEPTION
-                            ::Robot.info "reconfiguring #{self}: the task was in exception state"
+                            info "reconfiguring #{self}: the task was in exception state"
                             orocos_task.reset_exception(false)
                             [true, port_names]
                         elsif needs_reconfiguration && (state != :PRE_OPERATIONAL)
-                            ::Robot.info "cleaning up #{self}"
+                            info "cleaning up #{self}"
                             orocos_task.cleanup(false)
                             [true, port_names]
                         else
@@ -633,10 +635,10 @@ module Syskit
                 promise.then do
                     state = orocos_task.rtt_state
                     if state == :PRE_OPERATIONAL
-                        ::Robot.info "setting up #{self}"
+                        info "setting up #{self}"
                         orocos_task.configure(false)
                     else
-                        ::Robot.info "#{self} was already configured"
+                        info "#{self} was already configured"
                     end
                 end.on_success do
                     TaskContext.needs_reconfiguration.delete(orocos_name)
@@ -653,7 +655,7 @@ module Syskit
             # event will be emitted when the it has successfully been
             # configured and started.
             event :start do |context|
-                ::Robot.info "starting #{to_s} (#{orocos_name})"
+                info "starting #{to_s}"
                 @last_orogen_state = nil
 
                 expected_output_ports = each_concrete_output_connection.
@@ -742,7 +744,7 @@ module Syskit
 
             # Interrupts the execution of this task context
             event :interrupt do |context|
-	        ::Robot.info "interrupting #{name}"
+	        info "interrupting #{name}"
 
                 if !orocos_task # already killed
                     interrupt_event.emit
@@ -802,13 +804,14 @@ module Syskit
             on :aborted do |event|
 	        info "#{event.task} has been aborted"
             end
+
             # Interrupts the execution of this task context
             event :stop do |context|
                 interrupt!
             end
 
             on :stop do |event|
-                ::Robot.info "stopped #{self}"
+                info "stopped #{self}"
             end
 
             # Default implementation of the configure method.
@@ -822,7 +825,7 @@ module Syskit
                 # First, set configuration from the configuration files
                 # Note: it can only set properties
                 if model.configuration_manager.apply(self, override: true)
-                    ::Robot.info "applied configuration #{conf} to #{orocos_task.name}"
+                    info "applied configuration #{conf} to #{orocos_task.name}"
                 end
 
                 # Then set configuration stored in Syskit.conf

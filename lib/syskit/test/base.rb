@@ -19,6 +19,15 @@ module Syskit
         end
 
         def teardown
+            # Disable log output to avoid spurious "stopped / interrupting"
+            registered_plans.each do |p|
+                if p.executable?
+                    p.find_tasks(Syskit::TaskContext).each do |t|
+                        flexmock(t).should_receive(:info)
+                    end
+                end
+            end
+
             plug_connection_management
             begin
                 super
