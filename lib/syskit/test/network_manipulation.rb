@@ -835,7 +835,7 @@ module Syskit
 
                 tasks.each do |t|
                     if t.starting?
-                        assert_event_emission t.start_event
+                        assert_event_emission t.start_event, garbage_collect_pass: false
                     end
                 end
 
