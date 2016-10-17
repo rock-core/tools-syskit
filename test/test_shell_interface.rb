@@ -117,10 +117,8 @@ module Syskit
 
             it "stops the matching deployments" do
                 subject.stop_deployments
-                inhibit_fatal_messages do
-                    assert_raises(Roby::MissionFailedError) do
-                        process_events
-                    end
+                assert_raises(Roby::MissionFailedError) do
+                    process_events
                 end
                 assert task.finished?
             end
@@ -130,10 +128,8 @@ module Syskit
                 subject.plan.add_mission_task(other)
                 subject.stop_deployments(task.execution_agent.model)
                 # Deployment is asynchronous
-                inhibit_fatal_messages do
-                    assert_raises(Roby::MissionFailedError) do
-                        process_events
-                    end
+                assert_raises(Roby::MissionFailedError) do
+                    process_events
                 end
                 assert task.finished?
                 assert !other.finished?
@@ -145,10 +141,8 @@ module Syskit
                 subject.plan.add_mission_task(other)
                 subject.stop_deployments(task.model)
                 # Deployment is asynchronous
-                inhibit_fatal_messages do
-                    assert_raises(Roby::MissionFailedError) do
-                        process_events
-                    end
+                assert_raises(Roby::MissionFailedError) do
+                    process_events
                 end
                 assert task.finished?
                 assert !other.finished?

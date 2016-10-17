@@ -8,6 +8,20 @@ module Syskit
 
             attr_reader :syskit_engine, :merge_solver
 
+            # Helper method that mocks a port accessed through
+            # Orocos::TaskContext#raw_port
+            def mock_raw_port(task, port_name)
+                if task.respond_to?(:orocos_task)
+                    task = task.orocos_task
+                end
+
+                port = Orocos.allow_blocking_calls do
+                    task.raw_port(port_name)
+                end
+                task.should_receive(:raw_port).with(port_name).and_return(port)
+                flexmock(port)
+            end
+
             attr_reader :stub_t
             before do
                 @stub_t = app.default_loader.resolve_type '/int'
@@ -41,17 +55,15 @@ module Syskit
                 it "ignores InstanceRequirementsTask tasks that failed" do
                     planning_task.start!
                     
-                    inhibit_fatal_messages do
-                        begin planning_task.failed_event.emit
-                        rescue Roby::PlanningFailedError
-                        end
+                    assert_fatal_exception(Roby::PlanningFailedError, failure_point: original_task, tasks: [original_task]) do
+                        planning_task.failed_event.emit
                     end
                     assert_equal [], Engine.discover_requirement_tasks_from_plan(plan)
                 end
                 it "ignores InstanceRequirementsTask tasks that are pending" do
                     assert_equal [], Engine.discover_requirement_tasks_from_plan(plan)
                 end
-                it "ignores InstanceRequirementsTask tasks whose planend task has finished" do
+                it "ignores InstanceRequirementsTask tasks whose planned task has finished" do
                     task = syskit_stub_deploy_configure_and_start(simple_component_model)
                     task.stop!
                     plan.unmark_mission_task(task)
@@ -179,8 +191,8 @@ module Syskit
                             end
                         end
 
-                        syskit_stub(child_m)
-                        parent_m = syskit_stub(parent_m)
+                        syskit_stub_requirements(child_m)
+                        parent_m = syskit_stub_requirements(parent_m)
                         parent = syskit_deploy(parent_m)
                         child  = parent.test_child
 
@@ -388,35 +400,59 @@ module Syskit
                     assert_equal Hash[arg0: 10], task.explicit_fullfilled_model.last
                 end
 
-                it "synchronizes the startup of communication busses and their supported devices" do
-                    combus_m = Syskit::ComBus.new_submodel message_type: '/int'
-                    combus_driver_m = Syskit::TaskContext.new_submodel { dynamic_output_port /.*/, '/int' }
-                    combus_driver_m.provides combus_m, as: 'driver'
+                describe "com bus handling" do
+                    attr_reader :combus_m, :combus_driver_m, :device_m, :device_driver_m
+                    attr_reader :bus, :dev
+                    before do
+                        @combus_m = Syskit::ComBus.new_submodel message_type: '/int'
+                        @combus_driver_m = Syskit::TaskContext.new_submodel { dynamic_output_port /.*/, '/int' }
+                        combus_driver_m.provides combus_m, as: 'driver'
 
-                    device_m = Syskit::Device.new_submodel
-                    device_driver_m = Syskit::TaskContext.new_submodel { input_port 'bus_in', '/int' }
-                    device_driver_m.provides combus_m.client_in_srv, as: 'bus'
-                    device_driver_m.provides device_m, as: 'driver'
+                        @device_m = Syskit::Device.new_submodel
+                        @device_driver_m = Syskit::TaskContext.new_submodel { input_port 'bus_in', '/int' }
+                        device_driver_m.provides combus_m.client_in_srv, as: 'bus'
+                        device_driver_m.provides device_m, as: 'driver'
 
-                    bus = robot.com_bus combus_m, as: 'bus'
-                    dev = robot.device device_m, as: 'dev'
-                    dev.attach_to(bus, client_to_bus: false)
+                        @bus = robot.com_bus combus_m, as: 'bus'
+                        @dev = robot.device device_m, as: 'dev'
+                        dev.attach_to(bus, client_to_bus: false)
+                    end
 
-                    syskit_stub_deployment_model(device_driver_m)
-                    syskit_stub_deployment_model(combus_driver_m)
-                    dev_driver = syskit_stub_and_deploy(dev)
-                    bus_driver = plan.find_tasks(combus_driver_m).with_parent(dev_driver).first
-                    plan.add_mission_task(dev_driver)
-                    syskit_start_execution_agents(bus_driver)
-                    syskit_start_execution_agents(dev_driver)
+                    def deploy_dev_and_bus
+                        syskit_stub_deployment_model(device_driver_m)
+                        syskit_stub_deployment_model(combus_driver_m)
+                        dev_driver = syskit_stub_and_deploy(dev)
+                        bus_driver = plan.find_tasks(combus_driver_m).with_parent(dev_driver).first
+                        plan.add_mission_task(dev_driver)
+                        unplug_connection_management
+                        syskit_start_execution_agents(bus_driver)
+                        syskit_start_execution_agents(dev_driver)
+                        plug_connection_management
+                        return dev_driver, bus_driver
+                    end
 
-                    bus_driver.orocos_task.create_output_port 'dev', '/int'
-                    flexmock(bus_driver.orocos_task, "bus").should_receive(:start).once.globally.ordered(:bus_startup).pass_thru
-                    flexmock(bus_driver.orocos_task.dev, "bus.dev").should_receive(:connect_to).once.globally.ordered(:bus_startup).pass_thru
-                    flexmock(dev_driver.orocos_task, "dev").should_receive(:configure).once.globally.ordered.pass_thru
-                    plan.execution_engine.scheduler.enabled = true
-                    assert_event_emission bus_driver.start_event
-                    assert_event_emission dev_driver.start_event
+                    it "specifies the connections between the bus and device" do
+                        dev_driver, bus_driver = deploy_dev_and_bus
+                        assert bus_driver.dev_port.connected_to?(dev_driver.bus_in_port)
+                    end
+
+                    it "synchronizes the startup of communication busses and their supported devices" do
+                        dev_driver, bus_driver = deploy_dev_and_bus
+
+                        syskit_configure(bus_driver)
+
+                        bus_driver.orocos_task.create_output_port 'dev', '/int'
+                        flexmock(bus_driver.orocos_task, "bus").should_receive(:start).once.globally.ordered(:bus_startup).pass_thru
+                        mock_raw_port(bus_driver, 'dev').should_receive(:connect_to).once.globally.ordered(:bus_startup).pass_thru
+                        flexmock(dev_driver.orocos_task, "dev").should_receive(:configure).once.globally.ordered.pass_thru
+                        plan.execution_engine.scheduler.enabled = true
+                        capture_log(bus_driver, :info) do
+                            capture_log(dev_driver, :info) do
+                                assert_event_emission bus_driver.start_event
+                                assert_event_emission dev_driver.start_event
+                            end
+                        end
+                    end
                 end
 
                 describe "merging compositions" do

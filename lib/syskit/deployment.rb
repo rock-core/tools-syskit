@@ -282,7 +282,10 @@ module Syskit
                     if remote_handles = remote_tasks[task.orocos_name]
                         task.initialize_remote_handles(remote_handles)
                     else
-                        task.failed_to_start!("#{task} is supported by #{self} but there does not seem to be any task called #{task.orocos_name} on this deployment")
+                        task.failed_to_start!(
+                            Roby::CommandFailed.new(
+                                InternalError.exception("#{task} is supported by #{self} but there does not seem to be any task called #{task.orocos_name} on this deployment"),
+                                task.start_event))
                     end
                 end
             end

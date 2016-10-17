@@ -2,6 +2,20 @@ require 'syskit/test/self'
 
 module Syskit
     describe TaskContext do
+        # Helper method that mocks a port accessed through
+        # Orocos::TaskContext#raw_port
+        def mock_raw_port(task, port_name)
+            if task.respond_to?(:orocos_task)
+                task = task.orocos_task
+            end
+
+            port = Orocos.allow_blocking_calls do
+                task.raw_port(port_name)
+            end
+            task.should_receive(:raw_port).with(port_name).and_return(port)
+            flexmock(port)
+        end
+
         describe "#initialize" do
             it "sets up the task object to be non-executable" do
                 plan.add(task = TaskContext.new_submodel.new(orocos_name: "bla", conf: []))
@@ -125,7 +139,11 @@ module Syskit
                     input_port "in", "/double"
                     output_port "out", "/double"
                 end
-                @task = syskit_stub_deploy_and_configure(task_m)
+                messages = capture_log(::Robot, :info) do
+                    task = syskit_stub_deploy_and_configure(task_m)
+                    @task = flexmock(task)
+                end
+                assert_equal ["applied configuration [\"default\"] to #{task.orocos_name}", "setting up #{task}"], messages
                 @orocos_task = flexmock(task.orocos_task)
             end
 
@@ -133,44 +151,61 @@ module Syskit
                 if task.start_event.pending?
                     task.start_event.emit
                 end
-                task.stop_event.emit if task.running?
+                if task.running?
+                    messages = capture_log(::Robot, :info) do
+                        task.stop_event.emit 
+                    end
+                    assert_equal ["stopped #{task}"], messages
+                end
+            end
+
+            def call_task_start_event
+                messages = capture_log(::Robot, :info) do
+                    task.start!
+                end
+                assert_equal ["starting #{task}"], messages
+            end
+
+            def start_task
+                assert_event_emission task.start_event do
+                    call_task_start_event
+                end
             end
 
             it "queues start for the underlying task" do
                 orocos_task.should_receive(:start).once.pass_thru
-                task.start!
-                assert_event_emission task.start_event
+                start_task
             end
-
             it "checks that all required output ports are present" do
-                flexmock(task).should_receive(:each_concrete_output_connection).
+                task.should_receive(:each_concrete_output_connection).
                     and_return([[port = Object.new]]).once
                 orocos_task.should_receive(:port_names).and_return([port]).once
-                assert_event_emission task.start_event
+                start_task
             end
             it "raises Orocos::NotFound if some required output ports are not present" do
                 plan.unmark_mission_task(task)
-                flexmock(task).should_receive(:each_concrete_output_connection).
+                task.should_receive(:each_concrete_output_connection).
                     and_return([[port = Object.new]]).once
                 orocos_task.should_receive(:start).never
-                task.start!
-                assert_event_emission_failed(Orocos::NotFound) do
+                call_task_start_event
+                assert_task_fails_to_start(task, Roby::EmissionFailed, original_exception: Orocos::NotFound) do
                     process_events
                 end
             end
             it "checks that all required input ports are present" do
-                flexmock(task).should_receive(:each_concrete_input_connection).
+                task.should_receive(:each_concrete_input_connection).
                     and_return([[nil, nil, port = Object.new, nil]])
                 orocos_task.should_receive(:port_names).and_return([port]).once
-                assert_event_emission task.start_event
+                start_task
             end
             it "raises Orocos::NotFound if some required input ports are not present" do
-                flexmock(task).should_receive(:each_concrete_input_connection).
+                plan.unmark_mission_task(task)
+                task.should_receive(:each_concrete_input_connection).
                     and_return([[nil, nil, port = Object.new, nil]])
                 orocos_task.should_receive(:port_names).once.and_return([])
                 orocos_task.should_receive(:start).never
-                task.start!
-                assert_event_emission_failed(Orocos::NotFound) do
+                call_task_start_event
+                assert_task_fails_to_start(task, Roby::EmissionFailed, original_exception: Orocos::NotFound) do
                     process_events
                 end
             end
@@ -179,7 +214,7 @@ module Syskit
                     state = nil
                     state_reader.should_receive(:read_new).
                         and_return { s, state = state, nil; s }
-                    task.start!
+                    call_task_start_event
                     process_events
                     assert !task.running?
                     state = :RUNNING
@@ -187,14 +222,13 @@ module Syskit
                 end
             end
             it "fails to start if orocos_task#start raises an exception" do
+                plan.unmark_mission_task(task)
                 error_m = Class.new(RuntimeError)
                 orocos_task.should_receive(:start).once.and_raise(error_m)
-                task.start!
-                assert_event_emission_failed error_m do
+                call_task_start_event
+                assert_task_fails_to_start task, Roby::EmissionFailed, original_exception: error_m do
                     process_events
                 end
-                assert task.failed_to_start?
-                assert_kind_of error_m, task.failure_reason.original_exception
             end
         end
 
@@ -210,15 +244,19 @@ module Syskit
         end
 
         describe "stop_event" do
+            attr_reader :task, :orocos_task
+            before do
+                @task = syskit_stub_deploy_configure_and_start(TaskContext.new_submodel)
+                @orocos_task = flexmock(task.orocos_task)
+            end
+
             it "is not emitted by the interruption command" do
-                task = syskit_stub_deploy_configure_and_start(TaskContext.new_submodel)
                 task.stop!
                 assert !task.stop_event.emitted?
                 assert task.finishing?
             end
             it "emits interrupt and aborted if orocos_task#stop raises ComError" do
-                task = syskit_stub_deploy_configure_and_start(TaskContext.new_submodel)
-                flexmock(task.orocos_task).should_receive(:stop).and_raise(Orocos::ComError)
+                orocos_task.should_receive(:stop).and_raise(Orocos::ComError)
                 plan.unmark_mission_task(task)
                 assert_event_emission task.aborted_event do
                     task.stop!
@@ -226,8 +264,7 @@ module Syskit
                 assert task.interrupt_event.emitted?
             end
             it "emits interrupt if orocos_task#stop raises StateTransitionFailed but the task is in a stopped state" do
-                task = syskit_stub_deploy_configure_and_start(TaskContext.new_submodel)
-                flexmock(task.orocos_task).should_receive(:stop).and_return do
+                task.orocos_task.should_receive(:stop).and_return do
                     Orocos::TaskContext.instance_method(:stop).call(task.orocos_task, false)
                     raise Orocos::StateTransitionFailed
                 end
@@ -237,7 +274,6 @@ module Syskit
                 end
             end
             it "is stopped when the stop event is received" do
-                task = syskit_stub_deploy_configure_and_start(TaskContext.new_submodel)
                 plan.unmark_mission_task(task)
                 assert_event_emission task.stop_event do
                     task.stop!
@@ -252,57 +288,77 @@ module Syskit
                     input_port "in", "/double"
                     output_port "out", "/double"
                     reports :blabla
+
+                    event :test
                 end
-                @task = syskit_stub_deploy_and_configure(task_m)
+                task = syskit_stub_deploy_and_configure(task_m)
+                @task = flexmock(task)
                 @orocos_task = flexmock(task.orocos_task)
-                orocos_task.should_receive(:start).by_default
-                orocos_task.should_receive(:exception_state?).by_default
-                orocos_task.should_receive(:fatal_error_state?).by_default
-                orocos_task.should_receive(:runtime_state?).by_default
-                orocos_task.should_receive(:error_state?).by_default
-                flexmock(task.stop_event).should_receive(:emit).pass_thru
-                task.start!
             end
 
             after do
                 if task.start_event.pending?
                     task.start_event.emit
                 end
-                task.stop_event.emit if task.running?
+                if task.running?
+                    messages = capture_log(::Robot, :info) do
+                        task.stop_event.emit 
+                    end
+                    assert_equal ["stopped #{task}"], messages
+                end
             end
 
             it "does nothing if no runtime state has been received" do
-                flexmock(task.start_event).should_receive(:emit).never
-                flexmock(task).should_receive(:orogen_state).and_return(:exception)
+                task.should_receive(:orogen_state).and_return(:exception)
                 orocos_task.should_receive(:runtime_state?).with(:exception).and_return(false)
                 task.handle_state_changes
+                process_events
                 assert !task.running?
             end
-            it "emits start as soon as a runtime state has been received" do
-                flexmock(task.start_event).should_receive(:emit).once.pass_thru
-                flexmock(task).should_receive(:orogen_state).and_return(:blabla)
+            it "emits start as soon as a runtime state has been received, and emits the event mapped by #state_event" do
+                task.should_receive(:orogen_state).and_return(:blabla)
                 orocos_task.should_receive(:runtime_state?).with(:blabla).and_return(true)
-                flexmock(task).should_receive(:state_event).with(:blabla).and_return(:success)
-                flexmock(task.success_event).should_receive(:emit).once
-                task.handle_state_changes
-                assert task.running?
+                task.should_receive(:state_event).with(:blabla).and_return(:test)
+                assert_event_emission task.start_event do
+                    task.handle_state_changes
+                end
+                assert task.test_event.emitted?
             end
-            it "emits the event that is mapped to the state" do
-                flexmock(task.start_event).should_receive(:emit).once.pass_thru
-                flexmock(task).should_receive(:orogen_state).and_return(state = flexmock)
-                orocos_task.should_receive(:runtime_state?).with(state).and_return(true)
-                flexmock(task).should_receive(:state_event).with(state).and_return(:blabla)
-                flexmock(task.blabla_event).should_receive(:emit).once.ordered
-                task.handle_state_changes
+            it "raises ArgumentError if the state cannot be mapped to an event" do
+                syskit_start(task)
+                task.should_receive(:orogen_state).and_return(:blabla)
+                task.should_receive(:state_event).and_return(nil)
+                e = assert_raises(ArgumentError) do
+                    task.handle_state_changes
+                end
+                assert_equal "#{task} reports state blabla, but I don't have an event for this state transition", e.message
             end
-            it "does not emit running if the last state was not an error state" do
-                flexmock(task.start_event).should_receive(:emit).once.pass_thru
-                orocos_task.should_receive(:runtime_state?).with(:RUNNING).and_return(true)
-                flexmock(task).should_receive(:orogen_state).and_return(:RUNNING)
-                flexmock(task).should_receive(:last_orogen_state).and_return(:BLA)
+            it "emits the 'running' event when transitioning out of an error state" do
+                messages = capture_log(task, :info) do
+                    assert_event_emission task.start_event do
+                        task.start!
+                    end
+                end
+                assert_equal ["starting #{task}"], messages
+                task.should_receive(:last_orogen_state).and_return(:BLA)
+                orocos_task.should_receive(:error_state?).with(:BLA).once.and_return(true)
+                assert_event_emission task.running_event do
+                    task.handle_state_changes
+                end
+                assert_equal 2, task.running_event.history.size
+            end
+            it "does not emit the 'running' event if the last state was not an error state" do
+                messages = capture_log(task, :info) do
+                    assert_event_emission task.start_event do
+                        task.start!
+                    end
+                end
+                assert_equal ["starting #{task}"], messages
+                task.should_receive(:last_orogen_state).and_return(:BLA)
                 orocos_task.should_receive(:error_state?).with(:BLA).once.and_return(false)
-                flexmock(task.running_event).should_receive(:emit).never
                 task.handle_state_changes
+                process_events
+                assert_equal 1, task.running_event.history.size
             end
         end
 
@@ -310,94 +366,72 @@ module Syskit
             attr_reader :task, :orocos_task
             before do
                 task_m = TaskContext.new_submodel
-                @task = syskit_stub_and_deploy(task_m)
+                task = syskit_stub_and_deploy(task_m)
+                @task = flexmock(task)
                 syskit_start_execution_agents(task)
                 @orocos_task = flexmock(task.orocos_task)
+                flexmock(task.state_reader)
             end
 
-            describe "the task has extended state support" do
-                it "is provided a connected state reader by its execution agent" do
-                    syskit_start_execution_agents(task)
-                    assert task.state_reader.connected?
-                end
-                it "emits :aborted if the state reader got disconnected" do
-                    task = syskit_stub_deploy_configure_and_start('Task')
-                    task.update_orogen_state
+            it "is provided a connected state reader by its execution agent" do
+                syskit_start_execution_agents(task)
+                assert task.state_reader.connected?
+            end
+            it "emits :aborted if the state reader got disconnected" do
+                task = syskit_stub_deploy_configure_and_start('Task')
+                setting_up = task.instance_variable_get(:@setting_up)
+                assert(!setting_up || setting_up.complete?)
+                task.update_orogen_state
+                Orocos.allow_blocking_calls do
                     task.state_reader.disconnect
-                    orocos_task = task.orocos_task
-                    assert_raises(Roby::MissionFailedError) { task.update_orogen_state }
-                    assert task.aborted_event.emitted?
+                end
+                orocos_task = task.orocos_task
+
+                plan.unmark_mission_task(task)
+                assert_event_emission task.aborted_event do
+                    task.update_orogen_state
+                end
+                Orocos.allow_blocking_calls do
                     assert_equal :STOPPED, orocos_task.rtt_state
                 end
-                it "sets orogen_state with the new state" do
-                    task.state_reader.should_receive(:read_new).and_return(state = Object.new)
-                    task.update_orogen_state
-                    assert_equal state, task.orogen_state
-                end
-                it "updates last_orogen_state with the current state" do
-                    task.state_reader.should_receive(:read_new).and_return(state = Object.new)
-                    task.should_receive(:orogen_state).and_return(last_state = Object.new)
-                    task.update_orogen_state
-                    assert_equal last_state, task.last_orogen_state
-                end
-                it "returns nil if no new state has been received" do
-                    assert !task.update_orogen_state
-                end
-                it "does not change the last and current states if no new states have been received" do
-                    task.state_reader.should_receive(:read_new).
-                        and_return(last_state = Object.new).
-                        and_return(state = Object.new).
-                        and_return(nil)
-                    task.update_orogen_state
-                    task.update_orogen_state
-                    assert !task.update_orogen_state
-                    assert_equal last_state, task.last_orogen_state
-                    assert_equal state, task.orogen_state
-                end
-                it "returns the new state if there is one" do
-                    task.state_reader.should_receive(:read_new).and_return(state = Object.new)
-                    assert_equal state, task.update_orogen_state
-                end
             end
-
-            describe "the task does not have extended state support" do
-                it "sets orogen_state with the new state" do
-                    orocos_task.should_receive(:rtt_state).and_return(state = Object.new)
-                    task.update_orogen_state
-                    assert_equal state, task.orogen_state
-                end
-                it "updates last_orogen_state with the current state" do
-                    orocos_task.should_receive(:rtt_state).and_return(state = Object.new)
-                    task.should_receive(:orogen_state).and_return(last_state = Object.new)
-                    task.update_orogen_state
-                    assert_equal last_state, task.last_orogen_state
-                end
-                it "returns nil if no new state has been received" do
-                    assert !task.update_orogen_state
-                end
-                it "does not change the last and current states if no new states have been received" do
-                    orocos_task.should_receive(:rtt_state).
-                        and_return(last_state = Object.new).
-                        and_return(state = Object.new).
-                        and_return(state)
-                    task.update_orogen_state
-                    task.update_orogen_state
-                    assert !task.update_orogen_state
-                    assert_equal last_state, task.last_orogen_state
-                    assert_equal state, task.orogen_state
-                end
-                it "returns the new state if there is one" do
-                    orocos_task.should_receive(:rtt_state).and_return(state = Object.new)
-                    assert_equal state, task.update_orogen_state
-                end
+            it "sets orogen_state with the new state" do
+                task.state_reader.should_receive(:read_new).and_return(state = Object.new)
+                task.update_orogen_state
+                assert_equal state, task.orogen_state
+            end
+            it "updates last_orogen_state with the current state" do
+                task.state_reader.should_receive(:read_new).and_return(state = Object.new)
+                task.should_receive(:orogen_state).and_return(last_state = Object.new)
+                task.update_orogen_state
+                assert_equal last_state, task.last_orogen_state
+            end
+            it "returns nil if no new state has been received" do
+                task.state_reader.should_receive(:read_new)
+                assert !task.update_orogen_state
+            end
+            it "does not change the last and current states if no new states have been received" do
+                task.state_reader.should_receive(:read_new).
+                    and_return(last_state = Object.new).
+                    and_return(state = Object.new).
+                    and_return(nil)
+                task.update_orogen_state
+                task.update_orogen_state
+                assert !task.update_orogen_state
+                assert_equal last_state, task.last_orogen_state
+                assert_equal state, task.orogen_state
+            end
+            it "returns the new state if there is one" do
+                task.state_reader.should_receive(:read_new).and_return(state = Object.new)
+                assert_equal state, task.update_orogen_state
             end
         end
         describe "#ready_for_setup?" do
             attr_reader :task, :orocos_task
             before do
-                @task = flexmock(syskit_stub_deploy_and_configure('Task') {})
-                @orocos_task = flexmock
-                task.should_receive(:orocos_task).and_return(orocos_task).by_default
+                task = syskit_stub_deploy_and_configure('Task') {}
+                @task = flexmock(task)
+                @orocos_task = flexmock(task.orocos_task)
             end
 
             it "returns false if task arguments are not set" do
@@ -439,17 +473,17 @@ module Syskit
                 @state_reader = flexmock(task.state_reader)
             end
             it "returns nil if both #read and #read_new return nil" do
-                task.state_reader.should_receive(:read_new).and_return(nil).once
-                task.state_reader.should_receive(:read).and_return(nil).once
+                state_reader.should_receive(:read_new).and_return(nil).once
+                state_reader.should_receive(:read).and_return(nil).once
                 assert_nil task.read_current_state
             end
             it "returns the value of the last non-nil #read_new" do
-                task.state_reader.should_receive(:read_new).and_return(1, 2, 3, nil)
+                state_reader.should_receive(:read_new).and_return(1, 2, 3, nil)
                 assert_equal 3, task.read_current_state
             end
             it "returns the value of #read if #read_new returns nil" do
-                task.state_reader.should_receive(:read_new).and_return(nil)
-                task.state_reader.should_receive(:read).and_return(3)
+                state_reader.should_receive(:read_new).and_return(nil)
+                state_reader.should_receive(:read).and_return(3)
                 assert_equal 3, task.read_current_state
             end
         end
@@ -457,26 +491,27 @@ module Syskit
         describe "#is_setup!" do
             attr_reader :task
             before do
-                plan.add(@task = TaskContext.new_submodel.new(orocos_name: "", conf: []))
+                plan.add(task = TaskContext.new_submodel.new(orocos_name: "", conf: []))
+                @task = flexmock(task)
                 assert !task.executable?
             end
             it "resets the executable flag if all inputs are connected" do
-                flexmock(task).should_receive(:all_inputs_connected?).and_return(true).once
+                task.should_receive(:all_inputs_connected?).and_return(true).once
                 task.is_setup!
                 assert task.executable?
             end
             it "does not reset the executable flag if some inputs are not connected" do
-                flexmock(task).should_receive(:all_inputs_connected?).and_return(false).once
+                task.should_receive(:all_inputs_connected?).and_return(false).once
                 task.is_setup!
                 assert !task.executable?
             end
         end
         describe "#reusable?" do
             it "is false if the task is setup and needs reconfiguration" do
-                task = TaskContext.new_submodel.new
+                task = flexmock(TaskContext.new_submodel.new)
                 assert task.reusable?
-                flexmock(task).should_receive(:setup?).and_return(true)
-                flexmock(task).should_receive(:needs_reconfiguration?).and_return(true)
+                task.should_receive(:setup?).and_return(true)
+                task.should_receive(:needs_reconfiguration?).and_return(true)
                 assert !task.reusable?
             end
         end
@@ -516,7 +551,7 @@ module Syskit
 
                 ActualDataFlow.add_connections(*orocos_tasks, Hash[['dynamic', 'dynamic'] => [Hash.new, false, false]])
                 assert ActualDataFlow.has_edge?(*orocos_tasks)
-                task.clean_dynamic_port_connections
+                task.clean_dynamic_port_connections([])
                 assert !ActualDataFlow.has_edge?(*orocos_tasks)
             end
             it "removes connections that relate to the task's dynamic output ports" do
@@ -537,7 +572,7 @@ module Syskit
 
                 ActualDataFlow.add_connections(*orocos_tasks, Hash[['dynamic', 'dynamic'] => [Hash.new, false, false]])
                 assert ActualDataFlow.has_edge?(*orocos_tasks)
-                task.clean_dynamic_port_connections
+                task.clean_dynamic_port_connections([])
                 assert !ActualDataFlow.has_edge?(*orocos_tasks)
             end
         end
@@ -546,7 +581,11 @@ module Syskit
             attr_reader :task, :orocos_task
             before do
                 task_m = TaskContext.new_submodel
-                @task = syskit_stub_deploy_and_configure(task_m, as: 'task')
+                messages = capture_log(::Robot, :info) do
+                    @task = syskit_stub_deploy_and_configure(task_m, as: 'task')
+                end
+                assert_equal ["applied configuration [\"default\"] to #{task.orocos_name}",
+                              "setting up #{task}"], messages
                 flexmock(task)
                 @orocos_task = flexmock(task.orocos_task)
             end
@@ -555,7 +594,7 @@ module Syskit
                 recorder = flexmock
                 recorder.should_receive(:called).once.ordered
                 flexmock(task.orocos_task).should_receive(:rtt_state).and_return(rtt_state)
-                promise = execution_engine.promise { recorder.called }
+                promise = execution_engine.promise(description: "#{name}#prepare_task_for_setup") { recorder.called }
                 promise = task.prepare_for_setup(promise)
                 promise.execute
                 execution_engine.join_all_waiting_work
@@ -565,57 +604,92 @@ module Syskit
             it "resets an exception state" do
                 orocos_task.should_receive(:reset_exception).once.ordered
                 task.should_receive(:clean_dynamic_port_connections).once.ordered
-                prepare_task_for_setup(:EXCEPTION)
+                messages = capture_log(::Robot, :info) do
+                    prepare_task_for_setup(:EXCEPTION)
+                end
+                assert messages.include?("reconfiguring #{task}: the task was in exception state")
             end
             it "does nothing if the state is PRE_OPERATIONAL" do
-                prepare_task_for_setup(:PRE_OPERATIONAL)
+                messages = capture_log(::Robot, :info) do
+                    prepare_task_for_setup(:PRE_OPERATIONAL)
+                end
+                assert_equal ["not reconfiguring #{task}: the task is already configured as required"],
+                    messages
                 task.should_receive(:clean_dynamic_port_connections).never
             end
             it "does nothing if the state is STOPPED and the task does not need to be reconfigured" do
                 TaskContext.configured['task'] = [nil, ['default'], Set.new]
                 orocos_task.should_receive(:cleanup).never
                 task.should_receive(:clean_dynamic_port_connections).never
-                prepare_task_for_setup(:STOPPED)
+                messages = capture_log(::Robot, :info) do
+                    prepare_task_for_setup(:STOPPED)
+                end
+                assert_equal ["not reconfiguring #{task}: the task is already configured as required"],
+                    messages
             end
             it "cleans up if the state is STOPPED and the task is marked as requiring reconfiguration" do
                 task.should_receive(:needs_reconfiguration?).and_return(true)
                 orocos_task.should_receive(:cleanup).once.ordered
                 task.should_receive(:clean_dynamic_port_connections).once.ordered
-                prepare_task_for_setup(:STOPPED)
+                messages = capture_log(::Robot, :info) do
+                    prepare_task_for_setup(:STOPPED)
+                end
+                assert_equal ["cleaning up #{task}"],
+                    messages
             end
             it "cleans up if the state is STOPPED and the task has never been configured" do
                 TaskContext.configured[task.orocos_name] = nil
                 orocos_task.should_receive(:cleanup).once.ordered
                 task.should_receive(:clean_dynamic_port_connections).once.ordered
-                prepare_task_for_setup(:STOPPED)
+                messages = capture_log(::Robot, :info) do
+                    prepare_task_for_setup(:STOPPED)
+                end
+                assert_equal ["cleaning up #{task}"], messages
             end
             it "cleans up if the state is STOPPED and the task's configuration changed" do
                 TaskContext.configured[task.orocos_name] = [nil, [], Set.new]
                 orocos_task.should_receive(:cleanup).once.ordered
                 task.should_receive(:clean_dynamic_port_connections).once.ordered
-                prepare_task_for_setup(:STOPPED)
+                messages = capture_log(::Robot, :info) do
+                    prepare_task_for_setup(:STOPPED)
+                end
+                assert_equal ["cleaning up #{task}"], messages
             end
         end
         describe "#setup" do
-            attr_reader :task, :orocos_task
+            attr_reader :task, :orocos_task, :recorder
             before do
-                @task = syskit_stub_and_deploy 'Task', as: 'task' do
+                @recorder = flexmock
+                recorder.should_receive(:called)
+                recorder.should_receive(:error).never.by_default
+                task = syskit_stub_and_deploy 'Task', as: 'task' do
                     input_port "in", "int"
                     output_port "out", "int"
                 end
                 syskit_start_execution_agents(task, recursive: true)
+                @task = flexmock(task)
                 @orocos_task = flexmock(task.orocos_task)
             end
 
-            def setup_task(task = self.task)
-                promise = execution_engine.promise { }
-                promise = task.setup(promise)
-                promise.execute
-                execution_engine.join_all_waiting_work
+            def default_setup_task_messages(task)
+                ["applied configuration [\"default\"] to #{task.orocos_name}", "setting up #{task}"]
+            end
+
+            def setup_task(task = self.task, expected_messages: nil)
+                promise = nil
+                messages = capture_log(::Robot, :info) do
+                    promise = Runtime.start_task_setup(task)
+                    execution_engine.join_all_waiting_work
+                end
+                if !expected_messages
+                    expected_messages = default_setup_task_messages(task)
+                end
+                assert_equal expected_messages, messages
                 promise.value!
             end
 
             it "freezes delayed arguments" do
+                plan.remove_task(task)
                 task = syskit_stub_network_deployment(TaskContext.new_submodel.new)
                 plan.add_permanent_task(task)
                 syskit_start_execution_agents(task)
@@ -625,59 +699,81 @@ module Syskit
             end
 
             it "raises if the task is not ready for setup" do
-                flexmock(task).should_receive(:ready_for_setup?).and_return(false)
-                assert_raises(InternalError) do
-                    setup_task
+                plan.unmark_mission_task(task)
+                task.should_receive(:ready_for_setup?).and_return(false)
+                assert_task_fails_to_start(task, Roby::EmissionFailed, original_exception: InternalError) do
+                    assert_raises(InternalError) do
+                        setup_task(expected_messages: [])
+                    end
                 end
             end
             it "resets the needs_configuration flag" do
                 orocos_task.should_receive(:rtt_state).and_return(:PRE_OPERATIONAL)
-                flexmock(task).should_receive(:ready_for_setup?).with(:PRE_OPERATIONAL).and_return(true)
+                task.should_receive(:ready_for_setup?).with(:PRE_OPERATIONAL).and_return(true)
                 task.needs_reconfiguration!
                 setup_task
                 assert !task.needs_reconfiguration?
             end
             it "registers the current task configuration" do
                 orocos_task.should_receive(:rtt_state).and_return(:PRE_OPERATIONAL)
-                flexmock(task).should_receive(:ready_for_setup?).with(:PRE_OPERATIONAL).and_return(true)
+                task.should_receive(:ready_for_setup?).with(:PRE_OPERATIONAL).and_return(true)
                 task.needs_reconfiguration!
                 setup_task
                 assert_equal ['default'], TaskContext.configured[task.orocos_name][1]
             end
+            it "reports an exception from the user-provided #configure method as failed-to-start" do
+                plan.unmark_mission_task(task)
+                task.should_receive(:configure).and_raise(error_e = Class.new(RuntimeError))
+                assert_task_fails_to_start(task, Roby::EmissionFailed, original_exception: error_e) do
+                    assert_raises(error_e) do
+                        setup_task(expected_messages: [])
+                    end
+                end
+                assert task.failed_to_start?
+            end
             describe "ordering related to prepare_for_setup" do
-                attr_reader :recorder
+                attr_reader :error_m
 
                 before do
-                    recorder = flexmock
-                    recorder.should_receive(:called).once.ordered
-                    promise = execution_engine.promise { recorder.called }
-                    flexmock(task).should_receive(:prepare_for_setup).once.
+                    @error_m = Class.new(RuntimeError)
+                    promise = execution_engine.promise(description: "#{name}#before") { recorder.called }
+                    task.should_receive(:prepare_for_setup).once.
                         and_return(promise)
                 end
 
                 it "calls the user-provided #configure method after prepare_for_setup" do
-                    flexmock(task).should_receive(:configure).once.ordered
-                    setup_task
+                    task.should_receive(:configure).once.ordered
+                    setup_task(expected_messages: ["setting up #{task}"])
                 end
                 it "calls the task's configure method if the task's state is PRE_OPERATIONAL" do
                     orocos_task.should_receive(:rtt_state).and_return(:PRE_OPERATIONAL)
                     orocos_task.should_receive(:configure).once.ordered
-                    setup_task
+                    setup_task(expected_messages: ["applied configuration [\"default\"] to #{task.orocos_name}", "setting up #{task}"])
                 end
                 it "does not call the task's configure method if the task's state is not PRE_OPERATIONAL" do
                     orocos_task.should_receive(:rtt_state).and_return(:STOPPED)
                     orocos_task.should_receive(:configure).never
-                    setup_task
+                    setup_task(expected_messages: ["applied configuration [\"default\"] to #{task.orocos_name}", "#{task} was already configured"])
                 end
                 it "does not call is_setup!" do
-                    flexmock(task).should_receive(:is_setup!).never
-                    setup_task
+                    task.should_receive(:is_setup!).never
+                    messages = capture_log(::Robot, :info) do
+                        promise = execution_engine.promise(description: "setup of #{task}") { }
+                        promise = task.setup(promise)
+                        promise.execute
+                        execution_engine.join_all_waiting_work
+                        promise.value!
+                    end
+                    assert_equal default_setup_task_messages(task), messages
                 end
                 it "does not call the task's configure method if the user-provided configure method raises" do
-                    flexmock(task).should_receive(:configure).and_raise(ArgumentError)
+                    plan.unmark_mission_task(task)
+                    task.should_receive(:configure).and_raise(error_m)
                     orocos_task.should_receive(:configure).never
-                    assert_raises(ArgumentError) do
-                        setup_task
+                    assert_task_fails_to_start(task, Roby::EmissionFailed, original_exception: error_m) do
+                        assert_raises(error_m) do
+                            setup_task(expected_messages: [])
+                        end
                     end
                 end
             end
@@ -693,7 +789,9 @@ module Syskit
                     once.
                     and_return('v' => 10)
                 syskit_configure(task)
-                assert_equal 10, task.orocos_task.v
+                Orocos.allow_blocking_calls do
+                    assert_equal 10, task.orocos_task.v
+                end
             end
         end
 
@@ -758,13 +856,23 @@ module Syskit
             syskit_start_execution_agents(bus_driver)
             syskit_start_execution_agents(dev_driver)
 
-            bus_driver.orocos_task.create_output_port 'dev', '/int'
-            flexmock(bus_driver.orocos_task, "bus").should_receive(:start).once.globally.ordered(:setup).pass_thru
-            flexmock(bus_driver.orocos_task.dev, "bus.dev").should_receive(:connect_to).once.globally.ordered(:setup).pass_thru
-            flexmock(dev_driver.orocos_task, "dev").should_receive(:start).once.globally.ordered.pass_thru
-            execution_engine.scheduler.enabled = true
-            assert_event_emission bus_driver.start_event
-            assert_event_emission dev_driver.start_event
+            mock_logger = flexmock(:level= => nil, :level => Logger::INFO)
+            bus_driver.logger = dev_driver.logger = mock_logger
+            messages = capture_log(mock_logger, :info) do
+                    bus_driver.orocos_task.create_output_port 'dev', '/int'
+                    flexmock(bus_driver.orocos_task, "bus").should_receive(:start).once.globally.ordered(:setup).pass_thru
+                    mock_raw_port(bus_driver.orocos_task, 'dev').should_receive(:connect_to).once.globally.ordered(:setup).pass_thru
+                    flexmock(dev_driver.orocos_task, "dev").should_receive(:start).once.globally.ordered.pass_thru
+                    execution_engine.scheduler.enabled = true
+                    assert_event_emission bus_driver.start_event
+                    assert_event_emission dev_driver.start_event
+            end
+            assert_equal ["applied configuration [\"default\"] to #{bus_driver.orocos_name}",
+                          "setting up #{bus_driver}",
+                          "starting #{bus_driver}",
+                          "applied configuration [\"default\"] to #{dev_driver.orocos_name}",
+                          "setting up #{dev_driver}",
+                          "starting #{dev_driver}"], messages
         end
 
         describe "#transaction_modifies_static_ports?" do
@@ -942,22 +1050,23 @@ module Syskit
             end
 
             describe "#commit_properties" do
-                attr_reader :task, :test_property, :remote_test_property
+                attr_reader :task, :stub_property, :remote_test_property
                 before do
                     @task = syskit_stub_and_deploy(task_m)
                     syskit_start_execution_agents(task)
-                    @test_property = task.property('test')
+                    @stub_property = task.property('test')
                     Orocos.allow_blocking_calls do
                         @remote_test_property = task.orocos_task.raw_property('test')
                         remote_test_property.write(0.2)
                     end
                 end
                 def mock_remote_property
-                    test_property.remote_property = @remote_test_property
+                    stub_property.remote_property = @remote_test_property
                     flexmock(@remote_test_property)
                 end
 
                 it "ignores properties that do not have an explicit value" do
+                    stub_property.clear_value
                     task.commit_properties.execute
                     flexmock(Orocos::Property).new_instances.should_receive(:write).never
                     execution_engine.join_all_waiting_work
@@ -966,7 +1075,7 @@ module Syskit
                     end
                 end
                 it "writes the properties that have an explicit value" do
-                    test_property.write(0.1)
+                    stub_property.write(0.1)
                     flexmock(Orocos::Property).new_instances.should_receive(:write).once.
                         with(Typelib.from_ruby(0.1, double_t)).
                         pass_thru
@@ -977,51 +1086,70 @@ module Syskit
                     end
                 end
                 it "updates the property's #remote_value after it has been written" do
-                    test_property.write(0.1)
+                    stub_property.write(0.1)
                     property = flexmock
                     property.should_receive(:write).once.
                         globally.ordered
-                    test_property.remote_property = property
-                    flexmock(test_property).should_receive(:update_remote_value).once.
+                    stub_property.remote_property = property
+                    flexmock(stub_property).should_receive(:update_remote_value).once.
                         globally.ordered.pass_thru
                     task.commit_properties.execute
                     process_events
-                    assert_equal Typelib.from_ruby(0.1, double_t), test_property.remote_value
+                    assert_equal Typelib.from_ruby(0.1, double_t), stub_property.remote_value
                 end
                 it "updates the property's log after it has been written" do
-                    test_property.write(0.1)
+                    stub_property.write(0.1)
                     mock_remote_property.should_receive(:write).once.
                         globally.ordered
-                    flexmock(test_property).should_receive(:update_log).once.
+                    flexmock(stub_property).should_receive(:update_log).once.
                         globally.ordered.pass_thru
                     task.commit_properties.execute
                     process_events
                 end
-                it "queues errors from the update code as framework errors" do
+                it "reports PropertyUpdateError and marks the task as failed-to-start if the write fails" do
                     error_m = Class.new(RuntimeError)
-                    test_property.write(0.1)
-                    mock_remote_property.should_receive(:write).once
-                    flexmock(test_property).should_receive(:update_log).
-                        and_raise(error_m)
-                    task.commit_properties.execute
-                    flexmock(plan.execution_engine).should_receive(:add_framework_error).
-                        with(error_m, any).once.pass_thru
-                    assert_raises(error_m) do
-                        inhibit_fatal_messages do
-                            process_events
-                        end
-                    end
-                end
-                it "reports PropertyUpdateError if the write fails" do
-                    error_m = Class.new(RuntimeError)
-                    test_property.write(0.1)
+                    stub_property.write(0.1)
                     mock_remote_property.should_receive(:write).once.
                         and_raise(error_m)
                     task.commit_properties.execute
                     flexmock(plan.execution_engine).should_receive(:add_framework_error).
                         never
-                    assert_raises(PropertyUpdateError) do
-                        process_events
+                    flexmock(plan.execution_engine).should_receive(:add_error).
+                        with(->(e) {
+                            assert_kind_of Roby::CodeError, e
+                            assert_equal task, e.failed_task
+                            true })
+                    process_events
+                end
+
+                describe "initial values" do
+                    attr_reader :task
+                    before do
+                        task_m = Syskit::TaskContext.new_submodel do
+                            property 'p', '/int'
+                        end
+                        flexmock(Orocos::TaskContext).new_instances.
+                            should_receive(:property).with('p').
+                            and_return(flexmock(name: 'p', raw_read: 20))
+                        @task = syskit_stub_and_deploy(task_m)
+                    end
+
+                    it "updates the property's known remote value regardless of the property's current setup" do
+                        task.property('p').write(10)
+                        task.property('p').update_remote_value(10)
+                        syskit_start_execution_agents(task)
+                        assert 20, Typelib.to_ruby(task.property('p').remote_value)
+                    end
+
+                    it "leaves already set values" do
+                        task.property('p').write(10)
+                        syskit_start_execution_agents(task)
+                        assert 10, Typelib.to_ruby(task.property('p').read)
+                    end
+
+                    it "initializes unset properties with the value read from the task" do
+                        syskit_start_execution_agents(task)
+                        assert 20, Typelib.to_ruby(task.property('p').read)
                     end
                 end
             end

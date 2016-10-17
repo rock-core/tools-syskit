@@ -41,9 +41,7 @@ describe Syskit::Coordination::DataMonitoringTable do
         syskit_start(component)
         component.orocos_task.out.write(10)
         assert_raises(Roby::CodeError) do
-            inhibit_fatal_messages do
-                process_events
-            end
+            process_events
         end
         assert_kind_of Roby::CodeError, component.failure_reason
     end
@@ -113,9 +111,7 @@ describe Syskit::Coordination::DataMonitoringTable do
         table.poll
         component.orocos_task.out2.write(7)
         assert_raises(Syskit::Coordination::DataMonitoringError) do
-            inhibit_fatal_messages do
-                table.poll
-            end
+            table.poll
         end
         assert component.success?
     end
@@ -157,9 +153,7 @@ describe Syskit::Coordination::DataMonitoringTable do
         component.orocos_task.out1.write(1)
         component.orocos_task.out2.write(12)
         assert_raises(Syskit::Coordination::DataMonitoringError) do
-            inhibit_fatal_messages do
-                table.poll
-            end
+            table.poll
         end
         assert component.success?
         composition.success_event.emit
@@ -210,9 +204,7 @@ describe Syskit::Coordination::DataMonitoringTable do
         component.orocos_task.out1.write(1)
         component.orocos_task.out2.write(12)
         assert_raises(Syskit::Coordination::DataMonitoringError) do
-            inhibit_fatal_messages do
-                table.poll
-            end
+            table.poll
         end
         assert composition.success?
     end

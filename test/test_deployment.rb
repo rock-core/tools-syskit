@@ -169,10 +169,10 @@ module Syskit
             describe "start_event" do
                 it "raises if the process name is set to nil" do
                     plan.add(task = deployment_task.model.new(process_name: nil))
-                    e = assert_raises(ArgumentError) do
+                    assert_task_fails_to_start(task, Roby::CommandFailed, original_exception: ArgumentError) do
                         task.start!
                     end
-                    assert_equal "must set process_name", e.message
+                    assert_equal "must set process_name", task.failure_reason.original_exceptions.first.message
                 end
                 it "finds the process server from Syskit.process_servers and its on: option" do
                     process_server.should_receive(:start).once.
@@ -196,7 +196,11 @@ module Syskit
                 end
                 it "raises if the on option refers to a non-existing process server" do
                     plan.add(task = deployment_m.new(on: 'does_not_exist'))
-                    assert_raises(Roby::CommandFailed) { task.start! }
+                    exception = assert_task_fails_to_start(task, Roby::CommandFailed, original_exception: ArgumentError) do
+                        task.start!
+                    end
+                    assert_equal "there is no registered process server called does_not_exist",
+                        exception.error.message
                 end
                 it "does not emit ready" do
                     process_server.should_receive(:start).and_return(process)
@@ -287,13 +291,11 @@ module Syskit
                     process.should_receive(:resolve_all_tasks).once.
                         and_return('invalid_name' => orocos_task)
 
-                    reason = assert_event_becomes_unreachable deployment_task.ready_event do
+                    exception = assert_fatal_exception Roby::EventHandlerError, original_exception: InternalError, tasks: [deployment_task], failure_point: deployment_task.ready_event do
                         make_deployment_ready
                     end
-                    internal_error =
-                        (Roby::LocalizedError.match.with_original_exception(InternalError) === reason.context.first)
                     assert_equal "expected #{process}'s reported tasks to include mapped_task_name, but got handles only for invalid_name",
-                        internal_error.message
+                        exception.original_exceptions.first.message
                 end
                 it "fails an attached TaskContext if its orocos_name does not match the deployment's" do
                     task = add_deployed_task(name: 'invalid_task_name')
@@ -301,12 +303,13 @@ module Syskit
                     process.should_receive(:resolve_all_tasks).once.
                         and_return('mapped_task_name' => orocos_task)
 
-                    reason = assert_event_becomes_unreachable task.start_event do
+                    plan.unmark_permanent_task(task)
+                    exception = assert_task_fails_to_start task, Roby::CommandFailed, original_exception: InternalError, direct: true do
                         make_deployment_ready
                     end
 
                     assert_equal "#{task} is supported by #{deployment_task} but there does not seem to be any task called invalid_task_name on this deployment",
-                        reason
+                        exception.error.message
                 end
             end
             

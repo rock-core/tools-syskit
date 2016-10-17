@@ -53,29 +53,6 @@ module Syskit
             RobyApp::Plugin.unplug_handler_from_roby(execution_engine, :connection_management)
         end
 
-        def assert_fails_to_start(task)
-            yield
-            assert task.failed_to_start?
-        end
-
-        def assert_event_emission_failed(expected_code_error = nil)
-            e = assert_raises(Roby::EmissionFailed) do
-                yield
-            end
-            if expected_code_error && !e.error.kind_of?(expected_code_error)
-                flunk("expected a Roby::EmissionFailed wrapping #{expected_code_error}, but \"#{e.error}\" (#{e.error.class}) was raised")
-            end
-        end
-
-        def assert_event_command_failed(expected_code_error = nil)
-            e = assert_raises(Roby::CommandFailed) do
-                yield
-            end
-            if expected_code_error && !e.error.kind_of?(expected_code_error)
-                flunk("expected a Roby::CommandFailed wrapping #{expected_code_error}, but \"#{e.error}\" (#{e.error.class}) was raised")
-            end
-        end
-
         def run_engine(timeout, poll_period = 0.1)
             start_time = Time.now
             cycle_start = Time.now
