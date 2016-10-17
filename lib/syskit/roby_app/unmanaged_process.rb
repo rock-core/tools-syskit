@@ -6,22 +6,18 @@ module Syskit
         # An UnmanagedProcess can basically be in three states, which are
         # reflected by three threads
         #
-        # {#spawn_thread} is started at the beginning, to wait for the
-        # availability of the expected remote tasks. The thread returns when the
-        # tasks are resolved properly.
-        #
-        # {#monitor_thread} is started by {#wait_running} when {#spawn_thread}
-        # has returned. It verifies that the tasks resolvd by {#spawn_thread}
-        # are still present. The thread returns when it is not the case.
-        #
-        # Finally {#kill_thread} is started by {#kill}. It terminates the two
-        # other threads.
+        # {#monitor_thread} is started when all tasks have been resolved in
+        # {#resolve_all_tasks}. It verifies that the tasks are still reachable.
+        # The thread returns when it is not the case.
         #
         # Whether the process is stil in a good state or not should be tested
         # with {#dead?}. {#verify_threads_state} verifies that the threads
         # themselves did not terminate with an exception (and throw the
         # exception).
         class UnmanagedProcess < Orocos::ProcessBase
+            extend Logger::Hierarchy
+            include Logger::Hierarchy
+
             class TerminateThread < RuntimeError; end
 
             # The {UnmanagedTasksManager} object which created this
@@ -70,22 +66,6 @@ module Syskit
             # It is spawned the first time {#wait_running} returns true
             attr_reader :monitor_thread
 
-            # @api private
-            #
-            # The thread that performs the termination of the tasks
-            #
-            # It is spawned when {#kill} is called
-            attr_reader :kill_thread
-
-            # Thread used to discover the remote task
-            attr_reader :spawn_thread
-
-            # Thread used to monitor a discovered task
-            attr_reader :monitor_thread
-
-            # Thread used to kill the process
-            attr_reader :kill_thread
-
             # Creates a new object managing the tasks that represent a single unmanaged process
             #
             # @param [nil,#dead_deployment] process_manager the process manager
@@ -100,6 +80,7 @@ module Syskit
                 @deployed_tasks = nil
                 @name_service = process_manager.name_service
                 @host_id = host_id
+                @quitting = Concurrent::Event.new
                 super(name, model)
             end
 
@@ -110,26 +91,6 @@ module Syskit
             # @return [void]
             def spawn(options = Hash.new)
                 @deployed_tasks = nil
-                @spawn_thread = Thread.new do
-                    spawn_monitor
-                end
-            end
-
-            # Waits to have access to the underlying tasks
-            def wait_running(timeout)
-                return true if ready?
-
-                begin
-                    return if !spawn_thread.join(timeout)
-                rescue TerminateThread
-                    return
-                end
-
-                @deployed_tasks = spawn_thread.value
-                @monitor_thread = Thread.new do
-                    monitor
-                end
-                true
             end
 
             # Verifies that the monitor thread is alive and well, or that the
@@ -139,21 +100,21 @@ module Syskit
             # exception that terminated it, or a RuntimeError if no exceptions
             # have been raised (which should not be possible)
             def verify_threads_state
-                if spawn_thread && !spawn_thread.alive?
-                    begin spawn_thread.join
-                    rescue TerminateThread
-                    end
-                end
-
                 if monitor_thread && !monitor_thread.alive?
-                    begin monitor_thread.join
-                    rescue TerminateThread
-                    end
+                    monitor_thread.join
                 end
+            end
 
-                if kill_thread && !kill_thread.alive?
-                    kill_thread.join
+            def resolve_all_tasks(cache = Hash.new)
+                resolved = model.task_activities.map do |t|
+                    [t.name, (cache[t.name] ||= name_service.get(t.name))]
                 end
+                @deployed_tasks = Hash[resolved]
+                @monitor_thread = Thread.new do
+                    monitor
+                end
+                return @deployed_tasks
+            rescue Orocos::NotFound, Orocos::ComError
             end
 
             # Returns the component object for the given name
@@ -186,48 +147,10 @@ module Syskit
             # "Kill" this process
             #
             # It shuts down the tasks that are part of it
-            def kill(wait = true)
-                @kill_thread = Thread.new do
-                    terminate_and_join_thread(spawn_thread)
-                    if monitor_thread
-                        terminate_and_join_thread(monitor_thread)
-                    end
-                    if deployed_tasks
-                        deployed_tasks.each_value do |task|
-                            begin
-                                if task.rtt_state == :RUNNING
-                                    task.stop(false)
-                                end
-                                if task.rtt_state == :STOPPED
-                                    task.cleanup(false)
-                                end
-                            rescue Orocos::ComError
-                            end
-                        end
-                    end
-                end
-                if wait
-                    @kill_thread.join
-                end
-            end
-
-            # @api private
-            #
-            # Loop for {#spawn_thread}, which waits for the expected task(s) to
-            # all be available
-            #
-            # @param [Float] period polling period in seconds
-            def spawn_monitor(period: 0.1)
-                while true
-                    begin
-                        resolved = model.task_activities.map do |t|
-                            [t.name, name_service.get(t.name)]
-                        end
-                        return Hash[resolved]
-                    rescue Orocos::NotFound, Orocos::ComError
-                    end
-                    sleep period
-                end
+            def kill(wait = false)
+                # Announce we're quitting to #monitor_thread. It's used in
+                # #dead? directly if there is no monitoring thread
+                @quitting.set 
             end
 
             # @api private
@@ -237,7 +160,7 @@ module Syskit
             #
             # @param [Float] period polling period in seconds
             def monitor(period: 0.1)
-                while true
+                while !quitting?
                     deployed_tasks.each_value do |task|
                         begin task.ping
                         rescue Orocos::ComError
@@ -248,26 +171,23 @@ module Syskit
                 end
             end
 
+            # Whether {#kill} requested for {#monitor_thread} to quit
+            def quitting?
+                @quitting.set?
+            end
+
             # Returns true if the process died
             def dead?
-                if kill_thread
-                    return !kill_thread.alive?
-                elsif monitor_thread
+                if monitor_thread
                     return !monitor_thread.alive?
-                elsif spawn_thread
-                    return false if spawn_thread.alive?
-                    begin spawn_thread.join
-                    rescue Exception
-                        return true
-                    end
+                else quitting?
                 end
-                false
             end
 
             # Returns true if the tasks have been successfully discovered
             def ready?; !!deployed_tasks end
             # True if the process is running. This is an alias for running?
-            def alive?; spawn_thread && !dead? end
+            def alive?; !dead? end
             # True if the process is running. This is an alias for alive?
             def running?; alive? end
 

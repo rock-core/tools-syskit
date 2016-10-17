@@ -120,8 +120,8 @@ module Syskit
                     begin
                         process.verify_threads_state
                     rescue Exception => e
-                        Syskit.fatal "assuming #{process} died because the background thread died with"
-                        Roby.log_exception(e, Syskit, :fatal)
+                        process.fatal "assuming #{process} died because the background thread died with"
+                        Roby.log_exception(e, process, :fatal)
                         dead_processes << process
                     end
 
