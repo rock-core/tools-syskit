@@ -490,10 +490,10 @@ module Syskit
             # This is called after orocos_task.cleanup, as a task's cleanupHook
             # is supposed to delete all dynamic ports (and therefore disconnect
             # them)
-            def clean_dynamic_port_connections
+            def clean_dynamic_port_connections(port_names)
                 to_remove = Hash.new
-                to_remove.merge!(dynamic_input_port_connections)
-                to_remove.merge!(dynamic_output_port_connections)
+                to_remove.merge!(dynamic_input_port_connections(port_names))
+                to_remove.merge!(dynamic_output_port_connections(port_names))
                 relation_graph_for(Flows::DataFlow).modified_tasks << self
                 to_remove.each do |(source_task, sink_task), connections|
                     ActualDataFlow.remove_connections(source_task, sink_task, connections)
@@ -504,7 +504,7 @@ module Syskit
             #
             # Helper for {#prepare_for_setup} that enumerates the inbound
             # connections originating from a dynamic output port
-            def dynamic_input_port_connections
+            def dynamic_input_port_connections(existing_port_names)
                 to_remove = Hash.new
                 real_model = self.model.concrete_model
                 dynamic_ports = self.model.each_input_port.find_all do |p|
@@ -512,13 +512,9 @@ module Syskit
                 end
                 dynamic_ports = dynamic_ports.map(&:name).to_set
 
-                # In development mode, we actually check that the
-                # task did remove the port(s)
-                if Roby.app.development_mode?
-                    dynamic_ports.each do |name|
-                        if orocos_task.find_input_port(name)
-                            Syskit.fatal "task #{orocos_task} did not clear #{name}, a dynamic input port, during cleanup, as it should have. Go fix it."
-                        end
+                dynamic_ports.each do |name|
+                    if existing_port_names.include?(name)
+                        Syskit.fatal "task #{orocos_task} did not clear #{name}, a dynamic input port, during cleanup, as it should have. Go fix it."
                     end
                 end
 
@@ -535,7 +531,7 @@ module Syskit
             #
             # Helper for {#prepare_for_setup} that enumerates the outbound
             # connections originating from a dynamic output port
-            def dynamic_output_port_connections
+            def dynamic_output_port_connections(existing_port_names)
                 to_remove = Hash.new
                 real_model = self.model.concrete_model
                 dynamic_ports = self.model.each_output_port.find_all do |p|
@@ -543,13 +539,9 @@ module Syskit
                 end
                 dynamic_ports = dynamic_ports.map(&:name).to_set
 
-                # In development mode, we actually check that the
-                # task did remove the port(s)
-                if Roby.app.development_mode?
-                    dynamic_ports.each do |name|
-                        if orocos_task.find_output_port(name)
-                            Syskit.fatal "task #{orocos_task} did not clear #{name}, a dynamic output port, during cleanup, as it should have. Go fix it."
-                        end
+                dynamic_ports.each do |name|
+                    if existing_port_names.include?(name)
+                        Syskit.fatal "task #{orocos_task} did not clear #{name}, a dynamic output port, during cleanup, as it should have. Go fix it."
                     end
                 end
 
@@ -574,8 +566,8 @@ module Syskit
                             p = orocos_task.property(p_name)
                             properties << [p, p.raw_read]
                         end
-                        [properties, orocos_task.rtt_state]
-                    end.on_success do |properties, state|
+                        [properties, orocos_task.port_names, orocos_task.rtt_state]
+                    end.on_success do |properties, port_names, state|
                         properties.each do |p, p_value|
                             syskit_p = property(p.name)
                             syskit_p.update_remote_value(p_value)
@@ -594,22 +586,24 @@ module Syskit
                                 end
                             end
                         end
-                        [needs_reconfiguration, state]
+                        [needs_reconfiguration, port_names, state]
                     end.
-                    then do |needs_reconfiguration, state|
+                    then do |needs_reconfiguration, port_names, state|
                         if state == :EXCEPTION
                             ::Robot.info "reconfiguring #{self}: the task was in exception state"
                             orocos_task.reset_exception(false)
-                            true
+                            [true, port_names]
                         elsif needs_reconfiguration && (state != :PRE_OPERATIONAL)
                             ::Robot.info "cleaning up #{self}"
                             orocos_task.cleanup(false)
-                            true
+                            [true, port_names]
+                        else
+                            [false, port_names]
                         end
                     end.
-                    on_success do |cleaned_up|
+                    on_success do |cleaned_up, port_names|
                         if cleaned_up
-                            clean_dynamic_port_connections
+                            clean_dynamic_port_connections(port_names)
                         end
                     end
             end
