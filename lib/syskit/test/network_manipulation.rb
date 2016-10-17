@@ -614,7 +614,7 @@ module Syskit
                         agent.start!
                     end
                     if !agent.ready?
-                        assert_event_emission agent.ready_event
+                        assert_event_emission agent.ready_event, garbage_collect_pass: false
                     end
                 end
             ensure
