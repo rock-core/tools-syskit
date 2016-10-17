@@ -4,6 +4,12 @@ require './test/fixtures/simple_composition_model'
 describe Syskit::Models::Component do
     include Syskit::Fixtures::SimpleCompositionModel
 
+    attr_reader :stub_t, :other_stub_t
+    before do
+        @stub_t = stub_type '/test_t'
+        @other_stub_t = stub_type '/other_test_t'
+    end
+
     describe "#as_plan" do
         it "creates a plan pattern by calling InstanceRequirementsTask.suplan" do
             c = Syskit::Component.new_submodel
@@ -15,8 +21,9 @@ describe Syskit::Models::Component do
     describe "#each_output_port" do
         attr_reader :component_m
         before do
+            stub_t = self.stub_t
             @component_m = Syskit::TaskContext.new_submodel do
-                output_port 'out', '/double'
+                output_port 'out', stub_t
             end
         end
         it "should yield ports that are bound to the component model" do
@@ -48,74 +55,159 @@ describe Syskit::Models::Component do
     end
 
     describe "#compute_port_mappings" do
-        attr_reader :task_m, :srv_m
-        before do
-            @task_m = Syskit::TaskContext.new_submodel do
-                output_port 'out', 'double'
-                output_port 'other_out', 'double'
-                output_port 'out_int', 'int'
-                input_port 'in', 'int'
-                input_port 'other_in', 'int'
-                input_port 'in_double', 'double'
-            end
-            @srv_m = Syskit::DataService.new_submodel do
-                output_port 'out', 'double'
-                input_port 'in', 'int'
-            end
-        end
-
         it "maps service ports to task ports with same name and type" do
+            stub_t = self.stub_t
+            task_m = Syskit::TaskContext.new_submodel do
+                input_port 'in', stub_t
+                output_port 'out', stub_t
+            end
+            srv_m  = Syskit::DataService.new_submodel do
+                input_port 'in', stub_t
+                output_port 'out', stub_t
+            end
             mappings = task_m.compute_port_mappings(srv_m)
             assert_equal Hash['out' => 'out', 'in' => 'in'], mappings
         end
-        it "maps service ports to task ports with using the port mappings" do
+        it "will favor a port with the same name if multiple ones have the same type" do
+            stub_t = self.stub_t
+            task_m = Syskit::TaskContext.new_submodel do
+                input_port 'in', stub_t
+                input_port 'other_in', stub_t
+                output_port 'out', stub_t
+                output_port 'other_out', stub_t
+            end
+            srv_m  = Syskit::DataService.new_submodel do
+                input_port 'in', stub_t
+                output_port 'out', stub_t
+            end
+            mappings = task_m.compute_port_mappings(srv_m)
+            assert_equal Hash['out' => 'out', 'in' => 'in'], mappings
+        end
+        it "allows to choose a port with a different name even if one with the same name exists if the mapping is given explicitely" do
+            stub_t = self.stub_t
+            task_m = Syskit::TaskContext.new_submodel do
+                input_port 'in', stub_t
+                input_port 'other_in', stub_t
+                output_port 'out', stub_t
+                output_port 'other_out', stub_t
+            end
+            srv_m  = Syskit::DataService.new_submodel do
+                input_port 'in', stub_t
+                output_port 'out', stub_t
+            end
+            mappings = task_m.compute_port_mappings(srv_m, 'in' => 'other_in', 'out' => 'other_out')
+            assert_equal Hash['out' => 'other_out', 'in' => 'other_in'], mappings
+        end
+        it "maps service ports to task ports with using the explicit port mappings" do
+            stub_t = self.stub_t
+            task_m = Syskit::TaskContext.new_submodel do
+                input_port 'in', stub_t
+                input_port 'other_in', stub_t
+                output_port 'out', stub_t
+                output_port 'other_out', stub_t
+            end
+            srv_m  = Syskit::DataService.new_submodel do
+                input_port 'in', stub_t
+                output_port 'out', stub_t
+            end
             mappings = task_m.compute_port_mappings(srv_m, 'out' => 'other_out', 'in' => 'other_in')
             assert_equal Hash['out' => 'other_out', 'in' => 'other_in'], mappings
         end
         it "raises if a port mapping leads to a port with the wrong direction" do
-            assert_raises(Syskit::InvalidPortMapping) { task_m.compute_port_mappings(srv_m, 'out' => 'in_double', 'in' => 'out_int') }
+            stub_t = self.stub_t
+            task_m = Syskit::TaskContext.new_submodel do
+                input_port 'in', stub_t
+                output_port 'out', stub_t
+            end
+            srv_m  = Syskit::DataService.new_submodel do
+                input_port 'in', stub_t
+                output_port 'out', stub_t
+            end
+            assert_raises(Syskit::InvalidPortMapping) { task_m.compute_port_mappings(srv_m, 'out' => 'in') }
+            assert_raises(Syskit::InvalidPortMapping) { task_m.compute_port_mappings(srv_m, 'in' => 'out') }
         end
         it "raises if a port mapping leads to a port with the wrong type" do
-            assert_raises(Syskit::InvalidPortMapping) { task_m.compute_port_mappings(srv_m, 'out' => 'out_int', 'in' => 'in_double') }
+            stub_t, other_stub_t = self.stub_t, self.other_stub_t
+            task_m = Syskit::TaskContext.new_submodel do
+                input_port 'in', other_stub_t
+                output_port 'out', other_stub_t
+            end
+            srv_m  = Syskit::DataService.new_submodel do
+                input_port 'in', stub_t
+                output_port 'out', stub_t
+            end
+            assert_raises(Syskit::InvalidPortMapping) { task_m.compute_port_mappings(srv_m, 'out' => 'in') }
+            assert_raises(Syskit::InvalidPortMapping) { task_m.compute_port_mappings(srv_m, 'in' => 'out') }
         end
         it "can pick a port by type if it is not ambiguous" do
-            srv_m = Syskit::DataService.new_submodel do
-                output_port 'out', 'int'
-                input_port 'in', 'double'
+            stub_t, other_stub_t = self.stub_t, self.other_stub_t
+            task_m = Syskit::TaskContext.new_submodel do
+                input_port 'in', other_stub_t
+                input_port 'other_in', stub_t
+                output_port 'out', other_stub_t
+                output_port 'other_out', stub_t
             end
-            assert_equal Hash['out' => 'out_int', 'in' => 'in_double'],
+            srv_m = Syskit::DataService.new_submodel do
+                input_port 'in', stub_t
+                output_port 'out', stub_t
+            end
+            assert_equal Hash['out' => 'other_out', 'in' => 'other_in'],
                 task_m.compute_port_mappings(srv_m)
         end
         it "raises if mappings are not string-to-string" do
+            stub_t = self.stub_t
+            task_m = Syskit::TaskContext.new_submodel do
+                input_port 'other_in', stub_t
+                output_port 'other_out', stub_t
+            end
             srv_m = Syskit::DataService.new_submodel do
-                output_port 'bla', 'double'
+                input_port 'in', stub_t
+                output_port 'out', stub_t
             end
             assert_raises(ArgumentError) { task_m.compute_port_mappings(srv_m, flexmock => flexmock) }
         end
-        it "raises if asked to select a component port for an ambiguous type" do
+        it "raises if multiple component input ports match a service's port type" do
+            stub_t = self.stub_t
+            task_m = Syskit::TaskContext.new_submodel do
+                input_port 'in', stub_t
+                input_port 'other_in', stub_t
+            end
             srv_m = Syskit::DataService.new_submodel do
-                output_port 'bla', 'double'
+                input_port 'srv_in', stub_t
+            end
+            assert_raises(Syskit::InvalidPortMapping) { task_m.compute_port_mappings(srv_m) }
+        end
+        it "raises if multiple component output ports match a service's port type" do
+            stub_t = self.stub_t
+            task_m = Syskit::TaskContext.new_submodel do
+                output_port 'out', stub_t
+                output_port 'other_out', stub_t
+            end
+            srv_m = Syskit::DataService.new_submodel do
+                output_port 'srv_out', stub_t
             end
             assert_raises(Syskit::InvalidPortMapping) { task_m.compute_port_mappings(srv_m) }
         end
         it "raises if asked to map multiple service ports to the same task port" do
+            stub_t = self.stub_t
             srv_m = Syskit::DataService.new_submodel do
-                output_port 'bla', 'double'
-                output_port 'blo', 'double'
+                output_port 'bla', stub_t
+                output_port 'blo', stub_t
             end
             task_m = Syskit::TaskContext.new_submodel do
-                output_port 'test', 'double'
+                output_port 'test', stub_t
             end
             assert_raises(Syskit::InvalidPortMapping) { task_m.compute_port_mappings(srv_m) }
             assert_raises(Syskit::InvalidPortMapping) { task_m.compute_port_mappings(srv_m, 'bla' => 'test') }
         end
         it "allows to map multiple service ports to the same task port explicitly" do
+            stub_t = self.stub_t
             srv_m = Syskit::DataService.new_submodel do
-                output_port 'bla', 'double'
-                output_port 'blo', 'double'
+                output_port 'bla', stub_t
+                output_port 'blo', stub_t
             end
             task_m = Syskit::TaskContext.new_submodel do
-                output_port 'test', 'double'
+                output_port 'test', stub_t
             end
             task_m.compute_port_mappings(srv_m, 'bla' => 'test', 'blo' => 'test')
         end
@@ -124,14 +216,16 @@ describe Syskit::Models::Component do
     describe "the dynamic service support" do
         attr_reader :task_m, :srv_m
         before do
+            stub_t, other_stub_t = self.stub_t, self.other_stub_t
+            another_stub_t = stub_type '/another_test_t'
             @task_m = Syskit::TaskContext.new_submodel do
-                output_port "out", "int"
-                dynamic_output_port /\w+_out/, "bool"
-                dynamic_input_port /\w+_in/, "double"
+                output_port "out", stub_t
+                dynamic_output_port /\w+_out/, another_stub_t
+                dynamic_input_port /\w+_in/, other_stub_t
             end
             @srv_m = Syskit::DataService.new_submodel do
-                output_port "out", "bool"
-                input_port "in", "double"
+                output_port "out", another_stub_t
+                input_port "in", other_stub_t
             end
         end
 
@@ -169,7 +263,8 @@ describe Syskit::Models::Component do
                 end
             end
             it "should raise if no static nor dynamic ports with the required type exist on the task context to fullfill the required service" do
-                srv_m = Syskit::DataService.new_submodel { output_port 'out', 'double' }
+                other_stub_t = self.other_stub_t
+                srv_m = Syskit::DataService.new_submodel { output_port 'out', other_stub_t }
                 assert_raises(ArgumentError) do
                     task_m.dynamic_service srv_m do
                         provides srv_m, "out" => "#{name}_out"
@@ -177,9 +272,10 @@ describe Syskit::Models::Component do
                 end
             end
             it "should accept services that use static ports as well as dynamic ones" do
+                stub_t, other_stub_t = self.stub_t, self.other_stub_t
                 srv_m = Syskit::DataService.new_submodel do
-                    input_port 'in', 'double'
-                    output_port 'out', 'int'
+                    input_port 'in', other_stub_t
+                    output_port 'out', stub_t
                 end
                 task_m.dynamic_service srv_m, as: 'srv' do
                     provides srv_m, "out" => "#{name}_out"
@@ -207,7 +303,8 @@ describe Syskit::Models::Component do
                 end
 
                 it "should use DynamicDataService::InstantiationContext to evaluate the block" do
-                    flexmock(Syskit::Models::DynamicDataService::InstantiationContext).new_instances.should_receive(:instance_eval).with(Proc).once.pass_thru
+                    flexmock(Syskit::Models::DynamicDataService::InstantiationContext).
+                        new_instances.should_receive(:instance_eval).with(Proc).once.pass_thru
                     dyn.instanciate('service_name')
                 end
                 it "should return the instanciated service" do
@@ -238,20 +335,22 @@ describe Syskit::Models::Component do
                     assert_equal options, received_options
                 end
                 it "should raise if the port mappings do not match ports in the provided service" do
+                    stub_t = self.stub_t
                     # Make sure we have a direct static mapping. Otherwise, the
                     # error we will get is that the port cannot be mapped
-                    task_m = Syskit::TaskContext.new_submodel { output_port "out", "int" }
-                    srv_m = Syskit::DataService.new_submodel { output_port "out", "int" }
+                    task_m = Syskit::TaskContext.new_submodel { output_port "out", stub_t }
+                    srv_m = Syskit::DataService.new_submodel { output_port "out", stub_t }
                     dyn_srv = task_m.dynamic_service srv_m, as: 'ddd' do
                         provides srv_m, "does_not_exist" => "#{name}_out"
                     end
                     assert_raises(Syskit::InvalidProvides) { dyn_srv.instanciate('srv') }
                 end
                 it "should raise if the port mappings do not match ports in the task context" do
+                    stub_t = self.stub_t
                     # Make sure we have a direct static mapping. Otherwise, the
                     # error we will get is that the port cannot be mapped
-                    task_m = Syskit::TaskContext.new_submodel { output_port "out", "int" }
-                    srv_m = Syskit::DataService.new_submodel { output_port "out", "int" }
+                    task_m = Syskit::TaskContext.new_submodel { output_port "out", stub_t }
+                    srv_m = Syskit::DataService.new_submodel { output_port "out", stub_t }
                     dyn_srv = task_m.dynamic_service srv_m, as: 'ddd' do
                         provides srv_m, "out" => "does_not_exist"
                     end
@@ -366,7 +465,8 @@ describe Syskit::Models::Component do
 
     describe "#self_port_to_component_port" do
         it "should return its argument" do
-            task_m = Syskit::TaskContext.new_submodel { output_port 'out', '/int' }
+            stub_t = self.stub_t
+            task_m = Syskit::TaskContext.new_submodel { output_port 'out', stub_t }
             assert_equal task_m.out_port, task_m.self_port_to_component_port(task_m.out_port)
         end
     end
@@ -536,16 +636,28 @@ describe Syskit::Models::Component do
             assert_same slave_srv, component.find_data_service('root.srv')
         end
 
+        it "allows slave services to have the same name than a root service" do
+            service = Syskit::DataService.new_submodel
+            component = Syskit::TaskContext.new_submodel
+            root_srv = component.provides service, as: 'root'
+            srv = component.provides service, as: 'srv'
+            root_srv = component.provides service, as: 'srv', slave_of: 'root'
+            assert_same srv, component.find_data_service('srv')
+            assert_same root_srv, component.find_data_service('root.srv')
+        end
+
         describe "the port mapping computation" do
             attr_reader :service
             before do
-                @service = Syskit::DataService.new_submodel { output_port 'out', '/int' }
+                stub_t = self.stub_t
+                @service = Syskit::DataService.new_submodel { output_port 'out', stub_t }
             end
 
             it "selects port mappings based on type first" do
+                stub_t, other_stub_t = self.stub_t, self.other_stub_t
                 component = Syskit::TaskContext.new_submodel do
-                    output_port 'out', '/double'
-                    output_port 'other', '/int'
+                    output_port 'out', other_stub_t
+                    output_port 'other', stub_t
                 end
                 bound_service = component.provides service, as: 'srv'
                 assert_equal({'out' => 'other'}, bound_service.port_mappings_for_task)
@@ -560,282 +672,288 @@ describe Syskit::Models::Component do
 
             it "raises if the component has a port matching on name and type, but with the wrong direction" do
                 # Wrong port direction
+                stub_t = self.stub_t
                 component = Syskit::TaskContext.new_submodel do
-                    input_port 'out', '/int'
+                    input_port 'out', stub_t
                 end
                 assert_raises(Syskit::InvalidProvides) { component.provides(service, as: 'srv') }
                 assert(!component.find_data_service_from_type(service))
             end
 
             it "raises if there is an ambiguity on port types and no matching name exists" do
+                stub_t = self.stub_t
                 # Ambiguous type mapping, no exact match on the name
                 component = Syskit::TaskContext.new_submodel do
-                    output_port 'other1', '/int'
-                    output_port 'other2', '/int'
+                    output_port 'other1', stub_t
+                    output_port 'other2', stub_t
                 end
                 assert_raises(Syskit::InvalidProvides) { component.provides(service, as: 'srv') }
                 assert(!component.find_data_service_from_type(service))
             end
 
             it "disambiguates on the port direction" do
+                stub_t = self.stub_t
                 # Ambiguous type mapping, one of the two possibilites has the wrong
                 # direction
                 component = Syskit::TaskContext.new_submodel do
-                    input_port 'other1', '/int'
-                    output_port 'other2', '/int'
+                    input_port 'other1', stub_t
+                    output_port 'other2', stub_t
                 end
                 bound_service = component.provides(service, as: 'srv')
                 assert_equal({'out' => 'other2'}, bound_service.port_mappings_for_task)
             end
 
             it "disambiguates on the port name" do
+                stub_t = self.stub_t
                 # Ambiguous type mapping, exact match on the name
                 component = Syskit::TaskContext.new_submodel do
-                    output_port 'out', '/int'
-                    output_port 'other2', '/int'
+                    output_port 'out', stub_t
+                    output_port 'other2', stub_t
                 end
                 bound_service = component.provides(service, as: 'srv')
                 assert_equal({'out' => 'out'}, bound_service.port_mappings_for_task)
             end
 
             it "disambiguates on explicitely given port mappings" do
+                stub_t = self.stub_t
                 component = Syskit::TaskContext.new_submodel do
-                    output_port 'other1', '/int'
-                    output_port 'other2', '/int'
+                    output_port 'other1', stub_t
+                    output_port 'other2', stub_t
                 end
                 bound_service = component.provides(service, as: 'srv', 'out' => 'other1')
                 assert_equal({'out' => 'other1'}, bound_service.port_mappings_for_task)
             end
 
             it "raises if given an explicit port mapping with an invalid service port" do
+                stub_t = self.stub_t
                 component = Syskit::TaskContext.new_submodel do
-                    output_port 'out', '/int'
+                    output_port 'out', stub_t
                 end
                 assert_raises(Syskit::InvalidProvides) { component.provides(service, as: 'srv', 'does_not_exist' => 'other1') }
             end
 
             it "raises if given an explicit port mapping with an invalid component port" do
+                stub_t = self.stub_t
                 component = Syskit::TaskContext.new_submodel do
-                    output_port 'out', '/int'
+                    output_port 'out', stub_t
                 end
                 assert_raises(Syskit::InvalidProvides) { component.provides(service, as: 'srv', 'out' => 'does_not_exist') }
             end
         end
     end
-end
 
-class TC_Models_Component < Minitest::Test
-    DataService = Syskit::DataService
-    TaskContext = Syskit::TaskContext
+    describe "#new_submodel" do
+        it "registers the submodel in #new_submodel" do
+            submodel = Syskit::Component.new_submodel
+            subsubmodel = submodel.new_submodel
 
-    def test_new_submodel_registers_the_submodel
-        submodel = Component.new_submodel
-        subsubmodel = submodel.new_submodel
-
-        assert Component.has_submodel?(submodel)
-        assert Component.has_submodel?(subsubmodel)
-        assert submodel.has_submodel?(subsubmodel)
-    end
-
-    def test_clear_submodels_removes_registered_submodels
-        root = Component.new_submodel
-        m1 = root.new_submodel
-        m2 = root.new_submodel
-        m11 = m1.new_submodel
-
-        m1.clear_submodels
-        assert !m1.has_submodel?(m11)
-        assert root.has_submodel?(m1)
-        assert root.has_submodel?(m2)
-        assert !root.has_submodel?(m11)
-
-        m11 = m1.new_submodel
-        root.clear_submodels
-        assert !m1.has_submodel?(m11)
-        assert !root.has_submodel?(m1)
-        assert !root.has_submodel?(m2)
-        assert !root.has_submodel?(m11)
-    end
-
-    def test_provides
-        service = DataService.new_submodel do
-            output_port 'out', '/int'
+            assert Syskit::Component.has_submodel?(submodel)
+            assert Syskit::Component.has_submodel?(subsubmodel)
+            assert submodel.has_submodel?(subsubmodel)
         end
-        component = TaskContext.new_submodel do
-            output_port 'out', '/int'
+
+        it "clears the registered submodels on #clear_submodels" do
+            root = Syskit::Component.new_submodel
+            m1 = root.new_submodel
+            m2 = root.new_submodel
+            m11 = m1.new_submodel
+
+            m1.clear_submodels
+            assert !m1.has_submodel?(m11)
+            assert root.has_submodel?(m1)
+            assert root.has_submodel?(m2)
+            assert !root.has_submodel?(m11)
+
+            m11 = m1.new_submodel
+            root.clear_submodels
+            assert !m1.has_submodel?(m11)
+            assert !root.has_submodel?(m1)
+            assert !root.has_submodel?(m2)
+            assert !root.has_submodel?(m11)
         end
-        bound_service = component.provides service, as: 'image'
 
-        assert(component.fullfills?(service))
-        assert_equal({'out' => 'out'}, bound_service.port_mappings_for_task)
-        assert_equal(service, component.find_data_service('image').model)
-    end
-
-    def test_new_submodel_can_give_name_to_anonymous_models
-        assert_equal 'C', Component.new_submodel(name: 'C').name
-    end
-
-    def test_short_name_returns_name_if_there_is_one
-        assert_equal 'C', Component.new_submodel(name: 'C').short_name
-    end
-
-    def test_short_name_returns_to_s_if_there_are_no_name
-        m = Component.new_submodel
-        flexmock(m).should_receive(:to_s).and_return("my_name").once
-        assert_equal 'my_name', m.short_name
-    end
-
-    def test_find_data_service_returns_nil_on_unknown_service
-        component = TaskContext.new_submodel do
-            output_port 'out', '/int'
+        it "can provide a name to anonymous models" do
+            assert_equal 'C', Syskit::Component.new_submodel(name: 'C').name
         end
-        assert(!component.find_data_service('does_not_exist'))
     end
 
-    def test_each_slave_data_service
-        service = DataService.new_submodel
-        component = TaskContext.new_submodel
-        root  = component.provides service, as: 'root'
-        slave = component.provides service, as: 'srv', slave_of: 'root'
-        assert_equal [slave].to_set, component.each_slave_data_service(root).to_set
+    describe "#short_name" do
+        it "returns the model name if there is one" do
+            assert_equal 'C', Syskit::Component.new_submodel(name: 'C').short_name
+        end
+
+        it "returns #to_s if the model has no name" do
+            m = Syskit::Component.new_submodel
+            flexmock(m).should_receive(:to_s).and_return("my_name").once
+            assert_equal 'my_name', m.short_name
+        end
     end
 
-    def test_each_slave_data_service_on_submodel
-        service = DataService.new_submodel
-        component = TaskContext.new_submodel
-        root  = component.provides service, as: 'root'
-        slave = component.provides service, as: 'srv', slave_of: 'root'
-        component = component.new_submodel
-        assert_equal [slave.attach(component)], component.each_slave_data_service(root).to_a
+
+    describe "#find_data_service" do
+        it "returns nil if the service is unknown" do
+            stub_t = self.stub_t
+            component = Syskit::TaskContext.new_submodel do
+                output_port 'out', stub_t
+            end
+            assert_nil component.find_data_service('does_not_exist')
+        end
+        it "returns a data service object bound to the actual model" do
+            s = Syskit::DataService.new_submodel
+            c = Syskit::TaskContext.new_submodel { provides s, as: 'srv' }
+            sub_c = c.new_submodel
+            assert_equal sub_c, sub_c.find_data_service('srv').component_model
+        end
     end
 
-    def test_each_slave_data_service_on_submodel_with_new_slave
-        service = DataService.new_submodel
-        component = TaskContext.new_submodel
-        root  = component.provides service, as: 'root'
-        slave1 = component.provides service, as: 'srv1', slave_of: 'root'
-        component = component.new_submodel
-        slave2 = component.provides service, as: 'srv2', slave_of: 'root'
-        assert_equal [slave1.attach(component), slave2].to_a, component.each_slave_data_service(root).sort_by { |srv| srv.full_name }
+    describe "#find_data_service_from_type" do
+        attr_reader :service, :component
+        before do
+            @service   = Syskit::DataService.new_submodel
+            @component = Syskit::Component.new_submodel
+        end
+        it "returns nil if no service with that type exists" do
+            assert_nil component.find_data_service_from_type(service)
+        end
+        it "returns a unique service matching the service model" do
+            bound_service = component.provides service, as: 'image'
+            assert_equal bound_service, component.find_data_service_from_type(service)
+        end
+        it "raises AmbiguousServiceSelection if more than one service exists with the requested type" do
+            component.provides service, as: 'image'
+            component.provides service, as: 'camera'
+            assert_raises(Syskit::AmbiguousServiceSelection) do
+                component.find_data_service_from_type(service)
+            end
+        end
+        it "returns a data service bound to the actual component model" do
+            s = Syskit::DataService.new_submodel
+            c = Syskit::TaskContext.new_submodel { provides s, as: 'srv' }
+            sub_c = c.new_submodel
+            assert_equal sub_c, sub_c.find_data_service_from_type(s).component_model
+        end
     end
 
-    def test_slave_can_have_the_same_name_than_a_root_service
-        service = DataService.new_submodel
-        component = TaskContext.new_submodel
-        root_srv = component.provides service, as: 'root'
-        srv = component.provides service, as: 'srv'
-        root_srv = component.provides service, as: 'srv', slave_of: 'root'
-        assert_same srv, component.find_data_service('srv')
-        assert_same root_srv, component.find_data_service('root.srv')
+    describe "#each_slave_data_service" do
+        it "enumerates the slaves of a given service" do
+            service = Syskit::DataService.new_submodel
+            component = Syskit::TaskContext.new_submodel
+            root  = component.provides service, as: 'root'
+            slave = component.provides service, as: 'srv', slave_of: 'root'
+            assert_equal [slave].to_set, component.each_slave_data_service(root).to_set
+        end
+
+        it "promotes the bound services to a submodel's" do
+            service = Syskit::DataService.new_submodel
+            component = Syskit::TaskContext.new_submodel
+            root  = component.provides service, as: 'root'
+            slave = component.provides service, as: 'srv', slave_of: 'root'
+            component = component.new_submodel
+            assert_equal [slave.attach(component)], component.each_slave_data_service(root).to_a
+        end
+
+        it "enumerates both its own slave services and its parent's" do
+            service = Syskit::DataService.new_submodel
+            component = Syskit::TaskContext.new_submodel
+            root  = component.provides service, as: 'root'
+            slave1 = component.provides service, as: 'srv1', slave_of: 'root'
+            component = component.new_submodel
+            slave2 = component.provides service, as: 'srv2', slave_of: 'root'
+            assert_equal [slave1.attach(component), slave2].to_a, component.each_slave_data_service(root).sort_by { |srv| srv.full_name }
+        end
     end
 
-    def test_slave_enumeration_includes_parent_slaves_when_adding_a_slave_on_a_child_model
-        service = DataService.new_submodel
-        component = TaskContext.new_submodel
-        root = component.provides service, as: 'root'
-        root_srv1 = component.provides service, as: 'srv1', slave_of: 'root'
-
-        submodel = component.new_submodel
-        root_srv2 = submodel.provides service, as: 'srv2', slave_of: 'root'
-        assert_equal [root_srv1], component.root_srv.each_slave_data_service.to_a
-        assert_equal [root_srv1.attach(submodel), root_srv2], submodel.root_srv.each_slave_data_service.sort_by(&:full_name)
+    describe "#has_input_port?" do
+        attr_reader :component_m
+        before do
+            @component_m = Syskit::TaskContext.new_submodel
+            flexmock(component_m)
+        end
+        it "returns falsy if the port cannot be found" do
+            component_m.should_receive(:find_input_port).with('p').and_return(nil)
+            refute component_m.has_input_port?('p')
+        end
+        it "returns truthy if the port can be found" do
+            component_m.should_receive(:find_input_port).with('p').and_return(Object.new)
+            assert component_m.has_input_port?('p')
+        end
     end
 
-    def test_find_data_service_from_type
-        service = DataService.new_submodel
-        component = TaskContext.new_submodel
-        assert(!component.find_data_service_from_type(service))
-
-        bound_service = component.provides service, as: 'image'
-        assert_equal(bound_service, component.find_data_service_from_type(service))
-
-        bound_service = component.provides service, as: 'camera'
-        assert_raises(Syskit::AmbiguousServiceSelection) { component.find_data_service_from_type(service) }
+    describe "#has_output_port?" do
+        attr_reader :component_m
+        before do
+            @component_m = Syskit::TaskContext.new_submodel
+            flexmock(component_m)
+        end
+        it "returns falsy if the port cannot be found" do
+            component_m.should_receive(:find_output_port).with('p').and_return(nil)
+            refute component_m.has_output_port?('p')
+        end
+        it "returns truthy if the port can be found" do
+            component_m.should_receive(:find_output_port).with('p').and_return(Object.new)
+            assert component_m.has_output_port?('p')
+        end
     end
 
-    def test_has_output_port_returns_false_if_find_returns_false
-        model = Syskit::TaskContext.new_submodel
-        flexmock(model).should_receive(:find_output_port).with('p').and_return(Object.new)
-        assert model.has_output_port?('p')
+    describe "#find_input_port" do
+        it "finds a port by its name" do
+            stub_t, port_model = self.stub_t, nil
+            model = Syskit::TaskContext.new_submodel do
+                port_model = input_port('p', stub_t)
+            end
+            assert(p = model.find_input_port('p'))
+            assert_equal 'p', p.name, 'p'
+            assert_equal model, p.component_model
+            assert_equal port_model, p.orogen_model
+        end
+        it "returns falsey if the port's direction does not match" do
+            stub_t = self.stub_t
+            model = Syskit::TaskContext.new_submodel do
+                output_port('p', stub_t)
+            end
+            refute model.find_input_port('p')
+        end
+        it "returns nil on non-existent ports" do
+            model = Syskit::TaskContext.new_submodel
+            assert_nil model.find_input_port('does_not_exist')
+        end
     end
 
-    def test_has_output_port_returns_true_if_find_returns_true
-        model = Syskit::TaskContext.new_submodel
-        flexmock(model).should_receive(:find_output_port).with('p').and_return(nil)
-        assert !model.has_output_port?('p')
+    describe "#find_output_port" do
+        attr_reader :model, :port_model
+        before do
+        end
+        it "finds a port by its name" do
+            stub_t, port_model = self.stub_t, nil
+            model = Syskit::TaskContext.new_submodel do
+                port_model = output_port('p', stub_t)
+            end
+            assert(p = model.find_output_port('p'))
+            assert_equal 'p', p.name, 'p'
+            assert_equal model, p.component_model
+            assert_equal port_model, p.orogen_model
+        end
+        it "returns falsey if the port's direction does not match" do
+            stub_t = self.stub_t
+            model = Syskit::TaskContext.new_submodel do
+                input_port('p', stub_t)
+            end
+            refute model.find_output_port('p')
+        end
+        it "returns nil on non-existent ports" do
+            model = Syskit::TaskContext.new_submodel
+            assert_nil model.find_output_port('does_not_exist')
+        end
     end
 
-    def test_has_input_port_returns_false_if_find_returns_false
-        model = Syskit::TaskContext.new_submodel
-        flexmock(model).should_receive(:find_input_port).with('p').and_return(Object.new)
-        assert model.has_input_port?('p')
-    end
 
-    def test_has_input_port_returns_true_if_find_returns_true
-        model = Syskit::TaskContext.new_submodel
-        flexmock(model).should_receive(:find_input_port).with('p').and_return(nil)
-        assert !model.has_input_port?('p')
-    end
-
-    def test_find_output_port
-        port_model = nil
-        model = Syskit::TaskContext.new_submodel { port_model = output_port('p', '/double') }
-        p = model.find_output_port('p')
-        assert_equal 'p', p.name, 'p'
-        assert_equal model, p.component_model
-        assert_equal port_model, p.orogen_model
-    end
-
-    def test_find_output_port_returns_false_on_outputs
-        port_model = nil
-        model = Syskit::TaskContext.new_submodel { port_model = input_port('p', '/double') }
-        assert !model.find_output_port('p')
-    end
-
-    def test_find_output_port_returns_false_on_non_existent_ports
-        model = Syskit::TaskContext.new_submodel
-        assert !model.find_output_port('p')
-    end
-
-    def test_find_input_port
-        port_model = nil
-        model = Syskit::TaskContext.new_submodel { port_model = input_port('p', '/double') }
-        p = model.find_input_port('p')
-        assert_equal 'p', p.name, 'p'
-        assert_equal model, p.component_model
-        assert_equal port_model, p.orogen_model
-    end
-
-    def test_find_input_port_returns_false_on_outputs
-        port_model = nil
-        model = Syskit::TaskContext.new_submodel { port_model = output_port('p', '/double') }
-        assert !model.find_input_port('p')
-    end
-
-    def test_find_input_port_returns_false_on_non_existent_ports
-        model = Syskit::TaskContext.new_submodel
-        assert !model.find_input_port('p')
-    end
-
-    def test_find_data_service_return_value_is_bound_to_actual_model
-        s = DataService.new_submodel
-        c = Syskit::TaskContext.new_submodel { provides s, as: 'srv' }
-        sub_c = c.new_submodel
-        assert_equal sub_c, sub_c.find_data_service('srv').component_model
-    end
-
-    def test_find_data_service_from_type_return_value_is_bound_to_actual_model
-        s = DataService.new_submodel
-        c = Syskit::TaskContext.new_submodel { provides s, as: 'srv' }
-        sub_c = c.new_submodel
-        assert_equal sub_c, sub_c.find_data_service_from_type(s).component_model
-    end
-
-    def test_create_proxy_task
-        c = Syskit::TaskContext.new_submodel
-        task = c.create_proxy_task
-        assert_kind_of c, task
-        assert task.abstract?
+    describe "#create_proxy_task" do
+        it "creates an abstract task of the same model" do
+            c = Syskit::Component.new_submodel
+            task = c.create_proxy_task
+            assert_kind_of c, task
+            assert task.abstract?
+        end
     end
 end
 

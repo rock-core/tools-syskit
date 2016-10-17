@@ -43,8 +43,13 @@ describe Syskit::Models::BoundDataService do
     end
 
     describe "#self_port_to_component_port" do
-        it "should return the port mapped on the task" do
+        attr_reader :stub_t
+        before do
+            @stub_t = stub_type '/test_t'
             create_simple_composition_model
+        end
+
+        it "should return the port mapped on the task" do
             task_m = simple_component_model
             srv_m  = task_m.srv_srv
             port = flexmock(name: 'srv_port')
@@ -55,8 +60,9 @@ describe Syskit::Models::BoundDataService do
     end
 
     describe "DRoby marshalling" do
-        attr_reader :srv_m, :task_m
+        attr_reader :srv_m, :task_m, :stub_t
         before do
+            @stub_t = stub_type '/test_t'
             create_simple_composition_model
             @task_m = simple_component_model
             @srv_m  = task_m.srv_srv

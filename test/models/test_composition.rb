@@ -20,7 +20,12 @@ describe Syskit::Models::Composition do
         return m, srv
     end
 
+    attr_reader :stub_t
+    attr_reader :other_stub_t
+
     before do
+        @stub_t = stub_type '/stub_t'
+        @other_stub_t = stub_type '/other_stub_t'
         create_simple_composition_model
     end
 
@@ -127,10 +132,11 @@ describe Syskit::Models::Composition do
 
     describe "#each_explicit_connection" do
         it "applies port mappings on overloads" do
+            stub_t = self.stub_t
             service, component, _ = models
             service1 = Syskit::DataService.new_submodel do
-                input_port 'specialized_in', '/int'
-                output_port 'specialized_out', '/int'
+                input_port 'specialized_in', stub_t
+                output_port 'specialized_out', stub_t
                 provides service, 'srv_out' => 'specialized_out', 'srv_in' => 'specialized_in'
             end
             component.provides service1, as: 'srv1'
@@ -170,7 +176,8 @@ describe Syskit::Models::Composition do
     describe "the port export functionality" do
         describe "#export" do
             it "promotes exported input ports by setting the new name and component model but keeps the orogen model" do
-                service = Syskit::DataService.new_submodel { input_port 'in', '/int' }
+                stub_t = self.stub_t
+                service = Syskit::DataService.new_submodel { input_port 'in',  stub_t}
                 composition = Syskit::Composition.new_submodel { add service, as: 'srv' }
                 exported_port = composition.export composition.srv_child.in_port, as: 'srv_in'
                 assert_equal Syskit::Models::InputPort.new(composition, composition.srv_child.in_port.orogen_model, 'srv_in'),
@@ -178,7 +185,8 @@ describe Syskit::Models::Composition do
                 assert_equal composition.find_port('srv_in'), exported_port
             end
             it "promotes exported output ports by setting the new name and component model but keeps the orogen model" do
-                service = Syskit::DataService.new_submodel { output_port 'out', '/int' }
+                stub_t = self.stub_t
+                service = Syskit::DataService.new_submodel { output_port 'out',  stub_t}
                 composition = Syskit::Composition.new_submodel { add service, as: 'srv' }
                 exported_port = composition.export composition.srv_child.out_port, as: 'srv_out'
                 assert_equal Syskit::Models::OutputPort.new(composition, composition.srv_child.out_port.orogen_model, 'srv_out'),
@@ -190,7 +198,8 @@ describe Syskit::Models::Composition do
             # simultaneously sometimes have to export the same port (because
             # they could also be applied separately), which is not an error
             it "allows to export the same port using the same name multiple times" do
-                srv_m = Syskit::DataService.new_submodel { input_port 'in', '/int' }
+                stub_t = self.stub_t
+                srv_m = Syskit::DataService.new_submodel { input_port 'in',  stub_t}
                 cmp_m = Syskit::Composition.new_submodel { add srv_m, as: 'srv' }
                 assert cmp_m.srv_child.in_port == cmp_m.srv_child.in_port
                 export = cmp_m.export cmp_m.srv_child.in_port,
@@ -199,7 +208,8 @@ describe Syskit::Models::Composition do
                     as: 'srv_in'
             end
             it "raises if trying to override an existing port export" do
-                srv_m = Syskit::DataService.new_submodel { input_port 'in', '/int' }
+                stub_t = self.stub_t
+                srv_m = Syskit::DataService.new_submodel { input_port 'in',  stub_t}
                 cmp_m = Syskit::Composition.new_submodel do
                     add srv_m, as: 's0'
                     add srv_m, as: 's1'
@@ -212,7 +222,8 @@ describe Syskit::Models::Composition do
                 end
             end
             it "raises ArgumentError if given a port that is not a port of a child of the composition" do
-                task_m = Syskit::TaskContext.new_submodel { output_port 'out', '/double' }
+                other_stub_t = self.other_stub_t
+                task_m = Syskit::TaskContext.new_submodel { output_port 'out', other_stub_t }
                 cmp_m  = Syskit::Composition.new_submodel
                 assert_raises(ArgumentError) do
                     cmp_m.export task_m.out_port, as: 'test'
@@ -246,8 +257,9 @@ describe Syskit::Models::Composition do
         end
 
         it "allows to export the port from a composition child" do
+            other_stub_t = self.other_stub_t
             srv = Syskit::DataService.new_submodel do
-                output_port 'test', 'double'
+                output_port 'test', other_stub_t
             end
             
             child_cmp = Syskit::Composition.new_submodel
@@ -267,8 +279,9 @@ describe Syskit::Models::Composition do
         end
 
         it "allows to export the port from a composition child's service" do
+            other_stub_t = self.other_stub_t
             srv = Syskit::DataService.new_submodel do
-                output_port 'test', 'double'
+                output_port 'test', other_stub_t
             end
             
             child_cmp = Syskit::Composition.new_submodel
@@ -289,11 +302,12 @@ describe Syskit::Models::Composition do
         end
 
         it "updates the exported ports on overload" do
+            other_stub_t = self.other_stub_t
             srv_m = Syskit::DataService.new_submodel do
-                output_port 'out', '/double'
+                output_port 'out', other_stub_t
             end
             task_m = Syskit::TaskContext.new_submodel do
-                output_port 'out', '/double'
+                output_port 'out', other_stub_t
                 provides srv_m, as: 'test'
             end
             cmp_m = Syskit::Composition.new_submodel
@@ -304,11 +318,12 @@ describe Syskit::Models::Composition do
         end
 
         it "updates the exported ports in submodels" do
+            other_stub_t = self.other_stub_t
             srv_m = Syskit::DataService.new_submodel do
-                output_port 'out', '/double'
+                output_port 'out', other_stub_t
             end
             task_m = Syskit::TaskContext.new_submodel do
-                output_port 'out', '/double'
+                output_port 'out', other_stub_t
                 provides srv_m, as: 'test'
             end
             cmp_m = Syskit::Composition.new_submodel
@@ -623,10 +638,11 @@ describe Syskit::Models::Composition do
     describe "composition submodels" do
         describe "port mappings" do
             it "is applied on exported ports" do
+                stub_t = self.stub_t
                 service, component, composition = models
                 service1 = Syskit::DataService.new_submodel(name: "Service1") do
-                    input_port 'specialized_in', '/int'
-                    output_port 'specialized_out', '/int'
+                    input_port 'specialized_in', stub_t
+                    output_port 'specialized_out', stub_t
                     provides service, 'srv_out' => 'specialized_out', 'srv_in' => 'specialized_in'
                 end
                 component.provides service1, as: 'srv1'
@@ -700,10 +716,11 @@ describe Syskit::Models::Composition do
                 assert_is_proxy_model_for [srv1, srv2], cmp.test_child.model
             end
             it "computes port mappings when overloading a child" do
+                stub_t = self.stub_t
                 service, component, composition = models
                 service1 = Syskit::DataService.new_submodel(name: "Service1") do
-                    input_port 'specialized_in', '/int'
-                    output_port 'specialized_out', '/int'
+                    input_port 'specialized_in', stub_t
+                    output_port 'specialized_out', stub_t
                     provides service, 'srv_out' => 'specialized_out', 'srv_in' => 'specialized_in'
                 end
                 component.provides service1, as: 'srv1'
@@ -814,15 +831,16 @@ describe Syskit::Models::Composition do
     end
 
     it "should not leak connections from specializations into the root model" do
+        stub_t, other_stub_t = self.stub_t, self.other_stub_t
         shared_task_m = Syskit::TaskContext.new_submodel(name: "SharedTask") do
-            input_port 'input', 'int'
-            output_port 'output', 'double'
+            input_port 'input', stub_t
+            output_port 'output', other_stub_t
         end
         generic_srv_m = Syskit::DataService.new_submodel(name: 'GenericTaskSrv') do
-            output_port 'output', 'int'
+            output_port 'output', stub_t
         end
         special_srv_m = Syskit::DataService.new_submodel(name: 'SpecialTaskSrv') do
-            input_port 'input', 'double'
+            input_port 'input', other_stub_t
             provides generic_srv_m
         end
 
@@ -1007,8 +1025,9 @@ describe Syskit::Models::Composition do
     describe "#child_port?" do
         attr_reader :cmp_m, :task_m
         before do
-            srv_m = Syskit::DataService.new_submodel { output_port 'out', '/double' }
-            @task_m = Syskit::TaskContext.new_submodel { output_port 'out', '/double' }
+            other_stub_t = self.other_stub_t
+            srv_m = Syskit::DataService.new_submodel { output_port 'out', other_stub_t}
+            @task_m = Syskit::TaskContext.new_submodel { output_port 'out', other_stub_t}
             task_m.provides srv_m, as: 'test'
             @cmp_m = Syskit::Composition.new_submodel
             cmp_m.add task_m, as: 'test'
@@ -1020,7 +1039,8 @@ describe Syskit::Models::Composition do
             assert cmp_m.child_port?(cmp_m.test_child.test_srv.out_port)
         end
         it "returns false for a port of a standalone task model" do
-            task_m = Syskit::TaskContext.new_submodel { output_port 'out', '/double' }
+            other_stub_t = self.other_stub_t
+            task_m = Syskit::TaskContext.new_submodel { output_port 'out', other_stub_t}
             assert !cmp_m.child_port?(task_m.out_port)
         end
         it "returns false for a port of a different composition's child" do
@@ -1034,11 +1054,12 @@ describe Syskit::Models::Composition do
     describe "dynamic services" do
         attr_reader :cmp_m, :task_m, :srv_m
         before do
+            stub_t, other_stub_t = self.stub_t, self.other_stub_t
             @task_m = Syskit::TaskContext.new_submodel do
-                output_port 'out', '/double'
+                output_port 'out', other_stub_t
             end
             @srv_m = Syskit::DataService.new_submodel do
-                output_port 'double_out', '/double'
+                output_port 'double_out', other_stub_t
             end
             @cmp_m = Syskit::Composition.new_submodel
         end

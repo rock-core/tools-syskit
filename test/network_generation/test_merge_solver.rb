@@ -31,7 +31,9 @@ describe Syskit::NetworkGeneration::MergeSolver do
     end
 
     describe "#may_merge_task_contexts?" do
+        attr_reader :stub_t
         before do
+            @stub_t = stub_type '/test_t'
             create_simple_composition_model
         end
 

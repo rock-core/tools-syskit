@@ -1,20 +1,23 @@
 require 'syskit/test/self'
 
 describe Syskit::Models::FacetedAccess do
-    attr_reader :srv_m, :task_m, :sub_task_m, :facet
+    attr_reader :srv_m, :task_m, :sub_task_m, :facet, :stub_t, :other_stub_t
     before do
+        @stub_t = stub_t = stub_type '/test_t'
+        @other_stub_t = other_stub_t = stub_type '/other_test_t'
         @srv_m = Syskit::DataService.new_submodel do
-            output_port 'd', '/double'
+            output_port 'd', other_stub_t
         end
         @task_m = Syskit::TaskContext.new_submodel do
-            output_port 'i', '/int'
+            output_port 'i', stub_t
         end
         @sub_task_m = task_m.new_submodel do
-            output_port 'sd', '/double'
+            output_port 'sd', other_stub_t
         end
         sub_task_m.provides srv_m, as: 'test'
 
-        @facet = Syskit::Models::FacetedAccess.new(sub_task_m, Syskit.proxy_task_model_for([task_m, srv_m]))
+        @facet = Syskit::Models::FacetedAccess.new(
+            sub_task_m, Syskit.proxy_task_model_for([task_m, srv_m]))
     end
 
     describe "#find_ports_on_required" do
@@ -38,8 +41,9 @@ describe Syskit::Models::FacetedAccess do
         end
 
         it "should return a set of unique ports" do
+            other_stub_t = self.other_stub_t
             srv1_m = Syskit::DataService.new_submodel do
-                output_port 'd', '/double'
+                output_port 'd', other_stub_t
             end
             sub_task_m.provides srv1_m, as: 'test1'
             facet = Syskit::Models::FacetedAccess.new(sub_task_m, Syskit.proxy_task_model_for([srv1_m, srv_m]))
@@ -47,8 +51,9 @@ describe Syskit::Models::FacetedAccess do
                 facet.find_all_port_mappings_for('d')
         end
         it "should return more than one port if the name is used multiple times on the input and candidates are mapped to different ports on the final model" do
+            stub_t = self.stub_t
             srv1_m = Syskit::DataService.new_submodel do
-                output_port 'd', '/int'
+                output_port 'd', stub_t
             end
             sub_task_m.provides srv1_m, as: 'test1'
             facet = Syskit::Models::FacetedAccess.new(sub_task_m, Syskit.proxy_task_model_for([srv1_m, srv_m]))
@@ -69,8 +74,9 @@ describe Syskit::Models::FacetedAccess do
         end
 
         it "should return a port if it exists multiple times and all the candidates map one single port on the final object" do
+            other_stub_t = self.other_stub_t
             srv1_m = Syskit::DataService.new_submodel do
-                output_port 'd', '/double'
+                output_port 'd', other_stub_t
             end
             sub_task_m.provides srv1_m, as: 'test1'
             facet = Syskit::Models::FacetedAccess.new(sub_task_m, Syskit.proxy_task_model_for([srv1_m, srv_m]))
@@ -81,8 +87,9 @@ describe Syskit::Models::FacetedAccess do
         end
 
         it "should raise AmbiguousPortOnCompositeModel if the port exists multiple times on the fact, but maps to more than one port on the final object" do
+            stub_t = self.stub_t
             srv1_m = Syskit::DataService.new_submodel do
-                output_port 'd', '/int'
+                output_port 'd', stub_t
             end
             sub_task_m.provides srv1_m, as: 'test1'
             facet = Syskit::Models::FacetedAccess.new(sub_task_m, Syskit.proxy_task_model_for([srv1_m, srv_m]))
@@ -103,8 +110,9 @@ describe Syskit::Models::FacetedAccess do
         end
 
         it "should be able to resolve if the port exists multiple times on the fact and all the candidates map one single port on the final object" do
+            other_stub_t = self.other_stub_t
             srv1_m = Syskit::DataService.new_submodel do
-                output_port 'd', '/double'
+                output_port 'd', other_stub_t
             end
             sub_task_m.provides srv1_m, as: 'test1'
             facet = Syskit::Models::FacetedAccess.new(sub_task_m, Syskit.proxy_task_model_for([srv1_m, srv_m]))
@@ -114,18 +122,19 @@ describe Syskit::Models::FacetedAccess do
 
     describe "#connect_to" do
         it "should be usable as argument to Syskit.connect" do
+            other_stub_t = self.other_stub_t
             in_srv_m = Syskit::DataService.new_submodel do
-                input_port 'in', 'double'
+                input_port 'in', other_stub_t
             end
             in_task_m = Syskit::TaskContext.new_submodel do
-                input_port 'task_in', 'double'
+                input_port 'task_in', other_stub_t
             end
             in_task_m.provides in_srv_m, as: 'test'
             out_srv_m = Syskit::DataService.new_submodel do
-                output_port 'out', 'double'
+                output_port 'out', other_stub_t
             end
             out_task_m = Syskit::TaskContext.new_submodel do
-                output_port 'task_out', 'double'
+                output_port 'task_out', other_stub_t
             end
             out_task_m.provides out_srv_m, as: 'test'
 

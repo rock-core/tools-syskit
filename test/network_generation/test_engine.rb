@@ -8,7 +8,9 @@ module Syskit
 
             attr_reader :syskit_engine, :merge_solver
 
+            attr_reader :stub_t
             before do
+                @stub_t = app.default_loader.resolve_type '/int'
                 create_simple_composition_model
                 plan.execution_engine.scheduler.enabled = false
                 @syskit_engine = Syskit::NetworkGeneration::Engine.new(plan)

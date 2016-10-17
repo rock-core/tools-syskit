@@ -318,10 +318,12 @@ describe Syskit::Models::TaskContext do
         attr_reader :task_m, :opaque_t, :intermediate_t
         before do
             typekit = OroGen::Spec::Typekit.new(app.default_orogen_project, 'test')
-            @opaque_t = typekit.create_interface_opaque '/opaque', 0
-            @intermediate_t = typekit.create_opaque '/intermediate', 0
-            typekit.opaques << OroGen::Spec::OpaqueDefinition.new(opaque_t, intermediate_t, Hash.new, nil)
+            opaque_t = typekit.create_interface_opaque '/opaque', 0
+            intermediate_t = typekit.create_null '/intermediate'
+            typekit.opaques << OroGen::Spec::OpaqueDefinition.new(opaque_t, intermediate_t.name, Hash.new, nil)
             app.default_loader.register_typekit_model(typekit)
+            @opaque_t = app.default_loader.resolve_type '/opaque'
+            @intermediate_t = app.default_loader.resolve_type '/intermediate'
 
             @task_m = Syskit::TaskContext.new_submodel do
                 dynamic_input_port 'test', '/opaque'
@@ -338,10 +340,12 @@ describe Syskit::Models::TaskContext do
         attr_reader :task_m, :opaque_t, :intermediate_t
         before do
             typekit = OroGen::Spec::Typekit.new(app.default_orogen_project, 'test')
-            @opaque_t = typekit.create_interface_opaque '/opaque', 0
-            @intermediate_t = typekit.create_opaque '/intermediate', 0
-            typekit.opaques << OroGen::Spec::OpaqueDefinition.new(opaque_t, intermediate_t, Hash.new, nil)
+            opaque_t = typekit.create_interface_opaque '/opaque', 0
+            intermediate_t = typekit.create_null '/intermediate'
+            typekit.opaques << OroGen::Spec::OpaqueDefinition.new(opaque_t, intermediate_t.name, Hash.new, nil)
             app.default_loader.register_typekit_model(typekit)
+            @opaque_t = app.default_loader.resolve_type '/opaque'
+            @intermediate_t = app.default_loader.resolve_type '/intermediate'
 
             @task_m = Syskit::TaskContext.new_submodel do
                 dynamic_output_port 'test', '/opaque'
