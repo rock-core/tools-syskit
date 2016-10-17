@@ -951,7 +951,9 @@ module Syskit
                     data_services.each_value do |self_srv|
                         if task_srv = target_model.find_data_service(self_srv.name)
                             if task_srv.model != self_srv.model
-                                debug { "rejecting #{self}.merge(#{target_model}): dynamic service #{self_srv.name} is of model #{self_srv.model.short_name} on #{self} and of model #{task_srv.model.short_name} on #{target_model}" }
+                                NetworkGeneration::MergeSolver.debug do
+                                    "rejecting #{self}.merge(#{target_model}): dynamic service #{self_srv.name} is of model #{self_srv.model.short_name} on #{self} and of model #{task_srv.model.short_name} on #{target_model}"
+                                end
                                 return false
                             end
                         end
