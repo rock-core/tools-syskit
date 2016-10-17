@@ -179,7 +179,11 @@ module Syskit
 
             def setting_up!(promise)
                 promise.on_error do |e|
-                    start_event.emit_failed(e)
+                    if start_event.plan
+                        start_event.emit_failed(e)
+                    else
+                        Roby.execution_engine.add_framework_error(e, "#{self}.setting_up!")
+                    end
                 end
                 promise.execute
                 @setting_up = promise

@@ -112,6 +112,14 @@ module Syskit
             # The computed port dynamics for this task
             attribute(:port_dynamics) { Hash.new }
 
+            # Controls whether the task can be removed from the plan
+            #
+            # Task context objects are kept while they're being set up, for the
+            # sake of not breaking the setup process in an uncontrollable way.
+            def can_finalize?
+                !setting_up?
+            end
+
             # Tries to update the port dynamics information for the input port
             # +port_name+ based on its inputs
             #
@@ -348,10 +356,6 @@ module Syskit
                     end
                 end
 
-                # Handle possible errors within the framework code
-                promise.on_error do |error|
-                    execution_engine.add_framework_error(error, self)
-                end
                 promise
             end
 
