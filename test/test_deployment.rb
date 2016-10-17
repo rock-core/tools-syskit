@@ -241,6 +241,23 @@ module Syskit
                     flexmock(task)
                 end
 
+                it "polls for process readiness" do
+                    sync = Concurrent::Event.new
+                    process.should_receive(:resolve_all_tasks).
+                        and_return do
+                            if !sync.set?
+                                sync.set
+                                nil
+                            else Hash['mapped_task_name' => orocos_task]
+                            end
+                        end
+
+                    deployment_task.start!
+                    sync.wait
+                    process_events(join_all_waiting_work: false)
+                    process_events
+                    assert deployment_task.ready?
+                end
                 it "emits ready when the process is ready" do
                     make_deployment_ready
                     assert deployment_task.ready?

@@ -39,6 +39,7 @@ module Syskit
             argument :on, :default => 'localhost'
             argument :name_mappings, :default => nil
             argument :spawn_options, :default=> nil
+            argument :ready_polling_period, default: 0.1
 
             # The underlying process object
             attr_reader :orocos_process
@@ -232,8 +233,11 @@ module Syskit
             # emit the ready event when it happens
             def schedule_ready_event_monitor(handles_from_plan)
                 promise = execution_engine.promise(description: "#{self}:ready_event_monitor") do
-                    if handles = orocos_process.resolve_all_tasks(handles_from_plan)
-                        handles.map_value do |_, remote_task|
+                    while !(handles = orocos_process.resolve_all_tasks(handles_from_plan))
+                        sleep ready_polling_period
+                    end
+
+                    handles.map_value do |_, remote_task|
                             state_reader, state_getter = create_state_access(remote_task)
                             RemoteTaskHandles.new(remote_task, state_reader, state_getter)
                         end
