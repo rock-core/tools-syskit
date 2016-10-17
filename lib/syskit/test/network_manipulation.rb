@@ -765,11 +765,39 @@ module Syskit
                     end
                 end
             end
+
+            def syskit_guard_against_configure(tasks, guard = Roby::EventGenerator.new)
+                plan.add_permanent_event(guard)
+                plan.find_tasks(Syskit::Component).each do |t|
+                    if !t.setup? && !tasks.include?(t)
+                        t.should_configure_after(guard)
+                    end
+                end
+                guard
+            end
+
+            def syskit_guard_against_start_and_configure(tasks, guard = Roby::EventGenerator.new)
+                plan.add_permanent_event(guard)
+                syskit_guard_against_configure(tasks, guard)
+
+                plan.find_tasks(Syskit::Component).each do |t|
+                    if t.pending? && !tasks.include?(t)
+                        t.should_start_after(guard)
+                    end
+                end
+                guard
+            end
+
             # Start this component
             def syskit_start(component, recursive: true, except: Set.new)
                 tasks = Set.new
                 except = except.to_set
                 syskit_prepare_start(component, tasks, recursive: recursive, except: except)
+                start_and_configure_guard =
+                    syskit_guard_against_start_and_configure(tasks)
+
+                plan = component.plan
+
                 messages = Hash.new { |h, k| h[k] = Array.new }
                 tasks.each do |t|
                     flexmock(t).should_receive(:info).
@@ -820,6 +848,10 @@ module Syskit
                 end
 
                 component
+            ensure
+                if start_and_configure_guard
+                    plan.remove_free_event(start_and_configure_guard)
+                end
             end
 
             def syskit_wait_ready(writer_or_reader, component: writer_or_reader.port.to_actual_port.component)
