@@ -62,8 +62,10 @@ module Syskit
 
                 if default_logger?
                     deployment = execution_agent
-                    # Only setup the logger
-                    deployment.orocos_process.setup_default_logger(
+                    process = deployment.orocos_process
+                    process.setup_default_logger(
+                        self,
+                        log_file_name: process.default_log_file_name(orocos_task.basename),
                         log_dir: deployment.log_dir,
                         remote: (deployment.host != 'localhost'))
                 end
