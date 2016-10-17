@@ -181,6 +181,7 @@ module Syskit
                 orogen_model, options = Kernel.filter_options options, :orogen_model
                 if !(m = orogen_model[:orogen_model])
                     m = self.orogen_model.class.new(Roby.app.default_orogen_project, nil)
+                    m.extended_state_support
                     m.subclasses self.orogen_model
                 end
                 submodel.orogen_model = m
