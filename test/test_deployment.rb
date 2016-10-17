@@ -220,10 +220,24 @@ module Syskit
                 after do
                     orocos_task.dispose
                 end
+
                 it "does not emit ready if the process is not ready yet" do
                     deployment_task.start!
-                    process_events
-                    assert !deployment_task.ready?
+                    sync = Concurrent::Event.new
+                    process.should_receive(:resolve_all_tasks).
+                        and_return { sync.set; nil }
+                    sync.wait
+                    process_events(join_all_waiting_work: false)
+                    refute deployment_task.ready?
+                end
+
+                it "is interrupted by the stop command" do
+                    plan.unmark_permanent_task(deployment_task)
+                    deployment_task.start!
+                    assert_event_emission deployment_task.stop_event do
+                        deployment_task.stop!
+                    end
+                    refute deployment_task.ready?
                 end
 
                 def make_deployment_ready

@@ -29,6 +29,7 @@ module Syskit
         class Deployment < ::Roby::Task
             extend Models::Deployment
             extend Logger::Hierarchy
+            include Logger::Hierarchy
 
             # The size of the buffered connection created between this object
             # and the remote task's state port
@@ -54,6 +55,7 @@ module Syskit
             def initialize(options = Hash.new)
                 super
 
+                @quit_ready_event_monitor = Concurrent::Event.new
                 @remote_task_handles = Hash.new
                 if !self.spawn_options
                     self.spawn_options = Hash.new
@@ -227,17 +229,25 @@ module Syskit
 
             # @api private
             #
+            # Event used to quit the ready monitor started by
+            # {#schedule_ready_event_monitor}
+            #
+            # @return [Concurrent::Event]
+            attr_reader :quit_ready_event_monitor
+
+            # @api private
+            #
             # Schedule a promise to resolve the task handles
             #
             # It will reschedule itself until the process is ready, and will
             # emit the ready event when it happens
             def schedule_ready_event_monitor(handles_from_plan, ready_polling_period: self.ready_polling_period)
                 promise = execution_engine.promise(description: "#{self}:ready_event_monitor") do
-                    while !(handles = orocos_process.resolve_all_tasks(handles_from_plan))
+                    while !quit_ready_event_monitor.set? && !(handles = orocos_process.resolve_all_tasks(handles_from_plan))
                         sleep ready_polling_period
                     end
 
-                    handles.map_value do |_, remote_task|
+                    (handles || Hash.new).map_value do |_, remote_task|
                         state_reader, state_getter = create_state_access(remote_task)
                         properties = remote_task.each_property.map do |p|
                             [p.name, p.raw_read]
@@ -324,6 +334,7 @@ module Syskit
             # Stops all tasks that are running on top of this deployment, and
             # kill the deployment
             event :stop do |context|
+                quit_ready_event_monitor.set
                 promise = execution_engine.promise(description: "#{self}.on(:stop)") do
                     begin
                         remote_task_handles.each_value do |remote_task|
