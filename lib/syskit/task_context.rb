@@ -391,7 +391,7 @@ module Syskit
             # task using the values read from the state reader
             def update_orogen_state
                 if !state_reader.connected?
-                    aborted_event.emit
+                    aborted!
                     return
                 end
 
@@ -787,16 +787,21 @@ module Syskit
             event :fatal_error
             forward :fatal_error => :failed
 
-            on :aborted do |event|
-	        ::Robot.info "#{event.task} has been aborted"
-                begin
-                    if execution_agent && execution_agent.running? && !execution_agent.finishing?
-                        orocos_task.stop(false)
+            event :aborted, terminal: true do |context|
+                if execution_agent && execution_agent.running? && !execution_agent.finishing?
+                    aborted_event.achieve_asynchronously(description: "aborting #{self}") do
+                        begin orocos_task.stop(false)
+                        rescue Exception
+                        end
                     end
-                rescue ::Exception
+                else
+                    aborted_event.emit
                 end
             end
 
+            on :aborted do |event|
+	        info "#{event.task} has been aborted"
+            end
             # Interrupts the execution of this task context
             event :stop do |context|
                 interrupt!

@@ -46,7 +46,7 @@ module Syskit
                     end
                 end
 
-                next if !t.running? && !t.starting?
+                next if !t.running? && !t.starting? || t.aborted_event.pending?
 
                 handled_this_cycle = Array.new
                 begin
