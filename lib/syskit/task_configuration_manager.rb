@@ -27,7 +27,7 @@ module Syskit
         #   override each other. Otherwise, that would generate an error
         # @return [void]
         def apply(syskit_task, conf: syskit_task.conf, override: false)
-            super(syskit_task.orocos_task, conf, override)
+            super(syskit_task, conf, override)
         end
 
         # Returns the path to an existing configuration file

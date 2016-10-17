@@ -231,24 +231,30 @@ module Syskit
             #
             # It will reschedule itself until the process is ready, and will
             # emit the ready event when it happens
-            def schedule_ready_event_monitor(handles_from_plan)
+            def schedule_ready_event_monitor(handles_from_plan, ready_polling_period: self.ready_polling_period)
                 promise = execution_engine.promise(description: "#{self}:ready_event_monitor") do
                     while !(handles = orocos_process.resolve_all_tasks(handles_from_plan))
                         sleep ready_polling_period
                     end
 
                     handles.map_value do |_, remote_task|
-                            state_reader, state_getter = create_state_access(remote_task)
-                            RemoteTaskHandles.new(remote_task, state_reader, state_getter)
+                        state_reader, state_getter = create_state_access(remote_task)
+                        properties = remote_task.each_property.map do |p|
+                            [p.name, p.raw_read]
                         end
+                        RemoteTaskHandles.new(remote_task, state_reader, state_getter, properties)
                     end
                 end.on_success do |remote_tasks|
                     if running? && !finishing? && remote_tasks
-                        setup_task_handles(remote_tasks)
+                        @remote_task_handles = remote_tasks
                         ready_event.emit
                     end
                 end
                 ready_event.achieve_asynchronously(promise, emit_on_success: false)
+            end
+
+            on :ready do |event|
+                setup_task_handles(remote_task_handles)
             end
 
             # Representation of the handles needed by {Syskit::TaskContext} to
@@ -257,7 +263,7 @@ module Syskit
             # They are initialized once and for all since they won't change
             # across TaskContext restarts, allowing us to save costly
             # back-and-forth between the remote task and the local process
-            RemoteTaskHandles = Struct.new :handle, :state_reader, :state_getter
+            RemoteTaskHandles = Struct.new :handle, :state_reader, :state_getter, :default_properties
 
             # @api private
             def setup_task_handles(remote_tasks)
@@ -268,8 +274,6 @@ module Syskit
                     end
                 end
                 
-                @remote_task_handles = remote_tasks
-
                 remote_tasks.each_value do |task|
                     task.handle.process = orocos_process
                 end

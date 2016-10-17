@@ -72,6 +72,14 @@ module Syskit
                 @orocos_task       = remote_handles.handle
                 @orocos_task.model = model.orogen_model
                 @state_reader      = remote_handles.state_reader
+
+                remote_handles.default_properties.each do |p_name, p_value|
+                    syskit_p = property(p_name)
+                    syskit_p.update_remote_value(p_value)
+                    if !syskit_p.has_value?
+                        syskit_p.write(p_value)
+                    end
+                end
             end
 
             # @!attribute r tid
@@ -840,7 +848,7 @@ module Syskit
                         if device.configuration
                             apply_configuration(device.configuration)
                         elsif device.configuration_block
-                            device.configuration_block.call(orocos_task)
+                            device.configuration_block.call(self)
                         end
                     end
                 end
