@@ -1,6 +1,12 @@
 module Syskit
     module Coordination
         module FaultResponseTableExtension
+            # Checks if the fault response table is connected to all its data
+            # sources
+            def ready?
+                data_monitoring_tables.all?(:ready?)
+            end
+
             # @return [Array<Object>] array of data monitoring table IDs, as
             #   returned by PlanExtension#use_data_monitoring_table
             attr_reader :data_monitoring_tables
@@ -9,7 +15,7 @@ module Syskit
             #
             # @see Roby::Coordination::FaultResponseTable#removed!
             def removed!
-                super if defined? super
+                super
                 data_monitoring_tables.each do |tbl|
                     plan.remove_data_monitoring_table(tbl)
                 end

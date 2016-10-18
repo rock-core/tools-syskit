@@ -30,20 +30,25 @@ describe Syskit::Coordination::DataMonitoringTable do
         end
     end
 
-    it "generates a CodeError if the trigger raises" do
-        recorder = flexmock
+    it "terminates the supporting task with the internal_error event if the trigger raises" do
+        error_m = Class.new(RuntimeError)
         table_m.monitor('test', table_m.out_port).
-            trigger_on { |sample| raise }.
+            trigger_on do |sample|
+                raise error_m
+            end.
             raise_exception
 
         component = syskit_stub_deploy_and_configure(component_m)
         table = table_m.new(component)
         syskit_start(component)
         component.orocos_task.out.write(10)
-        assert_raises(Roby::CodeError) do
+        plan.unmark_mission_task(component)
+        
+        assert_logs_exception_with_backtrace(error_m, Roby.logger, :warn)
+        event = assert_event_emission(component.internal_error_event) do
             process_events
         end
-        assert_kind_of Roby::CodeError, component.failure_reason
+        assert(Roby::CodeError.match.with_original_exception(error_m).with_origin(component) === event.context.first)
     end
 
     it "gives access to the monitoring table arguments as local variables in the blocks" do
@@ -105,17 +110,18 @@ describe Syskit::Coordination::DataMonitoringTable do
 
         component = syskit_stub_deploy_configure_and_start(component_m)
         table = table_m.new(component)
+        syskit_wait_ready(table, component: component)
         process_events
         component.orocos_task.out1.write(5)
         component.orocos_task.out2.write(2)
         table.poll
         component.orocos_task.out2.write(7)
-        assert_raises(Syskit::Coordination::DataMonitoringError) do
+        assert_adds_error(Syskit::Coordination::DataMonitoringError, failure_point: component) do
             table.poll
         end
         assert component.success?
     end
-    it "can monitor the child of a composition, and applies port mappings" do
+    it "can monitor an abstract child of a composition, thus applying port mappings on activation" do
         srv_m = Syskit::DataService.new_submodel(name: 'Srv') { output_port 'out', '/int' }
         composition_m = Syskit::Composition.new_submodel(name: 'Cmp') { add srv_m, as: 'test' }
         component_m = Syskit::TaskContext.new_submodel(name: 'Task') do
@@ -144,15 +150,14 @@ describe Syskit::Coordination::DataMonitoringTable do
         plan.add_permanent_task(composition)
 
         table = table_m.new(composition)
-        process_events
-        process_events
+        syskit_wait_ready(table, component: composition)
         component = composition.test_child
         component.orocos_task.out1.write(2)
         component.orocos_task.out2.write(2)
         table.poll
         component.orocos_task.out1.write(1)
         component.orocos_task.out2.write(12)
-        assert_raises(Syskit::Coordination::DataMonitoringError) do
+        assert_adds_error(Syskit::Coordination::DataMonitoringError, failure_point: composition) do
             table.poll
         end
         assert component.success?
@@ -195,7 +200,7 @@ describe Syskit::Coordination::DataMonitoringTable do
         composition.depends_on composition.test_child,
             success: :success, remove_when_done: true
         plan.add_mission_task(composition)
-        process_events
+        syskit_wait_ready(table, component: composition)
 
         component = composition.test_child
         component.orocos_task.out1.write(4)
@@ -203,7 +208,7 @@ describe Syskit::Coordination::DataMonitoringTable do
         table.poll
         component.orocos_task.out1.write(1)
         component.orocos_task.out2.write(12)
-        assert_raises(Syskit::Coordination::DataMonitoringError) do
+        assert_adds_error(Syskit::Coordination::DataMonitoringError, failure_point: composition) do
             table.poll
         end
         assert composition.success?

@@ -855,6 +855,8 @@ module Syskit
             end
 
             def syskit_wait_ready(writer_or_reader, component: writer_or_reader.port.to_actual_port.component)
+                return if writer_or_reader.ready?
+
                 if !component.setup?
                     syskit_configure(component)
                 end

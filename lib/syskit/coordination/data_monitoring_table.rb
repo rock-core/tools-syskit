@@ -59,6 +59,7 @@ module Syskit
                     poll
                 end
                 @monitors = Array.new
+                @monitors_resolved = false
                 resolve_monitors
             end
 
@@ -85,6 +86,7 @@ module Syskit
                 monitors_m = model.each_monitor.to_a
                 model.validate_monitors(monitors_m)
                 root_task.execute do
+                    @monitors_resolved = true
                     monitors.concat(monitors_m.map { |m| m.bind(self) })
                 end
             end
@@ -95,6 +97,11 @@ module Syskit
                 monitors.each do |m|
                     m.poll(instance_for(model.root).resolve)
                 end
+            end
+
+            # Checks whether the table is attached to all its data sources
+            def ready?
+                @monitors_resolved && monitors.all?(&:ready?)
             end
         end
     end
