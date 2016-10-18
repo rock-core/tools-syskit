@@ -1059,6 +1059,7 @@ module Syskit
                         @remote_test_property = task.orocos_task.raw_property('test')
                         remote_test_property.write(0.2)
                     end
+                    syskit_guard_against_start_and_configure
                 end
                 def mock_remote_property
                     stub_property.remote_property = @remote_test_property

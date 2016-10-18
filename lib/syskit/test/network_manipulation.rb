@@ -598,9 +598,7 @@ module Syskit
             end
 
             def syskit_start_execution_agents(component, recursive: true)
-                # Protect the component against configuration and startup
-                plan.add_permanent_event(sync_ev = Roby::EventGenerator.new)
-                component.should_configure_after(sync_ev)
+                guard = syskit_guard_against_start_and_configure
 
                 if recursive
                     component.each_child do |child_task|
@@ -618,13 +616,10 @@ module Syskit
                     end
                 end
             ensure
-                if sync_ev
-                    plan.remove_free_event(sync_ev)
-                end
+                plan.remove_free_event(guard)
             end
 
-            def syskit_prepare_configure(component, tasks, sync_ev, recursive: true, except: Set.new)
-                component.should_start_after(sync_ev)
+            def syskit_prepare_configure(component, tasks, recursive: true, except: Set.new)
                 component.freeze_delayed_arguments
 
                 tasks << component
@@ -634,7 +629,7 @@ module Syskit
                         if except.include?(child_task)
                             next
                         elsif child_task.respond_to?(:setup?)
-                            syskit_prepare_configure(child_task, tasks, sync_ev, recursive: true, except: except)
+                            syskit_prepare_configure(child_task, tasks, recursive: true, except: except)
                         end
                     end
                 end
@@ -693,14 +688,14 @@ module Syskit
 
             # Set this component instance up
             def syskit_configure(component, recursive: true, except: Set.new)
-                plan.add_permanent_event(sync_ev = Roby::EventGenerator.new)
                 # We need all execution agents to be started to connect (and
                 # therefore configur) the tasks
                 syskit_start_all_execution_agents
 
                 tasks = Set.new
                 except  = except.to_set
-                syskit_prepare_configure(component, tasks, sync_ev, recursive: recursive, except: except)
+                syskit_prepare_configure(component, tasks, recursive: recursive, except: except)
+                guard = syskit_guard_against_start_and_configure(tasks)
 
                 pending = tasks.dup.to_set
                 while !pending.empty?
@@ -733,7 +728,7 @@ module Syskit
                 component
 
             ensure
-                plan.remove_free_event(sync_ev)
+                plan.remove_free_event(guard) if guard
             end
             
             class NoStartFixedPoint < RuntimeError
@@ -766,7 +761,8 @@ module Syskit
                 end
             end
 
-            def syskit_guard_against_configure(tasks, guard = Roby::EventGenerator.new)
+            def syskit_guard_against_configure(tasks = Array.new, guard = Roby::EventGenerator.new)
+                tasks = Array(tasks)
                 plan.add_permanent_event(guard)
                 plan.find_tasks(Syskit::Component).each do |t|
                     if !t.setup? && !tasks.include?(t)
@@ -776,7 +772,7 @@ module Syskit
                 guard
             end
 
-            def syskit_guard_against_start_and_configure(tasks, guard = Roby::EventGenerator.new)
+            def syskit_guard_against_start_and_configure(tasks = Array.new, guard = Roby::EventGenerator.new)
                 plan.add_permanent_event(guard)
                 syskit_guard_against_configure(tasks, guard)
 
@@ -793,8 +789,7 @@ module Syskit
                 tasks = Set.new
                 except = except.to_set
                 syskit_prepare_start(component, tasks, recursive: recursive, except: except)
-                start_and_configure_guard =
-                    syskit_guard_against_start_and_configure(tasks)
+                guard = syskit_guard_against_start_and_configure(tasks)
 
                 plan = component.plan
 
@@ -849,8 +844,8 @@ module Syskit
 
                 component
             ensure
-                if start_and_configure_guard
-                    plan.remove_free_event(start_and_configure_guard)
+                if guard
+                    plan.remove_free_event(guard)
                 end
             end
 
