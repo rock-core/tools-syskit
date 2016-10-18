@@ -1138,6 +1138,76 @@ module Syskit
                     end
                 end
             end
+
+            describe "non-blocking characteristics" do
+                attr_reader :barrier, :task
+
+                before do
+                    @barrier = Concurrent::CyclicBarrier.new(2)
+                    @task = syskit_stub_and_deploy(Syskit::TaskContext.new_submodel)
+                    syskit_start_execution_agents(task)
+                end
+
+                after do
+                    barrier.wait(2)
+                end
+
+                def wait_for_synchronization(**options)
+                    process_events_until(join_all_waiting_work: false, **options) do
+                        barrier.number_waiting == 1
+                    end
+                end
+
+                def assert_process_events_does_not_block
+                    process_events(join_all_waiting_work: false)
+                end
+
+                it "does not block the event loop if the node's configure command blocks" do
+                    flexmock(task.orocos_task).should_receive(:configure).once.
+                        pass_thru { barrier.wait }
+                    capture_log(task, :info) do
+                        wait_for_synchronization
+                        assert_process_events_does_not_block
+                    end
+                end
+                it "does not block the event loop if the node's start command blocks" do
+                    flexmock(task.orocos_task).should_receive(:start).once.
+                        pass_thru { barrier.wait }
+                    capture_log(task, :info) do
+                        wait_for_synchronization(enable_scheduler: true)
+                        assert_process_events_does_not_block
+                    end
+                end
+                it "does not block the event loop if the node's stop command blocks" do
+                    syskit_configure_and_start(task)
+                    plan.unmark_mission_task(task)
+                    flexmock(task.orocos_task).should_receive(:stop).once.
+                        pass_thru { barrier.wait }
+                    capture_log(task, :info) do
+                        wait_for_synchronization(enable_scheduler: true)
+                        assert_process_events_does_not_block
+                    end
+                end
+                it "does not block the event loop if the node's cleanup command blocks" do
+                    Orocos.allow_blocking_calls { task.orocos_task.configure(false) }
+                    flexmock(task.orocos_task).should_receive(:cleanup).once.
+                        pass_thru { barrier.wait }
+                    capture_log(task, :info) do
+                        wait_for_synchronization(enable_scheduler: true)
+                        assert_process_events_does_not_block
+                    end
+                end
+                it "does not block the event loop if the node's reset_exception command blocks" do
+                    flexmock(task.orocos_task).should_receive(:rtt_state).
+                        and_return(:EXCEPTION, :PRE_OPERATIONAL, :RUNNING)
+                    flexmock(task.orocos_task).should_receive(:reset_exception).once.
+                        and_return { barrier.wait }
+                    capture_log(task, :info) do
+                        wait_for_synchronization(enable_scheduler: true)
+                        assert_process_events_does_not_block
+                    end
+                end
+            end
         end
     end
 end
