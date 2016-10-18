@@ -139,11 +139,8 @@ module Syskit
                     input_port "in", "/double"
                     output_port "out", "/double"
                 end
-                messages = capture_log(::Robot, :info) do
-                    task = syskit_stub_deploy_and_configure(task_m)
-                    @task = flexmock(task)
-                end
-                assert_equal ["applied configuration [\"default\"] to #{task.orocos_name}", "setting up #{task}"], messages
+                task = syskit_stub_deploy_and_configure(task_m)
+                @task = flexmock(task)
                 @orocos_task = flexmock(task.orocos_task)
             end
 
@@ -152,7 +149,7 @@ module Syskit
                     task.start_event.emit
                 end
                 if task.running?
-                    messages = capture_log(::Robot, :info) do
+                    messages = capture_log(task, :info) do
                         task.stop_event.emit 
                     end
                     assert_equal ["stopped #{task}"], messages
@@ -160,7 +157,7 @@ module Syskit
             end
 
             def call_task_start_event
-                messages = capture_log(::Robot, :info) do
+                messages = capture_log(task, :info) do
                     task.start!
                 end
                 assert_equal ["starting #{task}"], messages
@@ -301,7 +298,7 @@ module Syskit
                     task.start_event.emit
                 end
                 if task.running?
-                    messages = capture_log(::Robot, :info) do
+                    messages = capture_log(task, :info) do
                         task.stop_event.emit 
                     end
                     assert_equal ["stopped #{task}"], messages
@@ -334,12 +331,7 @@ module Syskit
                 assert_equal "#{task} reports state blabla, but I don't have an event for this state transition", e.message
             end
             it "emits the 'running' event when transitioning out of an error state" do
-                messages = capture_log(task, :info) do
-                    assert_event_emission task.start_event do
-                        task.start!
-                    end
-                end
-                assert_equal ["starting #{task}"], messages
+                syskit_start(task)
                 task.should_receive(:last_orogen_state).and_return(:BLA)
                 orocos_task.should_receive(:error_state?).with(:BLA).once.and_return(true)
                 assert_event_emission task.running_event do
@@ -348,12 +340,7 @@ module Syskit
                 assert_equal 2, task.running_event.history.size
             end
             it "does not emit the 'running' event if the last state was not an error state" do
-                messages = capture_log(task, :info) do
-                    assert_event_emission task.start_event do
-                        task.start!
-                    end
-                end
-                assert_equal ["starting #{task}"], messages
+                syskit_start(task)
                 task.should_receive(:last_orogen_state).and_return(:BLA)
                 orocos_task.should_receive(:error_state?).with(:BLA).once.and_return(false)
                 task.handle_state_changes
@@ -378,7 +365,7 @@ module Syskit
                 assert task.state_reader.connected?
             end
             it "emits :aborted if the state reader got disconnected" do
-                task = syskit_stub_deploy_configure_and_start('Task')
+                task = syskit_stub_deploy_configure_and_start(TaskContext.new_submodel)
                 setting_up = task.instance_variable_get(:@setting_up)
                 assert(!setting_up || setting_up.complete?)
                 task.update_orogen_state
@@ -387,6 +374,7 @@ module Syskit
                 end
                 orocos_task = task.orocos_task
 
+                plan.add_permanent_task(task.execution_agent)
                 plan.unmark_mission_task(task)
                 assert_event_emission task.aborted_event do
                     task.update_orogen_state
@@ -581,12 +569,8 @@ module Syskit
             attr_reader :task, :orocos_task
             before do
                 task_m = TaskContext.new_submodel
-                messages = capture_log(::Robot, :info) do
-                    @task = syskit_stub_deploy_and_configure(task_m, as: 'task')
-                end
-                assert_equal ["applied configuration [\"default\"] to #{task.orocos_name}",
-                              "setting up #{task}"], messages
-                flexmock(task)
+                task = syskit_stub_deploy_and_configure(task_m, as: 'task')
+                @task = flexmock(task)
                 @orocos_task = flexmock(task.orocos_task)
             end
 
@@ -604,13 +588,13 @@ module Syskit
             it "resets an exception state" do
                 orocos_task.should_receive(:reset_exception).once.ordered
                 task.should_receive(:clean_dynamic_port_connections).once.ordered
-                messages = capture_log(::Robot, :info) do
+                messages = capture_log(task, :info) do
                     prepare_task_for_setup(:EXCEPTION)
                 end
                 assert messages.include?("reconfiguring #{task}: the task was in exception state")
             end
             it "does nothing if the state is PRE_OPERATIONAL" do
-                messages = capture_log(::Robot, :info) do
+                messages = capture_log(task, :info) do
                     prepare_task_for_setup(:PRE_OPERATIONAL)
                 end
                 assert_equal ["not reconfiguring #{task}: the task is already configured as required"],
@@ -621,7 +605,7 @@ module Syskit
                 TaskContext.configured['task'] = [nil, ['default'], Set.new]
                 orocos_task.should_receive(:cleanup).never
                 task.should_receive(:clean_dynamic_port_connections).never
-                messages = capture_log(::Robot, :info) do
+                messages = capture_log(task, :info) do
                     prepare_task_for_setup(:STOPPED)
                 end
                 assert_equal ["not reconfiguring #{task}: the task is already configured as required"],
@@ -631,7 +615,7 @@ module Syskit
                 task.should_receive(:needs_reconfiguration?).and_return(true)
                 orocos_task.should_receive(:cleanup).once.ordered
                 task.should_receive(:clean_dynamic_port_connections).once.ordered
-                messages = capture_log(::Robot, :info) do
+                messages = capture_log(task, :info) do
                     prepare_task_for_setup(:STOPPED)
                 end
                 assert_equal ["cleaning up #{task}"],
@@ -641,7 +625,7 @@ module Syskit
                 TaskContext.configured[task.orocos_name] = nil
                 orocos_task.should_receive(:cleanup).once.ordered
                 task.should_receive(:clean_dynamic_port_connections).once.ordered
-                messages = capture_log(::Robot, :info) do
+                messages = capture_log(task, :info) do
                     prepare_task_for_setup(:STOPPED)
                 end
                 assert_equal ["cleaning up #{task}"], messages
@@ -650,7 +634,7 @@ module Syskit
                 TaskContext.configured[task.orocos_name] = [nil, [], Set.new]
                 orocos_task.should_receive(:cleanup).once.ordered
                 task.should_receive(:clean_dynamic_port_connections).once.ordered
-                messages = capture_log(::Robot, :info) do
+                messages = capture_log(task, :info) do
                     prepare_task_for_setup(:STOPPED)
                 end
                 assert_equal ["cleaning up #{task}"], messages
@@ -677,7 +661,7 @@ module Syskit
 
             def setup_task(task = self.task, expected_messages: nil)
                 promise = nil
-                messages = capture_log(::Robot, :info) do
+                messages = capture_log(task, :info) do
                     promise = Runtime.start_task_setup(task)
                     execution_engine.join_all_waiting_work
                 end
@@ -757,7 +741,7 @@ module Syskit
                 end
                 it "does not call is_setup!" do
                     task.should_receive(:is_setup!).never
-                    messages = capture_log(::Robot, :info) do
+                    messages = capture_log(task, :info) do
                         promise = execution_engine.promise(description: "setup of #{task}") { }
                         promise = task.setup(promise)
                         promise.execute
