@@ -188,7 +188,7 @@ module Syskit
                         process_events
                         ConnectionManagement.update(plan)
                         assert sink_task.ready_for_setup?
-                        assert_event_emission sink_task.start_event, scheduler: true
+                        assert_event_emission sink_task.start_event, enable_scheduler: true
                     end
 
                     describe "handling of static ports" do
@@ -299,7 +299,7 @@ module Syskit
                                         once.globally.ordered
                                     true
                                 end
-                            assert_event_emission source_task.start_event, scheduler: true
+                            assert_event_emission source_task.start_event, enable_scheduler: true
                         end
 
                         it "does not connect ports between two running tasks until the rest of the network is ready" do
@@ -335,7 +335,7 @@ module Syskit
                                 once.globally.ordered(:connections).
                                 pass_thru
 
-                            assert_event_emission pre_operational_task.start_event, scheduler: true
+                            assert_event_emission pre_operational_task.start_event, enable_scheduler: true
                         end
                     end
 
@@ -382,7 +382,7 @@ module Syskit
                                     once.globally.ordered.
                                     pass_thru
                                 ConnectionManagement.update(plan)
-                                assert_event_emission new_source_task.start_event, scheduler: true
+                                assert_event_emission new_source_task.start_event, enable_scheduler: true
                                 assert_equal Hash[['out', 'in'] => Hash[type: :data]], ActualDataFlow.edge_info(new_source_task.orocos_task, sink_task.orocos_task)
                             end
                         end
@@ -423,7 +423,7 @@ module Syskit
                                     once.globally.ordered.
                                     pass_thru
                                 ConnectionManagement.update(plan)
-                                assert_event_emission new_sink_task.start_event, scheduler: true
+                                assert_event_emission new_sink_task.start_event, enable_scheduler: true
                                 assert_equal Hash[['out', 'in'] => Hash[type: :data]], ActualDataFlow.edge_info(source_task.orocos_task, new_sink_task.orocos_task)
                             end
                         end
