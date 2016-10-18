@@ -346,6 +346,20 @@ describe Syskit::Models::Composition do
     end
 
     describe "#instanciate" do
+        attr_reader :cmp_m, :component_m
+        before do
+            @component_m = Syskit::TaskContext.new_submodel
+            @cmp_m = Syskit::Composition.new_submodel
+        end
+
+        describe "setup of the dependency relation" do
+            it "depends on its instanciated children, using the child name as role" do
+                cmp_m.add component_m, as: 'test'
+                cmp = cmp_m.instanciate(plan)
+                assert_kind_of component_m, cmp.test_child
+            end
+        end
+
         it "applies port mappings from dependency injection on exported ports" do
             service, component, composition = models
             composition = flexmock(composition)
@@ -366,13 +380,10 @@ describe Syskit::Models::Composition do
 
         it "adds its children as dependencies" do
             composition_m = simple_composition_model
-            srv_child = simple_component_model.new
-            flexmock(simple_component_model).should_receive(:new).
-                and_return(srv_child).once
             flexmock(composition_m).new_instances.
-                should_receive(:depends_on).by_default.pass_thru
+                should_receive(:depends_on).with(simple_component_model, any).once.pass_thru
             flexmock(composition_m).new_instances.
-                should_receive(:depends_on).with(srv_child, any).once.pass_thru
+                should_receive(:depends_on).pass_thru
             composition_m.instanciate(plan, Syskit::DependencyInjectionContext.new('srv' => simple_component_model))
         end
 
