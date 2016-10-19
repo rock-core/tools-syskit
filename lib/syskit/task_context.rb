@@ -405,6 +405,7 @@ module Syskit
             # task using the values read from the state reader
             def update_orogen_state
                 if !state_reader.connected?
+                    fatal "terminating #{self}, its state reader #{state_reader} is disconnected"
                     aborted!
                     return
                 end
