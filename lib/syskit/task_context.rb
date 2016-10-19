@@ -671,6 +671,10 @@ module Syskit
                 info "starting #{to_s}"
                 @last_orogen_state = nil
 
+                if state_reader.respond_to?(:resume)
+                    state_reader.resume
+                end
+
                 expected_output_ports = each_concrete_output_connection.
                     map { |port_name, _| port_name }
                 expected_input_ports = each_concrete_input_connection.
@@ -826,6 +830,9 @@ module Syskit
 
             on :stop do |event|
                 info "stopped #{self}"
+                if state_reader.respond_to?(:pause)
+                    state_reader.pause
+                end
             end
 
             # Default implementation of the configure method.
