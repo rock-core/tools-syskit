@@ -179,7 +179,8 @@ describe Syskit::InputWriter do
         port_writer = task.in_port.writer
         syskit_wait_ready(port_writer, component: task)
         assert_equal task.in_port, port_writer.resolved_port
-        assert_equal task.orocos_task.port('in'), port_writer.writer.port
+        assert_equal Orocos.allow_blocking_calls { task.orocos_task.port('in') },
+            port_writer.writer.port
     end
     it "queues a PortAccessFailure error on the port's component if creating the port failed" do
         error = Class.new(RuntimeError)
@@ -208,7 +209,8 @@ describe Syskit::InputWriter do
 
         syskit_wait_ready(port_writer, component: task)
         assert_equal task.in_port, port_writer.resolved_port
-        assert_equal task.orocos_task.port('in'), port_writer.writer.port
+        assert_equal Orocos.allow_blocking_calls { task.orocos_task.port('in') },
+            port_writer.writer.port
     end
 
     describe "#disconnect" do
@@ -264,7 +266,8 @@ describe Syskit::OutputReader do
         port_reader = task.out_port.reader
         syskit_wait_ready(port_reader)
         assert_equal task.out_port, port_reader.resolved_port
-        assert_equal task.orocos_task.port('out'), port_reader.reader.port
+        assert_equal Orocos.allow_blocking_calls { task.orocos_task.port('out') },
+            port_reader.reader.port
     end
     it "queues a PortAccessFailure error on the port's component if creating the port failed" do
         error = Class.new(RuntimeError)
@@ -287,7 +290,8 @@ describe Syskit::OutputReader do
 
         syskit_wait_ready(port_reader, component: task)
         assert_equal task.out_port, port_reader.resolved_port
-        assert_equal task.orocos_task.port('out'), port_reader.reader.port
+        assert_equal Orocos.allow_blocking_calls { task.orocos_task.port('out') },
+            port_reader.reader.port
     end
 
     describe "#disconnect" do

@@ -35,6 +35,7 @@ module Syskit
             Syskit.conf.export_types = false
             Syskit.conf.disables_local_process_server = true
             Syskit.conf.only_load_models = true
+            self.syskit_stub_resolves_remote_tasks = true
 
             super
 

@@ -79,7 +79,10 @@ module Syskit
                     latch.count_down
                     sync_latch.reset(nil)
                 end
-                sleep(period - (Time.now - time))
+                spent = (Time.now - time)
+                if spent < period
+                    sleep(period - (Time.now - time))
+                end
                 run_event.wait
             end
 

@@ -284,7 +284,7 @@ module Syskit
                         it "waits for the tasks to be set up to connect dynamic ports" do
                             source_task.specialize
                             def source_task.configure
-                                orocos_task.create_output_port 'out2', '/double'
+                                orocos_task.local_ruby_task.create_output_port 'out2', '/double'
                             end
                             source_task.model.orogen_model.output_port 'out2', '/double'
                             source_task.out2_port.connect_to sink_task.in_port
@@ -310,7 +310,7 @@ module Syskit
                             end
                             pre_operational_task.specialize
                             def pre_operational_task.configure
-                                orocos_task.create_input_port 'in2', '/double'
+                                orocos_task.local_ruby_task.create_input_port 'in2', '/double'
                             end
                             pre_operational_task.model.orogen_model.input_port 'in2', '/double'
                             syskit_start_execution_agents(pre_operational_task)

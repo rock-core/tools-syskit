@@ -50,7 +50,7 @@ describe Syskit::Coordination::TaskScriptExtension do
                 end
                 composition, component = start
                 writer.write(10)
-                assert_equal 10, composition.test_child.orocos_task.in.read
+                assert_equal 10, composition.test_child.orocos_task.local_ruby_task.in.read
             end
 
             it "gives reader access to input ports mapped from services" do
@@ -59,7 +59,7 @@ describe Syskit::Coordination::TaskScriptExtension do
                     reader = test_child.base_out_port.reader
                 end
                 composition, component = start
-                composition.test_child.orocos_task.out.write(10)
+                composition.test_child.orocos_task.local_ruby_task.out.write(10)
                 assert_equal 10, reader.read
             end
         end
@@ -78,7 +78,7 @@ describe Syskit::Coordination::TaskScriptExtension do
                 end
                 composition, component = start
                 writer.write(10)
-                assert_equal 10, composition.test_child.orocos_task.in.read
+                assert_equal 10, composition.test_child.orocos_task.local_ruby_task.in.read
             end
 
             it "gives reader access to input ports mapped from services" do
@@ -87,7 +87,7 @@ describe Syskit::Coordination::TaskScriptExtension do
                     reader = test_child.base_out_port.reader
                 end
                 composition, component = start
-                composition.test_child.orocos_task.out.write(10)
+                composition.test_child.orocos_task.local_ruby_task.out.write(10)
                 assert_equal 10, reader.read
             end
         end
@@ -100,7 +100,7 @@ describe Syskit::Coordination::TaskScriptExtension do
             component = syskit_stub_deploy_and_configure(component_m)
             syskit_start(component)
             writer.write(10)
-            assert_equal 10, component.orocos_task.in.read
+            assert_equal 10, component.orocos_task.local_ruby_task.in.read
         end
 
         it "gives access to output ports" do
@@ -110,7 +110,7 @@ describe Syskit::Coordination::TaskScriptExtension do
             end
             component = syskit_stub_deploy_and_configure(component_m)
             syskit_start(component)
-            component.orocos_task.out.write(10)
+            component.orocos_task.local_ruby_task.out.write(10)
             assert_equal 10, reader.read
         end
     end
@@ -140,7 +140,7 @@ describe Syskit::Coordination::TaskScriptExtension do
 
             syskit_start(component)
             writer.write(10)
-            assert_equal 10, component.orocos_task.in.read
+            assert_equal 10, component.orocos_task.local_ruby_task.in.read
         end
 
         it "gives access to ports from children" do
@@ -162,7 +162,7 @@ describe Syskit::Coordination::TaskScriptExtension do
             syskit_configure_and_start(composition)
             syskit_configure_and_start(component)
             writer.write(10)
-            assert_equal 10, component.orocos_task.in.read
+            assert_equal 10, component.orocos_task.local_ruby_task.in.read
         end
 
         it "generates an error if trying to access a non-existent port" do
@@ -296,7 +296,7 @@ describe Syskit::Coordination::TaskScriptExtension do
             end
 
             syskit_start(component)
-            component.orocos_task.out.write(10)
+            component.orocos_task.local_ruby_task.out.write(10)
             assert_equal 10, reader.read
         end
 
@@ -317,7 +317,7 @@ describe Syskit::Coordination::TaskScriptExtension do
             end
 
             syskit_start(composition)
-            component.orocos_task.out.write(10)
+            component.orocos_task.local_ruby_task.out.write(10)
             assert_equal 10, reader.read
         end
 

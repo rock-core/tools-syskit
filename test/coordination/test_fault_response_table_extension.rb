@@ -66,13 +66,14 @@ describe Syskit::Coordination::Models::FaultResponseTableExtension do
             plan.data_monitoring_tables.map(&:model)
         syskit_stub_deployment_model(component_m)
         component = syskit_deploy_configure_and_start(component_m)
+        ruby_task = component.orocos_task.local_ruby_task
         syskit_wait_data_monitoring_ready
 
         recorder.should_receive(:called).with(5).once.ordered
         recorder.should_receive(:called).with(11).at_least.once.ordered
-        component.orocos_task.out1.write(5)
+        ruby_task.out1.write(5)
         process_events
-        component.orocos_task.out1.write(11)
+        ruby_task.out1.write(11)
 
         process_events(enable_scheduler: true)
         assert(response_task = plan.find_tasks(response_task_m).running.first)

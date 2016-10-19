@@ -39,9 +39,10 @@ describe Syskit::Coordination::DataMonitoringTable do
             raise_exception
 
         component = syskit_stub_deploy_and_configure(component_m)
+        ruby_task = component.orocos_task.local_ruby_task
         table = table_m.new(component)
         syskit_start(component)
-        component.orocos_task.out.write(10)
+        ruby_task.out.write(10)
         plan.unmark_mission_task(component)
         
         assert_logs_exception_with_backtrace(error_m, Roby.logger, :warn)
@@ -61,10 +62,11 @@ describe Syskit::Coordination::DataMonitoringTable do
             end.raise_exception
 
         component = syskit_stub_deploy_and_configure(component_m)
+        ruby_task = component.orocos_task.local_ruby_task
         table = table_m.new(component, arg: 10)
         recorder.should_receive(:called).with(10).at_least.once
         syskit_start(component)
-        component.orocos_task.out.write(20)
+        ruby_task.out.write(20)
         process_events
     end
 
@@ -79,13 +81,14 @@ describe Syskit::Coordination::DataMonitoringTable do
             end.raise_exception
 
         component = syskit_stub_deploy_and_configure(component_m)
+        ruby_task = component.orocos_task.local_ruby_task
         table = table_m.new(component, arg: 10)
         recorder.should_receive(:called).with(true).at_least.once
         recorder.should_receive(:called).with(false).at_least.once
         syskit_start(component)
-        component.orocos_task.out.write(20)
+        ruby_task.out.write(20)
         process_events
-        component.orocos_task.out.write(20)
+        ruby_task.out.write(20)
         process_events
     end
 
@@ -109,13 +112,15 @@ describe Syskit::Coordination::DataMonitoringTable do
         recorder.should_receive(:called).with(5, 7).once.ordered
 
         component = syskit_stub_deploy_configure_and_start(component_m)
+        ruby_task = component.orocos_task.local_ruby_task
+
         table = table_m.new(component)
         syskit_wait_ready(table, component: component)
         process_events
-        component.orocos_task.out1.write(5)
-        component.orocos_task.out2.write(2)
+        ruby_task.out1.write(5)
+        ruby_task.out2.write(2)
         table.poll
-        component.orocos_task.out2.write(7)
+        ruby_task.out2.write(7)
         assert_adds_error(Syskit::Coordination::DataMonitoringError, failure_point: component) do
             table.poll
         end
@@ -145,6 +150,7 @@ describe Syskit::Coordination::DataMonitoringTable do
         recorder.should_receive(:called).with(12).once.ordered
 
         component = syskit_stub_deploy_configure_and_start(component_m)
+        ruby_task = component.orocos_task.local_ruby_task
         composition = composition_m.use('test' => component.test2_srv).instanciate(plan)
         composition.depends_on composition.test_child, success: :success, remove_when_done: true
         plan.add_permanent_task(composition)
@@ -152,11 +158,11 @@ describe Syskit::Coordination::DataMonitoringTable do
         table = table_m.new(composition)
         syskit_wait_ready(table, component: composition)
         component = composition.test_child
-        component.orocos_task.out1.write(2)
-        component.orocos_task.out2.write(2)
+        ruby_task.out1.write(2)
+        ruby_task.out2.write(2)
         table.poll
-        component.orocos_task.out1.write(1)
-        component.orocos_task.out2.write(12)
+        ruby_task.out1.write(1)
+        ruby_task.out2.write(12)
         assert_adds_error(Syskit::Coordination::DataMonitoringError, failure_point: composition) do
             table.poll
         end
@@ -203,11 +209,13 @@ describe Syskit::Coordination::DataMonitoringTable do
         syskit_wait_ready(table, component: composition)
 
         component = composition.test_child
-        component.orocos_task.out1.write(4)
-        component.orocos_task.out2.write(2)
+        ruby_task = component.orocos_task.local_ruby_task
+
+        ruby_task.out1.write(4)
+        ruby_task.out2.write(2)
         table.poll
-        component.orocos_task.out1.write(1)
-        component.orocos_task.out2.write(12)
+        ruby_task.out1.write(1)
+        ruby_task.out2.write(12)
         assert_adds_error(Syskit::Coordination::DataMonitoringError, failure_point: composition) do
             table.poll
         end
@@ -222,10 +230,11 @@ describe Syskit::Coordination::DataMonitoringTable do
                 emit table_m.success_event
 
             component = syskit_stub_deploy_and_configure(component_m)
+            ruby_task = component.orocos_task.local_ruby_task
             table = table_m.new(component)
             syskit_start(component)
             table.remove!
-            component.orocos_task.out.write(10)
+            ruby_task.out.write(10)
             process_events
             assert !component.finished?
         end

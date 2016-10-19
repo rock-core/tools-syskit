@@ -2,6 +2,15 @@ module Syskit
     module Test
         # Network manipulation functionality (stubs, ...) useful in tests
         module NetworkManipulation
+            # Whether (false) the stub methods should resolve ruby tasks as ruby
+            # tasks (i.e. Orocos::RubyTasks::TaskContext, the default), or
+            # (true) as something that looks more like a remote task
+            # (Orocos::RubyTasks::RemoteTaskContext)
+            #
+            # The latter is used in Syskit's own test suite to ensure that we
+            # don't call remote methods from within Syskit's own event loop
+            attr_predicate :syskit_stub_resolves_remote_tasks?, true
+
             def setup
                 @__test_created_deployments = Array.new
                 @__test_overriden_configurations = Array.new
@@ -164,10 +173,23 @@ module Syskit
                 model
             end
 
-            def syskit_stub_configured_deployment(task_model = nil, name = nil, &block)
+            def syskit_stub_configured_deployment(
+                    task_model = nil, name = nil,
+                    remote_task: self.syskit_stub_resolves_remote_tasks?, &block)
+
                 if task_model
                     task_model = task_model.to_component_model
                 end
+
+                process_server = Syskit.conf.process_server_for('stubs')
+
+                task_context_class =
+                    if remote_task
+                        Orocos::RubyTasks::RemoteTaskContext
+                    else
+                        process_server.task_context_class
+                    end
+
                 name ||= syskit_default_stub_name(task_model)
                 deployment_model = Deployment.new_submodel(name: name) do
                     if task_model
@@ -178,9 +200,12 @@ module Syskit
                     end
                 end
 
-                Syskit.conf.process_server_for('stubs').
-                    register_deployment_model(deployment_model.orogen_model)
-                Syskit.conf.use_deployment(deployment_model.orogen_model, on: 'stubs').first
+                process_server.register_deployment_model(deployment_model.orogen_model)
+                configured_deployment = Models::ConfiguredDeployment.
+                    new('stubs', deployment_model, Hash[name => name],
+                        name, Hash[task_context_class: task_context_class])
+                Syskit.conf.register_configured_deployment(configured_deployment)
+                configured_deployment
             end
 
             # Create a new stub deployment model that can deploy a given task
@@ -195,14 +220,18 @@ module Syskit
             #   same declarations than in oroGen's #deployment statement are
             #   available
             # @return [Models::ConfiguredDeployment] the configured deployment
-            def syskit_stub_deployment_model(task_model = nil, name = nil, &block)
-                configured_deployment = syskit_stub_configured_deployment(task_model, name, &block)
+            def syskit_stub_deployment_model(
+                    task_model = nil, name = nil,
+                    remote_task: self.syskit_stub_resolves_remote_tasks?, &block)
+                configured_deployment = syskit_stub_configured_deployment(task_model, name, remote_task: remote_task, &block)
                 configured_deployment.model
             end
 
             # Create a new stub deployment instance, optionally stubbing the
             # model as well
-            def syskit_stub_deployment(name = "deployment", deployment_model = nil, &block)
+            def syskit_stub_deployment(
+                    name = "deployment", deployment_model = nil,
+                    remote_task: self.syskit_stub_resolves_remote_tasks?, &block)
                 deployment_model ||= syskit_stub_deployment_model(nil, name, &block)
                 plan.add_permanent_task(task = deployment_model.new(process_name: name, on: 'stubs'))
                 task
@@ -414,7 +443,7 @@ module Syskit
             end
 
             # Stub an already existing network
-            def syskit_stub_network(root_tasks)
+            def syskit_stub_network(root_tasks, remote_task: self.syskit_stub_resolves_remote_tasks?)
                 tasks = Set.new
                 dependency_graph = plan.task_relation_graph_for(Roby::TaskStructure::Dependency)
                 root_tasks = root_tasks.map do |t|
@@ -480,7 +509,7 @@ module Syskit
                     trsc_tasks.each do |original_task|
                         concrete_task = merge_solver.replacement_for(original_task)
                         if concrete_task.kind_of?(TaskContext) && !concrete_task.execution_agent
-                            merge_mappings[concrete_task] = syskit_stub_network_deployment(concrete_task)
+                            merge_mappings[concrete_task] = syskit_stub_network_deployment(concrete_task, remote_task: remote_task)
                         end
                     end
                     merge_mappings.each do |original, replacement|
@@ -553,7 +582,10 @@ module Syskit
                 task_m.new(arguments)
             end
 
-            def syskit_stub_network_deployment(task, as: syskit_default_stub_name(task.model))
+            def syskit_stub_network_deployment(
+                    task, as: syskit_default_stub_name(task.model),
+                    remote_task: self.syskit_stub_resolves_remote_tasks?)
+
                 task_m = task.concrete_model
                 deployment_model = syskit_stub_configured_deployment(task_m, as)
                 syskit_stub_conf(task_m, *task.arguments[:conf])
@@ -882,12 +914,16 @@ module Syskit
             #   model = RootCmp.use(
             #      'processor' => Cmp.use('pose' => RootCmp.pose_child))
             #   syskit_stub_deploy_and_start_composition(model)
-            def syskit_stub_and_deploy(model = subject_syskit_model, recursive: true, as: syskit_default_stub_name(model), &block)
+            def syskit_stub_and_deploy(
+                    model = subject_syskit_model, recursive: true,
+                    as: syskit_default_stub_name(model),
+                    remote_task: self.syskit_stub_resolves_remote_tasks?, &block)
+
                 if model.respond_to?(:to_str)
                     model = syskit_stub_task_context_model(model, &block)
                 end
                 tasks = syskit_generate_network(model, &block)
-                tasks = syskit_stub_network(tasks)
+                tasks = syskit_stub_network(tasks, remote_task: remote_task)
                 tasks.first
             end
 
@@ -898,8 +934,12 @@ module Syskit
             # @param (see syskit_stub)
             # @return [Syskit::Component]
             # @see syskit_stub
-            def syskit_stub_deploy_and_configure(model = subject_syskit_model, recursive: true, as: syskit_default_stub_name(model), &block)
-                root = syskit_stub_and_deploy(model, recursive: recursive, as: as, &block)
+            def syskit_stub_deploy_and_configure(
+                    model = subject_syskit_model, recursive: true,
+                    as: syskit_default_stub_name(model),
+                    remote_task: self.syskit_stub_resolves_remote_tasks?, &block)
+
+                root = syskit_stub_and_deploy(model, recursive: recursive, as: as, remote_task: remote_task, &block)
                 syskit_configure(root, recursive: recursive)
                 root
             end
@@ -912,8 +952,12 @@ module Syskit
             # @param (see syskit_stub)
             # @return [Syskit::Component]
             # @see syskit_stub
-            def syskit_stub_deploy_configure_and_start(model = subject_syskit_model, recursive: true, as: syskit_default_stub_name(model), &block)
-                root = syskit_stub_and_deploy(model, recursive: recursive, as: as, &block)
+            def syskit_stub_deploy_configure_and_start(
+                    model = subject_syskit_model, recursive: true,
+                    as: syskit_default_stub_name(model),
+                    remote_task: self.syskit_stub_resolves_remote_tasks?, &block)
+
+                root = syskit_stub_and_deploy(model, recursive: recursive, as: as, remote_task: remote_task, &block)
                 syskit_configure_and_start(root, recursive: recursive)
                 root
             end

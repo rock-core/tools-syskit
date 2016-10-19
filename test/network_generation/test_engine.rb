@@ -441,7 +441,7 @@ module Syskit
 
                         syskit_configure(bus_driver)
 
-                        bus_driver.orocos_task.create_output_port 'dev', '/int'
+                        bus_driver.orocos_task.local_ruby_task.create_output_port 'dev', '/int'
                         flexmock(bus_driver.orocos_task, "bus").should_receive(:start).once.globally.ordered(:bus_startup).pass_thru
                         mock_raw_port(bus_driver, 'dev').should_receive(:connect_to).once.globally.ordered(:bus_startup).pass_thru
                         flexmock(dev_driver.orocos_task, "dev").should_receive(:configure).once.globally.ordered.pass_thru

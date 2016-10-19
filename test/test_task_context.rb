@@ -833,7 +833,7 @@ module Syskit
             execution_engine.scheduler.enabled = false
 
             # Now, deploy !
-            syskit_stub_deployment_model(combus_driver_m, 'bus_task')
+            syskit_stub_deployment_model(combus_driver_m, 'bus_task', remote_task: false)
             syskit_stub_deployment_model(device_driver_m, 'dev_task')
             dev_driver = syskit_deploy(dev)
             bus_driver = plan.find_tasks(combus_driver_m).first
@@ -843,13 +843,13 @@ module Syskit
             mock_logger = flexmock(:level= => nil, :level => Logger::INFO)
             bus_driver.logger = dev_driver.logger = mock_logger
             messages = capture_log(mock_logger, :info) do
-                    bus_driver.orocos_task.create_output_port 'dev', '/int'
-                    flexmock(bus_driver.orocos_task, "bus").should_receive(:start).once.globally.ordered(:setup).pass_thru
-                    mock_raw_port(bus_driver.orocos_task, 'dev').should_receive(:connect_to).once.globally.ordered(:setup).pass_thru
-                    flexmock(dev_driver.orocos_task, "dev").should_receive(:start).once.globally.ordered.pass_thru
-                    execution_engine.scheduler.enabled = true
-                    assert_event_emission bus_driver.start_event
-                    assert_event_emission dev_driver.start_event
+                bus_driver.orocos_task.create_output_port 'dev', '/int'
+                flexmock(bus_driver.orocos_task, "bus").should_receive(:start).once.globally.ordered(:setup).pass_thru
+                mock_raw_port(bus_driver.orocos_task, 'dev').should_receive(:connect_to).once.globally.ordered(:setup).pass_thru
+                flexmock(dev_driver.orocos_task, "dev").should_receive(:start).once.globally.ordered.pass_thru
+                execution_engine.scheduler.enabled = true
+                assert_event_emission bus_driver.start_event
+                assert_event_emission dev_driver.start_event
             end
             assert_equal ["applied configuration [\"default\"] to #{bus_driver.orocos_name}",
                           "setting up #{bus_driver}",
