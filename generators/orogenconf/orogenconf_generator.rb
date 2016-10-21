@@ -48,7 +48,7 @@ class OrogenconfGenerator < Roby::App::GenBase
 
             section = nil
             begin
-                Orocos.run task_model.orogen_model => "oroconf_extract" do
+                Orocos.run task_model.orogen_model => "oroconf_extract", oro_logfile: '/dev/null' do
                     task = Orocos.get "oroconf_extract"
                     task_model.configuration_manager.extract(section_name, task)
                     section = task_model.configuration_manager.conf(section_name)
