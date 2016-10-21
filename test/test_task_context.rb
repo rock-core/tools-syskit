@@ -476,7 +476,7 @@ module Syskit
             end
         end
 
-        describe "#is_setup!" do
+        describe "#setup_successful!" do
             attr_reader :task
             before do
                 plan.add(task = TaskContext.new_submodel.new(orocos_name: "", conf: []))
@@ -485,12 +485,12 @@ module Syskit
             end
             it "resets the executable flag if all inputs are connected" do
                 task.should_receive(:all_inputs_connected?).and_return(true).once
-                task.is_setup!
+                task.setup_successful!
                 assert task.executable?
             end
             it "does not reset the executable flag if some inputs are not connected" do
                 task.should_receive(:all_inputs_connected?).and_return(false).once
-                task.is_setup!
+                task.setup_successful!
                 assert !task.executable?
             end
         end
@@ -715,6 +715,28 @@ module Syskit
                 end
                 assert task.failed_to_start?
             end
+            it "keeps the task in the plan until the asynchronous setup is finished" do
+                plan.unmark_mission_task(task)
+                process_events_until(join_all_waiting_work: false, garbage_collect_pass: true) do
+                    task.setup?
+                end
+            end
+            it "keeps the task in the plan until the asynchronous setup's error has been handled" do
+                flexmock(task).should_receive(:configure).and_return do
+                    sleep 0.1
+                    raise RuntimeError
+                end
+                plan.unmark_mission_task(task)
+                flexmock(task.start_event).should_receive(:emit_failed).
+                    pass_thru do |ret|
+                        refute task.can_finalize?
+                        ret
+                    end
+
+                process_events_until(join_all_waiting_work: false, garbage_collect_pass: true) do
+                    task.failed_to_start?
+                end
+            end
             describe "ordering related to prepare_for_setup" do
                 attr_reader :error_m
 
@@ -739,8 +761,8 @@ module Syskit
                     orocos_task.should_receive(:configure).never
                     setup_task(expected_messages: ["applied configuration [\"default\"] to #{task.orocos_name}", "#{task} was already configured"])
                 end
-                it "does not call is_setup!" do
-                    task.should_receive(:is_setup!).never
+                it "does not call setup_successful!" do
+                    task.should_receive(:setup_successful!).never
                     messages = capture_log(task, :info) do
                         promise = execution_engine.promise(description: "setup of #{task}") { }
                         promise = task.setup(promise)

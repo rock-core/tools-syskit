@@ -153,7 +153,7 @@ module Syskit
             # should be defined in a #configure method
             #
             # Note that for error-handling reasons, the setup? flag is not set
-            # by this method. Caller must call is_setup! after a successful call
+            # by this method. Caller must call {#setup_successful!} after a successful call
             # to #setup
             #
             # @return [Promise] #setup must schedule the work to be done in a
@@ -168,22 +168,52 @@ module Syskit
                 end
             end
 
-            def is_setup!
+            # @api private
+            #
+            # Called once the setup process is finished to mark the task as set
+            # up
+            def setup_successful!
                 @setting_up = nil
                 self.setup = true
             end
 
-            def setting_up?
-                @setting_up && !@setting_up.complete?
+            # @api private
+            #
+            # Called when the setup process failed
+            def setup_failed!(exception)
+                if start_event.plan
+                    start_event.emit_failed(exception)
+                else
+                    Roby.execution_engine.add_framework_error(e, "#{self} got finalized before the setting_up! error handler was called")
+                end
+                @setting_up = nil
             end
 
+            # Whether the task is being set up
+            def setting_up?
+                !!@setting_up
+            end
+
+            # Controls whether the task can be removed from the plan
+            #
+            # Task context objects are kept while they're being set up, for the
+            # sake of not breaking the setup process in an uncontrollable way.
+            def can_finalize?
+                !setting_up?
+            end
+
+            # @api private
+            #
+            # Called to register the setup promise within the component
+            #
+            # @see Runtime.start_task_setup setting_up? is_setup!
             def setting_up!(promise)
-                promise.on_error do |e|
-                    if start_event.plan
-                        start_event.emit_failed(e)
-                    else
-                        Roby.execution_engine.add_framework_error(e, "#{self}.setting_up!")
-                    end
+                if @setting_up
+                    raise InvalidState, "#{self} is already setting up"
+                end
+
+                error_handler = promise.on_error do |e|
+                    setup_failed!(e)
                 end
                 promise.execute
                 @setting_up = promise

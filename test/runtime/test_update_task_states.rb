@@ -13,11 +13,11 @@ module Syskit
             end
 
             describe "configuration success" do
-                it "calls is_setup! if the setup is successful" do
+                it "calls setup_successful! if the setup is successful" do
                     promise = execution_engine.promise { recorder.called }
                     recorder.should_receive(:called).once.globally.ordered
                     task.should_receive(:setup).and_return(promise)
-                    task.should_receive(:is_setup!).once.globally.ordered.pass_thru
+                    task.should_receive(:setup_successful!).once.globally.ordered.pass_thru
                     promise = Runtime.start_task_setup(task)
                     assert task.setting_up?
                     assert !task.setup?
@@ -36,8 +36,8 @@ module Syskit
                     task.should_receive(:setup).and_return(promise)
                 end
 
-                it "does not call is_setup! if the setup raises" do
-                    task.should_receive(:is_setup!).never
+                it "does not call setup_successful! if the setup raises" do
+                    task.should_receive(:setup_successful!).never
                     Runtime.start_task_setup(task)
                     assert_raises(Roby::EmissionFailed) do
                         execution_engine.join_all_waiting_work

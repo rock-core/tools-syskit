@@ -112,14 +112,6 @@ module Syskit
             # The computed port dynamics for this task
             attribute(:port_dynamics) { Hash.new }
 
-            # Controls whether the task can be removed from the plan
-            #
-            # Task context objects are kept while they're being set up, for the
-            # sake of not breaking the setup process in an uncontrollable way.
-            def can_finalize?
-                !setting_up?
-            end
-
             # Tries to update the port dynamics information for the input port
             # +port_name+ based on its inputs
             #
@@ -465,7 +457,7 @@ module Syskit
             #
             # This is meant for internal use. Don't use it unless you know what
             # you are doing
-            def is_setup!
+            def setup_successful!
                 if all_inputs_connected?
                     self.executable = nil
                     execution_engine.scheduler.report_action "configured and all inputs connected, marking as executable", self

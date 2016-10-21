@@ -5,7 +5,7 @@ module Syskit
             promise = execution_engine.promise(description: "setup of #{task}") { }
             promise = task.setup(promise).
                 on_success do
-                    task.is_setup!
+                    task.setup_successful!
                 end
 
             task.setting_up!(promise)
