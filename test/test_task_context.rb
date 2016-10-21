@@ -1043,6 +1043,9 @@ module Syskit
                     assert_equal 'test', p.name
                     assert_same double_t, p.type
                 end
+                it "accepts a symbol as argument" do # backward compatibility with orocos.rb
+                    assert task.property(:test)
+                end
                 it "raises Orocos::InterfaceObjectNotFound if the property does not exist" do
                     assert_raises(Orocos::InterfaceObjectNotFound) do
                         task.property('does_not_exist')

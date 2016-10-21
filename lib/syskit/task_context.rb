@@ -309,6 +309,7 @@ module Syskit
             # Properties in Syskit are applied only at configuration time, or
             # when #commit_properties is called
             def property(name)
+                name = name.to_s
                 if p = properties[name]
                     p
                 else
