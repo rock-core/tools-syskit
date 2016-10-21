@@ -248,7 +248,7 @@ module Syskit
                 #
                 # The "blocking calls should not affect Syskit" tests should
                 # catch this
-                promises.each(&:value!)
+                promises.each { |p| p.promise.value! }
                 return success, failure
             end
 
@@ -382,7 +382,7 @@ module Syskit
                 #
                 # The "blocking calls should not affect Syskit" tests should
                 # catch this
-                promises.each(&:value!)
+                promises.each { |p| p.promise.value! }
                 return success, failure
             end
 
