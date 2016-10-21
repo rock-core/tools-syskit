@@ -149,7 +149,7 @@ module Syskit
 
                 @properties = Hash.new
                 self.model.orogen_model.each_property do |p|
-                    properties[p.name] = Property.new(self, p.name, p.type)
+                    properties[p.name] = Property.new(self, p.name, Roby.app.default_loader.intermediate_type_for(p.type))
                 end
 
                 # All tasks start with executable? and setup? set to false

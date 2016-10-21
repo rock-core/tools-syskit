@@ -1018,6 +1018,14 @@ module Syskit
                 assert_same double_t, p.type
             end
 
+            it "uses the intermediate type as property type" do
+                intermediate_t = stub_type '/intermediate'
+                flexmock(Roby.app.default_loader).should_receive(:intermediate_type_for).
+                    with(double_t).and_return(intermediate_t)
+                task = task_m.new
+                assert_same intermediate_t, task.property('test').type
+            end
+
             describe "#has_property?" do
                 it "returns true if the property exists" do
                     assert task.has_property?('test')
