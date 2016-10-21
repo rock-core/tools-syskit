@@ -3,9 +3,19 @@ class OrogenconfGenerator < Roby::App::GenBase
     attr_reader :orogen_model_name
     # The task model
     attr_reader :task_model
+    # The name of a robot-specific configuration folder
+    attr_reader :robot_name
 
     def initialize(runtime_args, runtime_options = Hash.new)
-        model_name = runtime_args.first
+        # Setup the robot options. Note that its usage is directly handled by
+        # GenBase
+        options = OptionParser.new do |opt|
+            opt.on '--robot=ROBOT', '-r=ROBOT', String, "a robot name into which to generate the config file" do |name|
+                @robot_name = name
+            end
+        end
+
+        model_name = options.parse(runtime_args).first
         @orogen_model_name = model_name
         Roby.app.using_task_library(model_name.split('::').first)
         @task_model = Syskit::TaskContext.find_model_from_orogen_name(model_name)
