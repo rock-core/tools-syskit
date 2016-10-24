@@ -311,11 +311,18 @@ module Syskit
             # when #commit_properties is called
             def property(name)
                 name = name.to_s
-                if p = properties[name]
+                if p = find_property(name)
                     p
                 else
                     raise Orocos::InterfaceObjectNotFound.new(self, name), "#{self} has no property called #{name}"
                 end
+            end
+
+            # Resolves a property by name
+            #
+            # @param [String] name
+            def find_property(name)
+                properties[name.to_str]
             end
 
             # Event emitted when a property commit has successfully finished
@@ -995,6 +1002,11 @@ module Syskit
             def removed_sink(source)
                 super
                 relation_graph_for(Flows::DataFlow).modified_tasks << self
+            end
+
+            def method_missing(m, *args, &block)
+                MetaRuby::DSLs.find_through_method_missing(
+                    self, m, args, 'property') || super
             end
         end
 end
