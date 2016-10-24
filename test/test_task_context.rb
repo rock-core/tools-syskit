@@ -1051,6 +1051,43 @@ module Syskit
                         task.property('does_not_exist')
                     end
                 end
+
+                describe "property access through method_missing" do
+                    it "returns the property when called with its name suffixed with _property" do
+                        assert_equal task.property('test'), task.test_property
+                    end
+                    it "raises NoMethodError if the property does not exist" do
+                        exception = assert_raises(NoMethodError) do
+                            task.does_not_exist_property
+                        end
+                        assert_equal "#{task} has no property named does_not_exist", exception.message
+                    end
+                    it "does follow-up method resolution if the name does not end with _property" do
+                        stub_t = stub_type '/test'
+                        task_m = TaskContext.new_submodel { output_port 'port_test', stub_t }
+                        task = task_m.new
+                        assert_equal task.find_port('port_test'), task.port_test_port
+                    end
+                end
+            end
+
+            describe "#properties" do
+                it "gives read/write access to the properties as fields" do
+                    task.properties.test = 10
+                    assert_equal 10, task.properties.test
+                end
+
+                it "gives read/write access to the raw typelib values" do
+                    raw_value = Typelib.from_ruby(10, task.test_property.type)
+                    task.properties.raw_test = raw_value
+                    assert_equal raw_value, task.properties.raw_test
+                end
+
+                it "raises NotFound if the property does not exist" do
+                    assert_raises(Orocos::NotFound) do
+                        task.properties.does_not_exist
+                    end
+                end
             end
 
             describe "#each_property" do

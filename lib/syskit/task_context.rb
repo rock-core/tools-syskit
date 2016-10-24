@@ -147,10 +147,11 @@ module Syskit
                 @orogen_model   = options[:orogen_model] ||
                     Orocos::Spec::TaskDeployment.new(nil, model.orogen_model)
 
-                @properties = Hash.new
+                properties = Hash.new
                 self.model.orogen_model.each_property do |p|
                     properties[p.name] = Property.new(self, p.name, Roby.app.default_loader.intermediate_type_for(p.type))
                 end
+                @properties = Properties.new(self, properties)
 
                 # All tasks start with executable? and setup? set to false
                 #
@@ -296,12 +297,12 @@ module Syskit
 
             # Enumerate this task's known properties
             def each_property(&block)
-                properties.each_value(&block)
+                properties.each(&block)
             end
 
             # Whether this task has a property with the given name
             def has_property?(name)
-                properties.has_key?(name)
+                properties.include?(name)
             end
 
             # Returns the syskit-side representation of the given property

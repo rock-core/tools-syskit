@@ -82,12 +82,15 @@ module Syskit
         # 
         # This is not necessarily the value on the component side
         def read
-            @value
+            Typelib.to_ruby(@value)
         end
 
-        # For API compatibility with {Orocos::Property}. Identical to {#read}
+        # Read the current Syskit-side value of this property as a Typelib
+        # object
+        # 
+        # This is not necessarily the value on the component side
         def raw_read
-            read
+            @value
         end
 
         # Request updating this property with the given value
@@ -100,6 +103,16 @@ module Syskit
         #   {Orocos::Property}
         def write(value, _timestamp = nil)
             @value = Typelib.from_ruby(value, type)
+        end
+
+        # Update this property with a Typelib object
+        #
+        # The object's type and value will not be checked
+        def raw_write(value, _timestap = nil)
+            if value.class != type
+                raise ArgumentError, "expected a typelib value of type #{type}, but got #{value.class}"
+            end
+            @value = value
         end
 
         # Remove the current value
