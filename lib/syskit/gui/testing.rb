@@ -1,5 +1,8 @@
 require 'roby/app/test_server'
+require 'roby/test/spec'
+require 'syskit/test'
 require 'autorespawn'
+
 module Syskit
     module GUI
         # GUI to interface with testing
