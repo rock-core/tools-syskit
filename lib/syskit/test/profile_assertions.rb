@@ -212,10 +212,19 @@ module Syskit
                     actions = subject_syskit_model
                 end
                 self.assertions += 1
-                assert_can_deploy_together(*Actions(actions))
-                plan.find_tasks(Syskit::TaskContext).each do |task_context|
-                    syskit_configure(task_context)
-                end
+                roots = assert_can_deploy_together(*Actions(actions))
+                # assert_can_deploy_together has one of its idiotic return
+                # interface that returns either a single task if a single action
+                # was given, or an array otherwise. I'd like to have someone
+                # to talk me out of this kind of ideas.
+                tasks = plan.compute_useful_tasks(Array(roots))
+                tasks.find_all { |t| t.kind_of?(Syskit::TaskContext) }.
+                    each do |task_context|
+                        if !task_context.plan
+                            raise ProfileAssertionFailed.new(actions, nil), "#{task_context} got garbage-collected before it got configured"
+                        end
+                        syskit_configure(task_context)
+                    end
             rescue Exception => e
                 raise ProfileAssertionFailed.new(actions, e), e.message
             end
