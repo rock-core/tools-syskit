@@ -83,6 +83,8 @@ module Syskit
             # by #load_orogen_project
             def loaded_orogen_project?(name); loaded_orogen_projects.has_key?(name) end
 
+            OroGenLocation = Struct.new :absolute_path, :lineno, :label
+
             # Registers all objects contained in a given oroGen project
             #
             # @param [OroGen::Spec::Project] orogen the oroGen project that
@@ -106,7 +108,7 @@ module Syskit
 
                 if file = load_component_extension(orogen.name)
                     tasks.each do |t|
-                        t.definition_location = [[file,0,nil]]
+                        t.definition_location = [OroGenLocation.new(file, 1, nil)]
                         t.extension_file = file
                     end
                 end

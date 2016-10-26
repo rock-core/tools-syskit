@@ -118,7 +118,7 @@ module Syskit
                 @used_profiles = Array.new
                 @dependency_injection = DependencyInjection.new
                 @robot = RobotDefinition.new(self)
-                @definition_location = call_stack
+                @definition_location = caller_locations
                 super()
             end
 
