@@ -14,6 +14,10 @@ module Syskit
             def inject_di_context(requirements)
             end
 
+            def empty?
+                devices.empty?
+            end
+
             def clear
                 invalidate_dependency_injection
                 devices.clear
@@ -25,8 +29,16 @@ module Syskit
             # If robot and self have devices with the same names, the ones in
             # self take precedence
             def use_robot(robot)
-                invalidate_dependency_injection
+                return if robot.empty?
+
+                current_size = robot.devices.size
                 @devices = robot.devices.merge(devices)
+
+                if current_size == 0
+                    @di = robot.to_dependency_injection
+                elsif current_size != devices.size
+                    invalidate_dependency_injection
+                end
                 nil
             end
 
