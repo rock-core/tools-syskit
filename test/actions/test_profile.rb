@@ -24,13 +24,25 @@ describe Syskit::Actions::Profile do
             assert_same dst, dst.test_def.profile
         end
 
-        it "imports the existing definitions using #define" do
+        it "imports the existing definitions" do
             task_m = Syskit::TaskContext.new_submodel
             src = Syskit::Actions::Profile.new
             src.define 'test', task_m
 
             dst = Syskit::Actions::Profile.new
-            flexmock(dst).should_receive(:define).with('test', src.test_def).once.
+            flexmock(dst).should_receive(:register_definition).with('test', src.test_def, doc: nil).once.
+                and_return(definition_mock)
+            dst.use_profile src
+        end
+
+        it "uses the existing definition's documentation as documentation for the imported definition" do
+            task_m = Syskit::TaskContext.new_submodel
+            src = Syskit::Actions::Profile.new
+            req = src.define 'test', task_m
+            req.doc "test documentation"
+
+            dst = Syskit::Actions::Profile.new
+            flexmock(dst).should_receive(:register_definition).with('test', src.test_def, doc: "test documentation").once.
                 and_return(definition_mock)
             dst.use_profile src
         end
@@ -56,7 +68,7 @@ describe Syskit::Actions::Profile do
                 and_return(duped = definition_mock)
             duped.should_receive(:push_selections).once
             dst = Syskit::Actions::Profile.new
-            flexmock(dst).should_receive(:define).with('test', duped).once.
+            flexmock(dst).should_receive(:register_definition).with('test', duped, doc: nil).once.
                 and_return(duped)
             dst.use_profile src
         end
