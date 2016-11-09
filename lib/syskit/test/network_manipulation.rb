@@ -73,7 +73,9 @@ module Syskit
                 if add_missions
                     placeholders.each do |t|
                         plan.add_mission_task(t)
-                        t.planning_task.start_event.emit
+                        if t.planning_task.pending?
+                            t.planning_task.start_event.call
+                        end
                     end
                 end
                 task_mapping = plan.in_transaction do |trsc|
@@ -114,7 +116,7 @@ module Syskit
                 requirement_tasks = placeholder_tasks.map(&:planning_task)
 
                 plan.execution_engine.process_events_synchronous do
-                    requirement_tasks.each { |t| t.start! }
+                    requirement_tasks.each { |t| t.start! if !t.running? }
                 end
 
                 begin
