@@ -225,6 +225,7 @@ module Syskit
                         end
                         syskit_configure(task_context)
                     end
+                roots
             rescue Exception => e
                 raise ProfileAssertionFailed.new(actions, e), e.message
             end
