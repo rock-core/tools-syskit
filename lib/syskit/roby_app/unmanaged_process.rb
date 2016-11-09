@@ -90,6 +90,7 @@ module Syskit
             #
             # @return [void]
             def spawn(options = Hash.new)
+                @spawn_start = Time.now
                 @deployed_tasks = nil
             end
 
@@ -114,7 +115,11 @@ module Syskit
                     monitor
                 end
                 return @deployed_tasks
-            rescue Orocos::NotFound, Orocos::ComError
+            rescue Orocos::NotFound, Orocos::ComError => e
+                if Time.now - @spawn_start > 5
+                    Syskit.warn "waiting for unmanaged task: #{e}"
+                end
+                nil
             end
 
             # Returns the component object for the given name
