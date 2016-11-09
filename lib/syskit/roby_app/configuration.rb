@@ -290,11 +290,19 @@ module Syskit
             end
 
             # Declare deployed versions of some Ruby tasks
-            def use_ruby_tasks(mappings)
+            def use_ruby_tasks(mappings, remote_task: false, on: 'ruby_tasks')
+                task_context_class =
+                    if remote_task
+                        Orocos::RubyTasks::RemoteTaskContext
+                    else
+                        Orocos::RubyTasks::TaskContext
+                    end
+
                 mappings.map do |task_model, name|
                     deployment_model = task_model.deployment_model
                     configured_deployment = Models::ConfiguredDeployment.
-                        new('ruby_tasks', deployment_model, Hash['task' => name], name, Hash.new)
+                        new(on, deployment_model, Hash['task' => name],
+                            name, Hash[task_context_class: task_context_class])
                     register_configured_deployment(configured_deployment)
                     configured_deployment
                 end
