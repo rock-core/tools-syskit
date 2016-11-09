@@ -1103,6 +1103,44 @@ module Syskit
                 end
             end
 
+            describe "property updates at runtime" do
+                attr_reader :task, :property
+                before do
+                    @task = syskit_stub_deploy_configure_and_start(task_m)
+                    @property = task.test_property
+                    Orocos.allow_blocking_calls do
+                        @remote_test_property = task.orocos_task.raw_property('test')
+                        @remote_test_property.write(0.2)
+                    end
+                end
+                def mock_remote_property
+                    task.property('test').remote_property = @remote_test_property
+                    flexmock(@remote_test_property)
+                end
+                it "queues a property update" do
+                    mock_remote_property.should_receive(:write).once.with(0.1)
+                    property.write(0.1)
+                    process_events
+                end
+                it "queues only one property update even in case of multiple writes" do
+                    mock_remote_property.should_receive(:write).once.with(0.3)
+                    property.write(0.1)
+                    property.write(0.2)
+                    property.write(0.3)
+                    process_events
+                end
+                it "reports PropertyUpdateError on a failed write" do
+                    error_m = Class.new(RuntimeError)
+                    property.write(0.1)
+                    mock_remote_property.should_receive(:write).once.
+                        and_raise(error_m)
+                    assert_fatal_exception(PropertyUpdateError, failure_point: task, original_exception: error_m, tasks: [task]) do
+                        process_events
+                    end
+                end
+            end
+
+
             describe "#commit_properties" do
                 attr_reader :task, :stub_property, :remote_test_property
                 before do
@@ -1113,24 +1151,23 @@ module Syskit
                         @remote_test_property = task.orocos_task.raw_property('test')
                         remote_test_property.write(0.2)
                     end
-                    syskit_guard_against_start_and_configure
+                    @guard = syskit_guard_against_start_and_configure
                 end
                 def mock_remote_property
                     stub_property.remote_property = @remote_test_property
                     flexmock(@remote_test_property)
                 end
 
-                it "ignores properties that do not have an explicit value" do
-                    stub_property.clear_value
+                it "ignores properties for which #needs_commit? returns false" do
+                    flexmock(stub_property).should_receive(:needs_commit?).and_return(false)
                     task.commit_properties.execute
                     flexmock(Orocos::Property).new_instances.should_receive(:write).never
                     execution_engine.join_all_waiting_work
-                    Orocos.allow_blocking_calls do
-                        assert_equal 0.2, remote_test_property.read
-                    end
                 end
+
                 it "writes the properties that have an explicit value" do
                     stub_property.write(0.1)
+                    flexmock(stub_property).should_receive(:needs_commit?).and_return(true)
                     flexmock(Orocos::Property).new_instances.should_receive(:write).once.
                         with(Typelib.from_ruby(0.1, double_t)).
                         pass_thru
@@ -1138,6 +1175,15 @@ module Syskit
                     process_events
                     Orocos.allow_blocking_calls do
                         assert_equal 0.1, remote_test_property.read
+                    end
+                end
+                it "ignores properties whose remote and local values match" do
+                    stub_property.update_remote_value(stub_property.value)
+                    task.commit_properties.execute
+                    flexmock(Orocos::Property).new_instances.should_receive(:write).never
+                    execution_engine.join_all_waiting_work
+                    Orocos.allow_blocking_calls do
+                        assert_equal 0.2, remote_test_property.read
                     end
                 end
                 it "updates the property's #remote_value after it has been written" do
@@ -1161,20 +1207,18 @@ module Syskit
                     task.commit_properties.execute
                     process_events
                 end
-                it "reports PropertyUpdateError and marks the task as failed-to-start if the write fails" do
-                    error_m = Class.new(RuntimeError)
-                    stub_property.write(0.1)
-                    mock_remote_property.should_receive(:write).once.
-                        and_raise(error_m)
-                    task.commit_properties.execute
-                    flexmock(plan.execution_engine).should_receive(:add_framework_error).
-                        never
-                    flexmock(plan.execution_engine).should_receive(:add_error).
-                        with(->(e) {
-                            assert_kind_of Roby::CodeError, e
-                            assert_equal task, e.failed_task
-                            true })
-                    process_events
+
+                describe "the update during setup" do
+                    it "reports PropertyUpdateError on a failed write" do
+                        error_m = Class.new(RuntimeError)
+                        stub_property.write(0.1)
+                        mock_remote_property.should_receive(:write).once.
+                            and_raise(error_m)
+                        task.commit_properties.execute
+                        assert_fatal_exception(PropertyUpdateError, failure_point: task, original_exception: error_m, tasks: [task]) do
+                            process_events
+                        end
+                    end
                 end
 
                 describe "initial values" do

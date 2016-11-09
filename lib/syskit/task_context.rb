@@ -158,6 +158,9 @@ module Syskit
                 # Then, the engine will call setup, which will do what it should
                 @setup = false
                 @required_host = nil
+                # This is initalized to one as we known that {#setup} will
+                # perform a property update
+                @pending_property_updates = 1
                 self.executable = false
             end
 
@@ -328,11 +331,29 @@ module Syskit
             # Event emitted when a property commit has successfully finished
             event :properties_updated
 
+            # @api private
+            #
+            # Queue a remote property update if none are pending
+            #
+            # This is used by {Property} on writes. Note that because of the
+            # general property update structure, all property updates happening
+            # in a single execution cycle will be committed together.
+            def queue_property_update_if_needed
+                if @pending_property_updates == 0
+                    commit_properties.execute
+                end
+            end
+
             # Apply the values set for the properties to the underlying node
             def commit_properties(promise = self.promise(description: "#{self}#commit_properties"))
                 promise = promise.on_success do
+                    # NOTE: the way properties call #queue_property_update_if_needed
+                    # is called from Property#raw_write depends on the fact that
+                    # snapshotting the property values is the first thing this
+                    # promise does *AND* that this update happens in the execution thread
+                    @pending_property_updates -= 1
                     each_property.map do |p|
-                        if p.has_value?
+                        if p.needs_commit?
                             [p, p.value.dup]
                         end
                     end.compact
@@ -357,6 +378,7 @@ module Syskit
                     end
                 end
 
+                @pending_property_updates += 1
                 promise
             end
 
@@ -577,15 +599,15 @@ module Syskit
             def prepare_for_setup(promise)
                 promise.
                     then do
-                        properties = Array.new
-                        orocos_task.property_names.each do |p_name|
-                            p = orocos_task.property(p_name)
-                            properties << [p, p.raw_read]
+                        properties = orocos_task.property_names.map do |p_name|
+                            remote = orocos_task.raw_property(p_name)
+                            [remote, remote.raw_read]
                         end
                         [properties, orocos_task.port_names, orocos_task.rtt_state]
                     end.on_success do |properties, port_names, state|
                         properties.each do |p, p_value|
                             syskit_p = property(p.name)
+                            syskit_p.remote_property = p
                             syskit_p.update_remote_value(p_value)
                             syskit_p.update_log_metadata(p.log_metadata)
                         end
@@ -646,6 +668,7 @@ module Syskit
                     end
                 end
                 promise = commit_properties(promise)
+                @pending_property_updates -= 1
                 promise.then do
                     state = orocos_task.rtt_state
                     if state == :PRE_OPERATIONAL

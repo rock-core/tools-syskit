@@ -78,6 +78,11 @@ module Syskit
             @remote_value = Typelib.from_ruby(value, type)
         end
 
+        # Whether this property needs to be written on the remote side
+        def needs_commit?
+            @value && (!@remote_value || (@value != @remote_value))
+        end
+
         # Read the current Syskit-side value of this property
         # 
         # This is not necessarily the value on the component side
@@ -102,7 +107,7 @@ module Syskit
         # @param [Time] _timestamp ignored, for compatibility with
         #   {Orocos::Property}
         def write(value, _timestamp = nil)
-            @value = Typelib.from_ruby(value, type)
+            raw_write(Typelib.from_ruby(value, type))
         end
 
         # Update this property with a Typelib object
@@ -113,6 +118,7 @@ module Syskit
                 raise ArgumentError, "expected a typelib value of type #{type}, but got #{value.class}"
             end
             @value = value
+            task_context.queue_property_update_if_needed
         end
 
         # Remove the current value
