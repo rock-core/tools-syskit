@@ -119,21 +119,14 @@ module Syskit
                     size: Syskit.conf.logs.default_logging_buffer_size
                 ]
 
+                seen_loggers = Set.new
                 engine.deployment_tasks.each do |deployment|
                     next if !deployment.plan
-
-                    logger_task = nil
-                    logger_task_name = "#{deployment.process_name}_Logger"
 
                     required_logging_ports = Array.new
                     required_connections   = Array.new
                     deployment.each_executed_task do |t|
                         if t.finishing? || t.finished?
-                            next
-                        end
-
-                        if !logger_task && t.orocos_name == logger_task_name
-                            logger_task = t
                             next
                         elsif t.kind_of?(logger_model)
                             next
@@ -151,18 +144,17 @@ module Syskit
                     end
                     next if required_logging_ports.empty?
 
-                    logger_task ||=
-                        begin
-                            deployment.task(logger_task_name)
-                        rescue ArgumentError
-                            warn "deployment #{deployment.process_name} has no logger (#{logger_task_name})"
-                            next
-                        end
+                    if !(logger_task = deployment.logger_task)
+                        warn "deployment #{deployment.process_name} has no logger (default logger name would be #{deployment.process_name}_Logger))"
+                        next
+                    end
+                    logger_task = work_plan[deployment.logger_task]
 
                     # Disconnect current log connections, we're going to
                     # reestablish the ones we want later on
-                    logger_task.remove_relations(Syskit::Flows::DataFlow)
-                    logger_task.default_logger = true
+                    if !seen_loggers.include?(logger_task)
+                        logger_task.remove_relations(Syskit::Flows::DataFlow)
+                    end
 
                     # Make sure that the tasks are started after the logger was
                     # started

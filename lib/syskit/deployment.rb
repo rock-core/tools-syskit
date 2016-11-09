@@ -41,6 +41,7 @@ module Syskit
             argument :name_mappings, :default => nil
             argument :spawn_options, :default=> nil
             argument :ready_polling_period, default: 0.1
+            argument :logger_task, default: nil
 
             # The underlying process object
             attr_reader :orocos_process
@@ -195,6 +196,32 @@ module Syskit
 
             def log_dir
                 process_server_config.log_dir
+            end
+
+            # Returns this deployment's logger
+            #
+            # @return [TaskContext,nil] either the logging task, or nil if this
+            #   deployment has none
+            def logger_task
+                if arguments[:logger_task]
+                    @logger_task = arguments[:logger_task]
+                elsif @logger_task && !@logger_task.finished?
+                    @logger_task
+                elsif process_name
+                    logger_name = "#{process_name}_Logger"
+                    @logger_task =
+                        each_executed_task.find { |t| t.orocos_name == logger_name } ||
+                            begin
+                                task(logger_name)
+                                # Automatic setup by {NetworkGeneration::LoggerConfigurationSupport}
+                            rescue ArgumentError
+                            end
+
+                    if @logger_task
+                        @logger_task.default_logger = true
+                    end
+                    @logger_task
+                end
             end
 
             # The name of the host this deployment is running on, i.e. the
