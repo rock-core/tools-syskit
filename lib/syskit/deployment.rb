@@ -285,7 +285,7 @@ module Syskit
                 end
                 
                 remote_tasks.each_value do |task|
-                    task.handle.process = orocos_process
+                    task.handle.process = nil
                 end
 
                 each_parent_object(Roby::TaskStructure::ExecutionAgent) do |task|
