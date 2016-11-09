@@ -131,7 +131,7 @@ module Syskit
                         assert deployment_task.orocos_process.dead?
                     end
                 end
-                assert_equal ["unmanaged_deployment_test unexpectedly died on #{process_manager}"],
+                assert_equal ["unmanaged_deployment_test unexpectedly died on process server unmanaged_tasks"],
                     messages
             end
 
