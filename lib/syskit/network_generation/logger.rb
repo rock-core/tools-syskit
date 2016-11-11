@@ -26,9 +26,8 @@ module Syskit
             # @param [TaskContext] the task context that is being logged
             # @param [OutputPort] the port that is being logged
             def create_logging_port(sink_port_name, logged_task, logged_port)
-                return if logged_ports.include?([sink_port_name, logged_port.type.name])
-
                 logged_port_type = logged_port.model.orocos_type_name
+                return if logged_ports.include?([sink_port_name, logged_port_type])
 
                 metadata = Hash[
                     'rock_task_model' => logged_task.concrete_model.orogen_model.name,
