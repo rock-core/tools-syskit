@@ -60,6 +60,14 @@ module Syskit
                 dsl_attribute 'period' do |value|
                     task.add_trigger('period', Float(value), 1)
                 end
+
+                def merge(other)
+                    task.merge(other.task)
+                    other.ports.each_key { |port_name| ports[port_name] ||= PortDynamics.new(port_name) }
+                    ports.merge(other.ports) do |port_name, old, new|
+                        old.merge(new)
+                    end
+                end
             end
 
             def plain?
@@ -75,7 +83,7 @@ module Syskit
                 @context_selections = DependencyInjection.new
                 @deployment_hints = Set.new
                 @specialization_hints = Set.new
-                @dynamics = Dynamics.new(NetworkGeneration::PortDynamics.new('Requirements'), [])
+                @dynamics = Dynamics.new(NetworkGeneration::PortDynamics.new('Requirements'), Hash.new)
                 @can_use_template = true
             end
 
@@ -404,6 +412,8 @@ module Syskit
 
                 @deployment_hints |= other_spec.deployment_hints
                 @specialization_hints |= other_spec.specialization_hints
+
+                @dynamics.merge(other_spec.dynamics)
 
                 invalidate_dependency_injection
                 invalidate_template
