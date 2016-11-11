@@ -17,11 +17,12 @@ module Syskit
                         loader)
                     server.open
 
-                    @process_servers << Thread.new do
+                    thread = Thread.new do
                         server.listen
                     end
-
-                    Syskit.conf.connect_to_orocos_process_server(name, 'localhost', port: server.port)
+                    client  = Syskit.conf.connect_to_orocos_process_server(
+                        name, 'localhost', port: server.port)
+                    @process_servers << [name, thread, client]
                 end
 
                 attr_reader :server0, :server1
@@ -33,8 +34,10 @@ module Syskit
                 end
 
                 after do
-                    @process_servers.each do |th|
-                        th.raise Interrupt
+                    @process_servers.each do |name, thread, client|
+                        client.close
+                        Syskit.conf.remove_process_server(name)
+                        thread.raise Interrupt
                     end
                 end
 
