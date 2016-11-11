@@ -21,6 +21,8 @@ module Syskit
                 if !t.orocos_task
                     plan.execution_engine.scheduler.report_holdoff "did not configure, execution agent not started yet", t
                     next
+                elsif t.execution_agent.aborted_event.pending?
+                    next
                 elsif !t.execution_agent
                     raise NotImplementedError, "#{t} is not yet finished but has no execution agent. #{t}'s history is\n  #{t.history.map(&:to_s).join("\n  ")}"
                 elsif !t.execution_agent.ready?
