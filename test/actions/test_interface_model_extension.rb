@@ -200,7 +200,7 @@ describe Syskit::Actions::InterfaceModelExtension do
             srv_m = Syskit::DataService.new_submodel(name: 'Srv')
             task_m = Syskit::TaskContext.new_submodel(name: 'Task')
             task_m.provides srv_m, as: 'test'
-            deployed_task_m = syskit_stub(task_m)
+            deployed_task_m = syskit_stub_requirements(task_m)
             cmp_m = Syskit::Composition.new_submodel(name: 'Cmp')
             cmp_m.add srv_m, as: 'test'
 
