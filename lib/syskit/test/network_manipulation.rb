@@ -1020,6 +1020,7 @@ module Syskit
                 Syskit::Graphviz.new(plan).to_file('dataflow', 'svg', dataflow)
                 Syskit::Graphviz.new(plan).to_file('hierarchy', 'svg', hierarchy)
                 ::Robot.info "exported plan to #{dataflow} and #{hierarchy}"
+                return dataflow, hierarchy
             end
         end
     end
