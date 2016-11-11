@@ -53,6 +53,10 @@ module Syskit
                 @unmanaged_task = nil
             end
 
+            it "sets the deployment's process name's to the specified name" do
+                assert_equal "unmanaged_deployment_test", deployment_task.process_name
+            end
+
             it "readies the execution agent when the task becomes available" do
                 plan.add_permanent_task(deployment_task)
                 deployment_task.start!
