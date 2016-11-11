@@ -176,14 +176,15 @@ module Syskit
             #
             # It is stronger (and therefore includes)
             # {assert_can_instanciate_together}
-            def assert_can_deploy_together(*actions)
+            def assert_can_deploy_together(*actions, **options)
                 if actions.empty?
                     actions = subject_syskit_model
                 end
                 self.assertions += 1
                 syskit_deploy(Actions(actions),
                                  compute_policies: true,
-                                 compute_deployments: true)
+                                 compute_deployments: true,
+                                 **options)
             rescue Exception => e
                 raise ProfileAssertionFailed.new(actions, e), e.message
             end
