@@ -205,7 +205,7 @@ module Syskit
             def logger_task
                 if arguments[:logger_task]
                     @logger_task = arguments[:logger_task]
-                elsif @logger_task && !@logger_task.finished?
+                elsif @logger_task && @logger_task.reusable?
                     @logger_task
                 elsif process_name
                     logger_name = "#{process_name}_Logger"
