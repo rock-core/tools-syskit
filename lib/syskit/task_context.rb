@@ -311,15 +311,13 @@ module Syskit
 
             # Apply the values set for the properties to the underlying node
             def commit_properties(promise = self.promise(description: "#{self}#commit_properties"))
-                properties = each_property.map do |p|
-                    if p.has_value?
-                        [p, p.value.dup]
-                    end
-                end.compact
-
-                return promise if properties.empty?
-                
-                promise = promise.then(description: "write remote properties") do
+                promise = promise.on_success do
+                    each_property.map do |p|
+                        if p.has_value?
+                            [p, p.value.dup]
+                        end
+                    end.compact
+                end.then(description: "write remote properties") do |properties|
                     properties.map do |p, p_value|
                         begin
                             remote = (p.remote_property ||= orocos_task.raw_property(p.name))
