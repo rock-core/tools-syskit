@@ -494,12 +494,12 @@ module Syskit
                 @tasks = Hash.new
                 tasks_with_candidates.each do |task, candidates|
                     parents = task.dependency_context
-                    candidates = candidates.map do |host, deployment, task_name, existing|
+                    candidates = candidates.map do |process_server_name, deployment, task_name, existing|
                         existing ||= Array.new
                         existing = existing.map do |task|
                             [task, task.dependency_context]
                         end
-                        [host, deployment, task_name, existing]
+                        [process_server_name, deployment, task_name, existing]
                     end
 
                     @tasks[task] = [parents, candidates, task.deployment_hints]
@@ -537,9 +537,9 @@ module Syskit
                     end
 
                     pp.nest(2) do
-                        possible_deployments.each do |host, deployment, task_name, existing|
+                        possible_deployments.each do |process_server_name, deployment, task_name, existing|
                             pp.breakable
-                            pp.text "task #{task_name} from deployment #{deployment.orogen_model.name} defined in #{deployment.orogen_model.project.name} on #{host}"
+                            pp.text "task #{task_name} from deployment #{deployment.orogen_model.name} defined in #{deployment.orogen_model.project.name} on #{process_server_name}"
                             pp.nest(2) do
                                 existing.each do |task, parents|
                                     pp.breakable

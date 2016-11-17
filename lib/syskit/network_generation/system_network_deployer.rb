@@ -153,10 +153,10 @@ module Syskit
                     tasks_with_candidates = Hash.new
                     not_deployed.each do |task|
                         candidates = task_context_deployment_candidates[task.concrete_model] || []
-                        candidates = candidates.map do |host, deployment, task_name|
+                        candidates = candidates.map do |process_server_name, deployment, task_name|
                             existing = plan.find_local_tasks(task.model).
                                 find_all { |t| t.orocos_name == task_name }
-                            [host, deployment, task_name, existing]
+                            [process_server_name, deployment, task_name, existing]
                         end
 
                         tasks_with_candidates[task] = candidates
@@ -171,16 +171,16 @@ module Syskit
             #
             # @return [{Model<TaskContext>=>[(String,Model<Deployment>,String)]}]
             #   mapping from task context models to a set of
-            #   (machine_name,deployment_model,task_name) tuples representing
+            #   (process_server_name,deployment_model,task_name) tuples representing
             #   the known ways this task context model could be deployed
             def compute_task_context_deployment_candidates
                 deployed_models = Hash.new
-                available_deployments.each do |machine_name, deployment_models|
+                available_deployments.each do |process_server_name, deployment_models|
                     deployment_models.each do |model|
                         model.each_orogen_deployed_task_context_model do |deployed_task|
                             task_model = TaskContext.model_for(deployed_task.task_model)
                             deployed_models[task_model] ||= Set.new
-                            deployed_models[task_model] << [machine_name, model, deployed_task.name]
+                            deployed_models[task_model] << [process_server_name, model, deployed_task.name]
                         end
                     end
                 end
@@ -191,7 +191,7 @@ module Syskit
             #
             # @param [Array<(String,Model<Deployment>,String)>] candidates set
             #   of deployment candidates as
-            #   (machine_name,deployment_model,task_name) tuples
+            #   (process_server_name,deployment_model,task_name) tuples
             # @param [Syskit::TaskContext] task the task context for which
             #   candidates are possible deployments
             # @return [(String,Model<Deployment>,String),nil] the resolved

@@ -54,34 +54,124 @@ module Syskit
             end
         end
 
-        describe "#distance_to" do
-            attr_reader :task0, :task1
+        stub_process_server_deployment_helpers = Module.new do
             attr_reader :deployment_m, :deployment0, :deployment1
-            before do
-                task_m = TaskContext.new_submodel
-                plan.add(@task0 = task_m.new)
-                plan.add(@task1 = task_m.new)
+            def setup
+                super
                 @deployment_m = Deployment.new_submodel
-                plan.add(@deployment0 = deployment_m.new)
-                plan.add(@deployment1 = deployment_m.new)
+                @stub_process_servers = []
+            end
+            def teardown
+                @stub_process_servers.each do |ps|
+                    Syskit.conf.remove_process_server(ps.name)
+                end
+                super
+            end
+
+            def create_task_from_host_id(host_id, name: flexmock)
+                process_server = RobyApp::UnmanagedTasksManager.new
+                process = RobyApp::UnmanagedProcess.new(process_server, 'test', nil)
+                log_dir = flexmock('log_dir')
+                process_server_config =
+                    Syskit.conf.register_process_server(name, process_server, log_dir, host_id: host_id)
+                @stub_process_servers << process_server_config
+                deployment = deployment_m.new(on: name)
+                plan.add(task = task_m.new)
+                task.executed_by(deployment)
+                task
+            end
+        end
+
+        describe "#distance_to_syskit" do
+            include stub_process_server_deployment_helpers
+
+            attr_reader :task_m, :deployment_m
+            before do
+                @task_m = TaskContext.new_submodel
+                @deployment_m = Deployment.new_submodel
+            end
+            it "returns D_SAME_PROCESS if the task is on the 'syskit' host_id" do
+                task = create_task_from_host_id 'syskit'
+                assert_equal TaskContext::D_SAME_PROCESS, task.distance_to_syskit
+            end
+            it "returns D_SAME_HOST if the task is running on localhost" do
+                task = create_task_from_host_id 'localhost'
+                assert_equal TaskContext::D_SAME_HOST, task.distance_to_syskit
+            end
+            it "returns D_DIFFERENT_HOSTS if the task is not running on syskit or localhost" do
+                task = create_task_from_host_id 'test'
+                assert_equal TaskContext::D_DIFFERENT_HOSTS, task.distance_to_syskit
+            end
+        end
+
+        describe "#in_process" do
+            include stub_process_server_deployment_helpers
+
+            attr_reader :task_m, :deployment_m
+            before do
+                @task_m = TaskContext.new_submodel
+                @deployment_m = Deployment.new_submodel
+            end
+            it "returns true if the task is on the 'syskit' host_id" do
+                assert create_task_from_host_id('syskit').in_process?
+            end
+            it "returns false if the task is running on localhost" do
+                refute create_task_from_host_id('localhost').in_process?
+            end
+            it "returns false if the task is running on any other host_id than syskit and localhost" do
+                refute create_task_from_host_id('test').in_process?
+            end
+        end
+
+        describe "#on_localhost" do
+            include stub_process_server_deployment_helpers
+
+            attr_reader :task_m, :deployment_m
+            before do
+                @task_m = TaskContext.new_submodel
+                @deployment_m = Deployment.new_submodel
+            end
+            it "returns true if the task is on the 'syskit' host_id" do
+                assert create_task_from_host_id('syskit').on_localhost?
+            end
+            it "returns true if the task is running on localhost" do
+                assert create_task_from_host_id('localhost').on_localhost?
+            end
+            it "returns false if the task is running on any other host_id than syskit and localhost" do
+                refute create_task_from_host_id('test').on_localhost?
+            end
+        end
+
+        describe "#distance_to" do
+            include stub_process_server_deployment_helpers
+
+            attr_reader :task_m, :deployment_m
+            before do
+                @task_m = TaskContext.new_submodel
+                @deployment_m = Deployment.new_submodel
+            end
+            it "returns D_SAME_PROCESS if both tasks are identical" do
+                task = create_task_from_host_id 'test'
+                assert_equal TaskContext::D_SAME_PROCESS, task.distance_to(task)
             end
             it "returns D_SAME_PROCESS if both tasks are from the same process" do
-                task0.executed_by deployment0
-                task1.executed_by deployment0
+                task0 = create_task_from_host_id 'test'
+                task1 = task_m.new
+                task1.executed_by(task0.execution_agent)
                 assert_equal TaskContext::D_SAME_PROCESS, task0.distance_to(task1)
             end
             it "returns D_SAME_HOST if both tasks are from processes on the same host" do
-                task0.executed_by deployment0
-                task1.executed_by deployment1
+                task0 = create_task_from_host_id 'test'
+                task1 = create_task_from_host_id 'test'
                 assert_equal TaskContext::D_SAME_HOST, task0.distance_to(task1)
             end
             it "returns D_DIFFERENT_HOSTS if both tasks are from processes from different hosts" do
-                plan.add(@deployment1 = deployment_m.new(on: 'other_host'))
-                task0.executed_by deployment0
-                task1.executed_by deployment1
+                task0 = create_task_from_host_id 'here'
+                task1 = create_task_from_host_id 'there'
                 assert_equal TaskContext::D_DIFFERENT_HOSTS, task0.distance_to(task1)
             end
             it "returns nil if one of the two tasks has no execution agent" do
+                task0 = create_task_from_host_id 'here'
                 plan.add(task = TaskContext.new_submodel.new)
                 assert !task.distance_to(task0)
                 assert !task0.distance_to(task)

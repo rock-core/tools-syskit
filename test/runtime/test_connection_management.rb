@@ -13,6 +13,18 @@ module Syskit
                 ConnectionManagement.update(plan)
             end
 
+            def test_it_passes_the_policy_and_distance_between_the_two_tasks_to_the_underlying_connect_to_call
+                policy = Hash[type: :buffer, size: 20]
+                flexmock(source.out1_port.to_actual_port.component).should_receive(:distance_to).
+                    with(sink.in1_port.to_actual_port.component).
+                    and_return(distance = flexmock)
+                mock_raw_port(source_task, 'out1').should_receive(:connect_to).
+                    with(mock_raw_port(sink_task, 'in1'), distance: distance, **policy).once.
+                    pass_thru
+                source.out1_port.connect_to sink.in1_port, policy
+                ConnectionManagement.update(plan)
+            end
+
             def test_it_creates_a_new_connection_when_an_existing_edge_is_updated_between_tasks
                 source.out1_port.connect_to sink.in1_port
                 ConnectionManagement.update(plan)
@@ -419,7 +431,7 @@ module Syskit
                                     once.globally.ordered.
                                     pass_thru
                                 out_port.should_receive(:connect_to).
-                                    with(new_in_port, Hash[type: :data]).
+                                    with(new_in_port, Hash[distance: TaskContext::D_SAME_PROCESS, type: :data]).
                                     once.globally.ordered.
                                     pass_thru
                                 ConnectionManagement.update(plan)

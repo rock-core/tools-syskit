@@ -349,15 +349,40 @@ module Syskit
                         from_task.adding_output_port_connection(from_syskit_port, to_syskit_port, policy)
                         to_task.adding_input_port_connection(from_syskit_port, to_syskit_port, policy)
 
-                        [from_task, from_port, to_task, to_port, policy]
+                        distance = from_task.distance_to(to_task)
+
+                        [from_task, from_port, to_task, to_port, policy, distance]
                     end
                 end
             end
 
+            # Actually perform the connections
+            #
+            # It logs a :syskit_connect event at the end of the connection call.
+            # It is formatted as:
+            #
+            #     syskit_connect(:success,
+            #       source_task_orocos_name, source_port_name,
+            #       sink_task_orocos_name, sink_task_name,
+            #       policy)
+            #
+            # or
+            #
+            #     syskit_connect(:failure,
+            #       source_task_orocos_name, source_port_name,
+            #       sink_task_orocos_name, sink_task_name,
+            #       policy, exception)
+            #
+            # @param [Array] the connections to be created, as returned by
+            #   {#pre_connect}
+            # @return [(Array,Array)] the successful and failed connections, in
+            #   the same format than the connection argument for the success
+            #   array. The failure array gets in addition the exception as last
+            #   argument.
             def perform_connections(connections)
                 success, failure = Concurrent::Array.new, Concurrent::Array.new
                 port_cache = Concurrent::Map.new
-                promises = connections.map do |from_task, from_port, to_task, to_port, policy|
+                promises = connections.map do |from_task, from_port, to_task, to_port, policy, distance|
                     execution_engine = plan.execution_engine
                     execution_engine.promise(description: "connect #{from_task.orocos_name}##{from_port} -> #{to_task.orocos_name}##{to_port}") do
                         begin
@@ -365,7 +390,7 @@ module Syskit
                                 (port_cache[[from_task, from_port]] ||= from_task.orocos_task.raw_port(from_port))
                             to_orocos_port   =
                                 (port_cache[[to_task, to_port]] ||= to_task.orocos_task.raw_port(to_port))
-                            from_orocos_port.connect_to(to_orocos_port, policy)
+                            from_orocos_port.connect_to(to_orocos_port, distance: distance, **policy)
                             execution_engine.log(:syskit_connect, :success, from_task.orocos_name, from_port, to_task.orocos_name, to_port, policy)
                             success << [from_task, from_port, to_task, to_port, policy]
                         rescue Exception => e

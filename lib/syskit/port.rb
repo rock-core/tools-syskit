@@ -239,8 +239,9 @@ module Syskit
                 raise ArgumentError, "cannot find a port called #{@port.name} on #{component}"
             end
             @actual_port = resolved_port.to_actual_port
+            distance = actual_port.component.distance_to_syskit
             resolver = component.promise(description: "#{@actual_port}#reader for #{self}") do
-                @actual_port.to_orocos_port.reader(policy)
+                @actual_port.to_orocos_port.reader(distance: distance, **policy)
             end
                 
             resolver.on_error do |error|
@@ -342,8 +343,9 @@ module Syskit
                 raise ArgumentError, "cannot find a port called #{@port.name} on #{component}"
             end
             @actual_port = resolved_port.to_actual_port
+            distance = actual_port.component.distance_to_syskit
             resolver = component.promise(description: "#{@actual_port}#writer for #{self}") do
-                @actual_port.to_orocos_port.writer(policy)
+                @actual_port.to_orocos_port.writer(distance: distance, **policy)
             end
             resolver.on_success do |writer|
                 if !@disconnected

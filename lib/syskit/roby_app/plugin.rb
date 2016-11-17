@@ -203,7 +203,7 @@ module Syskit
                 Orocos.disable_sigchld_handler = true
 
                 Syskit.conf.register_process_server(
-                    'ruby_tasks', Orocos::RubyTasks::ProcessManager.new(app.default_loader), app.log_dir)
+                    'ruby_tasks', Orocos::RubyTasks::ProcessManager.new(app.default_loader), app.log_dir, host_id: 'syskit')
 
                 Syskit.conf.register_process_server(
                     'unmanaged_tasks', UnmanagedTasksManager.new, app.log_dir)
@@ -242,7 +242,7 @@ module Syskit
                     connect_to_local_process_server(app)
                 else
                     fake_client = Configuration::ModelOnlyServer.new(app.default_loader)
-                    Syskit.conf.register_process_server('localhost', fake_client, app.log_dir)
+                    Syskit.conf.register_process_server('localhost', fake_client, app.log_dir, host_id: 'syskit')
                 end
 
                 app.isolate_load_errors("while reloading deployment definitions") do

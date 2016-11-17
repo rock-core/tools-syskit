@@ -66,7 +66,7 @@ module Syskit
                         self,
                         log_file_name: process.default_log_file_name(orocos_task.basename),
                         log_dir: deployment.log_dir,
-                        remote: (deployment.host != 'localhost'))
+                        remote: !deployment.on_localhost?)
                 end
 
                 each_input_connection do |source_task, source_port_name, sink_port_name, policy|

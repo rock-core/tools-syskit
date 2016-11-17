@@ -39,7 +39,7 @@ module Syskit
 
     describe Deployment do
         attr_reader :deployment_task, :task_m, :orogen_deployed_task, :deployment_m
-        attr_reader :process_server, :process, :log_dir
+        attr_reader :process_server, :process_server_config, :process, :log_dir
 
         before do
             @task_m = TaskContext.new_submodel
@@ -51,7 +51,7 @@ module Syskit
             @process = ProcessFixture.new(process_server)
             process_server.tasks['mapped_task_name'] = process
             @log_dir = flexmock('log_dir')
-            Syskit.conf.register_process_server('fixture', process_server, log_dir)
+            @process_server_config = Syskit.conf.register_process_server('fixture', process_server, log_dir)
             plan.add_permanent_task(
                 @deployment_task = deployment_m.
                 new(process_name: 'mapped_task_name', on: 'fixture', name_mappings: Hash['task' => 'mapped_task_name']))
@@ -70,6 +70,20 @@ module Syskit
             end
         end
 
+        # Helper method that mocks a port accessed through
+        # Orocos::TaskContext#raw_port
+        def mock_raw_port(task, port_name)
+            if task.respond_to?(:orocos_task)
+                task = task.orocos_task
+            end
+
+            port = Orocos.allow_blocking_calls do
+                task.raw_port(port_name)
+            end
+            task.should_receive(:raw_port).with(port_name).and_return(port)
+            flexmock(port)
+        end
+
         describe "#initialize" do
             it "uses the model name as default deployment name" do
                 model = Orocos::Spec::Deployment.new(nil, "test")
@@ -82,12 +96,18 @@ module Syskit
             it "sets the target host to localhost by default" do
                 task = Deployment.new_submodel.new
                 task.freeze_delayed_arguments
-                assert_equal 'localhost', task.host
+                assert_equal 'localhost', task.process_server_name
             end
 
-            it "allows to access the value of the :on argument through the #host method" do
+            it "allows to access the value of the :on argument through the #process_server_name method" do
                 task = Deployment.new_submodel.new(on: 'fixture')
-                assert_equal 'fixture', task.host
+                assert_equal 'fixture', task.process_server_name
+            end
+
+            it "allows to access the process server's host_id through #host_id" do
+                task = Deployment.new_submodel.new(on: 'fixture')
+                flexmock(process_server_config).should_receive(:host_id).and_return(host_id = flexmock)
+                assert_equal host_id, task.host_id
             end
         end
 
@@ -284,6 +304,23 @@ module Syskit
                     make_deployment_ready
                     assert_equal orocos_task, deployment_task.remote_task_handles['mapped_task_name'].handle
                 end
+                it "creates state readers for each supported tasks" do
+                    deployment_task.should_receive(:create_state_access).once.
+                        with(orocos_task, Hash).
+                        and_return([state_reader = flexmock, state_getter = flexmock])
+                    make_deployment_ready
+                    assert_equal state_reader, deployment_task.remote_task_handles['mapped_task_name'].state_reader
+                    assert_equal state_getter, deployment_task.remote_task_handles['mapped_task_name'].state_getter
+                end
+                it "passes the distance-to-syskit at state reader creation" do
+                    deployment_task.should_receive(:create_state_access).once.
+                        with(orocos_task, distance: TaskContext::D_DIFFERENT_HOSTS).
+                        pass_thru
+                    mock_raw_port(flexmock(orocos_task), 'state').should_receive(:reader).
+                        with(hsh(distance: TaskContext::D_DIFFERENT_HOSTS)).
+                        once.pass_thru
+                    make_deployment_ready
+                end
                 it "initializes supported task contexts" do
                     task = add_deployed_task
                     task.should_receive(:initialize_remote_handles).once.
@@ -461,6 +498,101 @@ module Syskit
                 flexmock(deployment.task('task').orocos_task).should_receive(:dispose).once.pass_thru
                 deployment.stop!
                 assert_event_emission deployment.stop_event
+            end
+        end
+
+        stub_process_server_deployment_helpers = Module.new do
+            attr_reader :deployment_m, :deployment0, :deployment1
+            def setup
+                super
+                @deployment_m = Deployment.new_submodel
+                @stub_process_servers = []
+            end
+            def teardown
+                @stub_process_servers.each do |ps|
+                    Syskit.conf.remove_process_server(ps.name)
+                end
+                super
+            end
+
+            def create_deployment(host_id, name: flexmock)
+                process_server = ProcessServerFixture.new
+                process = ProcessFixture.new(process_server)
+                process_server.tasks['mapped_task_name'] = process
+                log_dir = flexmock('log_dir')
+                process_server_config =
+                    Syskit.conf.register_process_server(name, process_server, log_dir, host_id: host_id)
+                @stub_process_servers << process_server_config
+                deployment_m.new(on: name)
+            end
+        end
+
+        describe "#distance_to_syskit" do
+            include stub_process_server_deployment_helpers
+
+            it "returns D_SAME_PROCESS if called with a in-process process server" do
+                d = create_deployment 'syskit'
+                assert_equal TaskContext::D_SAME_PROCESS, d.distance_to_syskit
+            end
+            it "returns D_SAME_HOST for process servers that run on localhost" do
+                d = create_deployment 'localhost'
+                assert_equal TaskContext::D_SAME_HOST, d.distance_to_syskit
+            end
+            it "returns D_DIFFERENT_HOSTS for any other host_id" do
+                d = create_deployment 'something_else'
+                assert_equal TaskContext::D_DIFFERENT_HOSTS, d.distance_to_syskit
+            end
+        end
+
+        describe "#in_process?" do
+            include stub_process_server_deployment_helpers
+
+            it "returns true if called with a in-process process server" do
+                assert create_deployment('syskit').in_process?
+            end
+            it "returns false for process servers that run on localhost" do
+                refute create_deployment('localhost').in_process?
+            end
+            it "returns false for any other host_id" do
+                refute create_deployment('host').in_process?
+            end
+        end
+
+        describe "#on_localhost?" do
+            include stub_process_server_deployment_helpers
+
+            it "returns true if called with a in-process process server" do
+                assert create_deployment('syskit').on_localhost?
+            end
+            it "returns true for process servers that run on localhost" do
+                assert create_deployment('localhost').on_localhost?
+            end
+            it "returns false for any other host_id" do
+                refute create_deployment('host').on_localhost?
+            end
+        end
+
+        describe "#distance_to" do
+            include stub_process_server_deployment_helpers
+
+            it "returns D_SAME_PROCESS if called with self" do
+                d0 = create_deployment 'here'
+                assert_equal TaskContext::D_SAME_PROCESS, d0.distance_to(d0)
+            end
+            it "returns D_SAME_PROCESS for process servers that run in-process" do
+                d0 = create_deployment 'syskit'
+                d1 = create_deployment 'syskit'
+                assert_equal TaskContext::D_SAME_PROCESS, d0.distance_to(d1)
+            end
+            it "returns D_SAME_HOST if both tasks are executed from process servers on the same host" do
+                d0 = create_deployment 'test'
+                d1 = create_deployment 'test'
+                assert_equal TaskContext::D_SAME_HOST, d0.distance_to(d1)
+            end
+            it "returns D_DIFFERENT_HOSTS if both tasks are from processes from different hosts" do
+                d0 = create_deployment 'here'
+                d1 = create_deployment 'there'
+                assert_equal TaskContext::D_DIFFERENT_HOSTS, d0.distance_to(d1)
             end
         end
     end

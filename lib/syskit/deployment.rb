@@ -50,7 +50,7 @@ module Syskit
             #
             # @return [RobyApp::Configuration::ProcessServerConfig]
             def process_server_config
-                @process_server_config ||= Syskit.conf.process_server_config_for(host)
+                @process_server_config ||= Syskit.conf.process_server_config_for(process_server_name)
             end
 
             def initialize(options = Hash.new)
@@ -99,12 +99,6 @@ module Syskit
             # It is forwarded to failed_event
             event :signaled
             forward :signaled => :failed
-
-            # Returns true if +self+ and +task+ are running on the same process
-            # server
-            def on_same_server?(task)
-                task == self || host == task.host
-            end
 
             def instanciate_all_tasks
                 model.each_orogen_deployed_task_context_model.map do |act|
@@ -184,7 +178,7 @@ module Syskit
                 end
 
                 Deployment.info do
-                    "starting deployment #{process_name} using #{model.deployment_name} on #{host} with #{spawn_options} and mappings #{name_mappings}"
+                    "starting deployment #{process_name} using #{model.deployment_name} on #{arguments[:on]} with #{spawn_options} and mappings #{name_mappings}"
                 end
 
                 @orocos_process = process_server_config.client.start(
@@ -224,10 +218,55 @@ module Syskit
                 end
             end
 
+            # How "far" this process is from the Syskit process
+            #
+            # @return one of the {TaskContext}::D_* constants
+            def distance_to_syskit
+                if in_process?
+                    TaskContext::D_SAME_PROCESS
+                elsif on_localhost?
+                    TaskContext::D_SAME_HOST
+                else
+                    TaskContext::D_DIFFERENT_HOSTS
+                end
+            end
+
+            # The name of the process server
+            def process_server_name
+                arguments[:on]
+            end
+
             # The name of the host this deployment is running on, i.e. the
             # name given to the :on argument.
-            def host
-                arguments[:on]
+            def host_id
+                process_server_config.host_id
+            end
+
+            # Whether this task runs within the Syskit process itself
+            def in_process?
+                process_server_config.in_process?
+            end
+
+            # Whether this deployment runs on the same host than the Syskit process
+            def on_localhost?
+                process_server_config.on_localhost?
+            end
+
+            # "How far" this deployment is from another
+            #
+            # It returns one of the TaskContext::D_ constants
+            def distance_to(other_deployment)
+                if other_deployment == self
+                    TaskContext::D_SAME_PROCESS
+                elsif other_deployment.host_id == host_id
+                    if host_id == 'syskit'
+                        TaskContext::D_SAME_PROCESS
+                    else
+                        TaskContext::D_SAME_HOST
+                    end
+                else
+                    TaskContext::D_DIFFERENT_HOSTS
+                end
             end
 
             # Returns true if the syskit plugin configuration requires
@@ -269,13 +308,14 @@ module Syskit
             # It will reschedule itself until the process is ready, and will
             # emit the ready event when it happens
             def schedule_ready_event_monitor(handles_from_plan, ready_polling_period: self.ready_polling_period)
+                distance_to_syskit = self.distance_to_syskit
                 promise = execution_engine.promise(description: "#{self}:ready_event_monitor") do
                     while !quit_ready_event_monitor.set? && !(handles = orocos_process.resolve_all_tasks(handles_from_plan))
                         sleep ready_polling_period
                     end
 
                     (handles || Hash.new).map_value do |_, remote_task|
-                        state_reader, state_getter = create_state_access(remote_task)
+                        state_reader, state_getter = create_state_access(remote_task, distance: distance_to_syskit)
                         properties = remote_task.each_property.map do |p|
                             [p.name, p.raw_read]
                         end
@@ -331,7 +371,7 @@ module Syskit
             #
             # Called asynchronously to initialize the {RemoteTaskHandles} object
             # once and for all
-            def create_state_access(remote_task)
+            def create_state_access(remote_task, distance: TaskContext::D_UNKNOWN)
                 state_getter = RemoteStateGetter.new(
                     remote_task,
                     initial_state: remote_task.rtt_state)
@@ -340,7 +380,7 @@ module Syskit
                     state_port = remote_task.raw_port('state')
                     state_reader = state_port.reader(
                         type: :buffer, size: STATE_READER_BUFFER_SIZE, init: true,
-                        transport: Orocos::TRANSPORT_CORBA)
+                        distance: distance)
                     state_reader.extend Orocos::TaskContext::StateReader
                     state_reader.state_symbols = remote_task.state_symbols
                 else

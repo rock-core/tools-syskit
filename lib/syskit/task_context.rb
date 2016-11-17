@@ -173,20 +173,29 @@ module Syskit
 
             # Value returned by TaskContext#distance_to when the tasks are in
             # the same process
-            D_SAME_PROCESS = 0
+            D_SAME_PROCESS = Orocos::OutputPort::D_SAME_PROCESS
             # Value returned by TaskContext#distance_to when the tasks are in
             # different processes, but on the same machine
-            D_SAME_HOST = 1
+            D_SAME_HOST = Orocos::OutputPort::D_SAME_HOST
             # Value returned by TaskContext#distance_to when the tasks are in
             # different processes localized on different machines
-            D_DIFFERENT_HOSTS = 2
-            # Maximum distance value
-            D_MAX          = 2
+            D_DIFFERENT_HOSTS = Orocos::OutputPort::D_DIFFERENT_HOSTS
 
-            # Returns true if +self+ and +task+ are on the same process server
-            def on_same_server?(task)
-                d = distance_to(task)
-                d && d != D_DIFFERENT_HOSTS
+            # How "far" this process is from the Syskit process
+            #
+            # @return one of the {TaskContext}::D_* constants
+            def distance_to_syskit
+                execution_agent.distance_to_syskit
+            end
+
+            # Whether this task runs within the Syskit process itself
+            def in_process?
+                execution_agent.in_process?
+            end
+
+            # Whether this task runs on the same host than the Syskit process
+            def on_localhost?
+                execution_agent.on_localhost?
             end
 
             # Returns a value that represents how the two task contexts are far
@@ -196,21 +205,14 @@ module Syskit
             #   one or both of the tasks are not deployed
             # D_SAME_PROCESS::
             #   both tasks are in the same process
-            # D_SAME_MACHINE::
+            # D_SAME_HOST::
             #   both tasks are in different processes, but on the same machine
-            # D_DIFFERENT_MACHINES::
+            # D_DIFFERENT_HOSTS::
             #   both tasks are in different processes localized on different
             #   machines
             def distance_to(other)
                 return if !execution_agent || !other.execution_agent
-
-                if execution_agent == other.execution_agent # same process
-                    D_SAME_PROCESS
-                elsif execution_agent.host == other.execution_agent.host # same machine
-                    D_SAME_HOST
-                else
-                    D_DIFFERENT_HOSTS
-                end
+                execution_agent.distance_to(other.execution_agent)
             end
 
             # Verifies if a task could be replaced by this one
