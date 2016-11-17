@@ -609,6 +609,51 @@ module Syskit
             def self.register_generators(app)
                 RubiGen::Base.__sources << RubiGen::PathSource.new(:syskit, File.join(Syskit::SYSKIT_ROOT_DIR, "generators"))
             end
+
+            class VariableSizedType < RuntimeError; end
+
+            def self.validate_port_has_fixed_size(port, with_global_size, only_warn: false)
+                return if with_global_size.include?(port.type)
+                if fixed_size_type?(port.type) || globally_sized_type?(port.type)
+                    with_global_size << port.type
+                    return
+                end
+
+                port = port.to_component_port
+                if size = port.max_marshalling_size
+                    size
+                else
+                    msg = "marshalled size of port #{port} cannot be inferred"
+                    if only_warn
+                        ::Robot.warn msg
+                    else
+                        raise VariableSizedType, msg
+                    end
+                end
+            end
+
+            def self.fixed_size_type?(type)
+                !type.contains?(Typelib::ContainerType)
+            end
+
+            def self.globally_sized_type?(type)
+                sizes = Orocos.max_sizes_for(type)
+                !sizes.empty? && OroGen::Spec::Port.compute_max_marshalling_size(type, sizes)
+            end
+
+            def self.validate_all_port_types_have_fixed_size(only_warn: false)
+                with_global_size = Set.new
+                Syskit::Component.each_submodel do |component_m|
+                    next if component_m.abstract?
+
+                    component_m.each_input_port do |p|
+                        validate_port_has_fixed_size(p, with_global_size, only_warn: only_warn)
+                    end
+                    component_m.each_output_port do |p|
+                        validate_port_has_fixed_size(p, with_global_size, only_warn: only_warn)
+                    end
+                end
+            end
         end
     end
 end

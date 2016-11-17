@@ -31,7 +31,15 @@ module Syskit
                 else
                     @type = orogen_model.type
                 end
+                @max_sizes = orogen_model.max_sizes.
+                    merge(Orocos.max_sizes_for(type))
             end
+
+            def max_marshalling_size
+                OroGen::Spec::OutputPort.compute_max_marshalling_size(type, max_sizes)
+            end
+
+            attr_reader :max_sizes
 
             # Whether this port and the argument represent the same port
             def same_port?(other)
