@@ -40,7 +40,7 @@ describe Syskit::Models::Composition do
         DefinitionModule.const_set :Cmp, model
         assert_equal "DefinitionModule::Cmp", model.name
     end
-    
+
     describe "#new_submodel" do
         it "registers the submodel" do
             submodel = Syskit::Composition.new_submodel

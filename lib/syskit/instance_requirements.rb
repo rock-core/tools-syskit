@@ -611,8 +611,13 @@ module Syskit
 
             # Specifies new arguments that must be set to the instanciated task
             def with_arguments(arguments)
-                invalidate_template
                 @arguments.merge!(arguments)
+                self
+            end
+
+            # Clear all arguments
+            def with_no_arguments
+                @arguments.clear
                 self
             end
 
@@ -625,8 +630,7 @@ module Syskit
             # Specifies that the task that is represented by this requirement
             # should use the given configuration
             def with_conf(*conf)
-                invalidate_template
-                @arguments[:conf] = conf
+                with_arguments(conf: conf)
                 self
             end
 
@@ -776,19 +780,30 @@ module Syskit
                 @di
             end
 
+            def compute_template
+                base_requirements = dup.with_no_arguments
+                template = TemplatePlan.new
+                template.root_task = base_requirements.
+                    instanciate(template, use_template: false).
+                    to_task
+                merge_solver = NetworkGeneration::MergeSolver.new(template)
+                merge_solver.merge_identical_tasks
+                template.root_task = merge_solver.replacement_for(template.root_task)
+                @template = template
+            end
+
             def instanciate_from_template(plan)
                 if !@template
-                    template = TemplatePlan.new
-                    template.root_task = instanciate(template, use_template: false).
-                        to_task
-                    merge_solver = NetworkGeneration::MergeSolver.new(template)
-                    merge_solver.merge_identical_tasks
-                    template.root_task = merge_solver.replacement_for(template.root_task)
-                    @template = template
+                    compute_template
                 end
 
                 mappings = @template.deep_copy_to(plan)
-                return model.bind(mappings[@template.root_task])
+                root_task = mappings[@template.root_task] 
+                root_task.assign_arguments(arguments)
+                return model.bind(root_task)
+            end
+            def has_template?
+                !!@template
             end
 
             # Create a concrete task for this requirement

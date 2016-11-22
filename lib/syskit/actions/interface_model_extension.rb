@@ -49,6 +49,24 @@ module Syskit
 
             # @api private
             #
+            # Do the resolution of an action model into the requirements that
+            # should actually be used
+            def self.resolve_definition(cache, profile, action_model, arguments)
+                if !(definition = cache[action_model])
+                    definition = action_model.resolve_definition_on(profile).dup
+                    cache[action_model] = definition
+                end
+
+                if !definition.has_template? && definition.can_use_template?
+                    definition.compute_template
+                end
+                definition = definition.dup
+                definition.with_arguments(arguments)
+                definition
+            end
+
+            # @api private
+            #
             # Registers an action that has been derived from a profile
             # definition or device
             def register_action_from_profile(action_model)
@@ -56,22 +74,21 @@ module Syskit
                 action_name  = action_model.name
                 profile_library.register_action(action_name, action_model)
 
+                @resolved_definitions_cache ||= Hash.new
+                cache = @resolved_definitions_cache
+
                 args = action_model.each_arg.to_a
                 if args.any?(&:required?)
                     profile_library.send(:define_method, action_name) do |arguments|
-                        final_req = action_model.resolve_definition_on(profile)
-                        final_req.with_arguments(arguments)
-                        final_req
+                        InterfaceModelExtension.resolve_definition(cache, profile, action_model, arguments)
                     end
                 elsif !args.empty?
                     profile_library.send(:define_method, action_name) do |arguments = Hash.new|
-                    final_req = action_model.resolve_definition_on(profile)
-                    final_req.with_arguments(arguments)
-                    final_req
+                        InterfaceModelExtension.resolve_definition(cache, profile, action_model, arguments)
                     end
                 else
                     profile_library.send(:define_method, action_name) do
-                        final_req = action_model.resolve_definition_on(profile)
+                        InterfaceModelExtension.resolve_definition(cache, profile, action_model, Hash.new)
                     end
                 end
             end

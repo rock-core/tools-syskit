@@ -37,6 +37,9 @@ module Syskit
 
             def plan_pattern(arguments = Hash.new)
                 job_id, arguments = Kernel.filter_options arguments, :job_id
+                if !requirements.has_template? && requirements.can_use_template?
+                    requirements.compute_template
+                end
                 req = requirements.dup
                 req.with_arguments(arguments)
                 placeholder = req.as_plan(job_id)
