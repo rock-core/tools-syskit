@@ -612,7 +612,7 @@ module Syskit
 
             class VariableSizedType < RuntimeError; end
 
-            def self.validate_port_has_fixed_size(port, with_global_size, only_warn: false)
+            def self.validate_port_has_fixed_size(port, with_global_size, only_warn: false, ignore: [])
                 return if with_global_size.include?(port.type)
                 if fixed_size_type?(port.type) || globally_sized_type?(port.type)
                     with_global_size << port.type
@@ -620,7 +620,9 @@ module Syskit
                 end
 
                 port = port.to_component_port
-                if size = port.max_marshalling_size
+                if ignore.include?(port.type)
+                    return
+                elsif size = port.max_marshalling_size
                     size
                 else
                     msg = "marshalled size of port #{port} cannot be inferred"
@@ -641,16 +643,16 @@ module Syskit
                 !sizes.empty? && OroGen::Spec::Port.compute_max_marshalling_size(type, sizes)
             end
 
-            def self.validate_all_port_types_have_fixed_size(only_warn: false)
+            def self.validate_all_port_types_have_fixed_size(only_warn: false, ignore: [])
                 with_global_size = Set.new
                 Syskit::Component.each_submodel do |component_m|
                     next if component_m.abstract?
 
                     component_m.each_input_port do |p|
-                        validate_port_has_fixed_size(p, with_global_size, only_warn: only_warn)
+                        validate_port_has_fixed_size(p, with_global_size, only_warn: only_warn, ignore: ignore)
                     end
                     component_m.each_output_port do |p|
-                        validate_port_has_fixed_size(p, with_global_size, only_warn: only_warn)
+                        validate_port_has_fixed_size(p, with_global_size, only_warn: only_warn, ignore: ignore)
                     end
                 end
             end
