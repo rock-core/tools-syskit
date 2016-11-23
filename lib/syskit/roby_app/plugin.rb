@@ -656,6 +656,22 @@ module Syskit
                     end
                 end
             end
+
+            # Start all deployments
+            #
+            # @param [String,nil] on the name of the process server on which
+            #   deployments should be started. If nil, all servers are considered
+            def syskit_start_all_deployments(on: nil, except_on: "unmanaged_tasks")
+                existing_deployments = plan.find_tasks(Syskit::Deployment).
+                    not_finished.
+                    find_all { |d| d.reusable? }.
+                    map(&:process_name).to_set
+
+                Syskit.conf.each_configured_deployment(on: on, except_on: except_on) do |configured_deployment|
+                    next if existing_deployments.include?(configured_deployment.process_name)
+                    plan.add_permanent_task(configured_deployment.new)
+                end
+            end
         end
     end
 end

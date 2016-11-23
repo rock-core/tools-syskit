@@ -67,7 +67,6 @@ module Syskit
                 @auto_configure = true
                 @only_load_models = nil
                 @disables_local_process_server = false
-                @start_all_deployments = false
                 @local_only = false
                 @prefix_blacklist = []
                 @sd_publish_list = []
@@ -206,13 +205,6 @@ module Syskit
             #
             # @see connect_to_orocos_process_server Plugin#start_local_process_server
             attr_predicate :disables_local_process_server?, true
-
-            # If true, all deployments declared with use_deployment or
-            # use_deployments_from are getting started at the very beginning of
-            # the execution
-            #
-            # This greatly reduces latency during operations
-            attr_predicate :start_all_deployments?, true
 
             # If set to a non-nil value, the deployment processes will be
             # started with the given prefix
@@ -394,6 +386,20 @@ module Syskit
                     deployed_tasks[task.name] = configured_deployment
                 end
                 deployments[configured_deployment.process_server_name] << configured_deployment
+            end
+
+            # Enumerate the registered configured deployments
+            #
+            # @param [String,nil] on name of the process server whose
+            #   deployments should be enumerated, or all servers if nil
+            def each_configured_deployment(on: nil, except_on: nil, &block)
+                return enum_for(__method__, on: on) if !block
+
+                deployments.each do |process_server_name, process_server_deployments|
+                    next if except_on && (except_on === process_server_name)
+                    next if on && !(on === process_server_name)
+                    process_server_deployments.each(&block)
+                end
             end
 
             # Add all the deployments defined in the given oroGen project to the
