@@ -470,7 +470,8 @@ module Syskit
                 end
 
                 state ||= read_current_state
-                return RTT_CONFIGURABLE_STATES.include?(state)
+                return [:STOPPED, :PRE_OPERATIONAL].include?(state) ||
+                    orocos_task.exception_state?(state)
             end
 
             # Returns true if the underlying Orocos task has been configured and

@@ -531,14 +531,20 @@ module Syskit
             end
             it "returns false if the task's current state is not one from which we can configure" do
                 task.should_receive(:read_current_state).and_return(state = Object.new)
-                flexmock(TaskContext::RTT_CONFIGURABLE_STATES).should_receive(:include?).once.
-                    with(state).and_return(false)
                 refute task.ready_for_setup?
             end
-            it "returns true if the task's current state is one from which we can configure" do
+            it "returns true if the task's current state is an exception state" do
                 task.should_receive(:read_current_state).and_return(state = Object.new)
-                flexmock(TaskContext::RTT_CONFIGURABLE_STATES).should_receive(:include?).once.
+                flexmock(task.orocos_task).should_receive(:exception_state?).
                     with(state).and_return(true)
+                assert task.ready_for_setup?
+            end
+            it "returns true if the task's current state is STOPPED" do
+                task.should_receive(:read_current_state).and_return(:STOPPED)
+                assert task.ready_for_setup?
+            end
+            it "returns true if the task's current state is PRE_OPERATIONAL" do
+                task.should_receive(:read_current_state).and_return(:STOPPED)
                 assert task.ready_for_setup?
             end
         end
