@@ -11,14 +11,10 @@ module Syskit
             include Logger::Hierarchy
             include Roby::DRoby::EventLogging
 
-            # The actual plan we are modifying
+            # The underlying plan
             attr_reader :real_plan
             # The plan we are modifying. It is usually a transaction on top of
             # #plan
-            #
-            # This is valid only during resolution
-            #
-            # It is alised to {#plan} for backward compatibility reasons
             attr_reader :work_plan
             # A mapping from task context models to deployment models that
             # contain such a task.
@@ -60,9 +56,10 @@ module Syskit
 
             attr_reader :event_logger
 
-            def initialize(plan, event_logger: plan.event_logger)
+            def initialize(plan, work_plan: Roby::Transaction.new(plan),
+                           event_logger: plan.event_logger)
                 @real_plan = plan
-                @work_plan = Roby::Transaction.new(real_plan)
+                @work_plan = work_plan
                 @merge_solver = NetworkGeneration::MergeSolver.new(work_plan)
                 @event_logger = event_logger
                 @required_instances = Hash.new
@@ -77,16 +74,16 @@ module Syskit
             # Transform the system network into a deployed network
             #
             # This does not access {#real_plan}
-            def compute_deployed_network(plan: work_plan, compute_policies: true, validate_deployed_network: true)
+            def compute_deployed_network(compute_policies: true, validate_deployed_network: true)
                 log_timepoint_group 'deploy_system_network' do
-                    SystemNetworkDeployer.new(plan, event_logger: event_logger, merge_solver: merge_solver).
+                    SystemNetworkDeployer.new(work_plan, event_logger: event_logger, merge_solver: merge_solver).
                         deploy(validate: validate_deployed_network)
                 end
 
                 # Now that we have a deployed network, we can compute the
                 # connection policies and the port dynamics
                 if compute_policies
-                    @dataflow_dynamics = DataFlowDynamics.new(plan)
+                    @dataflow_dynamics = DataFlowDynamics.new(work_plan)
                     @port_dynamics = dataflow_dynamics.compute_connection_policies
                     log_timepoint 'compute_connection_policies'
                 end
@@ -461,14 +458,13 @@ module Syskit
             end
 
             def compute_system_network(requirement_tasks = Engine.discover_requirement_tasks_from_plan(real_plan),
-                                       plan: work_plan,
                                        garbage_collect: true,
                                        validate_abstract_network: true,
                                        validate_generated_network: true)
                 requirement_tasks = requirement_tasks.to_a
                 instance_requirements = requirement_tasks.map(&:requirements)
                 system_network_generator = SystemNetworkGenerator.new(
-                    plan, event_logger: event_logger, merge_solver: merge_solver)
+                    work_plan, event_logger: event_logger, merge_solver: merge_solver)
                 toplevel_tasks = system_network_generator.generate(
                     instance_requirements,
                     garbage_collect: garbage_collect,
@@ -479,7 +475,6 @@ module Syskit
             end
 
             def resolve_system_network(requirement_tasks,
-                                       plan: work_plan,
                                        garbage_collect: true,
                                        validate_abstract_network: true,
                                        validate_generated_network: true,
@@ -489,7 +484,6 @@ module Syskit
 
                 required_instances = compute_system_network(
                     requirement_tasks,
-                    plan: plan,
                     garbage_collect: garbage_collect,
                     validate_abstract_network: validate_abstract_network,
                     validate_generated_network: validate_generated_network)
@@ -497,7 +491,6 @@ module Syskit
                 if compute_deployments
                     log_timepoint_group 'compute_deployed_network' do
                         compute_deployed_network(
-                            plan: plan,
                             compute_policies: compute_policies,
                             validate_deployed_network: validate_deployed_network)
                     end

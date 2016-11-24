@@ -79,10 +79,9 @@ module Syskit
                     end
                 end
                 task_mapping = plan.in_transaction do |trsc|
-                    engine = NetworkGeneration::Engine.new(plan)
+                    engine = NetworkGeneration::Engine.new(plan, work_plan: trsc)
                     mapping = engine.compute_system_network(
                         placeholders.map(&:planning_task),
-                        plan: trsc,
                         validate_generated_network: false)
                     trsc.commit_transaction
                     mapping

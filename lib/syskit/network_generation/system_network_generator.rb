@@ -16,6 +16,10 @@ module Syskit
             def initialize(plan,
                            event_logger: plan.event_logger,
                            merge_solver: MergeSolver.new(plan))
+                if merge_solver.plan != plan
+                    raise ArgumentError, "gave #{merge_solver} as merge solver, which applies on #{merge_solver.plan}. Was expecting #{plan}"
+                end
+
                 @plan = plan
                 @event_logger = event_logger
                 @merge_solver = merge_solver
