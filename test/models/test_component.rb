@@ -955,5 +955,36 @@ describe Syskit::Models::Component do
             assert task.abstract?
         end
     end
+
+    describe "#can_merge?" do
+        describe "handling of dynamic services" do
+            attr_reader :srv0, :srv1, :task_m
+            before do
+                base_srv = Syskit::DataService.new_submodel
+                @srv0 = base_srv.new_submodel
+                @srv1 = base_srv.new_submodel
+                @task_m = Syskit::TaskContext.new_submodel do
+                    dynamic_service base_srv, as: 'test' do
+                        provides options[:srv]
+                    end
+                end
+            end
+
+            it "returns false if there are mismatching dynamic services" do
+                task0_m = task_m.specialize
+                task0_m.require_dynamic_service 'test', srv: srv0, as: 'srv'
+                task1_m = task_m.specialize
+                task1_m.require_dynamic_service 'test', srv: srv1, as: 'srv'
+                refute task0_m.can_merge?(task1_m)
+            end
+            it "handles multiple levels of specialization" do
+                task0_m = task_m.specialize
+                task0_m.require_dynamic_service 'test', srv: srv0, as: 'srv'
+                task1_m = task_m.specialize
+                task1_m.require_dynamic_service 'test', srv: srv1, as: 'srv'
+                refute task0_m.specialize.can_merge?(task1_m)
+            end
+        end
+    end
 end
 

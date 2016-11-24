@@ -948,7 +948,7 @@ module Syskit
                 if private_specialization?
                     # Verify that we don't have collisions in the instantiated
                     # dynamic services
-                    data_services.each_value do |self_srv|
+                    each_data_service do |_, self_srv|
                         if task_srv = target_model.find_data_service(self_srv.name)
                             if task_srv.model != self_srv.model
                                 NetworkGeneration::MergeSolver.debug do
