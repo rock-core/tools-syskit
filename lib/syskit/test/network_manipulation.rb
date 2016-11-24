@@ -916,7 +916,7 @@ module Syskit
             #      'processor' => Cmp.use('pose' => RootCmp.pose_child))
             #   syskit_stub_deploy_and_start_composition(model)
             def syskit_stub_and_deploy(
-                    model = subject_syskit_model, recursive: true,
+                model = subject_syskit_model, recursive: true,
                     as: syskit_default_stub_name(model),
                     remote_task: self.syskit_stub_resolves_remote_tasks?, &block)
 
