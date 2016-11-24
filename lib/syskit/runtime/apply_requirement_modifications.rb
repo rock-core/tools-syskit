@@ -36,9 +36,9 @@ module Syskit
                 @syskit_resolution_pool ||= Concurrent::CachedThreadPool.new
                 # Protect all toplevel Syskit tasks while the resolution runs
                 @syskit_current_resolution_keepalive = Roby::Transaction.new(self)
-                find_local_tasks(InstanceRequirementsTask).each do |req_task|
-                    if !req_task.failed? && !req_task.pending? && req_task.planned_task && !req_task.planned_task.finished?
-                        syskit_current_resolution_keepalive.wrap(req_task.planned_task)
+                find_local_tasks(Component).each do |component_task|
+                    if !component_task.finished?
+                        syskit_current_resolution_keepalive.wrap(component_task)
                     end
                 end
                 @syskit_current_resolution = NetworkGeneration::Async.new(self, thread_pool: syskit_resolution_pool)
