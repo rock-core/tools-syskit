@@ -196,6 +196,19 @@ module Syskit
                 true
             end
 
+            # Returns the service port that maps to a task port
+            #
+            # @return [nil,Port]
+            def find_port_for_task_port(task_port)
+                task_port_name = task_port.name
+                port_mappings_for_task.each do |service_port_name, port_name|
+                    if port_name == task_port_name
+                        return find_port(service_port_name)
+                    end
+                end
+                nil
+            end
+
             # Returns the port mappings that should be applied to convert a port
             # from this service to {#component_model}
             #

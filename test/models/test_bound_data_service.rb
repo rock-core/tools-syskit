@@ -269,6 +269,35 @@ describe Syskit::Models::BoundDataService do
             refute_equal task_m.test_srv.as(parent_srv_m), task_m.test_srv
         end
     end
+
+    describe "#find_port_for_task_port" do
+        attr_reader :stub_t, :srv_m
+        before do
+            @stub_t = stub_t = stub_type '/test_t'
+            @srv_m = Syskit::DataService.new_submodel do
+                output_port 'out', stub_t
+            end
+        end
+        it "returns the task port that maps to a service port" do
+            stub_t = self.stub_t
+            task_m = Syskit::TaskContext.new_submodel do
+                output_port 'task_out', stub_t
+            end
+            task_m.provides srv_m, as: 'test'
+            assert_equal task_m.test_srv.out_port,
+                task_m.test_srv.find_port_for_task_port(task_m.task_out_port)
+        end
+
+        it "returns nil if there is no mapping" do
+            stub_t = self.stub_t
+            task_m = Syskit::TaskContext.new_submodel do
+                output_port 'task_out', stub_t
+                output_port 'other_out', stub_t
+            end
+            task_m.provides srv_m, as: 'test', 'out' => 'other_out'
+            assert_nil task_m.test_srv.find_port_for_task_port(task_m.task_out_port)
+        end
+    end
 end
 
 class TC_Models_BoundDataService < Minitest::Test
