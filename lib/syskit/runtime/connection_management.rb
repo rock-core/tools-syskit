@@ -19,6 +19,10 @@ module Syskit
                 plan.execution_engine.scheduler
             end
 
+            def log_timepoint_group(name, &block)
+                plan.execution_engine.log_timepoint_group(name, &block)
+            end
+
             def initialize(plan)
                 @plan = plan
                 @dataflow_graph = plan.task_relation_graph_for(Flows::DataFlow)
@@ -240,7 +244,9 @@ module Syskit
                         end
                     end
                 end
-                promises.each(&:execute)
+                log_timepoint_group 'apply_remote_disconnections' do
+                    promises.each(&:execute)
+                end
                 # This is cheating around the "do not allow blocking calls in
                 # main thread" principle. It's good because it parallelizes
                 # disconnection - which speeds up network setup quite a bit - but
@@ -399,7 +405,9 @@ module Syskit
                         end
                     end
                 end
-                promises.each(&:execute)
+                log_timepoint_group 'apply_remote_connections' do
+                    promises.each(&:execute)
+                end
                 # This is cheating around the "do not allow blocking calls in
                 # main thread" principle. It's good because it parallelizes
                 # connection - which speeds up network setup quite a bit - but
@@ -555,8 +563,13 @@ module Syskit
                 early_additions, late_additions =
                     partition_early_late(additions_ready, 'added', proc { |v| v })
 
-                modified_tasks = apply_connection_removal(early_removal)
-                modified_tasks |= apply_connection_additions(early_additions)
+                modified_tasks = Set.new
+                log_timepoint_group 'early_disconnections' do
+                    modified_tasks.merge apply_connection_removal(early_removal)
+                end
+                log_timepoint_group 'early_connections' do
+                    modified_tasks.merge apply_connection_additions(early_additions)
+                end
 
                 if !additions_held.empty?
                     mark_connected_pending_tasks_as_executable(modified_tasks)
@@ -564,8 +577,12 @@ module Syskit
                     return additions, late_removal
                 end
 
-                modified_tasks |= apply_connection_removal(late_removal)
-                modified_tasks |= apply_connection_additions(late_additions)
+                log_timepoint_group 'late_disconnections' do
+                    modified_tasks.merge apply_connection_removal(late_removal)
+                end
+                log_timepoint_group 'late_connections' do
+                    modified_tasks.merge apply_connection_additions(late_additions)
+                end
                 mark_connected_pending_tasks_as_executable(modified_tasks)
                 return Hash.new, Hash.new
             end
