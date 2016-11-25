@@ -240,17 +240,18 @@ module Syskit
             end
             @actual_port = resolved_port.to_actual_port
             distance = actual_port.component.distance_to_syskit
-            resolver = component.promise(description: "#{@actual_port}#reader for #{self}") do
+            resolver = component.promise(description: "#{self}#resolve") do
                 @actual_port.to_orocos_port.reader(distance: distance, **policy)
             end
-                
-            resolver.on_error do |error|
+            resolver.on_success(description: "#{self}#resolve#ready") do |reader|
+                if !@disconnected
+                    @reader = reader
+                end
+            end
+            resolver.on_error(description: "#{self}#resolve#failed") do |error|
                 actual_component = actual_port.component
                 actual_component.execution_engine.
                     add_error(PortAccessFailure.new(error, actual_component))
-            end
-            resolver.on_success do |reader|
-                @reader = reader
             end
         end
 
@@ -347,12 +348,12 @@ module Syskit
             resolver = component.promise(description: "#{@actual_port}#writer for #{self}") do
                 @actual_port.to_orocos_port.writer(distance: distance, **policy)
             end
-            resolver.on_success do |writer|
+            resolver.on_success(description: "#{self}#resolve#ready") do |writer|
                 if !@disconnected
                     @writer = writer
                 end
             end
-            resolver.on_error do |error|
+            resolver.on_error(description: "#{self}#resolve#failed") do |error|
                 actual_component = actual_port.component
                 actual_component.execution_engine.
                     add_error(PortAccessFailure.new(error, actual_component))

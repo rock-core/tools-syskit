@@ -348,7 +348,7 @@ module Syskit
 
             # Apply the values set for the properties to the underlying node
             def commit_properties(promise = self.promise(description: "#{self}#commit_properties"))
-                promise = promise.on_success do
+                promise = promise.on_success(description: "#{self}#commit_properties#init") do
                     # NOTE: the way properties call #queue_property_update_if_needed
                     # is called from Property#raw_write depends on the fact that
                     # snapshotting the property values is the first thing this
@@ -359,7 +359,7 @@ module Syskit
                             [p, p.value.dup]
                         end
                     end.compact
-                end.then(description: "write remote properties") do |properties|
+                end.then(description: "#{self}#commit_properties#write") do |properties|
                     properties.map do |p, p_value|
                         begin
                             remote = (p.remote_property ||= orocos_task.raw_property(p.name))
@@ -369,7 +369,7 @@ module Syskit
                             [Time.now, p, e]
                         end
                     end.compact
-                end.on_success(description: "update local data structures") do |result|
+                end.on_success(description: "#{self}#commit_properties#update_log") do |result|
                     result.each do |timestamp, property, error|
                         if error
                             execution_engine.add_error(PropertyUpdateError.new(error, property))
@@ -601,13 +601,13 @@ module Syskit
 
             def prepare_for_setup(promise)
                 promise.
-                    then do
+                    then(description: "#{self}#prepare_for_setup#read_properties") do
                         properties = orocos_task.property_names.map do |p_name|
                             remote = orocos_task.raw_property(p_name)
                             [remote, remote.raw_read]
                         end
                         [properties, orocos_task.port_names, orocos_task.rtt_state]
-                    end.on_success do |properties, port_names, state|
+                    end.on_success(description: "#{self}#prepare_for_setup#ready_for_setup?") do |properties, port_names, state|
                         properties.each do |p, p_value|
                             syskit_p = property(p.name)
                             syskit_p.remote_property = p
@@ -629,7 +629,7 @@ module Syskit
                         end
                         [needs_reconfiguration, port_names, state]
                     end.
-                    then do |needs_reconfiguration, port_names, state|
+                    then(description: "#{self}#prepare_for_setup#ensure_pre_operational") do |needs_reconfiguration, port_names, state|
                         if state == :EXCEPTION
                             info "reconfiguring #{self}: the task was in exception state"
                             orocos_task.reset_exception(false)
@@ -642,7 +642,7 @@ module Syskit
                             [false, port_names]
                         end
                     end.
-                    on_success do |cleaned_up, port_names|
+                    on_success(description: "#{self}#prepare_for_setup#clean_dynamic_port_connections") do |cleaned_up, port_names|
                         if cleaned_up
                             clean_dynamic_port_connections(port_names)
                         end
@@ -659,7 +659,7 @@ module Syskit
                 # This calls #configure
                 promise = super(promise)
 
-                promise = promise.on_success do
+                promise = promise.on_success(description: "#{self}#setup#log_properties") do
                     if self.model.needs_stub?(self)
                         self.model.prepare_stub(self)
                     end
@@ -672,7 +672,7 @@ module Syskit
                 end
                 promise = commit_properties(promise)
                 @pending_property_updates -= 1
-                promise.then do
+                promise.then(description: "#{self}#setup#configure") do
                     state = orocos_task.rtt_state
                     if state == :PRE_OPERATIONAL
                         info "setting up #{self}"
@@ -680,7 +680,7 @@ module Syskit
                     else
                         info "#{self} was already configured"
                     end
-                end.on_success do
+                end.on_success(description: "#{self}#setup#finalize_configure") do
                     TaskContext.needs_reconfiguration.delete(orocos_name)
                     TaskContext.configured[orocos_name] = [
                         model,
@@ -795,8 +795,11 @@ module Syskit
                     interrupt_event.emit
                     aborted_event.emit
                 elsif execution_agent && !execution_agent.finishing?
-                    promise = execution_engine.promise(description: "#{self}#stop") { stop_orocos_task }.
-                        on_success do |result|
+                    promise = execution_engine.
+                        promise(description: "#{self}#interrupt") do
+                            stop_orocos_task
+                        end.
+                        on_success(description: "#{self}#interrupt#done") do |result|
                             if result == :aborted
                                 interrupt_event.emit
                                 aborted_event.emit

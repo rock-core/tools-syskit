@@ -321,7 +321,7 @@ module Syskit
                         end
                         RemoteTaskHandles.new(remote_task, state_reader, state_getter, properties)
                     end
-                end.on_success do |remote_tasks|
+                end.on_success(description: "#{self}#schedule_ready_event_monitor#emit") do |remote_tasks|
                     if running? && !finishing? && remote_tasks
                         @remote_task_handles = remote_tasks
                         ready_event.emit
@@ -402,7 +402,7 @@ module Syskit
             # kill the deployment
             event :stop do |context|
                 quit_ready_event_monitor.set
-                promise = execution_engine.promise(description: "#{self}.on(:stop)") do
+                promise = execution_engine.promise(description: "#{self}.stop_event.on") do
                     begin
                         remote_task_handles.each_value do |remote_task|
                             if remote_task.handle.rtt_state == :STOPPED
@@ -412,7 +412,7 @@ module Syskit
                     rescue Orocos::ComError
                         # Assume that the process is killed as it is not reachable
                     end
-                end.on_success do
+                end.on_success(description: "#{self}#stop_event#command#dead!") do
                     ready_to_die!
                     begin
                         orocos_process.kill(false)

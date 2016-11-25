@@ -159,7 +159,7 @@ module Syskit
             # @return [Promise] #setup must schedule the work to be done in a
             #   promise, to allow subclasses to schedule work 
             def setup(promise)
-                promise.on_success do
+                promise.on_success(description: '#{self}#setup#configure') do
                     freeze_delayed_arguments
                     if self.model.needs_stub?(self)
                         self.model.prepare_stub(self)
@@ -212,7 +212,7 @@ module Syskit
                     raise InvalidState, "#{self} is already setting up"
                 end
 
-                error_handler = promise.on_error do |e|
+                error_handler = promise.on_error(description: "#{self}#setting_up!#setup_failed!") do |e|
                     setup_failed!(e)
                 end
                 promise.execute
