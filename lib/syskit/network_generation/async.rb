@@ -63,6 +63,7 @@ module Syskit
             def prepare(requirement_tasks = Engine.discover_requirement_tasks_from_plan(plan))
                 future.cancel if future
                 resolver = Resolution.new(plan, event_logger, requirement_tasks, executor: thread_pool) do
+                    Thread.current.name = 'syskit-async-resolution'
                     log_timepoint_group 'syskit-async-resolution' do
                         resolver.engine.resolve_system_network(requirement_tasks)
                     end
