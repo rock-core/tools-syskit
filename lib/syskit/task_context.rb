@@ -96,41 +96,6 @@ module Syskit
                 model.find_state_event(name)
             end
 
-            # The PortDynamics object that describes the dynamics of the task
-            # itself.
-            #
-            # The sample_size attribute on this object is ignored. Only the
-            # triggers are of any use
-            attr_reader :task_dynamics
-
-            # Returns the minimal period, i.e. the minimum amount of time
-            # between two triggers
-            def minimal_period
-                task_dynamics.minimal_period
-            end
-
-            # The computed port dynamics for this task
-            attribute(:port_dynamics) { Hash.new }
-
-            # Tries to update the port dynamics information for the input port
-            # +port_name+ based on its inputs
-            #
-            # Returns the new PortDynamics object if successful, and nil
-            # otherwise
-            def update_input_port_dynamics(port_name)
-                dynamics = []
-                each_concrete_input_connection(port_name) do |source_task, source_port, sink_port|
-                    if dyn = source_task.port_dynamics[source_port]
-                        dynamics << dyn
-                    else
-                        return
-                    end
-                end
-                dyn = PortDynamics.new("#{name}.#{port_name}")
-                dynamics.each { |d| dyn.merge(d) }
-                port_dynamics[port_name] = dyn
-            end
-
             # Maximum time between the task is sent a trigger signal and the
             # time it is actually triggered
             def trigger_latency
