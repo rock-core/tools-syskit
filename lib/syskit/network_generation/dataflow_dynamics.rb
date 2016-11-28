@@ -57,16 +57,28 @@ module Syskit
                 attr_reader :period
                 attr_reader :sample_count
 
+                attr_reader :hash
+
                 def initialize(name, period, sample_count)
                     @name, @period, @sample_count =
                         name.to_str, period, sample_count
+                    @hash = [@name, @period, @sample_count].hash
+                    freeze
+                end
+                def eql?(other)
+                    @period == other.period &&
+                        @name == other.name &&
+                        @sample_count == other.sample_count
+                end
+                def ==(other)
+                    eql?(other)
                 end
             end
 
             def initialize(name, sample_size = 1)
                 @name = name
                 @sample_size = sample_size.to_int
-                @triggers = Array.new
+                @triggers = Set.new
             end
 
             def empty?; triggers.empty? end
@@ -74,7 +86,7 @@ module Syskit
             def add_trigger(name, period, sample_count)
                 if sample_count != 0
                     DataFlowDynamics.debug { "  [#{self.name}]: adding trigger from #{name} - #{period} #{sample_count}" }
-                    triggers << Trigger.new(name, period, sample_count).freeze
+                    triggers << Trigger.new(name, period, sample_count)
                 end
             end
 
@@ -86,7 +98,7 @@ module Syskit
                     end
                     break
                 end
-                triggers.concat(other_dynamics.triggers)
+                triggers.merge(other_dynamics.triggers)
                 true
             end
 
@@ -186,18 +198,6 @@ module Syskit
                 done_port_info(task, nil)
             end
 
-            def done_port_info(task, port_name)
-                super
-                if has_information_for_port?(task, port_name)
-                    info = port_info(task, port_name)
-                    if port_name
-                        task.port_dynamics[port_name] = info
-                    else
-                        task.dynamics = info
-                    end
-                end
-            end
-            
             def create_port_info(task, port_name)
                 port_model = task.model.find_port(port_name)
                 dynamics = PortDynamics.new("#{task.orocos_name}.#{port_model.name}",
