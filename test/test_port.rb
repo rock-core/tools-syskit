@@ -161,7 +161,7 @@ describe Syskit::Port do
             port1 = Syskit::Port.new(task_m.out_port, task)
             assert_equal 10, Hash[port0 => 10][port1]
             port2 = Syskit::Port.new(task_m.out2_port, task)
-            assert_equal nil, Hash[port0 => 10][port2]
+            assert_nil Hash[port0 => 10][port2]
         end
     end
 end

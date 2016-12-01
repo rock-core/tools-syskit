@@ -193,10 +193,10 @@ module Syskit
                 end
             end
             it "should return nil for an output port" do
-                assert_equal nil, task.find_input_port("out")
+                assert_nil task.find_input_port("out")
             end
             it "should return nil for a port that does not exist" do
-                assert_equal nil, task.find_input_port("does_not_exist")
+                assert_nil task.find_input_port("does_not_exist")
             end
         end
 
@@ -215,10 +215,10 @@ module Syskit
                 end
             end
             it "should return nil for an input port" do
-                assert_equal nil, task.find_output_port("in")
+                assert_nil task.find_output_port("in")
             end
             it "should return nil for a port that does not exist" do
-                assert_equal nil, task.find_output_port("does_not_exist")
+                assert_nil task.find_output_port("does_not_exist")
             end
         end
 
