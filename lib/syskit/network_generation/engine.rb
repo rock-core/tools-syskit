@@ -361,11 +361,22 @@ module Syskit
                 result
             end
 
+            # After the deployment phase, we check whether some static ports are
+            # modified and cause their task to be reconfigured.
+            #
+            # Note that tasks that are already reconfigured because of
+            # {#adapt_existing_deployment} will be fine as the task is not
+            # configured yet
             def reconfigure_tasks_on_static_port_modification(deployed_tasks)
                 final_deployed_tasks = deployed_tasks.dup
 
+                # We filter against 'deployed_tasks' to always select the tasks
+                # that have been selected in this deployment. It does mean that
+                # the task is always the 'current' one, that is we would pick
+                # the new deployment task and ignore the one that is being
+                # replaced
                 already_setup_tasks = work_plan.find_tasks(Syskit::TaskContext).not_finished.not_finishing.
-                    find_all { |t| deployed_tasks.include?(t) && t.setup? }
+                    find_all { |t| deployed_tasks.include?(t) && (t.setting_up? || t.setup?) }
 
                 already_setup_tasks.each do |t|
                     next if !t.transaction_proxy?
@@ -382,6 +393,22 @@ module Syskit
                 final_deployed_tasks
             end
 
+            # Find the "last" deployed task in a set of related deployed tasks
+            # in the plan
+            #
+            # Ordering is encoded in the should_configure_after relation
+            def find_current_deployed_task(deployed_tasks)
+                configuration_precedence_graph =
+                    work_plan.event_relation_graph_for(Roby::EventStructure::SyskitConfigurationPrecedence)
+                tasks = deployed_tasks.find_all do |t|
+                    t.reusable? && configuration_precedence_graph.leaf?(t.stop_event)
+                end
+                if tasks.size > 1
+                    raise InternalError, "could not find the current task in #{deployed_tasks.map(&:to_s).sort.join(", ")}"
+                end
+                tasks.first
+            end
+
             # Given a required deployment task in {#work_plan} and a proxy
             # representing an existing deployment task in {#real_plan}, modify
             # the plan to reuse the existing deployment
@@ -392,20 +419,21 @@ module Syskit
             #   existing_deployment_task, and some of them might be transaction
             #   proxies.
             def adapt_existing_deployment(deployment_task, existing_deployment_task)
-                existing_tasks = Hash.new
+                orocos_name_to_existing = Hash.new
                 existing_deployment_task.each_executed_task do |t|
-                    next if t.finished? || t.finishing?
-                    if t.running?
-                        existing_tasks[t.orocos_name] = t
-                    elsif t.pending?
-                        existing_tasks[t.orocos_name] ||= t
-                    end
+                    next if t.finished?
+                    (orocos_name_to_existing[t.orocos_name] ||= Array.new) << t
                 end
 
                 applied_merges = Set.new
                 deployed_tasks = deployment_task.each_executed_task.to_a
                 deployed_tasks.each do |task|
-                    existing_task = existing_tasks[task.orocos_name]
+                    existing_tasks = orocos_name_to_existing[task.orocos_name] ||
+                        Array.new
+                    if !existing_tasks.empty?
+                        existing_task = find_current_deployed_task(existing_tasks)
+                    end
+
                     if !existing_task || !task.can_be_deployed_by?(existing_task)
                         debug do
                             if !existing_task
@@ -417,14 +445,14 @@ module Syskit
 
                         new_task = existing_deployment_task.task(task.orocos_name, task.concrete_model)
                         debug { "  creating #{new_task} for #{task} (#{task.orocos_name})" }
-                        if existing_task
+                        existing_tasks.each do |previous_task|
                             debug { "  #{new_task} needs to wait for #{existing_task} to finish before reconfiguring" }
-                            parent_task_contexts = existing_task.each_parent_task.
+                            parent_task_contexts = previous_task.each_parent_task.
                                 find_all { |t| t.kind_of?(Syskit::TaskContext) }
                             parent_task_contexts.each do |t|
-                                t.remove_child(existing_task)
+                                t.remove_child(previous_task)
                             end
-                            new_task.should_configure_after(existing_task.stop_event)
+                            new_task.should_configure_after(previous_task.stop_event)
                         end
                         existing_task = new_task
                     end
