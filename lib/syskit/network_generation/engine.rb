@@ -379,7 +379,6 @@ module Syskit
                     find_all { |t| deployed_tasks.include?(t) && (t.setting_up? || t.setup?) }
 
                 already_setup_tasks.each do |t|
-                    next if !t.transaction_proxy?
                     if t.transaction_modifies_static_ports?
                         debug { "#{t} was selected as deployment, but it would require modifications on static ports, spawning a new deployment" }
                         
