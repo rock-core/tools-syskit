@@ -512,6 +512,16 @@ module Syskit
                 @orocos_task = flexmock(task.orocos_task)
             end
 
+            it "returns false if a task context representing the same component is being configured" do
+                task = syskit_stub_and_deploy "ConcurrentConfigurationTask"
+                syskit_start_execution_agents(task)
+                plan.add_permanent_task(other_task = task.execution_agent.task(task.orocos_name))
+                assert task.ready_for_setup?
+                promise = Syskit::Runtime.start_task_setup(other_task)
+                refute task.ready_for_setup?
+                execution_engine.join_all_waiting_work
+                assert task.ready_for_setup?
+            end
             it "returns false if task arguments are not set" do
                 assert task.ready_for_setup?
                 task.should_receive(:fully_instanciated?).and_return(false)
@@ -778,15 +788,6 @@ module Syskit
                 assert_equal ['default'], task.arguments[:conf]
             end
 
-            it "raises if the task is not ready for setup" do
-                plan.unmark_mission_task(task)
-                task.should_receive(:ready_for_setup?).and_return(false)
-                assert_task_fails_to_start(task, Roby::EmissionFailed, original_exception: InternalError) do
-                    assert_raises(InternalError) do
-                        setup_task(expected_messages: [])
-                    end
-                end
-            end
             it "resets the needs_configuration flag" do
                 orocos_task.should_receive(:rtt_state).and_return(:PRE_OPERATIONAL)
                 task.should_receive(:ready_for_setup?).with(:PRE_OPERATIONAL).and_return(true)

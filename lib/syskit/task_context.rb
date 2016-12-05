@@ -44,11 +44,16 @@ module Syskit
                 # represents the last configuration applied on +name+
                 def configured; @@configured end
 
+                # The set of orocos_name for the tasks that are being
+                # configured, to avoid races
+                def configuring; @@configuring end
+
                 # A set of names that says if the task named 'name' should be
                 # reconfigured the next time
                 def needs_reconfiguration; @@needs_reconfiguration end
             end
             @@configured = Hash.new
+            @@configuring = Set.new
             @@needs_reconfiguration = Set.new
 
             # [Orocos::TaskContext,Orocos::ROS::Node] the underlying remote task
@@ -426,7 +431,9 @@ module Syskit
             # Returns true if this component needs to be setup by calling the
             # #setup method, or if it can be used as-is
             def ready_for_setup?(state = nil)
-                if !super()
+                if TaskContext.configuring.include?(orocos_name)
+                    return false
+                elsif !super()
                     return false
                 elsif !all_inputs_connected?(only_static: true)
                     return false
@@ -581,9 +588,7 @@ module Syskit
                         end
 
                         needs_reconfiguration = true
-                        if !ready_for_setup?(state)
-                            raise InternalError, "#setup called on #{self} but we are not ready for setup"
-                        elsif !needs_reconfiguration?
+                        if !needs_reconfiguration?
                             _, current_conf, dynamic_services = TaskContext.configured[orocos_name]
                             if current_conf
                                 if current_conf == self.conf && dynamic_services == each_required_dynamic_service.to_set
@@ -651,7 +656,13 @@ module Syskit
                         model,
                         self.conf.dup,
                         self.each_required_dynamic_service.to_set]
+                    TaskContext.configuring.delete(orocos_name)
                 end
+            end
+
+            def setting_up!(promise)
+                super
+                TaskContext.configuring << orocos_name
             end
 
             # Returns the start event object for this task
