@@ -501,6 +501,9 @@ module Syskit
                 @orocos_task = flexmock(task.orocos_task)
             end
 
+            it "returns true for a fully instanciated task whose state is PRE_OPERATIONAL" do
+                assert task.ready_for_setup?
+            end
             it "returns false if a task context representing the same component is being configured" do
                 task = syskit_stub_and_deploy "ConcurrentConfigurationTask"
                 syskit_start_execution_agents(task)
@@ -511,8 +514,11 @@ module Syskit
                 execution_engine.join_all_waiting_work
                 assert task.ready_for_setup?
             end
+            it "returns false if the task has been marked as garbage" do
+                task.garbage!
+                refute task.ready_for_setup?
+            end
             it "returns false if task arguments are not set" do
-                assert task.ready_for_setup?
                 task.should_receive(:fully_instanciated?).and_return(false)
                 refute task.ready_for_setup?
             end
