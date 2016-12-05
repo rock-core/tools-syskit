@@ -145,7 +145,7 @@ module Syskit
                 end
 
                 start_event.parent_objects(Roby::EventStructure::SyskitConfigurationPrecedence).all? do |event|
-                    event.emitted?
+                    event.emitted? || event.unreachable?
                 end
             end
 
