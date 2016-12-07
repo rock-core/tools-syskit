@@ -34,7 +34,7 @@ module Syskit
             #
             # @raise [ArgumentError] if the argument is invalid
             def Actions(arg)
-                if arg.kind_of?(Syskit::Actions::Profile)
+                if arg.respond_to?(:each_action)
                     arg.each_action
                 elsif arg.respond_to?(:to_action)
                     [arg]
@@ -42,6 +42,14 @@ module Syskit
                     arg.flat_map { |a| Actions(a) }
                 else
                     raise ArgumentError, "expected an action or a collection of actions, but got #{arg}"
+                end
+            end
+
+            # Like #Actions, but expands coordination models into their
+            # consistuent actions
+            def AtomicActions(arg, &block)
+                Actions(arg).flat_map do |action|
+                    expand_coordination_models(action)
                 end
             end
 
@@ -55,7 +63,7 @@ module Syskit
             # Note that it is a really good idea to maintain this property. No.
             # Seriously. Keep it in your tests.
             def assert_is_self_contained(action_or_profile = subject_syskit_model, message: "%s is not self contained", **instanciate_options)
-                Actions(action_or_profile).each do |act|
+                AtomicActions(action_or_profile).each do |act|
                     begin
                         self.assertions += 1
                         syskit_engine = Syskit::NetworkGeneration::Engine.new(plan)
@@ -98,7 +106,7 @@ module Syskit
             #
             # If called without argument, it tests the spec's context profile
             def assert_can_instanciate(action_or_profile = subject_syskit_model)
-                Actions(action_or_profile).each do |act|
+                AtomicActions(action_or_profile).each do |act|
                     task = assert_can_instanciate_together(act)
                     plan.unmark_mission_task(task)
                     plan.execution_engine.garbage_collect
@@ -127,7 +135,7 @@ module Syskit
                     actions = subject_syskit_model
                 end
                 self.assertions += 1
-                syskit_deploy(Actions(actions),
+                syskit_deploy(AtomicActions(actions),
                                  compute_policies: false,
                                  compute_deployments: false)
             rescue Exception => e
@@ -144,6 +152,21 @@ module Syskit
                 assert_can_instanciate_together(*actions)
             end
 
+            # @api private
+            #
+            # Given an action, returns the list of atomic actions it refers to
+            def expand_coordination_models(action)
+                if action.model.respond_to?(:coordination_model)
+                    actions = action.model.coordination_model.each_task.flat_map do |coordination_task|
+                        if coordination_task.respond_to?(:action)
+                            expand_coordination_models(coordination_task.action)
+                        end
+                    end.compact
+                else
+                    [action]
+                end
+            end
+
             # Tests that the following syskit-generated actions can be deployed,
             # that is they result in a valid, non-abstract network whose all
             # components have a deployment
@@ -155,8 +178,8 @@ module Syskit
             #
             # If called without argument, it tests the spec's context profile
             def assert_can_deploy(action_or_profile = subject_syskit_model)
-                Actions(action_or_profile).each do |act|
-                    task = assert_can_deploy_together(act)
+                AtomicActions(action_or_profile).each do |action|
+                    task = assert_can_deploy_together(action)
                     plan.unmark_mission_task(task)
                     plan.execution_engine.garbage_collect
                 end
@@ -181,7 +204,7 @@ module Syskit
                     actions = subject_syskit_model
                 end
                 self.assertions += 1
-                syskit_deploy(Actions(actions),
+                syskit_deploy(AtomicActions(actions),
                                  compute_policies: true,
                                  compute_deployments: true)
             rescue Exception => e
@@ -212,7 +235,7 @@ module Syskit
                     actions = subject_syskit_model
                 end
                 self.assertions += 1
-                roots = assert_can_deploy_together(*Actions(actions))
+                roots = assert_can_deploy_together(*AtomicActions(actions))
                 # assert_can_deploy_together has one of its idiotic return
                 # interface that returns either a single task if a single action
                 # was given, or an array otherwise. I'd like to have someone
