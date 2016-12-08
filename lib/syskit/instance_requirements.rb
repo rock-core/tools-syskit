@@ -1014,8 +1014,8 @@ module Syskit
                 Syskit::InstanceSelection.new(nil, self, requirements.to_instance_requirements)
             end
 
-            def to_action_model(profile = nil, doc = self.doc)
-                action_model = Actions::Models::Action.new(profile, self, doc)
+            def to_action_model(doc = self.doc)
+                action_model = Actions::Models::Action.new(self, doc)
                 action_model.returns(model.to_component_model)
 
                 task_model = component_model

@@ -174,6 +174,29 @@ describe Syskit::Actions::InterfaceModelExtension do
             plan.add(task)
             assert_equal Hash[], task.planning_task.requirements.arguments
         end
+        it "precomputes the requirements template the first time" do
+            task_m = Syskit::TaskContext.new_submodel
+            profile.define 'test', task_m
+            actions.use_profile(profile)
+            from_method = actions.new(plan).test_def
+            refute_nil from_method.template
+        end
+        it "does not recompute an existing template" do
+            task_m = Syskit::TaskContext.new_submodel
+            profile.define 'test', task_m
+            actions.use_profile(profile)
+            actions.new(plan).test_def
+            flexmock(actions.find_action_by_name('test_def').requirements).should_receive(:compute_template).never
+            actions.new(plan).test_def
+        end
+        it "shares a precomputed template with the action object" do
+            task_m = Syskit::TaskContext.new_submodel
+            profile.define 'test', task_m
+            actions.use_profile(profile)
+            from_object = actions.find_action_by_name('test_def').to_instance_requirements
+            from_method = actions.new(plan).test_def
+            assert_same from_object.template, from_method.template
+        end
     end
 
     describe "overloading of definitions by actions" do

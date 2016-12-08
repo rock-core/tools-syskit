@@ -9,9 +9,23 @@ module Syskit
             end
             @profiles = Array.new
 
+            # A definition object created with {#define}
+            #
+            # In addition to the {InstanceRequirements} duties, it also adds
+            # information about the link of the requirements with its profile
             class Definition < InstanceRequirements
+                # The profile this definition comes from
+                #
+                # @return [Profile]
                 attr_accessor :profile
+
+                # @method! advanced?
+                # @method! advanced=(flag)
+                #
+                # Whether this is an advanced definition. This is purely a hint
+                # for UIs
                 attr_predicate :advanced?, true
+
                 def initialize(profile, name)
                     super()
                     self.profile = profile
@@ -19,9 +33,17 @@ module Syskit
                     self.name = name
                 end
 
-                def to_action_model(profile = self.profile)
+                # Return a definition that has a different underlying profile
+                def rebind(profile)
+                    result = dup
+                    result.profile = profile
+                    result
+                end
+
+                # Create an action model that encapsulate this definition
+                def to_action_model
                     action_model = profile.resolved_definition(name).
-                        to_action_model(profile, doc || "defined in #{profile}")
+                        to_action_model(doc || "defined in #{profile}")
                     action_model.advanced = advanced?
                     action_model
                 end
@@ -138,10 +160,20 @@ module Syskit
                 self
             end
 
+            # Invalidate the cached dependency inject object
+            #
+            # @see resolved_dependency_injection
             def invalidate_dependency_injection
                 @di = nil
             end
 
+            # @api private
+            #
+            # Resolve the profile's global dependency injection object
+            #
+            # This is an internal cache, and is updated as-needed
+            #
+            # @see invalidate_dependency_injection
             def resolved_dependency_injection
                 if !@di
                     di = DependencyInjectionContext.new
@@ -156,7 +188,7 @@ module Syskit
             end
 
             def to_s
-                name
+                "profile:#{name}"
             end
 
             # Promote requirements taken from another profile to this profile
@@ -179,6 +211,8 @@ module Syskit
                 req
             end
 
+            # @api private
+            #
             # Resolves the names in the tags argument given to {#use_profile}
             def resolve_tag_selection(profile, tags)
                 tags.map_key do |key, _|
@@ -215,39 +249,65 @@ module Syskit
                 nil
             end
 
-            # Give a name to a known instance requirement object
+            # Create a new definition based on a given instance requirement
+            # object
             #
-            # @return [InstanceRequirements] the added instance requirement
+            # @param [String] the definition name
+            # @param [#to_instance_requirements] requirements the IR object
+            # @return [Definition] the added instance requirement
             def define(name, requirements)
                 resolved = resolved_dependency_injection.
                     direct_selection_for(requirements) || requirements
-                register_definition(name, resolved.to_instance_requirements)
+                doc = MetaRuby::DSLs.parse_documentation_block(
+                    ->(file) { Roby.app.app_file?(file) }, /^define$/)
+                register_definition(name, resolved.to_instance_requirements, doc: doc)
             end
 
+            # @api private
+            #
+            # Register requirements to a definition name
+            #
+            # @return [Definition] the definition object
             def register_definition(name, requirements, doc: nil)
                 definition = Definition.new(self, name)
-                definition.doc(doc || MetaRuby::DSLs.parse_documentation_block(->(file) { Roby.app.app_file?(file) }, /^define$/))
+                definition.doc(doc) if doc
                 definition.advanced = false
                 definition.merge(requirements)
                 definitions[name] = definition
             end
 
+            # Test if this profile has a definition with the given name
+            def has_definition?(name)
+                definitions.has_key?(name)
+            end
+
             # Returns the instance requirement object that represents the given
-            # definition in the context of this profile
+            # definition
             #
-            # @param [String] name the definition name
-            # @return [InstanceRequirements] the instance requirement
-            #   representing the definition
+            # @param (see #find_definition_by_name)
             # @raise [ArgumentError] if the definition does not exist
             # @see resolved_definition
             def definition(name)
-                req = definitions[name]
-                if !req
+                if req = find_definition_by_name(name)
+                    req
+                else
                     raise ArgumentError, "profile #{self.name} has no definition called #{name}"
                 end
-                req = req.dup
-                req.name = name
-                req
+            end
+
+            # Returns the instance requirement object that represents the given
+            # definition, if there is one
+            #
+            # @param [String] name the definition name
+            # @return [nil,InstanceRequirements] the object matching the given
+            #   name, or nil if there is none
+            # @see definition resolved_definition
+            def find_definition_by_name(name)
+                if req = definitions[name]
+                    req = req.dup
+                    req.name = name
+                    req
+                end
             end
 
             # Returns the instance requirement object that represents the given
@@ -346,18 +406,21 @@ module Syskit
             def self.clear_model
             end
 
+            # Yield all actions that can be used to access this profile's
+            # definitions and devices
+            #
+            # @yieldparam [Models::Action] action_model
             def each_action
                 return enum_for(__method__) if !block_given?
 
                 robot.each_master_device do |dev|
-                    action_model = dev.to_action_model(self)
+                    action_model = dev.to_action_model
                     yield(action_model)
                 end
 
                 definitions.each do |name, req|
-                    action_name = "#{name}_def"
-                    action_model = req.to_action_model(self)
-                    action_model.name = action_name
+                    action_model = req.to_action_model
+                    action_model.name = "#{name}_def"
                     yield(action_model)
                 end
             end
