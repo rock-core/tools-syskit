@@ -666,6 +666,8 @@ module Syskit
                         self.conf.dup,
                         self.each_required_dynamic_service.to_set]
                     TaskContext.configuring.delete(orocos_name)
+                end.on_error(description: "#{self}#setup#remove_configuring_on_error") do
+                    TaskContext.configuring.delete(orocos_name)
                 end
             end
 

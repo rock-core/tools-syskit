@@ -514,6 +514,17 @@ module Syskit
                 execution_engine.join_all_waiting_work
                 assert task.ready_for_setup?
             end
+            it "returns true if a task context representing the same component has started configuring and the configuration failed" do
+                task = syskit_stub_and_deploy "ConcurrentConfigurationTask"
+                syskit_start_execution_agents(task)
+                plan.add(other_task = task.execution_agent.task(task.orocos_name))
+                assert task.ready_for_setup?
+                flexmock(other_task.orocos_task).should_receive(:configure).and_raise(Orocos::StateTransitionFailed)
+                promise = Syskit::Runtime.start_task_setup(other_task)
+                refute task.ready_for_setup?
+                execution_engine.join_all_waiting_work
+                assert task.ready_for_setup?
+            end
             it "returns false if the task has been marked as garbage" do
                 task.garbage!
                 refute task.ready_for_setup?
