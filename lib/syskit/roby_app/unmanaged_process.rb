@@ -91,6 +91,7 @@ module Syskit
             # @return [void]
             def spawn(options = Hash.new)
                 @spawn_start = Time.now
+                @last_warning = Time.now
                 @deployed_tasks = nil
             end
 
@@ -116,8 +117,9 @@ module Syskit
                 end
                 return @deployed_tasks
             rescue Orocos::NotFound, Orocos::ComError => e
-                if Time.now - @spawn_start > 5
+                if Time.now - @last_warning > 5
                     Syskit.warn "waiting for unmanaged task: #{e}"
+                    @last_warning = Time.now
                 end
                 nil
             end
