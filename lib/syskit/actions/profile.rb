@@ -52,6 +52,14 @@ module Syskit
             module Tag
                 include Syskit::PlaceholderTask
 
+                def can_merge?(other)
+                    return false if !super
+
+                    other.kind_of?(Tag) &&
+                        other.model.tag_name == model.tag_name &&
+                        other.model.profile == model.profile
+                end
+
                 module ClassExtension
                     # The name of this tag
                     attr_accessor :tag_name

@@ -220,5 +220,25 @@ describe Syskit::Actions::Profile do
         flexmock(profile).should_receive(:invalidate_dependency_injection).at_least.once
         profile.robot.invalidate_dependency_injection
     end
+
+    describe "#tag" do
+        it "cannot be merged with another tag of the same type" do
+            srv_m = Syskit::DataService.new_submodel
+            profile = Syskit::Actions::Profile.new
+            profile.tag 'test', srv_m
+            profile.tag 'other', srv_m
+            test_task  = profile.test_tag.instanciate(plan)
+            other_task = profile.other_tag.instanciate(plan)
+            refute test_task.can_merge?(other_task)
+        end
+        it "can be merged with another instance of itself" do
+            srv_m = Syskit::DataService.new_submodel
+            profile = Syskit::Actions::Profile.new
+            profile.tag 'test', srv_m
+            test_task_1  = profile.test_tag.instanciate(plan)
+            test_task_2  = profile.test_tag.instanciate(plan)
+            assert test_task_1.can_merge?(test_task_2)
+        end
+    end
 end
 
