@@ -171,7 +171,7 @@ module Syskit
             # @return [Promise] #setup must schedule the work to be done in a
             #   promise, to allow subclasses to schedule work 
             def setup(promise)
-                promise.on_success(description: '#{self}#setup#configure') do
+                promise.on_success(description: "#{self}#setup#configure") do
                     freeze_delayed_arguments
                     if self.model.needs_stub?(self)
                         self.model.prepare_stub(self)
