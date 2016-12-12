@@ -139,13 +139,21 @@ module Syskit
             # allows it to be configured
             def ready_for_setup? # :nodoc:
                 if garbage?
+                    debug { "#{self} not ready for setup: garbage collected but not yet finalized" }
                     return false
                 elsif !fully_instanciated?
+                    debug { "#{self} not ready for setup: not fully instanciated" }
                     return false 
                 end
 
-                start_event.parent_objects(Roby::EventStructure::SyskitConfigurationPrecedence).all? do |event|
-                    event.emitted? || event.unreachable?
+                waiting_precedence_relation = start_event.parent_objects(Roby::EventStructure::SyskitConfigurationPrecedence).find do |event|
+                    !event.emitted? && !event.unreachable?
+                end
+                if waiting_precedence_relation
+                    debug { "#{self} not ready for setup: waiting on #{waiting_precedence_relation}" }
+                    false
+                else
+                    true
                 end
             end
 

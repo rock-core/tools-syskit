@@ -22,6 +22,9 @@ module Syskit
             extend Logger::Hierarchy
             include Logger::Hierarchy
 
+            # TaskContext uses the Robot for logging by default
+            self.logger = ::Robot.logger
+
             abstract
 
             # The task's configuration, as a list of registered configurations
@@ -111,8 +114,6 @@ module Syskit
                 options, task_options = Kernel.filter_options arguments,
                     orogen_model: nil
                 super(task_options)
-
-                self.logger = ::Robot.logger
 
                 @orogen_model   = options[:orogen_model] ||
                     Orocos::Spec::TaskDeployment.new(nil, model.orogen_model)
@@ -437,18 +438,27 @@ module Syskit
             # #setup method, or if it can be used as-is
             def ready_for_setup?(state = nil)
                 if TaskContext.configuring.include?(orocos_name)
+                    debug { "#{self} not ready for setup: already configuring" }
                     return false
                 elsif !super()
                     return false
                 elsif !all_inputs_connected?(only_static: true)
+                    debug { "#{self} not ready for setup: some static ports are not connected" }
                     return false
                 elsif !orogen_model || !orocos_task
+                    debug { "#{self} not ready for setup: no orogen model or no orocos task" }
                     return false
                 end
 
                 state ||= read_current_state
-                return [:STOPPED, :PRE_OPERATIONAL].include?(state) ||
+                configurable_state = [:STOPPED, :PRE_OPERATIONAL].include?(state) ||
                     orocos_task.exception_state?(state)
+                if configurable_state
+                    true
+                else
+                    debug { "#{self} not ready for setup: in state #{state}, expected STOPPED, PRE_OPERATIONAL or an exception state" }
+                    false
+                end
             end
 
             # Returns true if the underlying Orocos task has been configured and

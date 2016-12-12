@@ -965,7 +965,7 @@ module Syskit
             syskit_start_execution_agents(bus_driver)
             syskit_start_execution_agents(dev_driver)
 
-            mock_logger = flexmock(:level= => nil, :level => Logger::INFO)
+            mock_logger = flexmock(:level= => nil, :level => Logger::INFO, :debug => nil)
             bus_driver.logger = dev_driver.logger = mock_logger
             messages = capture_log(mock_logger, :info) do
                 bus_driver.orocos_task.create_output_port 'dev', '/int'
