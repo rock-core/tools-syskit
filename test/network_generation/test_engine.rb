@@ -210,63 +210,135 @@ module Syskit
             end
 
             describe "#adapt_existing_deployment" do
-                attr_reader :task_model, :deployment_model, :existing_task, :existing_deployment_task, :task, :deployment_task, :new_task
-                attr_reader :create_task
-                attr_reader :merge
+                attr_reader :task_m, :deployment_m
+                attr_reader :deployment_task, :existing_deployment_task
+                # All the merges that happened during a given test
+                attr_reader :applied_merge_mappings
+
                 before do
-                    @task_model = Class.new(Syskit::Component) { argument :orocos_name; argument :conf }
-                    @deployment_model = Class.new(Roby::Task) { event :ready }
-                    @existing_task, @existing_deployment_task = task_model.new, deployment_model.new
-                    existing_task.executed_by existing_deployment_task
-                    @task, @deployment_task = task_model.new, deployment_model.new
-                    task.executed_by deployment_task
-                    syskit_engine.work_plan.add(task)
-                    syskit_engine.real_plan.add(existing_task)
-                    @existing_task = syskit_engine.work_plan[existing_task]
-                    @existing_deployment_task = syskit_engine.work_plan[existing_deployment_task]
-                end
+                    task_m = @task_m = Syskit::Component.new_submodel do
+                        argument :orocos_name
+                        argument :conf
+                    end
+                    @deployment_m = Roby::Task.new_submodel do
+                        attr_reader :tasks
+                        attr_reader :created_tasks
 
-                def should_not_create_new_task
-                    flexmock(existing_deployment_task).should_receive(:task).explicitly.never
-                    merge_solver.should_receive(:apply_merge_group).once.
-                        with(task => existing_task)
-                end
+                        def initialize(arguments = Hash.new)
+                            super
+                            @created_tasks = Array.new
+                            @tasks = Hash.new
+                        end
 
-                def should_create_new_task
-                    new_task = task_model.new
-                    flexmock(existing_deployment_task).should_receive(:task).explicitly.once.
-                        with('task', any).and_return(new_task)
-                    merge_solver.should_receive(:apply_merge_group).once.
-                        with(task => new_task)
-                    flexmock(new_task).should_receive(:should_configure_after).by_default
-                    new_task
+                        event :ready
+
+                        define_method :task do |task_name, task_model = nil, record: true|
+                            task = task_m.new(orocos_name: task_name)
+                            if record
+                                @created_tasks << [task_name, task_model, task]
+                            end
+                            task.executed_by self
+                            task
+                        end
+                    end
+
+                    @applied_merge_mappings = Hash.new
+                    plan.add(existing_deployment_task = deployment_m.new)
+                    @existing_deployment_task = work_plan[existing_deployment_task]
+                    flexmock(syskit_engine.merge_solver).
+                        should_receive(:apply_merge_group).
+                        with(->(mappings) { applied_merge_mappings.merge!(mappings); true }).
+                        pass_thru
+                    work_plan.add(@deployment_task = deployment_m.new)
                 end
 
                 it "creates a new deployed task if there is not one already" do
-                    existing_task.orocos_name = 'other_task'
-                    task.orocos_name = 'task'
-                    should_create_new_task
+                    task = deployment_task.task 'test'
                     syskit_engine.adapt_existing_deployment(deployment_task, existing_deployment_task)
+                    created_task = existing_deployment_task.created_tasks[0].last
+                    assert_equal [['test', task_m, created_task]], existing_deployment_task.created_tasks
+                    assert_equal Hash[task => created_task], applied_merge_mappings
                 end
                 it "reuses an existing deployment" do
-                    task.orocos_name = existing_task.orocos_name = 'task'
-                    should_not_create_new_task
+                    existing_task = existing_deployment_task.task('test', record: false)
+                    task = deployment_task.task 'test'
                     syskit_engine.adapt_existing_deployment(deployment_task, existing_deployment_task)
+                    assert existing_deployment_task.created_tasks.empty?
+                    assert_equal Hash[task => existing_task], applied_merge_mappings
                 end
-                it "creates a new deployed task if there is an existing deployment but it cannot be merged" do
-                    task.orocos_name = existing_task.orocos_name = 'task'
-                    flexmock(task).should_receive(:can_be_deployed_by?).with(existing_task).and_return(false)
-                    should_create_new_task
-                    syskit_engine.adapt_existing_deployment(deployment_task, existing_deployment_task)
+
+                describe "there is a deployment and it cannot be reused" do
+                    attr_reader :task, :existing_task
+                    before do
+                        @existing_task = existing_deployment_task.task('test', record: false)
+                        @task = deployment_task.task 'test'
+                        flexmock(task).should_receive(:can_be_deployed_by?).
+                            with(existing_task).and_return(false)
+                    end
+
+                    it "creates a new deployed task" do
+                        syskit_engine.adapt_existing_deployment(deployment_task, existing_deployment_task)
+                        created_task = existing_deployment_task.created_tasks[0].last
+                        assert_equal [['test', task_m, created_task]], existing_deployment_task.created_tasks
+                        assert_equal Hash[task => created_task], applied_merge_mappings
+                    end
+                    it "synchronizes the newly created task with the end of the existing one" do
+                        syskit_engine.adapt_existing_deployment(deployment_task, existing_deployment_task)
+                        created_task = existing_deployment_task.created_tasks[0].last
+                        assert_equal [created_task.start_event],
+                            existing_task.stop_event.each_syskit_configuration_precedence(false).to_a
+                    end
+                    it "re-synchronizes with all the existing tasks if more than one is present at a given time" do
+                        syskit_engine.adapt_existing_deployment(deployment_task, existing_deployment_task)
+                        first_new_task = existing_deployment_task.created_tasks[0].last
+
+                        work_plan.add(deployment_task = deployment_m.new)
+                        task = deployment_task.task('test')
+                        flexmock(task).should_receive(:can_be_deployed_by?).
+                            with(first_new_task).and_return(false)
+                        syskit_engine.adapt_existing_deployment(deployment_task, existing_deployment_task)
+                        second_new_task = existing_deployment_task.created_tasks[1].last
+
+                        assert_equal [first_new_task.start_event, second_new_task.start_event],
+                            existing_task.stop_event.each_syskit_configuration_precedence(false).to_a
+                        assert_equal [second_new_task.start_event],
+                            first_new_task.stop_event.each_syskit_configuration_precedence(false).to_a
+                    end
+
+                    it "synchronizes with the existing tasks even if there are no current ones" do
+                        flexmock(syskit_engine).should_receive(:find_current_deployed_task).
+                            once.and_return(nil)
+                        syskit_engine.adapt_existing_deployment(deployment_task, existing_deployment_task)
+                        created_task = existing_deployment_task.created_tasks[0].last
+                        assert_equal [created_task.start_event],
+                            existing_task.stop_event.each_syskit_configuration_precedence(false).to_a
+                    end
                 end
-                it "ignores existing deployed tasks if they are not pending or running" do
+            end
+
+            describe "#find_current_deployed_task" do
+                it "ignores garbage tasks that have not been finalized yet" do
+                    component_m = Syskit::Component.new_submodel
+                    plan.add(task0 = component_m.new)
+                    flexmock(task0).should_receive(can_finalize?: false)
+                    plan.add(task1 = component_m.new)
+                    task1.should_configure_after(task0.stop_event)
+                    plan.garbage_task(task0)
+                    task0 = syskit_engine.work_plan[task0]
+                    task1 = syskit_engine.work_plan[task1]
+                    assert_equal task1, syskit_engine.find_current_deployed_task([task0, task1])
                 end
-                it "synchronizes the newly created task with the end of the existing one" do
-                    task.orocos_name = existing_task.orocos_name = 'task'
-                    flexmock(task).should_receive(:can_be_deployed_by?).with(existing_task).and_return(false)
-                    new_task = should_create_new_task
-                    flexmock(new_task).should_receive(:should_configure_after).with(existing_task.stop_event).once
-                    syskit_engine.adapt_existing_deployment(deployment_task, existing_deployment_task)
+
+                it "ignores all non-reusable tasks" do
+                    component_m = Syskit::Component.new_submodel
+                    plan.add(task0 = component_m.new)
+                    plan.add(task1 = component_m.new)
+                    task1.should_configure_after(task0.stop_event)
+                    task0.do_not_reuse
+                    task1.do_not_reuse
+                    task0 = syskit_engine.work_plan[task0]
+                    task1 = syskit_engine.work_plan[task1]
+                    assert_nil syskit_engine.find_current_deployed_task([task0, task1])
                 end
             end
 

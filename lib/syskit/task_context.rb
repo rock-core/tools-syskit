@@ -44,11 +44,16 @@ module Syskit
                 # represents the last configuration applied on +name+
                 def configured; @@configured end
 
+                # The set of orocos_name for the tasks that are being
+                # configured, to avoid races
+                def configuring; @@configuring end
+
                 # A set of names that says if the task named 'name' should be
                 # reconfigured the next time
                 def needs_reconfiguration; @@needs_reconfiguration end
             end
             @@configured = Hash.new
+            @@configuring = Set.new
             @@needs_reconfiguration = Set.new
 
             # [Orocos::TaskContext,Orocos::ROS::Node] the underlying remote task
@@ -118,15 +123,12 @@ module Syskit
                 end
                 @properties = Properties.new(self, properties)
 
-                # All tasks start with executable? and setup? set to false
-                #
-                # Then, the engine will call setup, which will do what it should
                 @setup = false
+                @ready_to_start = false
                 @required_host = nil
                 # This is initalized to one as we known that {#setup} will
                 # perform a property update
                 @pending_property_updates = 1
-                self.executable = false
             end
 
             def create_fresh_copy # :nodoc:
@@ -134,6 +136,14 @@ module Syskit
                 new_task.orocos_task  = orocos_task
                 new_task.orogen_model = orogen_model
                 new_task
+            end
+
+            # Whether this task context can be started
+            #
+            # Under syskit, this can happen only if the task has been setup
+            # *and* all its inputs are connected
+            def executable?
+                @executable || (@ready_to_start && super)
             end
 
             # Value returned by TaskContext#distance_to when the tasks are in
@@ -426,7 +436,9 @@ module Syskit
             # Returns true if this component needs to be setup by calling the
             # #setup method, or if it can be used as-is
             def ready_for_setup?(state = nil)
-                if !super()
+                if TaskContext.configuring.include?(orocos_name)
+                    return false
+                elsif !super()
                     return false
                 elsif !all_inputs_connected?(only_static: true)
                     return false
@@ -452,18 +464,22 @@ module Syskit
                 @setup
             end
 
+            def ready_to_start!
+                @ready_to_start = true
+            end
+
             # Announces that the task is indeed setup
             #
             # This is meant for internal use. Don't use it unless you know what
             # you are doing
             def setup_successful!
                 if all_inputs_connected?
-                    self.executable = nil
+                    ready_to_start!
                     execution_engine.scheduler.report_action "configured and all inputs connected, marking as executable", self
-                    Runtime.debug { "#{self} is setup and all its inputs are connected, set executable to nil and executable? = #{executable?}" }
+                    Runtime.debug { "#{self} is setup and all its inputs are connected, executable? = #{executable?}" }
                 else
                     execution_engine.scheduler.report_action "configured, but some connections are pending", self
-                    Runtime.debug { "#{self} is setup but some of its inputs are not connected, keep executable = #{executable?}" }
+                    Runtime.debug { "#{self} is setup but some of its inputs are not connected, executable = #{executable?}" }
                 end
                 super
             end
@@ -581,9 +597,7 @@ module Syskit
                         end
 
                         needs_reconfiguration = true
-                        if !ready_for_setup?(state)
-                            raise InternalError, "#setup called on #{self} but we are not ready for setup"
-                        elsif !needs_reconfiguration?
+                        if !needs_reconfiguration?
                             _, current_conf, dynamic_services = TaskContext.configured[orocos_name]
                             if current_conf
                                 if current_conf == self.conf && dynamic_services == each_required_dynamic_service.to_set
@@ -651,7 +665,15 @@ module Syskit
                         model,
                         self.conf.dup,
                         self.each_required_dynamic_service.to_set]
+                    TaskContext.configuring.delete(orocos_name)
+                end.on_error(description: "#{self}#setup#remove_configuring_on_error") do
+                    TaskContext.configuring.delete(orocos_name)
                 end
+            end
+
+            def setting_up!(promise)
+                super
+                TaskContext.configuring << orocos_name
             end
 
             # Returns the start event object for this task

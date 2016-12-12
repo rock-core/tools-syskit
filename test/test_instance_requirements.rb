@@ -73,7 +73,7 @@ describe Syskit::InstanceRequirements do
             assert_equal Syskit::Models::OutputPort.new(req, simple_task_model.find_output_port('out').orogen_model), port
         end
         it "returns nil on non-existent ports" do
-            assert_equal nil, req.find_port('bla')
+            assert_nil req.find_port('bla')
         end
         it "picks the port on the selected service if there is one" do
             req.select_service(simple_task_model.srv_srv)
@@ -98,7 +98,7 @@ describe Syskit::InstanceRequirements do
             assert_equal simple_task_model.srv_srv, srv.service
         end
         it "returns nil on non-existent services" do
-            assert_equal nil, req.find_data_service('bla')
+            assert_nil req.find_data_service('bla')
         end
     end
 

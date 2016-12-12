@@ -453,7 +453,7 @@ module Syskit
             def mark_connected_pending_tasks_as_executable(pending_tasks)
                 pending_tasks.each do |t|
                     if t.setup? && t.all_inputs_connected?
-                        t.executable = nil
+                        t.ready_to_start!
                         debug { "#{t} has all its inputs connected, set executable to nil and executable? = #{t.executable?}" }
                         scheduler.report_action "all inputs connected, marking as executable", t
 
@@ -641,7 +641,7 @@ module Syskit
                 # looking for tasks whose input connections have been modified
                 tasks.each do |t|
                     if t.setup? && !t.executable? && t.plan == plan && t.all_inputs_connected?
-                        t.executable = nil
+                        t.ready_to_start!
                         scheduler.report_action "all inputs connected, marking as executable", t
                     end
                 end
