@@ -598,7 +598,7 @@ module Syskit
                             [remote, remote.raw_read]
                         end
                         [properties, orocos_task.port_names, orocos_task.rtt_state]
-                    end.on_success(description: "#{self}#prepare_for_setup#ready_for_setup?") do |properties, port_names, state|
+                    end.on_success(description: "#{self}#prepare_for_setup#write properties and needs_reconfiguration") do |properties, port_names, state|
                         properties.each do |p, p_value|
                             syskit_p = property(p.name)
                             syskit_p.remote_property = p
