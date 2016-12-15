@@ -129,7 +129,7 @@ module Syskit
                 @required_host = nil
                 # This is initalized to one as we known that {#setup} will
                 # perform a property update
-                @pending_property_updates = 1
+                @has_pending_property_updates = true
             end
 
             def create_fresh_copy # :nodoc:
@@ -317,19 +317,19 @@ module Syskit
             # general property update structure, all property updates happening
             # in a single execution cycle will be committed together.
             def queue_property_update_if_needed
-                if @pending_property_updates == 0
+                if !@has_pending_property_updates
                     commit_properties.execute
                 end
             end
 
             # Apply the values set for the properties to the underlying node
             def commit_properties(promise = self.promise(description: "#{self}#commit_properties"))
-                promise = promise.on_success(description: "#{self}#commit_properties#init") do
+                promise.on_success(description: "#{self}#commit_properties#init") do
                     # NOTE: the way properties call #queue_property_update_if_needed
                     # is called from Property#raw_write depends on the fact that
                     # snapshotting the property values is the first thing this
                     # promise does *AND* that this update happens in the execution thread
-                    @pending_property_updates -= 1
+                    @has_pending_property_updates = false
                     each_property.map do |p|
                         if p.needs_commit?
                             [p, p.value.dup]
@@ -356,7 +356,7 @@ module Syskit
                     end
                 end
 
-                @pending_property_updates += 1
+                @has_pending_property_updates = true
                 promise
             end
 
@@ -483,6 +483,13 @@ module Syskit
             # This is meant for internal use. Don't use it unless you know what
             # you are doing
             def setup_successful!
+                TaskContext.needs_reconfiguration.delete(orocos_name)
+                TaskContext.configured[orocos_name] = [
+                    model,
+                    self.conf.dup,
+                    self.each_required_dynamic_service.to_set]
+                TaskContext.configuring.delete(orocos_name)
+
                 if all_inputs_connected?
                     ready_to_start!
                     execution_engine.scheduler.report_action "configured and all inputs connected, marking as executable", self
@@ -586,13 +593,16 @@ module Syskit
                 to_remove
             end
 
+            # @api private
+            #
+            # Setup operations that must be performed before
+            # {Component#perform_setup} is called by {#perform_setup}
             def preparing_for_setup?
                 @preparing_for_setup && !@preparing_for_setup.complete?
             end
 
             def prepare_for_setup(promise)
-                promise.
-                    then(description: "#{self}#prepare_for_setup#read_properties") do
+                promise.then(description: "#{self}#prepare_for_setup#read_properties") do
                         properties = orocos_task.property_names.map do |p_name|
                             remote = orocos_task.raw_property(p_name)
                             [remote, remote.raw_read]
@@ -617,8 +627,7 @@ module Syskit
                             end
                         end
                         [needs_reconfiguration, port_names, state]
-                    end.
-                    then(description: "#{self}#prepare_for_setup#ensure_pre_operational") do |needs_reconfiguration, port_names, state|
+                    end.then(description: "#{self}#prepare_for_setup#ensure_pre_operational") do |needs_reconfiguration, port_names, state|
                         if state == :EXCEPTION
                             info "reconfiguring #{self}: the task was in exception state"
                             orocos_task.reset_exception(false)
@@ -630,25 +639,19 @@ module Syskit
                         else
                             [false, port_names]
                         end
-                    end.
-                    on_success(description: "#{self}#prepare_for_setup#clean_dynamic_port_connections") do |cleaned_up, port_names|
+                    end.on_success(description: "#{self}#prepare_for_setup#clean_dynamic_port_connections") do |cleaned_up, port_names|
                         if cleaned_up
                             clean_dynamic_port_connections(port_names)
                         end
                     end
             end
 
-            # Called to configure the component
-            def setup(promise)
-                if setup?
-                    raise ArgumentError, "#{self} is already set up"
-                end
-
-                promise = prepare_for_setup(promise)
+            # (see Component#perform_setup)
+            def perform_setup(promise)
+                prepare_for_setup(promise)
                 # This calls #configure
-                promise = super(promise)
-
-                promise = promise.on_success(description: "#{self}#setup#log_properties") do
+                super(promise)
+                promise.on_success(description: "#{self}#perform_setup#log_properties") do
                     if self.model.needs_stub?(self)
                         self.model.prepare_stub(self)
                     end
@@ -659,9 +662,8 @@ module Syskit
                         end
                     end
                 end
-                promise = commit_properties(promise)
-                @pending_property_updates -= 1
-                promise.then(description: "#{self}#setup#configure") do
+                commit_properties(promise)
+                promise.then(description: "#{self}#perform_setup#orocos_task.configure") do
                     state = orocos_task.rtt_state
                     if state == :PRE_OPERATIONAL
                         info "setting up #{self}"
@@ -669,21 +671,19 @@ module Syskit
                     else
                         info "#{self} was already configured"
                     end
-                end.on_success(description: "#{self}#setup#finalize_configure") do
-                    TaskContext.needs_reconfiguration.delete(orocos_name)
-                    TaskContext.configured[orocos_name] = [
-                        model,
-                        self.conf.dup,
-                        self.each_required_dynamic_service.to_set]
-                    TaskContext.configuring.delete(orocos_name)
-                end.on_error(description: "#{self}#setup#remove_configuring_on_error") do
-                    TaskContext.configuring.delete(orocos_name)
                 end
             end
 
+            # (see Component#setting_up!)_
             def setting_up!(promise)
                 super
                 TaskContext.configuring << orocos_name
+            end
+
+            # (see Component#setup_failed!)_
+            def setup_failed!(exception)
+                TaskContext.configuring.delete(orocos_name)
+                super
             end
 
             # Returns the start event object for this task

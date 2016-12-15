@@ -161,23 +161,50 @@ module Syskit
             # configured
             attr_predicate :setup?, true
 
-            # Call to configure the component. User-provided configuration calls
-            # should be defined in a #configure method
+            # Create a {Roby::Promise} object that configures the component
             #
-            # Note that for error-handling reasons, the setup? flag is not set
-            # by this method. Caller must call {#setup_successful!} after a successful call
-            # to #setup
+            # Never overload this method. Overload {#perform_setup} instead.
             #
-            # @return [Promise] #setup must schedule the work to be done in a
-            #   promise, to allow subclasses to schedule work 
-            def setup(promise)
-                promise.on_success(description: "#{self}#setup#configure") do
+            # @return [Promise]
+            def setup
+                if setup?
+                    raise ArgumentError, "#{self} is already set up"
+                end
+                promise = self.promise(description: "setup of #{self}")
+                perform_setup(promise)
+                promise.on_error(description: "#{self}#setup#setup_failed!") do |e|
+                    setup_failed!(e)
+                end
+                promise.on_success(description: "#{self}#setup#setup_successful!") do
+                    setup_successful!
+                end
+                setting_up!(promise)
+                promise
+            end
+
+            # @api private
+            #
+            # The actual setup operations. {#setup} is the user-facing part of
+            # the setup API, which creates the promise and sets up the
+            # setup-related bookkeeping operations
+            def perform_setup(promise)
+                promise.on_success(description: "#{self}#perform_setup#configure") do
                     freeze_delayed_arguments
                     if self.model.needs_stub?(self)
                         self.model.prepare_stub(self)
                     end
                     configure
                 end
+            end
+
+            # @api private
+            #
+            # Called once at the beginning of a setup promise
+            def setting_up!(promise)
+                if @setting_up
+                    raise InvalidState, "#{self} is already setting up"
+                end
+                @setting_up = promise
             end
 
             # @api private
@@ -212,23 +239,6 @@ module Syskit
             # sake of not breaking the setup process in an uncontrollable way.
             def can_finalize?
                 !setting_up?
-            end
-
-            # @api private
-            #
-            # Called to register the setup promise within the component
-            #
-            # @see Runtime.start_task_setup setting_up? is_setup!
-            def setting_up!(promise)
-                if @setting_up
-                    raise InvalidState, "#{self} is already setting up"
-                end
-
-                error_handler = promise.on_error(description: "#{self}#setting_up!#setup_failed!") do |e|
-                    setup_failed!(e)
-                end
-                promise.execute
-                @setting_up = promise
             end
 
             # User-provided part of the component configuration

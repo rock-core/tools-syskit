@@ -1,17 +1,5 @@
 module Syskit
     module Runtime
-        def self.start_task_setup(task)
-            execution_engine = task.execution_engine
-            promise = execution_engine.promise(description: "setup of #{task}") { }
-            promise = task.setup(promise).
-                on_success(description: "#{task}#setup_successful") do
-                    task.setup_successful!
-                end
-
-            task.setting_up!(promise)
-            promise
-        end
-
         # This method is called at the beginning of each execution cycle, and
         # updates the running TaskContext tasks.
         def self.update_task_states(plan) # :nodoc:
@@ -41,7 +29,7 @@ module Syskit
 
                 if t.pending? && !t.setup? && !t.setting_up?
                     if t.ready_for_setup? && Syskit.conf.auto_configure?
-                        start_task_setup(t)
+                        t.setup.execute
                         next
                     else
                         plan.execution_engine.scheduler.report_holdoff "did not configure, not ready for setup", t

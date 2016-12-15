@@ -509,7 +509,7 @@ module Syskit
                 syskit_start_execution_agents(task)
                 plan.add_permanent_task(other_task = task.execution_agent.task(task.orocos_name))
                 assert task.ready_for_setup?
-                promise = Syskit::Runtime.start_task_setup(other_task)
+                promise = other_task.setup.execute
                 refute task.ready_for_setup?
                 execution_engine.join_all_waiting_work
                 assert task.ready_for_setup?
@@ -520,7 +520,7 @@ module Syskit
                 plan.add(other_task = task.execution_agent.task(task.orocos_name))
                 assert task.ready_for_setup?
                 flexmock(other_task.orocos_task).should_receive(:configure).and_raise(Orocos::StateTransitionFailed)
-                promise = Syskit::Runtime.start_task_setup(other_task)
+                promise = other_task.setup.execute
                 refute task.ready_for_setup?
                 execution_engine.join_all_waiting_work
                 assert task.ready_for_setup?
@@ -774,7 +774,7 @@ module Syskit
             def setup_task(task = self.task, expected_messages: nil)
                 promise = nil
                 messages = capture_log(task, :info) do
-                    promise = Runtime.start_task_setup(task)
+                    promise = task.setup.execute
                     execution_engine.join_all_waiting_work
                 end
                 if !expected_messages
@@ -823,6 +823,8 @@ module Syskit
                 process_events_until(join_all_waiting_work: false, garbage_collect_pass: true) do
                     task.setup?
                 end
+                process_events
+                assert task.finalized?
             end
             it "keeps the task in the plan until the asynchronous setup's error has been handled" do
                 flexmock(task).should_receive(:configure).and_return do
@@ -845,9 +847,8 @@ module Syskit
 
                 before do
                     @error_m = Class.new(RuntimeError)
-                    promise = execution_engine.promise(description: "#{name}#before") { recorder.called }
                     task.should_receive(:prepare_for_setup).once.
-                        and_return(promise)
+                        and_return { |promise| promise }
                 end
 
                 it "calls the user-provided #configure method after prepare_for_setup" do
@@ -863,17 +864,6 @@ module Syskit
                     orocos_task.should_receive(:rtt_state).and_return(:STOPPED)
                     orocos_task.should_receive(:configure).never
                     setup_task(expected_messages: ["applied configuration [\"default\"] to #{task.orocos_name}", "#{task} was already configured"])
-                end
-                it "does not call setup_successful!" do
-                    task.should_receive(:setup_successful!).never
-                    messages = capture_log(task, :info) do
-                        promise = execution_engine.promise(description: "setup of #{task}") { }
-                        promise = task.setup(promise)
-                        promise.execute
-                        execution_engine.join_all_waiting_work
-                        promise.value!
-                    end
-                    assert_equal default_setup_task_messages(task), messages
                 end
                 it "does not call the task's configure method if the user-provided configure method raises" do
                     plan.unmark_mission_task(task)
@@ -1309,6 +1299,43 @@ module Syskit
                         globally.ordered.pass_thru
                     task.commit_properties.execute
                     process_events
+                end
+
+                it "serializes the executions" do
+                    finished = Array.new
+                    promises = (0...100).map do |i|
+                        promise = task.commit_properties
+                        promise.on_success { finished << i }
+                        promise
+                    end
+                    promises.each(&:execute)
+                    execution_engine.join_all_waiting_work
+                    assert_equal (0...100).to_a, finished
+                end
+
+                it "is serialized with the initial commit in task setup" do
+                    promises = [
+                        task.commit_properties,
+                        task.setup,
+                        task.commit_properties]
+
+                    finished = Array.new
+                    promises.each_with_index do |p, i|
+                        p.before do
+                            sleep(0.1 / (i + 1))
+                        end
+                        p.on_success do
+                            Orocos.allow_blocking_calls do
+                                assert_equal i, task.orocos_task.test
+                            end
+                            task.properties.test = i + 1
+                            finished << i
+                        end
+                    end
+                    task.properties.test = 0
+                    promises.each(&:execute)
+                    execution_engine.join_all_waiting_work
+                    assert_equal [0, 1, 2], finished
                 end
 
                 describe "the update during setup" do

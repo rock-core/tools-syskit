@@ -740,7 +740,7 @@ module Syskit
                         end
                         if should_setup
                             messages = capture_log(t, :info) do
-                                Runtime.start_task_setup(t)
+                                t.setup.execute
                                 execution_engine.join_all_waiting_work
                             end
                             if t.failed_to_start?
