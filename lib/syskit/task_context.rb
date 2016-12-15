@@ -597,10 +597,6 @@ module Syskit
             #
             # Setup operations that must be performed before
             # {Component#perform_setup} is called by {#perform_setup}
-            def preparing_for_setup?
-                @preparing_for_setup && !@preparing_for_setup.complete?
-            end
-
             def prepare_for_setup(promise)
                 promise.then(description: "#{self}#prepare_for_setup#read_properties") do
                         properties = orocos_task.property_names.map do |p_name|
