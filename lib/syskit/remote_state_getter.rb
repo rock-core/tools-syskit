@@ -70,7 +70,7 @@ module Syskit
 
                 time = Time.now
                 state = orocos_task.rtt_state
-                if state != last_state
+                if (state != last_state) || !current_state.value
                     current_state.reset(state)
                     state_queue.push(state)
                     last_state = state
@@ -81,7 +81,7 @@ module Syskit
                 end
                 spent = (Time.now - time)
                 if spent < period
-                    sleep(period - (Time.now - time))
+                    sleep(period - spent)
                 end
                 run_event.wait
             end
@@ -138,6 +138,12 @@ module Syskit
                 @last_read_state = new_state
             end
         rescue ThreadError
+        end
+
+        def clear
+            state_queue.clear
+            current_state.reset(nil)
+            @last_read_state = nil
         end
 
         # Whether the polling thread is alive

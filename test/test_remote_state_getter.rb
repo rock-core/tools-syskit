@@ -205,5 +205,29 @@ module Syskit
                 assert(getter.poll_thread.status != 'sleep')
             end
         end
+
+        describe "#clear" do
+            it "clears the last read value" do
+                task.push_state(1)
+                getter.wait
+                getter.read
+                getter.clear
+                refute getter.read
+            end
+            it "clears the state queue" do
+                task.push_state(1)
+                getter.wait
+                getter.clear
+                refute getter.read_new
+            end
+            it "re-reads the state even if it did not change w.r.t. the last state read" do
+                # the getter usually does not queue a state if it was the same
+                # than the last read state. It however should after a #clear
+                task.push_state(1)
+                getter.wait
+                getter.clear
+                assert_equal 1, getter.wait
+            end
+        end
     end
 end
