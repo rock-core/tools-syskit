@@ -1165,6 +1165,9 @@ module Syskit
             end
 
             describe "#properties" do
+                before do
+                    plan.add(task)
+                end
                 it "gives read/write access to the properties as fields" do
                     task.properties.test = 10
                     assert_equal 10, task.properties.test
@@ -1207,7 +1210,7 @@ module Syskit
                     end
                 end
                 def mock_remote_property
-                    task.property('test').remote_property = @remote_test_property
+                    property.remote_property = @remote_test_property
                     flexmock(@remote_test_property)
                 end
                 it "queues a property update" do
@@ -1220,6 +1223,27 @@ module Syskit
                     property.write(0.1)
                     property.write(0.2)
                     property.write(0.3)
+                    process_events
+                end
+                it "does not queue an update on a task that failed-to-start" do
+                    plan.unmark_mission_task(task)
+                    flexmock(task).should_receive(:commit_properties).never
+                    task.start_event.emit_failed
+                    property.write(0.1)
+                    process_events
+                end
+                it "does not queue an update on a stopping task" do
+                    plan.unmark_mission_task(task)
+                    flexmock(task).should_receive(:commit_properties).never
+                    task.stop!
+                    property.write(0.1)
+                    process_events
+                end
+                it "does not queue an update on a stopped task" do
+                    plan.unmark_mission_task(task)
+                    flexmock(task).should_receive(:commit_properties).never
+                    assert_event_emission(task.stop_event) { task.stop! }
+                    property.write(0.1)
                     process_events
                 end
                 it "reports PropertyUpdateError on a failed write" do
@@ -1336,6 +1360,64 @@ module Syskit
                     promises.each(&:execute)
                     execution_engine.join_all_waiting_work
                     assert_equal [0, 1, 2], finished
+                end
+
+                describe "synchronization of the terminal events and the commit properties promises" do
+                    attr_reader :barrier
+
+                    before do
+                        plan.remove_free_event(@guard)
+                        @barrier = Concurrent::CyclicBarrier.new(2)
+                        syskit_configure_and_start(task)
+                        mock_remote_property.should_receive(:write).
+                            pass_thru { barrier.wait }
+                        task.properties.test = 42
+                    end
+
+                    def wait_until_promise_stops_on_barrier
+                        process_events_until(garbage_collect_pass: false) { barrier.number_waiting == 1 }
+                    end
+
+                    it "waits for the last active property commit to finish before emitting the stop event of an interruption" do
+                        wait_until_promise_stops_on_barrier
+                        plan.unmark_mission_task(task)
+                        task.stop!
+                        process_events_until(garbage_collect_pass: false) { task.orogen_state == :STOPPED }
+                        assert task.finishing?
+                        barrier.wait
+                        execution_engine.join_all_waiting_work
+                        assert task.interrupt_event.emitted?
+                    end
+
+                    it "waits for the last active property commit to finish before emitting a stop event triggered by a state change" do
+                        wait_until_promise_stops_on_barrier
+                        plan.unmark_mission_task(task)
+                        Orocos.allow_blocking_calls { task.orocos_task.stop }
+                        process_events_until(garbage_collect_pass: false) { task.finishing? }
+                        barrier.wait
+                        execution_engine.join_all_waiting_work
+                        assert task.success_event.emitted?
+                    end
+
+                    it "waits for the last active property commit to finish before emitting an exception event" do
+                        wait_until_promise_stops_on_barrier
+                        plan.unmark_mission_task(task)
+                        Orocos.allow_blocking_calls { task.orocos_task.local_ruby_task.exception }
+                        process_events_until(garbage_collect_pass: false) { task.finishing? }
+                        barrier.wait
+                        execution_engine.join_all_waiting_work
+                        assert task.exception_event.emitted?
+                    end
+
+                    it "does nothing when executing a pending promise while the task was stopped in the meantime" do
+                        original_remote_value = task.property('test').remote_value
+                        plan.unmark_mission_task(task)
+                        task.stop!
+                        execution_engine.join_all_waiting_work
+                        assert_equal original_remote_value, task.test_property.remote_value
+                        assert_equal original_remote_value,
+                            Orocos.allow_blocking_calls { task.orocos_task.test }
+                    end
                 end
 
                 describe "the update during setup" do

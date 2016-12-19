@@ -124,6 +124,7 @@ module Syskit
                     properties[p.name] = Property.new(self, p.name, Roby.app.default_loader.intermediate_type_for(p.type))
                 end
                 @properties = Properties.new(self, properties)
+                @current_property_commit = nil
 
                 @setup = false
                 @ready_to_start = false
@@ -146,6 +147,13 @@ module Syskit
             # *and* all its inputs are connected
             def executable?
                 @executable || (@ready_to_start && super)
+            end
+
+            # Whether the task should be kept in plan
+            def can_finalize?
+                super &&
+                    (!(promise = @current_property_commit) ||
+                       promise.complete?)
             end
 
             # Value returned by TaskContext#distance_to when the tasks are in
@@ -310,6 +318,10 @@ module Syskit
             # Event emitted when a property commit has successfully finished
             event :properties_updated
 
+            def would_use_property_update?
+                pending? || starting? || (running? && !finishing?)
+            end
+
             # @api private
             #
             # Queue a remote property update if none are pending
@@ -318,25 +330,42 @@ module Syskit
             # general property update structure, all property updates happening
             # in a single execution cycle will be committed together.
             def queue_property_update_if_needed
+                if !would_use_property_update?
+                    raise InvalidState, "attempting to queue a property update on a finished or finishing task"
+                end
+
                 if !@has_pending_property_updates
                     commit_properties.execute
                 end
             end
 
             # Apply the values set for the properties to the underlying node
-            def commit_properties(promise = self.promise(description: "#{self}#commit_properties"))
+            def commit_properties(promise = self.promise(description: "promise:#{self}#commit_properties"))
                 promise.on_success(description: "#{self}#commit_properties#init") do
-                    # NOTE: the way properties call #queue_property_update_if_needed
-                    # is called from Property#raw_write depends on the fact that
-                    # snapshotting the property values is the first thing this
-                    # promise does *AND* that this update happens in the execution thread
-                    @has_pending_property_updates = false
-                    each_property.map do |p|
-                        if p.needs_commit?
-                            [p, p.value.dup]
-                        end
-                    end.compact
-                end.then(description: "#{self}#commit_properties#write") do |properties|
+                    if finalized? || garbage? || finishing? || finished?
+                        []
+                    else
+                        # NOTE: {#queue_property_update_if_needed}, is a
+                        # *delayed* property commit. It attempts at doing one
+                        # batched write for many writes from Property#write.
+                        #
+                        # This works because the property-snapshot step (this
+                        # step) is done within the event loop.
+
+                        # Register this as the active property commit
+                        # for the benefit of {#handle_state_change} and
+                        # synchronizing with the task stop
+                        @current_property_commit = promise
+
+                        @has_pending_property_updates = false
+                        each_property.map do |p|
+                            if p.needs_commit?
+                                [p, p.value.dup]
+                            end
+                        end.compact
+                    end
+                end
+                promise.then(description: "#{self}#commit_properties#write") do |properties|
                     properties.map do |p, p_value|
                         begin
                             remote = (p.remote_property ||= orocos_task.raw_property(p.name))
@@ -347,14 +376,15 @@ module Syskit
                         end
                     end.compact
                 end.on_success(description: "#{self}#commit_properties#update_log") do |result|
-                    result.each do |timestamp, property, error|
+                    result.map do |timestamp, property, error|
                         if error
                             execution_engine.add_error(PropertyUpdateError.new(error, property))
                         else
                             property.update_remote_value(property.value)
                             property.update_log(timestamp)
+                            property
                         end
-                    end
+                    end.compact
                 end
 
                 @has_pending_property_updates = true
@@ -738,20 +768,44 @@ module Syskit
                     end
                 end
 
-                if orogen_state == :STOPPED || orogen_state == :PRE_OPERATIONAL
-                    if interrupt_event.pending?
-                        interrupt_event.emit
-                    elsif finishing?
-                        stop_event.emit
-                    else
-                        success_event.emit
+                state_event =
+                    if orogen_state == :STOPPED
+                        if interrupt_event.pending?
+                            interrupt_event
+                        elsif finishing?
+                            stop_event
+                        else
+                            success_event
+                        end
+                    elsif orogen_state != :RUNNING
+                        if event_name = state_event(orogen_state)
+                            event(event_name)
+                        else
+                            raise ArgumentError, "#{self} reports state #{orogen_state}, but I don't have an event for this state transition"
+                        end
                     end
+                return if !state_event
+                if state_event.terminal?
+                    # This is needed so that the first step of
+                    # @current_property_commit cancels the promise.
+                    self.finishing = true
+
+                    # If there's a pending property commit, we must wait for it
+                    # to finish before emitting the event
+                    if (promise = @current_property_commit) && !promise.complete?
+                        promise.add_observer do
+                            execution_engine.execute(type: :propagation) do
+                                state_event.emit
+                            end
+                        end
+                    else
+                        puts "#{state_event}.emit"
+                        state_event.emit
+                    end
+
                 elsif orogen_state != :RUNNING
-                    if event_name = state_event(orogen_state)
-                        event(event_name).emit
-                    else
-                        raise ArgumentError, "#{self} reports state #{orogen_state}, but I don't have an event for this state transition"
-                    end
+                    puts "#{state_event}.emit"
+                    state_event.emit
                 end
             end
 

@@ -107,7 +107,9 @@ module Syskit
         # @param [Time] _timestamp ignored, for compatibility with
         #   {Orocos::Property}
         def write(value, _timestamp = nil)
-            raw_write(Typelib.from_ruby(value, type))
+            if task_context.would_use_property_update?
+                raw_write(Typelib.from_ruby(value, type))
+            end
         end
 
         # Update this property with a Typelib object
