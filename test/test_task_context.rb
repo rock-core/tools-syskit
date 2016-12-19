@@ -228,10 +228,13 @@ module Syskit
                     task.start_event.emit
                 end
                 if task.running?
+                    plan.unmark_mission_task(task)
                     messages = capture_log(task, :info) do
-                        task.stop_event.emit 
+                        assert_event_emission(task.stop_event) do
+                            task.stop!
+                        end
                     end
-                    assert_equal ["stopped #{task}"], messages
+                    assert_equal ["interrupting #{task}", "stopped #{task}"], messages
                 end
             end
 
@@ -377,10 +380,13 @@ module Syskit
                     task.start_event.emit
                 end
                 if task.running?
+                    plan.unmark_mission_task(task)
                     messages = capture_log(task, :info) do
-                        task.stop_event.emit 
+                        assert_event_emission(task.stop_event) do
+                            task.stop!
+                        end
                     end
-                    assert_equal ["stopped #{task}"], messages
+                    assert_equal ["interrupting #{task}", "stopped #{task}"], messages
                 end
             end
 
@@ -398,6 +404,7 @@ module Syskit
                 assert_event_emission task.start_event do
                     task.handle_state_changes
                 end
+                task.stop_event.emit
                 assert task.test_event.emitted?
             end
             it "raises ArgumentError if the state cannot be mapped to an event" do
