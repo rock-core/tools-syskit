@@ -756,6 +756,7 @@ module Syskit
                 if !@got_running_state
                     if orocos_task.runtime_state?(orogen_state)
                         @got_running_state = true
+                        @last_terminal_state = nil
                         start_event.emit
                     else
                         return
@@ -765,6 +766,8 @@ module Syskit
                 if orocos_task.runtime_state?(orogen_state)
                     if last_orogen_state && orocos_task.error_state?(last_orogen_state)
                         running_event.emit
+                    elsif @last_terminal_state
+                        fatal "#{self} reports state #{orogen_state} after having reported a terminal state (#{@last_terminal_state}). Syskit will try to go on, but this should not happen."
                     end
                 end
 
@@ -799,12 +802,11 @@ module Syskit
                             end
                         end
                     else
-                        puts "#{state_event}.emit"
                         state_event.emit
                     end
+                    @last_terminal_state = orogen_state
 
                 elsif orogen_state != :RUNNING
-                    puts "#{state_event}.emit"
                     state_event.emit
                 end
             end
