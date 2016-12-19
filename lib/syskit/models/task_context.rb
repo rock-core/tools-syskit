@@ -59,12 +59,13 @@ module Syskit
             #
             # @return [{Symbol=>Symbol}]
             def make_state_events
-                orogen_model.states.each do |name, type|
+                with_superclass = !supermodel || !supermodel.respond_to?(:orogen_model) || (supermodel.orogen_model != orogen_model.superclass)
+                orogen_model.each_state(with_superclass: with_superclass) do |name, type|
                     event_name = name.snakecase.downcase.to_sym
                     if type == :toplevel
-                        event event_name, :terminal => (name == 'EXCEPTION' || name == 'FATAL_ERROR')
+                        event event_name, terminal: (name == 'EXCEPTION' || name == 'FATAL_ERROR')
                     else
-                        event event_name, :terminal => (type == :exception || type == :fatal_error)
+                        event event_name, terminal: (type == :exception || type == :fatal_error)
                         if type == :fatal
                             forward event_name => :fatal_error
                         elsif type == :exception
@@ -148,8 +149,14 @@ module Syskit
                 end
             end
 
-            # [Orocos::Spec::TaskContext] The base oroGen model that all submodels need to subclass
-            attribute(:orogen_model) { Models.create_orogen_task_context_model }
+            # This component's oroGen model
+            attr_accessor :orogen_model
+
+            # Set this class up to represent an oroGen root model
+            def root_model
+                @orogen_model = Models.create_orogen_task_context_model
+                make_state_events
+            end
 
             # A state_name => event_name mapping that maps the component's
             # state names to the event names that should be emitted when it

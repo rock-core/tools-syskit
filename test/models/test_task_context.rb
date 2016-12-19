@@ -14,6 +14,12 @@ describe Syskit::Models::TaskContext do
         end
     end
 
+    describe "the root models" do
+        it "resolves toplevel events" do
+            assert_equal :exception, Syskit::TaskContext.find_state_event(:EXCEPTION)
+        end
+    end
+
     describe "specialized models" do
         it "has an isolated orogen model" do
             model = Syskit::TaskContext.new_submodel

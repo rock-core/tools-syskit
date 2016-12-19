@@ -25,6 +25,7 @@ module Syskit
             # TaskContext uses the Robot for logging by default
             self.logger = ::Robot.logger
 
+            root_model
             abstract
 
             # The task's configuration, as a list of registered configurations
@@ -805,29 +806,34 @@ module Syskit
 
             forward :interrupt => :failed
 
+            # @!method running_event
+            #
             # Returns the running event object for this task. This event gets
             # emitted whenever the component goes into the Running state, either
             # because it has just been started or because it left a runtime
             # error state.
-            event :running
-            forward :start => :running
 
+            # @!method runtime_error_event
+            #
             # Returns the runtime error event object for this task. This event
             # gets emitted whenever the component goes into a runtime error
             # state.
-            event :runtime_error
 
+            # @!method exception_event
+            #
             # Returns the exception error event object for this task. This event
             # gets emitted whenever the component goes into an exception
             # state.
-            event :exception
-            forward :exception => :failed
 
+            # @!method fatal_error_event
+            #
             # Returns the fatal error event object for this task. This event
             # gets emitted whenever the component goes into a fatal error state.
             #
             # This leads to the component emitting both :failed and :stop
-            event :fatal_error
+
+            forward :start => :running
+            forward :exception => :failed
             forward :fatal_error => :failed
 
             event :aborted, terminal: true do |context|

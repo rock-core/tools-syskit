@@ -309,7 +309,7 @@ module Syskit
         end
 
         describe "#state_event" do
-            it "should be able to resolve events from parent models" do
+            it "resolves events from parent models" do
                 parent_m = TaskContext.new_submodel do
                     runtime_states :CUSTOM
                 end
