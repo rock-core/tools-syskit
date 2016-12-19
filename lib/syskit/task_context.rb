@@ -700,7 +700,7 @@ module Syskit
                     map { |port_name, _| port_name }
                 expected_input_ports = each_concrete_input_connection.
                     map { |_, _, port_name, _| port_name }
-                promise = execution_engine.promise(description: "#{self}#start") do
+                promise = execution_engine.promise(description: "promise:#{self}#start") do
                     port_names = orocos_task.port_names.to_set
                     # At this point, we should have already created all the dynamic
                     # ports that are required ... check that
@@ -790,7 +790,7 @@ module Syskit
                     aborted_event.emit
                 elsif execution_agent && !execution_agent.finishing?
                     promise = execution_engine.
-                        promise(description: "#{self}#interrupt") do
+                        promise(description: "promise:#{self}#interrupt") do
                             stop_orocos_task
                         end.
                         on_success(description: "#{self}#interrupt#done") do |result|

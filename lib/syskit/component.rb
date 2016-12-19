@@ -170,7 +170,7 @@ module Syskit
                 if setup?
                     raise ArgumentError, "#{self} is already set up"
                 end
-                promise = self.promise(description: "setup of #{self}")
+                promise = self.promise(description: "promise:#{self}#setup")
                 perform_setup(promise)
                 promise.on_error(description: "#{self}#setup#setup_failed!") do |e|
                     setup_failed!(e)
