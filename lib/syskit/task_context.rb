@@ -847,7 +847,7 @@ module Syskit
 
             # Interrupts the execution of this task context
             event :interrupt do |context|
-	        info "interrupting #{name}"
+	        info "interrupting #{self}"
 
                 if !orocos_task # already killed
                     interrupt_event.emit
