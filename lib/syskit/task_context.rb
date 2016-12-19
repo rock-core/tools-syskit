@@ -357,7 +357,13 @@ module Syskit
                         # synchronizing with the task stop
                         @current_property_commit = promise
 
-                        @has_pending_property_updates = false
+                        # Reset to false (allowing commit queueing from
+                        # Property#write) only if the task is starting and/or
+                        # running. This is because we explicitely commit
+                        # properties within the setup step, and within the
+                        # task's start event.
+                        @has_pending_property_updates = !(starting? || running?)
+
                         each_property.map do |p|
                             if p.needs_commit?
                                 [p, p.value.dup]
@@ -730,7 +736,9 @@ module Syskit
                     map { |port_name, _| port_name }
                 expected_input_ports = each_concrete_input_connection.
                     map { |_, _, port_name, _| port_name }
-                promise = execution_engine.promise(description: "promise:#{self}#start") do
+                promise = promise(description: "promise:#{self}#start")
+                commit_properties(promise)
+                promise.then do
                     port_names = orocos_task.port_names.to_set
                     # At this point, we should have already created all the dynamic
                     # ports that are required ... check that

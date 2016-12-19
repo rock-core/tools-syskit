@@ -1200,59 +1200,121 @@ module Syskit
             end
 
             describe "property updates at runtime" do
-                attr_reader :task, :property
-                before do
-                    @task = syskit_stub_deploy_configure_and_start(task_m)
-                    @property = task.test_property
-                    Orocos.allow_blocking_calls do
-                        @remote_test_property = task.orocos_task.raw_property('test')
-                        @remote_test_property.write(0.2)
+                describe "a running task" do
+                    attr_reader :task, :property
+                    before do
+                        @task = syskit_stub_deploy_configure_and_start(task_m)
+                        @property = task.test_property
+                        Orocos.allow_blocking_calls do
+                            @remote_test_property = task.orocos_task.raw_property('test')
+                            @remote_test_property.write(0.2)
+                        end
+                    end
+                    def mock_remote_property
+                        property.remote_property = @remote_test_property
+                        flexmock(@remote_test_property)
+                    end
+
+                    it "queues a property update" do
+                        mock_remote_property.should_receive(:write).once.with(0.1)
+                        property.write(0.1)
+                        process_events
+                    end
+                    it "queues only one property update even in case of multiple writes" do
+                        mock_remote_property.should_receive(:write).once.with(0.3)
+                        property.write(0.1)
+                        property.write(0.2)
+                        property.write(0.3)
+                        process_events
+                    end
+                    it "does not queue an update on a task that failed-to-start" do
+                        plan.unmark_mission_task(task)
+                        flexmock(task).should_receive(:commit_properties).never
+                        task.start_event.emit_failed
+                        property.write(0.1)
+                        process_events
+                    end
+                    it "does not queue an update on a stopping task" do
+                        plan.unmark_mission_task(task)
+                        flexmock(task).should_receive(:commit_properties).never
+                        task.stop!
+                        property.write(0.1)
+                        process_events
+                    end
+                    it "does not queue an update on a stopped task" do
+                        plan.unmark_mission_task(task)
+                        flexmock(task).should_receive(:commit_properties).never
+                        assert_event_emission(task.stop_event) { task.stop! }
+                        property.write(0.1)
+                        process_events
+                    end
+                    it "reports PropertyUpdateError on a failed write" do
+                        error_m = Class.new(RuntimeError)
+                        property.write(0.1)
+                        mock_remote_property.should_receive(:write).once.
+                            and_raise(error_m)
+                        assert_fatal_exception(PropertyUpdateError, failure_point: task, original_exception: error_m, tasks: [task]) do
+                            process_events
+                        end
                     end
                 end
-                def mock_remote_property
-                    property.remote_property = @remote_test_property
-                    flexmock(@remote_test_property)
+
+                describe "a non-setup task" do
+                    attr_reader :task, :property
+                    before do
+                        @task = syskit_stub_and_deploy(task_m)
+                        syskit_start_execution_agents(task)
+                        @property = task.test_property
+                        Orocos.allow_blocking_calls do
+                            @remote_test_property = task.orocos_task.raw_property('test')
+                            @remote_test_property.write(0.2)
+                        end
+                    end
+                    def mock_remote_property
+                        property.remote_property = @remote_test_property
+                        flexmock(@remote_test_property)
+                    end
+
+                    it "does not queue property updates when writing on properties" do
+                        flexmock(task).should_receive(:commit_properties).never
+                        task.properties.test = 42
+                    end
+
+                    it "does commit property changes on setup" do
+                        mock_remote_property.should_receive(:write).globally.ordered.pass_thru
+                        flexmock(task.orocos_task).should_receive(:configure).globally.ordered.pass_thru
+                        task.properties.test = 42
+                        syskit_configure(task)
+                        assert_equal 42, Orocos.allow_blocking_calls { task.orocos_task.test }
+                    end
                 end
-                it "queues a property update" do
-                    mock_remote_property.should_receive(:write).once.with(0.1)
-                    property.write(0.1)
-                    process_events
-                end
-                it "queues only one property update even in case of multiple writes" do
-                    mock_remote_property.should_receive(:write).once.with(0.3)
-                    property.write(0.1)
-                    property.write(0.2)
-                    property.write(0.3)
-                    process_events
-                end
-                it "does not queue an update on a task that failed-to-start" do
-                    plan.unmark_mission_task(task)
-                    flexmock(task).should_receive(:commit_properties).never
-                    task.start_event.emit_failed
-                    property.write(0.1)
-                    process_events
-                end
-                it "does not queue an update on a stopping task" do
-                    plan.unmark_mission_task(task)
-                    flexmock(task).should_receive(:commit_properties).never
-                    task.stop!
-                    property.write(0.1)
-                    process_events
-                end
-                it "does not queue an update on a stopped task" do
-                    plan.unmark_mission_task(task)
-                    flexmock(task).should_receive(:commit_properties).never
-                    assert_event_emission(task.stop_event) { task.stop! }
-                    property.write(0.1)
-                    process_events
-                end
-                it "reports PropertyUpdateError on a failed write" do
-                    error_m = Class.new(RuntimeError)
-                    property.write(0.1)
-                    mock_remote_property.should_receive(:write).once.
-                        and_raise(error_m)
-                    assert_fatal_exception(PropertyUpdateError, failure_point: task, original_exception: error_m, tasks: [task]) do
-                        process_events
+
+                describe "a setup but not started task" do
+                    attr_reader :task, :property
+                    before do
+                        @task = syskit_stub_deploy_and_configure(task_m)
+                        @property = task.test_property
+                        Orocos.allow_blocking_calls do
+                            @remote_test_property = task.orocos_task.raw_property('test')
+                            @remote_test_property.write(0.2)
+                        end
+                    end
+                    def mock_remote_property
+                        property.remote_property = @remote_test_property
+                        flexmock(@remote_test_property)
+                    end
+
+                    it "does not queue property updates when writing on properties" do
+                        flexmock(task).should_receive(:commit_properties).never
+                        task.properties.test = 42
+                    end
+
+                    it "does commit property changes on start" do
+                        mock_remote_property.should_receive(:write).globally.ordered.pass_thru
+                        flexmock(task.orocos_task).should_receive(:start).globally.ordered.pass_thru
+                        task.properties.test = 42
+                        syskit_start(task)
+                        assert_equal 42, Orocos.allow_blocking_calls { task.orocos_task.test }
                     end
                 end
             end
