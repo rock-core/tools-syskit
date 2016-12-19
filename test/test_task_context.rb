@@ -1593,10 +1593,9 @@ module Syskit
                     end
                 end
                 it "does not block the event loop if the node's reset_exception command blocks" do
-                    flexmock(task.orocos_task).should_receive(:rtt_state).
-                        and_return(:EXCEPTION, :PRE_OPERATIONAL, :RUNNING)
+                    task.orocos_task.local_ruby_task.exception
                     flexmock(task.orocos_task).should_receive(:reset_exception).once.
-                        and_return { barrier.wait }
+                        pass_thru { barrier.wait }
                     capture_log(task, :info) do
                         wait_for_synchronization(enable_scheduler: true)
                         assert_process_events_does_not_block
