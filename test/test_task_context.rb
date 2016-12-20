@@ -503,7 +503,8 @@ module Syskit
         describe "#ready_for_setup?" do
             attr_reader :task, :orocos_task
             before do
-                task = syskit_stub_deploy_and_configure('Task') {}
+                task = syskit_stub_and_deploy('Task') {}
+                syskit_start_execution_agents(task)
                 @task = flexmock(task)
                 @orocos_task = flexmock(task.orocos_task)
             end
