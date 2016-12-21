@@ -82,9 +82,11 @@ module Syskit
                 @orocos_task.model = model.orogen_model
                 @state_reader      = remote_handles.state_reader
 
-                remote_handles.default_properties.each do |p_name, p_value|
-                    syskit_p = property(p_name)
+                remote_handles.default_properties.each do |p, p_value|
+                    syskit_p = property(p.name)
+                    syskit_p.remote_property = p
                     syskit_p.update_remote_value(p_value)
+                    syskit_p.update_log_metadata(p.log_metadata)
                     if !syskit_p.has_value?
                         syskit_p.write(p_value)
                     end
@@ -374,8 +376,7 @@ module Syskit
                 promise.then(description: "#{self}#commit_properties#write") do |properties|
                     properties.map do |p, p_value|
                         begin
-                            remote = (p.remote_property ||= orocos_task.raw_property(p.name))
-                            remote.write(p_value)
+                            p.remote_property.write(p_value)
                             [Time.now, p, nil]
                         rescue ::Exception => e
                             [Time.now, p, e]
@@ -636,17 +637,13 @@ module Syskit
             # {Component#perform_setup} is called by {#perform_setup}
             def prepare_for_setup(promise)
                 promise.then(description: "#{self}#prepare_for_setup#read_properties") do
-                        properties = orocos_task.property_names.map do |p_name|
-                            remote = orocos_task.raw_property(p_name)
-                            [remote, remote.raw_read]
+                        properties = each_property.map do |syskit_p|
+                            [syskit_p, syskit_p.remote_property.raw_read]
                         end
                         [properties, orocos_task.port_names, orocos_task.rtt_state]
                     end.on_success(description: "#{self}#prepare_for_setup#write properties and needs_reconfiguration") do |properties, port_names, state|
-                        properties.each do |p, p_value|
-                            syskit_p = property(p.name)
-                            syskit_p.remote_property = p
-                            syskit_p.update_remote_value(p_value)
-                            syskit_p.update_log_metadata(p.log_metadata)
+                        properties.each do |syskit_p, remote_value|
+                            syskit_p.update_remote_value(remote_value)
                         end
 
                         needs_reconfiguration = true

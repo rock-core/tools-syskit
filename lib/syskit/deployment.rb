@@ -304,8 +304,9 @@ module Syskit
 
                     (handles || Hash.new).map_value do |_, remote_task|
                         state_reader, state_getter = create_state_access(remote_task, distance: distance_to_syskit)
-                        properties = remote_task.each_property.map do |p|
-                            [p.name, p.raw_read]
+                        properties = remote_task.property_names.map do |p_name|
+                            p = remote_task.raw_property(p_name)
+                            [p, p.raw_read]
                         end
                         RemoteTaskHandles.new(remote_task, state_reader, state_getter, properties)
                     end
