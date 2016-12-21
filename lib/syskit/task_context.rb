@@ -40,24 +40,10 @@ module Syskit
             argument :orocos_name
 
             class << self
-                # A name => [orogen_deployed_task_context, current_conf] mapping that says if
-                # the task named 'name' is configured
-                #
-                # orogen_deployed_task_context is the model for +name+ and +current_conf+ an
-                # array of configuration sections as expected by #conf. It
-                # represents the last configuration applied on +name+
-                def configured; @@configured end
-
-                # The set of orocos_name for the tasks that are being
-                # configured, to avoid races
-                def configuring; @@configuring end
-
                 # A set of names that says if the task named 'name' should be
                 # reconfigured the next time
                 def needs_reconfiguration; @@needs_reconfiguration end
             end
-            @@configured = Hash.new
-            @@configuring = Set.new
             @@needs_reconfiguration = Set.new
 
             # [Orocos::TaskContext,Orocos::ROS::Node] the underlying remote task
@@ -475,7 +461,7 @@ module Syskit
             # Returns true if this component needs to be setup by calling the
             # #setup method, or if it can be used as-is
             def ready_for_setup?(state = nil)
-                if TaskContext.configuring.include?(orocos_name)
+                if execution_agent.configuring?(orocos_name)
                     debug { "#{self} not ready for setup: already configuring" }
                     return false
                 elsif !super()
@@ -522,11 +508,9 @@ module Syskit
             # you are doing
             def setup_successful!
                 TaskContext.needs_reconfiguration.delete(orocos_name)
-                TaskContext.configured[orocos_name] = [
-                    model,
-                    self.conf.dup,
-                    self.each_required_dynamic_service.to_set]
-                TaskContext.configuring.delete(orocos_name)
+                execution_agent.update_current_configuration(
+                    orocos_name, model, self.conf.dup, self.each_required_dynamic_service.to_set)
+                execution_agent.finished_configuration(orocos_name)
 
                 if all_inputs_connected?
                     ready_to_start!
@@ -646,15 +630,12 @@ module Syskit
                             syskit_p.update_remote_value(remote_value)
                         end
 
-                        needs_reconfiguration = true
-                        if !needs_reconfiguration?
-                            _, current_conf, dynamic_services = TaskContext.configured[orocos_name]
-                            if current_conf
-                                if current_conf == self.conf && dynamic_services == each_required_dynamic_service.to_set
-                                    info "not reconfiguring #{self}: the task is already configured as required"
-                                    needs_reconfiguration = false
-                                end
-                            end
+                        needs_reconfiguration = needs_reconfiguration? ||
+                            execution_agent.configuration_changed?(
+                                orocos_name, self.conf, each_required_dynamic_service.to_set)
+
+                        if !needs_reconfiguration
+                            info "not reconfiguring #{self}: the task is already configured as required"
                         end
                         [needs_reconfiguration, port_names, state]
                     end.then(description: "#{self}#prepare_for_setup#ensure_pre_operational") do |needs_reconfiguration, port_names, state|
@@ -707,12 +688,12 @@ module Syskit
             # (see Component#setting_up!)_
             def setting_up!(promise)
                 super
-                TaskContext.configuring << orocos_name
+                execution_agent.start_configuration(orocos_name)
             end
 
             # (see Component#setup_failed!)_
             def setup_failed!(exception)
-                TaskContext.configuring.delete(orocos_name)
+                execution_agent.finished_configuration(orocos_name)
                 super
             end
 

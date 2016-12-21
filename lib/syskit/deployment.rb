@@ -308,7 +308,8 @@ module Syskit
                             p = remote_task.raw_property(p_name)
                             [p, p.raw_read]
                         end
-                        RemoteTaskHandles.new(remote_task, state_reader, state_getter, properties)
+                        current_configuration = CurrentTaskConfiguration.new(nil, [], Set.new)
+                        RemoteTaskHandles.new(remote_task, state_reader, state_getter, properties, false, current_configuration)
                     end
                 end.on_success(description: "#{self}#schedule_ready_event_monitor#emit") do |remote_tasks|
                     if running? && !finishing? && remote_tasks
@@ -323,13 +324,58 @@ module Syskit
                 setup_task_handles(remote_task_handles)
             end
 
+            # @api private
+            #
             # Representation of the handles needed by {Syskit::TaskContext} to
             # get state updates from a remote task
             #
             # They are initialized once and for all since they won't change
             # across TaskContext restarts, allowing us to save costly
             # back-and-forth between the remote task and the local process
-            RemoteTaskHandles = Struct.new :handle, :state_reader, :state_getter, :default_properties
+            RemoteTaskHandles = Struct.new :handle, :state_reader, :state_getter, :default_properties, :configuring, :current_configuration
+
+            # @api private
+            #
+            # The last applied task configuration
+            CurrentTaskConfiguration = Struct.new :model, :conf, :dynamic_services
+
+            # @api private
+            #
+            # Whether one of this deployment's task is being configured
+            def configuring?(orocos_name)
+                remote_task_handles[orocos_name].configuring
+            end
+
+            # @api private
+            #
+            # Declare that the given task is being configured
+            def start_configuration(orocos_name)
+                remote_task_handles[orocos_name].configuring = true
+            end
+
+            # @api private
+            #
+            # Declare that the given task is being configured
+            def finished_configuration(orocos_name)
+                remote_task_handles[orocos_name].configuring = false
+            end
+
+            # @api private
+            #
+            # The currently applied configuration for the given task
+            def configuration_changed?(orocos_name, conf, dynamic_services)
+                current = remote_task_handles[orocos_name].current_configuration
+                current.conf != conf ||
+                    current.dynamic_services != dynamic_services.to_set
+            end
+
+            # @api private
+            #
+            # Update the last known configuration of a task
+            def update_current_configuration(orocos_name, model, conf, current_dynamic_services)
+                remote_task_handles[orocos_name].
+                    current_configuration = CurrentTaskConfiguration.new(model, conf, current_dynamic_services)
+            end
 
             # @api private
             def setup_task_handles(remote_tasks)
@@ -436,7 +482,6 @@ module Syskit
                 Deployment.all_deployments.delete(orocos_process)
                 model.each_orogen_deployed_task_context_model do |act|
                     name = orocos_process.get_mapped_name(act.name)
-                    TaskContext.configured.delete(name)
                 end
 
                 # do NOT call cleanup_dead_connections here.

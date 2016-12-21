@@ -414,13 +414,6 @@ module Syskit
 
         describe "#dead!" do
             attr_reader :process
-            it "deregisters all supported task contexts from the TaskContext.configured set" do
-                TaskContext.configured['mapped_task_name'] = Object.new
-                deployment_task.start!
-                plan.unmark_permanent_task(deployment_task)
-                deployment_task.dead!(nil)
-                assert !TaskContext.configured.include?('mapped_task_name')
-            end
             describe "emitted terminal events" do
                 before do
                     deployment_m.event :terminal_e, terminal: true
@@ -593,6 +586,38 @@ module Syskit
                 d0 = create_deployment 'here'
                 d1 = create_deployment 'there'
                 assert_equal TaskContext::D_DIFFERENT_HOSTS, d0.distance_to(d1)
+            end
+        end
+
+        describe "runtime state tracking" do
+            attr_reader :orocos_task
+            before do
+                @orocos_task = Orocos.allow_blocking_calls do
+                    Orocos::RubyTasks::TaskContext.new "#{Process.pid}-test"
+                end
+                process.should_receive(:resolve_all_tasks).
+                    and_return('mapped_task_name' => orocos_task)
+                assert_event_emission(deployment_task.ready_event) do
+                    deployment_task.start!
+                end
+            end
+            after do
+                orocos_task.dispose
+            end
+
+            describe "current configuration" do
+                it "returns true if the configuration list differs" do
+                    deployment_task.update_current_configuration('mapped_task_name', nil, ['test'], Set.new)
+                    assert deployment_task.configuration_changed?('mapped_task_name', ['other'], Set.new)
+                end
+                it "returns true if the set of dynamic services differ" do
+                    deployment_task.update_current_configuration('mapped_task_name', nil, ['test'], Set[1])
+                    assert deployment_task.configuration_changed?('mapped_task_name', ['test'], Set[2])
+                end
+                it "returns false if both the configuration and the set of dynamic services are identical" do
+                    deployment_task.update_current_configuration('mapped_task_name', nil, ['test'], Set[1])
+                    refute deployment_task.configuration_changed?('mapped_task_name', ['test'], Set[1])
+                end
             end
         end
     end

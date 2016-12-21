@@ -599,7 +599,8 @@ module Syskit
         describe "#setup_successful!" do
             attr_reader :task
             before do
-                plan.add(task = TaskContext.new_submodel.new(orocos_name: "", conf: []))
+                task  = syskit_stub_and_deploy(TaskContext.new_submodel)
+                syskit_start_execution_agents(task)
                 @task = flexmock(task)
                 assert !task.executable?
             end
@@ -689,7 +690,8 @@ module Syskit
             attr_reader :task, :orocos_task
             before do
                 task_m = TaskContext.new_submodel
-                task = syskit_stub_deploy_and_configure(task_m, as: 'task')
+                task = syskit_stub_and_deploy(task_m, as: 'task')
+                syskit_start_execution_agents(task)
                 @task = flexmock(task)
                 @orocos_task = flexmock(task.orocos_task)
             end
@@ -714,15 +716,18 @@ module Syskit
                 assert messages.include?("reconfiguring #{task}: the task was in exception state")
             end
             it "does nothing if the state is PRE_OPERATIONAL" do
+                orocos_task.should_receive(:cleanup).never
+                task.should_receive(:clean_dynamic_port_connections).never
                 messages = capture_log(task, :info) do
                     prepare_task_for_setup(:PRE_OPERATIONAL)
                 end
-                assert_equal ["not reconfiguring #{task}: the task is already configured as required"],
-                    messages
+                assert_equal [], messages
                 task.should_receive(:clean_dynamic_port_connections).never
             end
             it "does nothing if the state is STOPPED and the task does not need to be reconfigured" do
-                TaskContext.configured['task'] = [nil, ['default'], Set.new]
+                flexmock(task.execution_agent).should_receive(:configuration_changed?).
+                    with(task.orocos_name, ['default'], Set.new).
+                    and_return(false)
                 orocos_task.should_receive(:cleanup).never
                 task.should_receive(:clean_dynamic_port_connections).never
                 messages = capture_log(task, :info) do
@@ -742,7 +747,6 @@ module Syskit
                     messages
             end
             it "cleans up if the state is STOPPED and the task has never been configured" do
-                TaskContext.configured[task.orocos_name] = nil
                 orocos_task.should_receive(:cleanup).once.ordered
                 task.should_receive(:clean_dynamic_port_connections).once.ordered
                 messages = capture_log(task, :info) do
@@ -751,7 +755,9 @@ module Syskit
                 assert_equal ["cleaning up #{task}"], messages
             end
             it "cleans up if the state is STOPPED and the task's configuration changed" do
-                TaskContext.configured[task.orocos_name] = [nil, [], Set.new]
+                flexmock(task.execution_agent).should_receive(:configuration_changed?).
+                    with(task.orocos_name, ['default'], Set.new).
+                    and_return(true)
                 orocos_task.should_receive(:cleanup).once.ordered
                 task.should_receive(:clean_dynamic_port_connections).once.ordered
                 messages = capture_log(task, :info) do
@@ -813,8 +819,9 @@ module Syskit
                 orocos_task.should_receive(:rtt_state).and_return(:PRE_OPERATIONAL)
                 task.should_receive(:ready_for_setup?).with(:PRE_OPERATIONAL).and_return(true)
                 task.needs_reconfiguration!
+                assert task.execution_agent.configuration_changed?(task.orocos_name, ['default'], Set.new)
                 setup_task
-                assert_equal ['default'], TaskContext.configured[task.orocos_name][1]
+                refute task.execution_agent.configuration_changed?(task.orocos_name, ['default'], Set.new)
             end
             it "reports an exception from the user-provided #configure method as failed-to-start" do
                 plan.unmark_mission_task(task)
