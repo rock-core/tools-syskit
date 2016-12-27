@@ -563,5 +563,48 @@ describe Syskit::InstanceRequirements do
             ir.each_child.to_a
         end
     end
+
+    describe "droby-compatibility" do
+        attr_reader :local_task_m, :requirements
+        before do
+            @local_task_m  = Syskit::TaskContext.new_submodel(name: 'DRobyIRTest')
+            @requirements = Syskit::InstanceRequirements.new([local_task_m])
+        end
+        it "is droby-compatible" do
+            assert_droby_compatible Syskit::InstanceRequirements.new
+        end
+        it "transfers the task model" do
+            remote_task_m = droby_transfer(local_task_m)
+            remote_requirements = droby_transfer(requirements)
+            assert_equal remote_task_m, remote_requirements.model
+        end
+        it "transfers the abstract flag" do
+            remote_requirements = droby_transfer(requirements)
+            refute remote_requirements.abstract?
+            requirements.abstract
+            remote_requirements = droby_transfer(requirements)
+            assert remote_requirements.abstract?
+        end
+
+        describe "when representing the requirements of a composition model" do
+            attr_reader :srv_m
+            before do
+                @srv_m = Syskit::DataService.new_submodel(name: 'Service')
+                @local_task_m  = Syskit::Composition.new_submodel(name: 'DRobyIRTest')
+                @requirements = Syskit::InstanceRequirements.new([local_task_m])
+            end
+            it "transfers the pushed selections" do
+                local_task_m.add srv_m, as: 'child'
+                local_child_m = Syskit::TaskContext.new_submodel(name: 'Child')
+                local_child_m.provides srv_m, as: 'srv'
+                remote_child_m = droby_transfer(local_child_m)
+                requirements.use('child' => local_child_m)
+                requirements.push_selections
+                remote_requirements = droby_transfer(requirements)
+                assert_equal remote_child_m, remote_requirements.pushed_selections.
+                    selection_for(child, InstanceRequirements.new)
+            end
+        end
+    end
 end
 

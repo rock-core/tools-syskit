@@ -95,6 +95,66 @@ module Syskit
                     DRoby.new(name, xml)
                 end
             end
+
+            # Module used to allow droby-marshalling of InstanceRequirements
+            module InstanceRequirementsDumper
+                class DRoby
+                    attr_reader :base_model
+                    attr_reader :abstract
+                    attr_reader :arguments
+                    attr_reader :selections
+                    attr_reader :pushed_selections
+                    attr_reader :context_selections
+                    attr_reader :deployment_hints
+                    attr_reader :specialization_hints
+                    attr_reader :dynamics
+                    attr_reader :can_use_template
+
+                    def initialize(base_model, abstract, arguments, selections, pushed_selections, context_selections, deployment_hints, specialization_hints, dynamics, can_use_template)
+                        @base_model           = base_model
+                        @abstract             = abstract
+                        @arguments            = arguments
+                        @selections           = selections
+                        @pushed_selections    = pushed_selections
+                        @context_selections   = context_selections
+                        @deployment_hints     = deployment_hints
+                        @specialization_hints = specialization_hints
+                        @dynamics             = dynamics
+                        @can_use_template     = can_use_template
+                    end
+
+                    def proxy(peer)
+                        result = InstanceRequirements.new([peer.local_object(base_model)])
+                        result.abstract if abstract
+                        result.with_arguments(peer.local_object(arguments))
+                        if result.composition_model?
+                            result.use(peer.local_object(pushed_selections))
+                            result.push_selections
+                            result.use(peer.local_object(selections))
+                        end
+                        result.push_dependency_injection(peer.local_object(context_selections))
+                        result.prefer_deployed_tasks(deployment_hints)
+                        result.dynamics.merge(dynamics)
+                        specialization_hints.each { |hint| result.prefer_specializations(hint) }
+                        result.can_use_template = can_use_template
+                        result
+                    end
+                end
+
+                def droby_dump(peer)
+                    DRoby.new(
+                        peer.dump(base_model),
+                        abstract?,
+                        peer.dump(arguments),
+                        peer.dump(selections),
+                        peer.dump(pushed_selections),
+                        peer.dump(context_selections),
+                        deployment_hints,
+                        peer.dump(specialization_hints),
+                        dynamics,
+                        can_use_template?)
+                end
+            end
         end
     end
 end
