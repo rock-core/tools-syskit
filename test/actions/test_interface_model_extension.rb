@@ -22,6 +22,18 @@ describe Syskit::Actions::InterfaceModelExtension do
             assert_equal task_m, act.returned_type
         end
 
+        it "allows to transform the definition names" do
+            src = Syskit::Actions::Profile.new
+            src.define 'test', Syskit::TaskContext.new_submodel
+            actions = Roby::Actions::Interface.new_submodel
+            actions.use_profile src, transform_names: ->(name) { "modified_#{name}" }
+
+            action_model = actions.modified_test_def.model
+            assert_equal 'modified_test_def', action_model.name
+            assert_equal 'modified_test', action_model.requirements.name
+            assert_equal src.test_def, action_model.requirements
+        end
+
         it "should be so that the exported definitions can be used using the normal action interface" do
             req = profile.define('def', Syskit::Component)
             actions.use_profile(profile)

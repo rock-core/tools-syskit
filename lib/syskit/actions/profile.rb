@@ -57,6 +57,7 @@ module Syskit
                     if resolved?
                         action_model = super(doc || "defined in #{profile}")
                         action_model.advanced = advanced?
+                        action_model.name = "#{name}_def"
                         action_model
                     else
                         profile.resolved_definition(name).to_action_model
@@ -254,26 +255,27 @@ module Syskit
             #
             # @param [Profile] profile
             # @return [void]
-            def use_profile(profile, tags = Hash.new)
+            def use_profile(profile, tags = Hash.new, transform_names: ->(k) { k })
                 invalidate_dependency_injection
                 tags = resolve_tag_selection(profile, tags)
                 used_profiles.push([profile, tags])
 
                 # Register the definitions, but let the user override
                 # definitions of the given profile locally
-                updated_requirements = Array.new
+                new_definitions = Array.new
                 profile.definitions.each do |name, req|
+                    name = transform_names.call(name)
                     if !definitions[name]
                         req = promote_requirements(profile, req, tags)
                         definition = register_definition(name, req, doc: req.doc)
-                        updated_requirements << definition
+                        new_definitions << definition
                     end
                 end
                 robot.use_robot(profile.robot)
 
                 # Now, map possible IR objects or IR-derived Action objects that
                 # are present within the arguments
-                updated_requirements.each do |req|
+                new_definitions.each do |req|
                     rebound_arguments = Hash.new
                     req.arguments.each do |name, value|
                         if value.kind_of?(Models::Action)
@@ -285,7 +287,7 @@ module Syskit
                 end
 
                 super if defined? super
-                nil
+                new_definitions
             end
 
             # Create a new definition based on a given instance requirement

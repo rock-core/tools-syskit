@@ -1022,6 +1022,7 @@ module Syskit
 
             def to_action_model(doc = self.doc)
                 action_model = Actions::Models::Action.new(self, doc)
+                action_model.name = name
                 action_model.returns(model.to_component_model)
 
                 task_model = component_model

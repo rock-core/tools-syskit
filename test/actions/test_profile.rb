@@ -35,6 +35,17 @@ describe Syskit::Actions::Profile do
             dst.use_profile src
         end
 
+        it "allows to transform the definition names" do
+            src = Syskit::Actions::Profile.new
+            src.define 'test', Syskit::TaskContext.new_submodel
+
+            dst = Syskit::Actions::Profile.new
+            dst.use_profile src, transform_names: ->(name) { "modified_#{name}" }
+
+            assert_equal 'modified_test', dst.modified_test_def.name
+            assert_equal src.test_def, dst.modified_test_def
+        end
+
         it "uses the existing definition's documentation as documentation for the imported definition" do
             task_m = Syskit::TaskContext.new_submodel
             src = Syskit::Actions::Profile.new

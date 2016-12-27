@@ -80,11 +80,12 @@ module Syskit
             # @param [Hash] tag_selection selection for the profile tags, see
             #   {Profile#use_profile}
             # @return [void]
-            def use_profile(used_profile, tag_selection = Hash.new)
+            def use_profile(used_profile, tag_selection = Hash.new, transform_names: ->(name) { name })
                 @current_description = nil
-                profile.use_profile(used_profile, tag_selection)
-                used_profile.each_action do |action_model|
-                    register_action_from_profile(action_model)
+                new_definitions =
+                    profile.use_profile(used_profile, tag_selection, transform_names: transform_names)
+                new_definitions.each do |definition|
+                    register_action_from_profile(definition.to_action_model)
                 end
             end
 
