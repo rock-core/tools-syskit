@@ -3,6 +3,7 @@ module Syskit
         class InstanceRequirements
             extend Logger::Hierarchy
             include Logger::Hierarchy
+            include Roby::DRoby::Unmarshallable
 
             dsl_attribute :doc
 
