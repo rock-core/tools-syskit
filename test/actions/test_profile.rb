@@ -7,7 +7,7 @@ describe Syskit::Actions::Profile do
     describe "#use_profile" do
         attr_reader :definition_mock
         before do
-            @definition_mock = flexmock
+            @definition_mock = flexmock(arguments: [], with_arguments: nil)
             definition_mock.should_receive(:push_selections).by_default
             definition_mock.should_receive(:composition_model?).by_default
             definition_mock.should_receive(:use).by_default
@@ -112,11 +112,31 @@ describe Syskit::Actions::Profile do
             dst = Syskit::Actions::Profile.new
             dst.use_profile src, 'test' => task_m
         end
+
+        it "also promotes definitions that are used as arguments" do
+            srv_m = Syskit::DataService.new_submodel
+            task_m = Syskit::TaskContext.new_submodel do
+                argument :requirement
+            end
+            cmp_m = Syskit::Composition.new_submodel
+            cmp_m.add srv_m, as: 'test'
+            parent_profile = Syskit::Actions::Profile.new
+            parent_profile.tag 'test', srv_m
+            parent_profile.define 'argument_action',
+                cmp_m.use(parent_profile.test_tag)
+            parent_profile.define 'test',
+                task_m.with_arguments(action: parent_profile.argument_action_def.to_action_model)
+
+            srv_task_m = Syskit::TaskContext.new_submodel
+            srv_task_m.provides srv_m, as: 'test'
+            child_profile = Syskit::Actions::Profile.new
+            child_profile.use_profile parent_profile, 'test' => srv_task_m
+            task = child_profile.test_def.arguments[:action].requirements.instanciate(plan)
+            assert_kind_of srv_task_m, task.test_child
+        end
     end
 
     describe "#define" do
-        it "resolves the given argument by calling #to_instance_requirements" do
-        end
         it "adds a Definition object in which the arguments is merged" do
             req = Syskit::InstanceRequirements.new
             flexmock(Syskit::Actions::Profile::Definition).new_instances.should_receive(:merge).with(req).once

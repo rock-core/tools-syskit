@@ -26,26 +26,41 @@ module Syskit
                 # for UIs
                 attr_predicate :advanced?, true
 
-                def initialize(profile, name)
+                # @!method resolved?
+                # @!method resolved=(flag)
+                #
+                # Whether this definition has been injected with its profile's
+                # DI information
+                attr_predicate :resolved?
+
+                def initialize(profile, name, resolved: false)
                     super()
                     self.profile = profile
                     self.advanced = false
                     self.name = name
+                    @resolved = resolved
                 end
 
                 # Return a definition that has a different underlying profile
                 def rebind(profile)
-                    result = dup
-                    result.profile = profile
-                    result
+                    if rebound = profile.find_definition_by_name(name)
+                        rebound.dup
+                    else
+                        result = dup
+                        result.profile = profile
+                        result
+                    end
                 end
 
                 # Create an action model that encapsulate this definition
                 def to_action_model
-                    action_model = profile.resolved_definition(name).
-                        to_action_model(doc || "defined in #{profile}")
-                    action_model.advanced = advanced?
-                    action_model
+                    if resolved?
+                        action_model = super(doc || "defined in #{profile}")
+                        action_model.advanced = advanced?
+                        action_model
+                    else
+                        profile.resolved_definition(name).to_action_model
+                    end
                 end
             end
 
@@ -211,8 +226,8 @@ module Syskit
             #   guaranteed to be a copy)
             def promote_requirements(profile, req, tags = Hash.new)
                 if req.composition_model?
-                    tags = resolve_tag_selection(profile, tags)
                     req = req.dup
+                    tags = resolve_tag_selection(profile, tags)
                     req.push_selections
                     req.use(tags)
                 end
@@ -246,13 +261,29 @@ module Syskit
 
                 # Register the definitions, but let the user override
                 # definitions of the given profile locally
+                updated_requirements = Array.new
                 profile.definitions.each do |name, req|
                     if !definitions[name]
                         req = promote_requirements(profile, req, tags)
-                        register_definition(name, req, doc: req.doc)
+                        definition = register_definition(name, req, doc: req.doc)
+                        updated_requirements << definition
                     end
                 end
                 robot.use_robot(profile.robot)
+
+                # Now, map possible IR objects or IR-derived Action objects that
+                # are present within the arguments
+                updated_requirements.each do |req|
+                    rebound_arguments = Hash.new
+                    req.arguments.each do |name, value|
+                        if value.kind_of?(Models::Action)
+                            rebound_arguments[name] =
+                                value.requirements.rebind(self).to_action_model
+                        end
+                    end
+                    req.with_arguments(rebound_arguments)
+                end
+
                 super if defined? super
                 nil
             end
@@ -330,7 +361,7 @@ module Syskit
             def resolved_definition(name)
                 req = definition(name)
 
-                result = InstanceRequirements.new
+                result = Definition.new(self, name, resolved: true)
                 result.merge(req)
                 inject_di_context(result)
                 result.name = req.name
