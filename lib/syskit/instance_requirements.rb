@@ -612,6 +612,11 @@ module Syskit
 
             # Specifies new arguments that must be set to the instanciated task
             def with_arguments(arguments)
+                arguments.each do |k, v|
+                    if !v.droby_marshallable?
+                        raise Roby::NotMarshallable, "values used as task arguments must be marshallable, attempting to set #{k} to #{v}, which is not"
+                    end
+                end
                 @arguments.merge!(arguments)
                 self
             end

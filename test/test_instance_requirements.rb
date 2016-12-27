@@ -10,6 +10,34 @@ describe Syskit::InstanceRequirements do
         create_simple_composition_model
     end
 
+    describe "#with_arguments" do
+        attr_reader :req, :not_marshallable
+        before do
+            @req = Syskit::InstanceRequirements.new
+            @not_marshallable = Object.new
+            not_marshallable.extend Roby::DRoby::Unmarshallable
+        end
+        it "raises if the argument cannot be marshalled under DRoby" do
+            e = assert_raises(Roby::NotMarshallable) do
+                req.with_arguments(key: not_marshallable)
+            end
+            assert_equal "values used as task arguments must be marshallable, attempting to set key to #{not_marshallable}, which is not", e.message
+        end
+
+        it "generates the same error message than setting the task argument directly" do
+            actual_e = assert_raises(Roby::NotMarshallable) do
+                req.with_arguments(key: not_marshallable)
+            end
+            task = Roby::Task.new_submodel do
+                argument :key
+            end.new
+            expected_e = assert_raises(Roby::NotMarshallable) do
+                task.key = not_marshallable
+            end
+            assert_equal expected_e.message, actual_e.message
+        end
+    end
+
     describe "#component_model" do
         it "returns the model if it is not a proxied model" do
             task_m = Syskit::Component.new_submodel
