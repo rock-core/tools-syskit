@@ -754,7 +754,17 @@ module Syskit
                         end
                     end
                     if current_state == pending.size
-                        raise NoConfigureFixedPoint.new(pending), "cannot configure #{pending.map(&:to_s).join(", ")}"
+                        missing_starts = pending.flat_map do |pending_task|
+                            pending_task.start_event.parent_objects(Roby::EventStructure::SyskitConfigurationPrecedence).
+                                find_all { |e| e.symbol == :start && !e.emitted? }
+                        end
+                        if missing_starts.empty?
+                            raise NoConfigureFixedPoint.new(pending), "cannot configure #{pending.map(&:to_s).join(", ")}"
+                        else
+                            missing_starts.each do |start_event|
+                                syskit_start(start_event.task)
+                            end
+                        end
                     end
                 end
 
