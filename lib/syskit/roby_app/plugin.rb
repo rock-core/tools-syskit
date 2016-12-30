@@ -245,21 +245,8 @@ module Syskit
                     Syskit.conf.register_process_server('localhost', fake_client, app.log_dir, host_id: 'syskit')
                 end
 
-                app.isolate_load_errors("while reloading deployment definitions") do
-                    Syskit.conf.reload_deployments
-                end
-
                 rtt_core_model = app.default_loader.task_model_from_name("RTT::TaskContext")
                 Syskit::TaskContext.define_from_orogen(rtt_core_model, :register => true)
-
-                if !app.additional_model_files.empty?
-                    toplevel_object.extend SingleFileDSL
-                    Roby.once do
-                        app.permanent_requirements.each do |req|
-                            Roby.plan.add_mission_task(req.as_plan)
-                        end
-                    end
-                end
             end
 
             # Called by the main Roby application to clear all before redoing a
@@ -270,6 +257,18 @@ module Syskit
             end
 
             def self.require_models(app)
+                app.isolate_load_errors("while reloading deployment definitions") do
+                    Syskit.conf.reload_deployments
+                end
+
+                if !app.additional_model_files.empty?
+                    toplevel_object.extend SingleFileDSL
+                    Roby.once do
+                        app.permanent_requirements.each do |req|
+                            Roby.plan.add_mission_task(req.as_plan)
+                        end
+                    end
+                end
             end
 
             def self.auto_require_models(app)
