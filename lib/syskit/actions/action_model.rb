@@ -18,6 +18,21 @@ module Syskit
                 returns(requirements.proxy_task_model)
             end
 
+            def to_s
+                name =
+                    if requirement_name = requirements.name
+                        "#{requirements.name}_def"
+                    else
+                        "#{super}[#{requirements}]"
+                    end
+
+                if requirements.respond_to?(:profile)
+                    "#{name} of #{requirements.profile}"
+                else
+                    name
+                end
+            end
+
             # Rebind this action to another action interface
             def rebind(action_interface_model)
                 # NOTE: use_profile maps all definitions into the new profile.
