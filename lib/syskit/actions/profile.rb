@@ -271,7 +271,7 @@ module Syskit
                         new_definitions << definition
                     end
                 end
-                robot.use_robot(profile.robot)
+                new_definitions.concat(robot.use_robot(profile.robot))
 
                 # Now, map possible IR objects or IR-derived Action objects that
                 # are present within the arguments

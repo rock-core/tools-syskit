@@ -29,17 +29,32 @@ module Syskit
             # If robot and self have devices with the same names, the ones in
             # self take precedence
             def use_robot(robot)
-                return if robot.empty?
+                return [] if robot.empty?
 
-                current_size = robot.devices.size
-                @devices = robot.devices.merge(devices)
-
-                if current_size == 0
+                if devices.empty?
+                    # Optimize the 'self is empty' codepath because it's
+                    # actually very common ... and it allows us to reuse the
+                    # caller's DI object
                     @di = robot.to_dependency_injection
-                elsif current_size != devices.size
+                    @devices = robot.devices.dup
+                    return devices.values
+                end
+
+                new_devices = []
+                robot.devices.each do |device_name, device|
+                    if !devices.has_key?(device_name)
+                        devices[device_name] = device
+                        new_devices << device
+                    end
+                end
+                if !new_devices.empty?
                     invalidate_dependency_injection
                 end
-                nil
+                new_devices
+
+            rescue Exception
+                invalidate_dependency_injection
+                raise
             end
 
             # Declares a new communication bus

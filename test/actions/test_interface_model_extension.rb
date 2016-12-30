@@ -8,7 +8,7 @@ describe Syskit::Actions::InterfaceModelExtension do
             @profile = Syskit::Actions::Profile.new(nil)
         end
 
-        it "should export the profile definitions as actions" do
+        it "exports the profile definitions as actions" do
             task_m = Syskit::TaskContext.new_submodel
             req = task_m.to_instance_requirements
             actions = Roby::Actions::Interface.new_submodel
@@ -20,6 +20,21 @@ describe Syskit::Actions::InterfaceModelExtension do
             assert act
             assert_equal req, act.requirements
             assert_equal task_m, act.returned_type
+        end
+
+        it "exports the profile devices as actions" do
+            device_m = Syskit::Device.new_submodel
+            driver_m = Syskit::TaskContext.new_submodel do
+                driver_for device_m, as: 'dev'
+            end
+            actions = Roby::Actions::Interface.new_submodel
+            profile = Syskit::Actions::Profile.new(nil)
+            profile.robot.device(device_m, as: 'dev', using: driver_m)
+            actions.use_profile(profile)
+
+            act = actions.find_action_by_name('dev_dev')
+            assert act
+            assert_equal driver_m, act.returned_type
         end
 
         it "allows to transform the definition names" do

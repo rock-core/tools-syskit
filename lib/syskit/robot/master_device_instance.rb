@@ -313,6 +313,11 @@ module Syskit
                 self
             end
 
+            # The arguments passed to the underlying device driver
+            def arguments
+                requirements.arguments
+            end
+
             # Add arguments to the underlying device driver
             def with_arguments(arguments = Hash.new)
                 requirements.with_arguments(arguments)
