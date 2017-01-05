@@ -989,6 +989,30 @@ module Syskit
                           "starting #{dev_driver}"], messages
         end
 
+        describe "transaction commit" do
+            it "specializes and instanciates dynamic services" do
+                srv_m = Syskit::DataService.new_submodel do
+                    output_port 'out', '/double'
+                end
+                task_m = Syskit::TaskContext.new_submodel do
+                    dynamic_output_port /.*/, '/double'
+                end
+                task_m.dynamic_service srv_m, as: 'test' do
+                    provides srv_m, 'out' => name
+                end
+
+                plan.add(task = task_m.new)
+                plan.in_transaction do |t|
+                    proxy = t[task]
+                    proxy.require_dynamic_service 'test', as: 'test'
+                    t.commit_transaction
+                end
+                refute task_m.find_output_port('test')
+                assert task.specialized_model?
+                assert task.model.find_output_port('test')
+            end
+        end
+
         describe "#transaction_modifies_static_ports?" do
             def self.handling_of_static_ports(input: false)
                 attr_reader :transaction
