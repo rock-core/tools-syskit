@@ -241,13 +241,13 @@ module Syskit
                 # was given, or an array otherwise. I'd like to have someone
                 # to talk me out of this kind of ideas.
                 tasks = plan.compute_useful_tasks(Array(roots))
-                tasks.find_all { |t| t.kind_of?(Syskit::TaskContext) }.
+                task_contexts = tasks.find_all { |t| t.kind_of?(Syskit::TaskContext) }.
                     each do |task_context|
                         if !task_context.plan
                             raise ProfileAssertionFailed.new(actions, nil), "#{task_context} got garbage-collected before it got configured"
                         end
-                        syskit_configure(task_context)
                     end
+                syskit_configure(task_contexts)
                 roots
             rescue Exception => e
                 raise ProfileAssertionFailed.new(actions, e), e.message

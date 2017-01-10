@@ -625,9 +625,7 @@ module Syskit
                     end
                 end
             ensure
-                if sync_ev
-                    plan.remove_free_event(sync_ev)
-                end
+                plan.remove_free_event(sync_ev)
             end
 
             def syskit_start_execution_agents(component, recursive: true)
@@ -720,19 +718,25 @@ module Syskit
             end
 
             # Set this component instance up
-            def syskit_configure(component, recursive: true, except: Set.new)
+            def syskit_configure(components, recursive: true, except: Set.new)
                 # We need all execution agents to be started to connect (and
                 # therefore configur) the tasks
                 syskit_start_all_execution_agents
 
+                components = Array(components)
+
                 tasks = Set.new
                 except  = except.to_set
-                syskit_prepare_configure(component, tasks, recursive: recursive, except: except)
+                components.each do |component|
+                    next if tasks.include?(component)
+                    syskit_prepare_configure(component, tasks, recursive: recursive, except: except)
+                end
+                plan = components.first.plan
                 guard = syskit_guard_against_start_and_configure(tasks)
 
                 pending = tasks.dup.to_set
                 while !pending.empty?
-                    Syskit::Runtime::ConnectionManagement.update(component.plan)
+                    Syskit::Runtime::ConnectionManagement.update(plan)
                     current_state = pending.size
                     pending.delete_if do |t|
                         should_setup = Orocos.allow_blocking_calls do
@@ -761,14 +765,10 @@ module Syskit
                         if missing_starts.empty?
                             raise NoConfigureFixedPoint.new(pending), "cannot configure #{pending.map(&:to_s).join(", ")}"
                         else
-                            missing_starts.each do |start_event|
-                                syskit_start(start_event.task)
-                            end
+                            syskit_start(missing_starts.map(&:task))
                         end
                     end
                 end
-
-                component
 
             ensure
                 plan.remove_free_event(guard) if guard
@@ -828,13 +828,17 @@ module Syskit
             end
 
             # Start this component
-            def syskit_start(component, recursive: true, except: Set.new)
+            def syskit_start(components, recursive: true, except: Set.new)
+                components = Array(components)
+
                 tasks = Set.new
                 except = except.to_set
-                syskit_prepare_start(component, tasks, recursive: recursive, except: except)
+                components.each do |component|
+                    next if tasks.include?(component)
+                    syskit_prepare_start(component, tasks, recursive: recursive, except: except)
+                end
+                plan = components.first.plan
                 guard = syskit_guard_against_start_and_configure(tasks)
-
-                plan = component.plan
 
                 messages = Hash.new { |h, k| h[k] = Array.new }
                 tasks.each do |t|
@@ -885,7 +889,6 @@ module Syskit
                     raise RuntimeError, "failed to start #{t}: starting=#{t.starting?} running=#{t.running?} finished=#{t.finished?}"
                 end
 
-                component
             ensure
                 if guard
                     plan.remove_free_event(guard)
@@ -987,6 +990,7 @@ module Syskit
             def syskit_deploy_and_configure(model = subject_syskit_model, recursive: true)
                 root = syskit_deploy(model)
                 syskit_configure(root, recursive: recursive)
+                root
             end
 
             # Deploy, configure and start a model
@@ -1008,9 +1012,10 @@ module Syskit
             #
             # @param (see syskit_stub)
             # @return [Syskit::Component]
-            def syskit_configure_and_start(component = subject_syskit_model, recursive: true, except: Set.new)
-                component = syskit_configure(component, recursive: recursive, except: except)
+            def syskit_configure_and_start(component, recursive: true, except: Set.new)
+                syskit_configure(component, recursive: recursive, except: except)
                 syskit_start(component, recursive: recursive, except: except)
+                component
             end
 
             # Export the dataflow and hierarchy to SVG
