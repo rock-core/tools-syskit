@@ -436,8 +436,6 @@ module Syskit
             def post_connect_failure(connections)
                 connections.each do |from_task, from_port, to_task, to_port, policy, error|
                     case error
-                    when Orocos::ComError
-                        # The task will be aborted. Simply ignore
                     when Orocos::InterfaceObjectNotFound
                         if error.task == from_task.orocos_task && error.name == from_port
                             plan.execution_engine.add_error(PortNotFound.new(from_task, from_port, :output))
