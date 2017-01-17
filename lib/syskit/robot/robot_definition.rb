@@ -218,10 +218,14 @@ module Syskit
             def to_dependency_injection
                 if !@di
                     result = DependencyInjection.new
+                    device_model_to_instance = Hash.new
+                    devices.each_value do |instance|
+                        if !device_model_to_instance.delete(instance.device_model)
+                            device_model_to_instance[instance.device_model] = instance
+                        end
+                    end
                     # Register name-to-device mappings
-                    result.add(devices)
-                    # Also compute a default selection based on the device models
-                    result.add(*devices.values)
+                    result.add(device_model_to_instance)
                     result.resolve
                     @di = result
                 end
