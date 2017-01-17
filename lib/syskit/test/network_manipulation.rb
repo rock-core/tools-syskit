@@ -930,7 +930,6 @@ module Syskit
             #   syskit_stub_deploy_and_start_composition(model)
             def syskit_stub_and_deploy(
                 model = subject_syskit_model, recursive: true,
-                    as: syskit_default_stub_name(model),
                     remote_task: self.syskit_stub_resolves_remote_tasks?, &block)
 
                 if model.respond_to?(:to_str)
@@ -957,7 +956,7 @@ module Syskit
                     as: syskit_default_stub_name(model),
                     remote_task: self.syskit_stub_resolves_remote_tasks?, &block)
 
-                root = syskit_stub_and_deploy(model, recursive: recursive, as: as, remote_task: remote_task, &block)
+                root = syskit_stub_and_deploy(model, recursive: recursive, remote_task: remote_task, &block)
                 syskit_configure(root, recursive: recursive)
                 root
             end
@@ -975,7 +974,7 @@ module Syskit
                     as: syskit_default_stub_name(model),
                     remote_task: self.syskit_stub_resolves_remote_tasks?, &block)
 
-                root = syskit_stub_and_deploy(model, recursive: recursive, as: as, remote_task: remote_task, &block)
+                root = syskit_stub_and_deploy(model, recursive: recursive, remote_task: remote_task, &block)
                 syskit_configure_and_start(root, recursive: recursive)
                 root
             end

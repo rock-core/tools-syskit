@@ -150,7 +150,7 @@ module Syskit
                 end
 
                 it "does not reconfigure not-setup tasks" do
-                    task = syskit_stub_and_deploy("Task", as: 'task') { input_port('in', '/double').static }
+                    task = syskit_stub_and_deploy("Task") { input_port('in', '/double').static }
                     syskit_engine.reconfigure_tasks_on_static_port_modification([task])
                     tasks = work_plan.find_local_tasks(Syskit::TaskContext).
                         with_arguments(orocos_name: task.orocos_name).to_a

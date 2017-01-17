@@ -690,7 +690,7 @@ module Syskit
             attr_reader :task, :orocos_task
             before do
                 task_m = TaskContext.new_submodel
-                task = syskit_stub_and_deploy(task_m, as: 'task')
+                task = syskit_stub_and_deploy(task_m)
                 syskit_start_execution_agents(task)
                 @task = flexmock(task)
                 @orocos_task = flexmock(task.orocos_task)
@@ -772,7 +772,7 @@ module Syskit
                 @recorder = flexmock
                 recorder.should_receive(:called)
                 recorder.should_receive(:error).never.by_default
-                task = syskit_stub_and_deploy 'Task', as: 'task' do
+                task = syskit_stub_and_deploy 'Task' do
                     input_port "in", "int"
                     output_port "out", "int"
                 end
@@ -1018,7 +1018,7 @@ module Syskit
                 attr_reader :transaction
                 attr_reader :source_task, :sink_task
                 before do
-                    @source_task = syskit_stub_and_deploy "SourceTask", as: 'source_task' do
+                    @source_task = syskit_stub_and_deploy "SourceTask" do
                         p = output_port('out', 'int')
                         p.static if !input
                     end
