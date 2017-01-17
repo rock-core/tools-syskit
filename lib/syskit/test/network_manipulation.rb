@@ -485,6 +485,10 @@ module Syskit
                     end
 
                     trsc_tasks.find_all(&:abstract?).each do |abstract_task|
+                        # The task is required as being abstract (usually a
+                        # if_already_present tag). Do not stub that
+                        next if abstract_task.requirements.abstract?
+
                         concrete_task =
                             if abstract_task.kind_of?(Syskit::Actions::Profile::Tag)
                                 tag_id = [abstract_task.model.tag_name, abstract_task.model.profile.name]
@@ -492,7 +496,6 @@ module Syskit
                             else
                                 syskit_stub_network_abstract_component(abstract_task)
                             end
-
 
                         if abstract_task.placeholder_task? && !abstract_task.kind_of?(Syskit::TaskContext) # 'pure' proxied data services
                             trsc.replace_task(abstract_task, concrete_task)
@@ -531,7 +534,9 @@ module Syskit
                         end
                     end
 
+                    NetworkGeneration::SystemNetworkGenerator.remove_abstract_composition_optional_children(trsc)
                     trsc.static_garbage_collect
+                    NetworkGeneration::SystemNetworkGenerator.verify_task_allocation(trsc)
                     trsc.commit_transaction
                 end
 
@@ -939,7 +944,7 @@ module Syskit
                 if model.respond_to?(:to_str)
                     model = syskit_stub_task_context_model(model, &block)
                 end
-                tasks = syskit_generate_network(model, &block)
+                tasks = syskit_generate_network(*model, &block)
                 tasks = syskit_stub_network(tasks, remote_task: remote_task)
                 if model.respond_to?(:to_ary)
                     tasks
