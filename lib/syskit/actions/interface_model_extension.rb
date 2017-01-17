@@ -10,20 +10,27 @@ module Syskit
                 if !@profile
                     @profile = super("Profile") { self }
                     if superclass.kind_of?(InterfaceModelExtension)
-                        tag_map = Hash.new
-                        superclass.profile.each_tag do |tag|
-                            tagged_models = [*tag.proxied_task_context_model, *tag.proxied_data_services]
-                            tag_map[tag.tag_name] = @profile.tag(tag.tag_name, *tagged_models)
-                        end
+                        tag_map = use_profile_tags(superclass.profile)
                         @profile.use_profile(superclass.profile, tag_map)
                     end
                 end
 
                 if block
-                    @profile.instance_eval(&block)
+                    Roby.warn_deprecated "calling profile do ... end in an action interface is deprecated, call use_profile do .. end instead"
+                    use_profile(&block)
                 else
                     @profile
                 end
+            end
+
+            # Define on self tags that match the profile's tags
+            def use_profile_tags(profile)
+                tag_map = Hash.new
+                profile.each_tag do |tag|
+                    tagged_models = [*tag.proxied_task_context_model, *tag.proxied_data_services]
+                    tag_map[tag.tag_name] = @profile.tag(tag.tag_name, *tagged_models)
+                end
+                tag_map
             end
 
             # @api private
@@ -85,7 +92,19 @@ module Syskit
             # @param [Hash] tag_selection selection for the profile tags, see
             #   {Profile#use_profile}
             # @return [void]
-            def use_profile(used_profile, tag_selection = Hash.new, transform_names: ->(name) { name })
+            def use_profile(used_profile = nil, tag_selection = Hash.new, transform_names: ->(name) { name })
+                if block_given?
+                    if !tag_selection.empty?
+                        raise ArgumentError, "cannot provide a tag selection when defining a new anonymous profile"
+                    end
+
+                    used_profile = Profile.new("#{self.name}::<anonymous>", register: true)
+                    used_profile.instance_eval(&proc)
+                    tag_selection = use_profile_tags(used_profile)
+                elsif !used_profile
+                    raise ArgumentError, "must provide either a profile object or a block"
+                end
+
                 @current_description = nil
                 new_definitions =
                     profile.use_profile(used_profile, tag_selection, transform_names: transform_names)

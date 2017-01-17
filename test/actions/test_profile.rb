@@ -4,6 +4,50 @@ module SyskitProfileTest
 end
 
 describe Syskit::Actions::Profile do
+    describe "#initialize" do
+        it "does not register the profile as a submodel of Profiles by default" do
+            new_profile = Syskit::Actions::Profile.new
+            refute Syskit::Actions::Profile.each_submodel.to_a.include?(new_profile)
+        end
+
+        it "registers the profile if register: true" do
+            new_profile = Syskit::Actions::Profile.new(register: true)
+            assert Syskit::Actions::Profile.each_submodel.to_a.include?(new_profile)
+        end
+
+        it "sets the profile's name" do
+            profile = Syskit::Actions::Profile.new("name")
+            assert_equal "name", profile.name
+        end
+    end
+
+    describe "global #profile method" do
+        before do
+            @context = Module.new
+        end
+
+        it "registers the newly created profile as a submodel of Profile" do
+            new_profile = @context.profile("Test") {}
+            assert Syskit::Actions::Profile.each_submodel.to_a.include?(new_profile)
+        end
+
+        it "registers the newly created profile as a constant on the context module" do
+            new_profile = @context.profile("Test") {}
+            assert_same @context::Test, new_profile
+        end
+
+        it "evaluates the block on an already registered constant with the same name" do
+            test_profile = @context.profile("Test") {}
+            flexmock(Syskit::Actions::Profile).should_receive(:new).never
+
+            eval_context = nil
+            @context.profile("Test") do
+                eval_context = self
+            end
+            assert_same test_profile, eval_context
+        end
+    end
+
     describe "#use_profile" do
         attr_reader :definition_mock
         before do

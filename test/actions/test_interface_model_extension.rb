@@ -14,7 +14,7 @@ describe Syskit::Actions::InterfaceModelExtension do
             parent_profile = parent.profile
             actions = parent.new_submodel
             action_profile = actions.profile
-            assert_equal [[parent_profile, Hash.new]], action_profile.used_profiles
+            assert action_profile.uses_profile?(parent_profile)
         end
 
         it "imports the tags from the interface's supermodel profile and injects them when using the parent profile" do
@@ -42,8 +42,28 @@ describe Syskit::Actions::InterfaceModelExtension do
     describe "#use_profile" do
         attr_reader :actions, :profile
         before do
-            @actions = Class.new(Roby::Actions::Interface)
-            @profile = Syskit::Actions::Profile.new(nil)
+            @actions = Roby::Actions::Interface.new_submodel
+            @profile = Syskit::Actions::Profile.new
+        end
+
+        it "creates a profile on-the-fly if given a block" do
+            task_m = Syskit::TaskContext.new_submodel
+            flexmock(@actions.profile).should_receive(:use_profile).once.
+                with(->(p) { p.name ==  "::<anonymous>" }, any, any).
+                pass_thru
+
+            new_definitions = @actions.use_profile do
+                define 'test', task_m
+            end
+            assert_equal ['test'], new_definitions.map(&:name)
+            assert_equal task_m, @actions.profile.test_def.model
+        end
+
+        it "raises if neither given a profile, nor a block" do
+            e = assert_raises(ArgumentError) do
+                @actions.use_profile
+            end
+            assert_equal "must provide either a profile object or a block", e.message
         end
 
         it "exports the profile definitions as actions" do

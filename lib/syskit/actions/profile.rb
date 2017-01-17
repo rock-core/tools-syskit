@@ -165,7 +165,7 @@ module Syskit
                 end
             end
             
-            def initialize(name = nil)
+            def initialize(name = nil, register: false)
                 @name = name
                 @permanent_model = false
                 @definitions = Hash.new
@@ -175,6 +175,10 @@ module Syskit
                 @robot = RobotDefinition.new(self)
                 @definition_location = caller_locations
                 super()
+
+                if register
+                    Profile.profiles << self
+                end
             end
 
             def tag(name, *models)
@@ -263,6 +267,11 @@ module Syskit
                     else key
                     end
                 end
+            end
+
+            # Whether self uses the given profile
+            def uses_profile?(profile)
+                used_profiles.any? { |used_profile, _| used_profile == profile }
             end
 
             # Adds the given profile DI information and registered definitions
@@ -530,11 +539,11 @@ module Syskit
                 if const_defined_here?(name)
                     profile = const_get(name)
                 else 
-                    profile = Profile.new("#{self.name}::#{name}")
+                    profile = Profile.new("#{self.name}::#{name}", register: true)
                     const_set(name, profile)
-                    Profile.profiles << profile
                 end
                 profile.instance_eval(&block)
+                profile
             end
         end
         Module.include ProfileDefinitionDSL
