@@ -1,7 +1,11 @@
 module Syskit
     module Test
-        Roby::Test::Spec.roby_plan_with(Component.match.with_child(InstanceRequirementsTask)) do |task|
-            syskit_stub_and_deploy(task)
+        Roby::Test::Spec.roby_plan_with(Component.match.with_child(InstanceRequirementsTask)) do |task, stub: true, **|
+            if stub
+                syskit_stub_and_deploy(task)
+            else
+                syskit_deploy(task)
+            end
         end
 
         class Spec < Roby::Test::Spec
