@@ -718,7 +718,7 @@ module Syskit
             end
 
             # Set this component instance up
-            def syskit_configure(components, recursive: true, except: Set.new)
+            def syskit_configure(components = __syskit_root_components, recursive: true, except: Set.new)
                 # We need all execution agents to be started to connect (and
                 # therefore configur) the tasks
                 syskit_start_all_execution_agents
@@ -827,8 +827,12 @@ module Syskit
                 guard
             end
 
+            def __syskit_root_components
+                plan.find_tasks(Syskit::Component).not_abstract.roots(Roby::TaskStructure::Dependency)
+            end
+
             # Start this component
-            def syskit_start(components, recursive: true, except: Set.new)
+            def syskit_start(components = __syskit_root_components, recursive: true, except: Set.new)
                 components = Array(components)
 
                 tasks = Set.new
@@ -1015,7 +1019,7 @@ module Syskit
             #
             # @param (see syskit_stub)
             # @return [Syskit::Component]
-            def syskit_configure_and_start(component, recursive: true, except: Set.new)
+            def syskit_configure_and_start(component = __syskit_root_components, recursive: true, except: Set.new)
                 syskit_configure(component, recursive: recursive, except: except)
                 syskit_start(component, recursive: recursive, except: except)
                 component
