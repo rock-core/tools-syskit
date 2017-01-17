@@ -360,7 +360,7 @@ describe Syskit::InstanceRequirements do
             ir_component_model = Syskit::InstanceRequirements.new([task_m])
             flexmock(ir).should_receive(:to_component_model).and_return(ir_component_model)
             flexmock(task_m).should_receive(:new).once.and_return(task)
-            flexmock(task.requirements).should_receive(:merge).once.with(ir_component_model)
+            flexmock(task.requirements).should_receive(:merge).once.with(ir_component_model, any)
             ir.instanciate(plan)
         end
 
@@ -413,10 +413,22 @@ describe Syskit::InstanceRequirements do
             assert ir.instanciate(plan).abstract?
         end
 
+        it "ensures that the task's requirements have abstract set if abstract is set on self" do
+            task_m = Syskit::Component.new_submodel
+            ir = task_m.to_instance_requirements.abstract
+            assert ir.instanciate(plan).requirements.abstract?
+        end
+
         it "does not mark the task as abstract if abstract? is false" do
             task_m = Syskit::Component.new_submodel
             ir = task_m.to_instance_requirements
             assert !ir.instanciate(plan).abstract?
+        end
+
+        it "ensures that the task's requirements do not have abstract set if abstract is not set on self" do
+            task_m = Syskit::Component.new_submodel
+            ir = task_m.to_instance_requirements
+            refute ir.instanciate(plan).requirements.abstract?
         end
     end
 

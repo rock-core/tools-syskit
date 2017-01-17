@@ -834,7 +834,7 @@ module Syskit
                     else sel
                     end
                 end
-                task.requirements.merge(task_requirements)
+                task.requirements.merge(task_requirements, keep_abstract: true)
 
                 if required_host && task.respond_to?(:required_host=)
                     task.required_host = required_host
