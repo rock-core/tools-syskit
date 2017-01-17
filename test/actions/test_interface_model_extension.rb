@@ -1,6 +1,44 @@
 require 'syskit/test/self'
 
 describe Syskit::Actions::InterfaceModelExtension do
+    describe "#profile" do
+        it "creates the interface-level profile" do
+            actions = Roby::Actions::Interface.new_submodel
+            action_profile = actions.profile
+            assert_same action_profile, actions.profile
+            assert_same action_profile, actions::Profile
+        end
+
+        it "imports the interface's supermodel profile" do
+            parent  = Roby::Actions::Interface.new_submodel
+            parent_profile = parent.profile
+            actions = parent.new_submodel
+            action_profile = actions.profile
+            assert_equal [[parent_profile, Hash.new]], action_profile.used_profiles
+        end
+
+        it "imports the tags from the interface's supermodel profile and injects them when using the parent profile" do
+            srv_m = Syskit::DataService.new_submodel
+            cmp_m = Syskit::Composition.new_submodel
+            cmp_m.add srv_m, as: 'test'
+
+            parent  = Roby::Actions::Interface.new_submodel
+            parent_profile = parent.profile
+            parent_tag = parent_profile.tag 'test', srv_m
+            parent_profile.define 'cmp', cmp_m.use('test' => parent_tag)
+
+            actions = parent.new_submodel
+            profile = actions.profile
+            tag     = profile.test_tag
+            assert_equal 'test', tag.tag_name
+            assert_equal profile, tag.profile
+            assert_equal [srv_m], tag.proxied_data_services
+
+            cmp = profile.cmp_def.instanciate(plan)
+            assert_kind_of tag, cmp.test_child
+        end
+    end
+
     describe "#use_profile" do
         attr_reader :actions, :profile
         before do

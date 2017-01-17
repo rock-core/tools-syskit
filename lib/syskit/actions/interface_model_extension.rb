@@ -10,7 +10,12 @@ module Syskit
                 if !@profile
                     @profile = super("Profile") { self }
                     if superclass.kind_of?(InterfaceModelExtension)
-                        @profile.use_profile(superclass.profile)
+                        tag_map = Hash.new
+                        superclass.profile.each_tag do |tag|
+                            tagged_models = [*tag.proxied_task_context_model, *tag.proxied_data_services]
+                            tag_map[tag.tag_name] = @profile.tag(tag.tag_name, *tagged_models)
+                        end
+                        @profile.use_profile(superclass.profile, tag_map)
                     end
                 end
 

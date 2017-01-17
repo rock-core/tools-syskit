@@ -65,6 +65,18 @@ module Syskit
                 end
             end
 
+            module Models
+                # Model-level API for {Profile::Tag}
+                module Tag
+                    # The name of this tag
+                    # @return [String]
+                    attr_accessor :tag_name
+                    # The profile this tag has been defined on
+                    # @return [Profile]
+                    attr_accessor :profile
+                end
+            end
+
             module Tag
                 include Syskit::PlaceholderTask
 
@@ -77,10 +89,7 @@ module Syskit
                 end
 
                 module ClassExtension
-                    # The name of this tag
-                    attr_accessor :tag_name
-                    # The profile this tag has been defined on
-                    attr_accessor :profile
+                    include Models::Tag
                 end
             end
 
@@ -175,6 +184,15 @@ module Syskit
                 tags[name].tag_name = name
                 tags[name].profile = self
                 tags[name]
+            end
+
+            # Enumerate the tags declared on this profile
+            #
+            # It never enumerates tags from used profiles
+            #
+            # @yieldparam [Models::Tag]
+            def each_tag(&block)
+                tags.each_value(&block)
             end
 
             # Add some dependency injections for the definitions in this profile
