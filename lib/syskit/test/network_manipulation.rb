@@ -938,7 +938,11 @@ module Syskit
                 end
                 tasks = syskit_generate_network(model, &block)
                 tasks = syskit_stub_network(tasks, remote_task: remote_task)
-                tasks.first
+                if model.respond_to?(:to_ary)
+                    tasks
+                else
+                    tasks.first
+                end
             end
 
             # Stub a task, deploy it and configure it
