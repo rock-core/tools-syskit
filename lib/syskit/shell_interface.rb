@@ -38,7 +38,7 @@ module Syskit
         # Helper method that makes sure that changed configuration files will
         # cause the relevant tasks to be reconfigured in the next re-deployment
         def mark_changed_configuration_as_not_reusable(changed)
-            TaskContext.configured.each do |task_name, (syskit_model, current_conf, _)|
+            TaskContext.needs_reconfiguration.each do |task_name, (syskit_model, current_conf, _)|
                 changed_conf = changed[syskit_model.concrete_model]
 
                 if changed_conf && current_conf.any? { |section_name| changed_conf.include?(section_name) }
