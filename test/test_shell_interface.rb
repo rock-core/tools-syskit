@@ -87,7 +87,8 @@ module Syskit
             end
 
             it "restricts the deployments to the given models" do
-                other = syskit_stub_deploy_configure_and_start(task_m.with_conf('other'))
+                other_m = TaskContext.new_submodel
+                other = syskit_stub_deploy_configure_and_start(other_m)
                 subject.plan.add_mission_task(other)
                 subject.restart_deployments(task.execution_agent.model)
                 assert_event_emission plan.find_tasks(ShellInterface::ShellDeploymentRestart).first.stop_event
