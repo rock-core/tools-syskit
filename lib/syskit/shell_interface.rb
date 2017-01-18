@@ -35,19 +35,6 @@ module Syskit
             :path => 'the directory in which the configuration files should be saved',
             :name => '(optional) if given, the name of the section for the new configuration. Defaults to the orocos task names'
 
-        # Helper method that makes sure that changed configuration files will
-        # cause the relevant tasks to be reconfigured in the next re-deployment
-        def mark_changed_configuration_as_not_reusable(changed)
-            TaskContext.needs_reconfiguration.each do |task_name, (syskit_model, current_conf, _)|
-                changed_conf = changed[syskit_model.concrete_model]
-
-                if changed_conf && current_conf.any? { |section_name| changed_conf.include?(section_name) }
-                    ::Robot.info "task #{task_name} needs reconfiguration"
-                    TaskContext.needs_reconfiguration << task_name
-                end
-            end
-        end
-
         class ShellDeploymentRestart < Roby::Task
             event :start, :controlable => true
 
@@ -136,7 +123,11 @@ module Syskit
             TaskContext.each_submodel do |model|
                 next if !model.concrete_model?
                 changed_sections = model.configuration_manager.reload
-                mark_changed_configuration_as_not_reusable(model => changed_sections)
+                plan.find_tasks(Deployment).each do |deployment_task|
+                    deployment_task.mark_changed_configuration_as_not_reusable(model => changed_sections).each do |orocos_name|
+                        ::Robot.info "task #{orocos_name} needs reconfiguration"
+                    end
+                end
             end
             nil
         end

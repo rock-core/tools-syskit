@@ -48,6 +48,7 @@ module Syskit
                 # model stub, as stubbing protects the original manager
                 flexmock(model.configuration_manager).should_receive(:reload).once.
                     and_return(['default'])
+                flexmock(::Robot).should_receive(:info).with("task #{task.orocos_name} needs reconfiguration").once
                 subject.reload_config
                 assert task.needs_reconfiguration?
             end

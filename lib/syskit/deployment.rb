@@ -378,6 +378,25 @@ module Syskit
             end
 
             # @api private
+            #
+            # Mark tasks affected by a change in configuration section as
+            # non-reusable
+            def mark_changed_configuration_as_not_reusable(changed)
+                needed = Set.new
+                remote_task_handles.each do |orocos_name, remote_handle|
+                    current_conf = remote_handle.current_configuration
+                    if modified_sections = changed[current_conf.model.concrete_model]
+                        if modified_sections.any? { |section_name| current_conf.conf.include?(section_name) }
+                            needed << orocos_name
+                        end
+                    end
+                end
+
+                TaskContext.needs_reconfiguration.merge(needed)
+                needed
+            end
+
+            # @api private
             def setup_task_handles(remote_tasks)
                 model.each_orogen_deployed_task_context_model do |act|
                     name = orocos_process.get_mapped_name(act.name)
