@@ -325,6 +325,31 @@ describe Syskit::Actions::InterfaceModelExtension do
         end
     end
 
+    it "rebinds of definitions in an overloaded action interface" do
+        srv_m = Syskit::DataService.new_submodel
+        cmp_m = Syskit::Composition.new_submodel
+        cmp_m.add srv_m, as: 'test'
+
+        base_profile_m = Syskit::Actions::Profile.new
+        base_tag = base_profile_m.tag 'tag', srv_m
+        base_profile_m.define 'test', cmp_m.use('test' => base_tag)
+        base_action_m = Roby::Actions::Interface.new_submodel do
+            use_profile base_profile_m
+        end
+
+        task_m = Syskit::TaskContext.new_submodel
+        task_m.provides srv_m, as: 'test'
+        profile_m = Syskit::Actions::Profile.new
+        task = profile_m.define 'task', task_m
+        profile_m.use_profile base_profile_m, 'tag' => task
+        action_m = base_action_m.new_submodel do
+            use_profile profile_m
+        end
+
+        cmp = action_m.test_def.to_instance_requirements.instanciate(plan)
+        assert_kind_of task_m, cmp.test_child
+    end
+
     describe "#robot" do
         it "registers the new devices as actions" do
             dev_m = Syskit::Device.new_submodel

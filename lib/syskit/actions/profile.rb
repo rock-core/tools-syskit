@@ -292,11 +292,9 @@ module Syskit
                 new_definitions = Array.new
                 profile.definitions.each do |name, req|
                     name = transform_names.call(name)
-                    if !definitions[name]
-                        req = promote_requirements(profile, req, tags)
-                        definition = register_definition(name, req, doc: req.doc)
-                        new_definitions << definition
-                    end
+                    req = promote_requirements(profile, req, tags)
+                    definition = register_definition(name, req, doc: req.doc)
+                    new_definitions << definition
                 end
                 new_definitions.concat(robot.use_robot(profile.robot))
 
