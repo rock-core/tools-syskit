@@ -81,7 +81,7 @@ module Syskit
                 end
                 spent = (Time.now - time)
                 if spent < period
-                    sleep(period - spent)
+                    exit_condition.wait(period - spent)
                 end
                 run_event.wait
             end
