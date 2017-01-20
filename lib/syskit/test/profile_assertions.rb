@@ -37,7 +37,7 @@ module Syskit
                 if arg.respond_to?(:each_action)
                     arg.each_action.map(&:to_action)
                 elsif arg.respond_to?(:to_action)
-                    [arg]
+                    [arg.to_action]
                 elsif arg.respond_to?(:flat_map)
                     arg.flat_map { |a| Actions(a) }
                 else
@@ -53,6 +53,29 @@ module Syskit
                 end
             end
 
+            # Like {#AtomicActions} but filters out actions that cannot be
+            # handled by the bulk assertions, and returns them
+            #
+            # @param [Array,Action] arg the action that is expanded
+            # @param [Array<Roby::Actions::Action>] actions that
+            #   should be ignored. Actions are compared on the basis of their
+            #   model (arguments do not count)
+            def BulkAssertAtomicActions(arg, exclude: [], &block)
+                exclude = Actions(exclude).map(&:model)
+                skipped_actions = Array.new
+                actions = AtomicActions(arg).find_all do |action|
+                    if exclude.include?(action.model)
+                        false
+                    elsif !action.kind_of?(Actions::Action) && action.has_missing_required_arg?
+                        skipped_actions << action
+                        false
+                    else
+                        true
+                    end
+                end
+                return actions, skipped_actions
+            end
+
             # Tests that a definition or all definitions of a profile are
             # self-contained, that is that the only variation points in the
             # profile are profile tags.
@@ -62,8 +85,13 @@ module Syskit
             #
             # Note that it is a really good idea to maintain this property. No.
             # Seriously. Keep it in your tests.
-            def assert_is_self_contained(action_or_profile = subject_syskit_model, message: "%s is not self contained", **instanciate_options)
-                AtomicActions(action_or_profile).each do |act|
+            def assert_is_self_contained(action_or_profile = subject_syskit_model, message: "%s is not self contained", exclude: [], **instanciate_options)
+                actions, skipped_actions = BulkAssertAtomicActions(action_or_profile, exclude: exclude)
+                if !skipped_actions.empty?
+                    flunk "could not validate #{skipped_actions.size} non-Syskit actions: #{skipped_actions.map(&:name).sort.join(", ")}, pass them to the 'exclude' argumet to #{__method__}"
+                end
+
+                actions.each do |act|
                     begin
                         self.assertions += 1
                         syskit_engine = Syskit::NetworkGeneration::Engine.new(plan)
@@ -107,9 +135,14 @@ module Syskit
             # {#assert_can_instanciate_together}
             #
             # If called without argument, it tests the spec's context profile
-            def assert_can_instanciate(action_or_profile = subject_syskit_model)
-                AtomicActions(action_or_profile).each do |act|
-                    task = assert_can_instanciate_together(act)
+            def assert_can_instanciate(action_or_profile = subject_syskit_model, exclude: [])
+                actions, skipped_actions = BulkAssertAtomicActions(action_or_profile, exclude: exclude)
+                if !skipped_actions.empty?
+                    flunk "could not validate #{skipped_actions.size} non-Syskit actions: #{skipped_actions.map(&:name).sort.join(", ")}, pass them to the 'exclude' argumet to #{__method__}"
+                end
+
+                actions.each do |action|
+                    task = assert_can_instanciate_together(action)
                     plan.unmark_mission_task(task)
                     plan.execution_engine.process_events_synchronous do
                         plan.execution_engine.garbage_collect
@@ -181,8 +214,13 @@ module Syskit
             # {#assert_can_deploy_together}
             #
             # If called without argument, it tests the spec's context profile
-            def assert_can_deploy(action_or_profile = subject_syskit_model)
-                AtomicActions(action_or_profile).each do |action|
+            def assert_can_deploy(action_or_profile = subject_syskit_model, exclude: [])
+                actions, skipped_actions = BulkAssertAtomicActions(action_or_profile, exclude: exclude)
+                if !skipped_actions.empty?
+                    flunk "could not validate #{skipped_actions.size} non-Syskit actions: #{skipped_actions.map(&:name).sort.join(", ")}, pass them to the 'exclude' argumet to #{__method__}"
+                end
+
+                actions.each do |action|
                     task = assert_can_deploy_together(action)
                     plan.unmark_mission_task(task)
                     plan.execution_engine.process_events_synchronous do
