@@ -303,9 +303,8 @@ module Syskit
                 new_definitions.each do |req|
                     rebound_arguments = Hash.new
                     req.arguments.each do |name, value|
-                        if value.kind_of?(Models::Action)
-                            rebound_arguments[name] =
-                                value.requirements.rebind(self).to_action_model
+                        if value.respond_to?(:rebind_requirements)
+                            rebound_arguments[name] = value.rebind_requirements(self)
                         end
                     end
                     req.with_arguments(rebound_arguments)

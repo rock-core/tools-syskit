@@ -45,6 +45,16 @@ module Syskit
                 end
             end
 
+            # Create a new action with the same arguments but the requirements
+            # rebound to a new profile
+            #
+            # @param [Profile] the profile onto which definitions should be
+            #   rebound
+            # @return [Action]
+            def rebind_requirements(profile)
+                requirements.rebind(profile).to_action_model
+            end
+
             def initialize_copy(old)
                 super
                 @requirements = old.requirements.dup
