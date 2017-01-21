@@ -21,7 +21,7 @@ describe Syskit::InstanceRequirements do
             e = assert_raises(Roby::NotMarshallable) do
                 req.with_arguments(key: not_marshallable)
             end
-            assert_equal "values used as task arguments must be marshallable, attempting to set key to #{not_marshallable}, which is not", e.message
+            assert_equal "values used as task arguments must be marshallable, attempting to set key to #{not_marshallable} of class Object, which is not", e.message
         end
 
         it "generates the same error message than setting the task argument directly" do
