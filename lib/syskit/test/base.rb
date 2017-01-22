@@ -46,6 +46,13 @@ module Syskit
             end
         end
 
+        def plug_requirement_modifications
+            RobyApp::Plugin.plug_handler_in_roby(execution_engine, :apply_requirement_modifications)
+        end
+        def unplug_requirement_modifications
+            RobyApp::Plugin.unplug_handler_from_roby(execution_engine, :apply_requirement_modifications)
+        end
+
         def plug_connection_management
             RobyApp::Plugin.plug_handler_in_roby(execution_engine, :connection_management)
         end

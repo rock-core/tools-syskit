@@ -12,7 +12,7 @@ module Syskit
             include Test::Base
 
             def setup
-                Syskit::RobyApp::Plugin.unplug_handler_from_roby(execution_engine, :apply_requirement_modifications)
+                unplug_requirement_modifications
                 Syskit.conf.register_process_server(
                     'stubs', Orocos::RubyTasks::ProcessManager.new(Roby.app.default_loader, task_context_class: Orocos::RubyTasks::StubTaskContext), "", host_id: 'syskit')
                 super
