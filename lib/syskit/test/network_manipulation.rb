@@ -731,6 +731,7 @@ module Syskit
                 syskit_start_all_execution_agents
 
                 components = Array(components)
+                return if components.empty?
 
                 tasks = Set.new
                 except  = except.to_set
@@ -845,6 +846,7 @@ module Syskit
             # Start this component
             def syskit_start(components = __syskit_root_components, recursive: true, except: Set.new)
                 components = Array(components)
+                return if components.empty?
 
                 tasks = Set.new
                 except = except.to_set
