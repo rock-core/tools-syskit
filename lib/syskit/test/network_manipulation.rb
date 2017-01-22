@@ -658,7 +658,9 @@ module Syskit
             def syskit_prepare_configure(component, tasks, recursive: true, except: Set.new)
                 component.freeze_delayed_arguments
 
-                tasks << component
+                if component.respond_to?(:setup?)
+                    tasks << component
+                end
 
                 if recursive
                     component.each_child do |child_task|
@@ -796,7 +798,9 @@ module Syskit
             end
 
             def syskit_prepare_start(component, tasks, recursive: true, except: Set.new)
-                tasks << component
+                if component.respond_to?(:setup?)
+                    tasks << component
+                end
 
                 if recursive
                     component.each_child do |child_task|
