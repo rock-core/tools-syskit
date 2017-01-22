@@ -1,12 +1,30 @@
 module Syskit
     module Test
-        Roby::Test::Spec.roby_plan_with(Component.match.with_child(InstanceRequirementsTask)) do |task, stub: true, **|
-            if stub
-                syskit_stub_and_deploy(task)
-            else
-                syskit_deploy(task)
+        # Planning handler for #roby_run_planner that handles
+        # InstanceRequirementsTask
+        class InstanceRequirementPlanningHandler
+            def start(tasks)
+                @plan = tasks.first.plan
+                @planning_tasks = tasks.map do |t|
+                    if planning_task = t.planning_task
+                        planning_task
+                    else
+                        raise ArgumentError, "#{t} does not have a planning task"
+                    end
+                end
+
+                @planning_tasks.each do |t|
+                    t.start! if t.pending?
+                end
+                Runtime.apply_requirement_modifications(@plan)
+            end
+
+            def finished?
+                Runtime.apply_requirement_modifications(@plan)
+                @planning_tasks.all? { |t| t.success? }
             end
         end
+        Roby::Test::Spec.roby_plan_with Component.match.with_child(InstanceRequirementsTask), InstanceRequirementPlanningHandler
 
         class Spec < Roby::Test::Spec
             include Test::Base
