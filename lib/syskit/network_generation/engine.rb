@@ -11,6 +11,16 @@ module Syskit
             include Logger::Hierarchy
             include Roby::DRoby::EventLogging
 
+            class << self
+                # Globally controls what happens when resolution fails
+                #
+                # The default is to throw away everything. Set to :save to save
+                # the state of the transaction at the point of error into a dot
+                # file. Set to :commit to apply it on the plan anyways
+                attr_accessor :on_error
+            end
+            @on_error = nil
+
             # The underlying plan
             attr_reader :real_plan
             # The plan we are modifying. It is usually a transaction on top of
@@ -549,7 +559,7 @@ module Syskit
             #   for instance). Set it to false to do no special action (i.e.
             #   drop the currently generated plan)
             def resolve(requirement_tasks: Engine.discover_requirement_tasks_from_plan(real_plan),
-                        on_error: nil,
+                        on_error: self.class.on_error,
                         compute_deployments: true,
                         compute_policies: true,
                         garbage_collect: true,

@@ -104,11 +104,11 @@ module Syskit
                     begin
                         engine.apply_system_network_to_plan(required_instances)
                     rescue ::Exception => e
-                        engine.work_plan.discard_transaction
+                        engine.handle_resolution_exception(e, on_error: Engine.on_error)
                         raise e
                     end
                 else
-                    engine.work_plan.discard_transaction
+                    engine.handle_resolution_exception(e, on_error: Engine.on_error)
                     raise future.reason
                 end
             end
