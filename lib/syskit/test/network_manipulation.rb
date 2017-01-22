@@ -1031,7 +1031,7 @@ module Syskit
             end
 
             # Export the dataflow and hierarchy to SVG
-            def syskit_export_to_svg(plan = self.plan, suffix: '')
+            def syskit_export_to_svg(plan = self.plan, suffix: '', dataflow_options: Hash.new, hierarchy_options: Hash.new)
                 basename = 'syskit-export-%i%s.%s.svg'
 
                 counter = 0
@@ -1043,8 +1043,8 @@ module Syskit
 
                 dataflow = basename % [counter + 1, suffix, 'dataflow']
                 hierarchy = basename % [counter + 1, suffix, 'hierarchy']
-                Syskit::Graphviz.new(plan).to_file('dataflow', 'svg', dataflow)
-                Syskit::Graphviz.new(plan).to_file('hierarchy', 'svg', hierarchy)
+                Syskit::Graphviz.new(plan).to_file('dataflow', 'svg', dataflow, **dataflow_options)
+                Syskit::Graphviz.new(plan).to_file('hierarchy', 'svg', hierarchy, **hierarchy_options)
                 puts "exported plan to #{dataflow} and #{hierarchy}"
                 return dataflow, hierarchy
             end
