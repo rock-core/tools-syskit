@@ -743,7 +743,9 @@ module Syskit
 
                 pending = tasks.dup.to_set
                 while !pending.empty?
-                    Syskit::Runtime::ConnectionManagement.update(plan)
+                    execution_engine.process_events_synchronous do
+                        Syskit::Runtime::ConnectionManagement.update(plan)
+                    end
                     current_state = pending.size
                     pending.delete_if do |t|
                         should_setup = Orocos.allow_blocking_calls do
