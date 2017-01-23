@@ -977,10 +977,7 @@ module Syskit
 
             # Tests if these requirements explicitly point to a component model
             def component_model?
-                if model.respond_to?(:proxied_task_context_model)
-                    model.proxied_task_context_model
-                else true
-                end
+                model.component_model?
             end
 
             # Tests if these requirements explicitly point to a composition model
