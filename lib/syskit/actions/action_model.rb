@@ -5,13 +5,59 @@ module Syskit
         # the action interface
         class Action < Roby::Actions::Models::Action
             # The instance requirement object for this action
+            #
+            # It is the "pure" requirements, where the enclsoing DI context is
+            # not yet injected
+            #
             # @return [InstanceRequirements]
             attr_reader :requirements
 
-            def initialize(action_interface_model, requirements, doc = nil)
-                super(action_interface_model, doc)
+            def initialize(requirements, doc = nil)
+                super(doc)
                 @requirements = requirements
                 returns(requirements.proxy_task_model)
+            end
+
+            def to_s
+                name =
+                    if requirement_name = requirements.name
+                        "#{requirements.name}_def"
+                    else
+                        "#{super}[#{requirements}]"
+                    end
+
+                if requirements.respond_to?(:profile)
+                    "#{name} of #{requirements.profile}"
+                else
+                    name
+                end
+            end
+
+            # Rebind this action to another action interface
+            def rebind(action_interface_model)
+                # NOTE: use_profile maps all definitions into the new profile.
+                # NOTE: DI injection will happen at this point, and we just
+                # NOTE: have to look for already-defined actions
+                if overloaded = action_interface_model.actions[name]
+                    overloaded
+                else
+                    dup
+                end
+            end
+
+            # Create a new action with the same arguments but the requirements
+            # rebound to a new profile
+            #
+            # @param [Profile] the profile onto which definitions should be
+            #   rebound
+            # @return [Action]
+            def rebind_requirements(profile)
+                requirements.rebind(profile).to_action_model
+            end
+
+            def initialize_copy(old)
+                super
+                @requirements = old.requirements.dup
             end
 
             # @return [Action] an action instance based on this model
@@ -19,34 +65,23 @@ module Syskit
                 Actions::Action.new(self, arguments)
             end
 
-            # Returns a resolved (i.e. complete) requirement object for the
-            # equivalent of this action on the given profile
-            #
-            # @return [InstanceRequirements]
-            def resolve_definition_on(profile)
-                if name =~ /^(.*)_dev$/
-                    profile.robot.find_device($1).to_instance_requirements
-                elsif name =~ /^(.*)_def$/
-                    profile.resolved_definition($1)
-                end
-            end
-
-            def rebind(profile, force: true)
-                super
-            end
-
             def plan_pattern(arguments = Hash.new)
                 job_id, arguments = Kernel.filter_options arguments, :job_id
-                req = requirements.dup
-                req.with_arguments(arguments)
+
+                req = to_instance_requirements(arguments)
                 placeholder = req.as_plan(job_id)
                 placeholder.planning_task.action_model = self
                 placeholder.planning_task.action_arguments = arguments
                 placeholder
             end
 
-            def to_instance_requirements
-                new.to_instance_requirements
+            def to_instance_requirements(arguments = Hash.new)
+                if !requirements.has_template? && requirements.can_use_template?
+                    requirements.compute_template
+                end
+                req = requirements.dup
+                req.with_arguments(arguments)
+                req
             end
 
             # Instanciate this action on the given plan
@@ -79,7 +114,7 @@ module Syskit
                 if requirements.respond_to?(m)
                     req = requirements.dup
                     req.send(m, *args, &block)
-                    Actions::Models::Action.new(action_interface_model, req, doc)
+                    Actions::Models::Action.new(req, doc)
                 else super
                 end
             end

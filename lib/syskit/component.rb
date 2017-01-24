@@ -65,6 +65,13 @@ module Syskit
                 new_task
             end
 
+            # Wether this component instance is a placeholder for data services
+            #
+            # @see Models::PlaceholderTask
+            def placeholder_task?
+                false
+            end
+
             # Returns a set of hints that should be used to disambiguate the
             # deployment of this task.
             #
@@ -131,10 +138,22 @@ module Syskit
             # Returns true if the underlying Orocos task is in a state that
             # allows it to be configured
             def ready_for_setup? # :nodoc:
-                return false if !fully_instanciated?
+                if garbage?
+                    debug { "#{self} not ready for setup: garbage collected but not yet finalized" }
+                    return false
+                elsif !fully_instanciated?
+                    debug { "#{self} not ready for setup: not fully instanciated" }
+                    return false 
+                end
 
-                start_event.parent_objects(Roby::EventStructure::SyskitConfigurationPrecedence).all? do |event|
-                    event.emitted?
+                waiting_precedence_relation = start_event.parent_objects(Roby::EventStructure::SyskitConfigurationPrecedence).find do |event|
+                    !event.emitted? && !event.unreachable?
+                end
+                if waiting_precedence_relation
+                    debug { "#{self} not ready for setup: waiting on #{waiting_precedence_relation}" }
+                    false
+                else
+                    true
                 end
             end
 
@@ -142,22 +161,84 @@ module Syskit
             # configured
             attr_predicate :setup?, true
 
-            # Call to configure the component. User-provided configuration calls
-            # should be defined in a #configure method
+            # Create a {Roby::Promise} object that configures the component
             #
-            # Note that for error-handling reasons, the setup? flag is not set
-            # by this method. Caller must call is_setup! after a successful call
-            # to #setup
+            # Never overload this method. Overload {#perform_setup} instead.
+            #
+            # @return [Promise]
             def setup
-                if self.model.needs_stub?(self)
-                    self.model.prepare_stub(self)
+                if setup?
+                    raise ArgumentError, "#{self} is already set up"
                 end
-
-                configure
+                promise = self.promise(description: "promise:#{self}#setup")
+                perform_setup(promise)
+                promise.on_error(description: "#{self}#setup#setup_failed!") do |e|
+                    setup_failed!(e)
+                end
+                promise.on_success(description: "#{self}#setup#setup_successful!") do
+                    setup_successful!
+                end
+                setting_up!(promise)
+                promise
             end
 
-            def is_setup!
+            # @api private
+            #
+            # The actual setup operations. {#setup} is the user-facing part of
+            # the setup API, which creates the promise and sets up the
+            # setup-related bookkeeping operations
+            def perform_setup(promise)
+                promise.on_success(description: "#{self}#perform_setup#configure") do
+                    freeze_delayed_arguments
+                    if self.model.needs_stub?(self)
+                        self.model.prepare_stub(self)
+                    end
+                    configure
+                end
+            end
+
+            # @api private
+            #
+            # Called once at the beginning of a setup promise
+            def setting_up!(promise)
+                if @setting_up
+                    raise InvalidState, "#{self} is already setting up"
+                end
+                @setting_up = promise
+            end
+
+            # @api private
+            #
+            # Called once the setup process is finished to mark the task as set
+            # up
+            def setup_successful!
+                @setting_up = nil
                 self.setup = true
+            end
+
+            # @api private
+            #
+            # Called when the setup process failed
+            def setup_failed!(exception)
+                if start_event.plan
+                    start_event.emit_failed(exception)
+                else
+                    Roby.execution_engine.add_framework_error(e, "#{self} got finalized before the setting_up! error handler was called")
+                end
+                @setting_up = nil
+            end
+
+            # Whether the task is being set up
+            def setting_up?
+                !!@setting_up
+            end
+
+            # Controls whether the task can be removed from the plan
+            #
+            # Task context objects are kept while they're being set up, for the
+            # sake of not breaking the setup process in an uncontrollable way.
+            def can_finalize?
+                !setting_up?
             end
 
             # User-provided part of the component configuration
@@ -172,19 +253,19 @@ module Syskit
             # should never look into the task's neighborhood
             def can_merge?(task)
                 if !super
-                    info "rejected: Component#can_merge? super returned false"
+                    NetworkGeneration::MergeSolver.info "rejected: Component#can_merge? super returned false"
                     return
                 end
 
                 # Cannot merge if we are not reusable
                 if !reusable?
-                    info "rejected: receiver is not reusable"
+                    NetworkGeneration::MergeSolver.info "rejected: receiver is not reusable"
                     return
                 end
                 # We can not replace a non-abstract task with an
                 # abstract one
                 if !task.abstract? && abstract?
-                    info "rejected: cannot merge a non-abstract task into an abstract one"
+                    NetworkGeneration::MergeSolver.info "rejected: cannot merge a non-abstract task into an abstract one"
                     return
                 end
                 return true

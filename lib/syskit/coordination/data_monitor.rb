@@ -28,6 +28,11 @@ module Syskit
                 @raises = false
             end
 
+            # Whether the data monitor is attached to all its source streams
+            def ready?
+                data_streams.all?(&:ready?)
+            end
+
             def trigger_on(predicate)
                 @predicate = predicate
                 self

@@ -48,7 +48,10 @@ module Syskit
                 # task they get applied on
                 begin
                     component.resolve
-                    super
+                    root_task = component.root_task.resolve
+                    reader = super
+                    root_task.stop_event.on { |_| reader.disconnect }
+                    reader
                 rescue Roby::Coordination::ResolvingUnboundObject
                     Syskit::Models::OutputReader.new(self, policy)
                 end
@@ -63,7 +66,10 @@ module Syskit
                 # task they get applied on
                 begin
                     component.resolve
-                    super
+                    root_task = component.root_task.resolve
+                    writer = super
+                    root_task.stop_event.on { |_| writer.disconnect }
+                    writer
                 rescue Roby::Coordination::ResolvingUnboundObject
                     Syskit::Models::InputWriter.new(self, policy)
                 end

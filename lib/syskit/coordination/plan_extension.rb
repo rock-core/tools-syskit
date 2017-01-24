@@ -1,8 +1,29 @@
 module Syskit
     module Coordination
         module PlanExtension
+            # Representation of a data monitoring table attached to a plan
+            #
+            # @!attribute [rw] model
+            #   The data monitoring table model
+            #   @return [Models::DataMonitoringTable]
+            #
+            # @!attribute [rw] arguments
+            #   The arguments that should be used to create the table instance
+            #   @return [Hash<Symbol,Object>]
+            #
+            # @!attribute [rw] triggers
+            #   The triggers that would activate the table, as returned by
+            #   {Roby::Plan#add_trigger}
+            #   @return [Roby::Plan::Trigger]
+            #
+            # @!attribute [rw] instances
+            #   The set of table instances created so far
+            #   @return [Hash<Roby::Task,DataMonitoringTable>]
             AttachedDataMonitoringTable = Struct.new :model, :arguments, :triggers, :instances
 
+            # Set of data monitoring tables attached to this plan
+            #
+            # @return [Set<AttachedDataMonitoringTable>]
             attribute(:data_monitoring_tables) { Set.new }
 
             # Activates the given {DataMonitoringTable} model on this plan

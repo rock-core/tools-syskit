@@ -4,11 +4,19 @@ module Syskit
         # available on it.
         class RobotDefinition
             def initialize
-                @devices    = Hash.new
+                @devices = Hash.new
             end
 
             # The devices that are available on this robot
             attr_reader :devices
+
+            # Modify the raw requirements to add context information
+            def inject_di_context(requirements)
+            end
+
+            def empty?
+                devices.empty?
+            end
 
             def clear
                 invalidate_dependency_injection
@@ -21,9 +29,32 @@ module Syskit
             # If robot and self have devices with the same names, the ones in
             # self take precedence
             def use_robot(robot)
+                return [] if robot.empty?
+
+                if devices.empty?
+                    # Optimize the 'self is empty' codepath because it's
+                    # actually very common ... and it allows us to reuse the
+                    # caller's DI object
+                    @di = robot.to_dependency_injection
+                    @devices = robot.devices.dup
+                    return devices.values
+                end
+
+                new_devices = []
+                robot.devices.each do |device_name, device|
+                    if !devices.has_key?(device_name)
+                        devices[device_name] = device
+                        new_devices << device
+                    end
+                end
+                if !new_devices.empty?
+                    invalidate_dependency_injection
+                end
+                new_devices
+
+            rescue Exception
                 invalidate_dependency_injection
-                @devices = robot.devices.merge(devices)
-                nil
+                raise
             end
 
             # Declares a new communication bus
@@ -187,10 +218,14 @@ module Syskit
             def to_dependency_injection
                 if !@di
                     result = DependencyInjection.new
+                    device_model_to_instance = Hash.new
+                    devices.each_value do |instance|
+                        if !device_model_to_instance.delete(instance.device_model)
+                            device_model_to_instance[instance.device_model] = instance
+                        end
+                    end
                     # Register name-to-device mappings
-                    result.add(devices)
-                    # Also compute a default selection based on the device models
-                    result.add(*devices.values)
+                    result.add(device_model_to_instance)
                     result.resolve
                     @di = result
                 end

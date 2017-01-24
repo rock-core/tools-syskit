@@ -30,6 +30,7 @@ Loads the models from this bundle and allows to browse them. If a file is given,
 end
 options = Hash.new
 Roby::Application.host_options(parser, options)
+Roby.app.guess_app_dir
 Syskit::Scripts.common_options(parser, true)
 remaining = parser.parse(ARGV)
 

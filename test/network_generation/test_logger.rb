@@ -33,11 +33,12 @@ describe Syskit::NetworkGeneration::LoggerConfigurationSupport do
     end
 
     describe "add_logging_to_network" do
-        it "should declare connections from the task's output ports to the logger task" do
+        it "declares connections from the task's output ports to the logger task" do
             logger = deployment.task 'deployment_Logger'
             flexmock(task).should_receive(:connect_ports).once.
                 with(logger,
-                     Hash[['out1', 'task.out1'] => Hash.new,
+                     Hash[['state', 'task.state'] => Hash.new,
+                          ['out1', 'task.out1'] => Hash.new,
                           ['out2', 'task.out2'] => Hash.new])
             flexmock(syskit_engine).should_receive(:deployment_tasks).and_return([deployment])
 
@@ -88,6 +89,8 @@ describe Syskit::NetworkGeneration::LoggerConfigurationSupport do
             logger = deployment.task 'deployment_Logger'
             flexmock(logger).should_receive(:setup?).and_return(true)
             flexmock(logger).should_receive(:create_logging_port).
+                with('task.state', task, task.state_port).once
+            flexmock(logger).should_receive(:create_logging_port).
                 with('task.out1', task, task.out1_port).once
             flexmock(logger).should_receive(:create_logging_port).
                 with('task.out2', task, task.out2_port).once
@@ -97,7 +100,7 @@ describe Syskit::NetworkGeneration::LoggerConfigurationSupport do
     end
 
     describe "#configure" do
-        it "should setup the underlying logging task for each input connection" do
+        it "sets up the underlying logging task for each input connection" do
             plan.add_permanent_task(logger = deployment.task('deployment_Logger'))
             flexmock(task).should_receive(:connect_ports).pass_thru
             Syskit::NetworkGeneration::LoggerConfigurationSupport.
@@ -107,9 +110,11 @@ describe Syskit::NetworkGeneration::LoggerConfigurationSupport do
                 with('task.out1', task, task.out1_port).once
             flexmock(logger).should_receive(:create_logging_port).
                 with('task.out2', task, task.out2_port).once
+            flexmock(logger).should_receive(:create_logging_port).
+                with('task.state', task, task.state_port).once
             flexmock(Orocos.conf).should_receive(:apply)
-            deployment.start!
-            logger.configure
+            syskit_start_execution_agents(logger)
+            syskit_configure(logger)
         end
     end
 end

@@ -4,10 +4,54 @@ module SyskitProfileTest
 end
 
 describe Syskit::Actions::Profile do
+    describe "#initialize" do
+        it "does not register the profile as a submodel of Profiles by default" do
+            new_profile = Syskit::Actions::Profile.new
+            refute Syskit::Actions::Profile.each_submodel.to_a.include?(new_profile)
+        end
+
+        it "registers the profile if register: true" do
+            new_profile = Syskit::Actions::Profile.new(register: true)
+            assert Syskit::Actions::Profile.each_submodel.to_a.include?(new_profile)
+        end
+
+        it "sets the profile's name" do
+            profile = Syskit::Actions::Profile.new("name")
+            assert_equal "name", profile.name
+        end
+    end
+
+    describe "global #profile method" do
+        before do
+            @context = Module.new
+        end
+
+        it "registers the newly created profile as a submodel of Profile" do
+            new_profile = @context.profile("Test") {}
+            assert Syskit::Actions::Profile.each_submodel.to_a.include?(new_profile)
+        end
+
+        it "registers the newly created profile as a constant on the context module" do
+            new_profile = @context.profile("Test") {}
+            assert_same @context::Test, new_profile
+        end
+
+        it "evaluates the block on an already registered constant with the same name" do
+            test_profile = @context.profile("Test") {}
+            flexmock(Syskit::Actions::Profile).should_receive(:new).never
+
+            eval_context = nil
+            @context.profile("Test") do
+                eval_context = self
+            end
+            assert_same test_profile, eval_context
+        end
+    end
+
     describe "#use_profile" do
         attr_reader :definition_mock
         before do
-            @definition_mock = flexmock
+            @definition_mock = flexmock(arguments: [], with_arguments: nil)
             definition_mock.should_receive(:push_selections).by_default
             definition_mock.should_receive(:composition_model?).by_default
             definition_mock.should_receive(:use).by_default
@@ -24,13 +68,36 @@ describe Syskit::Actions::Profile do
             assert_same dst, dst.test_def.profile
         end
 
-        it "imports the existing definitions using #define" do
+        it "imports the existing definitions" do
             task_m = Syskit::TaskContext.new_submodel
             src = Syskit::Actions::Profile.new
             src.define 'test', task_m
 
             dst = Syskit::Actions::Profile.new
-            flexmock(dst).should_receive(:define).with('test', src.test_def).once.
+            flexmock(dst).should_receive(:register_definition).with('test', src.test_def, doc: nil).once.
+                and_return(definition_mock)
+            dst.use_profile src
+        end
+
+        it "allows to transform the definition names" do
+            src = Syskit::Actions::Profile.new
+            src.define 'test', Syskit::TaskContext.new_submodel
+
+            dst = Syskit::Actions::Profile.new
+            dst.use_profile src, transform_names: ->(name) { "modified_#{name}" }
+
+            assert_equal 'modified_test', dst.modified_test_def.name
+            assert_equal src.test_def, dst.modified_test_def
+        end
+
+        it "uses the existing definition's documentation as documentation for the imported definition" do
+            task_m = Syskit::TaskContext.new_submodel
+            src = Syskit::Actions::Profile.new
+            req = src.define 'test', task_m
+            req.doc "test documentation"
+
+            dst = Syskit::Actions::Profile.new
+            flexmock(dst).should_receive(:register_definition).with('test', src.test_def, doc: "test documentation").once.
                 and_return(definition_mock)
             dst.use_profile src
         end
@@ -56,7 +123,7 @@ describe Syskit::Actions::Profile do
                 and_return(duped = definition_mock)
             duped.should_receive(:push_selections).once
             dst = Syskit::Actions::Profile.new
-            flexmock(dst).should_receive(:define).with('test', duped).once.
+            flexmock(dst).should_receive(:register_definition).with('test', duped, doc: nil).once.
                 and_return(duped)
             dst.use_profile src
         end
@@ -100,11 +167,31 @@ describe Syskit::Actions::Profile do
             dst = Syskit::Actions::Profile.new
             dst.use_profile src, 'test' => task_m
         end
+
+        it "also promotes definitions that are used as arguments" do
+            srv_m = Syskit::DataService.new_submodel
+            task_m = Syskit::TaskContext.new_submodel do
+                argument :requirement
+            end
+            cmp_m = Syskit::Composition.new_submodel
+            cmp_m.add srv_m, as: 'test'
+            parent_profile = Syskit::Actions::Profile.new
+            parent_profile.tag 'test', srv_m
+            parent_profile.define 'argument_action',
+                cmp_m.use(parent_profile.test_tag)
+            parent_profile.define 'test',
+                task_m.with_arguments(action: parent_profile.argument_action_def.to_action_model)
+
+            srv_task_m = Syskit::TaskContext.new_submodel
+            srv_task_m.provides srv_m, as: 'test'
+            child_profile = Syskit::Actions::Profile.new
+            child_profile.use_profile parent_profile, 'test' => srv_task_m
+            task = child_profile.test_def.arguments[:action].requirements.instanciate(plan)
+            assert_kind_of srv_task_m, task.test_child
+        end
     end
 
     describe "#define" do
-        it "resolves the given argument by calling #to_instance_requirements" do
-        end
         it "adds a Definition object in which the arguments is merged" do
             req = Syskit::InstanceRequirements.new
             flexmock(Syskit::Actions::Profile::Definition).new_instances.should_receive(:merge).with(req).once
@@ -207,6 +294,26 @@ describe Syskit::Actions::Profile do
         profile = Syskit::Actions::Profile.new
         flexmock(profile).should_receive(:invalidate_dependency_injection).at_least.once
         profile.robot.invalidate_dependency_injection
+    end
+
+    describe "#tag" do
+        it "cannot be merged with another tag of the same type" do
+            srv_m = Syskit::DataService.new_submodel
+            profile = Syskit::Actions::Profile.new
+            profile.tag 'test', srv_m
+            profile.tag 'other', srv_m
+            test_task  = profile.test_tag.instanciate(plan)
+            other_task = profile.other_tag.instanciate(plan)
+            refute test_task.can_merge?(other_task)
+        end
+        it "can be merged with another instance of itself" do
+            srv_m = Syskit::DataService.new_submodel
+            profile = Syskit::Actions::Profile.new
+            profile.tag 'test', srv_m
+            test_task_1  = profile.test_tag.instanciate(plan)
+            test_task_2  = profile.test_tag.instanciate(plan)
+            assert test_task_1.can_merge?(test_task_2)
+        end
     end
 end
 

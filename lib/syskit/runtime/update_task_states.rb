@@ -9,9 +9,9 @@ module Syskit
                 if !t.orocos_task
                     plan.execution_engine.scheduler.report_holdoff "did not configure, execution agent not started yet", t
                     next
-                end
-
-                if !t.execution_agent
+                elsif t.execution_agent.aborted_event.pending?
+                    next
+                elsif !t.execution_agent
                     raise NotImplementedError, "#{t} is not yet finished but has no execution agent. #{t}'s history is\n  #{t.history.map(&:to_s).join("\n  ")}"
                 elsif !t.execution_agent.ready?
                     raise InternalError, "orocos_task != nil on #{t}, but #{t.execution_agent} is not ready yet"
@@ -27,28 +27,16 @@ module Syskit
 		    next
 		end
 
-                if t.pending? && !t.setup? 
+                if t.pending? && !t.setup? && !t.setting_up?
                     if t.ready_for_setup? && Syskit.conf.auto_configure?
-                        begin
-                            t.setup 
-                            t.is_setup!
-                        rescue Exception => e
-                            t.start_event.emit_failed(e)
-                        end
-                        if t.all_inputs_connected?
-                            t.executable = nil
-                            plan.execution_engine.scheduler.report_action "configured and all inputs connected, marking as executable", t
-                        else
-                            plan.execution_engine.scheduler.report_action "configured, but some connections are pending", t
-                        end
-
+                        t.setup.execute
                         next
                     else
                         plan.execution_engine.scheduler.report_holdoff "did not configure, not ready for setup", t
                     end
                 end
 
-                next if !t.running? && !t.starting?
+                next if !t.running? && !t.starting? || t.aborted_event.pending?
 
                 handled_this_cycle = Array.new
                 begin
@@ -67,7 +55,7 @@ module Syskit
                     end
 
 
-                    if state_count >= TaskContext::STATE_READER_BUFFER_SIZE
+                    if state_count >= Deployment::STATE_READER_BUFFER_SIZE
                         Runtime.warn "got #{state_count} state updates for #{t}, we might have lost some state updates in the process"
                     end
 

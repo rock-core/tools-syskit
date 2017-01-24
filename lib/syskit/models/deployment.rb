@@ -48,12 +48,10 @@ module Syskit
             #   It is usually not necessary to provide it.
             # @return [Deployment] the deployment class, as a subclass of
             #   Deployment
-            def new_submodel(options = Hash.new, &block)
-                model, options = Kernel.filter_options options, :orogen_model
-
-                klass = super(options) do
-                    self.orogen_model = model[:orogen_model] ||
-                        Models.create_orogen_deployment_model(options[:name])
+            def new_submodel(name: nil, orogen_model: nil, **options, &block)
+                klass = super(name: name, **options) do
+                    self.orogen_model = orogen_model ||
+                        Models.create_orogen_deployment_model(name)
                     if block
                         self.orogen_model.instance_eval(&block)
                     end

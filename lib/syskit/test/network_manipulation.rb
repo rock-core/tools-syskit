@@ -2,6 +2,15 @@ module Syskit
     module Test
         # Network manipulation functionality (stubs, ...) useful in tests
         module NetworkManipulation
+            # Whether (false) the stub methods should resolve ruby tasks as ruby
+            # tasks (i.e. Orocos::RubyTasks::TaskContext, the default), or
+            # (true) as something that looks more like a remote task
+            # (Orocos::RubyTasks::RemoteTaskContext)
+            #
+            # The latter is used in Syskit's own test suite to ensure that we
+            # don't call remote methods from within Syskit's own event loop
+            attr_predicate :syskit_stub_resolves_remote_tasks?, true
+
             def setup
                 @__test_created_deployments = Array.new
                 @__test_overriden_configurations = Array.new
@@ -34,11 +43,7 @@ module Syskit
                 @__test_created_deployments.concat(Syskit.conf.use_ruby_tasks(*args).to_a)
             end
 
-            # Run Syskit's deployer (i.e. engine) on the current plan
-            def syskit_deploy(*to_instanciate, add_mission: true, syskit_engine: nil, **resolve_options, &block)
-                # For backward-compatibility
-                to_instanciate = to_instanciate.flatten
-
+            def normalize_instanciation_models(to_instanciate)
                 # Instanciate all actions until we have a syskit instance
                 # requirement pattern
                 while true
@@ -59,6 +64,41 @@ module Syskit
                         end
                     end
                 end
+                to_instanciate
+            end
+
+            def syskit_generate_network(*to_instanciate, add_missions: true)
+                to_instanciate = normalize_instanciation_models(to_instanciate)
+                placeholders = to_instanciate.map(&:as_plan)
+                if add_missions
+                    placeholders.each do |t|
+                        plan.add_mission_task(t)
+                        if t.planning_task.pending?
+                            t.planning_task.start_event.call
+                        end
+                    end
+                end
+                task_mapping = plan.in_transaction do |trsc|
+                    engine = NetworkGeneration::Engine.new(plan, work_plan: trsc)
+                    mapping = engine.compute_system_network(
+                        placeholders.map(&:planning_task),
+                        validate_generated_network: false)
+                    trsc.commit_transaction
+                    mapping
+                end
+                placeholders.map do |task|
+                    replacement = task_mapping[task.planning_task]
+                    plan.replace_task(task, replacement)
+                    plan.remove_task(task)
+                    replacement.planning_task.success_event.emit
+                    replacement
+                end
+            end
+
+            # Run Syskit's deployer (i.e. engine) on the current plan
+            def syskit_deploy(*to_instanciate, add_mission: true, syskit_engine: nil, **resolve_options, &block)
+                to_instanciate = to_instanciate.flatten # For backward-compatibility
+                to_instanciate = normalize_instanciation_models(to_instanciate)
 
                 emit_calls = Set.new
                 placeholder_tasks = to_instanciate.map do |act|
@@ -75,7 +115,7 @@ module Syskit
                 requirement_tasks = placeholder_tasks.map(&:planning_task)
 
                 plan.execution_engine.process_events_synchronous do
-                    requirement_tasks.each { |t| t.start! }
+                    requirement_tasks.each { |t| t.start! if !t.running? }
                 end
 
                 begin
@@ -134,6 +174,41 @@ module Syskit
                 model
             end
 
+            def syskit_stub_configured_deployment(
+                    task_model = nil, name = nil,
+                    remote_task: self.syskit_stub_resolves_remote_tasks?, &block)
+
+                if task_model
+                    task_model = task_model.to_component_model
+                end
+
+                process_server = Syskit.conf.process_server_for('stubs')
+
+                task_context_class =
+                    if remote_task
+                        Orocos::RubyTasks::RemoteTaskContext
+                    else
+                        process_server.task_context_class
+                    end
+
+                name ||= syskit_default_stub_name(task_model)
+                deployment_model = Deployment.new_submodel(name: name) do
+                    if task_model
+                        task(name, task_model.orogen_model)
+                    end
+                    if block_given?
+                        instance_eval(&block)
+                    end
+                end
+
+                process_server.register_deployment_model(deployment_model.orogen_model)
+                configured_deployment = Models::ConfiguredDeployment.
+                    new('stubs', deployment_model, Hash[name => name],
+                        name, Hash[task_context_class: task_context_class])
+                Syskit.conf.register_configured_deployment(configured_deployment)
+                configured_deployment
+            end
+
             # Create a new stub deployment model that can deploy a given task
             # context model
             #
@@ -145,32 +220,19 @@ module Syskit
             # @yield the deployment model context, i.e. a context in which the
             #   same declarations than in oroGen's #deployment statement are
             #   available
-            # @return [Model<Syskit::Deployment>] the deployment model. This
-            #   deployment is declared as available on the 'stubs' process server,
-            #   i.e. it can be started
-            def syskit_stub_deployment_model(task_model = nil, name = nil, &block)
-                if task_model
-                    task_model = task_model.to_component_model
-                end
-                name ||= syskit_default_stub_name(task_model)
-                deployment_model = Deployment.new_submodel(name: name) do
-                    if task_model
-                        task(name, task_model.orogen_model)
-                    end
-                    if block_given?
-                        instance_eval(&block)
-                    end
-                end
-
-                Syskit.conf.process_server_for('stubs').
-                    register_deployment_model(deployment_model.orogen_model)
-                Syskit.conf.use_deployment(deployment_model.orogen_model, on: 'stubs')
-                deployment_model
+            # @return [Models::ConfiguredDeployment] the configured deployment
+            def syskit_stub_deployment_model(
+                    task_model = nil, name = nil,
+                    remote_task: self.syskit_stub_resolves_remote_tasks?, &block)
+                configured_deployment = syskit_stub_configured_deployment(task_model, name, remote_task: remote_task, &block)
+                configured_deployment.model
             end
 
             # Create a new stub deployment instance, optionally stubbing the
             # model as well
-            def syskit_stub_deployment(name = "deployment", deployment_model = nil, &block)
+            def syskit_stub_deployment(
+                    name = "deployment", deployment_model = nil,
+                    remote_task: self.syskit_stub_resolves_remote_tasks?, &block)
                 deployment_model ||= syskit_stub_deployment_model(nil, name, &block)
                 plan.add_permanent_task(task = deployment_model.new(process_name: name, on: 'stubs'))
                 task
@@ -190,7 +252,7 @@ module Syskit
             #
             # @param [InstanceRequirements] task_m the task context model
             # @param [String] as the deployment name
-            def syskit_stub_task_context(model, as: syskit_default_stub_name(model), devices: true)
+            def syskit_stub_task_context_requirements(model, as: syskit_default_stub_name(model), devices: true)
                 model = model.to_instance_requirements
 
                 task_m = model.model.to_component_model.concrete_model
@@ -242,7 +304,7 @@ module Syskit
             # Helper for {#syskit_stub_model}
             #
             # @param [InstanceRequirements] model
-            def syskit_stub_composition(model, recursive: true, as: syskit_default_stub_name(model), devices: true)
+            def syskit_stub_composition_requirements(model, recursive: true, as: syskit_default_stub_name(model), devices: true)
                 model = syskit_stub_component(model, devices: devices)
 
                 if recursive
@@ -254,10 +316,10 @@ module Syskit
                             selected_service = child_model.service
                             child_model = child_model.to_component_model
                             if child_model.composition_model? 
-                                deployed_child = syskit_stub_composition(
+                                deployed_child = syskit_stub_composition_requirements(
                                     child_model, recursive: true, as: "#{as}_#{child_name}", devices: devices)
                             else
-                                deployed_child = syskit_stub_task_context(
+                                deployed_child = syskit_stub_task_context_requirements(
                                     child_model, as: "#{as}_#{child_name}", devices: devices)
                             end
                             if selected_service
@@ -276,7 +338,7 @@ module Syskit
             # Finds a driver model for a given device model, or create one if
             # there is none
             def syskit_stub_driver_model_for(model)
-                syskit_stub(model.find_all_drivers.first || model, devices: false)
+                syskit_stub_requirements(model.find_all_drivers.first || model, devices: false)
             end
 
             # Create a stub device of the given model
@@ -360,19 +422,187 @@ module Syskit
                 "stub#{syskit_stub_model_id}"
             end
 
+            # @deprecated use syskit_stub_requirements instead
+            def syskit_stub(*args, **options, &block)
+                Roby.warn_deprecated "syskit_stub has been renamed to syskit_stub_requirements to make the difference with syskit_stub_network more obvious"
+                syskit_stub_requirements(*args, **options, &block)
+            end
+
             # Create an InstanceRequirement instance that would allow to deploy
             # the given model
-            def syskit_stub(model = subject_syskit_model, recursive: true, as: syskit_default_stub_name(model), devices: true, &block)
+            def syskit_stub_requirements(model = subject_syskit_model, recursive: true, as: syskit_default_stub_name(model), devices: true, &block)
                 if model.respond_to?(:to_str)
                     model = syskit_stub_task_context_model(model, &block)
                 end
                 model = model.to_instance_requirements.dup
 
                 if model.composition_model?
-                    syskit_stub_composition(model, recursive: recursive, as: as, devices: devices)
+                    syskit_stub_composition_requirements(model, recursive: recursive, as: as, devices: devices)
                 else
-                    syskit_stub_task_context(model, as: as, devices: devices)
+                    syskit_stub_task_context_requirements(model, as: as, devices: devices)
                 end
+            end
+
+            # Stub an already existing network
+            def syskit_stub_network(root_tasks, remote_task: self.syskit_stub_resolves_remote_tasks?)
+                tasks = Set.new
+                dependency_graph = plan.task_relation_graph_for(Roby::TaskStructure::Dependency)
+                root_tasks = root_tasks.map do |t|
+                    tasks << t
+                    dependency_graph.depth_first_visit(t) do |child_t|
+                        tasks << child_t
+                    end
+
+                    if plan.mission_task?(t)
+                        [t, :mission_task]
+                    elsif plan.permanent_task?
+                        [t, :permanent_task]
+                    else
+                        [t]
+                    end
+                end
+
+                mapped_tasks = Hash.new
+                # NOTE: must NOT call #apply_merge_group with merge_mappings
+                # directly. #apply_merge_group "replaces" the subnet represented
+                # by the keys with the subnet represented by the values. In
+                # other words, the connections present between two keys would
+                # NOT be copied between the corresponding values
+                plan.in_transaction do |trsc|
+                    trsc_tasks = tasks.map { |t| trsc[t] }
+
+                    merge_solver = NetworkGeneration::MergeSolver.new(trsc)
+                    tasks.each do |plan_t|
+                        merge_solver.register_replacement(plan_t, trsc[plan_t])
+                    end
+                    merge_mappings = Hash.new
+                    stubbed_tags = Hash.new
+                    trsc_tasks.each do |task|
+                        task.model.each_master_driver_service do |srv|
+                            task.arguments["#{srv.name}_dev"] ||=
+                                syskit_stub_device(srv.model, driver: task.model)
+                        end
+                    end
+
+                    trsc_tasks.find_all(&:abstract?).each do |abstract_task|
+                        # The task is required as being abstract (usually a
+                        # if_already_present tag). Do not stub that
+                        next if abstract_task.requirements.abstract?
+
+                        concrete_task =
+                            if abstract_task.kind_of?(Syskit::Actions::Profile::Tag)
+                                tag_id = [abstract_task.model.tag_name, abstract_task.model.profile.name]
+                                stubbed_tags[tag_id] ||= syskit_stub_network_abstract_component(abstract_task)
+                            else
+                                syskit_stub_network_abstract_component(abstract_task)
+                            end
+
+                        if abstract_task.placeholder_task? && !abstract_task.kind_of?(Syskit::TaskContext) # 'pure' proxied data services
+                            trsc.replace_task(abstract_task, concrete_task)
+                            merge_solver.register_replacement(abstract_task, concrete_task)
+                        else
+                            merge_mappings[abstract_task] = concrete_task
+                        end
+                    end
+                    merge_mappings.each do |original, replacement|
+                        merge_solver.apply_merge_group(original => replacement)
+                    end
+                    merge_solver.merge_identical_tasks
+
+                    merge_mappings = Hash.new
+                    trsc_tasks.each do |original_task|
+                        concrete_task = merge_solver.replacement_for(original_task)
+                        if concrete_task.kind_of?(TaskContext) && !concrete_task.execution_agent
+                            merge_mappings[concrete_task] = syskit_stub_network_deployment(concrete_task, remote_task: remote_task)
+                        end
+                    end
+                    merge_mappings.each do |original, replacement|
+                        merge_solver.apply_merge_group(original => replacement)
+                    end
+
+                    mapped_tasks = Hash.new
+                    tasks.each do |plan_t|
+                        replacement_t = merge_solver.replacement_for(plan_t)
+                        mapped_tasks[plan_t] = trsc.may_unwrap(replacement_t)
+                    end
+
+                    root_tasks.each do |root_t, status|
+                        replacement_t = mapped_tasks[root_t]
+                        if replacement_t != root_t
+                            replacement_t.planned_by trsc[root_t.planning_task]
+                            trsc.send("add_#{status}", replacement_t)
+                        end
+                    end
+
+                    NetworkGeneration::SystemNetworkGenerator.remove_abstract_composition_optional_children(trsc)
+                    trsc.static_garbage_collect
+                    NetworkGeneration::SystemNetworkGenerator.verify_task_allocation(trsc)
+                    trsc.commit_transaction
+                end
+
+                mapped_tasks.each do |old, new|
+                    if old != new
+                        plan.remove_task(old)
+                    end
+                end
+                root_tasks.map { |t, _| mapped_tasks[t] }
+            end
+
+            def syskit_stub_proxied_data_service(model)
+                superclass = if model.superclass <= Syskit::TaskContext
+                                 model.superclass
+                             else Syskit::TaskContext
+                             end
+
+                services = model.proxied_data_services
+                task_m = superclass.new_submodel(name: "#{model.to_s}-stub")
+                services.each_with_index do |srv, idx|
+                    srv.each_input_port do |p|
+                        task_m.orogen_model.input_port p.name, Orocos.find_orocos_type_name_by_type(p.type)
+                    end
+                    srv.each_output_port do |p|
+                        task_m.orogen_model.output_port p.name, Orocos.find_orocos_type_name_by_type(p.type)
+                    end
+                    if srv <= Syskit::Device
+                        task_m.driver_for srv, as: "dev#{idx}"
+                    else
+                        task_m.provides srv, as: "srv#{idx}"
+                    end
+                end
+                task_m
+            end
+
+            def syskit_stub_network_abstract_component(task)
+                task_m = task.concrete_model
+                if task_m.respond_to?(:proxied_data_services)
+                    task_m = syskit_stub_proxied_data_service(task_m)
+                elsif task_m.abstract?
+                    task_m = task_m.new_submodel(name: "#{task_m.name}-stub")
+                end
+
+                arguments = task.arguments.dup
+                task_m.each_master_driver_service do |srv|
+                    arguments["#{srv.name}_dev"] ||=
+                        syskit_stub_device(srv.model, driver: task_m)
+                end
+                task_m.new(arguments)
+            end
+
+            def syskit_stub_network_deployment(
+                    task, as: syskit_default_stub_name(task.model),
+                    remote_task: self.syskit_stub_resolves_remote_tasks?)
+
+                task_m = task.concrete_model
+                deployment_model = syskit_stub_configured_deployment(task_m, as)
+                syskit_stub_conf(task_m, *task.arguments[:conf])
+                task.plan.add(deployer = deployment_model.new)
+                deployed_task = deployer.instanciate_all_tasks.first
+
+                new_args = task.arguments.find_all do |key, arg|
+                    deployed_task.arguments.writable?(key, arg)
+                end
+                deployed_task.assign_arguments(new_args)
+                deployed_task
             end
 
             def syskit_start_all_execution_agents
@@ -400,15 +630,11 @@ module Syskit
                     end
                 end
             ensure
-                if sync_ev
-                    plan.remove_free_event(sync_ev)
-                end
+                plan.remove_free_event(sync_ev)
             end
 
             def syskit_start_execution_agents(component, recursive: true)
-                # Protect the component against configuration and startup
-                plan.add_permanent_event(sync_ev = Roby::EventGenerator.new)
-                component.should_configure_after(sync_ev)
+                guard = syskit_guard_against_start_and_configure
 
                 if recursive
                     component.each_child do |child_task|
@@ -422,27 +648,26 @@ module Syskit
                         agent.start!
                     end
                     if !agent.ready?
-                        assert_event_emission agent.ready_event
+                        assert_event_emission agent.ready_event, garbage_collect_pass: false
                     end
                 end
             ensure
-                if sync_ev
-                    plan.remove_free_event(sync_ev)
-                end
+                plan.remove_free_event(guard)
             end
 
-            def syskit_prepare_configure(component, tasks, sync_ev, recursive: true, except: Set.new)
-                component.should_start_after(sync_ev)
+            def syskit_prepare_configure(component, tasks, recursive: true, except: Set.new)
                 component.freeze_delayed_arguments
 
-                tasks << component
+                if component.respond_to?(:setup?)
+                    tasks << component
+                end
 
                 if recursive
                     component.each_child do |child_task|
                         if except.include?(child_task)
                             next
                         elsif child_task.respond_to?(:setup?)
-                            syskit_prepare_configure(child_task, tasks, sync_ev, recursive: true, except: except)
+                            syskit_prepare_configure(child_task, tasks, recursive: true, except: except)
                         end
                     end
                 end
@@ -500,38 +725,63 @@ module Syskit
             end
 
             # Set this component instance up
-            def syskit_configure(component, recursive: true, except: Set.new)
-                plan.add_permanent_event(sync_ev = Roby::EventGenerator.new)
+            def syskit_configure(components = __syskit_root_components, recursive: true, except: Set.new)
                 # We need all execution agents to be started to connect (and
                 # therefore configur) the tasks
                 syskit_start_all_execution_agents
 
+                components = Array(components)
+                return if components.empty?
+
                 tasks = Set.new
                 except  = except.to_set
-                syskit_prepare_configure(component, tasks, sync_ev, recursive: recursive, except: except)
+                components.each do |component|
+                    next if tasks.include?(component)
+                    syskit_prepare_configure(component, tasks, recursive: recursive, except: except)
+                end
+                plan = components.first.plan
+                guard = syskit_guard_against_start_and_configure(tasks)
 
                 pending = tasks.dup.to_set
                 while !pending.empty?
-                    Syskit::Runtime::ConnectionManagement.update(component.plan)
+                    execution_engine.process_events_synchronous do
+                        Syskit::Runtime::ConnectionManagement.update(plan)
+                    end
                     current_state = pending.size
                     pending.delete_if do |t|
-                        if !t.setup? && t.ready_for_setup?
-                            t.setup
-                            t.is_setup!
+                        should_setup = Orocos.allow_blocking_calls do
+                            !t.setup? && t.ready_for_setup?
+                        end
+                        if should_setup
+                            messages = capture_log(t, :info) do
+                                t.setup.execute
+                                execution_engine.join_all_waiting_work
+                            end
+                            if t.failed_to_start?
+                                raise t.failure_reason
+                            else
+                                assert t.setup?, "ran the setup for #{t}, but t.setup? does not return true"
+                            end
                             true
                         else
                             t.setup?
                         end
                     end
                     if current_state == pending.size
-                        raise NoConfigureFixedPoint.new(pending), "cannot configure #{pending.map(&:to_s).join(", ")}"
+                        missing_starts = pending.flat_map do |pending_task|
+                            pending_task.start_event.parent_objects(Roby::EventStructure::SyskitConfigurationPrecedence).
+                                find_all { |e| e.symbol == :start && !e.emitted? }
+                        end
+                        if missing_starts.empty?
+                            raise NoConfigureFixedPoint.new(pending), "cannot configure #{pending.map(&:to_s).join(", ")}"
+                        else
+                            syskit_start(missing_starts.map(&:task))
+                        end
                     end
                 end
 
-                component
-
             ensure
-                plan.remove_free_event(sync_ev)
+                plan.remove_free_event(guard) if guard
             end
             
             class NoStartFixedPoint < RuntimeError
@@ -551,7 +801,9 @@ module Syskit
             end
 
             def syskit_prepare_start(component, tasks, recursive: true, except: Set.new)
-                tasks << component
+                if component.respond_to?(:setup?)
+                    tasks << component
+                end
 
                 if recursive
                     component.each_child do |child_task|
@@ -563,11 +815,53 @@ module Syskit
                     end
                 end
             end
+
+            def syskit_guard_against_configure(tasks = Array.new, guard = Roby::EventGenerator.new)
+                tasks = Array(tasks)
+                plan.add_permanent_event(guard)
+                plan.find_tasks(Syskit::Component).each do |t|
+                    if !t.setup? && !tasks.include?(t)
+                        t.should_configure_after(guard)
+                    end
+                end
+                guard
+            end
+
+            def syskit_guard_against_start_and_configure(tasks = Array.new, guard = Roby::EventGenerator.new)
+                plan.add_permanent_event(guard)
+                syskit_guard_against_configure(tasks, guard)
+
+                plan.find_tasks(Syskit::Component).each do |t|
+                    if t.pending? && !tasks.include?(t)
+                        t.should_start_after(guard)
+                    end
+                end
+                guard
+            end
+
+            def __syskit_root_components
+                plan.find_tasks(Syskit::Component).not_abstract.roots(Roby::TaskStructure::Dependency)
+            end
+
             # Start this component
-            def syskit_start(component, recursive: true, except: Set.new)
+            def syskit_start(components = __syskit_root_components, recursive: true, except: Set.new)
+                components = Array(components)
+                return if components.empty?
+
                 tasks = Set.new
                 except = except.to_set
-                syskit_prepare_start(component, tasks, recursive: recursive, except: except)
+                components.each do |component|
+                    next if tasks.include?(component)
+                    syskit_prepare_start(component, tasks, recursive: recursive, except: except)
+                end
+                plan = components.first.plan
+                guard = syskit_guard_against_start_and_configure(tasks)
+
+                messages = Hash.new { |h, k| h[k] = Array.new }
+                tasks.each do |t|
+                    flexmock(t).should_receive(:info).
+                        and_return { |msg| messages[t] << msg }
+                end
 
                 pending = tasks.dup
                 while !pending.empty?
@@ -600,15 +894,36 @@ module Syskit
 
                 tasks.each do |t|
                     if t.starting?
-                        assert_event_emission t.start_event
+                        assert_event_emission t.start_event, garbage_collect_pass: false
                     end
                 end
 
-                if t = tasks.find { |t| !t.running? }
-                    raise "#{t} #{t.starting?} #{t.running?} #{t.finished?}"
+                messages.each do |t, messages|
+                    assert_equal ["starting #{t}"], messages
                 end
 
-                component
+                if t = tasks.find { |t| !t.running? }
+                    raise RuntimeError, "failed to start #{t}: starting=#{t.starting?} running=#{t.running?} finished=#{t.finished?}"
+                end
+
+            ensure
+                if guard
+                    plan.remove_free_event(guard)
+                end
+            end
+
+            def syskit_wait_ready(writer_or_reader, component: writer_or_reader.port.to_actual_port.component)
+                return if writer_or_reader.ready?
+
+                if !component.setup?
+                    syskit_configure(component)
+                end
+                if !component.running?
+                    syskit_start(component)
+                end
+
+                process_events
+                assert writer_or_reader.ready?, "#{writer_or_reader} was expected to be resolved and ready after the first execution cycle, but it's not"
             end
 
             # Deploy the given composition, replacing every single data service
@@ -630,9 +945,20 @@ module Syskit
             #   model = RootCmp.use(
             #      'processor' => Cmp.use('pose' => RootCmp.pose_child))
             #   syskit_stub_deploy_and_start_composition(model)
-            def syskit_stub_and_deploy(model = subject_syskit_model, recursive: true, as: syskit_default_stub_name(model), &block)
-                model = syskit_stub(model, recursive: recursive, as: as, &block)
-                syskit_deploy(model, compute_policies: false)
+            def syskit_stub_and_deploy(
+                model = subject_syskit_model, recursive: true,
+                    remote_task: self.syskit_stub_resolves_remote_tasks?, &block)
+
+                if model.respond_to?(:to_str)
+                    model = syskit_stub_task_context_model(model, &block)
+                end
+                tasks = syskit_generate_network(*model, &block)
+                tasks = syskit_stub_network(tasks, remote_task: remote_task)
+                if model.respond_to?(:to_ary)
+                    tasks
+                else
+                    tasks.first
+                end
             end
 
             # Stub a task, deploy it and configure it
@@ -642,8 +968,12 @@ module Syskit
             # @param (see syskit_stub)
             # @return [Syskit::Component]
             # @see syskit_stub
-            def syskit_stub_deploy_and_configure(model = subject_syskit_model, recursive: true, as: syskit_default_stub_name(model), &block)
-                root = syskit_stub_and_deploy(model, recursive: recursive, as: as, &block)
+            def syskit_stub_deploy_and_configure(
+                    model = subject_syskit_model, recursive: true,
+                    as: syskit_default_stub_name(model),
+                    remote_task: self.syskit_stub_resolves_remote_tasks?, &block)
+
+                root = syskit_stub_and_deploy(model, recursive: recursive, remote_task: remote_task, &block)
                 syskit_configure(root, recursive: recursive)
                 root
             end
@@ -656,8 +986,12 @@ module Syskit
             # @param (see syskit_stub)
             # @return [Syskit::Component]
             # @see syskit_stub
-            def syskit_stub_deploy_configure_and_start(model = subject_syskit_model, recursive: true, as: syskit_default_stub_name(model), &block)
-                root = syskit_stub_and_deploy(model, recursive: recursive, as: as, &block)
+            def syskit_stub_deploy_configure_and_start(
+                    model = subject_syskit_model, recursive: true,
+                    as: syskit_default_stub_name(model),
+                    remote_task: self.syskit_stub_resolves_remote_tasks?, &block)
+
+                root = syskit_stub_and_deploy(model, recursive: recursive, remote_task: remote_task, &block)
                 syskit_configure_and_start(root, recursive: recursive)
                 root
             end
@@ -676,6 +1010,7 @@ module Syskit
             def syskit_deploy_and_configure(model = subject_syskit_model, recursive: true)
                 root = syskit_deploy(model)
                 syskit_configure(root, recursive: recursive)
+                root
             end
 
             # Deploy, configure and start a model
@@ -697,9 +1032,29 @@ module Syskit
             #
             # @param (see syskit_stub)
             # @return [Syskit::Component]
-            def syskit_configure_and_start(component = subject_syskit_model, recursive: true, except: Set.new)
-                component = syskit_configure(component, recursive: recursive, except: except)
+            def syskit_configure_and_start(component = __syskit_root_components, recursive: true, except: Set.new)
+                syskit_configure(component, recursive: recursive, except: except)
                 syskit_start(component, recursive: recursive, except: except)
+                component
+            end
+
+            # Export the dataflow and hierarchy to SVG
+            def syskit_export_to_svg(plan = self.plan, suffix: '', dataflow_options: Hash.new, hierarchy_options: Hash.new)
+                basename = 'syskit-export-%i%s.%s.svg'
+
+                counter = 0
+                Dir.glob('syskit-export-*') do |file|
+                    if file =~ /syskit-export-(\d+)/
+                        counter = [counter, Integer($1)].max
+                    end
+                end
+
+                dataflow = basename % [counter + 1, suffix, 'dataflow']
+                hierarchy = basename % [counter + 1, suffix, 'hierarchy']
+                Syskit::Graphviz.new(plan).to_file('dataflow', 'svg', dataflow, **dataflow_options)
+                Syskit::Graphviz.new(plan).to_file('hierarchy', 'svg', hierarchy, **hierarchy_options)
+                puts "exported plan to #{dataflow} and #{hierarchy}"
+                return dataflow, hierarchy
             end
         end
     end

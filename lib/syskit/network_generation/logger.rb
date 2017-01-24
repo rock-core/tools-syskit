@@ -26,9 +26,8 @@ module Syskit
             # @param [TaskContext] the task context that is being logged
             # @param [OutputPort] the port that is being logged
             def create_logging_port(sink_port_name, logged_task, logged_port)
-                return if logged_ports.include?([sink_port_name, logged_port.type.name])
-
                 logged_port_type = logged_port.model.orocos_type_name
+                return if logged_ports.include?([sink_port_name, logged_port_type])
 
                 metadata = Hash[
                     'rock_task_model' => logged_task.concrete_model.orogen_model.name,
@@ -62,10 +61,12 @@ module Syskit
 
                 if default_logger?
                     deployment = execution_agent
-                    # Only setup the logger
-                    deployment.orocos_process.setup_default_logger(
-                        :log_dir => deployment.log_dir,
-                        :remote => (deployment.host != 'localhost'))
+                    process = deployment.orocos_process
+                    process.setup_default_logger(
+                        self,
+                        log_file_name: process.default_log_file_name(orocos_task.basename),
+                        log_dir: deployment.log_dir,
+                        remote: !deployment.on_localhost?)
                 end
 
                 each_input_connection do |source_task, source_port_name, sink_port_name, policy|
@@ -117,21 +118,14 @@ module Syskit
                     size: Syskit.conf.logs.default_logging_buffer_size
                 ]
 
+                seen_loggers = Set.new
                 engine.deployment_tasks.each do |deployment|
                     next if !deployment.plan
-
-                    logger_task = nil
-                    logger_task_name = "#{deployment.process_name}_Logger"
 
                     required_logging_ports = Array.new
                     required_connections   = Array.new
                     deployment.each_executed_task do |t|
                         if t.finishing? || t.finished?
-                            next
-                        end
-
-                        if !logger_task && t.orocos_name == logger_task_name
-                            logger_task = t
                             next
                         elsif t.kind_of?(logger_model)
                             next
@@ -149,18 +143,17 @@ module Syskit
                     end
                     next if required_logging_ports.empty?
 
-                    logger_task ||=
-                        begin
-                            deployment.task(logger_task_name)
-                        rescue ArgumentError
-                            warn "deployment #{deployment.process_name} has no logger (#{logger_task_name})"
-                            next
-                        end
+                    if !(logger_task = deployment.logger_task)
+                        warn "deployment #{deployment.process_name} has no logger (default logger name would be #{deployment.process_name}_Logger))"
+                        next
+                    end
+                    logger_task = work_plan[deployment.logger_task]
 
                     # Disconnect current log connections, we're going to
                     # reestablish the ones we want later on
-                    logger_task.remove_relations(Syskit::Flows::DataFlow)
-                    logger_task.default_logger = true
+                    if !seen_loggers.include?(logger_task)
+                        logger_task.remove_relations(Syskit::Flows::DataFlow)
+                    end
 
                     # Make sure that the tasks are started after the logger was
                     # started

@@ -54,6 +54,13 @@ describe Syskit::Composition do
             result = composition.find_required_composition_child_from_role('test', composition_m)
             assert_equal composition.test_child.test1_srv.as(base_srv_m), result
         end
+        it "can map a service to a placeholder task" do
+            composition_m = Syskit::Composition.new_submodel
+            composition_m.add base_srv_m, as: 'test'
+            composition = syskit_stub_and_deploy(composition_m)
+            required = composition.find_required_composition_child_from_role('test')
+            assert_equal composition.test_child.each_data_service.first, required
+        end
     end
 
     describe "port access" do
@@ -80,12 +87,16 @@ describe Syskit::Composition do
                 @child = cmp.test_child
             end
             it "resolves an exported input" do
-                assert_equal child.orocos_task.port("in"),
-                    cmp.find_input_port("exported_in").to_orocos_port
+                Orocos.allow_blocking_calls do
+                    assert_equal child.orocos_task.port("in"),
+                        cmp.find_input_port("exported_in").to_orocos_port
+                end
             end
             it "resolves an exported output" do
-                assert_equal child.orocos_task.port("out"),
-                    cmp.find_output_port("exported_out").to_orocos_port
+                Orocos.allow_blocking_calls do
+                    assert_equal child.orocos_task.port("out"),
+                        cmp.find_output_port("exported_out").to_orocos_port
+                end
             end
         end
 
@@ -99,12 +110,16 @@ describe Syskit::Composition do
                 @child = cmp.test_child
             end
             it "resolves an exported input port to the actual task port" do
-                assert_equal child.orocos_task.port("in"),
-                    cmp.find_input_port("exported_in").to_orocos_port
+                Orocos.allow_blocking_calls do
+                    assert_equal child.orocos_task.port("in"),
+                        cmp.find_input_port("exported_in").to_orocos_port
+                end
             end
             it "resolves an exported output port to the actual task port" do
-                assert_equal child.orocos_task.port("out"),
-                    cmp.find_output_port("exported_out").to_orocos_port
+                Orocos.allow_blocking_calls do
+                    assert_equal child.orocos_task.port("out"),
+                        cmp.find_output_port("exported_out").to_orocos_port
+                end
             end
         end
         
@@ -122,12 +137,16 @@ describe Syskit::Composition do
             end
 
             it "resolves the input port of a provided service" do
-                assert_equal child.orocos_task.port("in"),
-                    cmp.test_srv.find_input_port("srv_in").to_orocos_port
+                Orocos.allow_blocking_calls do
+                    assert_equal child.orocos_task.port("in"),
+                        cmp.test_srv.find_input_port("srv_in").to_orocos_port
+                end
             end
             it "resolves the output port of a provided service" do
-                assert_equal child.orocos_task.port("out"),
-                    cmp.test_srv.find_output_port("srv_out").to_orocos_port
+                Orocos.allow_blocking_calls do
+                    assert_equal child.orocos_task.port("out"),
+                        cmp.test_srv.find_output_port("srv_out").to_orocos_port
+                end
             end
         end
 
@@ -259,6 +278,33 @@ describe Syskit::Composition do
             cmp.test_child.remove_child grandchild
             cmp.out_port.disconnect_from task.in_port
             assert !cmp.out_port.connected_to?(task.in_port)
+        end
+    end
+
+    describe "the setup process" do
+        it "can go through it" do
+            cmp_m = Syskit::Composition.new_submodel
+            cmp = syskit_stub_deploy_and_configure(cmp_m)
+            assert cmp.setup?
+        end
+
+        # Test for a regression where the #all_inputs_connected? test that is
+        # specific to TaskContext was also applied to compositions
+        it "can go through it even if it has input ports" do
+            task_m = Syskit::TaskContext.new_submodel do
+                input_port 'in', '/double'
+                output_port 'out', '/double'
+            end
+            cmp_m = Syskit::Composition.new_submodel
+            cmp_m.add(task_m, as: 'test').with_arguments(conf: ['cmp'])
+            cmp_m.export cmp_m.test_child.in_port
+            cmp, task = syskit_generate_network(cmp_m, task_m.with_arguments(conf: ['test']))
+            cmp, task = syskit_stub_network([cmp, task])
+            task.out_port.connect_to cmp.in_port
+            syskit_configure(cmp)
+            task = syskit_stub_deploy_and_configure(task_m.with_arguments(conf: ['test']))
+            cmp = syskit_stub_deploy_and_configure(cmp_m)
+            assert cmp.setup?
         end
     end
 end

@@ -4,36 +4,70 @@ require './test/fixtures/simple_composition_model'
 describe Syskit::InstanceRequirementsTask do
     include Syskit::Fixtures::SimpleCompositionModel
 
+    attr_reader :cmp_m
+
+    attr_reader :stub_t
     before do
+        @stub_t = stub_type '/test_t'
         create_simple_composition_model
         plan.execution_engine.scheduler.enabled = false
         @handler_ids = Syskit::RobyApp::Plugin.plug_engine_in_roby(plan.execution_engine)
+        @cmp_m = Syskit::Composition.new_submodel
     end
 
     it "triggers a network resolution when started" do
-        plan.add(task = Roby::Task.new)
-        task.planned_by(req_task = Syskit::InstanceRequirementsTask.new)
-        req_task.requirements = Syskit::InstanceRequirements.new([])
-        flexmock(Syskit::NetworkGeneration::Engine).should_receive(:resolve).once
-        req_task.start!
+        task = plan.add_permanent_task(cmp_m.as_plan)
+        task.planning_task.start!
+        assert plan.syskit_current_resolution
     end
 
     it "finishes with failure if the network resolution failed" do
-        plan.add(task = Roby::Task.new)
-        task.planned_by(req_task = Syskit::InstanceRequirementsTask.new)
-        flexmock(Syskit::NetworkGeneration::Engine).should_receive(:resolve).and_raise(ArgumentError)
-        req_task.requirements = Syskit::InstanceRequirements.new([])
+        task = plan.add_permanent_task(cmp_m.as_plan)
+        req_task = task.planning_task
+        flexmock(Syskit::NetworkGeneration::Engine).
+            new_instances.should_receive(:resolve_system_network).and_raise(ArgumentError)
         Roby.logger.level = Logger::FATAL
-        assert_raises(Roby::PlanningFailedError) { req_task.start! }
+        resolution = nil
+        assert_raises(Roby::PlanningFailedError) do
+            assert_event_emission(req_task.failed_event) do
+                req_task.start!
+                resolution = plan.syskit_current_resolution
+            end
+        end
+        assert resolution.transaction_finalized?
+        assert !resolution.transaction_committed?
+        assert req_task.failed?
+    end
+
+    it "finishes with failure if the network application failed" do
+        task = plan.add_permanent_task(cmp_m.as_plan)
+        req_task = task.planning_task
+        flexmock(Syskit::NetworkGeneration::Engine).
+            new_instances.should_receive(:apply_system_network_to_plan).and_raise(ArgumentError)
+        Roby.logger.level = Logger::FATAL
+        resolution = nil
+        assert_raises(Roby::PlanningFailedError) do
+            assert_event_emission(req_task.failed_event) do
+                req_task.start!
+                resolution = plan.syskit_current_resolution
+            end
+        end
+        assert resolution.transaction_finalized?
+        assert !resolution.transaction_committed?
         assert req_task.failed?
     end
 
     it "finishes successfully if the network resolution succeeds" do
-        plan.add(task = Roby::Task.new)
-        task.planned_by(req_task = Syskit::InstanceRequirementsTask.new)
-        req_task.requirements = Syskit::InstanceRequirements.new([])
-        flexmock(Syskit::NetworkGeneration::Engine).should_receive(:resolve)
-        req_task.start!
+        cmp_m = Syskit::Composition.new_submodel
+        task = plan.add_permanent_task(cmp_m.as_plan)
+        req_task = task.planning_task
+        resolution = nil
+        assert_event_emission(req_task.success_event) do
+            req_task.start!
+            resolution = plan.syskit_current_resolution
+        end
+        assert resolution.transaction_finalized?
+        assert resolution.transaction_committed?
         assert req_task.success?
     end
 

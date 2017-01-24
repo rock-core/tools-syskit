@@ -16,9 +16,15 @@ module Syskit::GUI
                     zoom: 1]
             end
 
-            def render(model, doc: true, **push_options)
-                if doc && model.doc
+            def render_doc(model)
+                if model.doc
                     page.push nil, page.main_doc(model.doc)
+                end
+            end
+
+            def render(model, doc: true, **push_options)
+                if doc
+                    render_doc(model)
                 end
 
                 super

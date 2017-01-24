@@ -5,6 +5,7 @@ module Syskit
     # It is not loaded by default when you require 'syskit'. You need to
     # explicitly require 'syskit/roby_app'
     module RobyApp
+        extend Logger::Hierarchy
     end
 end
 

@@ -24,7 +24,7 @@ describe Syskit::Models::CompositionChild do
             cmp_m = Syskit::Composition.new_submodel
             cmp = cmp_m.new
             child = Syskit::Models::CompositionChild.new(cmp_m, 'task')
-            assert_equal nil, child.try_resolve(cmp)
+            assert_nil child.try_resolve(cmp)
         end
     end
 

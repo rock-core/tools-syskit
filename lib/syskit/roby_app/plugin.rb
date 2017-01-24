@@ -75,13 +75,15 @@ module Syskit
 
             def self.finalize_model_loading(app)
                 if toplevel_object.respond_to?(:global_profile)
-                    ::Main.use_profile toplevel_object.global_profile
+                    app.app_module::Actions::Main.use_profile toplevel_object.global_profile
                 end
             end
 
             # Returns true if the given orogen project has already been loaded
             # by #load_orogen_project
             def loaded_orogen_project?(name); loaded_orogen_projects.has_key?(name) end
+
+            OroGenLocation = Struct.new :absolute_path, :lineno, :label
 
             # Registers all objects contained in a given oroGen project
             #
@@ -106,7 +108,7 @@ module Syskit
 
                 if file = load_component_extension(orogen.name)
                     tasks.each do |t|
-                        t.definition_location = [[file,0,nil]]
+                        t.definition_location = [OroGenLocation.new(file, 1, nil)]
                         t.extension_file = file
                     end
                 end
@@ -186,17 +188,22 @@ module Syskit
                     app.auto_load_all_task_libraries = true
                 end
 
+                if app.testing?
+                    Syskit.conf.logs.disable_conf_logging
+                    Syskit.conf.logs.disable_port_logging
+                end
+
                 setup_loaders(app)
 
                 if app.shell?
                     return
                 end
 
-                Orocos.configuration_log_name = File.join(app.log_dir, 'properties')
+                Syskit.conf.logs.create_configuration_log(File.join(app.log_dir, 'properties'))
                 Orocos.disable_sigchld_handler = true
 
                 Syskit.conf.register_process_server(
-                    'ruby_tasks', Orocos::RubyTasks::ProcessManager.new(app.default_loader), app.log_dir)
+                    'ruby_tasks', Orocos::RubyTasks::ProcessManager.new(app.default_loader), app.log_dir, host_id: 'syskit')
 
                 Syskit.conf.register_process_server(
                     'unmanaged_tasks', UnmanagedTasksManager.new, app.log_dir)
@@ -204,7 +211,11 @@ module Syskit
                 Syskit.conf.register_process_server(
                    'ros', Orocos::ROS::ProcessManager.new(app.ros_loader), app.log_dir)
 
-                ENV['ORO_LOGFILE'] = File.join(app.log_dir, "orocos.orocosrb-#{::Process.pid}.txt")
+                if Orocos.orocos_logfile
+                    ENV['ORO_LOGFILE'] = Orocos.orocos_logfile
+                else
+                    ENV['ORO_LOGFILE'] = File.join(app.log_dir, "orocos.orocosrb-#{::Process.pid}.txt")
+                end
                 if Syskit.conf.only_load_models?
                     Orocos.load
                     if Orocos::ROS.available?
@@ -223,18 +234,32 @@ module Syskit
                 end
 
                 start_local_process_server = !Syskit.conf.only_load_models? &&
-                    !Syskit.conf.disables_process_server? &&
+                    !Syskit.conf.disables_local_process_server? &&
                     !(app.single? && app.simulation?)
 
                 if start_local_process_server
                     start_local_process_server(:redirect => Syskit.conf.redirect_local_process_server?)
+                    connect_to_local_process_server(app)
                 else
                     fake_client = Configuration::ModelOnlyServer.new(app.default_loader)
-                    Syskit.conf.register_process_server('localhost', fake_client, app.log_dir)
+                    Syskit.conf.register_process_server('localhost', fake_client, app.log_dir, host_id: 'syskit')
                 end
 
                 rtt_core_model = app.default_loader.task_model_from_name("RTT::TaskContext")
                 Syskit::TaskContext.define_from_orogen(rtt_core_model, :register => true)
+            end
+
+            # Called by the main Roby application to clear all before redoing a
+            # setup
+            def self.clear_config(app)
+                Syskit.conf.clear
+                Syskit.conf.deployments.clear
+            end
+
+            def self.require_models(app)
+                app.isolate_load_errors("while reloading deployment definitions") do
+                    Syskit.conf.reload_deployments
+                end
 
                 if !app.additional_model_files.empty?
                     toplevel_object.extend SingleFileDSL
@@ -246,50 +271,28 @@ module Syskit
                 end
             end
 
-            # Called by the main Roby application to clear all before redoing a
-            # setup
-            def self.clear_config(app)
-                Syskit.conf.clear
-                Syskit.conf.deployments.clear
-            end
-
-            def self.require_models(app)
-                if has_local_process_server?
-                    connect_to_local_process_server(app)
-                end
-
+            def self.auto_require_models(app)
                 # Load the data services and task models
-                search_path = app.auto_load_search_path
-                if app.auto_load_models?
-                    all_files =
-                        app.find_files_in_dirs("models", "services", "ROBOT", :path => search_path, :all => true, :order => :specific_last, :pattern => /\.rb$/) +
-                        app.find_files_in_dirs("models", "devices", "ROBOT", :path => search_path, :all => true, :order => :specific_last, :pattern => /\.rb$/) +
-                        app.find_files_in_dirs("models", "compositions", "ROBOT", :path => search_path, :all => true, :order => :specific_last, :pattern => /\.rb$/) +
-                        app.find_files_in_dirs("models", "blueprints", "ROBOT", :path => search_path, :all => true, :order => :specific_last, :pattern => /\.rb$/) +
-                        app.find_files_in_dirs("models", "profiles", "ROBOT", :path => search_path, :all => true, :order => :specific_last, :pattern => /\.rb$/)
-                   all_files.each do |path|
-                        begin
-                            if app.robot_name?(File.basename(path))
-                                app.require(path)
-                            end
-                        rescue OroGen::NotFound => e
-                            if Syskit.conf.ignore_missing_orogen_projects_during_load?
-                                ::Robot.warn "ignored file #{path}: #{e.message}"
-                            else raise
-                            end
-                        end
-                    end
-
-                   # Also require all the available oroGen projects
-                   app.default_loader.each_available_project_name do |name|
-                       app.using_task_library name
-                   end
+                prefixes = ['services', 'devices', 'compositions', 'profiles']
+                if Roby.app.backward_compatible_naming?
+                    prefixes << 'blueprints'
                 end
+
+                if Syskit.conf.ignore_missing_orogen_projects_during_load?
+                    ignored_exceptions = [OroGen::NotFound]
+                end
+                prefixes.each do |prefix_name|
+                    app.load_all_model_files_in(
+                        prefix_name, ignored_exceptions: ignored_exceptions)
+                end
+
+                # Also require all the available oroGen projects
+                app.default_loader.each_available_project_name do |name|
+                    app.using_task_library name
+                end
+
                 if app.auto_load_all? || app.auto_load_all_task_libraries?
                     app.auto_load_all_task_libraries
-                end
-                app.isolate_load_errors("while reloading deployment definitions") do
-                    Syskit.conf.reload_deployments
                 end
             end
 
@@ -328,8 +331,7 @@ module Syskit
 
             # Start a process server on the local machine, and register it in
             # Syskit.process_servers under the 'localhost' name
-            def self.start_local_process_server(
-                    port = Orocos::RemoteProcesses::DEFAULT_PORT, redirect: true)
+            def self.start_local_process_server(port = 0, redirect: true)
                 if Syskit.conf.process_servers['localhost']
                     raise ArgumentError, "there is already a process server called 'localhost' running"
                 end
@@ -338,14 +340,18 @@ module Syskit
                     FileUtils.mkdir_p(Roby.app.log_dir)
                 end
 
-                spawn_options = Hash[chdir: Roby.app.log_dir, pgroup: true]
+                tcp_server = TCPServer.new('127.0.0.1', 0)
+                spawn_options = Hash[tcp_server => tcp_server, chdir: Roby.app.log_dir, pgroup: true]
                 if redirect
                     spawn_options[:err] = :out
                     spawn_options[:out] = File.join(Roby.app.log_dir, 'local_process_server.txt')
                 end
 
-                @server_pid  = Kernel.spawn 'orocos_process_server', "--port=#{port}", "--debug", spawn_options
-                @server_port = port
+                @server_pid  = Kernel.spawn \
+                    'syskit', 'process_server', "--fd=#{tcp_server.fileno}", "--log-dir=#{Roby.app.log_dir}", "--debug",
+                    spawn_options
+                @server_port = tcp_server.local_address.ip_port
+                tcp_server.close
                 nil
             end
 
@@ -387,6 +393,7 @@ module Syskit
 
                 # Do *not* manage the log directory for that one ...
                 Syskit.conf.register_process_server('localhost', client, app.log_dir)
+                client
             end
 
             # Loads the oroGen deployment model for the given name and returns
@@ -444,7 +451,7 @@ module Syskit
                     Runtime.method(:update_deployment_states), type: :external_events, description: 'syskit:update_deployment_states']
                 handlers[:update_task_states] = [
                     Runtime.method(:update_task_states), type: :external_events, description: 'syskit:update_task_states']
-                handlers[:update] = [
+                handlers[:connection_management] = [
                     Runtime::ConnectionManagement.method(:update), type: :propagation, late: true, description: 'syskit:connection_management_update']
                 handlers[:apply_requirement_modifications] = [
                     Runtime.method(:apply_requirement_modifications), type: :propagation, late: true, description: 'syskit:apply_requirement_modifications']
@@ -466,10 +473,20 @@ module Syskit
                 end
             end
 
+            def self.plug_handler_in_roby(roby_engine, *handlers)
+                handlers.each do |handler_name|
+                    m, options = roby_engine_propagation_handlers.fetch(handler_name)
+                    next if @handler_ids.has_key?(handler_name)
+                    @handler_ids[handler_name] = roby_engine.add_propagation_handler(options, &m)
+                end
+            end
+
             def self.unplug_handler_from_roby(roby_engine, *handlers)
                 if @handler_ids
                     handlers.each do |h|
-                        roby_engine.remove_propagation_handler(@handler_ids.delete(h))
+                        if h_id = @handler_ids.delete(h)
+                            roby_engine.remove_propagation_handler(h_id)
+                        end
                     end
                 end
             end
@@ -590,6 +607,69 @@ module Syskit
 
             def self.register_generators(app)
                 RubiGen::Base.__sources << RubiGen::PathSource.new(:syskit, File.join(Syskit::SYSKIT_ROOT_DIR, "generators"))
+            end
+
+            class VariableSizedType < RuntimeError; end
+
+            def self.validate_port_has_fixed_size(port, with_global_size, only_warn: false, ignore: [])
+                return if with_global_size.include?(port.type)
+                if fixed_size_type?(port.type) || globally_sized_type?(port.type)
+                    with_global_size << port.type
+                    return
+                end
+
+                port = port.to_component_port
+                if ignore.include?(port.type)
+                    return
+                elsif size = port.max_marshalling_size
+                    size
+                else
+                    msg = "marshalled size of port #{port} cannot be inferred"
+                    if only_warn
+                        ::Robot.warn msg
+                    else
+                        raise VariableSizedType, msg
+                    end
+                end
+            end
+
+            def self.fixed_size_type?(type)
+                !type.contains?(Typelib::ContainerType)
+            end
+
+            def self.globally_sized_type?(type)
+                sizes = Orocos.max_sizes_for(type)
+                !sizes.empty? && OroGen::Spec::Port.compute_max_marshalling_size(type, sizes)
+            end
+
+            def self.validate_all_port_types_have_fixed_size(only_warn: false, ignore: [])
+                with_global_size = Set.new
+                Syskit::Component.each_submodel do |component_m|
+                    next if component_m.abstract?
+
+                    component_m.each_input_port do |p|
+                        validate_port_has_fixed_size(p, with_global_size, only_warn: only_warn, ignore: ignore)
+                    end
+                    component_m.each_output_port do |p|
+                        validate_port_has_fixed_size(p, with_global_size, only_warn: only_warn, ignore: ignore)
+                    end
+                end
+            end
+
+            # Start all deployments
+            #
+            # @param [String,nil] on the name of the process server on which
+            #   deployments should be started. If nil, all servers are considered
+            def syskit_start_all_deployments(on: nil, except_on: "unmanaged_tasks")
+                existing_deployments = plan.find_tasks(Syskit::Deployment).
+                    not_finished.
+                    find_all { |d| d.reusable? }.
+                    map(&:process_name).to_set
+
+                Syskit.conf.each_configured_deployment(on: on, except_on: except_on) do |configured_deployment|
+                    next if existing_deployments.include?(configured_deployment.process_name)
+                    plan.add_permanent_task(configured_deployment.new)
+                end
             end
         end
     end

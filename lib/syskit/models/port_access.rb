@@ -116,7 +116,7 @@ module Syskit
             # dynamic output port declarations using this predicate.
             def has_dynamic_output_port?(name, type = nil)
                 if type
-                    type = Orocos.orocos_type_for(type)
+                    type = Roby.app.default_loader.opaque_type_for(type)
                 end
                 orogen_model.has_dynamic_output_port?(name, type)
             end
@@ -134,7 +134,7 @@ module Syskit
             # dynamic input port declarations using this predicate.
             def has_dynamic_input_port?(name, type = nil)
                 if type
-                    type = Orocos.orocos_type_for(type)
+                    type = Roby.app.default_loader.opaque_type_for(type)
                 end
                 orogen_model.has_dynamic_input_port?(name, type)
             end

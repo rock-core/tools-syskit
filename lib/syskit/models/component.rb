@@ -545,6 +545,18 @@ module Syskit
                 dyn.instanciate(service_name, **dyn_options)
             end
 
+            # @api private
+            #
+            # Creation of a {DynamicDataService} instantiation context
+            #
+            # {DynamicDataService#instantiate} delegates to this method to
+            # create the context in which the dynamic service setup block should
+            # be evaluated. It allows subclasses to provide specific additional
+            # APIs
+            def create_dynamic_instantiation_context(name, dynamic_service, **options)
+                DynamicDataService::InstantiationContext.new(self, name, dynamic_service, **options)
+            end
+
             def each_port; end
             def each_input_port; end
             def each_output_port; end
@@ -843,9 +855,7 @@ module Syskit
                 model.abstract
                 model.concrete_model = nil
                 model.include extension
-                if self != Syskit::Component
-                    model.proxied_task_context_model = self
-                end
+                model.proxied_task_context_model = self
                 model.proxied_data_services = service_models.dup
 		model.fullfilled_model = [self] + model.proxied_data_services.to_a
 
@@ -936,10 +946,12 @@ module Syskit
                 if private_specialization?
                     # Verify that we don't have collisions in the instantiated
                     # dynamic services
-                    data_services.each_value do |self_srv|
+                    each_data_service do |_, self_srv|
                         if task_srv = target_model.find_data_service(self_srv.name)
                             if task_srv.model != self_srv.model
-                                debug { "rejecting #{self}.merge(#{target_model}): dynamic service #{self_srv.name} is of model #{self_srv.model.short_name} on #{self} and of model #{task_srv.model.short_name} on #{target_model}" }
+                                NetworkGeneration::MergeSolver.debug do
+                                    "rejecting #{self}.merge(#{target_model}): dynamic service #{self_srv.name} is of model #{self_srv.model.short_name} on #{self} and of model #{task_srv.model.short_name} on #{target_model}"
+                                end
                                 return false
                             end
                         end
@@ -1030,6 +1042,18 @@ module Syskit
                     end
                 end
             end
+
+            # Wether this model represents a placeholder for data services
+            #
+            # @see Models::PlaceholderTask
+            def placeholder_task?
+                false
+            end
+
+            # Whether this is a component model
+            def component_model?
+                true
+            end
         end
     end
 
@@ -1050,10 +1074,15 @@ module Syskit
                 fullfilled_model.each(&block)
             end
 
+            # Whether this proxies only services or not
+            def component_model?
+                proxied_task_context_model != Component
+            end
+
             def fullfilled_model
                 result = Set.new
-                if task_m = proxied_task_context_model
-                    task_m.each_fullfilled_model do |m|
+                if component_model?
+                    proxied_task_context_model.each_fullfilled_model do |m|
                         result << m
                     end
                 end
@@ -1067,8 +1096,8 @@ module Syskit
 
             def each_required_model
                 return enum_for(:each_required_model) if !block_given?
-                if task_m = proxied_task_context_model
-                    yield(task_m)
+                if component_model?
+                    yield(proxied_task_context_model)
                 end
                 proxied_data_services.each do |m|
                     yield(m)
@@ -1080,9 +1109,9 @@ module Syskit
                     return other_model.merge(self)
                 end
 
-                task_model, service_models, other_service_models = (proxied_task_context_model || Syskit::Component), proxied_data_services, []
+                task_model, service_models, other_service_models = proxied_task_context_model, proxied_data_services, []
                 if other_model.respond_to?(:proxied_data_services)
-                    task_model = task_model.merge(other_model.proxied_task_context_model || Syskit::Component)
+                    task_model = task_model.merge(other_model.proxied_task_context_model)
                     other_service_models = other_model.proxied_data_services
                 else
                     task_model = task_model.merge(other_model)
@@ -1147,6 +1176,14 @@ module Syskit
             def find_port(name)
                 find_output_port(name) || find_input_port(name)
             end
+
+            def placeholder_task?
+                true
+            end
+        end
+
+        def placeholder_task?
+            true
         end
 
         def proxied_data_services

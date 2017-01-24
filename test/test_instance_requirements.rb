@@ -4,8 +4,38 @@ require './test/fixtures/simple_composition_model'
 describe Syskit::InstanceRequirements do
     include Syskit::Fixtures::SimpleCompositionModel
 
+    attr_reader :stub_t
     before do
+        @stub_t = stub_type '/test_t'
         create_simple_composition_model
+    end
+
+    describe "#with_arguments" do
+        attr_reader :req, :not_marshallable
+        before do
+            @req = Syskit::InstanceRequirements.new
+            @not_marshallable = Object.new
+            not_marshallable.extend Roby::DRoby::Unmarshallable
+        end
+        it "raises if the argument cannot be marshalled under DRoby" do
+            e = assert_raises(Roby::NotMarshallable) do
+                req.with_arguments(key: not_marshallable)
+            end
+            assert_equal "values used as task arguments must be marshallable, attempting to set key to #{not_marshallable} of class Object, which is not", e.message
+        end
+
+        it "generates the same error message than setting the task argument directly" do
+            actual_e = assert_raises(Roby::NotMarshallable) do
+                req.with_arguments(key: not_marshallable)
+            end
+            task = Roby::Task.new_submodel do
+                argument :key
+            end.new
+            expected_e = assert_raises(Roby::NotMarshallable) do
+                task.key = not_marshallable
+            end
+            assert_equal expected_e.message, actual_e.message
+        end
     end
 
     describe "#component_model" do
@@ -71,7 +101,7 @@ describe Syskit::InstanceRequirements do
             assert_equal Syskit::Models::OutputPort.new(req, simple_task_model.find_output_port('out').orogen_model), port
         end
         it "returns nil on non-existent ports" do
-            assert_equal nil, req.find_port('bla')
+            assert_nil req.find_port('bla')
         end
         it "picks the port on the selected service if there is one" do
             req.select_service(simple_task_model.srv_srv)
@@ -96,7 +126,7 @@ describe Syskit::InstanceRequirements do
             assert_equal simple_task_model.srv_srv, srv.service
         end
         it "returns nil on non-existent services" do
-            assert_equal nil, req.find_data_service('bla')
+            assert_nil req.find_data_service('bla')
         end
     end
 
@@ -330,7 +360,7 @@ describe Syskit::InstanceRequirements do
             ir_component_model = Syskit::InstanceRequirements.new([task_m])
             flexmock(ir).should_receive(:to_component_model).and_return(ir_component_model)
             flexmock(task_m).should_receive(:new).once.and_return(task)
-            flexmock(task.requirements).should_receive(:merge).once.with(ir_component_model)
+            flexmock(task.requirements).should_receive(:merge).once.with(ir_component_model, any)
             ir.instanciate(plan)
         end
 
@@ -383,10 +413,22 @@ describe Syskit::InstanceRequirements do
             assert ir.instanciate(plan).abstract?
         end
 
+        it "ensures that the task's requirements have abstract set if abstract is set on self" do
+            task_m = Syskit::Component.new_submodel
+            ir = task_m.to_instance_requirements.abstract
+            assert ir.instanciate(plan).requirements.abstract?
+        end
+
         it "does not mark the task as abstract if abstract? is false" do
             task_m = Syskit::Component.new_submodel
             ir = task_m.to_instance_requirements
             assert !ir.instanciate(plan).abstract?
+        end
+
+        it "ensures that the task's requirements do not have abstract set if abstract is not set on self" do
+            task_m = Syskit::Component.new_submodel
+            ir = task_m.to_instance_requirements
+            refute ir.instanciate(plan).requirements.abstract?
         end
     end
 

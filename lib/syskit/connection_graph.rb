@@ -76,8 +76,11 @@ module Syskit
         end
 
         def merge_info(source, sink, current_mappings, additional_mappings)
-            current_mappings.merge(additional_mappings) do
-                raise ArgumentError, "cannot override policy information by default"
+            current_mappings.merge(additional_mappings) do |k, v1, v2|
+                if v1 != v2
+                    raise ArgumentError, "cannot override policy information by default: trying to override the policy between #{source} and #{sink} from #{k}: #{v1} to #{k}: #{v2}"
+                end
+                v1
             end
         end
 

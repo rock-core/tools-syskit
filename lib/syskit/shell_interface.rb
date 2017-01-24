@@ -13,8 +13,8 @@ module Syskit
             FileUtils.mkdir_p(path)
             plan.find_tasks(task_model).
                 each do |t|
-                Orocos.conf.save(t.orocos_task, path, name || t.orocos_task.name)
-            end
+                    Orocos.conf.save(t.orocos_task, path, name || t.orocos_task.name)
+                end
             nil
         end
         command :dump_task_config, 'saves configuration from running tasks into yaml files',
@@ -35,25 +35,20 @@ module Syskit
             :path => 'the directory in which the configuration files should be saved',
             :name => '(optional) if given, the name of the section for the new configuration. Defaults to the orocos task names'
 
-        # Helper method that makes sure that changed configuration files will
-        # cause the relevant tasks to be reconfigured in the next re-deployment
-        def mark_changed_configuration_as_not_reusable(changed)
-            TaskContext.configured.each do |task_name, (syskit_model, current_conf, _)|
-                changed_conf = changed[syskit_model.concrete_model]
-
-                if changed_conf && current_conf.any? { |section_name| changed_conf.include?(section_name) }
-                    ::Robot.info "task #{task_name} needs reconfiguration"
-                    TaskContext.needs_reconfiguration << task_name
-                end
-            end
-        end
-
         class ShellDeploymentRestart < Roby::Task
             event :start, :controlable => true
-            event :stop do |context|
-                NetworkGeneration::Engine.resolve(plan)
-                emit :stop
+
+            poll do
+                if redeploy_event.pending? && !plan.syskit_has_async_resolution?
+                    redeploy_event.emit
+                end
             end
+
+            event :redeploy do |context|
+                Runtime.apply_requirement_modifications(plan, force: true)
+            end
+
+            forward :redeploy => :stop
         end
 
         # Stops deployment processes
@@ -94,7 +89,7 @@ module Syskit
                 models << Syskit::Deployment
             end
             done = Roby::AndGenerator.new
-            done.signals protection.stop_event
+            done.signals protection.redeploy_event
 
             models.each do |m|
                 agents = Set.new
@@ -128,7 +123,11 @@ module Syskit
             TaskContext.each_submodel do |model|
                 next if !model.concrete_model?
                 changed_sections = model.configuration_manager.reload
-                mark_changed_configuration_as_not_reusable(model => changed_sections)
+                plan.find_tasks(Deployment).each do |deployment_task|
+                    deployment_task.mark_changed_configuration_as_not_reusable(model => changed_sections).each do |orocos_name|
+                        ::Robot.info "task #{orocos_name} needs reconfiguration"
+                    end
+                end
             end
             nil
         end
@@ -140,7 +139,7 @@ module Syskit
         # It must be called after {#reload_config} to apply the new
         # configuration(s)
         def redeploy
-            NetworkGeneration::Engine.resolve(plan)
+            Runtime.apply_requirement_modifications(plan, force: true)
             nil
         end
         command :redeploy, 'redeploys the current network',

@@ -3,6 +3,7 @@ module Syskit
         class InstanceRequirements
             extend Logger::Hierarchy
             include Logger::Hierarchy
+            include Roby::DRoby::Unmarshallable
 
             dsl_attribute :doc
 
@@ -60,6 +61,14 @@ module Syskit
                 dsl_attribute 'period' do |value|
                     task.add_trigger('period', Float(value), 1)
                 end
+
+                def merge(other)
+                    task.merge(other.task)
+                    other.ports.each_key { |port_name| ports[port_name] ||= PortDynamics.new(port_name) }
+                    ports.merge(other.ports) do |port_name, old, new|
+                        old.merge(new)
+                    end
+                end
             end
 
             def plain?
@@ -75,7 +84,7 @@ module Syskit
                 @context_selections = DependencyInjection.new
                 @deployment_hints = Set.new
                 @specialization_hints = Set.new
-                @dynamics = Dynamics.new(NetworkGeneration::PortDynamics.new('Requirements'), [])
+                @dynamics = Dynamics.new(NetworkGeneration::PortDynamics.new('Requirements'), Hash.new)
                 @can_use_template = true
             end
 
@@ -119,6 +128,13 @@ module Syskit
                 invalidate_template
                 @base_model = base_model.merge(Syskit.proxy_task_model_for(new_models))
                 narrow_model
+            end
+
+            def specialize
+                new_ir = dup
+                new_model = base_model.specialize
+                new_ir.add_models([new_model])
+                new_ir
             end
 
             def invalidate_dependency_injection
@@ -398,6 +414,8 @@ module Syskit
                 @deployment_hints |= other_spec.deployment_hints
                 @specialization_hints |= other_spec.specialization_hints
 
+                @dynamics.merge(other_spec.dynamics)
+
                 invalidate_dependency_injection
                 invalidate_template
 
@@ -594,8 +612,18 @@ module Syskit
 
             # Specifies new arguments that must be set to the instanciated task
             def with_arguments(arguments)
-                invalidate_template
+                arguments.each do |k, v|
+                    if !v.droby_marshallable?
+                        raise Roby::NotMarshallable, "values used as task arguments must be marshallable, attempting to set #{k} to #{v} of class #{v.class}, which is not"
+                    end
+                end
                 @arguments.merge!(arguments)
+                self
+            end
+
+            # Clear all arguments
+            def with_no_arguments
+                @arguments.clear
                 self
             end
 
@@ -608,8 +636,7 @@ module Syskit
             # Specifies that the task that is represented by this requirement
             # should use the given configuration
             def with_conf(*conf)
-                invalidate_template
-                @arguments[:conf] = conf
+                with_arguments(conf: conf)
                 self
             end
 
@@ -759,19 +786,30 @@ module Syskit
                 @di
             end
 
+            def compute_template
+                base_requirements = dup.with_no_arguments
+                template = TemplatePlan.new
+                template.root_task = base_requirements.
+                    instanciate(template, use_template: false).
+                    to_task
+                merge_solver = NetworkGeneration::MergeSolver.new(template)
+                merge_solver.merge_identical_tasks
+                template.root_task = merge_solver.replacement_for(template.root_task)
+                @template = template
+            end
+
             def instanciate_from_template(plan)
                 if !@template
-                    template = TemplatePlan.new
-                    template.root_task = instanciate(template, use_template: false).
-                        to_task
-                    merge_solver = NetworkGeneration::MergeSolver.new(template)
-                    merge_solver.merge_identical_tasks
-                    template.root_task = merge_solver.replacement_for(template.root_task)
-                    @template = template
+                    compute_template
                 end
 
                 mappings = @template.deep_copy_to(plan)
-                return model.bind(mappings[@template.root_task])
+                root_task = mappings[@template.root_task] 
+                root_task.assign_arguments(arguments)
+                return model.bind(root_task)
+            end
+            def has_template?
+                !!@template
             end
 
             # Create a concrete task for this requirement
@@ -796,7 +834,7 @@ module Syskit
                     else sel
                     end
                 end
-                task.requirements.merge(task_requirements)
+                task.requirements.merge(task_requirements, keep_abstract: true)
 
                 if required_host && task.respond_to?(:required_host=)
                     task.required_host = required_host
@@ -939,10 +977,7 @@ module Syskit
 
             # Tests if these requirements explicitly point to a component model
             def component_model?
-                if model.respond_to?(:proxied_task_context_model)
-                    model.proxied_task_context_model
-                else true
-                end
+                model.component_model?
             end
 
             # Tests if these requirements explicitly point to a composition model
@@ -982,8 +1017,9 @@ module Syskit
                 Syskit::InstanceSelection.new(nil, self, requirements.to_instance_requirements)
             end
 
-            def to_action_model(profile = nil, doc = self.doc)
-                action_model = Actions::Models::Action.new(profile, self, doc)
+            def to_action_model(doc = self.doc)
+                action_model = Actions::Models::Action.new(self, doc)
+                action_model.name = name
                 action_model.returns(model.to_component_model)
 
                 task_model = component_model

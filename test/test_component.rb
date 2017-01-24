@@ -438,12 +438,12 @@ describe Syskit::Component do
             event.emit
             assert !component.ready_for_setup?
         end
-        it "returns true if all its syskit configuration precedence links are fullfilled" do
+        it "returns true if all the parent events in a syskit configuration precedence links are either emitted or unreachable" do
             plan.add(component = Syskit::Component.new)
             component.should_configure_after(event = Roby::EventGenerator.new)
             event.emit
             component.should_configure_after(event = Roby::EventGenerator.new)
-            event.emit
+            event.unreachable!
             assert component.ready_for_setup?
         end
     end
@@ -530,6 +530,60 @@ describe Syskit::Component do
             end
             req = task_m.new.to_instance_requirements
             assert req.arguments.empty?
+        end
+    end
+
+    describe "#setup" do
+        attr_reader :task, :recorder
+
+        before do
+            task = syskit_stub_and_deploy(Syskit::Component.new_submodel)
+            @task = flexmock(task)
+            @recorder = flexmock
+        end
+
+        describe "configuration success" do
+            it "calls setup_successful! if the setup is successful" do
+                task.should_receive(:perform_setup).once.globally.ordered
+                task.should_receive(:setup_successful!).once.globally.ordered.pass_thru
+                promise = task.setup.execute
+                assert task.setting_up?
+                assert !task.setup?
+                execution_engine.join_all_waiting_work
+                assert !task.setting_up?
+                assert task.setup?
+            end
+        end
+
+        describe "configuration failure" do
+            attr_reader :error_m
+
+            before do
+                @error_m = error_m = Class.new(RuntimeError)
+                task.should_receive(:perform_setup).and_return do |promise|
+                    promise.then { raise error_m }
+                end
+            end
+
+            it "calls #setup_failed! instead of setup_successful! if the setup raises" do
+                task.should_receive(:setup_failed!).once.pass_thru
+                task.should_receive(:setup_successful!).never
+                task.setup.execute
+                assert_raises(Roby::EmissionFailed) do
+                    execution_engine.join_all_waiting_work
+                end
+                refute task.setting_up?
+                refute task.setup?
+            end
+
+            it "marks the underlying task as failed_to_start! if the setup raises" do
+                task.setup.execute
+                assert_raises(Roby::EmissionFailed) do
+                    execution_engine.join_all_waiting_work
+                end
+                assert task.failed_to_start?
+                assert_kind_of error_m, task.failure_reason.original_exception
+            end
         end
     end
 end

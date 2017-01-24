@@ -9,5 +9,8 @@ end
 require 'syskit/network_generation/dataflow_computation'
 require 'syskit/network_generation/dataflow_dynamics'
 require 'syskit/network_generation/merge_solver'
+require 'syskit/network_generation/system_network_generator'
+require 'syskit/network_generation/system_network_deployer'
 require 'syskit/network_generation/engine'
+require 'syskit/network_generation/async'
 require 'syskit/network_generation/logger'

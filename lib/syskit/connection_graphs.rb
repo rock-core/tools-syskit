@@ -41,6 +41,8 @@ module Syskit
                 else
                     raise ArgumentError, "policy mismatch for transport: #{old_value} != #{new_value}"
                 end
+            elsif key == :size
+                [old_value, new_value].max
             else
                 raise ArgumentError, "policy mismatch for #{key}: #{old_value} != #{new_value}"
             end

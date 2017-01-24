@@ -9,13 +9,29 @@ module Syskit
 
             attr_reader :dataflow_graph
 
+            # Mapping from the orocos_task objects to the corresponding
+            # Syskit::Task in the plan
+            #
+            # @see find_setup_syskit_task_context_from_orocos_task
+            attr_reader :orocos_task_to_setup_syskit_task
+
             def scheduler
                 plan.execution_engine.scheduler
+            end
+
+            def log_timepoint_group(name, &block)
+                plan.execution_engine.log_timepoint_group(name, &block)
             end
 
             def initialize(plan)
                 @plan = plan
                 @dataflow_graph = plan.task_relation_graph_for(Flows::DataFlow)
+                @orocos_task_to_setup_syskit_task = Hash.new
+                plan.find_tasks(Syskit::TaskContext).each do |t|
+                    if t.setup?
+                        orocos_task_to_setup_syskit_task[t.orocos_task] = t
+                    end
+                end
             end
 
             def self.update(plan)
@@ -144,10 +160,11 @@ module Syskit
                 return new, removed
             end
 
+            # Returns the Syskit::TaskContext in the plan that manages an orocos task
+            #
+            # @return [nil,Syskit::TaskContext]
             def find_setup_syskit_task_context_from_orocos_task(orocos_task)
-                klass = TaskContext.model_for(orocos_task.model)
-                task = plan.find_tasks(klass.concrete_model).not_finishing.not_finished.
-                    find { |t| t.setup? && (t.orocos_task == orocos_task) }
+                orocos_task_to_setup_syskit_task[orocos_task]
             end
 
             # Checks whether the removal of some connections require to run the
@@ -182,45 +199,10 @@ module Syskit
                 false
             end
 
-            def disconnect_actual_ports(source_task, source_port, sink_task, sink_port)
-                source = source_task.port(source_port, false)
-                sink   = sink_task.port(sink_port, false)
 
-                if !source.disconnect_from(sink)
-                    warn "while disconnecting #{source_task}:#{source_port} => #{sink_task}:#{sink_port} returned false"
-                    warn "I assume that the ports are disconnected, but this should not have happened"
-                end
-
-            rescue Orocos::NotFound => e
-                terminating_deployments =
-                    plan.find_tasks(Syskit::Deployment).finishing.
-                    flat_map { |d| d.task_handles.values }
-
-                if !terminating_deployments.include?(source_task) && !terminating_deployments.include?(sink_task)
-                    warn "error while disconnecting #{source_task}:#{source_port} => #{sink_task}:#{sink_port}: #{e.message}"
-                    warn "I am assuming that the disconnection is actually effective, since one port does not exist anymore"
-                end
-            rescue Orocos::ComError => e
-                terminating_deployments =
-                    plan.find_tasks(Syskit::Deployment).finishing.
-                    flat_map { |d| d.task_handles.values }
-
-                if !terminating_deployments.include?(source_task) && !terminating_deployments.include?(sink_task)
-                    warn "Communication error while disconnecting #{source_task}:#{source_port} => #{sink_task}:#{sink_port}: #{e.message}"
-                    warn "I am assuming that the source component is dead and that therefore the connection is actually effective"
-                end
-            end
-            
-            # Remove port-to-port connections
-            #
-            # @param [{(Orocos::TaskContext,Orocos::TaskContext) => [[String,String]]}] removed
-            #   the connections, specified between the actual tasks (NOT their Roby representations)
-            # @return [[Syskit::TaskContext]] the list of tasks whose connections have been modified
-            def apply_connection_removal(removed)
-                modified = Set.new
-                # Remove connections first
-                removed.each do |(source_task, sink_task), mappings|
-                    mappings.each do |source_port, sink_port|
+            def pre_disconnect(removed)
+                removed.flat_map do |(source_task, sink_task), mappings|
+                    mappings.map do |source_port, sink_port|
                         debug do
                             debug "disconnecting #{source_task}:#{source_port}"
                             debug "     => #{sink_task}:#{sink_port}"
@@ -234,33 +216,110 @@ module Syskit
                             syskit_sink_task.removing_input_port_connection(source_task, source_port, sink_port)
                         end
 
-                        disconnect_actual_ports(source_task, source_port, sink_task, sink_port)
+                        [syskit_source_task, source_task, source_port, syskit_sink_task, sink_task, sink_port]
+                    end
+                end
+            end
 
-                        if syskit_source_task
-                            syskit_source_task.removed_output_port_connection(source_port, sink_task, sink_port)
-                        end
-                        if syskit_sink_task
-                            syskit_sink_task.removed_input_port_connection(source_task, source_port, sink_port)
-                        end
+            def perform_disconnections(disconnections)
+                success, failure = Concurrent::Array.new, Concurrent::Array.new
+                port_cache = Concurrent::Map.new
+                promises = disconnections.map do |syskit_from_task, from_task, from_port, syskit_to_task, to_task, to_port|
+                    execution_engine = plan.execution_engine
+                    execution_engine.promise(description: "disconnect #{from_task.name}##{from_port} -> #{to_task.name}##{to_port}") do
+                        begin
+                            from_orocos_port =
+                                (port_cache[[from_task, from_port]] ||= from_task.raw_port(from_port))
+                            to_orocos_port   =
+                                (port_cache[[to_task, to_port]] ||= to_task.raw_port(to_port))
+                            if !from_orocos_port.disconnect_from(to_orocos_port)
+                                warn "while disconnecting #{from_task}:#{from_port} => #{to_task}:#{to_port} returned false"
+                                warn "I assume that the ports are disconnected, but this should not have happened"
+                            end
+                            execution_engine.log(:syskit_disconnect, from_task.name, from_port, to_task.name, to_port)
 
-                        if ActualDataFlow.static?(source_task, source_port)
-                            TaskContext.needs_reconfiguration << source_task.name
-                        end
-                        if ActualDataFlow.static?(sink_task, sink_port)
-                            TaskContext.needs_reconfiguration << sink_task.name
-                        end
-                        ActualDataFlow.remove_connections(source_task, sink_task,
-                                          [[source_port, sink_port]])
-
-                        if syskit_source_task && !syskit_source_task.executable?
-                            modified << syskit_source_task
-                        end
-                        if syskit_sink_task && !syskit_sink_task.executable?
-                            modified << syskit_sink_task
+                            success << [syskit_from_task, from_task, from_port, syskit_to_task, to_task, to_port]
+                        rescue Exception => e
+                            failure << [syskit_from_task, from_task, from_port, syskit_to_task, to_task, to_port, e]
                         end
                     end
                 end
+                log_timepoint_group 'apply_remote_disconnections' do
+                    promises.each(&:execute)
+                end
+                # This is cheating around the "do not allow blocking calls in
+                # main thread" principle. It's good because it parallelizes
+                # disconnection - which speeds up network setup quite a bit - but
+                # it's still blocking if one of the connections are blocking
+                #
+                # The "blocking calls should not affect Syskit" tests should
+                # catch this
+                promises.each { |p| p.promise.value! }
+                return success, failure
+            end
+
+            def post_disconnect_success(disconnections)
+                modified = Set.new
+                disconnections.each do |syskit_from_task, from_task, from_port, syskit_to_task, to_task, to_port|
+                    if syskit_from_task
+                        syskit_from_task.removed_output_port_connection(
+                            from_port, to_task, to_port)
+                    end
+                    if syskit_to_task
+                        syskit_to_task.removed_input_port_connection(
+                            from_task, from_port, to_port)
+                    end
+
+                    if ActualDataFlow.static?(from_task, from_port)
+                        TaskContext.needs_reconfiguration << from_task.name
+                    end
+                    if ActualDataFlow.static?(to_task, to_port)
+                        TaskContext.needs_reconfiguration << to_task.name
+                    end
+                    ActualDataFlow.remove_connections(from_task, to_task,
+                                                      [[from_port, to_port]])
+
+                    if syskit_from_task && !syskit_from_task.executable?
+                        modified << syskit_from_task
+                    end
+                    if syskit_to_task && !syskit_to_task.executable?
+                        modified << syskit_to_task
+                    end
+                end
                 modified
+            end
+
+            def post_disconnect_failure(disconnections)
+                disconnections.find_all do |syskit_from_task, from_task, from_port, syskit_to_task, to_task, to_port, error|
+
+                    case error
+                    when Orocos::ComError, Orocos::NotFound
+                        terminating_deployments =
+                            plan.find_tasks(Syskit::Deployment).finishing.
+                            flat_map { |d| d.remote_task_handles.values }
+
+                        if !terminating_deployments.include?(from_task) && !terminating_deployments.include?(to_task)
+                            warn "error while disconnecting #{from_task}:#{from_port} => #{to_task}:#{to_port}: #{error.message}"
+                            warn "I am assuming that the disconnection is actually effective, since one port does not exist anymore and/or the task cannot be contacted (i.e. assumed to be dead)"
+                        end
+                        true
+                    else
+                        plan.execution_engine.add_framework_error(error, "connection management")
+                        false
+                    end
+                end
+            end
+            
+            # Remove port-to-port connections
+            #
+            # @param [{(Orocos::TaskContext,Orocos::TaskContext) => [[String,String]]}] removed
+            #   the connections, specified between the actual tasks (NOT their Roby representations)
+            # @return [[Syskit::TaskContext]] the list of tasks whose connections have been modified
+            def apply_connection_removal(removed)
+                disconnections = pre_disconnect(removed)
+                success, failure = perform_disconnections(disconnections)
+                spurious_failures = post_disconnect_failure(failure)
+                post_disconnect_success(success + spurious_failures)
             end
 
             # Actually create new connections
@@ -269,12 +328,18 @@ module Syskit
             #   the connections, specified between the Syskit tasks
             # @return [[Syskit::TaskContext]] the list of tasks whose connections have been modified
             def apply_connection_additions(new)
-                # And create the new ones
-                pending_tasks = Set.new
-                new.each do |(from_task, to_task), mappings|
-                    next if !from_task.orocos_task || !to_task.orocos_task
+                actual_connections = pre_connect(new)
+                performed_connections, failed_connections = perform_connections(actual_connections)
+                post_connect_success(performed_connections)
+                post_connect_failure(failed_connections)
+                new.map { |(_, to_task), mappings| to_task if !to_task.executable? }.
+                    compact
+            end
 
-                    mappings.each do |(from_port, to_port), policy|
+            def pre_connect(new)
+                # And create the new ones
+                new.flat_map do |(from_task, to_task), mappings|
+                    mappings.map do |(from_port, to_port), policy|
                         debug do
                             debug "connecting #{from_task}:#{from_port}"
                             debug "     => #{to_task}:#{to_port}"
@@ -282,54 +347,111 @@ module Syskit
                             break
                         end
 
-                        begin
-                            policy, _ = Kernel.filter_options(policy, Orocos::Port::CONNECTION_POLICY_OPTIONS)
+                        policy, _ = Kernel.filter_options(policy, Orocos::Port::CONNECTION_POLICY_OPTIONS)
 
-                            from_syskit_port = from_task.find_output_port(from_port)
-                            to_syskit_port   = to_task.find_input_port(to_port)
-                            from_orocos_port = from_task.orocos_task.port(from_port)
-                            to_orocos_port   = to_task.orocos_task.port(to_port)
+                        from_syskit_port = from_task.find_output_port(from_port)
+                        to_syskit_port   = to_task.find_input_port(to_port)
 
-                            from_task.adding_output_port_connection(from_syskit_port, to_syskit_port, policy)
-                            to_task.adding_input_port_connection(from_syskit_port, to_syskit_port, policy)
+                        from_task.adding_output_port_connection(from_syskit_port, to_syskit_port, policy)
+                        to_task.adding_input_port_connection(from_syskit_port, to_syskit_port, policy)
 
-                            begin
-                                current_policy = ActualDataFlow.edge_info(from_task.orocos_task, to_task.orocos_task)[[from_port, to_port]]
-                            rescue ArgumentError
-                            end
+                        distance = from_task.distance_to(to_task)
 
-                            from_orocos_port.connect_to(to_orocos_port, policy)
-
-                            from_task.added_output_port_connection(from_syskit_port, to_syskit_port, policy)
-                            to_task.added_input_port_connection(from_syskit_port, to_syskit_port, policy)
-
-                            ActualDataFlow.add_connections(
-                                from_task.orocos_task, to_task.orocos_task,
-                                [from_port, to_port] => [policy, from_syskit_port.static?, to_syskit_port.static?],
-                                force_update: true)
-
-                        rescue Orocos::ComError
-                            # The task will be aborted. Simply ignore
-                        rescue Orocos::InterfaceObjectNotFound => e
-                            if e.task == from_task.orocos_task && e.name == from_port
-                                plan.execution_engine.add_error(PortNotFound.new(from_task, from_port, :output))
-                            else
-                                plan.execution_engine.add_error(PortNotFound.new(to_task, to_port, :input))
-                            end
-
-                        end
-                    end
-                    if !to_task.executable?
-                        pending_tasks << to_task
+                        [from_task, from_port, to_task, to_port, policy, distance]
                     end
                 end
-                pending_tasks
+            end
+
+            # Actually perform the connections
+            #
+            # It logs a :syskit_connect event at the end of the connection call.
+            # It is formatted as:
+            #
+            #     syskit_connect(:success,
+            #       source_task_orocos_name, source_port_name,
+            #       sink_task_orocos_name, sink_task_name,
+            #       policy)
+            #
+            # or
+            #
+            #     syskit_connect(:failure,
+            #       source_task_orocos_name, source_port_name,
+            #       sink_task_orocos_name, sink_task_name,
+            #       policy, exception)
+            #
+            # @param [Array] the connections to be created, as returned by
+            #   {#pre_connect}
+            # @return [(Array,Array)] the successful and failed connections, in
+            #   the same format than the connection argument for the success
+            #   array. The failure array gets in addition the exception as last
+            #   argument.
+            def perform_connections(connections)
+                success, failure = Concurrent::Array.new, Concurrent::Array.new
+                port_cache = Concurrent::Map.new
+                promises = connections.map do |from_task, from_port, to_task, to_port, policy, distance|
+                    execution_engine = plan.execution_engine
+                    execution_engine.promise(description: "connect #{from_task.orocos_name}##{from_port} -> #{to_task.orocos_name}##{to_port}") do
+                        begin
+                            from_orocos_port =
+                                (port_cache[[from_task, from_port]] ||= from_task.orocos_task.raw_port(from_port))
+                            to_orocos_port   =
+                                (port_cache[[to_task, to_port]] ||= to_task.orocos_task.raw_port(to_port))
+                            from_orocos_port.connect_to(to_orocos_port, distance: distance, **policy)
+                            execution_engine.log(:syskit_connect, :success, from_task.orocos_name, from_port, to_task.orocos_name, to_port, policy)
+                            success << [from_task, from_port, to_task, to_port, policy]
+                        rescue Exception => e
+                            execution_engine.log(:syskit_connect, :failure, from_task.orocos_name, from_port, to_task.orocos_name, to_port, policy)
+                            failure << [from_task, from_port, to_task, to_port, policy, e]
+                        end
+                    end
+                end
+                log_timepoint_group 'apply_remote_connections' do
+                    promises.each(&:execute)
+                end
+                # This is cheating around the "do not allow blocking calls in
+                # main thread" principle. It's good because it parallelizes
+                # connection - which speeds up network setup quite a bit - but
+                # it's still blocking if one of the connections are blocking
+                #
+                # The "blocking calls should not affect Syskit" tests should
+                # catch this
+                promises.each { |p| p.promise.value! }
+                return success, failure
+            end
+
+            def post_connect_success(connections)
+                connections.each do |from_task, from_port, to_task, to_port, policy|
+                    from_syskit_port = from_task.find_output_port(from_port)
+                    to_syskit_port   = to_task.find_input_port(to_port)
+                    from_task.added_output_port_connection(from_syskit_port, to_syskit_port, policy)
+                    to_task.added_input_port_connection(from_syskit_port, to_syskit_port, policy)
+
+                    ActualDataFlow.add_connections(
+                        from_task.orocos_task, to_task.orocos_task,
+                        [from_port, to_port] => [policy, from_syskit_port.static?, to_syskit_port.static?],
+                        force_update: true)
+                end
+            end
+
+            def post_connect_failure(connections)
+                connections.each do |from_task, from_port, to_task, to_port, policy, error|
+                    case error
+                    when Orocos::InterfaceObjectNotFound
+                        if error.task == from_task.orocos_task && error.name == from_port
+                            plan.execution_engine.add_error(PortNotFound.new(from_task, from_port, :output))
+                        else
+                            plan.execution_engine.add_error(PortNotFound.new(to_task, to_port, :input))
+                        end
+                    else
+                        plan.execution_engine.add_error(Roby::CodeError.new(error, to_task))
+                    end
+                end
             end
 
             def mark_connected_pending_tasks_as_executable(pending_tasks)
                 pending_tasks.each do |t|
                     if t.setup? && t.all_inputs_connected?
-                        t.executable = nil
+                        t.ready_to_start!
                         debug { "#{t} has all its inputs connected, set executable to nil and executable? = #{t.executable?}" }
                         scheduler.report_action "all inputs connected, marking as executable", t
 
@@ -362,20 +484,16 @@ module Syskit
             # @return [Array,Hash] the set of connections that can be performed
             #   right away, and the set of connections that require a state change
             #   in the tasks
-            def partition_early_late(connections, states, kind, mapping)
+            def partition_early_late(connections, kind, to_syskit_task)
                 early, late = connections.partition do |(source_task, sink_task), port_pairs|
-                    states[source_task] ||= begin mapping[source_task].rtt_state
-                                            rescue Orocos::ComError
-                                            end
-                    states[sink_task]   ||= begin mapping[sink_task].rtt_state
-                                            rescue Orocos::ComError
-                                            end
+                    source_is_running = (syskit_task = to_syskit_task[source_task]) && syskit_task.running?
+                    sink_is_running   = (syskit_task = to_syskit_task[sink_task])   && syskit_task.running?
+                    early = !source_is_running || !sink_is_running
 
-                    early = (states[source_task] != :RUNNING) || (states[sink_task] != :RUNNING)
                     debug do
                         debug "#{port_pairs.size} #{early ? 'early' : 'late'} #{kind} connections from #{source_task} to #{sink_task}"
-                        debug "  source state: #{states[source_task]}"
-                        debug "  sink state: #{states[sink_task]}"
+                        debug "  source running?: #{source_is_running}"
+                        debug "  sink   running?: #{sink_is_running}"
                         break
                     end
                     early
@@ -438,14 +556,18 @@ module Syskit
             def apply_connection_changes(new, removed)
                 additions_held, additions_ready = new_connections_partition_held_ready(new)
 
-                task_states = Hash.new
                 early_removal, late_removal     =
-                    partition_early_late(removed, task_states, 'removed', proc { |v| v })
+                    partition_early_late(removed, 'removed', method(:find_setup_syskit_task_context_from_orocos_task))
                 early_additions, late_additions =
-                    partition_early_late(additions_ready, task_states, 'added', proc(&:orocos_task))
+                    partition_early_late(additions_ready, 'added', proc { |v| v })
 
-                modified_tasks = apply_connection_removal(early_removal)
-                modified_tasks |= apply_connection_additions(early_additions)
+                modified_tasks = Set.new
+                log_timepoint_group 'early_disconnections' do
+                    modified_tasks.merge apply_connection_removal(early_removal)
+                end
+                log_timepoint_group 'early_connections' do
+                    modified_tasks.merge apply_connection_additions(early_additions)
+                end
 
                 if !additions_held.empty?
                     mark_connected_pending_tasks_as_executable(modified_tasks)
@@ -453,8 +575,12 @@ module Syskit
                     return additions, late_removal
                 end
 
-                modified_tasks |= apply_connection_removal(late_removal)
-                modified_tasks |= apply_connection_additions(late_additions)
+                log_timepoint_group 'late_disconnections' do
+                    modified_tasks.merge apply_connection_removal(late_removal)
+                end
+                log_timepoint_group 'late_connections' do
+                    modified_tasks.merge apply_connection_additions(late_additions)
+                end
                 mark_connected_pending_tasks_as_executable(modified_tasks)
                 return Hash.new, Hash.new
             end
@@ -498,6 +624,9 @@ module Syskit
             end
 
             def update
+                # Don't do anything if the engine is deploying
+                return if plan.syskit_has_async_resolution?
+                
                 tasks = dataflow_graph.modified_tasks
                 tasks.delete_if { |t| !active_task?(t) }
                 debug "connection: updating, #{tasks.size} tasks modified in dataflow graph"
@@ -510,7 +639,7 @@ module Syskit
                 # looking for tasks whose input connections have been modified
                 tasks.each do |t|
                     if t.setup? && !t.executable? && t.plan == plan && t.all_inputs_connected?
-                        t.executable = nil
+                        t.ready_to_start!
                         scheduler.report_action "all inputs connected, marking as executable", t
                     end
                 end
@@ -557,8 +686,8 @@ module Syskit
                     end
                     if removed_connections_require_network_update?(removed)
                         dataflow_graph.pending_changes = [main_tasks, new, removed]
-                        Syskit::NetworkGeneration::Engine.resolve(plan)
-                        return update
+                        Runtime.apply_requirement_modifications(plan, force: true)
+                        return
                     end
 
                     debug "applying pending changes from the data flow graph"

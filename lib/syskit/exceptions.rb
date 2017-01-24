@@ -7,6 +7,16 @@ module Syskit
 
         class InvalidPortMapping < SpecError; end
 
+        # Exception raised when reader/writer resolution fails with an exception
+        class PortAccessFailure < Roby::CodeError; end
+
+        # Raised when an operation requests a certain task state, but was called
+        # in another
+        #
+        # For instance, Deployment#task raises this if the task is finishing or
+        # finished.
+        class InvalidState < RuntimeError; end
+
         # Raised when a provides declaration does not match the underlying task
         # interface
         class InvalidProvides < SpecError
@@ -287,12 +297,13 @@ module Syskit
 
                 still_abstract.each do |task|
                     if task.respond_to?(:proxied_data_services)
+                        component_models = Syskit::Component.each_submodel.to_a
                         per_service_candidates = task.proxied_data_services.map do |m|
-                            engine.deployed_models.find_all { |deployed_m| deployed_m.fullfills?(m) }.to_set
+                            component_models.find_all { |component_m| component_m.fullfills?(m) }.to_set
                         end
                         candidates = per_service_candidates.inject { |a, b| a & b } || Set.new
                     else
-                        candidates = engine.work_plan.find_local_tasks(task.concrete_model).not_abstract.to_set
+                        candidates = task.plan.find_local_tasks(task.concrete_model).not_abstract.to_set
                     end
 
                     parents = task.
@@ -483,15 +494,15 @@ module Syskit
                 @tasks = Hash.new
                 tasks_with_candidates.each do |task, candidates|
                     parents = task.dependency_context
-                    candidates = candidates.map do |host, deployment, task_name, existing|
+                    candidates = candidates.map do |process_server_name, deployment, task_name, existing|
                         existing ||= Array.new
                         existing = existing.map do |task|
                             [task, task.dependency_context]
                         end
-                        [host, deployment, task_name, existing]
+                        [process_server_name, deployment, task_name, existing]
                     end
 
-                    @tasks[task] = [parents, candidates]
+                    @tasks[task] = [parents, candidates, task.deployment_hints]
                 end
             end
 
@@ -509,15 +520,14 @@ module Syskit
                     end
                 end
 
-                tasks.each do |task, (parents, possible_deployments)|
+                tasks.each do |task, (parents, possible_deployments, deployment_hints)|
                     has_free_deployment = possible_deployments.any? { |_, _, _, existing| existing.empty? }
                     pp.breakable
                     if has_free_deployment
                         pp.text "#{task}: multiple possible deployments, choose one with #prefer_deployed_tasks(deployed_task_name)"
-                        current_hints = task.deployment_hints
-                        if !current_hints.empty?
-                            current_hints.each do |hint|
-                                pp.text "  current hints: #{current_hints.map(&:to_s).join(", ")}"
+                        if !deployment_hints.empty?
+                            deployment_hints.each do |hint|
+                                pp.text "  current hints: #{deployment_hints.map(&:to_s).join(", ")}"
                             end
                         end
                     elsif possible_deployments.empty?
@@ -527,9 +537,9 @@ module Syskit
                     end
 
                     pp.nest(2) do
-                        possible_deployments.each do |host, deployment, task_name, existing|
+                        possible_deployments.each do |process_server_name, deployment, task_name, existing|
                             pp.breakable
-                            pp.text "task #{task_name} from deployment #{deployment.orogen_model.name} defined in #{deployment.orogen_model.project.name} on #{host}"
+                            pp.text "task #{task_name} from deployment #{deployment.orogen_model.name} defined in #{deployment.orogen_model.project.name} on #{process_server_name}"
                             pp.nest(2) do
                                 existing.each do |task, parents|
                                     pp.breakable
@@ -958,6 +968,20 @@ module Syskit
                     pp.breakable
                     task.pretty_print(pp)
                 end
+            end
+        end
+
+        class PropertyUpdateError < Roby::CodeError
+            attr_reader :property
+
+            def initialize(error, property)
+                @property = property
+                super(error, property.task_context)
+            end
+
+            def pretty_print(pp)
+                pp.text "#{self.class.name}: updating property #{property.name} failed with"
+                failure_point.pretty_print(pp)
             end
         end
 end

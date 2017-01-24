@@ -67,10 +67,6 @@ module Syskit
             # @return [Roby::Task]
             # @see #register_replacement
             def replacement_for(task)
-                if task.plan && task.plan != plan
-                    task = plan[task]
-                end
-
                 if replacement = @resolved_replacements[task]
                     # Verify that this is still a leaf in the replacement graph
                     if task_replacement_graph.leaf?(replacement)
@@ -169,12 +165,6 @@ module Syskit
                 # only at criteria internal to the tasks.
                 if !can_merge
                     info "rejected: can_merge? returned false"
-                    return false
-                end
-
-                # A transaction proxy can only be the merged-into task
-                if merged_task.transaction_proxy?
-                    info "rejected: merged task is a transaction proxy"
                     return false
                 end
 
@@ -460,13 +450,6 @@ module Syskit
                     mismatched_inputs << [sink_port, m_source_task, source_task]
                 end
                 mismatched_inputs
-            end
-
-            # Returns the merge graph for all tasks in {#plan}
-            def complete_merge_graph
-                all_tasks = plan.find_local_tasks(Syskit::Component).
-                    to_set
-                direct_merge_mappings(all_tasks)
             end
 
             def merge_identical_tasks

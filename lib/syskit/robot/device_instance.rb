@@ -17,7 +17,7 @@ module Syskit
             # Gets or sets a documentation string for this device
             #
             # @return [String]
-            dsl_attribute(:doc) { |s| !s || s.to_str }
+            dsl_attribute(:doc) { |s| s.to_str if s }
 
             # If this device is on a communication bus, the sample_size
             # statement specifies how many messages on the bus are required to

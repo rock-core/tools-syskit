@@ -79,8 +79,8 @@ module Test_DataServiceModel
 	    output_port 'out', 'int32_t'
 	end
 	assert_equal('/int32_t', model.find_output_port('out').type.name)
-	assert_equal(nil, model.find_output_port('does_not_exist'))
-	assert_equal(nil, model.find_output_port('in'))
+	assert_nil model.find_output_port('does_not_exist')
+	assert_nil model.find_output_port('in')
     end
 
     def test_model_input_port
@@ -89,8 +89,8 @@ module Test_DataServiceModel
 	    output_port 'out', 'int32_t'
 	end
 	assert_equal('/double', model.find_input_port('in').type.name)
-	assert_equal(nil, model.find_input_port('out'))
-	assert_equal(nil, model.find_input_port('does_not_exist'))
+	assert_nil model.find_input_port('out')
+	assert_nil model.find_input_port('does_not_exist')
     end
 
     def test_provides

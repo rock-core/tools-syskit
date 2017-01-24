@@ -18,7 +18,7 @@ module Syskit
 
             def setup
                 if Orocos::ROS.rosnode_running?(orocos_name)
-                    is_setup!
+                    setup_successful!
                 else
                     raise InternalError, "#setup called but ROS node '#{orocos_name}' is not running"
                 end

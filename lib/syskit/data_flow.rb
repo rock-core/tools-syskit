@@ -36,6 +36,19 @@ module Syskit
         def initialize(*args, **options)
             super
             @modified_tasks = Set.new
+            @concrete_connection_graph = nil
+        end
+
+        # @api private
+        #
+        # Graph class used to cache concrete connections once
+        # {#enable_concrete_connection_graph} has been called
+        class ConcreteConnectionGraph < ConnectionGraph
+            def merge_info(source, sink, current_mappings, additional_mappings)
+                current_mappings.merge(additional_mappings) do |_, old_options, new_options|
+                    Syskit.update_connection_policy(old_options, new_options)
+                end
+            end
         end
 
         def enable_concrete_connection_graph(compute: true)
@@ -43,7 +56,7 @@ module Syskit
                 if compute
                     compute_concrete_connection_graph
                 else
-                    ConnectionGraph.new
+                    ConcreteConnectionGraph.new
                 end
         end
 
@@ -52,7 +65,7 @@ module Syskit
         # Computes the concrete connection graph from the DataFlow information
         def compute_concrete_connection_graph
             current_graph, @concrete_connection_graph = @concrete_connection_graph, nil
-            graph = ConnectionGraph.new
+            graph = ConcreteConnectionGraph.new
             each_vertex do |task|
                 next if !task.kind_of?(Syskit::TaskContext)
 
@@ -73,6 +86,10 @@ module Syskit
 
         def disable_concrete_connection_graph
             @concrete_connection_graph = nil
+        end
+
+        def concrete_connection_graph_enabled?
+            !!@concrete_connection_graph
         end
 
         # Called by the relation graph management to update the DataFlow
@@ -207,13 +224,17 @@ module Syskit
         # Methods that are mixed-in Syskit::Component to help with connection
         # management
         module Extension
+            class NotOutputPort < ArgumentError; end
+            class NotInputPort < ArgumentError; end
+            class NotComposition < ArgumentError; end
+
             # Makes sure that +self+ has an output port called +name+. It will
             # instanciate a dynamic port if needed.
             #
             # Raises ArgumentError if no such port can ever exist on +self+
             def ensure_has_output_port(name)
                 if !model.find_output_port(name)
-                    raise ArgumentError, "#{self} has no output port called #{name}"
+                    raise NotOutputPort, "#{self} has no output port called #{name}"
                 end
             end
 
@@ -223,14 +244,16 @@ module Syskit
             # Raises ArgumentError if no such port can ever exist on +self+
             def ensure_has_input_port(name)
                 if !model.find_input_port(name)
-                    raise ArgumentError, "#{self} has no input port called #{name}"
+                    raise NotInputPort, "#{self} has no input port called #{name}"
                 end
             end
 
             # Forward an input of self to an input port of another task
             def forward_input_ports(task, mappings)
                 if !fullfills?(Composition)
-                    raise ArgumentError, "#{self} is not a composition"
+                    raise NotComposition, "#{self} is not a composition"
+                elsif mappings.empty?
+                    return
                 end
 
                 mappings.each do |(from, to), options|
@@ -242,7 +265,9 @@ module Syskit
 
             def forward_output_ports(task, mappings)
                 if !task.fullfills?(Composition)
-                    raise ArgumentError, "#{self} is not a composition"
+                    raise NotComposition, "#{self} is not a composition"
+                elsif mappings.empty?
+                    return
                 end
 
                 mappings.each do |(from, to), options|
@@ -277,6 +302,8 @@ module Syskit
             #
             # Raises ArgumentError if one of the ports do not exist.
             def connect_ports(sink_task, mappings)
+                return if mappings.empty?
+
                 mappings.each do |(out_port, in_port), options|
                     ensure_has_output_port(out_port)
                     sink_task.ensure_has_input_port(in_port)

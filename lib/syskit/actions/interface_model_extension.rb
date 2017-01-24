@@ -10,15 +10,27 @@ module Syskit
                 if !@profile
                     @profile = super("Profile") { self }
                     if superclass.kind_of?(InterfaceModelExtension)
-                        @profile.use_profile(superclass.profile)
+                        tag_map = use_profile_tags(superclass.profile)
+                        @profile.use_profile(superclass.profile, tag_map)
                     end
                 end
 
                 if block
-                    @profile.instance_eval(&block)
+                    Roby.warn_deprecated "calling profile do ... end in an action interface is deprecated, call use_profile do .. end instead"
+                    use_profile(&block)
                 else
                     @profile
                 end
+            end
+
+            # Define on self tags that match the profile's tags
+            def use_profile_tags(profile)
+                tag_map = Hash.new
+                profile.each_tag do |tag|
+                    tagged_models = [*tag.proxied_data_services]
+                    tag_map[tag.tag_name] = @profile.tag(tag.tag_name, *tagged_models)
+                end
+                tag_map
             end
 
             # @api private
@@ -40,7 +52,7 @@ module Syskit
                 profile.robot(&block)
                 new_devices = profile.robot.each_master_device.to_a - existing_devices
                 new_devices.each do |dev|
-                    register_action_from_profile(dev.to_action_model(profile))
+                    register_action_from_profile(dev.to_action_model)
                 end
             end
 
@@ -52,26 +64,23 @@ module Syskit
             # Registers an action that has been derived from a profile
             # definition or device
             def register_action_from_profile(action_model)
-                action_model = action_model.rebind(profile, force: true)
+                action_model = action_model.rebind(self)
                 action_name  = action_model.name
                 profile_library.register_action(action_name, action_model)
+                action_model = find_action_by_name(action_name)
 
                 args = action_model.each_arg.to_a
                 if args.any?(&:required?)
                     profile_library.send(:define_method, action_name) do |arguments|
-                        final_req = action_model.resolve_definition_on(profile)
-                        final_req.with_arguments(arguments)
-                        final_req
+                        action_model.to_instance_requirements(arguments)
                     end
                 elsif !args.empty?
                     profile_library.send(:define_method, action_name) do |arguments = Hash.new|
-                    final_req = action_model.resolve_definition_on(profile)
-                    final_req.with_arguments(arguments)
-                    final_req
+                        action_model.to_instance_requirements(arguments)
                     end
                 else
                     profile_library.send(:define_method, action_name) do
-                        final_req = action_model.resolve_definition_on(profile)
+                        action_model.to_instance_requirements(Hash.new)
                     end
                 end
             end
@@ -83,11 +92,24 @@ module Syskit
             # @param [Hash] tag_selection selection for the profile tags, see
             #   {Profile#use_profile}
             # @return [void]
-            def use_profile(used_profile, tag_selection = Hash.new)
+            def use_profile(used_profile = nil, tag_selection = Hash.new, transform_names: ->(name) { name })
+                if block_given?
+                    if !tag_selection.empty?
+                        raise ArgumentError, "cannot provide a tag selection when defining a new anonymous profile"
+                    end
+
+                    used_profile = Profile.new("#{self.name}::<anonymous>", register: true)
+                    used_profile.instance_eval(&proc)
+                    tag_selection = use_profile_tags(used_profile)
+                elsif !used_profile
+                    raise ArgumentError, "must provide either a profile object or a block"
+                end
+
                 @current_description = nil
-                profile.use_profile(used_profile, tag_selection)
-                used_profile.each_action do |action_model|
-                    register_action_from_profile(action_model)
+                new_definitions =
+                    profile.use_profile(used_profile, tag_selection, transform_names: transform_names)
+                new_definitions.each do |definition|
+                    register_action_from_profile(definition.to_action_model)
                 end
             end
 

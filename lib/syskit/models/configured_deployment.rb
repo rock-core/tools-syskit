@@ -22,6 +22,12 @@ module Syskit
                     process_server_name, model, name_mappings, process_name, spawn_options
             end
 
+            # The oroGen model object that represents this configured deployment
+            #
+            # It differs from model.orogen_model in that the {#name_mappings}
+            # are applied
+            #
+            # @return [OroGen::Spec::Deployment]
             def orogen_model
                 if @orogen_model
                     return @orogen_model
@@ -36,6 +42,9 @@ module Syskit
                 @orogen_model
             end
 
+            # Enumerate the oroGen specification for the deployed tasks
+            #
+            # @yieldparam [OroGen::Spec::TaskDeployment]
             def each_orogen_deployed_task_context_model
                 model.each_orogen_deployed_task_context_model do |deployed_task|
                     task = deployed_task.dup
@@ -44,6 +53,10 @@ module Syskit
                 end
             end
 
+            # Create a new deployment task that can represent self in a plan
+            #
+            # @return [Syskit::Deployment] a new, properly configured, instance
+            #   of {#model}. Usually a {Syskit::Deployment}
             def new(options = Hash.new)
                 options = options.merge(
                     process_name: process_name,

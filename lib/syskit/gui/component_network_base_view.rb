@@ -142,7 +142,6 @@ module Syskit
                 main_plan.add(original_task = model.as_plan)
                 base_task = original_task.as_service
                 engine = Syskit::NetworkGeneration::Engine.new(main_plan)
-                engine.prepare
                 engine.compute_system_network([base_task.task.planning_task])
                 base_task.task
             ensure
@@ -226,9 +225,12 @@ module Syskit
             # @return [(String,Integer,String),nil] the definition place or nil
             #   if one cannot be determined
             def self.find_definition_place(model)
-                model.definition_location.find do |file, _, method|
-                    return if method == :require || method == :using_task_library
-                    Roby.app.app_file?(file)
+                location = model.definition_location.find do |location|
+                    return if location.label == 'require' || location.label == 'using_task_library'
+                    Roby.app.app_file?(location.absolute_path)
+                end
+                if location
+                    return location.absolute_path, location.lineno
                 end
             end
 
@@ -257,10 +259,14 @@ module Syskit
                 end
             end
 
-            def render(model, options = Hash.new)
+            def render_require_section(model)
                 if model.respond_to?(:definition_location)
                     ComponentNetworkBaseView.html_defined_in(page, model, with_require: true)
                 end
+            end
+
+            def render(model, options = Hash.new)
+                render_require_section(model)
                 @current_model = model
             end
 

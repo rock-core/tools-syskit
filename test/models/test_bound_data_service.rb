@@ -43,8 +43,13 @@ describe Syskit::Models::BoundDataService do
     end
 
     describe "#self_port_to_component_port" do
-        it "should return the port mapped on the task" do
+        attr_reader :stub_t
+        before do
+            @stub_t = stub_type '/test_t'
             create_simple_composition_model
+        end
+
+        it "should return the port mapped on the task" do
             task_m = simple_component_model
             srv_m  = task_m.srv_srv
             port = flexmock(name: 'srv_port')
@@ -55,8 +60,9 @@ describe Syskit::Models::BoundDataService do
     end
 
     describe "DRoby marshalling" do
-        attr_reader :srv_m, :task_m
+        attr_reader :srv_m, :task_m, :stub_t
         before do
+            @stub_t = stub_type '/test_t'
             create_simple_composition_model
             @task_m = simple_component_model
             @srv_m  = task_m.srv_srv
@@ -133,6 +139,38 @@ describe Syskit::Models::BoundDataService do
         end
         it" raises ArgumentError if the provided component model is of an invalid type" do
             assert_raises(ArgumentError) { srv_m.bind(Syskit::TaskContext.new_submodel.new) }
+        end
+
+        describe "behaviour related to placeholder models" do
+            attr_reader :srv_m, :other_srv_m, :component_m, :placeholder_m, :task_m
+            before do
+                @srv_m = Syskit::DataService.new_submodel
+                @other_srv_m = Syskit::DataService.new_submodel
+                @component_m   = Syskit::TaskContext.new_submodel
+                component_m.provides srv_m, as: 'test'
+                @placeholder_m = Syskit.proxy_task_model_for([component_m, other_srv_m])
+                @task_m = component_m.new_submodel
+                task_m.provides other_srv_m, as: 'other'
+            end
+            it "resolves a placeholder model's base model service by name" do
+                # Add an ambiguous service to ensure that #bind resolves the
+                # right one
+                task_m.provides srv_m, as: 'ambiguous'
+                task = task_m.new
+                assert_equal component_m.test_srv.bind(task), placeholder_m.test_srv.bind(task)
+            end
+            it "resolves a placeholder service by type" do
+                task = task_m.new
+                assert_equal task.other_srv, placeholder_m.find_data_service_from_type(other_srv_m).bind(task)
+            end
+
+            it "raises if trying to resolve an ambiguous service" do
+                task_m.provides other_srv_m, as: 'ambiguous'
+                task = task_m.new
+                assert_raises(Syskit::AmbiguousServiceSelection) do
+                    placeholder_m.find_data_service_from_type(other_srv_m).bind(task)
+                end
+            end
         end
     end
 
@@ -229,6 +267,35 @@ describe Syskit::Models::BoundDataService do
         end
         it "returns false for a faceted service" do
             refute_equal task_m.test_srv.as(parent_srv_m), task_m.test_srv
+        end
+    end
+
+    describe "#find_port_for_task_port" do
+        attr_reader :stub_t, :srv_m
+        before do
+            @stub_t = stub_t = stub_type '/test_t'
+            @srv_m = Syskit::DataService.new_submodel do
+                output_port 'out', stub_t
+            end
+        end
+        it "returns the task port that maps to a service port" do
+            stub_t = self.stub_t
+            task_m = Syskit::TaskContext.new_submodel do
+                output_port 'task_out', stub_t
+            end
+            task_m.provides srv_m, as: 'test'
+            assert_equal task_m.test_srv.out_port,
+                task_m.test_srv.find_port_for_task_port(task_m.task_out_port)
+        end
+
+        it "returns nil if there is no mapping" do
+            stub_t = self.stub_t
+            task_m = Syskit::TaskContext.new_submodel do
+                output_port 'task_out', stub_t
+                output_port 'other_out', stub_t
+            end
+            task_m.provides srv_m, as: 'test', 'out' => 'other_out'
+            assert_nil task_m.test_srv.find_port_for_task_port(task_m.task_out_port)
         end
     end
 end

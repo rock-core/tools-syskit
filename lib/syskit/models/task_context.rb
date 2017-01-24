@@ -59,12 +59,13 @@ module Syskit
             #
             # @return [{Symbol=>Symbol}]
             def make_state_events
-                orogen_model.states.each do |name, type|
+                with_superclass = !supermodel || !supermodel.respond_to?(:orogen_model) || (supermodel.orogen_model != orogen_model.superclass)
+                orogen_model.each_state(with_superclass: with_superclass) do |name, type|
                     event_name = name.snakecase.downcase.to_sym
                     if type == :toplevel
-                        event event_name, :terminal => (name == 'EXCEPTION' || name == 'FATAL_ERROR')
+                        event event_name, terminal: (name == 'EXCEPTION' || name == 'FATAL_ERROR')
                     else
-                        event event_name, :terminal => (type == :exception || type == :fatal_error)
+                        event event_name, terminal: (type == :exception || type == :fatal_error)
                         if type == :fatal
                             forward event_name => :fatal_error
                         elsif type == :exception
@@ -81,9 +82,7 @@ module Syskit
             # Creates a subclass of TaskContext that represents the given task
             # specification. The class is registered as
             # Roby::Orogen::ProjectName::ClassName.
-            def define_from_orogen(orogen_model, options = Hash.new)
-                options = Kernel.validate_options options,
-                    :register => false
+            def define_from_orogen(orogen_model, register: false)
                 if model = find_model_by_orogen(orogen_model) # already defined, probably because of dependencies
                     return model
                 end
@@ -93,11 +92,11 @@ module Syskit
                     supermodel = self
                 else
                     supermodel = find_model_by_orogen(superclass) ||
-                        define_from_orogen(superclass, :register => options[:register])
+                        define_from_orogen(superclass, register: register)
                 end
-                klass = supermodel.new_submodel(:orogen_model => orogen_model)
+                klass = supermodel.new_submodel(orogen_model: orogen_model)
 
-                if options[:register] && orogen_model.name
+                if register && orogen_model.name
                     register_syskit_model_from_orogen_name(klass)
                 end
 
@@ -148,13 +147,19 @@ module Syskit
                 end
             end
 
-            # [Orocos::Spec::TaskContext] The base oroGen model that all submodels need to subclass
-            attribute(:orogen_model) { Models.create_orogen_task_context_model }
+            # This component's oroGen model
+            attr_accessor :orogen_model
+
+            # Set this class up to represent an oroGen root model
+            def root_model
+                @orogen_model = Models.create_orogen_task_context_model
+                make_state_events
+            end
 
             # A state_name => event_name mapping that maps the component's
             # state names to the event names that should be emitted when it
             # enters a new state.
-            inherited_attribute(:state_event, :state_events, :map => true) { Hash.new }
+            inherited_attribute(:state_event, :state_events, map: true) { Hash.new }
 
             # Create a new TaskContext model
             #
@@ -177,14 +182,13 @@ module Syskit
             #
             # @param [String] name an optional name for this submodel
             # @return [void]
-            def setup_submodel(submodel, options = Hash.new)
-                orogen_model, options = Kernel.filter_options options, :orogen_model
-                if !(m = orogen_model[:orogen_model])
-                    m = self.orogen_model.class.new(Roby.app.default_orogen_project, nil)
-                    m.subclasses self.orogen_model
+            def setup_submodel(submodel, orogen_model: nil, **options)
+                if !orogen_model
+                    orogen_model = self.orogen_model.class.new(Roby.app.default_orogen_project, nil)
+                    orogen_model.extended_state_support
+                    orogen_model.subclasses self.orogen_model
                 end
-                submodel.orogen_model = m
-
+                submodel.orogen_model = orogen_model
                 super
                 submodel.make_state_events
             end

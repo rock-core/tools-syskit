@@ -37,6 +37,7 @@ require './test/test_data_flow'
 require './test/test_dependency_injection'
 require './test/test_dependency_injection_context'
 require './test/test_instance_requirements_task'
+require './test/test_shell_interface'
 
 require './test/test_exceptions'
 

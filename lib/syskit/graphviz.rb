@@ -573,6 +573,10 @@ module Syskit
                 end
             end
 
+            def dot_symbol_quote(string)
+                string.gsub(/[^\w]/, '_')
+            end
+
             def dot_id(object, context = nil)
                 case object
                 when Syskit::TaskContext
@@ -584,9 +588,9 @@ module Syskit
                 else
                     if object.respond_to?(:to_str)
                         if !context
-                            return object.gsub(/[^\w]/, '_')
+                            return dot_symbol_quote(object)
                         elsif context.respond_to?(:dot_id)
-                            return "#{dot_id(object)}#{context.dot_id}"
+                            return "#{dot_symbol_quote(object)}#{context.dot_id}"
                         end
                     end
 
@@ -609,7 +613,7 @@ module Syskit
                 result << style if style
 
                 additional_vertices[task].each do |vertex_name, vertex_label|
-                    result << "      #{vertex_name}#{task.dot_id} [#{vertex_label}];"
+                    result << "      #{dot_id(vertex_name, task)} [#{vertex_label}];"
                 end
 
                 task_label, attributes = format_task_label(task)

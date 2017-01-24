@@ -310,11 +310,18 @@ module Syskit
             # dependency injections for it
             def use(dependency_injection)
                 requirements.use(dependency_injection)
+                self
             end
 
-            # Specify frame selection for the device's driver
-            def use_frames(frame_mappings)
-                requirements.use_frames(frame_mappings)
+            # The arguments passed to the underlying device driver
+            def arguments
+                requirements.arguments
+            end
+
+            # Add arguments to the underlying device driver
+            def with_arguments(arguments = Hash.new)
+                requirements.with_arguments(arguments)
+                self
             end
 
             # Specify deployment selection hints for the device's driver
@@ -329,11 +336,11 @@ module Syskit
                 self
             end
 
-
             # Returns the InstanceRequirements object that can be used to
             # represent this device
             def to_instance_requirements
                 result = requirements.dup
+                robot.inject_di_context(result)
                 result.select_service(driver_model)
                 result
             end
@@ -341,14 +348,13 @@ module Syskit
             # Create an action model that represent an instanciation of this
             # device
             #
-            # @param [Profile] profile the underlying profile that define the
-            #   instanciation context
             # @return [Actions::Model::Action]
-            def to_action_model(profile)
+            def to_action_model
+                profile = robot.profile
                 req = to_instance_requirements
                 profile.inject_di_context(req)
                 action_model = Actions::Models::Action.
-                    new(profile, req, doc || "device from profile #{profile.name}")
+                    new(req, doc || "device from profile #{profile.name}")
                 action_model.name = "#{name}_dev"
                 action_model
             end

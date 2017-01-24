@@ -21,6 +21,10 @@ module Syskit
             File.join(SYSKIT_ROOT_DIR, "test", "data")
         end
 
+        def app
+            Roby.app
+        end
+
         def setup
             @old_pkg_config = ENV['PKG_CONFIG_PATH'].dup
             Roby.app.app_dir = nil
@@ -31,6 +35,7 @@ module Syskit
             Syskit.conf.export_types = false
             Syskit.conf.disables_local_process_server = true
             Syskit.conf.only_load_models = true
+            self.syskit_stub_resolves_remote_tasks = true
 
             super
 
@@ -38,8 +43,7 @@ module Syskit
                 Orocos.initialize
             end
             execution_engine.scheduler = Roby::Schedulers::Temporal.new(true, true, plan)
-
-            Syskit::NetworkGeneration::Engine.keep_internal_data_structures = true
+            execution_engine.scheduler.enabled = false
 
             @robot = Syskit::Robot::RobotDefinition.new
 
@@ -51,14 +55,26 @@ module Syskit
                 add_propagation_handler(type: :external_events,
                                         &Runtime.method(:update_task_states))
             plug_connection_management
+            unplug_apply_requirement_modifications
 
             if !Syskit.conf.disables_local_process_server?
                 Syskit::RobyApp::Plugin.connect_to_local_process_server
             end
 
             Syskit.conf.register_process_server(
-                'stubs', Orocos::RubyTasks::ProcessManager.new(Roby.app.default_loader), "")
+                'stubs', Orocos::RubyTasks::ProcessManager.new(Roby.app.default_loader), "", host_id: 'syskit')
+            Syskit.conf.logs.create_configuration_log(File.join(app.log_dir, 'properties'))
 
+            Orocos.forbid_blocking_calls
+        end
+
+        def plug_apply_requirement_modifications
+            @syskit_handler_ids[:apply_requirement_modifications] ||= execution_engine.
+                add_propagation_handler(type: :propagation, late: true,
+                                        &Runtime.method(:apply_requirement_modifications))
+        end
+        def unplug_apply_requirement_modifications
+            execution_engine.remove_propagation_handler(@syskit_handler_ids.delete(:apply_requirement_modifications))
         end
 
         def plug_connection_management
@@ -71,6 +87,8 @@ module Syskit
         end
 
         def teardown
+            Orocos.allow_blocking_calls
+
             plug_connection_management
             ENV['PKG_CONFIG_PATH'] = @old_pkg_config
             super

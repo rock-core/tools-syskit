@@ -19,6 +19,16 @@ module Syskit
         end
 
         def teardown
+            # Disable log output to avoid spurious "stopped / interrupting"
+            registered_plans.each do |p|
+                if p.executable?
+                    p.find_tasks(Syskit::TaskContext).each do |t|
+                        flexmock(t).should_receive(:info)
+                    end
+                end
+            end
+
+            plug_connection_management
             begin
                 super
             rescue ::Exception => e
@@ -36,13 +46,18 @@ module Syskit
             end
         end
 
-        def assert_event_command_failed(expected_code_error = nil)
-            e = assert_raises(Roby::CommandFailed) do
-                yield
-            end
-            if expected_code_error && !e.error.kind_of?(expected_code_error)
-                flunk("expected a Roby::CommandFailed wrapping #{expected_code_error}, but \"#{e.error}\" (#{e.error.class}) was raised")
-            end
+        def plug_requirement_modifications
+            RobyApp::Plugin.plug_handler_in_roby(execution_engine, :apply_requirement_modifications)
+        end
+        def unplug_requirement_modifications
+            RobyApp::Plugin.unplug_handler_from_roby(execution_engine, :apply_requirement_modifications)
+        end
+
+        def plug_connection_management
+            RobyApp::Plugin.plug_handler_in_roby(execution_engine, :connection_management)
+        end
+        def unplug_connection_management
+            RobyApp::Plugin.unplug_handler_from_roby(execution_engine, :connection_management)
         end
 
         def run_engine(timeout, poll_period = 0.1)
@@ -73,11 +88,15 @@ module Syskit
         # Verifies that +reader+ gets one sample within +timeout+ seconds
         def assert_has_one_new_sample(reader, timeout = 3)
             if reader.respond_to?(:to_orocos_port)
-                reader = reader.to_orocos_port
+                reader = Orocos.allow_blocking_calls do
+                    reader.to_orocos_port
+                end
             end
             if !reader.respond_to?(:read_new)
                 if reader.respond_to?(:reader)
-                    reader = reader.reader
+                    reader = Orocos.allow_blocking_calls do
+                        reader.reader
+                    end
                 end
             end
             run_engine(timeout) do

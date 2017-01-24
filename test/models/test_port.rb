@@ -32,7 +32,7 @@ describe Syskit::Models::Port do
 
         it "creates the connection directly if the argument is a port" do
             policy = Hash.new
-            flexmock(out_task_m).should_receive(:connect_ports).once.
+            flexmock(out_task_m).should_receive(:connect_ports).explicitly.once.
                 with(in_task_m, ['out', 'in'] => policy)
             out_task_m.out_port.connect_to in_task_m.in_port, policy
         end

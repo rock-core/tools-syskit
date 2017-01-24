@@ -1,13 +1,40 @@
 module Syskit
     module Test
+        # Planning handler for #roby_run_planner that handles
+        # InstanceRequirementsTask
+        class InstanceRequirementPlanningHandler
+            def start(tasks)
+                @plan = tasks.first.plan
+                @planning_tasks = tasks.map do |t|
+                    if planning_task = t.planning_task
+                        planning_task
+                    else
+                        raise ArgumentError, "#{t} does not have a planning task"
+                    end
+                end
+
+                @planning_tasks.each do |t|
+                    t.start! if t.pending?
+                end
+                Runtime.apply_requirement_modifications(@plan)
+            end
+
+            def finished?
+                Runtime.apply_requirement_modifications(@plan)
+                @planning_tasks.all? { |t| t.success? }
+            end
+        end
+        Roby::Test::Spec.roby_plan_with Component.match.with_child(InstanceRequirementsTask), InstanceRequirementPlanningHandler
+
         class Spec < Roby::Test::Spec
             include Test::Base
 
             def setup
-                Syskit::RobyApp::Plugin.unplug_handler_from_roby(execution_engine, :apply_requirement_modifications)
+                unplug_requirement_modifications
                 Syskit.conf.register_process_server(
-                    'stubs', Orocos::RubyTasks::ProcessManager.new(Roby.app.default_loader, task_context_class: Orocos::RubyTasks::StubTaskContext), "")
+                    'stubs', Orocos::RubyTasks::ProcessManager.new(Roby.app.default_loader, task_context_class: Orocos::RubyTasks::StubTaskContext), "", host_id: 'syskit')
                 super
+                Syskit.conf.logs.disable_conf_logging
                 Syskit.conf.logs.disable_port_logging
             end
 

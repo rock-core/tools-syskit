@@ -1,14 +1,72 @@
 require 'syskit/test/self'
 
 describe Syskit::Actions::InterfaceModelExtension do
+    describe "#profile" do
+        it "creates the interface-level profile" do
+            actions = Roby::Actions::Interface.new_submodel
+            action_profile = actions.profile
+            assert_same action_profile, actions.profile
+            assert_same action_profile, actions::Profile
+        end
+
+        it "imports the interface's supermodel profile" do
+            parent  = Roby::Actions::Interface.new_submodel
+            parent_profile = parent.profile
+            actions = parent.new_submodel
+            action_profile = actions.profile
+            assert action_profile.uses_profile?(parent_profile)
+        end
+
+        it "imports the tags from the interface's supermodel profile and injects them when using the parent profile" do
+            srv_m = Syskit::DataService.new_submodel
+            cmp_m = Syskit::Composition.new_submodel
+            cmp_m.add srv_m, as: 'test'
+
+            parent  = Roby::Actions::Interface.new_submodel
+            parent_profile = parent.profile
+            parent_tag = parent_profile.tag 'test', srv_m
+            parent_profile.define 'cmp', cmp_m.use('test' => parent_tag)
+
+            actions = parent.new_submodel
+            profile = actions.profile
+            tag     = profile.test_tag
+            assert_equal 'test', tag.tag_name
+            assert_equal profile, tag.profile
+            assert_equal [srv_m], tag.proxied_data_services
+
+            cmp = profile.cmp_def.instanciate(plan)
+            assert_kind_of tag, cmp.test_child
+        end
+    end
+
     describe "#use_profile" do
         attr_reader :actions, :profile
         before do
-            @actions = Class.new(Roby::Actions::Interface)
-            @profile = Syskit::Actions::Profile.new(nil)
+            @actions = Roby::Actions::Interface.new_submodel
+            @profile = Syskit::Actions::Profile.new
         end
 
-        it "should export the profile definitions as actions" do
+        it "creates a profile on-the-fly if given a block" do
+            task_m = Syskit::TaskContext.new_submodel
+            flexmock(@actions.profile).should_receive(:use_profile).once.
+                with(->(p) { p.name ==  "::<anonymous>" }, any, any).
+                pass_thru
+
+            new_definitions = @actions.use_profile do
+                define 'test', task_m
+            end
+            assert_equal ['test'], new_definitions.map(&:name)
+            assert_equal task_m, @actions.profile.test_def.model
+        end
+
+        it "raises if neither given a profile, nor a block" do
+            e = assert_raises(ArgumentError) do
+                @actions.use_profile
+            end
+            assert_equal "must provide either a profile object or a block", e.message
+        end
+
+        it "exports the profile definitions as actions" do
             task_m = Syskit::TaskContext.new_submodel
             req = task_m.to_instance_requirements
             actions = Roby::Actions::Interface.new_submodel
@@ -20,6 +78,33 @@ describe Syskit::Actions::InterfaceModelExtension do
             assert act
             assert_equal req, act.requirements
             assert_equal task_m, act.returned_type
+        end
+
+        it "exports the profile devices as actions" do
+            device_m = Syskit::Device.new_submodel
+            driver_m = Syskit::TaskContext.new_submodel do
+                driver_for device_m, as: 'dev'
+            end
+            actions = Roby::Actions::Interface.new_submodel
+            profile = Syskit::Actions::Profile.new(nil)
+            profile.robot.device(device_m, as: 'dev', using: driver_m)
+            actions.use_profile(profile)
+
+            act = actions.find_action_by_name('dev_dev')
+            assert act
+            assert_equal driver_m, act.returned_type
+        end
+
+        it "allows to transform the definition names" do
+            src = Syskit::Actions::Profile.new
+            src.define 'test', Syskit::TaskContext.new_submodel
+            actions = Roby::Actions::Interface.new_submodel
+            actions.use_profile src, transform_names: ->(name) { "modified_#{name}" }
+
+            action_model = actions.modified_test_def.model
+            assert_equal 'modified_test_def', action_model.name
+            assert_equal 'modified_test', action_model.requirements.name
+            assert_equal src.test_def, action_model.requirements
         end
 
         it "should be so that the exported definitions can be used using the normal action interface" do
@@ -174,6 +259,29 @@ describe Syskit::Actions::InterfaceModelExtension do
             plan.add(task)
             assert_equal Hash[], task.planning_task.requirements.arguments
         end
+        it "precomputes the requirements template the first time" do
+            task_m = Syskit::TaskContext.new_submodel
+            profile.define 'test', task_m
+            actions.use_profile(profile)
+            from_method = actions.new(plan).test_def
+            refute_nil from_method.template
+        end
+        it "does not recompute an existing template" do
+            task_m = Syskit::TaskContext.new_submodel
+            profile.define 'test', task_m
+            actions.use_profile(profile)
+            actions.new(plan).test_def
+            flexmock(actions.find_action_by_name('test_def').requirements).should_receive(:compute_template).never
+            actions.new(plan).test_def
+        end
+        it "shares a precomputed template with the action object" do
+            task_m = Syskit::TaskContext.new_submodel
+            profile.define 'test', task_m
+            actions.use_profile(profile)
+            from_object = actions.find_action_by_name('test_def').to_instance_requirements
+            from_method = actions.new(plan).test_def
+            assert_same from_object.template, from_method.template
+        end
     end
 
     describe "overloading of definitions by actions" do
@@ -200,7 +308,7 @@ describe Syskit::Actions::InterfaceModelExtension do
             srv_m = Syskit::DataService.new_submodel(name: 'Srv')
             task_m = Syskit::TaskContext.new_submodel(name: 'Task')
             task_m.provides srv_m, as: 'test'
-            deployed_task_m = syskit_stub(task_m)
+            deployed_task_m = syskit_stub_requirements(task_m)
             cmp_m = Syskit::Composition.new_submodel(name: 'Cmp')
             cmp_m.add srv_m, as: 'test'
 
@@ -215,6 +323,31 @@ describe Syskit::Actions::InterfaceModelExtension do
             cmp = syskit_deploy(actions.new(plan).test_def)
             assert_kind_of task_m, cmp.test_child
         end
+    end
+
+    it "rebinds of definitions in an overloaded action interface" do
+        srv_m = Syskit::DataService.new_submodel
+        cmp_m = Syskit::Composition.new_submodel
+        cmp_m.add srv_m, as: 'test'
+
+        base_profile_m = Syskit::Actions::Profile.new
+        base_tag = base_profile_m.tag 'tag', srv_m
+        base_profile_m.define 'test', cmp_m.use('test' => base_tag)
+        base_action_m = Roby::Actions::Interface.new_submodel do
+            use_profile base_profile_m
+        end
+
+        task_m = Syskit::TaskContext.new_submodel
+        task_m.provides srv_m, as: 'test'
+        profile_m = Syskit::Actions::Profile.new
+        task = profile_m.define 'task', task_m
+        profile_m.use_profile base_profile_m, 'tag' => task
+        action_m = base_action_m.new_submodel do
+            use_profile profile_m
+        end
+
+        cmp = action_m.test_def.to_instance_requirements.instanciate(plan)
+        assert_kind_of task_m, cmp.test_child
     end
 
     describe "#robot" do

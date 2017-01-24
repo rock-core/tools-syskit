@@ -6,7 +6,7 @@ module Syskit
         #
         # The main configuration instance is accessible as Syskit.conf or (if
         # running in a Roby application) as Conf.syskit
-        class Configuration < Roby::OpenStruct
+        class Configuration
             # The application that we are configuring
             # @return [Roby::Application]
             attr_reader :app
@@ -39,6 +39,14 @@ module Syskit
             # @return [LoggingConfiguration]
             attr_reader :logs
 
+            # Component configuration
+            #
+            # This returns an OpenStruct object in which component-specific
+            # configuration can be stored. Each component will in
+            # {TaskContext#configure} look for a value named as its deployed
+            # task name and apply configuration stored there (if there is any)
+            attr_reader :orocos
+
             # Controls whether the orogen types should be exported as Ruby
             # constants
             #
@@ -52,7 +60,6 @@ module Syskit
                 super()
 
                 @app = app
-                @logs = LoggingConfiguration.new
                 @process_servers = Hash.new
                 @load_component_extensions = true
                 @redirect_local_process_server = true
@@ -60,7 +67,6 @@ module Syskit
                 @auto_configure = true
                 @only_load_models = nil
                 @disables_local_process_server = false
-                @start_all_deployments = false
                 @local_only = false
                 @prefix_blacklist = []
                 @sd_publish_list = []
@@ -68,6 +74,7 @@ module Syskit
                 @ignore_load_errors = false
                 @buffer_size_margin = 0.1
                 @use_only_model_pack = false
+                clear
 
                 self.export_types = true
             end
@@ -80,9 +87,10 @@ module Syskit
             #
             # Note that it is called by {#initialize}
             def clear
-                super
                 @deployments = Hash.new { |h, k| h[k] = Set.new }
                 @deployed_tasks = Hash.new
+                @logs = LoggingConfiguration.new
+                @orocos = Roby::OpenStruct.new
             end
 
             # @deprecated access {#logs} for logging configuration
@@ -198,13 +206,6 @@ module Syskit
             # @see connect_to_orocos_process_server Plugin#start_local_process_server
             attr_predicate :disables_local_process_server?, true
 
-            # If true, all deployments declared with use_deployment or
-            # use_deployments_from are getting started at the very beginning of
-            # the execution
-            #
-            # This greatly reduces latency during operations
-            attr_predicate :start_all_deployments?, true
-
             # If set to a non-nil value, the deployment processes will be
             # started with the given prefix
             #
@@ -275,17 +276,25 @@ module Syskit
                 sim_name = "#{name}-sim"
                 if !process_servers[sim_name]
                     mng = Orocos::RubyTasks::ProcessManager.new(app.default_loader, task_context_class: Orocos::RubyTasks::StubTaskContext)
-                    register_process_server(sim_name, mng, "")
+                    register_process_server(sim_name, mng, "", host_id: 'syskit')
                 end
                 process_server_config_for(sim_name)
             end
 
             # Declare deployed versions of some Ruby tasks
-            def use_ruby_tasks(mappings)
+            def use_ruby_tasks(mappings, remote_task: false, on: 'ruby_tasks')
+                task_context_class =
+                    if remote_task
+                        Orocos::RubyTasks::RemoteTaskContext
+                    else
+                        Orocos::RubyTasks::TaskContext
+                    end
+
                 mappings.map do |task_model, name|
-                    deployment_model = task_model.deployment_model(name)
+                    deployment_model = task_model.deployment_model
                     configured_deployment = Models::ConfiguredDeployment.
-                        new('ruby_tasks', deployment_model, Hash[name => name], name, Hash.new)
+                        new(on, deployment_model, Hash['task' => name],
+                            name, Hash[task_context_class: task_context_class])
                     register_configured_deployment(configured_deployment)
                     configured_deployment
                 end
@@ -377,6 +386,20 @@ module Syskit
                     deployed_tasks[task.name] = configured_deployment
                 end
                 deployments[configured_deployment.process_server_name] << configured_deployment
+            end
+
+            # Enumerate the registered configured deployments
+            #
+            # @param [String,nil] on name of the process server whose
+            #   deployments should be enumerated, or all servers if nil
+            def each_configured_deployment(on: nil, except_on: nil, &block)
+                return enum_for(__method__, on: on) if !block
+
+                deployments.each do |process_server_name, process_server_deployments|
+                    next if except_on && (except_on === process_server_name)
+                    next if on && !(on === process_server_name)
+                    process_server_deployments.each(&block)
+                end
             end
 
             # Add all the deployments defined in the given oroGen project to the
@@ -522,7 +545,7 @@ module Syskit
             #
             # If 'host' is set to localhost, it disables the automatic startup
             # of the local process server (i.e. sets
-            # orocos_disables_local_process_server to false)
+            # orocos_disables_local_process_server to true)
             #
             # @return [Orocos::ProcessClient,Orocos::Generation::Project]
             #
@@ -532,7 +555,7 @@ module Syskit
             #   registered with that name
             def connect_to_orocos_process_server(
                 name, host, port: Orocos::RemoteProcesses::DEFAULT_PORT,
-                log_dir: nil, result_dir: nil)
+                log_dir: nil, result_dir: nil, host_id: nil)
 
                 if log_dir || result_dir
                     Syskit.warn "specifying log and/or result dir for remote process servers is deprecated. Use 'syskit process_server' instead of 'orocos_process_server' which will take the log dir information from the environment/configuration"
@@ -540,12 +563,12 @@ module Syskit
 
                 if only_load_models? || (app.simulation? && app.single?)
                     client = ModelOnlyServer.new(app.default_loader)
-                    register_process_server(name, client, app.log_dir)
+                    register_process_server(name, client, app.log_dir, host_id: host_id || 'syskit')
                     return client
                 elsif app.single?
                     client = Orocos::RemoteProcesses::Client.new(
                         'localhost', port, root_loader: app.default_loader)
-                    register_process_server(name, client, app.log_dir)
+                    register_process_server(name, client, app.log_dir, host_id: host_id || 'localhost')
                     return client
                 end
 
@@ -567,11 +590,19 @@ module Syskit
                 client = Orocos::RemoteProcesses::Client.new(
                     host, port, root_loader: app.default_loader)
                 client.create_log_dir(log_dir, Roby.app.time_tag, Hash['parent' => Roby.app.app_metadata])
-                register_process_server(name, client, log_dir)
+                register_process_server(name, client, log_dir, host_id: host_id || name)
                 client
             end
 
-            ProcessServerConfig = Struct.new :name, :client, :log_dir
+            ProcessServerConfig = Struct.new :name, :client, :log_dir, :host_id do
+                def on_localhost?
+                    host_id == 'localhost' || host_id == 'syskit'
+                end
+
+                def in_process?
+                    host_id == 'syskit'
+                end
+            end
 
             # Make a process server available to syskit
             #
@@ -580,12 +611,12 @@ module Syskit
             #   to conform to the API of {Orocos::Remotes::Client}
             # @param [String] log_dir the path to the server's log directory
             # @return [ProcessServerConfig]
-            def register_process_server(name, client, log_dir = nil)
+            def register_process_server(name, client, log_dir = nil, host_id: name)
                 if process_servers[name]
                     raise ArgumentError, "there is already a process server registered as #{name}, call #remove_process_server first"
                 end
 
-                ps = ProcessServerConfig.new(name, client, log_dir)
+                ps = ProcessServerConfig.new(name, client, log_dir, host_id)
                 process_servers[name] = ps
                 reload_deployments_for(name)
                 ps

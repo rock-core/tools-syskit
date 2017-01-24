@@ -218,18 +218,52 @@ module Syskit
         def initialize(port, policy = Hash.new)
             @port = port.to_component_port
             @policy = policy
+            @disconnected = false
             @port.component.execute do |component|
-                @resolved_port = component.find_port(@port.name)
-                if !@resolved_port
-                    raise ArgumentError, "cannot find a port called #{@port.name} on #{component}"
+                if !@disconnected
+                    resolve(component).execute
                 end
-		@actual_port = resolved_port.to_actual_port
-                @reader = @actual_port.to_orocos_port.reader(policy)
             end
         end
 
         def model
             Models::OutputReader.new(port.model, policy)
+        end
+
+        # @api private
+        #
+        # Resolves the underlying reader object
+        def resolve(component)
+            @resolved_port = component.find_port(@port.name)
+            if !@resolved_port
+                raise ArgumentError, "cannot find a port called #{@port.name} on #{component}"
+            end
+            @actual_port = resolved_port.to_actual_port
+            distance = actual_port.component.distance_to_syskit
+            resolver = component.promise(description: "#{self}#resolve") do
+                @actual_port.to_orocos_port.reader(distance: distance, **policy)
+            end
+            resolver.on_success(description: "#{self}#resolve#ready") do |reader|
+                if !@disconnected
+                    @reader = reader
+                end
+            end
+            resolver.on_error(description: "#{self}#resolve#failed") do |error|
+                actual_component = actual_port.component
+                actual_component.execution_engine.
+                    add_error(PortAccessFailure.new(error, actual_component))
+            end
+        end
+
+        def disconnect
+            @disconnected = true
+            if actual_reader = self.reader
+                actual_port.component.execution_engine.promise(description: "disconnect #{self}") do
+                    begin actual_reader.disconnect
+                    rescue Orocos::ComError
+                    end
+                end.execute
+            end
         end
 
         def read_new
@@ -238,6 +272,14 @@ module Syskit
 
         def read
             reader.read if reader
+        end
+
+	def ready?
+	    reader && actual_port.component.running?
+	end
+
+        def connected?
+            reader && reader.connected?
         end
     end
     
@@ -264,12 +306,9 @@ module Syskit
             @port = port.to_component_port
             @policy = policy
             @port.component.execute do |component|
-                @resolved_port = component.find_port(@port.name)
-                if !@resolved_port
-                    raise ArgumentError, "cannot find a port called #{@port.name} on #{component}"
+                if !@disconnected
+                    resolve(component).execute
                 end
-		@actual_port = resolved_port.to_actual_port
-                @writer = @actual_port.to_orocos_port.writer(policy)
             end
         end
 
@@ -280,6 +319,47 @@ module Syskit
 	def ready?
 	    writer && actual_port.component.running?
 	end
+
+        def connected?
+            writer && writer.connected?
+        end
+
+        def disconnect
+            @disconnected = true
+            if actual_writer = self.writer
+                actual_port.component.execution_engine.promise(description: "disconnect #{self}") do
+                    begin actual_writer.disconnect
+                    rescue Orocos::ComError
+                    end
+                end.execute
+            end
+        end
+
+        # @api private
+        #
+        # Resolves the underlying writer object
+        def resolve(component)
+            @resolved_port = component.find_port(@port.name)
+            if !@resolved_port
+                raise ArgumentError, "cannot find a port called #{@port.name} on #{component}"
+            end
+            @actual_port = resolved_port.to_actual_port
+            distance = actual_port.component.distance_to_syskit
+            resolver = component.promise(description: "#{@actual_port}#writer for #{self}") do
+                @actual_port.to_orocos_port.writer(distance: distance, **policy)
+            end
+            resolver.on_success(description: "#{self}#resolve#ready") do |writer|
+                if !@disconnected
+                    @writer = writer
+                end
+            end
+            resolver.on_error(description: "#{self}#resolve#failed") do |error|
+                actual_component = actual_port.component
+                actual_component.execution_engine.
+                    add_error(PortAccessFailure.new(error, actual_component))
+            end
+            resolver
+        end
 
 	# Write a sample on the associated port
 	#

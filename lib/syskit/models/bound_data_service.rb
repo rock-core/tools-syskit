@@ -196,6 +196,19 @@ module Syskit
                 true
             end
 
+            # Returns the service port that maps to a task port
+            #
+            # @return [nil,Port]
+            def find_port_for_task_port(task_port)
+                task_port_name = task_port.name
+                port_mappings_for_task.each do |service_port_name, port_name|
+                    if port_name == task_port_name
+                        return find_port(service_port_name)
+                    end
+                end
+                nil
+            end
+
             # Returns the port mappings that should be applied to convert a port
             # from this service to {#component_model}
             #
@@ -250,10 +263,23 @@ module Syskit
                 if task.model == self
                     # !!! task is a BoundDataService
                     return task
-                elsif !task.fullfills?(component_model)
+                elsif task.model <= component_model # This is stronger than #fullfills?
+                    Syskit::BoundDataService.new(task, self)
+                elsif task.fullfills?(component_model)
+                    # Fullfills, but does not inherit ? component_model is a data service proxies
+                    if !component_model.placeholder_task?
+                        raise InternalError, "#{component_model} was expected to be a placeholder task, but is not"
+                    end
+                    base_model = component_model.superclass
+                    if base_model_srv = base_model.find_data_service(name)
+                        # The data service is from a concrete task model
+                        Syskit::BoundDataService.new(task, base_model_srv)
+                    else
+                        task.find_data_service_from_type(model)
+                    end
+                else
                     raise ArgumentError, "cannot bind #{self} on #{task}: does not fullfill #{component_model}"
                 end
-                Syskit::BoundDataService.new(task, self)
             end
 
             # Creates, in the given plan, a new task matching this service in
