@@ -52,7 +52,7 @@ $qApp.disable_threading
 
 Syskit::Scripts.run do
     Orocos.initialize
-    main = Syskit::GUI::IDE.new(host: options[:host] || 'localhost', runtime: runtime_mode, tests: test_mode)
+    main = Syskit::GUI::IDE.new(runtime: runtime_mode, tests: test_mode, host: options[:host], port: options[:port])
     main.window_title = "Syskit IDE - #{Roby.app.app_name}"
 
     main.restore_from_settings
