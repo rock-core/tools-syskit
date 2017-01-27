@@ -676,7 +676,7 @@ module Syskit
             end
 
             def add_test_slaves
-                tests = app.each_test_file.map do |path, models|
+                tests = app.discover_test_files.map do |path, models|
                     process_id = Hash[path: path]
                     if !models.empty?
                         process_id[:models] = models.map(&:name).sort
