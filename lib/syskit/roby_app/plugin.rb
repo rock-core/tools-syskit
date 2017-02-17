@@ -329,6 +329,21 @@ module Syskit
                 using_task_library(name, options)
             end
 
+            def autodiscover_tests_in?(path)
+                if File.basename(path) == 'orogen'
+                    search_path.each do |base_path|
+                        if File.join(base_path, 'test', 'orogen') == path
+                            return false
+                        end
+                    end
+                end
+
+                if defined? super
+                    super 
+                else true
+                end
+            end
+
             # Start a process server on the local machine, and register it in
             # Syskit.process_servers under the 'localhost' name
             def self.start_local_process_server(port = 0, redirect: true)

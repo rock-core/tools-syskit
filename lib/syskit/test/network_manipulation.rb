@@ -589,7 +589,7 @@ module Syskit
             end
 
             def syskit_stub_network_deployment(
-                    task, as: syskit_default_stub_name(task.model),
+                    task, as: task.orocos_name || syskit_default_stub_name(task.model),
                     remote_task: self.syskit_stub_resolves_remote_tasks?)
 
                 task_m = task.concrete_model
@@ -899,7 +899,7 @@ module Syskit
                 end
 
                 messages.each do |t, messages|
-                    assert_equal ["starting #{t}"], messages
+                    assert messages.include?("starting #{t}")
                 end
 
                 if t = tasks.find { |t| !t.running? }

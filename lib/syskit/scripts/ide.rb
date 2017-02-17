@@ -45,7 +45,7 @@ direct_files, model_names = remaining.partition do |arg|
 end
 # Load all task libraries if we don't get a file to require
 Roby.app.auto_load_all = load_all
-Roby.app.auto_load_models = direct_files.empty?
+Roby.app.auto_load_models = false
 Roby.app.additional_model_files.concat(direct_files)
 
 $qApp.disable_threading
