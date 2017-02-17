@@ -24,7 +24,7 @@ module Syskit
             CONNECTION_STATE_STYLE = "QLabel { font-size: 10pt; background-color: %s; }"
             CONNECTION_STATE_TEXT = "<b>%s</b>: %s"
 
-            def initialize(parent = nil, host: 'localhost', runtime: nil, tests: false)
+            def initialize(parent = nil, host: 'localhost', port: Roby::Interface::DEFAULT_PORT, runtime: nil, tests: false)
                 super(parent)
 
                 @layout = Qt::VBoxLayout.new(self)
@@ -32,7 +32,7 @@ module Syskit
                 @testing = Testing.new
                 @model_browser = ModelBrowser.new
 
-                syskit = Roby::Interface::Async::Interface.new(host)
+                syskit = Roby::Interface::Async::Interface.new(host, port: port)
                 @btn_reload_models = Qt::PushButton.new("Reload Models", self)
 
                 connect(model_browser, SIGNAL('fileOpenClicked(const QUrl&)'),
