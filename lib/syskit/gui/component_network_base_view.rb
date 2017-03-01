@@ -344,7 +344,7 @@ module Syskit
                     config.delete(:buttons)
                 end
                 title = config.delete(:title)
-                page.push_plan(title, config.delete(:mode) || kind, plan, config)
+                page.push_plan(title, config.delete(:mode) || kind, plan, config.merge(id: kind))
             end
         end
     end
