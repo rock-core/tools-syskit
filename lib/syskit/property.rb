@@ -75,7 +75,7 @@ module Syskit
         # @param [Object] value a valid value for the property. It will be
         #   converted to the propertie's own type
         def update_remote_value(value)
-            @remote_value = Typelib.from_ruby(value, type)
+            @remote_value = Typelib.from_ruby(value, type).dup
         end
 
         # Whether this property needs to be written on the remote side

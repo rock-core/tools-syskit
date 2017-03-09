@@ -10,6 +10,17 @@ module Syskit
             @property = task_m.new.property('test')
         end
 
+        describe "#update_remote_value" do
+            it "isolates the remote value so that one cannot modify it after having set it" do
+                dbl_t = property.type
+                dbl = Typelib.from_ruby(0.1, dbl_t)
+                property.update_remote_value(dbl)
+                Typelib.copy(dbl, Typelib.from_ruby(0.2, dbl_t))
+                property.write(0.2)
+                assert property.needs_commit?
+            end
+        end
+
         describe "#needs_commit?" do
             it "returns false if the task has no value and no remote value" do
                 refute property.needs_commit?
