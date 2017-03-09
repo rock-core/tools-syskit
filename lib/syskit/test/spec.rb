@@ -30,6 +30,7 @@ module Syskit
             include Test::Base
 
             def setup
+                NetworkGeneration::Engine.on_error = :save
                 unplug_requirement_modifications
                 Syskit.conf.register_process_server(
                     'stubs', Orocos::RubyTasks::ProcessManager.new(Roby.app.default_loader, task_context_class: Orocos::RubyTasks::StubTaskContext), "", host_id: 'syskit')

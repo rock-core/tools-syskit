@@ -829,7 +829,7 @@ module Syskit
                 task = task_model.instanciate(plan, context, task_arguments: task_arguments, specialization_hints: specialization_hints)
                 task_requirements = to_component_model
                 task_requirements.map_use_selections! do |sel|
-                    if sel && !Models.is_model?(sel)
+                    if sel && !Models.is_model?(sel) && !sel.kind_of?(DependencyInjection::SpecialDIValue)
                         sel.to_instance_requirements
                     else sel
                     end

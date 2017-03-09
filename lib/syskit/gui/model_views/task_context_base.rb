@@ -10,6 +10,9 @@ module Syskit::GUI
                 @orogen_rendering = OroGen::HTML::TaskContext.new(page)
                 buttons = Array.new
                 buttons.concat(self.class.common_graph_buttons('interface'))
+
+                all_annotations = Syskit::Graphviz.available_task_annotations.sort
+                buttons.concat(self.class.make_annotation_buttons('interface', all_annotations, all_annotations))
                 Syskit::Graphviz.available_task_annotations.sort.each do |ann_name|
                     interface_options[:annotations] << ann_name
                 end
