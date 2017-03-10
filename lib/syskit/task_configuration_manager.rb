@@ -36,6 +36,8 @@ module Syskit
         #   to the current Roby app or should include the inherited apps as well
         # @return [String,nil] the path found or nil if no file was found
         def existing_configuration_file(local_only: false)
+            return if !orogen_model.name
+
             local_option = Hash.new
             if local_only
                 local_option[:path] = [app.app_dir]
