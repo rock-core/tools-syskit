@@ -759,8 +759,8 @@ module Syskit
                 child_arguments = selected_child.selected.arguments
                 child_arguments.each_key do |key|
 	            value = child_arguments[key]
-                    if value.respond_to?(:resolve)
-                        child_arguments[key] = value.resolve(self)
+                    if value.respond_to?(:resolve_child)
+                        child_arguments[key] = value.resolve_child(self)
                     end
                 end
 
@@ -838,7 +838,7 @@ module Syskit
                 # self, and if it is the case, make sure it is available
                 selected_child.map_use_selections! do |sel|
                     if sel.kind_of?(CompositionChild)
-                        if task = sel.try_resolve(self_task)
+                        if task = sel.try_resolve_child_recursive(self_task)
                             task
                         else return
                         end

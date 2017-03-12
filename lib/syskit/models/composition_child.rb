@@ -44,13 +44,33 @@ module Syskit
                     super
             end
 
-            # Tries to resolve the task that corresponds to self, using +task+ as
-            # the root composition
+            # Tries to resolve the task that corresponds to self, assuming that
+            # the child's parent is the given task
             #
             # @return [nil,Roby::Task]
-            def try_resolve(task)
+            def try_resolve_child(task)
                 if task = composition_model.try_resolve(task)
                     return task.find_required_composition_child_from_role(child_name, composition_model)
+                end
+            end
+
+            # Tries to resolve the task that corresponds to self starting the
+            # resolution at the given root
+            #
+            # If this child's parent is not itself a CompositionChild, this is
+            # equivalent to {#try_resolve_child}.
+            #
+            # Otherwise, it resolves the children one by one starting at the
+            # given root
+            #
+            # @return [nil,Roby::Task]
+            def try_resolve_child_recursive(root)
+                if composition_model.respond_to?(:try_resolve_child_recursive)
+                    if resolved_parent = composition_model.try_resolve_child_recursive(root)
+                        try_resolve_child(resolved_parent)
+                    end
+                else
+                    try_resolve_child(root)
                 end
             end
 
@@ -60,8 +80,8 @@ module Syskit
             # @return [Roby::Task]
             # @raise [ArgumentError] if task does not fullfill the required
             #   composition model, or if it does not have the required children
-            def resolve(task)
-                if resolved_task = try_resolve(task)
+            def resolve_child(task)
+                if resolved_task = try_resolve_child(task)
                     return resolved_task
                 else
                     raise ArgumentError, "cannot find #{self} from #{task}"

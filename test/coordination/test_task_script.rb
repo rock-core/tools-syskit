@@ -120,7 +120,7 @@ describe Syskit::Coordination::TaskScriptExtension do
 
         before do
             @srv_m = srv_m = Syskit::DataService.new_submodel { input_port 'srv_in', '/double' }
-            @task_m = Syskit::TaskContext.new_submodel do
+            @task_m = Syskit::TaskContext.new_submodel(name: 'Task') do
                 input_port 'in', '/double'
             end
             task_m.provides srv_m, as: 'test'
@@ -147,6 +147,27 @@ describe Syskit::Coordination::TaskScriptExtension do
             composition_m = Syskit::Composition.new_submodel
             composition_m.add srv_m, as: 'test'
             assert_kind_of Syskit::InputPort, composition_m.script.test_child.srv_in_port
+        end
+
+        it "gives access to ports from grandchildren" do
+            root_m = Syskit::Composition.new_submodel(name: 'Root') { attr_reader :writer }
+            child_m = Syskit::Composition.new_submodel(name: 'Child')
+            child_m.add task_m, as: 'test'
+            root_m.add child_m, as: 'test'
+
+            root_m.script do
+                writer = test_child.test_child.in_port.writer
+                wait_until_ready writer
+                execute do
+                    @writer = writer
+                    writer.write 10
+                end
+            end
+
+            root = syskit_stub_deploy_configure_and_start(root_m)
+            writer = root.writer
+            assert_equal root.test_child.test_child, writer.port.component
+            assert_equal 'in', writer.port.name
         end
 
         it "does port mapping if necessary" do

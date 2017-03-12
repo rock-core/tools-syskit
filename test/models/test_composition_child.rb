@@ -2,13 +2,13 @@ require 'syskit/test/self'
 require './test/fixtures/simple_composition_model'
 
 describe Syskit::Models::CompositionChild do
-    describe "#try_resolve" do
+    describe "#try_resolve_child" do
         it "returns the composition child if it exists" do
             task_m = Syskit::Component.new_submodel
             cmp_m = Syskit::Composition.new_submodel
             cmp_m.add task_m, as: 'task'
             plan.add(cmp = cmp_m.instanciate(plan))
-            assert_equal cmp.task_child, cmp_m.task_child.try_resolve(cmp)
+            assert_equal cmp.task_child, cmp_m.task_child.try_resolve_child(cmp)
         end
         it "binds the found task to the expected service if there is an expected service" do
             srv_m  = Syskit::DataService.new_submodel
@@ -18,32 +18,32 @@ describe Syskit::Models::CompositionChild do
             end
             cmp = cmp_m.instanciate(plan, Syskit::DependencyInjectionContext.new('task' => task_m))
             assert_kind_of task_m, cmp.task_child
-            assert_equal task_m.s_srv.bind(cmp.task_child), cmp_m.task_child.try_resolve(cmp)
+            assert_equal task_m.s_srv.bind(cmp.task_child), cmp_m.task_child.try_resolve_child(cmp)
         end
         it "returns nil if the composition child does not exist" do
             cmp_m = Syskit::Composition.new_submodel
             cmp = cmp_m.new
             child = Syskit::Models::CompositionChild.new(cmp_m, 'task')
-            assert_nil child.try_resolve(cmp)
+            assert_nil child.try_resolve_child(cmp)
         end
     end
 
-    describe "#resolve" do
+    describe "#resolve_child" do
         let(:child_m) do
             task_m = Syskit::Component.new_submodel
             cmp_m = Syskit::Composition.new_submodel
             cmp_m.add task_m, as: 'task'
         end
 
-        it "resolves the task with try_resolve" do
-            flexmock(child_m).should_receive(:try_resolve).
+        it "resolves the task with try_resolve_child" do
+            flexmock(child_m).should_receive(:try_resolve_child).
                 with(root = flexmock).and_return(result = flexmock)
-            assert_equal result, child_m.resolve(root)
+            assert_equal result, child_m.resolve_child(root)
         end
         it "raises ArgumentError if the task cannot be resolved" do
-            flexmock(child_m).should_receive(:try_resolve).
+            flexmock(child_m).should_receive(:try_resolve_child).
                 with(root = flexmock).and_return(nil)
-            assert_raises(ArgumentError) { child_m.resolve(root) }
+            assert_raises(ArgumentError) { child_m.resolve_child(root) }
         end
     end
 

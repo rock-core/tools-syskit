@@ -19,7 +19,7 @@ module Syskit
                 component_model = model_object.model
 
                 if respond_to?(:parent)
-                    component_model.resolve(parent.resolve).self_port_to_component_port(port)
+                    component_model.resolve_child(parent.resolve).self_port_to_component_port(port)
                 else
                     component_model.resolve(self.resolve).self_port_to_component_port(port)
                 end

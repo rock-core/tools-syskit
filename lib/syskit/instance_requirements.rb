@@ -175,6 +175,18 @@ module Syskit
                 result
             end
 
+            # Maps the given task to the underlying model
+            def resolve(task)
+                model.resolve(task)
+            end
+
+            # Maps the given task to the underlying model
+            #
+            # Unlike {#resolve}, it returns nil if the task cannot be mapped
+            def try_resolve(task)
+                model.try_resolve(task)
+            end
+
             # The component model that is required through this object
             #
             # @return [Model<Component>]
