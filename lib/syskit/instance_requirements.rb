@@ -62,10 +62,26 @@ module Syskit
                     task.add_trigger('period', Float(value), 1)
                 end
 
+                def add_port_info(port_name, info)
+                    (ports[port_name.to_str] ||= NetworkGeneration::PortDynamics.new(port_name.to_str)).
+                        merge(info)
+                end
+
+                # (see InstanceRequirements#add_port_period)
+                def add_port_period(port_name, period, sample_count = 1)
+                    (ports[port_name.to_str] ||= NetworkGeneration::PortDynamics.new(port_name.to_str)).
+                        add_trigger('period', period, sample_count)
+                end
+
+                # (see InstanceRequirements#find_port_dynamics)
+                def find_port_dynamics(port_name)
+                    ports[port_name.to_str]
+                end
+
                 def merge(other)
                     task.merge(other.task)
-                    other.ports.each_key { |port_name| ports[port_name] ||= PortDynamics.new(port_name) }
-                    ports.merge(other.ports) do |port_name, old, new|
+                    other.ports.each_key { |port_name| ports[port_name] ||= NetworkGeneration::PortDynamics.new(port_name) }
+                    @ports = ports.merge(other.ports) do |port_name, old, new|
                         old.merge(new)
                     end
                 end
@@ -846,7 +862,7 @@ module Syskit
                     else sel
                     end
                 end
-                task.requirements.merge(task_requirements, keep_abstract: true)
+                task.update_requirements(task_requirements, keep_abstract: true)
 
                 if required_host && task.respond_to?(:required_host=)
                     task.required_host = required_host
@@ -999,6 +1015,32 @@ module Syskit
 
             def period(value)
                 dynamics.period(value)
+                self
+            end
+
+            # Returns the port dynamics defined for a given port, or nil
+            #
+            # @param [String] port_name
+            # @return [NetworkGeneration::PortDynamics,nil]
+            # @see add_port_period
+            def find_port_dynamics(port_name)
+                dynamics.find_port_dynamics(port_name.to_s)
+            end
+
+            # Declare the period of a port
+            #
+            # When computing dataflow, this overrides propagated values
+            #
+            # @param [String] port_name
+            # @param [Float] period the period in seconds
+            # @param [Integer] sample_count how many samples are written each
+            #   time
+            # @return [self]
+            def add_port_period(port_name, period, sample_count = 1)
+                if !model.has_port?(port_name)
+                    raise ArgumentError, "#{model} has not port called #{port_name}"
+                end
+                dynamics.add_port_period(port_name, period, sample_count)
                 self
             end
 

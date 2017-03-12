@@ -334,6 +334,22 @@ describe Syskit::Models::Composition do
             submodel.overload 'test', task_m
             assert_equal submodel.test_child.out_port, submodel.find_exported_output('out')
         end
+
+        it "propagates the port dynamics of an exported port onto the actual port on instanciation" do
+            stub_t = stub_type '/test'
+            task_m = Syskit::TaskContext.new_submodel do
+                output_port 'out', stub_t
+            end
+            cmp_m = Syskit::Composition.new_submodel
+            cmp_m.add task_m, as: 'test'
+            cmp_m.export cmp_m.test_child.out_port
+
+            cmp = cmp_m.to_instance_requirements.add_port_period('out', 0.1).
+                instanciate(plan)
+            port_dynamics = cmp.requirements.find_port_dynamics('out')
+            assert_equal [Syskit::NetworkGeneration::PortDynamics::Trigger.new('period', 0.1, 1)],
+                port_dynamics.triggers.to_a
+        end
     end
 
     describe "#find_children_models_and_tasks" do

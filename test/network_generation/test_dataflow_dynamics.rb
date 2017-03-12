@@ -46,6 +46,30 @@ module Syskit
                 end
             end
         end
+
+        describe DataFlowDynamics do
+            attr_reader :dynamics
+            before do
+                @dynamics = NetworkGeneration::DataFlowDynamics.new(plan)
+            end
+
+            describe "initial port information" do
+                it "uses the task's requirements as final initial information for a port" do
+                    stub_t = stub_type '/test'
+                    task_m = Syskit::TaskContext.new_submodel do
+                        output_port 'out', stub_t
+                    end
+                    req = task_m.to_instance_requirements.add_port_period('out', 0.1)
+                    task = req.instanciate(plan)
+                    dynamics.propagate([task])
+                    assert dynamics.has_final_information_for_port?(task, 'out')
+                    port_dynamics = dynamics.port_info(task, 'out')
+
+                    assert_equal [PortDynamics::Trigger.new('period', 0.1, 1)],
+                        port_dynamics.triggers.to_a
+                end
+            end
+        end
     end
 end
 

@@ -322,7 +322,8 @@ module Syskit
 
                 add_task_info(task, task.requirements.dynamics.task)
                 task.requirements.dynamics.ports.each do |port_name, dynamics|
-                    add_port_info(port_name, dynamics)
+                    add_port_info(task, port_name, dynamics)
+                    done_port_info(task, port_name)
                 end
 
                 if task.kind_of?(Device)

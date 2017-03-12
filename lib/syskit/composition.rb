@@ -103,7 +103,14 @@ module Syskit
             def self_port_to_orocos_port(exported_port)
 		self_port_to_actual_port(exported_port).to_orocos_port
             end
-            
+
+            def update_requirements(new_requirements, keep_abstract: false)
+                super
+                new_requirements.dynamics.ports.each do |port_name, info|
+                    find_port(port_name).to_actual_port.component.
+                        requirements.dynamics.add_port_info(port_name, info)
+                end
+            end
 
             # Finds the corresponding syskit port
             # @param [String] the name of the port that should be found

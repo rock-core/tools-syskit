@@ -312,7 +312,7 @@ module Syskit
                 end
 
                 # Merge the InstanceRequirements objects
-                requirements.merge(merged_task.requirements)
+                update_requirements(merged_task.requirements)
 
                 # If merged_task has instantiated dynamic services, instantiate
                 # them on self
@@ -506,6 +506,10 @@ module Syskit
                     raise TypeError, "cannot bind #{self} to #{task}"
                 end
                 task
+            end
+
+            def update_requirements(new_requirements, keep_abstract: false)
+                requirements.merge(new_requirements, keep_abstract: keep_abstract)
             end
 
             # Requires a new dynamic service on this task context
@@ -740,7 +744,7 @@ module Syskit
                     end
 
                     # Merge the InstanceRequirements objects
-                    __getobj__.requirements.merge(requirements)
+                    __getobj__.update_requirements(requirements)
                     __getobj__.duplicate_missing_services_from(self)
                 end
             end
