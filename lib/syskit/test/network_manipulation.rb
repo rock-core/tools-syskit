@@ -447,7 +447,7 @@ module Syskit
             def syskit_stub_network(root_tasks, remote_task: self.syskit_stub_resolves_remote_tasks?)
                 tasks = Set.new
                 dependency_graph = plan.task_relation_graph_for(Roby::TaskStructure::Dependency)
-                root_tasks = root_tasks.map do |t|
+                root_tasks = Array(root_tasks).map do |t|
                     tasks << t
                     dependency_graph.depth_first_visit(t) do |child_t|
                         tasks << child_t
