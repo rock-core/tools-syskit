@@ -455,7 +455,7 @@ module Syskit
 
                     if plan.mission_task?(t)
                         [t, :mission_task]
-                    elsif plan.permanent_task?
+                    elsif plan.permanent_task?(t)
                         [t, :permanent_task]
                     else
                         [t]
