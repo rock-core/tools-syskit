@@ -59,7 +59,11 @@ module Syskit
 
             Dynamics = Struct.new :task, :ports do
                 dsl_attribute 'period' do |value|
-                    task.add_trigger('period', Float(value), 1)
+                    add_period_info(value, 1)
+                end
+
+                def add_period_info(period, sample_size = 1)
+                    task.add_trigger('period', Float(period), sample_size)
                 end
 
                 def add_port_info(port_name, info)
@@ -1013,8 +1017,8 @@ module Syskit
                 base_model.fullfills?(Syskit::Composition)
             end
 
-            def period(value)
-                dynamics.period(value)
+            def period(period, sample_size = 1)
+                dynamics.add_period_info(period, sample_size)
                 self
             end
 
