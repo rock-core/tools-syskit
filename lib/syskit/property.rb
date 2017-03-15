@@ -5,11 +5,6 @@ module Syskit
     # performed either at configuration time, or when #commit_properties
     # is called
     class Property
-        # This property's task context
-        #
-        # @return [TaskContext]
-        attr_reader :task_context
-
         # This property's name
         # 
         # @return [String]
@@ -37,27 +32,19 @@ module Syskit
         # The stream on which this property is logged
         # @return [nil,#write]
         attr_accessor :log_stream
-        
-        # The remote property
-        #
-        # It is used as a cache mechanism, and should never be used directly.
-        # It is initialized and accessed by the API on {TaskContext}
-        attr_accessor :remote_property
 
         # Whether this property is being logged
         def logged?
             !!log_stream
         end
 
-        def initialize(task_context, name, type)
-            @task_context = task_context
+        def initialize(name, type)
             @name  = name
             @type  = type
             @remote_value = nil
             @value = nil
             @log_stream = nil
             @log_metadata = Hash.new
-            @remote_property = nil
         end
 
         # Whether a value has been set with {#write}
@@ -76,11 +63,6 @@ module Syskit
         #   converted to the propertie's own type
         def update_remote_value(value)
             @remote_value = Typelib.from_ruby(value, type).dup
-        end
-
-        # Whether this property needs to be written on the remote side
-        def needs_commit?
-            @value && (!@remote_value || (@value != @remote_value))
         end
 
         # Read the current Syskit-side value of this property
@@ -107,9 +89,7 @@ module Syskit
         # @param [Time] _timestamp ignored, for compatibility with
         #   {Orocos::Property}
         def write(value, _timestamp = nil)
-            if task_context.would_use_property_update?
-                raw_write(Typelib.from_ruby(value, type))
-            end
+            raw_write(Typelib.from_ruby(value, type))
         end
 
         # Update this property with a Typelib object
@@ -120,7 +100,6 @@ module Syskit
                 raise ArgumentError, "expected a typelib value of type #{type}, but got #{value.class}"
             end
             @value = value
-            task_context.queue_property_update_if_needed
         end
 
         # Remove the current value

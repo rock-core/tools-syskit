@@ -1225,6 +1225,27 @@ module Syskit
                 end
             end
 
+            describe "the property overrides" do
+                it "takes precedence over the configuration files" do
+                    task = syskit_stub_and_deploy(task_m)
+                    task.property_overrides.test = 10
+                    flexmock(task.model.configuration_manager).should_receive(:apply).
+                        once.and_return { |*args| task.property(:test).write(20) }
+                    syskit_configure(task)
+                    assert_equal 10, task.property_overrides.test
+                end
+
+                it "ensures that #clear_property_overrides can restore the original values" do
+                    task = syskit_stub_and_deploy(task_m)
+                    task.property_overrides.test = 10
+                    flexmock(task.model.configuration_manager).should_receive(:apply).
+                        once.and_return { |*args| task.property(:test).write(20) }
+                    syskit_configure(task)
+                    task.clear_property_overrides
+                    assert_equal 20, task.properties.test
+                end
+            end
+
             describe "#each_property" do
                 it "yields the properties" do
                     recorder = flexmock

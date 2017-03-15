@@ -24,6 +24,11 @@ module Syskit
             @properties.has_key?(name.to_str)
         end
 
+        # Clear all written values
+        def clear_values
+            @properties.each_value { |p| p.clear_value }
+        end
+
         # Returns a property by name
         #
         # @return [Property,nil]
