@@ -1313,8 +1313,9 @@ module Syskit
                         property.write(0.1)
                         mock_remote_property.should_receive(:write).once.
                             and_raise(error_m)
+                        plan.unmark_mission_task(task)
                         assert_fatal_exception(PropertyUpdateError, failure_point: task, original_exception: error_m, tasks: [task]) do
-                            process_events
+                            process_events(garbage_collect_pass: false)
                         end
                     end
                 end
@@ -1549,8 +1550,9 @@ module Syskit
                         mock_remote_property.should_receive(:write).once.
                             and_raise(error_m)
                         task.commit_properties.execute
+                        plan.unmark_mission_task(task)
                         assert_fatal_exception(PropertyUpdateError, failure_point: task, original_exception: error_m, tasks: [task]) do
-                            process_events
+                            process_events(garbage_collect_pass: false)
                         end
                     end
                 end

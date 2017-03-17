@@ -190,6 +190,7 @@ describe Syskit::InputWriter do
             with('in').once.and_return(in_port)
         flexmock(in_port).should_receive(:writer).once.and_raise(error)
         port_writer = task.in_port.writer
+        plan.unmark_mission_task(task)
         assert_fatal_exception(Syskit::PortAccessFailure, original_exception: error, failure_point: task, tasks: [task]) do
             syskit_wait_ready(port_writer)
         end
@@ -277,6 +278,7 @@ describe Syskit::OutputReader do
             with('out').once.and_return(out_port)
         flexmock(out_port).should_receive(:reader).once.and_raise(error)
         port_reader = task.out_port.reader
+        plan.unmark_mission_task(task)
         assert_fatal_exception(Syskit::PortAccessFailure, original_exception: error, failure_point: task, tasks: [task]) do
             syskit_wait_ready(port_reader)
         end

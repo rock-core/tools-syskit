@@ -55,6 +55,7 @@ module Syskit
                 it "ignores InstanceRequirementsTask tasks that failed" do
                     planning_task.start!
                     
+                    plan.unmark_mission_task(@original_task)
                     assert_fatal_exception(Roby::PlanningFailedError, failure_point: original_task, tasks: [original_task]) do
                         planning_task.failed_event.emit
                     end

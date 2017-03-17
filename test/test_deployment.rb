@@ -264,7 +264,7 @@ module Syskit
                     process.should_receive(:resolve_all_tasks).
                         and_return('mapped_task_name' => orocos_task)
                     deployment_task.start!
-                    process_events
+                    process_events(garbage_collect_pass: false)
                 end
 
                 def add_deployed_task(name: 'mapped_task_name')
@@ -342,6 +342,7 @@ module Syskit
                     process.should_receive(:resolve_all_tasks).once.
                         and_return('invalid_name' => orocos_task)
 
+                    plan.unmark_permanent_task(deployment_task)
                     exception = assert_fatal_exception Roby::EventHandlerError, original_exception: InternalError, tasks: [deployment_task], failure_point: deployment_task.ready_event do
                         make_deployment_ready
                     end
@@ -355,6 +356,7 @@ module Syskit
                         and_return('mapped_task_name' => orocos_task)
 
                     plan.unmark_permanent_task(task)
+                    plan.unmark_permanent_task(task.execution_agent)
                     exception = assert_task_fails_to_start task, Roby::CommandFailed, original_exception: InternalError, direct: true do
                         make_deployment_ready
                     end
