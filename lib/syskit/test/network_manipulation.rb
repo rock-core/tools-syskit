@@ -630,7 +630,9 @@ module Syskit
                     end
                 end
             ensure
-                plan.remove_free_event(sync_ev)
+                begin plan.remove_free_event(sync_ev)
+                rescue Roby::LocalizedError, Roby::SynchronousEventProcessingMultipleErrors
+                end
             end
 
             def syskit_start_execution_agents(component, recursive: true)
@@ -652,7 +654,9 @@ module Syskit
                     end
                 end
             ensure
-                plan.remove_free_event(guard)
+                begin plan.remove_free_event(guard)
+                rescue Roby::LocalizedError, Roby::SynchronousEventProcessingMultipleErrors
+                end
             end
 
             def syskit_prepare_configure(component, tasks, recursive: true, except: Set.new)
@@ -781,7 +785,11 @@ module Syskit
                 end
 
             ensure
-                plan.remove_free_event(guard) if guard
+                if guard
+                    begin plan.remove_free_event(guard)
+                    rescue Roby::LocalizedError, Roby::SynchronousEventProcessingMultipleErrors
+                    end
+                end
             end
             
             class NoStartFixedPoint < RuntimeError
@@ -908,7 +916,9 @@ module Syskit
 
             ensure
                 if guard
-                    plan.remove_free_event(guard)
+                    begin plan.remove_free_event(guard)
+                    rescue Roby::LocalizedError, Roby::SynchronousEventProcessingMultipleErrors
+                    end
                 end
             end
 
