@@ -50,6 +50,18 @@ describe Syskit::Actions::Models::Action do
             assert_raises(TypeError) { Marshal.dump(requirements) }
             assert_droby_compatible(action_m)
         end
+        it "passes along the requirements name, model and arguments" do
+            requirements.name = "bla_def"
+            requirements.with_arguments(test: 10, other: flexmock(droby_dump: 20))
+
+            remote_marshaller = Roby::DRoby::Marshal.new
+            reloaded = assert_droby_compatible(action_m, remote_marshaller: remote_marshaller)
+            reloaded_task_m = remote_marshaller.object_manager.find_model_by_name('Test')
+            assert_equal reloaded_task_m, reloaded.returned_type
+            assert_equal reloaded_task_m, reloaded.requirements.model
+            assert_equal "bla_def", reloaded.requirements.name
+            assert_equal Hash[test: 10, other: 20], reloaded.requirements.arguments
+        end
         it "passes along the returned type" do
             remote_marshaller = Roby::DRoby::Marshal.new
             reloaded = assert_droby_compatible(action_m, remote_marshaller: remote_marshaller)

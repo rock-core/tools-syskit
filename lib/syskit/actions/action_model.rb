@@ -23,7 +23,7 @@ module Syskit
                     if requirement_name = requirements.name
                         "#{requirements.name}_def"
                     else
-                        "#{super}[#{requirements}]"
+                        requirements.to_s
                     end
 
                 if requirements.respond_to?(:profile)
@@ -105,9 +105,20 @@ module Syskit
             #
             # It only resets the requirements attribute, as InstanceRequirements
             # are not (yet) marshallable in droby
-            def droby_dump!(dest)
+            def droby_dump!(peer)
                 super
-                @requirements = Syskit::InstanceRequirements.new
+                @requirements_name = requirements.name
+                @requirements_model = peer.dump(requirements.model)
+                @requirements_arguments = peer.dump(requirements.arguments)
+                @requirements = InstanceRequirements.new
+            end
+
+            def proxy!(peer)
+                super
+                @requirements.add_models([peer.local_object(@requirements_model)])
+                @requirements.name = @requirements_name
+                @requirements.with_arguments(peer.local_object(@requirements_arguments))
+                @requirements_model = @requirements_name = @requirements_arguments = nil
             end
 
             def method_missing(m, *args, &block)
