@@ -459,9 +459,13 @@ module Syskit
                 promise = execution_engine.promise(description: "#{self}.stop_event.on") do
                     begin
                         remote_task_handles.each_value do |remote_task|
+                            remote_task.state_getter.disconnect
                             if remote_task.handle.rtt_state == :STOPPED
                                 remote_task.handle.cleanup(false)
                             end
+                        end
+                        remote_task_handles.each_value do |remote_task|
+                            remote_task.state_getter.join
                         end
                     rescue Orocos::ComError
                         # Assume that the process is killed as it is not reachable

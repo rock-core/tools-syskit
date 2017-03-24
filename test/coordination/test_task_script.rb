@@ -165,6 +165,7 @@ describe Syskit::Coordination::TaskScriptExtension do
             end
 
             root = syskit_stub_deploy_configure_and_start(root_m)
+            process_events_until { root.writer }
             writer = root.writer
             assert_equal root.test_child.test_child, writer.port.component
             assert_equal 'in', writer.port.name

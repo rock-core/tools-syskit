@@ -1225,6 +1225,27 @@ module Syskit
                 end
             end
 
+            describe "the property overrides" do
+                it "takes precedence over the configuration files" do
+                    task = syskit_stub_and_deploy(task_m)
+                    task.property_overrides.test = 10
+                    flexmock(task.model.configuration_manager).should_receive(:apply).
+                        once.and_return { |*args| task.property(:test).write(20) }
+                    syskit_configure(task)
+                    assert_equal 10, task.property_overrides.test
+                end
+
+                it "ensures that #clear_property_overrides can restore the original values" do
+                    task = syskit_stub_and_deploy(task_m)
+                    task.property_overrides.test = 10
+                    flexmock(task.model.configuration_manager).should_receive(:apply).
+                        once.and_return { |*args| task.property(:test).write(20) }
+                    syskit_configure(task)
+                    task.clear_property_overrides
+                    assert_equal 20, task.properties.test
+                end
+            end
+
             describe "#each_property" do
                 it "yields the properties" do
                     recorder = flexmock
@@ -1292,8 +1313,9 @@ module Syskit
                         property.write(0.1)
                         mock_remote_property.should_receive(:write).once.
                             and_raise(error_m)
+                        plan.unmark_mission_task(task)
                         assert_fatal_exception(PropertyUpdateError, failure_point: task, original_exception: error_m, tasks: [task]) do
-                            process_events
+                            process_events(garbage_collect_pass: false)
                         end
                     end
                 end
@@ -1528,8 +1550,9 @@ module Syskit
                         mock_remote_property.should_receive(:write).once.
                             and_raise(error_m)
                         task.commit_properties.execute
+                        plan.unmark_mission_task(task)
                         assert_fatal_exception(PropertyUpdateError, failure_point: task, original_exception: error_m, tasks: [task]) do
-                            process_events
+                            process_events(garbage_collect_pass: false)
                         end
                     end
                 end

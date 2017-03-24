@@ -177,7 +177,7 @@ module Syskit
                 super()
 
                 if register
-                    Profile.profiles << self
+                    Profile.profiles << WeakRef.new(self)
                 end
             end
 
@@ -457,15 +457,46 @@ module Syskit
                     MetaRuby::Registration.deregister_constant(self)
                 end
 
-                Profile.profiles.delete(self)
+                Profile.deregister_profile(self)
+            end
+
+            # Helper method that allows to iterate over the registered profiles
+            # and possibly delete some of them
+            #
+            # @yieldparam [Profile] profile
+            # @yieldreturn [Boolean] true if this profile should be deleted,
+            #   false otherwise
+            def self.filter_submodels
+                profiles.delete_if do |weakref|
+                    begin
+                        obj = weakref.__getobj__
+                        yield(obj)
+                    rescue WeakRef::RefError
+                        true
+                    end
+                end
             end
 
             # Defined here to make profiles look like models w.r.t. Roby's
             # clear_model implementation
             #
             # It enumerates the profiles created so far
-            def self.each_submodel(&block)
-                profiles.each(&block)
+            def self.each_submodel
+                return enum_for(__method__) if !block_given?
+                filter_submodels do |profile|
+                    yield(profile)
+                    false
+                end
+            end
+
+            def self.register_profile(profile)
+                profiles << WeakRef.new(profile)
+            end
+
+            def self.deregister_profile(profile)
+                filter_submodels do |pr|
+                    pr == profile
+                end
             end
 
             def self.clear_model

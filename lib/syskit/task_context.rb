@@ -108,10 +108,15 @@ module Syskit
                     Orocos::Spec::TaskDeployment.new(nil, model.orogen_model)
 
                 properties = Hash.new
+                property_overrides = Hash.new
                 self.model.orogen_model.each_property do |p|
-                    properties[p.name] = Property.new(self, p.name, Roby.app.default_loader.intermediate_type_for(p.type))
+                    type = Roby.app.default_loader.intermediate_type_for(p.type)
+                    properties[p.name] = LiveProperty.new(self, p.name, type)
+                    property_overrides[p.name] = Property.new(p.name, type)
                 end
                 @properties = Properties.new(self, properties)
+                @property_overrides = Properties.new(self, property_overrides)
+                
                 @current_property_commit = nil
 
                 @setup = false
@@ -271,7 +276,32 @@ module Syskit
                 orocos_task.operation(name)
             end
 
+            # Accessor for the task's properties
+            #
+            # @example write a property named 'latency'
+            #    task.properties.latency = 20
+            # @example read the syskit-side value of the latency property
+            #    task.properties.latency # => 20
+            # @example update a complex type
+            #    task.properties.position do |p|
+            #       p.x = 10
+            #       p.y = 20
+            #       p.z = 30
+            #       p
+            #    end
             attr_reader :properties
+
+            # Accessor for overrides of the configuration values
+            #
+            # This is an accessor that works akin to {#properties}. It is used
+            # to set values that will override the values in the configuration
+            # files at {#configure} time
+            #
+            # The expected configuration can later be restored with
+            # {#property_overrides}
+            #
+            # @see clear_property_overrides
+            attr_reader :property_overrides
 
             # Enumerate this task's known properties
             def each_property(&block)
@@ -937,7 +967,28 @@ module Syskit
                     end
                 end
 
+                property_overrides.each do |property_override|
+                    if property_override.has_value?
+                        actual_property = properties[property_override.name]
+                        if actual_property.has_value?
+                            property_override.update_remote_value(actual_property.read)
+                        end
+                        actual_property.write(property_override.read)
+                    end
+                end
+
                 super if defined? super
+            end
+
+            # Clears the currently defined overrides, and restores the original
+            # property values
+            def clear_property_overrides
+                property_overrides.clear_values
+                property_overrides.each do |property_override|
+                    if value = property_override.remote_value
+                        properties[property_override.name].write(value)
+                    end
+                end
             end
 
             # Applies the values stored in +config_type+ to the task properties.
