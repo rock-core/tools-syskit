@@ -73,6 +73,9 @@ module Syskit
                         true
                     end
                 end
+                skipped_actions.delete_if do |skipped_action|
+                    actions.any? { |action| action.model == skipped_action.model }
+                end
                 return actions, skipped_actions
             end
 
