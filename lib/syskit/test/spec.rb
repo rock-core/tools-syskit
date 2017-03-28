@@ -55,6 +55,12 @@ module Syskit
                 Syskit.conf.remove_process_server('stubs')
             end
 
+            def teardown_registered_plans
+                super
+                Syskit::RequiredDataFlow.clear
+                Syskit::ActualDataFlow.clear
+            end
+
             # Override the task model that should by default in tests such as
             # {#is_configurable}. This is used mainly in case the task model
             # under test is abstract
