@@ -373,6 +373,13 @@ module Syskit
             def droby_dump(peer)
                 DRoby.new(name, peer.dump(device_model), peer.dump(driver_model))
             end
+
+            def ==(other)
+                if other.kind_of?(MasterDeviceInstance)
+                    other.robot == robot &&
+                        other.name == name
+                end
+            end
         end
     end
 end
