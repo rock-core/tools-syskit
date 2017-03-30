@@ -86,6 +86,16 @@ module Syskit
                     other.master_device == master_device &&
                     other.name == name
             end
+
+            DRoby = Struct.new :master_device, :service, :name do
+                def proxy(peer)
+                    master = peer.local_object(master_device)
+                    master.slave service, as: 'name'
+                end
+            end
+            def droby_dump(peer)
+                DRoby.new(peer.dump(master_device), peer.dump(service), peer.dump(name))
+            end
         end
     end
 end

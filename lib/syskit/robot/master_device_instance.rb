@@ -367,7 +367,14 @@ module Syskit
 
             DRoby = Struct.new :name, :device_model, :driver_model do
                 def proxy(peer)
-                    MasterDeviceInstance.new(nil, name, peer.local_object(device_model), Hash.new, peer.local_object(driver_model), Hash.new)
+                    robot_definition = RobotDefinition.new
+                    device = MasterDeviceInstance.new(
+                        robot_definition, name,
+                        peer.local_object(device_model),
+                        Hash.new,
+                        peer.local_object(driver_model),
+                        Hash.new)
+                    robot_definition.register_master_device(device)
                 end
             end
             def droby_dump(peer)
