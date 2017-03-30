@@ -80,6 +80,12 @@ module Syskit
             def to_s
                 "device(#{device_model.short_name}, :as => #{full_name}).#{name}_srv"
             end
+
+            def ==(other)
+                other.kind_of?(SlaveDeviceInstance) &&
+                    other.master_device == master_device &&
+                    other.name == name
+            end
         end
     end
 end
