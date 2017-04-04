@@ -304,14 +304,61 @@ module Syskit
 
                 def initialize(parent = nil, text = '')
                     super(parent)
+                    resize(800, 600)
+
                     layout = Qt::VBoxLayout.new(self)
+                    @error_message = Qt::Label.new(self)
+                    @error_message.style_sheet = "QLabel { background-color: #ffb8b9; border: 1px solid #ff6567; padding: 5px; }"
+                    @error_message.frame_style = Qt::Frame::StyledPanel
+                    layout.add_widget(@error_message)
+                    @error_message.hide
+
                     @editor = Qt::TextEdit.new(self)
-                    layout.add_widget editor
                     self.text = text
+                    layout.add_widget editor
+
+                    buttons = Qt::DialogButtonBox.new(Qt::DialogButtonBox::Ok | Qt::DialogButtonBox::Cancel)
+                    buttons.connect(SIGNAL('accepted()')) do
+                        begin
+                            @error_message.hide
+                            @result = Parser.parse(self.text)
+                            accept
+                        rescue Exception => e
+                            @error_message.text = e.message
+                            @error_message.show
+                        end
+                    end
+                    buttons.connect(SIGNAL('rejected()')) { reject }
+                    layout.add_widget buttons
                 end
 
                 def self.exec(parent, text)
                     new(parent, text).exec
+                end
+
+                class Parser < BasicObject
+                    def self.const_missing(const_name)
+                        ::Object.const_get(const_name)
+                    end
+
+                    def self.parse(text)
+                        parser = new
+                        parser.instance_eval(text)
+                        parser.__result
+                    end
+
+                    def method_missing(m, **options)
+                        @method_name = m
+                        @method_options = options
+                    end
+
+                    def __result
+                        return @method_name, @method_options
+                    end
+                end
+
+                def result
+                    @result
                 end
 
                 def text=(text)
@@ -319,7 +366,7 @@ module Syskit
                 end
 
                 def text
-                    editor.plain_text
+                    editor.to_plain_text
                 end
             end
 
@@ -332,14 +379,26 @@ module Syskit
                 if action_model.arguments.empty?
                     syskit.client.send("#{action_name}!", Hash.new)
                 else
-                    formatted_action = Array.new
-                    formatted_action << "#{action_name}("
+                    formatted_arguments = String.new
                     action_model.arguments.each do |arg|
-                        formatted_action << "  # #{arg.doc}"
-                        formatted_action << "  #{arg.name}: #{arg.default},"
+                        if !formatted_arguments.empty?
+                            formatted_arguments << ",\n"
+                        end
+                        formatted_arguments << "  # #{arg.doc}\n"
+                        if arg.required?
+                            formatted_arguments << "  #{arg.name}: "
+                        elsif arg.default.nil?
+                            formatted_arguments << "  #{arg.name}: nil"
+                        else
+                            formatted_arguments << "  #{arg.name}: #{arg.default}"
+                        end
                     end
-                    formatted_action << ")"
-                    NewJobDialog.exec(self, formatted_action.join("\n"))
+                    formatted_action = "#{action_name}!(\n#{formatted_arguments}\n)"
+                    dialog = NewJobDialog.new(self, formatted_action)
+                    if dialog.exec == Qt::Dialog::Accepted
+                        action_name, action_options = dialog.result
+                        syskit.client.send(action_name, action_options)
+                    end
                 end
             end
 
