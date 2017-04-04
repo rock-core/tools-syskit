@@ -1084,8 +1084,17 @@ module Syskit
                 root_model = [TaskContext, Composition, Component].find { |m| task_model <= m }
                 task_arguments = task_model.arguments.to_a - root_model.arguments.to_a
                 task_arguments.each do |arg_name|
-                    if task_model.default_argument(arg_name) || arguments.has_key?(arg_name.to_s)
-                        action_model.optional_arg(arg_name, "#{arg_name} argument of #{task_model.name}")
+                    if arguments.has_key?(arg_name)
+                        optional, default_argument = true, arguments[arg_name]
+                    else
+                        optional, default_argument = task_model.default_argument(arg_name)
+                        if default_argument.kind_of?(Roby::DefaultArgument)
+                            default_argument = default_argument.value
+                        end
+                    end
+
+                    if optional
+                        action_model.optional_arg(arg_name, "#{arg_name} argument of #{task_model.name}", default_argument)
                     else
                         action_model.required_arg(arg_name, "#{arg_name} argument of #{task_model.name}")
                     end
