@@ -357,7 +357,38 @@ module Syskit
                 end
             end
 
-            # Apply the values set for the properties to the underlying node
+            # Create a promise that will apply the properties stored Syskit-side
+            # to the underlying component, but only if the underlying task would
+            # have a use for it (e.g. it is running or pending)
+            #
+            # It returns a null promise otherwise.
+            #
+            # @example apply the next property updates and emit the event once
+            #   the properties have been applied, but do not do it if the
+            #   underlying task is finished
+            #
+            #   updated_configuration_event.achieve_asynchronously(
+            #       my_child.commit_properties_if_needed)
+            #   # Do the property updates
+            #
+            # @return [Roby::Promise,Roby::Promise::Null]
+            # @see commit_properties
+            def commit_properties_if_needed(*args)
+                if would_use_property_update?
+                    commit_properties(*args)
+                else
+                    Roby::Promise.null
+                end
+            end
+
+            # Create a promise that will apply the properties stored Syskit-side
+            # to the underlying component
+            #
+            # This usually does not need to be called, as Syskit queues a
+            # property update at the component configuration, and whenever a
+            # property gets updated
+            #
+            # @return [Roby::Promise]
             def commit_properties(promise = self.promise(description: "promise:#{self}#commit_properties"))
                 promise.on_success(description: "#{self}#commit_properties#init") do
                     if finalized? || garbage? || finishing? || finished?
