@@ -790,6 +790,8 @@ module Syskit
                 messages = capture_log(task, :info) do
                     promise = task.setup.execute
                     execution_engine.join_all_waiting_work
+                    process_events
+                    execution_engine.join_all_waiting_work
                 end
                 if !expected_messages
                     expected_messages = default_setup_task_messages(task)
@@ -1287,13 +1289,6 @@ module Syskit
                         property.write(0.3)
                         process_events
                     end
-                    it "does not queue an update on a task that failed-to-start" do
-                        plan.unmark_mission_task(task)
-                        flexmock(task).should_receive(:commit_properties).never
-                        task.start_event.emit_failed
-                        property.write(0.1)
-                        process_events
-                    end
                     it "does not queue an update on a stopping task" do
                         plan.unmark_mission_task(task)
                         flexmock(task).should_receive(:commit_properties).never
@@ -1353,10 +1348,12 @@ module Syskit
                 describe "a setup but not started task" do
                     attr_reader :task, :property
                     before do
-                        @task = syskit_stub_deploy_and_configure(task_m)
+                        @task = syskit_stub_and_deploy(task_m)
+                        syskit_start_execution_agents(task)
                         @property = task.test_property
                         Orocos.allow_blocking_calls do
                             @remote_test_property = task.orocos_task.raw_property('test')
+                            @test_property_initial_value = @remote_test_property.read
                             @remote_test_property.write(0.2)
                         end
                     end
@@ -1365,17 +1362,75 @@ module Syskit
                         flexmock(@remote_test_property)
                     end
 
-                    it "does not queue property updates when writing on properties" do
-                        flexmock(task).should_receive(:commit_properties).never
-                        task.properties.test = 42
+                    describe "property commit" do
+                        before do
+                            syskit_configure(task)
+                        end
+
+                        it "does not queue property updates when writing on properties" do
+                            flexmock(task).should_receive(:commit_properties).never
+                            task.properties.test = 42
+                        end
+
+                        it "does commit property changes on start" do
+                            mock_remote_property.should_receive(:write).globally.ordered.pass_thru
+                            flexmock(task.orocos_task).should_receive(:start).globally.ordered.pass_thru
+                            task.properties.test = 42
+                            syskit_start(task)
+                            assert_equal 42, Orocos.allow_blocking_calls { task.orocos_task.test }
+                        end
                     end
 
-                    it "does commit property changes on start" do
-                        mock_remote_property.should_receive(:write).globally.ordered.pass_thru
-                        flexmock(task.orocos_task).should_receive(:start).globally.ordered.pass_thru
-                        task.properties.test = 42
-                        syskit_start(task)
-                        assert_equal 42, Orocos.allow_blocking_calls { task.orocos_task.test }
+                    describe "reconfiguration on property mismatch" do
+                        before do
+                            task.properties.test = 42
+                            syskit_configure(task)
+                            plan.unmark_mission_task(task)
+                            task_name = task.orocos_name
+                            plan.add_permanent_task(deployment = task.execution_agent)
+                            process_events
+                            refute task.plan
+                            @task = deployment.task(task_name)
+                            task.properties.test = 42
+                            flexmock(task.orocos_task)
+                        end
+
+                        it "does not reconfigure and keeps the same values if everything is the same" do
+                            task.orocos_task.should_receive(:cleanup).never
+                            task.orocos_task.should_receive(:configure).never
+                            syskit_configure(task)
+                            assert_equal 42, Orocos.allow_blocking_calls { task.orocos_task.test }
+                        end
+
+                        it "forces a task reconfiguration if the current property value differs from the ones on the task at the point of configuration" do
+                            flexmock(task.orocos_task).should_receive(:cleanup).
+                                once.globally.ordered.pass_thru
+                            flexmock(task.orocos_task).should_receive(:configure).
+                                once.globally.ordered.pass_thru
+                            task.properties.test = 10
+                            syskit_configure(task)
+                            assert_equal 10, Orocos.allow_blocking_calls { task.orocos_task.test }
+                        end
+                        it "forces a task reconfiguration if #configure changes the properties in a way that requires it" do
+                            flexmock(task.orocos_task).should_receive(:cleanup).
+                                once.globally.ordered.pass_thru
+                            flexmock(task.orocos_task).should_receive(:configure).
+                                once.globally.ordered.pass_thru
+                            def task.configure
+                                super
+                                properties.test = 10
+                            end
+                            syskit_configure(task)
+                            assert_equal 10, Orocos.allow_blocking_calls { task.orocos_task.test }
+                        end
+                    end
+
+                    it "does not queue an update on a task that failed-to-start" do
+                        plan.unmark_mission_task(task)
+                        flexmock(task).should_receive(:commit_properties).never
+                        task.start_event.emit_failed
+                        property.write(0.1)
+                        process_events
                     end
                 end
             end

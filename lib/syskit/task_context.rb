@@ -693,7 +693,8 @@ module Syskit
 
                         needs_reconfiguration = needs_reconfiguration? ||
                             execution_agent.configuration_changed?(
-                                orocos_name, self.conf, each_required_dynamic_service.to_set)
+                                orocos_name, self.conf, each_required_dynamic_service.to_set) ||
+                            self.properties.each.any? { |p| p.needs_commit? }
 
                         if !needs_reconfiguration
                             info "not reconfiguring #{self}: the task is already configured as required"
@@ -723,6 +724,8 @@ module Syskit
                 prepare_for_setup(promise)
                 # This calls #configure
                 super(promise)
+
+                properties_updated_in_configure = false
                 promise.on_success(description: "#{self}#perform_setup#log_properties") do
                     if self.model.needs_stub?(self)
                         self.model.prepare_stub(self)
@@ -733,10 +736,17 @@ module Syskit
                             p.update_log
                         end
                     end
+                    properties_updated_in_configure = self.properties.each.any? { |p| p.needs_commit? }
                 end
                 commit_properties(promise)
                 promise.then(description: "#{self}#perform_setup#orocos_task.configure") do
                     state = orocos_task.rtt_state
+                    if properties_updated_in_configure && state != :PRE_OPERATIONAL
+                        info "properties have been changed within #configure, cleaning up #{self}"
+                        orocos_task.cleanup(false)
+                        state = :PRE_OPERATIONAL
+                    end
+
                     if state == :PRE_OPERATIONAL
                         info "setting up #{self}"
                         orocos_task.configure(false)
