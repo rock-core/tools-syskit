@@ -299,7 +299,7 @@ module Syskit
                     if task.respond_to?(:proxied_data_services)
                         component_models = Syskit::Component.each_submodel.to_a
                         per_service_candidates = task.proxied_data_services.map do |m|
-                            component_models.find_all { |component_m| component_m.fullfills?(m) }.to_set
+                            component_models.find_all { |component_m| !component_m.abstract? && !component_m.private_specialization? && component_m.fullfills?(m) }.to_set
                         end
                         candidates = per_service_candidates.inject { |a, b| a & b } || Set.new
                     else
@@ -510,7 +510,7 @@ module Syskit
                 pp.text "cannot deploy the following tasks"
                 tasks.each do |task, (parents, possible_deployments)|
                     pp.breakable
-                    pp.text task.to_s
+                    pp.text "#{task} (#{task.orogen_model.name})"
                     pp.nest(2) do
                         pp.breakable
                         pp.seplist(parents) do |parent_task|
