@@ -28,7 +28,13 @@ module Syskit
 		end
 
                 if t.pending? && !t.setup? && !t.setting_up?
-                    if t.ready_for_setup? && Syskit.conf.auto_configure?
+                    if !t.may_setup?
+                        t.failed_to_start!(
+                            Roby::CommandFailed.new(
+                                InternalError.exception("#{t} reports that it cannot be configured (FATAL_ERROR ?)"),
+                                t.start_event))
+                        next
+                    elsif t.ready_for_setup? && Syskit.conf.auto_configure?
                         t.setup.execute
                         next
                     else

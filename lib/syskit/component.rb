@@ -135,6 +135,11 @@ module Syskit
                 object.add_syskit_configuration_precedence(start_event)
             end
 
+            # Whether this task context will ever configurable
+            def may_setup?
+                true
+            end
+
             # Returns true if the underlying Orocos task is in a state that
             # allows it to be configured
             def ready_for_setup? # :nodoc:
