@@ -426,9 +426,15 @@ describe Syskit::Component do
         end
     end
 
+    describe "#may_setup?" do
+        it "returns true" do
+            assert Syskit::Component.new.may_setup?
+        end
+    end
+
     describe "#ready_for_setup?" do
         it "returns true on a blank task" do
-            Syskit::Component.new.ready_for_setup?
+            assert Syskit::Component.new.ready_for_setup?
         end
         it "returns false if there are unfullfilled syskit configuration precedence links" do
             plan.add(component = Syskit::Component.new)

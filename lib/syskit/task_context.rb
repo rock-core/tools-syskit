@@ -502,9 +502,6 @@ module Syskit
                 end
             end
 
-            # The set of state names from which #configure can be called
-            RTT_CONFIGURABLE_STATES = [:EXCEPTION, :STOPPED, :PRE_OPERATIONAL]
-
             # @api private
             #
             # Pull all state changes that are still queued within the state
@@ -517,6 +514,12 @@ module Syskit
                     state = new_state
                 end
                 state || state_reader.read
+            end
+
+            # Whether this task context will ever be configurable
+            def may_setup?(state = nil)
+                state ||= read_current_state
+                state != :FATAL_ERROR
             end
 
             # Returns true if this component needs to be setup by calling the
