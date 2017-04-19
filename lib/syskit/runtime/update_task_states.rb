@@ -28,6 +28,7 @@ module Syskit
 		end
 
                 if t.pending? && !t.setup? && !t.setting_up?
+                    t.freeze_delayed_arguments
                     if !t.may_setup?
                         t.failed_to_start!(
                             Roby::CommandFailed.new(
