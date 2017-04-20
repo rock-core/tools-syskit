@@ -241,7 +241,7 @@ module Syskit
                         if can_merge
                             apply_merge_group(mappings)
                         else
-                            invalid_merges.merge(mappings.to_a)
+                            invalid_merges << [merged_task, task]
                         end
                     end
                 end
