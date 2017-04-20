@@ -780,7 +780,7 @@ module Syskit
                         if missing_starts.empty?
                             raise NoConfigureFixedPoint.new(pending), "cannot configure #{pending.map(&:to_s).join(", ")}"
                         else
-                            syskit_start(missing_starts.map(&:task))
+                            syskit_start(missing_starts, recursive: false)
                         end
                     end
                 end
