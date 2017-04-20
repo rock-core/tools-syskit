@@ -317,7 +317,12 @@ module Syskit
                         ready_event.emit
                     end
                 end
-                ready_event.achieve_asynchronously(promise, emit_on_success: false)
+                promise.on_error(description: "#{self}#emit_failed") do |reason|
+                    if !finishing? || !finished?
+                        emit_failed(reason)
+                    end
+                end
+                ready_event.achieve_asynchronously(promise, emit_on_success: false, on_failure: :nothing)
             end
 
             on :ready do |event|
