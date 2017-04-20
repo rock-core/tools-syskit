@@ -33,7 +33,9 @@ module Syskit
 
             def create_ui
                 @ui_state = JobStateLabel.new name: "##{job.job_id} #{job.action_name}"
-                ui_state.update_state(job.state.upcase)
+                if job.state
+                    ui_state.update_state(job.state.upcase)
+                end
 
                 @ui_job_actions = Qt::Widget.new(self)
                 hlayout    = Qt::HBoxLayout.new(ui_job_actions)
