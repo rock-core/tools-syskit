@@ -753,6 +753,7 @@ module Syskit
                     end
                     current_state = pending.size
                     pending.delete_if do |t|
+                        t.freeze_delayed_arguments
                         should_setup = Orocos.allow_blocking_calls do
                             !t.setup? && t.ready_for_setup?
                         end
