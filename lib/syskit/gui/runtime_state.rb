@@ -237,6 +237,11 @@ module Syskit
                 end
 
                 all_tasks.merge(tasks.to_set)
+                if hide_loggers?
+                    all_tasks.delete_if do |t|
+                        t.model.ancestors.any? { |t| t.name == "OroGen::Logger::Logger" }
+                    end
+                end
                 tasks.each do |job|
                     if job.kind_of?(Roby::Interface::Job)
                         if placeholder_task = job.planned_task
@@ -250,10 +255,6 @@ module Syskit
             def update_orocos_tasks
                 candidate_tasks = self.all_tasks.
                     find_all { |t| t.kind_of?(Syskit::TaskContext) }
-                if hide_loggers?
-                    candidate_tasks = candidate_tasks.
-                        find_all { |t| !t.model.ancestors.any? { |t| t.name == "OroGen::Logger::Logger" } }
-                end
                 orocos_tasks = candidate_tasks.map { |t| t.arguments[:orocos_name] }.compact.to_set
                 removed = current_orocos_tasks - orocos_tasks
                 new     = orocos_tasks - current_orocos_tasks
