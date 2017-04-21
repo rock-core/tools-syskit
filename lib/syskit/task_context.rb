@@ -951,6 +951,18 @@ module Syskit
             forward :start => :running
             forward :exception => :failed
             forward :fatal_error => :failed
+            on :fatal_error do |event|
+                if execution_agent
+                    not_loggers = execution_agent.each_executed_task.
+                        find_all { |t| !t.kind_of?(OroGen::Logger::Logger) }
+                    if not_loggers.size == 1
+                        plan.unmark_permanent_task(execution_agent)
+                        if execution_agent.running?
+                            execution_agent.stop!
+                        end
+                    end
+                end
+            end
 
             event :aborted, terminal: true do |context|
                 if execution_agent && execution_agent.running? && !execution_agent.finishing?
