@@ -427,14 +427,17 @@ module Syskit
             #   the communication bus handling will mark the associated component's
             #   input ports as needs_reliable_connection so that relevant
             #   policies are chosen.
-            # @param [String] message_type the type name of the
+            # @param [String,Model<Type>] message_type the type name of the
             #   type that is used by this combus to communicate with the
             #   components it supports
-            def new_submodel(options = Hash.new, &block)
-                super(options, &block)
+            def new_submodel(lazy_dispatch: false, override_policy: override_policy?, message_type: self.message_type, **options, &block)
+                super
             end
 
             def setup_submodel(model, lazy_dispatch: false, override_policy: override_policy?, message_type: self.message_type, **options, &block)
+                if message_type.respond_to?(:to_str)
+                    message_type = Roby.app.default_loader.resolve_type(message_type)
+                end
                 super(model, **options, &block)
 
                 model.lazy_dispatch   = lazy_dispatch

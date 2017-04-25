@@ -563,18 +563,20 @@ describe ComBus do
     describe "#new_submodel" do
         attr_reader :combus
         before do
-            @combus = ComBus.new_submodel message_type: '/int'
+            @test_t  = stub_type '/test_t'
+            @other_t = stub_type '/other_t'
+            @combus = ComBus.new_submodel message_type: '/test_t'
         end
 
         it "can set the message type directly" do
-            combus = ComBus.new_submodel message_type: '/int32_t'
-            assert_equal '/int32_t', combus.message_type
+            combus = ComBus.new_submodel message_type: '/test_t'
+            assert_equal @test_t, combus.message_type
         end
 
         it "can infer the message type through a provide" do
             parent_combus = self.combus
             combus = ComBus.new_submodel { provides parent_combus }
-            assert_equal '/int', combus.message_type
+            assert_equal @test_t, combus.message_type
         end
 
         it "does not allow to override the message type in submodels through the argument" do
