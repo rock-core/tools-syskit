@@ -140,6 +140,21 @@ module Syskit
                 false
             end
 
+            def meets_configurationg_precedence_constraints?
+                waiting_precedence_relation = start_event.
+                    parent_objects(Roby::EventStructure::SyskitConfigurationPrecedence).
+                    find do |event|
+                        !event.emitted? && !event.unreachable?
+                    end
+
+                if waiting_precedence_relation
+                    debug { "#{self} not ready for setup: waiting on #{waiting_precedence_relation}" }
+                    false
+                else
+                    true
+                end
+            end
+
             # Returns true if the underlying Orocos task is in a state that
             # allows it to be configured
             def ready_for_setup? # :nodoc:
@@ -151,15 +166,7 @@ module Syskit
                     return false 
                 end
 
-                waiting_precedence_relation = start_event.parent_objects(Roby::EventStructure::SyskitConfigurationPrecedence).find do |event|
-                    !event.emitted? && !event.unreachable?
-                end
-                if waiting_precedence_relation
-                    debug { "#{self} not ready for setup: waiting on #{waiting_precedence_relation}" }
-                    false
-                else
-                    true
-                end
+                meets_configurationg_precedence_constraints?
             end
 
             # Returns true if the underlying Orocos task has been properly

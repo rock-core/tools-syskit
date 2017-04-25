@@ -28,6 +28,8 @@ module Syskit
 		end
 
                 if t.pending? && !t.setup? && !t.setting_up?
+                    next if !t.meets_configurationg_precedence_constraints?
+
                     t.freeze_delayed_arguments
                     if t.will_never_setup?
                         t.failed_to_start!(
