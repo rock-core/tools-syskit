@@ -29,7 +29,7 @@ module Syskit
 
                 if t.pending? && !t.setup? && !t.setting_up?
                     t.freeze_delayed_arguments
-                    if !t.may_setup?
+                    if t.will_never_setup?
                         t.failed_to_start!(
                             Roby::CommandFailed.new(
                                 InternalError.exception("#{t} reports that it cannot be configured (FATAL_ERROR ?)"),

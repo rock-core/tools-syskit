@@ -517,9 +517,9 @@ module Syskit
             end
 
             # Whether this task context will ever be configurable
-            def may_setup?(state = nil)
+            def will_never_setup?(state = nil)
                 state ||= read_current_state
-                state != :FATAL_ERROR
+                state == :FATAL_ERROR
             end
 
             # Returns true if this component needs to be setup by calling the

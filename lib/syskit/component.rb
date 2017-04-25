@@ -136,8 +136,8 @@ module Syskit
             end
 
             # Whether this task context will ever configurable
-            def may_setup?
-                true
+            def will_never_setup?
+                false
             end
 
             # Returns true if the underlying Orocos task is in a state that

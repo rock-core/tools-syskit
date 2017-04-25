@@ -426,9 +426,9 @@ describe Syskit::Component do
         end
     end
 
-    describe "#may_setup?" do
-        it "returns true" do
-            assert Syskit::Component.new.may_setup?
+    describe "#will_never_setup?" do
+        it "returns false" do
+            refute Syskit::Component.new.will_never_setup?
         end
     end
 

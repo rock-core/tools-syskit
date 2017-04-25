@@ -501,23 +501,23 @@ module Syskit
             end
         end
 
-        describe "#may_setup?" do
+        describe "#will_never_setup?" do
             before do
                 plan.add(@task = TaskContext.new)
             end
-            it "returns true if the provided state is not FATAL_ERROR" do
-                assert @task.may_setup?(:BLA)
+            it "returns false if the provided state is not FATAL_ERROR" do
+                refute @task.will_never_setup?(:BLA)
             end
-            it "returns false if the provided state is FATAL_ERROR" do
-                refute @task.may_setup?(:FATAL_ERROR)
+            it "returns true if the provided state is FATAL_ERROR" do
+                assert @task.will_never_setup?(:FATAL_ERROR)
             end
-            it "returns true if no state is given and read_current_state returns something else than FATAL_ERROR" do
+            it "returns false if no state is given and read_current_state returns something else than FATAL_ERROR" do
                 flexmock(@task).should_receive(:read_current_state).and_return(:BLA)
-                assert @task.may_setup?
+                refute @task.will_never_setup?
             end
-            it "returns false if no state is given and read_current_state returns FATAL_ERROR" do
+            it "returns true if no state is given and read_current_state returns FATAL_ERROR" do
                 flexmock(@task).should_receive(:read_current_state).and_return(:FATAL_ERROR)
-                refute @task.may_setup?
+                assert @task.will_never_setup?
             end
         end
         describe "#ready_for_setup?" do
