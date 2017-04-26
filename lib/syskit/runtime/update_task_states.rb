@@ -32,11 +32,13 @@ module Syskit
 
                     t.freeze_delayed_arguments
                     if t.will_never_setup?
-                        t.failed_to_start!(
-                            Roby::CommandFailed.new(
-                                InternalError.exception("#{t} reports that it cannot be configured (FATAL_ERROR ?)"),
-                                t.start_event))
-                        next
+                        if !t.kill_execution_agent_if_alone
+                            t.failed_to_start!(
+                                Roby::CommandFailed.new(
+                                    InternalError.exception("#{t} reports that it cannot be configured (FATAL_ERROR ?)"),
+                                    t.start_event))
+                            next
+                        end
                     elsif t.ready_for_setup? && Syskit.conf.auto_configure?
                         t.setup.execute
                         next

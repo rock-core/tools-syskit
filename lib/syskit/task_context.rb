@@ -952,6 +952,10 @@ module Syskit
             forward :exception => :failed
             forward :fatal_error => :failed
             on :fatal_error do |event|
+                kill_execution_agent_if_alone
+            end
+
+            def kill_execution_agent_if_alone
                 if execution_agent
                     not_loggers = execution_agent.each_executed_task.
                         find_all { |t| !t.kind_of?(OroGen::Logger::Logger) }
@@ -959,9 +963,11 @@ module Syskit
                         plan.unmark_permanent_task(execution_agent)
                         if execution_agent.running?
                             execution_agent.stop!
+                            return true
                         end
                     end
                 end
+                false
             end
 
             event :aborted, terminal: true do |context|
