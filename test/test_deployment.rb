@@ -622,6 +622,31 @@ module Syskit
                 end
             end
         end
+
+        describe "#mark_changed_configuration_as_non_reusable" do
+            before do
+                @task_m = Syskit::TaskContext.new_submodel
+                syskit_stub_conf @task_m, 'test'
+            end
+
+            it "returns the orocos name of the deployed tasks that have a configuration section changed" do
+                task = syskit_stub_deploy_configure_and_start(task_m.with_conf('test'))
+                assert_equal Set[task.orocos_name], task.execution_agent.
+                    mark_changed_configuration_as_not_reusable(task.model => ['test'])
+            end
+            it "does not return the orocos name of the deployed tasks that do not have any configuration section changed" do
+                configured_deployment = syskit_stub_configured_deployment(task_m)
+                plan.add_permanent_task(deployment_task = configured_deployment.new)
+                assert_event_emission(deployment_task.ready_event) { deployment_task.start! }
+                assert_equal Set[], deployment_task.
+                    mark_changed_configuration_as_not_reusable(task_m => ['test'])
+            end
+            it "ignores never-configured tasks" do
+                task = syskit_stub_and_deploy(task_m.with_conf('test'))
+                assert_equal Set[], task.execution_agent.
+                    mark_changed_configuration_as_not_reusable(task.model => ['test'])
+            end
+        end
     end
 end
 

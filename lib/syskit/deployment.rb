@@ -390,6 +390,7 @@ module Syskit
                 needed = Set.new
                 remote_task_handles.each do |orocos_name, remote_handle|
                     current_conf = remote_handle.current_configuration
+                    next if current_conf.conf.empty?
                     if modified_sections = changed[current_conf.model.concrete_model]
                         if modified_sections.any? { |section_name| current_conf.conf.include?(section_name) }
                             needed << orocos_name
