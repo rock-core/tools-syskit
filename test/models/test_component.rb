@@ -984,6 +984,14 @@ describe Syskit::Models::Component do
                 task1_m.require_dynamic_service 'test', srv: srv1, as: 'srv'
                 refute task0_m.specialize.can_merge?(task1_m)
             end
+
+            it "returns false if two dynamic services have the same type but different options" do
+                task0_m = task_m.specialize
+                task0_m.require_dynamic_service 'test', srv: srv0, as: 'srv', port_name: 'test'
+                task1_m = task_m.specialize
+                task1_m.require_dynamic_service 'test', srv: srv0, as: 'srv', port_name: 'test2'
+                refute task0_m.can_merge?(task1_m)
+            end
         end
     end
 end

@@ -33,6 +33,9 @@ module Syskit
             # True if this service is not a slave service
             def master?; !@master end
 
+            # True if this is a dynamic service
+            def dynamic?; false end
+
             def to_component_model; component_model.to_component_model end
 
             def dependency_injection_names; Array.new end

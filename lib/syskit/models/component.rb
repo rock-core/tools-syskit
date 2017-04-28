@@ -504,7 +504,7 @@ module Syskit
             def each_required_dynamic_service
                 return enum_for(:each_required_dynamic_service) if !block_given?
                 each_data_service do |_, srv|
-                    if srv.respond_to?(:dynamic_service)
+                    if srv.dynamic?
                         yield(srv) 
                     end
                 end
@@ -946,18 +946,29 @@ module Syskit
                     return false
                 end
 
-                if private_specialization?
-                    # Verify that we don't have collisions in the instantiated
-                    # dynamic services
-                    each_data_service do |_, self_srv|
-                        if task_srv = target_model.find_data_service(self_srv.name)
-                            if task_srv.model != self_srv.model
-                                NetworkGeneration::MergeSolver.debug do
-                                    "rejecting #{self}.merge(#{target_model}): dynamic service #{self_srv.name} is of model #{self_srv.model.short_name} on #{self} and of model #{task_srv.model.short_name} on #{target_model}"
-                                end
-                                return false
-                            end
+                # Verify that we don't have collisions in the instantiated
+                # dynamic services
+                each_data_service do |_, self_srv|
+                    task_srv = target_model.find_data_service(self_srv.name)
+                    next if !task_srv
+
+                    if task_srv.model != self_srv.model
+                        NetworkGeneration::MergeSolver.debug do
+                            "rejecting #{self}.merge(#{target_model}): dynamic service #{self_srv.name} is of model #{self_srv.model.short_name} on #{self} and of model #{task_srv.model.short_name} on #{target_model}"
                         end
+                        return false
+                    elsif task_srv.dynamic? && self_srv.dynamic?
+                        if task_srv.dynamic_service_options != self_srv.dynamic_service_options
+                            NetworkGeneration::MergeSolver.debug do
+                                "rejecting #{self}.merge(#{target_model}): dynamic service #{self_srv.name} has options #{task_srv.dynamic_service_options} on self and #{self_srv.dynamic_service_options} on the candidate task"
+                            end
+                            return false
+                        end
+                    elsif task_srv.dynamic? || self_srv.dynamic?
+                        NetworkGeneration::MergeSolver.debug do
+                            "rejecting #{self}.merge(#{target_model}): #{self_srv.name} is a dynamic service on the receiver, but a static one on the target"
+                        end
+                        return false
                     end
                 end
                 return true

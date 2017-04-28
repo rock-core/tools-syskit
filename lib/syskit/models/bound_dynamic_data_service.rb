@@ -8,6 +8,10 @@ module Syskit
             # The options used during the service instanciation
             attr_accessor :dynamic_service_options
 
+            def dynamic?
+                true
+            end
+
             # Whether this service can be added dynamically (i.e.  without
             # requiring a reconfigure)
             def addition_requires_reconfiguration?
