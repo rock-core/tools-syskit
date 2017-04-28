@@ -186,6 +186,10 @@ module Syskit
                 end
             end
 
+            def hide_loggers?
+                !@ui_hide_loggers.checked?
+            end
+
             signals 'progress(QString)'
             signals 'connection_state_changed(bool)'
 
@@ -233,6 +237,11 @@ module Syskit
                 end
 
                 all_tasks.merge(tasks.to_set)
+                if hide_loggers?
+                    all_tasks.delete_if do |t|
+                        t.model.ancestors.any? { |t| t.name == "OroGen::Logger::Logger" }
+                    end
+                end
                 tasks.each do |job|
                     if job.kind_of?(Roby::Interface::Job)
                         if placeholder_task = job.planned_task
@@ -244,7 +253,9 @@ module Syskit
             end
 
             def update_orocos_tasks
-                orocos_tasks = all_tasks.map { |t| t.arguments[:orocos_name] }.compact.to_set
+                candidate_tasks = self.all_tasks.
+                    find_all { |t| t.kind_of?(Syskit::TaskContext) }
+                orocos_tasks = candidate_tasks.map { |t| t.arguments[:orocos_name] }.compact.to_set
                 removed = current_orocos_tasks - orocos_tasks
                 new     = orocos_tasks - current_orocos_tasks
                 removed.each do |task_name|
@@ -278,7 +289,14 @@ module Syskit
                 splitter = Qt::Splitter.new
                 splitter.add_widget job_summary
                 splitter.add_widget(@job_expanded_status = ExpandedJobStatus.new)
-                splitter.add_widget(@ui_task_inspector = Vizkit.default_loader.TaskInspector)
+
+                task_inspector_widget = Qt::Widget.new
+                task_inspector_layout = Qt::VBoxLayout.new(task_inspector_widget)
+                task_inspector_layout.add_widget(@ui_hide_loggers = Qt::CheckBox.new("Show loggers"))
+                task_inspector_layout.add_widget(@ui_task_inspector = Vizkit.default_loader.TaskInspector)
+                @ui_hide_loggers.checked = false
+
+                splitter.add_widget(task_inspector_widget)
                 job_expanded_status.set_size_policy(Qt::SizePolicy::MinimumExpanding, Qt::SizePolicy::MinimumExpanding)
                 main_layout.add_widget splitter
                 w = splitter.size.width
