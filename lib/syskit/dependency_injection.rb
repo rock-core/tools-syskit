@@ -281,7 +281,7 @@ module Syskit
                     if sel == DependencyInjection.nothing
                         sel = requirements
                     end
-                    selections << sel
+                    selections << [sel]
                     selection.each do |key, value|
                         next if !value.respond_to?(:component_model) || value.component_model != sel
 

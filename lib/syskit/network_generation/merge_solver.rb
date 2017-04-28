@@ -124,12 +124,13 @@ module Syskit
 
                 merged_event_to_event = Hash.new
                 event_resolver = ->(e) { merged_task_to_task[e.task].event(e.symbol) }
-                merged_task_to_task.each do |merged_task, task|
+                task_replacements = merged_task_to_task.map_value do |merged_task, task|
                     merged_task.each_event do |ev|
                         merged_event_to_event[ev] = [nil, event_resolver]
                     end
+                    [task]
                 end
-                plan.replace_subplan(merged_task_to_task, merged_event_to_event)
+                plan.replace_subplan(task_replacements, merged_event_to_event)
 
                 merged_task_to_task.each do |merged_task, task|
                     if !merged_task.transaction_proxy?
