@@ -43,6 +43,94 @@ module Syskit
             end
         end
 
+        describe "can_be_deployed_by?" do
+            before do
+                @task_m = Syskit::TaskContext.new_submodel
+            end
+            describe 'services that require reconfiguration' do
+                before do
+                    srv_m = Syskit::DataService.new_submodel
+                    @task_m.dynamic_service srv_m, as: 'srv', remove_when_unused: true, addition_requires_reconfiguration: true do
+                        provides srv_m
+                    end
+                end
+
+                describe "the addition of new services that require reconfiguration" do
+                    before do
+                        @new_task = @task_m.new
+                        @new_task.specialize
+                        @new_task.require_dynamic_service 'srv', as: 'srv'
+                        @existing_task = syskit_stub_and_deploy(@task_m)
+                    end
+
+                    it "cannot be deployed if the deployment task is configured" do
+                        syskit_configure(@existing_task)
+                        refute @new_task.can_be_deployed_by?(@existing_task)
+                    end
+                    it "can be deployed if the deployment task is not configured" do
+                        assert @new_task.can_be_deployed_by?(@existing_task)
+                    end
+                end
+
+                describe "the removal of service that need to be removed" do
+                    before do
+                        @new_task = @task_m.new
+                        @existing_task = syskit_stub_and_deploy(@task_m)
+                        @existing_task.specialize
+                        @existing_task.require_dynamic_service 'srv', as: 'srv'
+                    end
+                    it "cannot be deployed if the deployment task is configured" do
+                        syskit_configure(@existing_task)
+                        refute @new_task.can_be_deployed_by?(@existing_task)
+                    end
+                    it "cannot be deployed if the deployment task is not configured" do
+                        refute @new_task.can_be_deployed_by?(@existing_task)
+                    end
+                end
+            end
+            describe 'services that do not require reconfiguration' do
+                before do
+                    srv_m = Syskit::DataService.new_submodel
+                    @task_m.dynamic_service srv_m, as: 'srv', remove_when_unused: false, addition_requires_reconfiguration: false do
+                        provides srv_m
+                    end
+                end
+
+                describe "the addition of new services that require reconfiguration" do
+                    before do
+                        @new_task = @task_m.new
+                        @new_task.specialize
+                        @new_task.require_dynamic_service 'srv', as: 'srv'
+                        @existing_task = syskit_stub_and_deploy(@task_m)
+                    end
+
+                    it "can be deployed if the existing task is configured" do
+                        syskit_configure(@existing_task)
+                        assert @new_task.can_be_deployed_by?(@existing_task)
+                    end
+                    it "can be deployed if the existing task is not configured" do
+                        assert @new_task.can_be_deployed_by?(@existing_task)
+                    end
+                end
+
+                describe "the removal of service that need to be removed" do
+                    before do
+                        @new_task = @task_m.new
+                        @existing_task = syskit_stub_and_deploy(@task_m)
+                        @existing_task.specialize
+                        @existing_task.require_dynamic_service 'srv', as: 'srv'
+                    end
+                    it "cannot be deployed if the existing task is configured" do
+                        syskit_configure(@existing_task)
+                        assert @new_task.can_be_deployed_by?(@existing_task)
+                    end
+                    it "cannot be deployed if the existing task is not configured" do
+                        assert @new_task.can_be_deployed_by?(@existing_task)
+                    end
+                end
+            end
+        end
+
         stub_process_server_deployment_helpers = Module.new do
             attr_reader :deployment_m, :deployment0, :deployment1
             def setup

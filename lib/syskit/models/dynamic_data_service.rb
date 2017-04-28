@@ -13,13 +13,13 @@ module Syskit
             attr_reader :block
             # Whether this service can be dynamically added to a
             # configured/running task
-            attr_predicate :dynamic?
+            attr_predicate :addition_requires_reconfiguration?
             # Whether this service should be removed if unused
             attr_predicate :remove_when_unused?
 
-            def initialize(component_model, name, service_model, block, dynamic: false, remove_when_unused: false)
+            def initialize(component_model, name, service_model, block, addition_requires_reconfiguration: true, remove_when_unused: false)
                 @component_model, @name, @service_model, @block = component_model, name, service_model, block
-                @dynamic = dynamic
+                @addition_requires_reconfiguration = addition_requires_reconfiguration
                 @remove_when_unused = remove_when_unused
             end
 

@@ -215,26 +215,34 @@ module Syskit
 
             # (see Component#can_be_deployed_by?)
             def can_be_deployed_by?(task)
-                if !super
-                    return false
-                elsif !task.setup?
-                    return true
-                end
-
                 # NOTE: in the two tests below, we use the fact that
                 # {#can_merge?} (and therefore {Component#can_be_deployed_by?})
                 # already checked that services that have the same name in task
                 # and self are actually of identical definition.
+
+                return false if !super
+
+                # First check if there are services that need to be removed.
+                # Syskit doesn't support that, so for those we cannot deploy
+                # using 'task'
                 task.each_required_dynamic_service do |srv|
                     if srv.model.remove_when_unused? && !find_data_service(srv.name)
                         return false
                     end
                 end
+
+                # Now check for new services that would require reconfiguration
+                # when added. Unlike with remove_when_unused, if 'task' is not
+                # setup, we can add the new data services to 'task' and
+                # therefore ignore the differences
+                return true if !task.setup?
+
                 each_required_dynamic_service do |srv|
-                    if !srv.model.dynamic? && !task.find_data_service(srv.name)
+                    if srv.model.addition_requires_reconfiguration? && !task.find_data_service(srv.name)
                         return false
                     end
                 end
+
                 true
             end
 

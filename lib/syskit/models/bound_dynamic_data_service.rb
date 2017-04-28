@@ -10,8 +10,8 @@ module Syskit
 
             # Whether this service can be added dynamically (i.e.  without
             # requiring a reconfigure)
-            def dynamic?
-                dynamic_service.dynamic?
+            def addition_requires_reconfiguration?
+                dynamic_service.addition_requires_reconfiguration?
             end
 
             # Whether this service must be removed when unused
