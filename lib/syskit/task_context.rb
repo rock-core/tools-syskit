@@ -956,7 +956,7 @@ module Syskit
             def kill_execution_agent_if_alone
                 if execution_agent
                     not_loggers = execution_agent.each_executed_task.
-                        find_all { |t| !t.kind_of?(OroGen::Logger::Logger) }
+                        find_all { |t| !Roby.app.syskit_utility_component?(t) }
                     if not_loggers.size == 1
                         plan.unmark_permanent_task(execution_agent)
                         if execution_agent.running?

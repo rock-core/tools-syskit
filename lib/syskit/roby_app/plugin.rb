@@ -116,6 +116,12 @@ module Syskit
                 orogen
             end
 
+            def syskit_utility_component?(task_context)
+                if defined?(OroGen::Logger::Logger)
+                    task_context.kind_of?(OroGen::Logger::Logger)
+                end
+            end
+
             # Load the component extension file associated with this an oroGen
             # project
             #
