@@ -9,9 +9,7 @@ end
 
 describe Syskit::Models::TaskContext do
     after do
-        begin OroGen::DefinitionModule.send(:remove_const, :Task)
-        rescue NameError
-        end
+        Syskit::TaskContext.clear_submodels
     end
 
     describe "the root models" do
@@ -144,7 +142,7 @@ describe Syskit::Models::TaskContext do
             submodel = Syskit::TaskContext.new_submodel
             OroGen::DefinitionModule.const_set(:Task, submodel)
             Syskit::TaskContext.clear_submodels
-            assert !OroGen::DefinitionModule.const_defined_here?(:Task)
+            refute OroGen::DefinitionModule.const_defined_here?(:Task)
         end
     end
 
@@ -194,8 +192,11 @@ describe Syskit::Models::TaskContext do
 
     it "has a proper name if it is assigned as a module's constant" do
         model = Syskit::TaskContext.new_submodel
-        OroGen::DefinitionModule.const_set :Task, model
-        assert_equal "OroGen::DefinitionModule::Task", model.name
+        begin
+            OroGen::DefinitionModule.const_set :Task, model
+            assert_equal "OroGen::DefinitionModule::Task", model.name
+        ensure OroGen::DefinitionModule.send :remove_const, :Task
+        end
     end
 
     describe "#define_from_orogen" do
@@ -285,19 +286,25 @@ describe Syskit::Models::TaskContext do
             assert_equal 'OroGen::MyProject::Task', syskit_model.name
         end
 
-        it "issues a warning if requested to register a model as a constant that already exists" do
-            orogen_model = OroGen::Spec::TaskContext.new(app.default_orogen_project, "definition_module::Task")
-            OroGen::DefinitionModule.const_set(:Task, (obj = Object.new))
-            flexmock(Syskit::TaskContext).should_receive(:warn).once
-            Syskit::TaskContext.define_from_orogen(orogen_model, register: true)
-        end
-        it "refuses to register the model as a constant if the constant already exists" do
-            Syskit.logger.level = Logger::FATAL
-            orogen_model = OroGen::Spec::TaskContext.new(app.default_orogen_project, "definition_module::Task")
-            OroGen::DefinitionModule.const_set(:Task, (obj = Object.new))
-            syskit_model = Syskit::TaskContext.define_from_orogen(orogen_model, register: true)
-            assert_same obj, ::OroGen::DefinitionModule::Task
-            OroGen::DefinitionModule.send(:remove_const, :Task)
+        describe "conflict with already existing constants" do
+            after do
+                OroGen::DefinitionModule.send(:remove_const, :Task)
+            end
+
+            it "issues a warning if requested to register a model as a constant that already exists" do
+                orogen_model = OroGen::Spec::TaskContext.new(app.default_orogen_project, "definition_module::Task")
+                OroGen::DefinitionModule.const_set(:Task, (obj = Object.new))
+                flexmock(Syskit::TaskContext).should_receive(:warn).once
+                Syskit::TaskContext.define_from_orogen(orogen_model, register: true)
+            end
+            it "refuses to register the model as a constant if the constant already exists" do
+                Syskit.logger.level = Logger::FATAL
+                orogen_model = OroGen::Spec::TaskContext.new(app.default_orogen_project, "definition_module::Task")
+                OroGen::DefinitionModule.const_set(:Task, (obj = Object.new))
+                flexmock(Syskit::TaskContext).should_receive(:warn).once
+                syskit_model = Syskit::TaskContext.define_from_orogen(orogen_model, register: true)
+                assert_same obj, ::OroGen::DefinitionModule::Task
+            end
         end
     end
 

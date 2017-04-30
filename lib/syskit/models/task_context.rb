@@ -37,7 +37,7 @@ module Syskit
                 true
             end
 
-            def clear_model
+            def clear_registration_as_constant
                 super
 
                 if name = self.name
