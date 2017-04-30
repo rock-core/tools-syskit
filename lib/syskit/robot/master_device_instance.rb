@@ -54,7 +54,7 @@ module Syskit
                 driver_model = driver_model.to_instance_requirements
                 @driver_model = driver_model.service
                 @requirements = driver_model.to_component_model
-                requirements.with_arguments("#{driver_model.service.name}_dev" => self)
+                requirements.with_arguments(:"#{driver_model.service.name}_dev" => self)
                 requirements.with_arguments(**task_arguments)
 
                 sample_size 1

@@ -269,7 +269,7 @@ describe Syskit::Actions::Profile do
         it "gives access to devices" do
             device = profile.robot.device dev_m, as: 'test'
             assert_same driver_m.driver_srv, profile.test_dev.base_model
-            assert_same device, profile.test_dev.arguments['driver_dev']
+            assert_same device, profile.test_dev.arguments[:driver_dev]
         end
         it "raises NoMethodError for unknown devices" do
             assert_raises(NoMethodError) do

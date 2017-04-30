@@ -61,32 +61,34 @@ module Syskit
             end
 
             # @return [Action] an action instance based on this model
-            def new(arguments = Hash.new)
-                Actions::Action.new(self, arguments)
+            def new(**arguments)
+                Actions::Action.new(self, **arguments)
             end
 
-            def plan_pattern(arguments = Hash.new)
-                job_id, arguments = Kernel.filter_options arguments, :job_id
-
-                req = to_instance_requirements(arguments)
-                placeholder = req.as_plan(job_id)
+            def plan_pattern(**arguments)
+                req = to_instance_requirements(**arguments)
+                job_id = Hash.new
+                if arguments.has_key?(:job_id)
+                    job_id[:job_id] = arguments.delete(:job_id)
+                end
+                placeholder = req.as_plan(**job_id)
                 placeholder.planning_task.action_model = self
                 placeholder.planning_task.action_arguments = arguments
                 placeholder
             end
 
-            def to_instance_requirements(arguments = Hash.new)
+            def to_instance_requirements(**arguments)
                 if !requirements.has_template? && requirements.can_use_template?
                     requirements.compute_template
                 end
                 req = requirements.dup
-                req.with_arguments(arguments)
+                req.with_arguments(**arguments)
                 req
             end
 
             # Instanciate this action on the given plan
-            def instanciate(plan, arguments = Hash.new)
-                plan.add(task = plan_pattern(arguments))
+            def instanciate(plan, **arguments)
+                plan.add(task = plan_pattern(**arguments))
                 task
             end
 
@@ -96,8 +98,8 @@ module Syskit
             # @param [ActionInterface] the action interface
             # @param [Hash] arguments the arguments (unused)
             # @return [Roby::Task] the action task
-            def run(action_interface, arguments = Hash.new)
-                instanciate(action_interface.plan, arguments)
+            def run(action_interface, **arguments)
+                instanciate(action_interface.plan, **arguments)
             end
 
             # Called by Roby::Actions::Models::Action to modify self so that it is

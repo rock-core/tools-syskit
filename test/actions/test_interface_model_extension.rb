@@ -175,7 +175,7 @@ describe Syskit::Actions::InterfaceModelExtension do
 
         it "should make task arguments that do not have a default but are selected in the instance requirements an optional argument of the action model" do
             task_m = Syskit::TaskContext.new_submodel { argument :arg0 }
-            profile.define('def', task_m.with_arguments('arg0' => nil))
+            profile.define('def', task_m.with_arguments(arg0: nil))
             actions.use_profile(profile)
             action = actions.find_action_by_name('def_def')
 
@@ -188,7 +188,7 @@ describe Syskit::Actions::InterfaceModelExtension do
             task_m = Syskit::TaskContext.new_submodel { argument :arg0 }
             profile.define('def', task_m)
             actions.use_profile(profile)
-            act = actions.def_def.instanciate(plan, 'arg0' => 10)
+            act = actions.def_def.instanciate(plan, arg0: 10)
             assert_equal 10, act.arg0
         end
 

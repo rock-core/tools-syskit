@@ -643,7 +643,7 @@ module Syskit
             end
 
             # Specifies new arguments that must be set to the instanciated task
-            def with_arguments(arguments)
+            def with_arguments(**arguments)
                 arguments.each do |k, v|
                     if !v.droby_marshallable?
                         raise Roby::NotMarshallable, "values used as task arguments must be marshallable, attempting to set #{k} to #{v} of class #{v.class}, which is not"
@@ -771,7 +771,7 @@ module Syskit
             #
             # The returned task is always marked as abstract
             def create_proxy_task
-                task = component_model.new(@arguments)
+                task = component_model.new(**@arguments)
                 task.required_host = self.required_host
                 task.abstract = true
                 task
@@ -899,8 +899,8 @@ module Syskit
             # instance of {InstanceRequirementsTask}.
             #
             # @return [Syskit::Component]
-            def as_plan(arguments = Hash.new)
-                Syskit::InstanceRequirementsTask.subplan(self, arguments)
+            def as_plan(**arguments)
+                Syskit::InstanceRequirementsTask.subplan(self, **arguments)
             end
 
             def to_s

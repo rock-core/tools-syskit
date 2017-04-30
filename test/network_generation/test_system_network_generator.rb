@@ -78,7 +78,7 @@ module Syskit
                 end
                 it "does not override already set devices" do
                     dev2 = robot.device dev_m, as: 'd2'
-                    task.arguments['driver_dev'] = dev2
+                    task.arguments[:driver_dev] = dev2
                     cmp.requirements.merge(cmp_m.use(dev_m => device))
                     subject.allocate_devices(task)
                     assert_equal dev2, task.find_device_attached_to(task.driver_srv)

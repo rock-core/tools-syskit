@@ -375,7 +375,7 @@ module Syskit
                 # List the possible candidates for the missing devices
                 candidates = Hash.new
                 abstract_task.model.each_master_driver_service do |srv|
-                    if !abstract_task.arguments["#{srv.name}_dev"]
+                    if !abstract_task.arguments[:"#{srv.name}_dev"]
                         candidates[srv] = plan.find_local_tasks(srv.model).to_set
                         candidates[srv].delete(abstract_task)
                         all_tasks |= candidates[srv]

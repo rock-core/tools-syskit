@@ -94,7 +94,7 @@ module Syskit
                     service = driver_services.first
                 end
 
-                arguments["#{service.name}_dev"]
+                arguments[:"#{service.name}_dev"]
             end
 
             # Alias for #find_device_attached_to for user code

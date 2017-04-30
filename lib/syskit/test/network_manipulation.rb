@@ -398,8 +398,8 @@ module Syskit
             def syskit_stub_required_devices(model)
                 model = model.to_instance_requirements
                 model.model.to_component_model.each_master_driver_service do |srv|
-                    if !model.arguments["#{srv.name}_dev"]
-                        model.with_arguments("#{srv.name}_dev" => syskit_stub_device(srv.model, driver: model.model))
+                    if !model.arguments[:"#{srv.name}_dev"]
+                        model.with_arguments(:"#{srv.name}_dev" => syskit_stub_device(srv.model, driver: model.model))
                     end
                 end
                 model
@@ -479,7 +479,7 @@ module Syskit
                     stubbed_tags = Hash.new
                     trsc_tasks.each do |task|
                         task.model.each_master_driver_service do |srv|
-                            task.arguments["#{srv.name}_dev"] ||=
+                            task.arguments[:"#{srv.name}_dev"] ||=
                                 syskit_stub_device(srv.model, driver: task.model)
                         end
                     end
@@ -582,10 +582,10 @@ module Syskit
 
                 arguments = task.arguments.dup
                 task_m.each_master_driver_service do |srv|
-                    arguments["#{srv.name}_dev"] ||=
+                    arguments[:"#{srv.name}_dev"] ||=
                         syskit_stub_device(srv.model, driver: task_m)
                 end
-                task_m.new(arguments)
+                task_m.new(**arguments)
             end
 
             def syskit_stub_network_deployment(
@@ -598,10 +598,13 @@ module Syskit
                 task.plan.add(deployer = deployment_model.new)
                 deployed_task = deployer.instanciate_all_tasks.first
 
-                new_args = task.arguments.find_all do |key, arg|
-                    deployed_task.arguments.writable?(key, arg)
+                new_args = Hash.new
+                task.arguments.find_all do |key, arg|
+                    if deployed_task.arguments.writable?(key, arg)
+                        new_args[key] = arg
+                    end
                 end
-                deployed_task.assign_arguments(new_args)
+                deployed_task.assign_arguments(**new_args)
                 deployed_task
             end
 

@@ -45,7 +45,7 @@ module Syskit
             # @return [NetworkGeneration::PortDynamics]
             attr_accessor :dynamics
 
-            def initialize(options = Hash.new)
+            def initialize(**arguments)
                 super
                 @requirements = InstanceRequirements.new
             end

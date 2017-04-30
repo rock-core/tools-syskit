@@ -36,6 +36,12 @@ describe Syskit::InstanceRequirements do
             end
             assert_equal expected_e.message, actual_e.message
         end
+
+        it "raises if arguments are not using symbols as keys" do
+            assert_raises(ArgumentError) do
+                req.with_arguments('key' => not_marshallable)
+            end
+        end
     end
 
     describe "#component_model" do
@@ -327,7 +333,7 @@ describe Syskit::InstanceRequirements do
             assert_equal [srv1, srv2, Syskit::DataService].to_set, Syskit::InstanceRequirements.new([component_model]).fullfilled_model[1].to_set
         end
         it "should return the required arguments as third element" do
-            arguments = Hash['an argument' => 'for the task']
+            arguments = Hash[argument: 'for the task']
             req = Syskit::InstanceRequirements.new([]).with_arguments(arguments)
             assert_equal arguments, req.fullfilled_model[2]
         end

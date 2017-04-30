@@ -99,12 +99,10 @@ module Syskit
                 orogen_model.worstcase_trigger_latency
             end
 
-            def initialize(arguments = Hash.new)
-                options, task_options = Kernel.filter_options arguments,
-                    orogen_model: nil
-                super(task_options)
+            def initialize(orogen_model: nil, **arguments)
+                super(**arguments)
 
-                @orogen_model   = options[:orogen_model] ||
+                @orogen_model   = orogen_model ||
                     Orocos::Spec::TaskDeployment.new(nil, model.orogen_model)
 
                 properties = Hash.new

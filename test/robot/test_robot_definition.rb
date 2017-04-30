@@ -22,7 +22,7 @@ describe Syskit::Robot::RobotDefinition do
         end
         it "sets the task argument that binds the driver service to the device" do
             device = robot.device(device_m, using: driver_m, as: 'dev')
-            assert_same device, device.requirements.arguments['driver_srv_dev']
+            assert_same device, device.requirements.arguments[:driver_srv_dev]
         end
         it "validates the given service model against Device by default" do
             flexmock(device_m).should_receive(:<).with(Syskit::Device).and_return(false).once

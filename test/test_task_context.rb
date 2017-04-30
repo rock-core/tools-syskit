@@ -951,7 +951,7 @@ module Syskit
                     task_m = TaskContext.new_submodel
                     task_m.driver_for device_m, as: 'test'
                     dev = robot.device(device_m, as: 'test').prefer_deployed_tasks(device_hint)
-                    task_m.new("test_dev" => dev)
+                    task_m.new(test_dev: dev)
                 end
 
                 it "uses the hints from its own requirements if there are some" do

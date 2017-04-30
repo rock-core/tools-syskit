@@ -17,19 +17,19 @@ describe Syskit::Device do
             @dev0 = robot.device device_m, as: 'DEV0'
         end
         it "should resolve the device attached using a service name" do
-            task = task_m.new "dev0_dev" => dev0
+            task = task_m.new dev0_dev: dev0
             assert_equal dev0, task.find_device_attached_to('dev0')
         end
         it "resolves devices by device model" do
-            task = task_m.new "dev0_dev" => dev0
+            task = task_m.new dev0_dev: dev0
             assert_equal dev0, task.find_device_attached_to(device_m)
         end
         it "should resolve the device attached using a data service bound to the task instance" do
-            task = task_m.new "dev0_dev" => dev0
+            task = task_m.new dev0_dev: dev0
             assert_equal dev0, task.find_device_attached_to(task.dev0_srv)
         end
         it "should resolve the device attached using a data service bound to the task model" do
-            task = task_m.new "dev0_dev" => dev0
+            task = task_m.new dev0_dev: dev0
             assert_equal dev0, task.find_device_attached_to(task_m.dev0_srv)
         end
         it "should return nil for services that are not yet attached to a device" do
@@ -47,13 +47,13 @@ describe Syskit::Device do
             @dev1 = robot.device device_m, as: 'DEV1', using: task_m.dev1_srv
         end
         it "should map the driver services to the actual devices using #find_device_attached_to" do
-            task = task_m.new "dev0_dev" => dev0, 'dev1_dev' => dev1
+            task = task_m.new dev0_dev: dev0, dev1_dev: dev1
             flexmock(task).should_receive(:find_device_attached_to).with(task_m.dev0_srv).once.and_return(dev0)
             flexmock(task).should_receive(:find_device_attached_to).with(task_m.dev1_srv).once.and_return(dev1)
             assert_equal [dev0, dev1].to_set, task.each_master_device.to_set
         end
         it "should yield a given device only once" do
-            task = task_m.new "dev0_dev" => dev0, 'dev1_dev' => dev0
+            task = task_m.new dev0_dev: dev0, dev1_dev: dev0
             flexmock(task).should_receive(:find_device_attached_to).with(task_m.dev0_srv).once.and_return(dev0)
             flexmock(task).should_receive(:find_device_attached_to).with(task_m.dev1_srv).once.and_return(dev0)
             assert_equal [dev0], task.each_master_device.to_a
@@ -68,7 +68,7 @@ describe Syskit::Device do
             dev0 = robot.device device_m, as: 'DEV0', using: task_m.dev0_srv
             dev1 = robot.device device_m, as: 'DEV1', using: task_m.dev1_srv
             dev2 = robot.device device_m, as: 'DEV2', using: task_m.dev2_srv
-            task = task_m.new('dev0_dev' => dev0, 'dev1_dev' => dev0, 'dev2_dev' => dev1)
+            task = task_m.new(dev0_dev: dev0, dev1_dev: dev0, dev2_dev: dev1)
             assert_equal [task.dev0_srv, task.dev1_srv], task.find_all_driver_services_for(dev0)
             assert_equal [task.dev2_srv], task.find_all_driver_services_for(dev1)
             assert_equal [], task.find_all_driver_services_for(dev2)
@@ -80,7 +80,7 @@ describe Syskit::Device do
             task_m.provides slave_m, as: 'slave', slave_of: task_m.dev_srv
 
             dev = robot.device device_m, as: 'DEV0', using: task_m
-            task = task_m.new('dev_dev' => dev)
+            task = task_m.new(dev_dev: dev)
             assert_equal [task.dev_srv.slave_srv], task.find_all_driver_services_for(dev.slave_dev).to_a
         end
     end
@@ -108,7 +108,7 @@ describe Syskit::ComBus do
     end
     describe "#each_com_bus_device" do
         it "lists the combus devices the task is driving" do
-            plan.add(combus_task = combus_driver_m.new('com_dev' => combus))
+            plan.add(combus_task = combus_driver_m.new(com_dev: combus))
             combus_task.each_com_bus_device.to_a
             assert_equal [robot.devices['COM']], combus_task.each_com_bus_device.to_a
         end
@@ -128,7 +128,7 @@ describe Syskit::ComBus do
     end
     describe "#each_declared_attached_device" do
         it "lists all devices that are declared as attached to the combus regardless of whether they are instanciated in the plan" do
-            plan.add(combus_task = combus_driver_m.new('com_dev' => combus))
+            plan.add(combus_task = combus_driver_m.new(com_dev: combus))
             assert_equal [device], combus_task.each_declared_attached_device.to_a
         end
     end
@@ -140,7 +140,7 @@ describe Syskit::ComBus do
             assert_equal [device], combus_task.each_attached_device.to_a
         end
         it "does not list devices that are declared but not currently using the bus" do
-            plan.add(combus_task = combus_driver_m.new('com_dev' => combus))
+            plan.add(combus_task = combus_driver_m.new(com_dev: combus))
             assert_equal [], combus_task.each_attached_device.to_a
         end
     end
@@ -220,8 +220,8 @@ describe Syskit::ComBus do
                     driver_for combus_m, as: 'com'
                     provides combus_m::BusInSrv, as: 'to_bus'
                 end
-                plan.add(combus_task = combus_driver_m.new('com_dev' => combus))
-                plan.add(device_task = device_driver_m.new('dev_dev' => device))
+                plan.add(combus_task = combus_driver_m.new(com_dev: combus))
+                plan.add(device_task = device_driver_m.new(dev_dev: device))
                 combus_task.attach(device_task)
                 assert_equal 'in', combus_task.DEV_srv.model.port_mappings_for_task['to_bus']
             end

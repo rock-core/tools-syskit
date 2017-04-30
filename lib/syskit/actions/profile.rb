@@ -307,7 +307,7 @@ module Syskit
                             rebound_arguments[name] = value.rebind_requirements(self)
                         end
                     end
-                    req.with_arguments(rebound_arguments)
+                    req.with_arguments(**rebound_arguments)
                 end
 
                 super if defined? super
