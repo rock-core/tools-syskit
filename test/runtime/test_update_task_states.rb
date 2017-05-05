@@ -14,16 +14,29 @@ module Syskit
                 flexmock(task0).should_receive(:will_never_setup?).never
                 Runtime.update_task_states(task0.plan)
             end
-            it "marks a task as failed-to-start if #will_never_setup? returns false" do
-                component_m = Syskit::TaskContext.new_submodel
-                task = syskit_stub_and_deploy(component_m)
-                syskit_start_execution_agents(task)
 
-                plan.unmark_mission_task(task)
-                flexmock(task).should_receive(:will_never_setup?).and_return(true)
-                Runtime.update_task_states(task.plan)
-                assert task.failed_to_start?
-                assert_equal "#{task} reports that it cannot be configured (FATAL_ERROR ?)", task.failure_reason.original_exception.message
+            describe "when the task will never setup" do
+                before do
+                    component_m = Syskit::TaskContext.new_submodel
+                    task = syskit_stub_and_deploy(component_m)
+                    syskit_start_execution_agents(task)
+
+                    plan.unmark_mission_task(task)
+                    flexmock(task).should_receive(:will_never_setup?).once.and_return(true)
+                    @task = task
+                end
+
+                it "attempts to kill it and does nothing further if that succeeds" do
+                    @task.should_receive(:kill_execution_agent_if_alone).pass_thru
+                    Runtime.update_task_states(plan)
+                    assert @task.execution_agent.finishing?
+                end
+                it "marks the task as failed-to-start if the execution agent cannot be killed" do
+                    @task.should_receive(:kill_execution_agent_if_alone).and_return(false)
+                    Runtime.update_task_states(plan)
+                    assert @task.failed_to_start?
+                    assert_equal "#{@task} reports that it cannot be configured (FATAL_ERROR ?)", @task.failure_reason.original_exception.message
+                end
             end
         end
     end
