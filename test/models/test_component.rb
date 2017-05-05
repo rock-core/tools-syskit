@@ -229,6 +229,13 @@ describe Syskit::Models::Component do
             end
         end
 
+        it "requires reconfiguration by default for all dynamic service-related changes to the model" do
+            dyn = task_m.dynamic_service srv_m, as: "dyn" do
+            end
+            assert dyn.addition_requires_reconfiguration?
+            assert dyn.remove_when_unused?
+        end
+
         describe "#find_dynamic_service" do
             it "should return a dynamic service bound to the current component model" do
                 srv_m = self.srv_m

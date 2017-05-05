@@ -484,7 +484,7 @@ module Syskit
             #         # setup the task to create the required service
             #       end
             #     end
-            def dynamic_service(model, as: nil, addition_requires_reconfiguration: true, remove_when_unused: false, &block)
+            def dynamic_service(model, as: nil, addition_requires_reconfiguration: true, remove_when_unused: true, &block)
                 if !as
                     raise ArgumentError, "no name given to the dynamic service, please provide one with the :as option"
                 elsif !block_given?
