@@ -521,33 +521,38 @@ module Syskit
                 end
             end
 
-            def method_missing(m, *args)
-                if m.to_s =~ /^(\w+)_tag$/
-                    tag_name = $1
-                    if !tags[tag_name]
-                        raise NoMethodError.new(m), "#{name} has no tag called #{tag_name}"
-                    elsif !args.empty?
-                        raise ArgumentError, "expected zero arguments, got #{args.size}"
-                    end
-                    return tags[tag_name]
-                elsif m.to_s =~ /^(\w+)_def$/
-                    defname = $1
-                    if !definitions[defname]
-                        raise NoMethodError.new(m), "#{name} has no definition called #{defname}"
-                    elsif !args.empty?
-                        raise ArgumentError, "expected zero arguments, got #{args.size}"
-                    end
-                    return definition(defname)
-                elsif m.to_s =~ /^(\w+)_dev$/
-                    devname = $1
-                    if !robot.devices[devname]
-                        raise NoMethodError.new(m), "#{name} has no device called #{devname} (existing devices are: #{robot.devices.keys.sort.join(", ")})"
-                    elsif !args.empty?
-                        raise ArgumentError, "expected zero arguments, got #{args.size}"
-                    end
-                    return robot.devices[devname].to_instance_requirements.dup
+            # Returns a tag by its name
+            #
+            # @param [String] name
+            # @return [Tag,nil]
+            def find_tag(name)
+                tags[name]
+            end
+
+            # Returns the instance requirements that represent a certain device
+            #
+            # @param [String] name
+            # @return [InstanceRequirements,nil]
+            def find_device_requirements_by_name(name)
+                if dev = robot.devices[name]
+                    dev.to_instance_requirements.dup
                 end
-                super
+            end
+
+            def find_through_method_missing(m, args, call: true)
+                MetaRuby::DSLs.find_through_method_missing(
+                    self, m, args,
+                    'tag' => :find_tag,
+                    'def' => :find_definition_by_name,
+                    'dev' => :find_device_requirements_by_name, call: call)
+            end
+
+            def respond_to_missing?(m, include_private)
+                !!find_through_method_missing(m, [], call: false) || super
+            end
+
+            def method_missing(m, *args)
+                find_through_method_missing(m, args) || super
             end
 
             include Roby::DRoby::V5::DRobyConstant::Dump

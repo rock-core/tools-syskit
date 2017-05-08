@@ -20,6 +20,10 @@ module Syskit
                     new(arguments)
             end
 
+            def respond_to_missing?(m, include_private)
+                model.requirements.respond_to?(m) || super
+            end
+
             def method_missing(m, *args, &block)
                 if model.requirements.respond_to?(m)
                     Action.new(model.send(m, *args, &block), arguments)

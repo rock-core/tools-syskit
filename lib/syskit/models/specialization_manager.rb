@@ -420,7 +420,11 @@ module Syskit
                 end
  
                 def respond_to_missing?(symbol, include_private)
-                    model.respond_to?(symbol, include_private)
+                    if symbol =~ /(.*)_child$/
+                        model.respond_to?($1)
+                    else
+                        model.respond_to?(symbol) || super
+                    end
                 end
 
                 def method_missing(m, *args, &block)

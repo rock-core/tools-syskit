@@ -72,6 +72,10 @@ module Syskit
                     instance_exec(*samples, &block)
                 end
 
+                def respond_to_missing?(m, include_private)
+                    arguments.has_key?(m) || super
+                end
+
                 def method_missing(m, *args, &block)
                     if arguments.has_key?(m)
                         if !args.empty?

@@ -232,17 +232,17 @@ module Syskit
                 return @di.dup
             end
 
+            def find_through_method_missing(m, args, call: true)
+                MetaRuby::DSLs.find_through_method_missing(
+                    self, m, args, 'dev' => :find_device, call: call) || super
+            end
+
+            def respond_to_missing?(m, include_private)
+                !!find_through_method_missing(m, [], call: false) || super
+            end
+
             def method_missing(m, *args, &block)
-                if m.to_s =~ /(.*)_dev$/
-                    device_name = $1
-                    if !args.empty?
-                        raise ArgumentError, "expected zero arguments to #{m}, got #{args.size}"
-                    elsif !(dev = devices[device_name])
-                        raise NoMethodError.new(m), "#{self} has no device named #{device_name} (existing devices are: #{devices.keys.sort.join(", ")})"
-                    end
-                    return dev
-                end
-                super
+                find_through_method_missing(m, args) || super
             end
         end
     end

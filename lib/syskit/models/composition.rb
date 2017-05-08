@@ -551,6 +551,13 @@ module Syskit
                         srv.attach(@child)
                     end
 
+                    def respond_to_missing?(m, include_private)
+                        if m.to_s =~ /_port$/
+                            @child.respond_to?(m)
+                        else super
+                        end
+                    end
+
                     def method_missing(m, *args, &block)
                         if m.to_s =~ /_port$/
                             @child.send(m, *args, &block)
@@ -588,8 +595,15 @@ module Syskit
                     Child.new(self, child)
                 end
 
+                def respond_to_missing?(m, include_private)
+                    if m.to_s.end_with?("_child")
+                        component_model.respond_to?(m)
+                    else super
+                    end
+                end
+
                 def method_missing(m, *args, &block)
-                    if m.to_s =~ /_child$/
+                    if m.to_s.end_with?("_child")
                         Child.new(self, component_model.send(m, *args, &block))
                     else
                         super
@@ -1129,18 +1143,9 @@ module Syskit
                 submodel
             end
 
-            def method_missing(m, *args, &block)
-                if m.to_s =~ /(.*)_child$/
-                    child_name = $1
-                    if !args.empty?
-                        raise ArgumentError, "#{m} expected zero arguments, got #{args.size}"
-                    end
-                    if has_child?(child_name)
-                        return find_child(child_name)
-                    else raise NoMethodError.new("#{self} has no child called #{child_name}", m)
-                    end
-                end
-                super
+            def find_through_method_missing(m, args, call: true)
+                MetaRuby::DSLs.find_through_method_missing(
+                    self, m, args, 'child' => :find_child, call: call) || super
             end
 
             # Helper method for {#promote_exported_output} and

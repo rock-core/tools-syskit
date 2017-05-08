@@ -296,14 +296,17 @@ module Syskit
                 robot.devices["#{name}.#{srv.name}"] = device_instance
             end
 
+            def find_through_method_missing(m, args, call: true)
+                MetaRuby::DSLs.find_through_method_missing(
+                    self, m, args, 'dev' => :slave, call: call) || super
+            end
+
+            def respond_to_missing?(m, include_private)
+                !!find_through_method_missing(m, [], call: false) || super
+            end
+
             def method_missing(m, *args, &block)
-                if m.to_s =~ /(.*)_dev$/
-                    if !args.empty?
-                        raise ArgumentError, "expected no arguments, got #{args.size}"
-                    end
-                    return slave($1)
-                end
-                super
+                find_through_method_missing(m, args) || super
             end
 
             # If this device's driver is a composition, allows to specify

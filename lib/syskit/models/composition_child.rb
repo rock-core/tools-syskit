@@ -190,20 +190,9 @@ module Syskit
                     child_name, composition_model.to_component_model)
             end
 
-            def method_missing(name, *args)
-                return super if !args.empty? || block_given?
-
-                name = name.to_s
-                if name =~ /^(\w+)_port$/
-                    name = $1
-                    if port = find_port(name)
-                        return port
-                    else
-                        raise InvalidCompositionChildPort.new(composition_model, child_name, name),
-                            "in composition #{composition_model.short_name}: child #{child_name} of type #{model} has no port named #{name}", caller(1)
-                    end
-                end
-                super
+            def find_through_method_missing(m, args, call: true)
+                MetaRuby::DSLs.find_through_method_missing(
+                    self, m, args, 'port' => :find_port, call: call) || super
             end
 
             def to_instance_requirements

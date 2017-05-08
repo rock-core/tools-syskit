@@ -454,18 +454,9 @@ module Syskit
                 end
             end
 
-            def method_missing(m, *args)
-                return super if !args.empty? || block_given?
-
-                if m.to_s =~ /^(\w+)_srv$/
-                    service_name = $1
-                    if service_model = find_data_service(service_name)
-                        return service_model
-                    else
-                        raise NoMethodError, "#{self} has no service called #{service_name}"
-                    end
-                end
-                super
+            def find_through_method_missing(m, args, call: true)
+                MetaRuby::DSLs.find_through_method_missing(
+                    self, m, args, 'srv' => :find_data_service, call: call) || super
             end
 
             # Returns a view of this component as a provider of the given

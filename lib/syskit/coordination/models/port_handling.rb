@@ -19,9 +19,8 @@ module Syskit
                     model.self_port_to_component_port(port)
                 end
 
-                def method_missing(m, *args, &block)
-                    MetaRuby::DSLs.find_through_method_missing(self, m, args, "port") ||
-                        super
+                def find_through_method_missing(m, args, call: true)
+                    MetaRuby::DSLs.find_through_method_missing(self, m, args, "port" => :find_port, call: call) || super
                 end
             end
         end

@@ -96,9 +96,17 @@ module Syskit
                     attachment_points << query
                 end
 
+                def find_through_method_missing(m, args, call: true)
+                    MetaRuby::DSLs.find_through_method_missing(
+                        root, m, args, "port" => :find_port, call: call) || super
+                end
+
+                def respond_to_missing?(m, include_private)
+                    !!find_through_method_missing(m, [], call: false) || super
+                end
+
                 def method_missing(m, *args, &block)
-                    MetaRuby::DSLs.find_through_method_missing(root, m, args, "port") ||
-                        super
+                    find_through_method_missing(m, args) || super
                 end
             end
         end

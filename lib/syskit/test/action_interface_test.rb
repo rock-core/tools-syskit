@@ -19,16 +19,24 @@ module Syskit
                 self.class.subject_syskit_model
             end
 
-            def self.method_missing(m, *args)
+            def self.respond_to_missing?(m, include_private)
+                !!subject_syskit_model.find_action_by_name(m) || super
+            end
+
+            def self.method_missing(m, *args, &block)
                 if subject_syskit_model.find_action_by_name(m)
-                    return subject_syskit_model.send(m, *args)
+                    subject_syskit_model.public_send(m, *args, &block)
                 else super
                 end
             end
 
-            def method_missing(m, *args)
+            def respond_to_missing?(m, include_private)
+                !!subject_syskit_model.find_action_by_name(m) || super
+            end
+
+            def method_missing(m, *args, &block)
                 if subject_syskit_model.find_action_by_name(m)
-                    subject_syskit_model.send(m, *args)
+                    subject_syskit_model.public_send(m, *args, &block)
                 else super
                 end
             end

@@ -957,32 +957,20 @@ module Syskit
                 end
             end
 
-            def method_missing(method, *args)
-                if !args.empty? || block_given?
-                    return super
-                end
+            def find_through_method_missing(m, args, call: true)
+                MetaRuby::DSLs.find_through_method_missing(
+                    self, m, args,
+                    'srv' => :find_data_service,
+                    'child' => :find_child,
+                    'port' => :find_port, call: call) || super
+            end
 
-		case method.to_s
-                when /^(\w+)_srv$/
-                    service_name = $1
-                    if srv = find_data_service(service_name)
-                        return srv
-                    end
-                    raise NoMethodError, "#{model.short_name} has no data service called #{service_name}"
-                when /^(\w+)_child$/
-                    child_name = $1
-                    if child = find_child(child_name)
-                        return child
-                    end
-                    raise NoMethodError, "#{model.short_name} has no child called #{child_name}"
-                when /^(\w+)_port$/
-                    port_name = $1
-                    if port = find_port(port_name)
-                        return port
-                    end
-                    raise NoMethodError, "no port called #{port_name} in #{model}"
-                end
-                super(method.to_sym, *args)
+            def respond_to_missing?(m, include_private)
+                !!find_through_method_missing(m, [], call: false) || super
+            end
+
+            def method_missing(m, *args, &block)
+                find_through_method_missing(m, args) || super
             end
 
             # Generates the InstanceRequirements object that represents +self+

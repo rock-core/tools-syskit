@@ -100,10 +100,15 @@ module Syskit
                     end
                 end
 
+                def respond_to_missing?(m, include_private)
+                    @orogen_model.respond_to?(m) ||
+                        @model.respond_to?(m) || super
+                end
+
                 def method_missing(m, *args, &block)
                     if @orogen_model.respond_to?(m)
-                        @orogen_model.send(m, *args, &block)
-                    else @model.send(m, *args, &block)
+                        @orogen_model.public_send(m, *args, &block)
+                    else @model.public_send(m, *args, &block)
                     end
                 end
             end
@@ -306,6 +311,14 @@ module Syskit
 
             def as_plan
                 to_instance_requirements.as_plan
+            end
+
+            def respond_to_missing?(m, include_private)
+                !!find_through_method_missing(m, [], call: false) || super
+            end
+
+            def method_missing(m, *args, &block)
+                find_through_method_missing(m, args) || super
             end
         end
 

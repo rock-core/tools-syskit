@@ -695,24 +695,23 @@ module Syskit
                 dserv
             end
 
+            def find_through_method_missing(m, args, call: true)
+                MetaRuby::DSLs.find_through_method_missing(
+                    self, m, args, 'srv' => :find_data_service, call: call) || super
+            end
 
-            def method_missing(m, *args)
+            def respond_to_missing?(m, include_private)
+                !!find_through_method_missing(m, [], call: false) || super
+            end
+
+            def method_missing(m, *args, &block)
                 if m == :orogen_model
                     raise NoMethodError, "tried to use a method to access an oroGen model, but none exists on #{self}"
                 end
-                if m.to_s =~ /^(\w+)_srv$/
-                    service_name = $1
-                    if service_model = find_data_service(service_name)
-                        if !args.empty?
-                            raise ArgumentError, "#{m} expects zero arguments, got #{args.size}"
-                        end
-                        return service_model
-                    else
-                        raise NoMethodError.new("#{short_name} has no service called #{service_name}", m)
-                    end
-                end
-                super
+
+                find_through_method_missing(m, args) || super
             end
+
 
             # Test if the given port is a port of self
             #

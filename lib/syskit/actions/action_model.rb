@@ -123,6 +123,10 @@ module Syskit
                 @requirements_model = @requirements_name = @requirements_arguments = nil
             end
 
+            def respond_to_missing?(m, include_private)
+                requirements.respond_to?(m) || super
+            end
+
             def method_missing(m, *args, &block)
                 if requirements.respond_to?(m)
                     req = requirements.dup

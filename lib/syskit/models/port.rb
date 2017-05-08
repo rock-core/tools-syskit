@@ -144,8 +144,11 @@ module Syskit
                 end
             end
 
-            def respond_to?(m, *args)
-                super || orogen_model.respond_to?(m, *args)
+            def respond_to_missing?(m, include_private)
+                if !OROGEN_MODEL_EXCLUDED_FORWARDINGS.include?(m) && orogen_model.respond_to?(m)
+                    true
+                else super
+                end
             end
 
             OROGEN_MODEL_EXCLUDED_FORWARDINGS = [:task]

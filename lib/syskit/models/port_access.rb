@@ -7,20 +7,9 @@ module Syskit
             # to the corresponding Models::Port instance
             attribute(:ports) { Hash.new }
 
-            def method_missing(m, *args)
-                case m.to_s
-                when /^(\w+)_port$/
-                    port_name = $1
-                    if port = self.find_port(port_name)
-                        if !args.empty?
-                            raise ArgumentError, "#{m} expects no arguments, got #{args.size}"
-                        end
-                        return port
-                    else
-                        raise NoMethodError.new("#{self} has no port called #{port_name}", m)
-                    end
-                end
-                super
+            def find_through_method_missing(m, args, call: true)
+                MetaRuby::DSLs.find_through_method_missing(
+                    self, m, args, 'port' => :find_port, call: call) || super
             end
 
             # Returns the port object that maps to the given name, or nil if it

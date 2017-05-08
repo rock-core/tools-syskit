@@ -1193,9 +1193,9 @@ module Syskit
                 relation_graph_for(Flows::DataFlow).modified_tasks << self
             end
 
-            def method_missing(m, *args, &block)
+            def find_through_method_missing(m, args, call: true)
                 MetaRuby::DSLs.find_through_method_missing(
-                    self, m, args, 'property') || super
+                    self, m, args, 'property' => :find_property, call: call) || super
             end
         end
 end

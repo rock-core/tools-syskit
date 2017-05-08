@@ -1,7 +1,7 @@
 module Syskit
     module Actions
         # Extension to the models of Roby::Actions::Interface
-        module InterfaceModelExtension
+        module LibraryExtension
             # The main Syskit::Actions::Profile object that is used in an
             # action interface
             def profile(name = nil, &block)
@@ -9,10 +9,7 @@ module Syskit
 
                 if !@profile
                     @profile = super("Profile") { self }
-                    if superclass.kind_of?(InterfaceModelExtension)
-                        tag_map = use_profile_tags(superclass.profile)
-                        @profile.use_profile(superclass.profile, tag_map)
-                    end
+                    setup_main_profile(@profile)
                 end
 
                 if block
@@ -21,6 +18,9 @@ module Syskit
                 else
                     @profile
                 end
+            end
+
+            def setup_main_profile(profile)
             end
 
             # Define on self tags that match the profile's tags
@@ -113,14 +113,32 @@ module Syskit
                 end
             end
 
+            def find_through_method_missing(m, args, call: true)
+                MetaRuby::DSLs.find_through_method_missing(
+                    profile, m, args, 'tag' => :find_tag, call: call) || super
+            end
+
+            def respond_to_missing?(m, include_private)
+                !!find_through_method_missing(m, [], call: false) || super
+            end
+
             def method_missing(m, *args, &block)
-                if m.to_s =~ /^(\w+)_tag$/
-                    return profile.send(m, *args, &block)
-                else super
+                find_through_method_missing(m, args) || super
+            end
+        end
+
+        module InterfaceModelExtension
+            def setup_main_profile(profile)
+                super
+                if superclass.kind_of?(InterfaceModelExtension)
+                    tag_map = use_profile_tags(superclass.profile)
+                    profile.use_profile(superclass.profile, tag_map)
                 end
             end
         end
-        Roby::Actions::Models::Library.include InterfaceModelExtension
+
+        Roby::Actions::Models::Library.include LibraryExtension
+        Roby::Actions::Interface.extend LibraryExtension
         Roby::Actions::Interface.extend InterfaceModelExtension
 
         module InterfaceExtension
@@ -128,12 +146,17 @@ module Syskit
                 self.class.profile
             end
 
+            def find_through_method_missing(m, args, call: true)
+                MetaRuby::DSLs.find_through_method_missing(
+                    profile, m, args, 'tag' => :find_tag, call: call) || super
+            end
+
+            def respond_to_missing?(m, include_private)
+                !!find_through_method_missing(m, [], call: false) || super
+            end
+
             def method_missing(m, *args, &block)
-                if m.to_s =~ /^(\w+)_tag$/
-                    tag_name = $1
-                    return self.class.profile.send(m, *args, &block)
-                else super
-                end
+                find_through_method_missing(m, args) || super
             end
         end
         Roby::Actions::Interface.include InterfaceExtension

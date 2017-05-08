@@ -251,7 +251,7 @@ describe Syskit::Actions::Profile do
 
         it "gives access to definitions" do
             profile.define 'test', Syskit::DataService.new_submodel
-            flexmock(profile).should_receive(:definition).with('test').and_return(d = flexmock)
+            flexmock(profile).should_receive(:find_definition_by_name).with('test').and_return(d = flexmock)
             assert_same d, profile.test_def
         end
         it "raises NoMethodError for unknown definitions" do

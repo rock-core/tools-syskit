@@ -66,21 +66,10 @@ module Syskit
             return !!find_input_port(name)
         end
 
-        # Resolves the _port access
-        def method_missing(m, *args)
-            if args.empty? && !block_given?
-                if m.to_s =~ /^(\w+)_port$/
-                    port_name = $1
-                    if port = self.find_port(port_name)
-                        return port
-                    else
-                        raise NoMethodError, "#{self} has no port called #{port_name}"
-                    end
-                end
-            end
-            super
+        def find_through_method_missing(m, args, call: true)
+            MetaRuby::DSLs.find_through_method_missing(
+                self, m, args, 'port' => :find_port, call: call) || super
         end
-
     end
 end
 

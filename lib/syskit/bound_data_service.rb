@@ -128,20 +128,17 @@ module Syskit
                 req
             end
 
-            def method_missing(m, *args)
-                case m.to_s
-                when /^(\w+)_srv$/
-                    srv_name = $1
-                    if srv = self.find_data_service(srv_name)
-                        if !args.empty?
-                            raise ArgumentError, "#{m} expects no arguments, got #{args.size}"
-                        end
-                        return srv
-                    else
-                        raise NoMethodError, "#{self} has no service called #{srv_name}"
-                    end
-                end
-                super
+            def find_through_method_missing(m, args, call: true)
+                MetaRuby::DSLs.find_through_method_missing(
+                    self, m, args, 'srv' => :find_data_service, call: call) || super
+            end
+
+            def respond_to_missing?(m, include_private)
+                !!find_through_method_missing(m, [], call: false) || super
+            end
+
+            def method_missing(m, *args, &block)
+                find_through_method_missing(m, args) || super
             end
 
             DRoby = Struct.new :component, :model do

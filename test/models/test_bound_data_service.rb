@@ -109,15 +109,16 @@ describe Syskit::Models::BoundDataService do
             srv_m = Syskit::DataService.new_submodel
             task_m = Syskit::TaskContext.new_submodel { provides srv_m, as: 'master' }
             master = task_m.master_srv
-            flexmock(master).should_receive(:find_data_service).once.with('slave').and_return(Object.new)
-            assert_raises(ArgumentError) { master.slave_srv('an_argument') }
+            e = assert_raises(ArgumentError) { master.slave_srv('an_argument') }
+            assert_equal "expected zero arguments to slave_srv, got 1", e.message
         end
         it "raises NoMethodError if the requested service does not exist" do
             srv_m = Syskit::DataService.new_submodel
             task_m = Syskit::TaskContext.new_submodel { provides srv_m, as: 'master' }
             master = task_m.master_srv
             flexmock(master).should_receive(:find_data_service).once.with('slave').and_return(nil)
-            assert_raises(NoMethodError) { master.slave_srv }
+            e = assert_raises(NoMethodError) { master.slave_srv }
+            assert_equal :slave_srv, e.name
         end
     end
 
