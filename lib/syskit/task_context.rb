@@ -39,13 +39,6 @@ module Syskit
             # can be resolved by Orocos.name_service
             argument :orocos_name
 
-            class << self
-                # A set of names that says if the task named 'name' should be
-                # reconfigured the next time
-                def needs_reconfiguration; @@needs_reconfiguration end
-            end
-            @@needs_reconfiguration = Set.new
-
             # [Orocos::TaskContext,Orocos::ROS::Node] the underlying remote task
             # context object. It is set only when the task context's deployment
             # is running
@@ -577,7 +570,6 @@ module Syskit
             # This is meant for internal use. Don't use it unless you know what
             # you are doing
             def setup_successful!
-                TaskContext.needs_reconfiguration.delete(orocos_name)
                 execution_agent.update_current_configuration(
                     orocos_name, model, self.conf.dup, self.each_required_dynamic_service.to_set)
                 execution_agent.finished_configuration(orocos_name)
@@ -596,11 +588,9 @@ module Syskit
             # If true, #configure must be called on this task before it is
             # started. This flag is reset after #configure has been called
             def needs_reconfiguration?
-                TaskContext.needs_reconfiguration?(orocos_name)
-            end
-
-            def self.needs_reconfiguration?(orocos_name)
-                needs_reconfiguration.include?(orocos_name)
+                if execution_agent
+                    execution_agent.needs_reconfiguration?(orocos_name)
+                end
             end
 
             # Make sure that #configure will be called on this task before it
@@ -608,7 +598,7 @@ module Syskit
             #
             # See also #setup and #needs_reconfiguration?
             def needs_reconfiguration!
-                TaskContext.needs_reconfiguration << orocos_name
+                execution_agent.needs_reconfiguration!(orocos_name) if execution_agent
             end
 
             # Tests if this task can be reused in the next deployment run

@@ -88,6 +88,10 @@ module Syskit
             event :signaled
             forward :signaled => :failed
 
+            def has_orocos_name?(orocos_name)
+                name_mappings.each_value.any? { |n| n == orocos_name }
+            end
+
             def instanciate_all_tasks
                 model.each_orogen_deployed_task_context_model.map do |act|
                     task(name_mappings[act.name])
@@ -337,7 +341,7 @@ module Syskit
             # They are initialized once and for all since they won't change
             # across TaskContext restarts, allowing us to save costly
             # back-and-forth between the remote task and the local process
-            RemoteTaskHandles = Struct.new :handle, :state_reader, :state_getter, :default_properties, :configuring, :current_configuration
+            RemoteTaskHandles = Struct.new :handle, :state_reader, :state_getter, :default_properties, :configuring, :current_configuration, :needs_reconfiguration
 
             # @api private
             #
@@ -378,8 +382,40 @@ module Syskit
             #
             # Update the last known configuration of a task
             def update_current_configuration(orocos_name, model, conf, current_dynamic_services)
-                remote_task_handles[orocos_name].
-                    current_configuration = CurrentTaskConfiguration.new(model, conf, current_dynamic_services)
+                task_info = remote_task_handles[orocos_name]
+                task_info.needs_reconfiguration = false
+                task_info.current_configuration =
+                    CurrentTaskConfiguration.new(model, conf, current_dynamic_services)
+            end
+
+            # Force reconfiguration for all tasks in a plan that match the given
+            # orocos name
+            def self.needs_reconfiguration!(plan, orocos_name)
+                plan.find_local_tasks(Syskit::Deployment).
+                    each do |deployment_task|
+                        if deployment_task.has_orocos_name?(orocos_name)
+                            deployment_task.needs_reconfiguration!(orocos_name)
+                        end
+                    end
+            end
+
+            # @api private
+            #
+            # Whether a task should be forcefully reconfigured during the next
+            # network adaptation
+            def needs_reconfiguration?(orocos_name)
+                if handle = remote_task_handles[orocos_name]
+                    handle.needs_reconfiguration
+                end
+            end
+
+            # @api private
+            #
+            # Force a task to be reconfigured during the next network adaptation
+            def needs_reconfiguration!(orocos_name)
+                if handle = remote_task_handles[orocos_name]
+                    handle.needs_reconfiguration = true
+                end
             end
 
             # @api private
@@ -394,11 +430,10 @@ module Syskit
                     if modified_sections = changed[current_conf.model.concrete_model]
                         if modified_sections.any? { |section_name| current_conf.conf.include?(section_name) }
                             needed << orocos_name
+                            remote_handle.needs_reconfiguration = true
                         end
                     end
                 end
-
-                TaskContext.needs_reconfiguration.merge(needed)
                 needed
             end
 

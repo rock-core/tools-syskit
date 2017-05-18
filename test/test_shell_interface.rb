@@ -12,7 +12,6 @@ module Syskit
         end
 
         after do
-            TaskContext.needs_reconfiguration.clear
             if @ee_thread
                 @ee_thread.join
             end
@@ -58,7 +57,7 @@ module Syskit
                 flexmock(model.configuration_manager).should_receive(:reload).once.
                     and_return(['default'])
                 subject.reload_config
-                assert !TaskContext.needs_reconfiguration?('stub')
+                refute task.needs_reconfiguration?
             end
             it "does not redeploy the network" do
                 model = TaskContext.new_submodel

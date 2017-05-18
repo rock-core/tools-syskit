@@ -271,10 +271,18 @@ module Syskit
                     end
 
                     if ActualDataFlow.static?(from_task, from_port)
-                        TaskContext.needs_reconfiguration << from_task.name
+                        if syskit_from_task
+                            syskit_from_task.needs_reconfiguration!
+                        else
+                            Deployment.needs_reconfiguration!(plan, from_task.name)
+                        end
                     end
                     if ActualDataFlow.static?(to_task, to_port)
-                        TaskContext.needs_reconfiguration << to_task.name
+                        if syskit_to_task
+                            syskit_to_task.needs_reconfiguration!
+                        else
+                            Deployment.needs_reconfiguration!(plan, to_task.name)
+                        end
                     end
                     ActualDataFlow.remove_connections(from_task, to_task,
                                                       [[from_port, to_port]])

@@ -737,17 +737,25 @@ module Syskit
             before do
                 @task_m = TaskContext.new_submodel
             end
+            it "is false if the task does not have a supporting execution agent" do
+                t0 = task_m.new
+                refute t0.needs_reconfiguration?
+            end
+            it "is false if the task's execution agent is not ready" do
+                t0 = syskit_stub_and_deploy(task_m)
+                refute t0.needs_reconfiguration?
+            end
+            it "is false once the task's execution agent is ready" do
+                t0 = syskit_stub_and_deploy(task_m)
+                syskit_start_execution_agents(t0)
+                refute t0.needs_reconfiguration?
+            end
             it "sets the reconfiguration flag to true for a given orocos name" do
-                t0 = task_m.new(orocos_name: "bla")
-                t1 = task_m.new(orocos_name: "bla")
+                t0 = syskit_stub_and_deploy(task_m)
+                syskit_start_execution_agents(t0)
+                t1 = t0.execution_agent.task(t0.orocos_name)
                 t0.needs_reconfiguration!
                 assert t1.needs_reconfiguration?
-            end
-            it "does not set the flag for tasks of the same model but different names" do
-                t0 = task_m.new(orocos_name: "bla")
-                t1 = task_m.new(orocos_name: "other")
-                t0.needs_reconfiguration!
-                assert !t1.needs_reconfiguration?
             end
         end
         describe "#clean_dynamic_port_connections" do

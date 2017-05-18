@@ -187,6 +187,8 @@ module Syskit
                         end
                         syskit_start_execution_agents(source_task)
                         syskit_start_execution_agents(sink_task)
+                        @source_deployment = source_task.execution_agent
+                        @sink_deployment   = sink_task.execution_agent
                     end
 
                     it "connects input static ports before the task gets set up" do
@@ -223,15 +225,15 @@ module Syskit
                             def self.common
                                 it "disconnects a static source port and marks the task for reconfiguration" do
                                     prepare(true, false)
-                                    assert TaskContext.needs_reconfiguration?(source_task.orocos_name)
-                                    assert !TaskContext.needs_reconfiguration?(sink_task.orocos_name)
+                                    assert @source_deployment.needs_reconfiguration?(source_task.orocos_name)
+                                    refute @sink_deployment.needs_reconfiguration?(sink_task.orocos_name)
                                 end
 
                                 it "disconnects a static sink port and marks the task for reconfiguration" do
                                     prepare(false, true)
                                     ConnectionManagement.update(plan)
-                                    assert !TaskContext.needs_reconfiguration?(source_task.orocos_name)
-                                    assert TaskContext.needs_reconfiguration?(sink_task.orocos_name)
+                                    refute @source_deployment.needs_reconfiguration?(source_task.orocos_name)
+                                    assert @sink_deployment.needs_reconfiguration?(sink_task.orocos_name)
                                 end
                             end
 
