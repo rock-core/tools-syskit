@@ -302,7 +302,7 @@ module Syskit
 
             # Declare tasks that are going to be started by some other process,
             # but whose tasks are going to be integrated in the syskit network
-            def use_unmanaged_task(mappings)
+            def use_unmanaged_task(mappings, on: 'unmanaged_tasks')
                 mappings.map do |task_model, name|
                     if task_model.respond_to?(:to_str)
                         task_model_name = task_model
@@ -318,7 +318,7 @@ module Syskit
                     end
 
                     configured_deployment = Models::ConfiguredDeployment.
-                        new('unmanaged_tasks', deployment_model, Hash[name => name], name, Hash.new)
+                        new(on, deployment_model, Hash[name => name], name, Hash.new)
                     register_configured_deployment(configured_deployment)
                     configured_deployment
                 end
