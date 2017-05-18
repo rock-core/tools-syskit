@@ -653,7 +653,7 @@ module Syskit
                         agent.start!
                     end
                     if !agent.ready?
-                        assert_event_emission agent.ready_event, garbage_collect_pass: false
+                        assert_event_emission agent.ready_event, garbage_collect: false
                     end
                 end
             ensure
@@ -907,7 +907,7 @@ module Syskit
 
                 tasks.each do |t|
                     if t.starting?
-                        assert_event_emission t.start_event, garbage_collect_pass: false
+                        assert_event_emission t.start_event, garbage_collect: false
                     end
                 end
 
