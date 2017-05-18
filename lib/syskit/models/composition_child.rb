@@ -190,11 +190,6 @@ module Syskit
                     child_name, composition_model.to_component_model)
             end
 
-            def find_through_method_missing(m, args, call: true)
-                MetaRuby::DSLs.find_through_method_missing(
-                    self, m, args, 'port' => :find_port, call: call) || super
-            end
-
             def to_instance_requirements
                 ir = InstanceRequirements.new
                 ir.do_copy(self)

@@ -52,15 +52,22 @@ module Syskit
                     subject_syskit_model.robot.devices[name]
                 end
 
-                def find_through_method_missing(m, args, call: true)
+                def has_through_method_missing?(m)
+                    MetaRuby::DSLs.has_through_method_missing?(
+                        self, m,
+                        '_def' => :find_definition,
+                        '_dev' => :find_device) || super
+                end
+
+                def find_through_method_missing(m, args)
                     MetaRuby::DSLs.find_through_method_missing(
                         self, m, args,
-                        'def' => :find_definition,
-                        'dev' => :find_device, call: call) || super
+                        '_def' => :find_definition,
+                        '_dev' => :find_device) || super
                 end
 
                 def respond_to_missing?(m, include_private)
-                    !!find_through_method_missing(m, [], call: false) || super
+                    has_through_method_missing?(m) || super
                 end
 
                 def method_missing(m, *args)
@@ -68,12 +75,16 @@ module Syskit
                 end
             end
 
-            def find_through_method_missing(m, args, call: true)
-                self.class.find_through_method_missing(m, args, call: call) || super
+            def has_through_method_missing?(m)
+                self.class.has_through_method_missing?(m) || super
+            end
+
+            def find_through_method_missing(m, args)
+                self.class.find_through_method_missing(m, args) || super
             end
 
             def respond_to_missing?(m, include_private)
-                !!find_through_method_missing(m, [], call: false) || super
+                has_through_method_missing?(m) || super
             end
 
             def method_missing(m, *args)

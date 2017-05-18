@@ -1302,7 +1302,7 @@ module Syskit
                         exception = assert_raises(NoMethodError) do
                             task.does_not_exist_property
                         end
-                        assert_equal "#{task} has no property named does_not_exist", exception.message
+                        assert_equal "undefined method `does_not_exist_property' for #{task.class}", exception.message
                     end
                     it "does follow-up method resolution if the name does not end with _property" do
                         stub_t = stub_type '/test'

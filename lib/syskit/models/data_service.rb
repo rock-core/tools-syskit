@@ -314,7 +314,7 @@ module Syskit
             end
 
             def respond_to_missing?(m, include_private)
-                !!find_through_method_missing(m, [], call: false) || super
+                has_through_method_missing?(m) || super
             end
 
             def method_missing(m, *args, &block)

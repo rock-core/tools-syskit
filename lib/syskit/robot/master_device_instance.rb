@@ -251,6 +251,13 @@ module Syskit
                 slaves.each_value(&block)
             end
 
+            def has_slave?(slave_service)
+                return true if slaves[slave_service]
+
+                slave_name = "#{driver_model.full_name}.#{slave_service}"
+                !!task_model.find_data_service(slave_name)
+            end
+
             # Gets the required slave device, or creates a dynamic one
             #
             # @overload slave(slave_name)
@@ -296,13 +303,18 @@ module Syskit
                 robot.devices["#{name}.#{srv.name}"] = device_instance
             end
 
-            def find_through_method_missing(m, args, call: true)
+            def has_through_method_missing?(m)
+                MetaRuby::DSLs.has_through_method_missing?(
+                    self, m, '_dev' => :has_slave?) || super
+            end
+
+            def find_through_method_missing(m, args)
                 MetaRuby::DSLs.find_through_method_missing(
-                    self, m, args, 'dev' => :slave, call: call) || super
+                    self, m, args, '_dev' => :slave) || super
             end
 
             def respond_to_missing?(m, include_private)
-                !!find_through_method_missing(m, [], call: false) || super
+                has_through_method_missing?(m) || super
             end
 
             def method_missing(m, *args, &block)

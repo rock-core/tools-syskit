@@ -288,6 +288,10 @@ module Syskit
                 end
             end
 
+            def has_data_service?(service_name)
+                !!model.find_data_service(service_name)
+            end
+
             # Finds a data service by name
             #
             # @param [String] service_name the service name
@@ -359,6 +363,10 @@ module Syskit
                 self
             end
 
+            def has_child?(name)
+                model.has_child?(name)
+            end
+
             # Finds the composition's child by name
             #
             # @raise [ArgumentError] if this InstanceRequirements object does
@@ -382,6 +390,10 @@ module Syskit
                 if p = model.find_output_port(name)
                     p.attach(self)
                 end
+            end
+
+            def has_port?(name)
+                model.has_port?(name)
             end
 
             def find_port(name)
@@ -957,16 +969,24 @@ module Syskit
                 end
             end
 
-            def find_through_method_missing(m, args, call: true)
+            def has_through_method_missing?(m)
+                MetaRuby::DSLs.has_through_method_missing?(
+                    self, m,
+                    '_srv' => :has_data_service?,
+                    '_child' => :has_child?,
+                    '_port' => :has_port?) || super
+            end
+
+            def find_through_method_missing(m, args)
                 MetaRuby::DSLs.find_through_method_missing(
                     self, m, args,
-                    'srv' => :find_data_service,
-                    'child' => :find_child,
-                    'port' => :find_port, call: call) || super
+                    '_srv' => :find_data_service,
+                    '_child' => :find_child,
+                    '_port' => :find_port) || super
             end
 
             def respond_to_missing?(m, include_private)
-                !!find_through_method_missing(m, [], call: false) || super
+                has_through_method_missing?(m) || super
             end
 
             def method_missing(m, *args, &block)

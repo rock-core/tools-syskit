@@ -2,6 +2,10 @@ module Syskit
     module Coordination
         # Port access code for instance-level task objects
         module PortHandling
+            def has_port?
+                !!model.find_port(port_name)
+            end
+
             def find_port(port_name)
                 if model_port = model.find_port(port_name)
                     case model_port
@@ -25,8 +29,12 @@ module Syskit
                 end
             end
 
-            def find_through_method_missing(m, args, call: true)
-                MetaRuby::DSLs.find_through_method_missing(self, m, args, 'port' => :find_port, call: call) || super
+            def has_through_method_missing?(m)
+                MetaRuby::DSLs.has_through_method_missing?(self, m, '_port' => :has_port?) || super
+            end
+
+            def find_through_method_missing(m, args)
+                MetaRuby::DSLs.find_through_method_missing(self, m, args, '_port' => :find_port) || super
             end
         end
 

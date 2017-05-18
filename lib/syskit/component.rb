@@ -102,6 +102,10 @@ module Syskit
                 self
             end
 
+            def has_data_service?(service_name)
+                !!model.find_data_service(service_name)
+            end
+
             # Finds a data service by its name
             #
             # @param [String] service_name the data service name
@@ -454,9 +458,14 @@ module Syskit
                 end
             end
 
-            def find_through_method_missing(m, args, call: true)
+            def has_through_method_missing?(m)
+                MetaRuby::DSLs.has_through_method_missing?(
+                    self, m, '_srv' => :has_data_service?) || super
+            end
+
+            def find_through_method_missing(m, args)
                 MetaRuby::DSLs.find_through_method_missing(
-                    self, m, args, 'srv' => :find_data_service, call: call) || super
+                    self, m, args, '_srv' => :find_data_service) || super
             end
 
             # Returns a view of this component as a provider of the given

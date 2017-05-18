@@ -695,13 +695,18 @@ module Syskit
                 dserv
             end
 
-            def find_through_method_missing(m, args, call: true)
+            def has_through_method_missing?(m)
+                MetaRuby::DSLs.has_through_method_missing?(
+                    self, m, '_srv' => :find_data_service) || super
+            end
+
+            def find_through_method_missing(m, args)
                 MetaRuby::DSLs.find_through_method_missing(
-                    self, m, args, 'srv' => :find_data_service, call: call) || super
+                    self, m, args, '_srv' => :find_data_service) || super
             end
 
             def respond_to_missing?(m, include_private)
-                !!find_through_method_missing(m, [], call: false) || super
+                has_through_method_missing?(m) || super
             end
 
             def method_missing(m, *args, &block)
@@ -860,6 +865,7 @@ module Syskit
                 model.proxied_task_context_model = self
                 model.proxied_data_services = service_models.dup
 		model.fullfilled_model = [self] + model.proxied_data_services.to_a
+                model.update_proxy_mappings
 
                 service_models.each_with_index do |m, i|
                     model.provides m, as: "m#{i}"
@@ -1146,19 +1152,15 @@ module Syskit
 
             def each_output_port
                 return enum_for(:each_output_port) if !block_given?
-                each_required_model do |m|
-                    m.each_output_port do |p|
-                        yield(p.attach(self))
-                    end
+                @output_port_models.each_value do |list|
+                    list.each { |p| yield(p) }
                 end
             end
 
             def each_input_port
                 return enum_for(:each_input_port) if !block_given?
-                each_required_model do |m|
-                    m.each_input_port do |p|
-                        yield(p.attach(self))
-                    end
+                @input_port_models.each_value do |list|
+                    list.each { |p| yield(p) }
                 end
             end
 
@@ -1169,29 +1171,61 @@ module Syskit
             end
 
             def find_output_port(name)
-                each_required_model do |m|
-                    if p = m.find_output_port(name)
-                        return p.attach(self)
-                    end
+                if list = @output_port_models[name]
+                    list.first
                 end
-                nil
             end
 
             def find_input_port(name)
-                each_required_model do |m|
-                    if p = m.find_input_port(name)
-                        return p.attach(self)
-                    end
+                if list = @input_port_models[name]
+                    list.first
                 end
-                nil
             end
 
             def find_port(name)
                 find_output_port(name) || find_input_port(name)
             end
 
+            def has_port?(name)
+                @input_port_models.has_key?(name.to_s) ||
+                    @output_port_models.has_key?(name.to_s)
+            end
+
+            def update_proxy_mappings
+                @output_port_models = Hash.new
+                @input_port_models = Hash.new
+                each_required_model do |m|
+                    m.each_output_port do |port|
+                        (@output_port_models[port.name] ||= Array.new) << port.attach(self)
+                    end
+                    m.each_input_port  do |port|
+                        (@input_port_models[port.name] ||= Array.new) << port.attach(self)
+                    end
+                end
+            end
+
             def placeholder_task?
                 true
+            end
+
+            def has_through_method_missing?(m)
+                MetaRuby::DSLs.has_through_method_missing?(
+                    self, m,
+                    '_port' => :has_port?) || super
+            end
+
+            def find_through_method_missing(m, args)
+                MetaRuby::DSLs.find_through_method_missing(
+                    self, m, args,
+                    '_port' => :find_port) || super
+            end
+
+            def respond_to_missing?(m, include_private)
+                has_through_method_missing?(m) || super
+            end
+
+            def method_missing(m, *args, &block)
+                find_through_method_missing(m, args) || super
             end
         end
 

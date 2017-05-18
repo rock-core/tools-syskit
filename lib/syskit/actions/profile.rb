@@ -520,6 +520,11 @@ module Syskit
                     yield(action_model)
                 end
             end
+            
+            # Whether a tag with this name exists
+            def has_tag?(name)
+                !!tags[name]
+            end
 
             # Returns a tag by its name
             #
@@ -527,6 +532,10 @@ module Syskit
             # @return [Tag,nil]
             def find_tag(name)
                 tags[name]
+            end
+
+            def has_device?(name)
+                !!robot.devices[name]
             end
 
             # Returns the instance requirements that represent a certain device
@@ -539,16 +548,24 @@ module Syskit
                 end
             end
 
-            def find_through_method_missing(m, args, call: true)
+            def has_through_method_missing?(m)
+                MetaRuby::DSLs.has_through_method_missing?(
+                    self, m,
+                    '_tag' => :has_tag?,
+                    '_def' => :has_definition?,
+                    '_dev' => :has_device?) || super
+            end
+
+            def find_through_method_missing(m, args)
                 MetaRuby::DSLs.find_through_method_missing(
                     self, m, args,
-                    'tag' => :find_tag,
-                    'def' => :find_definition_by_name,
-                    'dev' => :find_device_requirements_by_name, call: call)
+                    '_tag' => :find_tag,
+                    '_def' => :find_definition_by_name,
+                    '_dev' => :find_device_requirements_by_name) || super
             end
 
             def respond_to_missing?(m, include_private)
-                !!find_through_method_missing(m, [], call: false) || super
+                has_through_method_missing?(m) || super
             end
 
             def method_missing(m, *args)

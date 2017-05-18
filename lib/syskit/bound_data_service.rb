@@ -72,6 +72,13 @@ module Syskit
                 end
             end
 
+            def has_data_service?(name)
+                component.model.each_slave_data_service(self.model) do |slave_m|
+                    return true if slave_m.name == name
+                end
+                false
+            end
+
             # Looks for a slave data service by name
             def find_data_service(name)
                 component.model.each_slave_data_service(self.model) do |slave_m|
@@ -128,13 +135,20 @@ module Syskit
                 req
             end
 
-            def find_through_method_missing(m, args, call: true)
+            def has_through_method_missing?(m)
+                MetaRuby::DSLs.has_through_method_missing?(
+                    self, m,
+                    '_srv' => :has_data_service?) || super
+            end
+
+            def find_through_method_missing(m, args)
                 MetaRuby::DSLs.find_through_method_missing(
-                    self, m, args, 'srv' => :find_data_service, call: call) || super
+                    self, m, args,
+                    '_srv' => :find_data_service) || super
             end
 
             def respond_to_missing?(m, include_private)
-                !!find_through_method_missing(m, [], call: false) || super
+                has_through_method_missing?(m) || super
             end
 
             def method_missing(m, *args, &block)

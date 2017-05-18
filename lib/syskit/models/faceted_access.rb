@@ -70,6 +70,10 @@ module Syskit
                 candidates
             end
 
+            def has_port?(name)
+                !(port_mappings[name] ||= find_all_port_mappings_for(name)).empty?
+            end
+
             def find_port(name)
                 if !port_mappings[name]
                     port_mappings[name] = find_all_port_mappings_for(name)
@@ -129,13 +133,18 @@ module Syskit
                 "#{object.to_s}.as(#{required.each_required_model.map(&:name).sort.join(",")})"
             end
 
-            def find_through_method_missing(m, args, call: true)
+            def has_through_method_missing?(m)
+                MetaRuby::DSLs.has_through_method_missing?(
+                    self, m, "_port" => :has_port?) || super
+            end
+
+            def find_through_method_missing(m, args)
                 MetaRuby::DSLs.find_through_method_missing(
-                    self, m, args, "port" => :find_port, call: call) || super
+                    self, m, args, "_port" => :find_port) || super
             end
 
             def respond_to_missing?(m, include_private)
-                !!find_through_method_missing(m, [], call: false) || super
+                has_through_method_missing?(m) || super
             end
 
             def method_missing(m, *args, &block)

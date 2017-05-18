@@ -10,6 +10,7 @@ module Syskit
         end
 
         def has_port?(name)
+            name = name.to_str
             has_input_port?(name) || has_output_port?(name)
         end
 
@@ -66,9 +67,14 @@ module Syskit
             return !!find_input_port(name)
         end
 
-        def find_through_method_missing(m, args, call: true)
+        def has_through_method_missing?(m)
+            MetaRuby::DSLs.has_through_method_missing?(
+                self, m, '_port' => :has_port?) || super
+        end
+
+        def find_through_method_missing(m, args)
             MetaRuby::DSLs.find_through_method_missing(
-                self, m, args, 'port' => :find_port, call: call) || super
+                self, m, args, '_port' => :find_port) || super
         end
     end
 end

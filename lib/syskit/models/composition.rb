@@ -1143,9 +1143,14 @@ module Syskit
                 submodel
             end
 
-            def find_through_method_missing(m, args, call: true)
+            def has_through_method_missing?(m)
+                MetaRuby::DSLs.has_through_method_missing?(
+                    self, m, '_child' => :find_child) || super
+            end
+
+            def find_through_method_missing(m, args)
                 MetaRuby::DSLs.find_through_method_missing(
-                    self, m, args, 'child' => :find_child, call: call) || super
+                    self, m, args, '_child' => :find_child) || super
             end
 
             # Helper method for {#promote_exported_output} and

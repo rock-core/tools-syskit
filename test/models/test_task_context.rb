@@ -390,4 +390,19 @@ describe Syskit::Models::TaskContext do
                 task_m.specialize.configuration_manager
         end
     end
+
+    describe "attribute access through method missing" do
+        before do
+            @task_m = Syskit::TaskContext.new_submodel do
+                output_port 'out_p', '/double'
+            end
+        end
+        it "responds to a known port" do
+            assert @task_m.respond_to?(:out_p_port)
+        end
+        it "does not respond to a unknown port" do
+            refute @task_m.respond_to?(:does_not_exist_port)
+        end
+    end
 end
+

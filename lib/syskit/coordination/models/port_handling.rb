@@ -3,6 +3,10 @@ module Syskit
         module Models
             # Port access code for model-level task objects
             module PortHandling
+                def has_port?(port_name)
+                    !!model.find_port(port_name)
+                end
+
                 def find_port(port_name)
                     if !model.respond_to?(:find_port)
                         raise ArgumentError, "cannot access ports on #{model}: it is not a component model"
@@ -19,8 +23,12 @@ module Syskit
                     model.self_port_to_component_port(port)
                 end
 
-                def find_through_method_missing(m, args, call: true)
-                    MetaRuby::DSLs.find_through_method_missing(self, m, args, "port" => :find_port, call: call) || super
+                def has_through_method_missing?(m)
+                    MetaRuby::DSLs.has_through_method_missing?(self, m, "_port" => :has_port?) || super
+                end
+
+                def find_through_method_missing(m, args)
+                    MetaRuby::DSLs.find_through_method_missing(self, m, args, "_port" => :find_port) || super
                 end
             end
         end
