@@ -1124,11 +1124,10 @@ module Syskit
             end
 
             # Create a new submodel of this composition model
-            def setup_submodel(submodel, options = Hash.new, &block)
-                options, submodel_options = Kernel.filter_options options, :register_specializations => true
-                super(submodel, submodel_options, &block)
+            def setup_submodel(submodel, register_specializations: true, **submodel_options, &block)
+                super(submodel, **submodel_options, &block)
 
-                if options[:register_specializations]
+                if register_specializations
                     specializations.each_specialization do |spec|
                         next if applied_specializations.include?(spec)
                         spec.specialization_blocks.each do |spec_block|
