@@ -21,40 +21,54 @@ describe Syskit::InstanceRequirementsTask do
         assert plan.syskit_current_resolution
     end
 
+    def capture_syskit_current_resolution
+        flexmock(plan).should_receive(:syskit_start_async_resolution).
+            pass_thru do |ret|
+                yield(plan.syskit_current_resolution)
+                ret
+            end
+    end
+
     it "finishes with failure if the network resolution failed" do
         task = plan.add_permanent_task(cmp_m.as_plan)
         req_task = task.planning_task
-        flexmock(Syskit::NetworkGeneration::Engine).
-            new_instances.should_receive(:resolve_system_network).and_raise(ArgumentError)
-        Roby.logger.level = Logger::FATAL
         resolution = nil
-        assert_raises(Roby::PlanningFailedError) do
-            assert_event_emission(req_task.failed_event) do
-                req_task.start!
-                resolution = plan.syskit_current_resolution
+        capture_syskit_current_resolution { |r| resolution = r }
+
+        flexmock(Syskit::NetworkGeneration::Engine).
+            new_instances.should_receive(:resolve_system_network).
+            and_raise(ArgumentError)
+
+        Roby.logger.level = Logger::FATAL
+        expect_execution { req_task.start! }.
+            to do
+                have_error_matching Roby::PlanningFailedError
+                emit req_task.failed_event
             end
-        end
+
         assert resolution.transaction_finalized?
         assert !resolution.transaction_committed?
-        assert req_task.failed?
     end
 
     it "finishes with failure if the network application failed" do
         task = plan.add_permanent_task(cmp_m.as_plan)
         req_task = task.planning_task
-        flexmock(Syskit::NetworkGeneration::Engine).
-            new_instances.should_receive(:apply_system_network_to_plan).and_raise(ArgumentError)
-        Roby.logger.level = Logger::FATAL
         resolution = nil
-        assert_raises(Roby::PlanningFailedError) do
-            assert_event_emission(req_task.failed_event) do
-                req_task.start!
-                resolution = plan.syskit_current_resolution
+        capture_syskit_current_resolution { |r| resolution = r }
+
+        flexmock(Syskit::NetworkGeneration::Engine).
+            new_instances.should_receive(:apply_system_network_to_plan).
+            and_raise(ArgumentError)
+
+        Roby.logger.level = Logger::FATAL
+        expect_execution { req_task.start! }.
+            to do
+                have_error_matching Roby::PlanningFailedError
+                emit req_task.failed_event
             end
-        end
+
         assert resolution.transaction_finalized?
         assert !resolution.transaction_committed?
-        assert req_task.failed?
     end
 
     it "finishes successfully if the network resolution succeeds" do
@@ -62,10 +76,10 @@ describe Syskit::InstanceRequirementsTask do
         task = plan.add_permanent_task(cmp_m.as_plan)
         req_task = task.planning_task
         resolution = nil
-        assert_event_emission(req_task.success_event) do
-            req_task.start!
-            resolution = plan.syskit_current_resolution
-        end
+        capture_syskit_current_resolution { |r| resolution = r }
+
+        expect_execution { req_task.start! }.
+            to { emit req_task.success_event }
         assert resolution.transaction_finalized?
         assert resolution.transaction_committed?
         assert req_task.success?

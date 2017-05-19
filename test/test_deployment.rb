@@ -261,10 +261,14 @@ module Syskit
                 end
 
                 def make_deployment_ready
+                    if !execution_engine.in_propagation_context?
+                        return expect_execution { make_deployment_ready }.
+                            to { emit deployment_task.ready_event }
+                    end
+
                     process.should_receive(:resolve_all_tasks).
                         and_return('mapped_task_name' => orocos_task)
                     deployment_task.start!
-                    process_events(garbage_collect_pass: false)
                 end
 
                 def add_deployed_task(name: 'mapped_task_name')
@@ -343,11 +347,11 @@ module Syskit
                         and_return('invalid_name' => orocos_task)
 
                     plan.unmark_permanent_task(deployment_task)
-                    exception = assert_fatal_exception Roby::EventHandlerError, original_exception: InternalError, tasks: [deployment_task], failure_point: deployment_task.ready_event do
+                    exception = assert_handled_exception Roby::EventHandlerError, original_exception: InternalError, tasks: [deployment_task], failure_point: deployment_task.ready_event do
                         make_deployment_ready
                     end
                     assert_equal "expected #{process}'s reported tasks to include mapped_task_name, but got handles only for invalid_name",
-                        exception.original_exceptions.first.message
+                        exception.exception.original_exceptions.first.message
                 end
                 it "fails an attached TaskContext if its orocos_name does not match the deployment's" do
                     task = add_deployed_task(name: 'invalid_task_name')
@@ -357,12 +361,12 @@ module Syskit
 
                     plan.unmark_permanent_task(task)
                     plan.unmark_permanent_task(task.execution_agent)
-                    exception = assert_task_fails_to_start task, Roby::CommandFailed, original_exception: InternalError, direct: true do
+                    exception = assert_task_fails_to_start task, Roby::CommandFailed, original_exception: InternalError do
                         make_deployment_ready
                     end
 
                     assert_equal "#{task} is supported by #{deployment_task} but there does not seem to be any task called invalid_task_name on this deployment",
-                        exception.error.message
+                        exception.exception.error.message
                 end
             end
             
@@ -417,18 +421,30 @@ module Syskit
         describe "#dead!" do
             attr_reader :process
             describe "emitted terminal events" do
+                attr_reader :orocos_task
                 before do
                     deployment_m.event :terminal_e, terminal: true
                     plan.clear
+                    process_server.should_receive(:start).and_return(process)
+                    @orocos_task = Orocos.allow_blocking_calls do
+                        Orocos::RubyTasks::TaskContext.new 'test'
+                    end
+                    process.should_receive(:resolve_all_tasks).
+                        and_return('mapped_task_name' => orocos_task)
                     plan.add_permanent_task(
                         @deployment_task = deployment_m.
                         new(process_name: 'mapped_task_name', on: 'fixture', name_mappings: Hash['task' => 'mapped_task_name']))
-                    deployment_task.start!
-                    assert_event_emission deployment_task.start_event
+                    assert_event_emission deployment_task.start_event do
+                        deployment_task.start!
+                    end
                     plan.unmark_permanent_task(deployment_task)
+                end
+                after do
+                    orocos_task.dispose
                 end
 
                 it "only emits stop if another terminal event was already emitted" do
+                    execute { deployment_task.terminal_e_event.emit }
                     assert_event_emission deployment_task.stop_event, [deployment_task.success_event, deployment_task.failed_event] do
                         deployment_task.dead!(nil)
                     end

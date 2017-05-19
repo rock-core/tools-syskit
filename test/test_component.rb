@@ -574,19 +574,15 @@ describe Syskit::Component do
             it "calls #setup_failed! instead of setup_successful! if the setup raises" do
                 task.should_receive(:setup_failed!).once.pass_thru
                 task.should_receive(:setup_successful!).never
-                task.setup.execute
-                assert_raises(Roby::EmissionFailed) do
-                    execution_engine.join_all_waiting_work
-                end
+                expect_execution { task.setup.execute }.
+                    to { fail_to_start task, reason: Roby::EmissionFailed }
                 refute task.setting_up?
                 refute task.setup?
             end
 
             it "marks the underlying task as failed_to_start! if the setup raises" do
-                task.setup.execute
-                assert_raises(Roby::EmissionFailed) do
-                    execution_engine.join_all_waiting_work
-                end
+                expect_execution { task.setup.execute }.
+                    to { fail_to_start task, reason: Roby::EmissionFailed }
                 assert task.failed_to_start?
                 assert_kind_of error_m, task.failure_reason.original_exception
             end

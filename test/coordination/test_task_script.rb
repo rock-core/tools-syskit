@@ -235,13 +235,8 @@ describe Syskit::Coordination::TaskScriptExtension do
             it "forwards arbitrary exceptions" do
                 error = Class.new(RuntimeError)
                 flexmock(actual_writer).should_receive(:disconnect).and_raise(error)
-                assert_event_emission cmp.stop_event do
-                    cmp.stop!
-                end
-                # Disconnection is asynchronous, need to process
-                assert_adds_framework_error(error) do
-                    process_events
-                end
+                expect_execution { cmp.stop! }.
+                    to { have_framework_error_matching error }
             end
         end
 
@@ -301,13 +296,8 @@ describe Syskit::Coordination::TaskScriptExtension do
             it "forwards arbitrary exceptions" do
                 error = Class.new(RuntimeError)
                 flexmock(actual_reader).should_receive(:disconnect).and_raise(error)
-                assert_event_emission cmp.stop_event do
-                    cmp.stop!
-                end
-                # Disconnection is asynchronous, need to process
-                assert_adds_framework_error(error) do
-                    process_events
-                end
+                expect_execution { cmp.stop! }.
+                    to { have_framework_error_matching error }
             end
         end
 

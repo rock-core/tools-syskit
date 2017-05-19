@@ -317,25 +317,15 @@ module Syskit
                 end
                 if task.running?
                     plan.unmark_mission_task(task)
-                    messages = capture_log(task, :info) do
-                        assert_event_emission(task.stop_event) do
-                            task.stop!
-                        end
+                    assert_event_emission(task.stop_event) do
+                        task.stop!
                     end
-                    assert_equal ["interrupting #{task}", "stopped #{task}"], messages
                 end
-            end
-
-            def call_task_start_event
-                messages = capture_log(task, :info) do
-                    task.start!
-                end
-                assert_equal ["starting #{task}"], messages
             end
 
             def start_task
                 assert_event_emission task.start_event do
-                    call_task_start_event
+                    task.start!
                 end
             end
 
@@ -350,14 +340,14 @@ module Syskit
                 start_task
             end
             it "raises Orocos::NotFound if some required output ports are not present" do
-                plan.unmark_mission_task(task)
                 task.should_receive(:each_concrete_output_connection).
                     and_return([[port = Object.new]]).once
                 orocos_task.should_receive(:start).never
-                call_task_start_event
-                assert_task_fails_to_start(task, Roby::EmissionFailed, original_exception: Orocos::NotFound) do
-                    process_events
-                end
+                expect_execution { task.start! }.
+                    to do
+                        fail_to_start task, reason: Roby::EmissionFailed.match.
+                            with_original_exception(Orocos::NotFound)
+                    end
             end
             it "checks that all required input ports are present" do
                 task.should_receive(:each_concrete_input_connection).
@@ -371,31 +361,35 @@ module Syskit
                     and_return([[nil, nil, port = Object.new, nil]])
                 orocos_task.should_receive(:port_names).once.and_return([])
                 orocos_task.should_receive(:start).never
-                call_task_start_event
-                assert_task_fails_to_start(task, Roby::EmissionFailed, original_exception: Orocos::NotFound) do
-                    process_events
-                end
+                expect_execution { task.start! }.
+                    to do
+                        fail_to_start task, reason: Roby::EmissionFailed.match.
+                            with_original_exception(Orocos::NotFound)
+                    end
             end
             it "emits the start event once the state reader reported the RUNNING state" do
                 FlexMock.use(task.state_reader) do |state_reader|
                     state = nil
                     state_reader.should_receive(:read_new).
                         and_return { s, state = state, nil; s }
-                    call_task_start_event
-                    process_events
-                    assert !task.running?
+                    execute { task.start! }
+                    refute task.running?
                     state = :RUNNING
                     assert_event_emission task.start_event
+                    # Just to shut up sanity checks with state events
+                    state = :STOPPED
+                    assert_event_emission task.stop_event
                 end
             end
             it "fails to start if orocos_task#start raises an exception" do
                 plan.unmark_mission_task(task)
                 error_m = Class.new(RuntimeError)
                 orocos_task.should_receive(:start).once.and_raise(error_m)
-                call_task_start_event
-                assert_task_fails_to_start task, Roby::EmissionFailed, original_exception: error_m do
-                    process_events
-                end
+                expect_execution { task.start! }.
+                    to do
+                        fail_to_start task, reason: Roby::EmissionFailed.match.
+                            with_original_exception(error_m)
+                    end
             end
         end
 
@@ -944,12 +938,14 @@ module Syskit
             it "reports an exception from the user-provided #configure method as failed-to-start" do
                 plan.unmark_mission_task(task)
                 task.should_receive(:configure).and_raise(error_e = Class.new(RuntimeError))
-                assert_task_fails_to_start(task, Roby::EmissionFailed, original_exception: error_e) do
-                    assert_raises(error_e) do
-                        setup_task(expected_messages: [])
+
+                promise = task.setup
+                expect_execution { promise.execute }.
+                    to do
+                        fail_to_start task, reason: Roby::EmissionFailed.match.
+                            with_origin(task.start_event).
+                            with_original_exception(error_e)
                     end
-                end
-                assert task.failed_to_start?
             end
             it "keeps the task in the plan until the asynchronous setup is finished" do
                 plan.unmark_mission_task(task)
@@ -999,14 +995,15 @@ module Syskit
                     setup_task(expected_messages: ["applied configuration [\"default\"] to #{task.orocos_name}", "#{task} was already configured"])
                 end
                 it "does not call the task's configure method if the user-provided configure method raises" do
-                    plan.unmark_mission_task(task)
                     task.should_receive(:configure).and_raise(error_m)
                     orocos_task.should_receive(:configure).never
-                    assert_task_fails_to_start(task, Roby::EmissionFailed, original_exception: error_m) do
-                        assert_raises(error_m) do
-                            setup_task(expected_messages: [])
+
+                    promise = task.setup
+                    expect_execution { promise.execute }.
+                        to do
+                            finish_promise promise
+                            fail_to_start task, reason: Roby::EmissionFailed.match.with_original_exception(error_m)
                         end
-                    end
                 end
             end
         end
@@ -1424,10 +1421,10 @@ module Syskit
                         property.write(0.1)
                         mock_remote_property.should_receive(:write).once.
                             and_raise(error_m)
-                        plan.unmark_mission_task(task)
-                        assert_fatal_exception(PropertyUpdateError, failure_point: task, original_exception: error_m, tasks: [task]) do
-                            process_events(garbage_collect_pass: false)
-                        end
+                        expect_execution { }.
+                            to do
+                                have_internal_error task, PropertyUpdateError.match.with_original_exception(error_m)
+                            end
                     end
                 end
 
@@ -1722,9 +1719,7 @@ module Syskit
                             and_raise(error_m)
                         task.commit_properties.execute
                         plan.unmark_mission_task(task)
-                        assert_fatal_exception(PropertyUpdateError, failure_point: task, original_exception: error_m, tasks: [task]) do
-                            process_events(garbage_collect_pass: false)
-                        end
+                        assert_fatal_exception(PropertyUpdateError, failure_point: task, original_exception: error_m, tasks: [task])
                     end
                 end
 

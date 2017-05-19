@@ -45,11 +45,11 @@ describe Syskit::Coordination::DataMonitoringTable do
         ruby_task.out.write(10)
         plan.unmark_mission_task(component)
         
-        assert_logs_exception_with_backtrace(error_m, Roby.logger, :warn)
-        event = assert_event_emission(component.internal_error_event) do
-            process_events
+        expect_execution.to do
+            have_internal_error component, Roby::CodeError.match.
+                with_ruby_exception(error_m).
+                with_origin(component)
         end
-        assert(Roby::CodeError.match.with_original_exception(error_m).with_origin(component) === event.context.first)
     end
 
     it "gives access to the monitoring table arguments as local variables in the blocks" do

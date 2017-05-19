@@ -117,21 +117,22 @@ module Syskit
             end
 
             it "stops the matching deployments" do
-                subject.stop_deployments
-                assert_raises(Roby::MissionFailedError) do
-                    assert_event_emission task.execution_agent.stop_event
-                end
+                expect_execution { subject.stop_deployments }.
+                    to do
+                        emit task.aborted_event
+                        emit task.execution_agent.stop_event
+                    end
                 assert task.finished?
             end
 
             it "restricts the deployments to the given models" do
                 other = syskit_stub_deploy_configure_and_start(task_m.with_conf('other'))
                 subject.plan.add_mission_task(other)
-                subject.stop_deployments(task.execution_agent.model)
-                # Deployment is asynchronous
-                assert_raises(Roby::MissionFailedError) do
-                    assert_event_emission task.execution_agent.stop_event
-                end
+                expect_execution { subject.stop_deployments(task.execution_agent.model) }.
+                    to do
+                        emit task.aborted_event
+                        emit task.execution_agent.stop_event
+                    end
                 assert task.finished?
                 assert !other.finished?
             end
@@ -140,11 +141,11 @@ module Syskit
                 other_m = TaskContext.new_submodel
                 other = syskit_stub_deploy_configure_and_start(other_m)
                 subject.plan.add_mission_task(other)
-                subject.stop_deployments(task.model)
-                # Deployment is asynchronous
-                assert_raises(Roby::MissionFailedError) do
-                    assert_event_emission task.execution_agent.stop_event
-                end
+                expect_execution { subject.stop_deployments(task.execution_agent.model) }.
+                    to do
+                        emit task.aborted_event
+                        emit task.execution_agent.stop_event
+                    end
                 assert task.finished?
                 assert !other.finished?
             end

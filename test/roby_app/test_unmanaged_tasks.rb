@@ -83,12 +83,12 @@ module Syskit
 
 
             it "allows to kill a started deployment that was not ready" do
-                assert_event_emission(deployment_task.start_event) do
-                    deployment_task.start!
-                end
-                assert_event_emission(deployment_task.stop_event) do
-                    deployment_task.stop!
-                end
+                expect_execution { deployment_task.start! }.
+                    with_setup { join_all_waiting_work false }.
+                    to { emit deployment_task.start_event }
+                expect_execution { deployment_task.stop! }.
+                    with_setup { join_all_waiting_work false }.
+                    to { emit deployment_task.stop_event }
             end
 
             it "allows to kill a deployment that is ready" do

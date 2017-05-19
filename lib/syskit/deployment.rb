@@ -529,12 +529,12 @@ module Syskit
             # +result+ is the Process::Status object describing how this process
             # finished.
             def dead!(result)
-                if !result
-                    failed_event.emit
-                elsif history.find(&:terminal?)
+                if history.find(&:terminal?)
                     # Do nothing. A terminal event already happened, so we don't
                     # need to tell what kind of end this is for the system
                     stop_event.emit
+                elsif !result
+                    failed_event.emit
                 elsif result.success?
                     success_event.emit
                 elsif result.signaled?

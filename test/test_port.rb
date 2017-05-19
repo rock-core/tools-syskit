@@ -191,9 +191,11 @@ describe Syskit::InputWriter do
         flexmock(in_port).should_receive(:writer).once.and_raise(error)
         port_writer = task.in_port.writer
         plan.unmark_mission_task(task)
-        assert_fatal_exception(Syskit::PortAccessFailure, original_exception: error, failure_point: task, tasks: [task]) do
-            syskit_wait_ready(port_writer)
+        expect_execution { task.start! }.to do
+            have_internal_error task, Syskit::PortAccessFailure.match.
+                with_ruby_exception(error)
         end
+
         refute port_writer.ready?
     end
     it "validates the given samples if the writer is not yet accessible" do
@@ -278,9 +280,11 @@ describe Syskit::OutputReader do
             with('out').once.and_return(out_port)
         flexmock(out_port).should_receive(:reader).once.and_raise(error)
         port_reader = task.out_port.reader
+
         plan.unmark_mission_task(task)
-        assert_fatal_exception(Syskit::PortAccessFailure, original_exception: error, failure_point: task, tasks: [task]) do
-            syskit_wait_ready(port_reader)
+        expect_execution { task.start! }.to do
+            have_internal_error task, Syskit::PortAccessFailure.match.
+                with_ruby_exception(error)
         end
         refute port_reader.ready?
     end
