@@ -22,10 +22,17 @@ module Syskit
                         #          are marshalled as strings instead of type
                         #          objects
                         if message_type.respond_to?(:to_str)
-                            Roby.app.default_loader.resolve_type(message_type, define_dummy_type: true)
+                            message_type = Roby.app.default_loader.resolve_type(self.message_type, define_dummy_type: true)
+                        else
+                            message_type = peer.local_object(self.message_type)
                         end
                         
-                        local_model = supermodel.new_submodel(name: name, lazy_dispatch: lazy_dispatch, message_type: peer.local_object(message_type))
+                        # We unfortunately must register the type on the global
+                        # loader. We're not ready yet for a fully mixed-loader
+                        # setup
+                        Roby.app.default_loader.register_type_model(message_type)
+
+                        local_model = supermodel.new_submodel(name: name, lazy_dispatch: lazy_dispatch, message_type: message_type)
                         peer.register_model(local_model, remote_siblings)
                         local_model
                     end
