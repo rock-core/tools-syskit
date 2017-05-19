@@ -368,6 +368,7 @@ module Syskit
                     @total_run_count = 0
                     name = (slave.name[:path] || "Robot: #{app.robot_name}")
                     if base_path = app.find_base_path_for(name)
+                        base_path = base_path.to_s
                         name = File.basename(base_path) + ":" + name[(base_path.size + 1)..-1]
                     end
                     @name = name
