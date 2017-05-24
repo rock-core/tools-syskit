@@ -495,7 +495,8 @@ module Syskit
                     return
                 end
 
-                if v = state_reader.read_new
+                @state_sample ||= state_reader.new_sample
+                if v = state_reader.read_new(@state_sample)
                     @last_orogen_state = orogen_state
                     @orogen_state = v
                 end

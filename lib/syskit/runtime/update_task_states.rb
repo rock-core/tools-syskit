@@ -5,16 +5,17 @@ module Syskit
         def self.update_task_states(plan) # :nodoc:
             query = plan.find_tasks(Syskit::TaskContext).not_finished
             for t in query
+                execution_agent = t.execution_agent
                 # The task's deployment is not started yet
                 if !t.orocos_task
                     plan.execution_engine.scheduler.report_holdoff "did not configure, execution agent not started yet", t
                     next
-                elsif t.execution_agent.aborted_event.pending?
+                elsif execution_agent.aborted_event.pending?
                     next
-                elsif !t.execution_agent
+                elsif !execution_agent
                     raise NotImplementedError, "#{t} is not yet finished but has no execution agent. #{t}'s history is\n  #{t.history.map(&:to_s).join("\n  ")}"
-                elsif !t.execution_agent.ready?
-                    raise InternalError, "orocos_task != nil on #{t}, but #{t.execution_agent} is not ready yet"
+                elsif !execution_agent.ready?
+                    raise InternalError, "orocos_task != nil on #{t}, but #{execution_agent} is not ready yet"
                 end
 
                 # Some CORBA implementations (namely, omniORB) may behave weird
@@ -23,7 +24,7 @@ module Syskit
                 #
                 # Ignore tasks whose process is terminating to reduce the
                 # likelihood of that happening
-		if t.execution_agent.ready_to_die?
+		if execution_agent.ready_to_die?
 		    next
 		end
 
