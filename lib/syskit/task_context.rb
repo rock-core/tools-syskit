@@ -489,15 +489,16 @@ module Syskit
             # Called at each cycle to update the orogen_state attribute for this
             # task using the values read from the state reader
             def update_orogen_state
-                if !state_reader.connected?
-                    fatal "terminating #{self}, its state reader #{state_reader} is disconnected"
-                    aborted!
-                    return
-                end
-
                 @state_sample ||= state_reader.new_sample
-                if v = state_reader.read_new(@state_sample)
-                    @last_orogen_state = orogen_state
+                result, v = state_reader.read_with_result(@state_sample, false)
+                if !result
+                    if !state_reader.connected?
+                        fatal "terminating #{self}, its state reader #{state_reader} is disconnected"
+                        aborted!
+                    end
+                    return
+                elsif v
+                    @last_orogen_state = @orogen_state
                     @orogen_state = v
                 end
             end
