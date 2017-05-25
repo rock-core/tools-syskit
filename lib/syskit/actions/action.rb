@@ -26,7 +26,7 @@ module Syskit
 
             def method_missing(m, *args, &block)
                 if model.requirements.respond_to?(m)
-                    Action.new(model.send(m, *args, &block), arguments)
+                    Action.new(model.public_send(m, *args, &block), arguments)
                 else super
                 end
             end

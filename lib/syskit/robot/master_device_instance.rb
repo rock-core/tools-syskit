@@ -305,21 +305,15 @@ module Syskit
 
             def has_through_method_missing?(m)
                 MetaRuby::DSLs.has_through_method_missing?(
-                    self, m, '_dev' => :has_slave?) || super
+                    self, m, '_dev'.freeze => :has_slave?) || super
             end
 
             def find_through_method_missing(m, args)
                 MetaRuby::DSLs.find_through_method_missing(
-                    self, m, args, '_dev' => :slave) || super
+                    self, m, args, '_dev'.freeze => :slave) || super
             end
 
-            def respond_to_missing?(m, include_private)
-                has_through_method_missing?(m) || super
-            end
-
-            def method_missing(m, *args, &block)
-                find_through_method_missing(m, args) || super
-            end
+            include MetaRuby::DSLs::FindThroughMethodMissing
 
             # If this device's driver is a composition, allows to specify
             # dependency injections for it

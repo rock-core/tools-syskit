@@ -11,6 +11,7 @@ module Syskit
         #
         # {#component}.{#model} is guaranteed to be {#model}.{#component}
         class BoundDataService
+            include MetaRuby::DSLs::FindThroughMethodMissing
             include Syskit::PortAccess
 
             # @return [Component] The component instance we are bound to
@@ -138,21 +139,13 @@ module Syskit
             def has_through_method_missing?(m)
                 MetaRuby::DSLs.has_through_method_missing?(
                     self, m,
-                    '_srv' => :has_data_service?) || super
+                    '_srv'.freeze => :has_data_service?) || super
             end
 
             def find_through_method_missing(m, args)
                 MetaRuby::DSLs.find_through_method_missing(
                     self, m, args,
-                    '_srv' => :find_data_service) || super
-            end
-
-            def respond_to_missing?(m, include_private)
-                has_through_method_missing?(m) || super
-            end
-
-            def method_missing(m, *args, &block)
-                find_through_method_missing(m, args) || super
+                    '_srv'.freeze => :find_data_service) || super
             end
 
             DRoby = Struct.new :component, :model do

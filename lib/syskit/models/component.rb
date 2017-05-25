@@ -697,24 +697,21 @@ module Syskit
 
             def has_through_method_missing?(m)
                 MetaRuby::DSLs.has_through_method_missing?(
-                    self, m, '_srv' => :find_data_service) || super
+                    self, m, '_srv'.freeze => :find_data_service) || super
             end
 
             def find_through_method_missing(m, args)
                 MetaRuby::DSLs.find_through_method_missing(
-                    self, m, args, '_srv' => :find_data_service) || super
+                    self, m, args, '_srv'.freeze => :find_data_service) || super
             end
 
-            def respond_to_missing?(m, include_private)
-                has_through_method_missing?(m) || super
-            end
+            include MetaRuby::DSLs::FindThroughMethodMissing
 
             def method_missing(m, *args, &block)
                 if m == :orogen_model
                     raise NoMethodError, "tried to use a method to access an oroGen model, but none exists on #{self}"
                 end
-
-                find_through_method_missing(m, args) || super
+                super
             end
 
 
@@ -1211,22 +1208,16 @@ module Syskit
             def has_through_method_missing?(m)
                 MetaRuby::DSLs.has_through_method_missing?(
                     self, m,
-                    '_port' => :has_port?) || super
+                    '_port'.freeze => :has_port?) || super
             end
 
             def find_through_method_missing(m, args)
                 MetaRuby::DSLs.find_through_method_missing(
                     self, m, args,
-                    '_port' => :find_port) || super
+                    '_port'.freeze => :find_port) || super
             end
 
-            def respond_to_missing?(m, include_private)
-                has_through_method_missing?(m) || super
-            end
-
-            def method_missing(m, *args, &block)
-                find_through_method_missing(m, args) || super
-            end
+            include MetaRuby::DSLs::FindThroughMethodMissing
         end
 
         def placeholder_task?

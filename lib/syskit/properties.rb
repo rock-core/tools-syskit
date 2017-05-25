@@ -52,8 +52,8 @@ module Syskit
         end
 
         def method_missing(m, *args)
-            if m =~ /^(.*)=/
-                raw, p = __resolve_property($1.to_s)
+            if m =~ /=$/
+                raw, p = __resolve_property($`.to_s)
                 if raw
                     return p.raw_write(*args)
                 else

@@ -310,9 +310,13 @@ module Syskit
                     @child_task.disconnect_ports(target_task, mappings)
                 end
 
+                def respond_to_missing?(m, include_private)
+                    (m =~ /_port$/) || super
+                end
+
                 def method_missing(m, *args, &block)
-                    if m.to_s =~ /^(\w+)_port$/
-                        port_name = $1
+                    if m =~ /_port$/
+                        port_name = $`
                         mapped_port_name = @composition_task.map_child_port(@child_name, port_name)
                         if port = @child_task.find_input_port(mapped_port_name)
                             return port

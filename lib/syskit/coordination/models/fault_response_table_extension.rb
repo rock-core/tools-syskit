@@ -77,22 +77,22 @@ module Syskit
 
                 def has_through_method_missing?(m)
                     MetaRuby::DSLs.has_through_method_missing?(
-                        self, m, "_monitor" => :find_monitor) || super
+                        self, m, "_monitor".freeze => :find_monitor) || super
                 end
 
                 def find_through_method_missing(m, args)
                     MetaRuby::DSLs.find_through_method_missing(
-                        self, m, args, "_monitor" => :find_monitor) || super
+                        self, m, args, "_monitor".freeze => :find_monitor) || super
                 end
 
+                include MetaRuby::DSLs::FindThroughMethodMissing
+
                 def respond_to_missing?(m, include_private)
-                    has_through_method_missing?(m) || arguments[m] || super
+                    arguments[m] || super
                 end
 
                 def method_missing(m, *args, &block)
-                    if found = find_through_method_missing(m, args)
-                        return found
-                    elsif arg = arguments[m]
+                    if arg = arguments[m]
                         return Roby::Coordination::Models::Variable.new(m)
                     else
                         super

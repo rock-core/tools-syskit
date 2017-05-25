@@ -5,6 +5,7 @@ module Syskit
         # models (for instance Device.new_submodel)
         class DataServiceModel < Roby::Models::TaskServiceModel
             include Models::Base
+            include MetaRuby::DSLs::FindThroughMethodMissing
             include Syskit::Models::PortAccess
 
             class << self
@@ -102,7 +103,7 @@ module Syskit
 
                 def respond_to_missing?(m, include_private)
                     @orogen_model.respond_to?(m) ||
-                        @model.respond_to?(m) || super
+                        @model.respond_to?(m)
                 end
 
                 def method_missing(m, *args, &block)
@@ -311,14 +312,6 @@ module Syskit
 
             def as_plan
                 to_instance_requirements.as_plan
-            end
-
-            def respond_to_missing?(m, include_private)
-                has_through_method_missing?(m) || super
-            end
-
-            def method_missing(m, *args, &block)
-                find_through_method_missing(m, args) || super
             end
         end
 

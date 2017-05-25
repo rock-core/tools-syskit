@@ -55,24 +55,18 @@ module Syskit
                 def has_through_method_missing?(m)
                     MetaRuby::DSLs.has_through_method_missing?(
                         self, m,
-                        '_def' => :find_definition,
-                        '_dev' => :find_device) || super
+                        '_def'.freeze => :find_definition,
+                        '_dev'.freeze => :find_device) || super
                 end
 
                 def find_through_method_missing(m, args)
                     MetaRuby::DSLs.find_through_method_missing(
                         self, m, args,
-                        '_def' => :find_definition,
-                        '_dev' => :find_device) || super
+                        '_def'.freeze => :find_definition,
+                        '_dev'.freeze => :find_device) || super
                 end
 
-                def respond_to_missing?(m, include_private)
-                    has_through_method_missing?(m) || super
-                end
-
-                def method_missing(m, *args)
-                    find_through_method_missing(m, args) || super
-                end
+                include MetaRuby::DSLs::FindThroughMethodMissing
             end
 
             def has_through_method_missing?(m)
@@ -83,14 +77,7 @@ module Syskit
                 self.class.find_through_method_missing(m, args) || super
             end
 
-            def respond_to_missing?(m, include_private)
-                has_through_method_missing?(m) || super
-            end
-
-            def method_missing(m, *args)
-                find_through_method_missing(m, args) || super
-            end
-
+            include MetaRuby::DSLs::FindThroughMethodMissing
         end
     end
 end

@@ -113,22 +113,16 @@ module Syskit
                 end
             end
 
+            include MetaRuby::DSLs::FindThroughMethodMissing
+
             def has_through_method_missing?(m)
                 MetaRuby::DSLs.has_through_method_missing?(
-                    profile, m, '_tag' => :has_tag?) || super
+                    profile, m, '_tag'.freeze => :has_tag?) || super
             end
 
             def find_through_method_missing(m, args)
                 MetaRuby::DSLs.find_through_method_missing(
-                    profile, m, args, '_tag' => :find_tag) || super
-            end
-
-            def respond_to_missing?(m, include_private)
-                has_through_method_missing?(m) || super
-            end
-
-            def method_missing(m, *args, &block)
-                find_through_method_missing(m, args) || super
+                    profile, m, args, '_tag'.freeze => :find_tag) || super
             end
         end
 
@@ -153,21 +147,15 @@ module Syskit
 
             def has_through_method_missing?(m)
                 MetaRuby::DSLs.has_through_method_missing?(
-                    profile, m, '_tag' => :has_tag?) || super
+                    profile, m, '_tag'.freeze => :has_tag?) || super
             end
 
             def find_through_method_missing(m, args)
                 MetaRuby::DSLs.find_through_method_missing(
-                    profile, m, args, '_tag' => :find_tag) || super
+                    profile, m, args, '_tag'.freeze => :find_tag) || super
             end
 
-            def respond_to_missing?(m, include_private)
-                has_through_method_missing?(m) || super
-            end
-
-            def method_missing(m, *args, &block)
-                find_through_method_missing(m, args) || super
-            end
+            include MetaRuby::DSLs::FindThroughMethodMissing
         end
         Roby::Actions::Interface.include InterfaceExtension
     end

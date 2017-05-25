@@ -20,7 +20,7 @@ module Syskit
                 global_profile
             end
             def method_missing(m, *args, &block)
-                if m.to_s =~ /(_def|_dev)$|^define$/
+                if m =~ /(?:_def|_dev)$|^define$/
                     return global_profile.send(m, *args, &block)
                 end
                 super

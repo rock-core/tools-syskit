@@ -12,6 +12,7 @@ module Syskit
         # instance-level object is created with {#bind}
         class BoundDataService
             include Models::Base
+            include MetaRuby::DSLs::FindThroughMethodMissing
             include Models::PortAccess
 
             # The task model which provides this service
@@ -336,20 +337,12 @@ module Syskit
 
             def has_through_method_missing?(m)
                 MetaRuby::DSLs.has_through_method_missing?(
-                    self, m, '_srv' => :has_data_service?) || super
+                    self, m, '_srv'.freeze => :has_data_service?) || super
             end
             def find_through_method_missing(m, args)
                 MetaRuby::DSLs.find_through_method_missing(
                     self, m, args,
-                    '_srv' => :find_data_service) || super
-            end
-
-            def respond_to_missing?(m, include_private)
-                has_through_method_missing?(m) || super
-            end
-
-            def method_missing(m, *args, &block)
-                find_through_method_missing(m, args) || super
+                    '_srv'.freeze => :find_data_service) || super
             end
 
             # The selection object that represents self being selected for

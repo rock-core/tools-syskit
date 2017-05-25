@@ -76,7 +76,7 @@ module Syskit
                     arguments.has_key?(m) || super
                 end
 
-                def method_missing(m, *args, &block)
+                def method_missing(m, *args)
                     if arguments.has_key?(m)
                         if !args.empty?
                             raise ArgumentError, "#{args.size} provided to #{m}, zero expected"
