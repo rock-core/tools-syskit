@@ -11,6 +11,9 @@ module Syskit
     module GUI
         # UI that displays and allows to control jobs
         class RuntimeState < Qt::Widget
+            include Roby::Hooks
+            include Roby::Hooks::InstanceHooks
+
             # @return [Roby::Interface::Async::Interface] the underlying syskit
             #   interface
             attr_reader :syskit
@@ -53,6 +56,9 @@ module Syskit
             #
             # @return [Array<Qt::Action>]
             attr_reader :global_actions
+
+            define_hooks :on_connection_state_changed
+            define_hooks :on_progress
 
             class ActionListDelegate < Qt::StyledItemDelegate
                 OUTER_MARGIN = 5
@@ -141,7 +147,7 @@ module Syskit
                     global_actions[:restart].visible = true
                     global_actions[:quit].visible = true
                     connection_state.update_state 'CONNECTED'
-                    emit connection_state_changed(true)
+                    run_hook :on_connection_state_changed, true
                 end
                 syskit.on_unreachable do
                     if remote_name == 'localhost'
@@ -150,7 +156,7 @@ module Syskit
                     global_actions[:restart].visible = false
                     global_actions[:quit].visible = false
                     connection_state.update_state 'UNREACHABLE'
-                    emit connection_state_changed(false)
+                    run_hook :on_connection_state_changed, false
                 end
                 syskit.on_job do |job|
                     job.start
@@ -169,12 +175,12 @@ module Syskit
                     deselect_job
                 end
                 syskit_log_stream.on_init_progress do |rx, expected|
-                    emit progress("loading %02i" % [Float(rx) / expected * 100])
+                    run_hook :on_progress, ("loading %02i" % [Float(rx) / expected * 100])
                 end
                 syskit_log_stream.on_update do |cycle_index, cycle_time|
                     if syskit_log_stream.init_done?
                         time_s = "#{cycle_time.strftime('%H:%M:%S')}.#{'%.03i' % [cycle_time.tv_usec / 1000]}"
-                        emit progress("@%i %s" % [cycle_index, time_s])
+                        run_hook :on_progress, ("@%i %s" % [cycle_index, time_s])
 
                         job_expanded_status.update_time(cycle_index, cycle_time)
                         update_tasks_info
@@ -189,9 +195,6 @@ module Syskit
             def hide_loggers?
                 !@ui_hide_loggers.checked?
             end
-
-            signals 'progress(QString)'
-            signals 'connection_state_changed(bool)'
 
             def remote_name
                 syskit.remote_name
@@ -276,7 +279,7 @@ module Syskit
                 @connection_state = GlobalStateLabel.new(name: remote_name)
                 connection_state.declare_state 'CONNECTED', :green
                 connection_state.declare_state 'UNREACHABLE', :red
-                connect self, SIGNAL('progress(QString)') do |message|
+                on_progress do |message|
                     state = connection_state.current_state.to_s
                     connection_state.update_text("%s - %s" % [state, message])
                 end

@@ -83,10 +83,10 @@ module Syskit
                     name: runtime_state.remote_name)
 
                 tab_widget.set_corner_widget(connection_state, Qt::TopLeftCorner)
-                connect runtime_state, SIGNAL('connection_state_changed(bool)') do |flag|
-                    connection_state_changed(flag)
+                runtime_state.on_connection_state_changed do |connected|
+                    connection_state_changed(connected)
                 end
-                connect runtime_state, SIGNAL('progress(QString)') do |message|
+                runtime_state.on_progress do |message|
                     state = connection_state.current_state.to_s
                     connection_state.update_text("%s - %s" % [state, message])
                 end
