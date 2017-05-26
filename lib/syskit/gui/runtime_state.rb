@@ -135,6 +135,7 @@ module Syskit
                 @current_job = nil
                 @current_orocos_tasks = Set.new
                 @all_tasks = Set.new
+                @known_loggers = nil
                 @all_job_info = Hash.new
                 syskit.on_reachable do
                     update_log_server_connection(syskit.client.log_server_port)
@@ -239,12 +240,28 @@ module Syskit
                     tasks = syskit_log_stream.plan.tasks
                 end
 
-                all_tasks.merge(tasks.to_set)
                 if hide_loggers?
-                    all_tasks.delete_if do |t|
-                        t.model.ancestors.any? { |t| t.name == "OroGen::Logger::Logger" }
+                    if !@known_loggers
+                        @known_loggers = Set.new
+                        all_tasks.delete_if do |t|
+                            if t.model.ancestors.any? { |t| t.name == "OroGen::Logger::Logger" }
+                                @known_loggers << t
+                            end
+                        end
+                    end
+
+                    tasks.delete_if do |t|
+                        if all_tasks.include?(t)
+                            false
+                        elsif @known_loggers.include?(t)
+                            true
+                        elsif t.model.ancestors.any? { |t| t.name == "OroGen::Logger::Logger" }
+                            @known_loggers << t
+                        end
                     end
                 end
+                all_tasks.merge(tasks)
+                @hide_loggers_changed = false
                 tasks.each do |job|
                     if job.kind_of?(Roby::Interface::Job)
                         if placeholder_task = job.planned_task
@@ -298,6 +315,9 @@ module Syskit
                 task_inspector_layout.add_widget(@ui_hide_loggers = Qt::CheckBox.new("Show loggers"))
                 task_inspector_layout.add_widget(@ui_task_inspector = Vizkit.default_loader.TaskInspector)
                 @ui_hide_loggers.checked = false
+                @ui_hide_loggers.connect SIGNAL('toggled(bool)') do |checked|
+                    @known_loggers = nil
+                end
 
                 splitter.add_widget(task_inspector_widget)
                 job_expanded_status.set_size_policy(Qt::SizePolicy::MinimumExpanding, Qt::SizePolicy::MinimumExpanding)
@@ -463,6 +483,7 @@ module Syskit
                 @current_job = nil
                 job_expanded_status.deselect
                 all_tasks.clear
+                @known_loggers = nil
                 all_job_info.clear
                 if syskit_log_stream
                     update_tasks_info
@@ -473,6 +494,7 @@ module Syskit
             def select_job(job_status)
                 @current_job = job_status.job
                 all_tasks.clear
+                @known_loggers = nil
                 all_job_info.clear
                 update_tasks_info
                 job_expanded_status.select(job_status)
