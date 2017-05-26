@@ -180,7 +180,7 @@ module Syskit
                 end
                 syskit_log_stream.on_update do |cycle_index, cycle_time|
                     if syskit_log_stream.init_done?
-                        time_s = "#{cycle_time.strftime('%H:%M:%S')}.#{'%.03i' % [cycle_time.tv_usec / 1000]}"
+                        time_s = "#{cycle_time.strftime('%H:%M:%S.%3N')}"
                         run_hook :on_progress, ("@%i %s" % [cycle_index, time_s])
 
                         job_expanded_status.update_time(cycle_index, cycle_time)
