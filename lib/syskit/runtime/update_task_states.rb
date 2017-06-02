@@ -24,7 +24,7 @@ module Syskit
                 #
                 # Ignore tasks whose process is terminating to reduce the
                 # likelihood of that happening
-		if execution_agent.ready_to_die?
+                if execution_agent.finishing? || execution_agent.ready_to_die?
 		    next
 		end
 

@@ -16,6 +16,7 @@ module Syskit
             end
 
             describe "when the task will never setup" do
+                attr_reader :task
                 before do
                     component_m = Syskit::TaskContext.new_submodel
                     task = syskit_stub_and_deploy(component_m)
@@ -27,15 +28,15 @@ module Syskit
                 end
 
                 it "attempts to kill it and does nothing further if that succeeds" do
-                    @task.should_receive(:kill_execution_agent_if_alone).pass_thru
-                    Runtime.update_task_states(plan)
-                    assert @task.execution_agent.finishing?
+                    task.should_receive(:kill_execution_agent_if_alone).pass_thru
+                    expect_execution.to { achieve { task.execution_agent.finishing? } }
                 end
                 it "marks the task as failed-to-start if the execution agent cannot be killed" do
-                    @task.should_receive(:kill_execution_agent_if_alone).and_return(false)
-                    Runtime.update_task_states(plan)
-                    assert @task.failed_to_start?
-                    assert_equal "#{@task} reports that it cannot be configured (FATAL_ERROR ?)", @task.failure_reason.original_exception.message
+                    task.should_receive(:kill_execution_agent_if_alone).and_return(false)
+                    failure_reason = expect_execution { Runtime.update_task_states(plan) }.
+                        to { fail_to_start task }
+                    assert_equal "#{task} reports that it cannot be configured (FATAL_ERROR ?)",
+                        failure_reason.original_exception.message
                 end
             end
         end

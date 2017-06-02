@@ -198,11 +198,10 @@ module Syskit
 
                         flexmock(sink_task.orocos_task).should_receive(:configure).once.ordered.pass_thru
                         source_task.connect_to(sink_task)
-                        assert !sink_task.ready_for_setup?, "#{sink_task} is ready_for_setup? but its inputs are not connected yet"
-                        process_events
+                        refute sink_task.ready_for_setup?, "#{sink_task} is ready_for_setup? but its inputs are not connected yet"
                         ConnectionManagement.update(plan)
                         assert sink_task.ready_for_setup?
-                        assert_event_emission sink_task.start_event, enable_scheduler: true
+                        expect_execution.scheduler(true).to { emit sink_task.start_event }
                     end
 
                     describe "handling of static ports" do
@@ -313,7 +312,7 @@ module Syskit
                                         once.globally.ordered
                                     true
                                 end
-                            assert_event_emission source_task.start_event, enable_scheduler: true
+                            expect_execution.scheduler(true).to { emit source_task.start_event }
                         end
 
                         it "does not connect ports between two running tasks until the rest of the network is ready" do
@@ -349,7 +348,7 @@ module Syskit
                                 once.globally.ordered(:connections).
                                 pass_thru
 
-                            assert_event_emission pre_operational_task.start_event, enable_scheduler: true
+                            expect_execution.scheduler(true).to { emit pre_operational_task.start_event }
                         end
                     end
 
@@ -396,7 +395,7 @@ module Syskit
                                     once.globally.ordered.
                                     pass_thru
                                 ConnectionManagement.update(plan)
-                                assert_event_emission new_source_task.start_event, enable_scheduler: true
+                                expect_execution.garbage_collect(true).scheduler(true).to { emit new_source_task.start_event }
                                 assert_equal Hash[['out', 'in'] => Hash[type: :data]], ActualDataFlow.edge_info(new_source_task.orocos_task, sink_task.orocos_task)
                             end
                         end
@@ -437,7 +436,7 @@ module Syskit
                                     once.globally.ordered.
                                     pass_thru
                                 ConnectionManagement.update(plan)
-                                assert_event_emission new_sink_task.start_event, enable_scheduler: true
+                                expect_execution.garbage_collect(true).scheduler(true).to { emit new_sink_task.start_event }
                                 assert_equal Hash[['out', 'in'] => Hash[type: :data]], ActualDataFlow.edge_info(source_task.orocos_task, new_sink_task.orocos_task)
                             end
                         end
@@ -524,10 +523,8 @@ module Syskit
                     plan.add_permanent_task(sink.execution_agent)
                     @source_orocos_task = source.orocos_task
                     @sink_orocos_task = sink.orocos_task
-                    sink.start!
-                    assert_event_emission sink.start_event
-                    source.start!
-                    assert_event_emission source.start_event
+                    syskit_start(sink)
+                    syskit_start(source)
                     source.out_port.connect_to sink.in_port
                     ConnectionManagement.update(plan)
                     assert dataflow_graph.modified_tasks.empty?
@@ -548,44 +545,33 @@ module Syskit
                 end
 
                 it "successfully removes a connection from a non-finalized task and a finalized one" do
-                    plan.unmark_mission_task(sink)
-                    assert_event_emission sink.stop_event
+                    stop_and_collect_tasks sink
                     ConnectionManagement.update(plan)
-
                     assert_is_disconnected
                 end
 
                 it "successfully removes a connection from a finalized task to a non-finalized one" do
-                    plan.unmark_mission_task(source)
-                    assert_event_emission source.stop_event
+                    stop_and_collect_tasks source
                     ConnectionManagement.update(plan)
                     assert_is_disconnected
                 end
 
                 it "removes dangling connections between tasks that have been finalized" do
-                    plan.unmark_mission_task(source)
-                    assert_event_emission source.stop_event
-                    plan.unmark_mission_task(sink)
-                    assert_event_emission sink.stop_event
+                    stop_and_collect_tasks(source, sink)
                     ConnectionManagement.update(plan)
                     assert_is_disconnected
                 end
 
                 it "removes connections when the source deployment is stopped" do
-                    plan.unmark_permanent_task(source.execution_agent)
-                    plan.unmark_mission_task(source)
-                    assert_event_emission source.execution_agent.stop_event
+                    stop_and_collect_execution_agents(source)
                     flexmock(ConnectionManagement).new_instances.should_receive(:warn).
                         with(/error while disconnecting|I am assuming that the disconnection is actually effective/)
-
                     ConnectionManagement.update(plan)
                     assert_is_disconnected(source_alive: false)
                 end
 
                 it "removes connections when the sink deployment is stopped" do
-                    plan.unmark_permanent_task(sink.execution_agent)
-                    plan.unmark_mission_task(sink)
-                    assert_event_emission sink.execution_agent.stop_event
+                    stop_and_collect_execution_agents(sink)
                     flexmock(ConnectionManagement).new_instances.should_receive(:warn).
                         with(/error while disconnecting|I am assuming that the disconnection is actually effective/)
                     ConnectionManagement.update(plan)
@@ -601,12 +587,11 @@ module Syskit
                 sink.specialize
                 sink.model.orogen_model.input_port 'in', '/double'
                 source.out_port.connect_to sink.in_port
-                e = assert_adds_roby_localized_error(PortNotFound) do
-                    ConnectionManagement.update(plan)
-                end
-                assert_equal sink, e.failed_task
-                assert_equal 'in', e.port_name
-                assert_equal :input, e.port_kind
+                exception = expect_execution { ConnectionManagement.update(plan) }.
+                    to { have_error_matching PortNotFound.match.with_origin(sink) }.
+                    exception
+                assert_equal 'in', exception.port_name
+                assert_equal :input, exception.port_kind
             end
             it "raises if an expected output port is not present on a configured task" do
                 source_m  = TaskContext.new_submodel
@@ -616,12 +601,11 @@ module Syskit
                 source.specialize
                 source.model.orogen_model.output_port 'out', '/double'
                 source.out_port.connect_to sink.in_port
-                e = assert_adds_roby_localized_error(PortNotFound) do
-                    ConnectionManagement.update(plan)
-                end
-                assert_equal source, e.failed_task
-                assert_equal 'out', e.port_name
-                assert_equal :output, e.port_kind
+                exception = expect_execution { ConnectionManagement.update(plan) }.
+                    to { have_error_matching PortNotFound.match.with_origin(source) }.
+                    exception
+                assert_equal 'out', exception.port_name
+                assert_equal :output, exception.port_kind
             end
 
             describe "#partition_early_late" do
@@ -844,11 +828,9 @@ _                   end
                 # and then kill the tasks involved. The resulting operation should work
                 # fine (i.e. not creating the dead connections)
                 it "handles pending new connections that involve a dead task" do
-                    plan.unmark_mission_task source_task
-                    plan.unmark_permanent_task source_agent
                     ConnectionManagement.update(plan)
-                    source_agent.stop!
-                    assert_event_emission source_agent.stop_event
+                    stop_and_collect_execution_agents source_task
+
                     assert_disconnection_fails_and_warns(source_orocos, 'out', sink_orocos, 'in')
                     ConnectionManagement.update(plan)
                 end
@@ -858,8 +840,7 @@ _                   end
                     plan.unmark_permanent_task source_agent
                     ConnectionManagement.update(plan)
                     source_task.disconnect_ports(sink_task, [['out', 'in']])
-                    source_agent.stop!
-                    assert_event_emission source_agent.stop_event
+                    stop_and_collect_execution_agents source_task
                     assert_disconnection_fails_and_warns(source_orocos, 'out', sink_orocos, 'in')
                     ConnectionManagement.update(plan)
                 end
@@ -867,10 +848,7 @@ _                   end
                 describe "connection add/remove hooks" do
 
                     it "calls them on the remaining sinks" do
-                        plan.unmark_mission_task(source_task)
-                        assert_event_emission source_task.stop_event do
-                            source_task.stop!
-                        end
+                        stop_and_collect_tasks source_task
                         assert Syskit::ActualDataFlow.has_edge?(source_orocos, sink_orocos)
                         flexmock(sink_task).should_receive(:removing_input_port_connection).
                             with(source_orocos, 'out', 'in').once.globally.ordered
@@ -881,10 +859,7 @@ _                   end
                     end
 
                     it "calls them on the remaining sources" do
-                        plan.unmark_mission_task(sink_task)
-                        assert_event_emission sink_task.stop_event do
-                            sink_task.stop!
-                        end
+                        stop_and_collect_tasks sink_task
                         assert Syskit::ActualDataFlow.has_edge?(source_orocos, sink_orocos)
                         flexmock(source_task).should_receive(:removing_output_port_connection).
                             with('out', sink_orocos, 'in').once.globally.ordered
@@ -894,6 +869,27 @@ _                   end
                         Syskit::Runtime::ConnectionManagement.update(plan)
                     end
                 end
+            end
+
+            def stop_and_collect_tasks(*tasks)
+                expect_execution do
+                    tasks.each { |t| t.stop! }
+                end.to do
+                    tasks.each { |t| emit t.stop_event }
+                end
+                expect_execution.garbage_collect(true).to_run
+            end
+
+            def stop_and_collect_execution_agents(*tasks)
+                expect_execution do
+                    tasks.each { |t| t.execution_agent.stop! }
+                end.to do
+                    tasks.each do |t|
+                        emit t.execution_agent.stop_event
+                        emit t.aborted_event
+                    end
+                end
+                expect_execution.garbage_collect(true).to_run
             end
         end
     end

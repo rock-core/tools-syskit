@@ -1,20 +1,17 @@
 require 'syskit/test/self'
-require 'orocos/remote_processes/server'
+require 'syskit/roby_app/process_server'
 
 module Syskit
     module RobyApp
         describe Plugin do
             describe "remote model loading" do
                 def create_process_server(name)
-                    set_log_level Orocos::RemoteProcesses::Server, Logger::FATAL
-
+                    app = Roby::Application.new
                     loader = OroGen::Loaders::Files.new
                     OroGen::Loaders::RTT.setup_loader(loader)
                     loader.register_orogen_file(File.join(data_dir, "plugin_remote_model_loading.orogen"))
-                    server = Orocos::RemoteProcesses::Server.new(
-                        Orocos::RemoteProcesses::Server::DEFAULT_OPTIONS,
-                        0,
-                        loader)
+
+                    server = ProcessServer.new(app, port: 0, loader: loader)
                     server.open
 
                     thread = Thread.new do
@@ -34,10 +31,15 @@ module Syskit
                 end
 
                 after do
-                    @process_servers.each do |name, thread, client|
-                        client.close
-                        Syskit.conf.remove_process_server(name)
-                        thread.raise Interrupt
+                    capture_log(Orocos::RemoteProcesses::Server, :fatal) do
+                        capture_log(Orocos::RemoteProcesses::Server, :warn) do
+                            @process_servers.each do |name, thread, client|
+                                client.close
+                                Syskit.conf.remove_process_server(name)
+                                thread.raise Interrupt
+                                thread.join
+                            end
+                        end
                     end
                 end
 
@@ -63,7 +65,6 @@ module Syskit
                     Plugin.start_local_process_server
                     client = Plugin.connect_to_local_process_server(Roby.app)
                     assert_same client, Syskit.conf.process_server_for('localhost')
-
                 end
             end
         end

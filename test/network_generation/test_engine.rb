@@ -55,9 +55,9 @@ module Syskit
                 it "ignores InstanceRequirementsTask tasks that failed" do
                     planning_task.start!
                     
-                    plan.unmark_mission_task(@original_task)
-                    assert_fatal_exception(Roby::PlanningFailedError, failure_point: original_task, tasks: [original_task]) do
-                        planning_task.failed_event.emit
+                    expect_execution { planning_task.failed_event.emit }.to do
+                        have_error_matching Roby::PlanningFailedError.match.
+                            with_origin(original_task)
                     end
                     assert_equal [], Engine.discover_requirement_tasks_from_plan(plan)
                 end
@@ -66,20 +66,18 @@ module Syskit
                 end
                 it "ignores InstanceRequirementsTask tasks whose planned task has finished" do
                     task = syskit_stub_deploy_configure_and_start(simple_component_model)
-                    task.stop!
-                    plan.unmark_mission_task(task)
-                    assert_event_emission task.stop_event
+                    expect_execution { task.stop! }.to { emit task.stop_event }
                     assert_equal [], Engine.discover_requirement_tasks_from_plan(plan)
                 end
                 it "includes InstanceRequirementsTask tasks whose planned task have finished, but are being repaired" do
                     task = syskit_stub_deploy_configure_and_start(simple_component_model)
-                    plan.add_permanent_task(task)
                     planning_task = task.planning_task
-                    task.stop!
-                    repair = Roby::Tasks::Simple.new
-                    task.stop_event.handle_with(repair)
-                    repair.start!
-                    assert_event_emission task.stop_event
+                    expect_execution do
+                        task.stop!
+                        repair = Roby::Tasks::Simple.new
+                        task.stop_event.handle_with(repair)
+                        repair.start!
+                    end.to { emit task.stop_event }
                     assert_equal [planning_task], Engine.discover_requirement_tasks_from_plan(plan)
                 end
             end
@@ -518,11 +516,11 @@ module Syskit
                         flexmock(bus_driver.orocos_task, "bus").should_receive(:start).once.globally.ordered(:bus_startup).pass_thru
                         mock_raw_port(bus_driver, 'dev').should_receive(:connect_to).once.globally.ordered(:bus_startup).pass_thru
                         flexmock(dev_driver.orocos_task, "dev").should_receive(:configure).once.globally.ordered.pass_thru
-                        plan.execution_engine.scheduler.enabled = true
                         capture_log(bus_driver, :info) do
                             capture_log(dev_driver, :info) do
-                                assert_event_emission bus_driver.start_event
-                                assert_event_emission dev_driver.start_event
+                                expect_execution.scheduler(true).to do
+                                    emit bus_driver.start_event, dev_driver.start_event
+                                end
                             end
                         end
                     end

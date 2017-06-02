@@ -79,19 +79,24 @@ module Syskit
             end
 
             it "stops the matching deployments and redeploys" do
-                subject.restart_deployments
-                assert_event_emission plan.find_tasks(ShellInterface::ShellDeploymentRestart).first.stop_event
-                assert task.finished?
+                expect_execution do
+                    subject.restart_deployments
+                end.to do
+                    emit find_tasks(ShellInterface::ShellDeploymentRestart).stop_event
+                end
                 assert_equal 1, plan.find_tasks(task_m).pending.to_a.size
             end
 
             it "restricts the deployments to the given models" do
                 other_m = TaskContext.new_submodel
                 other = syskit_stub_deploy_configure_and_start(other_m)
-                subject.plan.add_mission_task(other)
-                subject.restart_deployments(task.execution_agent.model)
-                assert_event_emission plan.find_tasks(ShellInterface::ShellDeploymentRestart).first.stop_event
-                assert task.finished?
+                expect_execution do
+                    subject.restart_deployments(task.execution_agent.model)
+                end.to do
+                    emit task.stop_event
+                    not_emit other.stop_event
+                    emit find_tasks(ShellInterface::ShellDeploymentRestart).stop_event
+                end
                 assert !other.finished?
                 assert_equal 1, plan.find_tasks(task_m).pending.to_a.size
             end
@@ -99,11 +104,13 @@ module Syskit
             it "accepts task models as argument" do
                 other_m = TaskContext.new_submodel
                 other = syskit_stub_deploy_configure_and_start(other_m)
-                subject.plan.add_mission_task(other)
-                subject.restart_deployments(task.model)
-                assert_event_emission plan.find_tasks(ShellInterface::ShellDeploymentRestart).first.stop_event
-                assert task.finished?
-                assert !other.finished?
+                expect_execution do
+                    subject.restart_deployments(task.model)
+                end.to do
+                    emit find_tasks(ShellInterface::ShellDeploymentRestart).stop_event
+                    emit task.stop_event
+                    not_emit other.stop_event
+                end
                 assert_equal 1, plan.find_tasks(task_m).pending.to_a.size
             end
         end

@@ -588,7 +588,12 @@ describe Syskit::Models::Composition do
                 options = @composition[@srv_child, Roby::TaskStructure::Dependency]
                 flags.each do |flag_name, flag_options|
                     actual = options[flag_name]
-                    assert_equal flag_options, actual, "#{flag_name} option differs, expected #{flag_options} but got #{actual}"
+                    msg = "#{flag_name} option differs, expected #{flag_options} but got #{actual}"
+                    if flag_options.nil?
+                        assert_nil actual, msg
+                    else
+                        assert_equal flag_options, actual, msg
+                    end
                 end
             end
 

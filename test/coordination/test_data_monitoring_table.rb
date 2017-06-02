@@ -67,12 +67,11 @@ describe Syskit::Coordination::DataMonitoringTable do
         recorder.should_receive(:called).with(10).at_least.once
         syskit_start(component)
         ruby_task.out.write(20)
-        process_events
+        execute_one_cycle
     end
 
     it "allows to store state using local variables" do
         recorder = flexmock
-        table_m.argument :arg
         table_m.monitor('test', table_m.out_port).
             trigger_on do |sample|
                 @value = !@value
@@ -82,14 +81,14 @@ describe Syskit::Coordination::DataMonitoringTable do
 
         component = syskit_stub_deploy_and_configure(component_m)
         ruby_task = component.orocos_task.local_ruby_task
-        table = table_m.new(component, arg: 10)
+        table = table_m.new(component)
         recorder.should_receive(:called).with(true).at_least.once
         recorder.should_receive(:called).with(false).at_least.once
         syskit_start(component)
         ruby_task.out.write(20)
-        process_events
+        execute_one_cycle
         ruby_task.out.write(20)
-        process_events
+        execute_one_cycle
     end
 
     it "can attach to a component and trigger an error when the condition is met" do
@@ -116,15 +115,15 @@ describe Syskit::Coordination::DataMonitoringTable do
 
         table = table_m.new(component)
         syskit_wait_ready(table, component: component)
-        process_events
+        execute_one_cycle
         ruby_task.out1.write(5)
         ruby_task.out2.write(2)
         table.poll
         ruby_task.out2.write(7)
-        assert_adds_error(Syskit::Coordination::DataMonitoringError, failure_point: component) do
-            table.poll
+        expect_execution.to do
+            have_error_matching Syskit::Coordination::DataMonitoringError.match.with_origin(component)
+            emit component.success_event
         end
-        assert component.success?
     end
     it "can monitor an abstract child of a composition, thus applying port mappings on activation" do
         srv_m = Syskit::DataService.new_submodel(name: 'Srv') { output_port 'out', '/int' }
@@ -163,8 +162,10 @@ describe Syskit::Coordination::DataMonitoringTable do
         table.poll
         ruby_task.out1.write(1)
         ruby_task.out2.write(12)
-        assert_adds_error(Syskit::Coordination::DataMonitoringError, failure_point: composition) do
-            table.poll
+        expect_execution.to do
+            have_error_matching Syskit::Coordination::DataMonitoringError.match.
+                with_origin(composition)
+            emit component.success_event
         end
         assert component.success?
         composition.success_event.emit
@@ -216,10 +217,10 @@ describe Syskit::Coordination::DataMonitoringTable do
         table.poll
         ruby_task.out1.write(1)
         ruby_task.out2.write(12)
-        assert_adds_error(Syskit::Coordination::DataMonitoringError, failure_point: composition) do
-            table.poll
+        expect_execution.to do
+            have_error_matching Syskit::Coordination::DataMonitoringError.match.with_origin(composition)
+            emit composition.success_event
         end
-        assert composition.success?
     end
 
     describe "#remove!" do
@@ -235,8 +236,7 @@ describe Syskit::Coordination::DataMonitoringTable do
             syskit_start(component)
             table.remove!
             ruby_task.out.write(10)
-            process_events
-            assert !component.finished?
+            expect_execution.to { not_emit component.stop_event }
         end
     end
 

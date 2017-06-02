@@ -226,8 +226,7 @@ describe Syskit::InputWriter do
         it "asynchronously disconnects a port that is ready" do
             syskit_wait_ready(writer)
             writer.disconnect
-            process_events
-            refute writer.connected?
+            expect_execution.to { achieve { !writer.connected? } }
         end
 
         it "ensures that the port will not become ready if called before the resolution starts" do
@@ -236,7 +235,7 @@ describe Syskit::InputWriter do
             flexmock(writer).should_receive(:resolve).never
             writer.disconnect
             syskit_start(task)
-            process_events
+            execute_one_cycle
         end
 
         it "ensures that the port will not become ready if resolution is progressing" do
@@ -248,10 +247,8 @@ describe Syskit::InputWriter do
             #
             # #start! runs through the synchronous event processing codepath,
             # and therefore does not call any handler
-            task.start!
-            writer.disconnect
-            process_events
-            refute writer.ready?
+            expect_execution.join_all_waiting_work(false).to { task.start! }
+            expect_execution { writer.disconnect }.to { achieve { !writer.ready? } }
         end
     end
 end
@@ -310,8 +307,7 @@ describe Syskit::OutputReader do
         it "asynchronously disconnects a port that is ready" do
             syskit_wait_ready(reader)
             reader.disconnect
-            process_events
-            refute reader.connected?
+            expect_execution.to { achieve { !reader.connected? } }
         end
 
         it "ensures that the port will not become ready if called before the resolution starts" do
@@ -320,7 +316,6 @@ describe Syskit::OutputReader do
             flexmock(reader).should_receive(:resolve).never
             reader.disconnect
             syskit_start(task)
-            process_events
         end
 
         it "ensures that the port will not become ready if resolution is progressing" do
@@ -332,10 +327,9 @@ describe Syskit::OutputReader do
             #
             # #start! runs through the synchronous event processing codepath,
             # and therefore does not call any handler
-            task.start!
-            reader.disconnect
-            process_events
-            refute reader.ready?
+            expect_execution.join_all_waiting_work(false).to { task.start! }
+            expect_execution { reader.disconnect }.
+                to { achieve { !reader.ready? } }
         end
     end
 end

@@ -42,12 +42,13 @@ describe Syskit::Coordination::Models::TaskExtension do
         end
         syskit_stub_deployment_model(component_m)
         task = action_m.test_machine.instanciate(plan)
-        plan.add_mission_task(task)
-        task.start!
+        plan.add(task)
+        execute { task.start! }
         syskit_deploy_configure_and_start(task.current_task_child)
         task.current_task_child.orocos_task.local_ruby_task.out.write(20)
-        process_events
-        assert task.current_task_child.monitor_failed?
+        expect_execution.to do
+            emit task.current_task_child.monitor_failed_event
+        end
     end
 
     it "passes arguments from the state machine to the monitors" do
@@ -74,6 +75,6 @@ describe Syskit::Coordination::Models::TaskExtension do
         task.start!
         syskit_deploy_configure_and_start(task.current_task_child)
         task.current_task_child.orocos_task.local_ruby_task.out.write(20)
-        process_events
+        execute_one_cycle
     end
 end

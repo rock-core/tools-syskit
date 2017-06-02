@@ -57,9 +57,8 @@ module Syskit
                     else
                         action_tasks.each do |t|
                             tracker = t.as_service
-                            assert_event_emission(t.planning_task.success_event) do
-                                t.planning_task.start!
-                            end
+                            expect_execution { t.planning_task.start! }.
+                                to { emit t.planning_task.start_event }
                             to_instanciate << tracker.task
                         end
                     end
@@ -620,18 +619,11 @@ module Syskit
                     end
                 end.compact
                 
-                agents.each do |agent|
-                    # Protect the component against configuration and 
-                    if !agent.running?
-                        agent.start!
-                    end
-                end
+                not_running = agents.find_all { |t| !t.running? }
+                not_ready   = agents.find_all { |t| !t.ready? }
+                expect_execution { not_running.each(&:start!) }.
+                    to { emit(*not_ready.map(&:ready_event)) }
 
-                agents.each do |agent|
-                    if !agent.ready?
-                        assert_event_emission agent.ready_event
-                    end
-                end
             ensure
                 begin plan.remove_free_event(sync_ev)
                 rescue Roby::LocalizedError, Roby::SynchronousEventProcessingMultipleErrors
@@ -641,20 +633,24 @@ module Syskit
             def syskit_start_execution_agents(component, recursive: true)
                 guard = syskit_guard_against_start_and_configure
 
-                if recursive
-                    component.each_child do |child_task|
-                        syskit_start_execution_agents(child_task, recursive: true)
+                not_ready = []
+
+                queue = [component]
+                while !queue.empty?
+                    task = queue.shift
+                    if (agent = task.execution_agent) && !agent.ready?
+                        not_ready << agent
+                    end
+                    if recursive
+                        queue.concat task.each_child.map { |t, _| t }
                     end
                 end
 
-                if agent = component.execution_agent
-                    # Protect the component against configuration and 
-                    if !agent.running?
-                        agent.start!
-                    end
-                    if !agent.ready?
-                        assert_event_emission agent.ready_event, garbage_collect: false
-                    end
+
+                if !not_ready.empty?
+                    expect_execution do
+                        not_ready.each { |agent| agent.start! if !agent.running? }
+                    end.to { emit(*not_ready.map(&:ready_event)) }
                 end
             ensure
                 begin plan.remove_free_event(guard)
@@ -879,35 +875,27 @@ module Syskit
                 pending = tasks.dup
                 while !pending.empty?
                     current_state = pending.size
+
+                    to_start = Array.new
                     pending.delete_if do |t|
-                        if t.starting? || t.running?
+                        if t.running?
                             true
                         elsif t.executable?
                             if !t.setup?
                                 raise "#{t} is not set up, call #syskit_configure first"
                             end
-                            t.start!
+                            to_start << t
                             true
                         end
                     end
 
-                    if current_state == pending.size
-                        try_again = tasks.any? do |t|
-                            if t.starting?
-                                assert_event_emission t.start_event
-                                true
-                            end
-                        end
-
-                        if !try_again
-                            raise NoStartFixedPoint.new(pending), "cannot start #{pending.map(&:to_s).join(", ")}"
-                        end
+                    if !to_start.empty?
+                        expect_execution { to_start.each(&:start!) }.
+                            to { emit(*to_start.map(&:start_event)) }
                     end
-                end
 
-                tasks.each do |t|
-                    if t.starting?
-                        assert_event_emission t.start_event, garbage_collect: false
+                    if current_state == pending.size
+                        raise NoStartFixedPoint.new(pending), "cannot start #{pending.map(&:to_s).join(", ")}"
                     end
                 end
 
@@ -937,8 +925,9 @@ module Syskit
                     syskit_start(component)
                 end
 
-                process_events
-                assert writer_or_reader.ready?, "#{writer_or_reader} was expected to be resolved and ready after the first execution cycle, but it's not"
+                expect_execution.to do
+                    achieve { writer_or_reader.ready? }
+                end
             end
 
             # Deploy the given composition, replacing every single data service

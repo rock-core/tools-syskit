@@ -41,13 +41,14 @@ module Syskit
             end
 
             samples = Array.new
-            process_events_until do
-                if sample = reader.read_new
-                    samples << sample
+            expect_execution.to do
+                achieve do
+                    if sample = reader.read_new
+                        samples << sample
+                    end
+                    samples.size == 2
                 end
-                samples.size == 2
             end
-
             assert_equal [2, 4], samples
         end
 

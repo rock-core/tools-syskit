@@ -262,7 +262,7 @@ module Syskit
                     begin actual_reader.disconnect
                     rescue Orocos::ComError
                     end
-                end.execute
+                end.on_success { @reader = nil }.execute
             end
         end
 
@@ -331,7 +331,7 @@ module Syskit
                     begin actual_writer.disconnect
                     rescue Orocos::ComError
                     end
-                end.execute
+                end.on_success { @writer = nil }.execute
             end
         end
 

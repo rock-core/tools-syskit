@@ -244,7 +244,7 @@ module Syskit
                     !(app.single? && app.simulation?)
 
                 if start_local_process_server
-                    start_local_process_server(:redirect => Syskit.conf.redirect_local_process_server?)
+                    start_local_process_server(redirect: Syskit.conf.redirect_local_process_server?)
                     connect_to_local_process_server(app)
                 else
                     fake_client = Configuration::ModelOnlyServer.new(app.default_loader)

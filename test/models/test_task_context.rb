@@ -268,7 +268,7 @@ describe Syskit::Models::TaskContext do
                         app.backward_compatible_naming = false
                     end
 
-                with_log_level(Syskit, Logger::FATAL) do
+                capture_log(Syskit, :fatal) do
                     assert_same syskit_model, ::MyProject::Task
                 end
             end

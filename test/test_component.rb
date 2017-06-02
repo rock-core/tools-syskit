@@ -581,10 +581,11 @@ describe Syskit::Component do
             end
 
             it "marks the underlying task as failed_to_start! if the setup raises" do
-                expect_execution { task.setup.execute }.
-                    to { fail_to_start task, reason: Roby::EmissionFailed }
-                assert task.failed_to_start?
-                assert_kind_of error_m, task.failure_reason.original_exception
+                expect_execution { task.setup.execute }.to do
+                    fail_to_start task,
+                        reason: Roby::EmissionFailed.match.
+                            with_original_exception(error_m)
+                end
             end
         end
     end

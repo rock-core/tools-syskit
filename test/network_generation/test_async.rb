@@ -56,8 +56,7 @@ module Syskit
                     # The discard is queued in the execution engine thread ...
                     # won't be processed until we call process_workers
                     assert !work_plan.finalized?
-                    process_events
-                    assert work_plan.finalized?
+                    expect_execution.to { achieve { assert work_plan.finalized? } }
                 end
             end
 

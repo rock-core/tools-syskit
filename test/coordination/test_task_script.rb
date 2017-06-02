@@ -165,8 +165,7 @@ describe Syskit::Coordination::TaskScriptExtension do
             end
 
             root = syskit_stub_deploy_configure_and_start(root_m)
-            process_events_until { root.writer }
-            writer = root.writer
+            writer = expect_execution.to { achieve { root.writer } }
             assert_equal root.test_child.test_child, writer.port.component
             assert_equal 'in', writer.port.name
         end
@@ -215,21 +214,19 @@ describe Syskit::Coordination::TaskScriptExtension do
             end
 
             it "asynchronously disconnects a writer on the script's task shutdown" do
-                assert_event_emission cmp.stop_event do
-                    cmp.stop!
+                expect_execution { cmp.stop! }.to do
+                    emit cmp.stop_event
+                    achieve { !actual_writer.connected? }
+                    achieve { !writer.connected? }
                 end
-                # Disconnection is asynchronous, need to process
-                process_events
-                refute actual_writer.connected?
             end
 
             it "gobbles ComError exceptions" do
                 flexmock(actual_writer).should_receive(:disconnect).and_raise(Orocos::ComError)
-                assert_event_emission cmp.stop_event do
-                    cmp.stop!
+                expect_execution { cmp.stop! }.to do
+                    emit cmp.stop_event
+                    achieve { !writer.connected? }
                 end
-                # Disconnection is asynchronous, need to process
-                process_events
             end
 
             it "forwards arbitrary exceptions" do
@@ -276,21 +273,19 @@ describe Syskit::Coordination::TaskScriptExtension do
             end
 
             it "asynchronously disconnects a reader on the script's task shutdown" do
-                assert_event_emission cmp.stop_event do
-                    cmp.stop!
+                expect_execution { cmp.stop! }.to do
+                    emit cmp.stop_event
+                    achieve { !reader.connected? }
+                    achieve { !actual_reader.connected? }
                 end
-                # Disconnection is asynchronous, need to process
-                process_events
-                refute actual_reader.connected?
             end
 
             it "gobbles ComError exceptions" do
                 flexmock(reader.reader).should_receive(:disconnect).and_raise(Orocos::ComError)
-                assert_event_emission cmp.stop_event do
-                    cmp.stop!
+                expect_execution { cmp.stop! }.to do
+                    emit cmp.stop_event
+                    achieve { !reader.connected? }
                 end
-                # Disconnection is asynchronous, need to process
-                process_events
             end
 
             it "forwards arbitrary exceptions" do

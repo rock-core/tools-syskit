@@ -72,11 +72,12 @@ describe Syskit::Coordination::Models::FaultResponseTableExtension do
         recorder.should_receive(:called).with(5).once.ordered
         recorder.should_receive(:called).with(11).at_least.once.ordered
         ruby_task.out1.write(5)
-        process_events
+        execute_one_cycle
         ruby_task.out1.write(11)
 
-        process_events(enable_scheduler: true)
-        assert(response_task = plan.find_tasks(response_task_m).running.first)
+        expect_execution.scheduler(true).to do
+            emit find_tasks(response_task_m).start_event
+        end
     end
 
     describe "argument passing" do
