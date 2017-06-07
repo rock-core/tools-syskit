@@ -70,10 +70,12 @@ module Syskit
                 to_instanciate = normalize_instanciation_models(to_instanciate)
                 placeholders = to_instanciate.map(&:as_plan)
                 if add_missions
-                    placeholders.each do |t|
-                        plan.add_mission_task(t)
-                        if t.planning_task.pending?
-                            t.planning_task.start_event.call
+                    execute do
+                        placeholders.each do |t|
+                            plan.add_mission_task(t)
+                            if t.planning_task.pending?
+                                t.planning_task.start_event.call
+                            end
                         end
                     end
                 end
@@ -85,12 +87,14 @@ module Syskit
                     trsc.commit_transaction
                     mapping
                 end
-                placeholders.map do |task|
-                    replacement = task_mapping[task.planning_task]
-                    plan.replace_task(task, replacement)
-                    plan.remove_task(task)
-                    replacement.planning_task.success_event.emit
-                    replacement
+                execute do
+                    placeholders.map do |task|
+                        replacement = task_mapping[task.planning_task]
+                        plan.replace_task(task, replacement)
+                        plan.remove_task(task)
+                        replacement.planning_task.success_event.emit
+                        replacement
+                    end
                 end
             end
 
@@ -113,30 +117,30 @@ module Syskit
                 root_tasks = placeholder_tasks.map(&:as_service)
                 requirement_tasks = placeholder_tasks.map(&:planning_task)
 
-                plan.execution_engine.process_events_synchronous do
-                    requirement_tasks.each { |t| t.start! if !t.running? }
-                end
+                not_running = requirement_tasks.find_all { |t| !t.running? }
+                expect_execution { not_running.each(&:start!) }.
+                    to { emit not_running.map(&:start_event) }
 
                 begin
                     syskit_engine ||= Syskit::NetworkGeneration::Engine.new(plan)
                     syskit_engine.resolve(**(Hash[on_error: :commit].merge(resolve_options)))
                 rescue Exception => e
-                    begin
-                        plan.execution_engine.process_events_synchronous do
-                            requirement_tasks.each { |t| t.failed_event.emit(e) }
+                    expect_execution do
+                        requirement_tasks.each { |t| t.failed_event.emit(e) }
+                    end.to do
+                        requirement_tasks.each do |t|
+                            have_error_matching PlanningFailedError.match.
+                                with_origin(t)
                         end
-                    rescue Roby::PlanningFailedError
-                        # Emitting failed_event will cause the engine to raise
-                        # PlanningFailedError
                     end
                     raise
                 end
 
-                plan.execution_engine.process_events_synchronous do
+                execute do
+                    placeholder_tasks.each do |task|
+                        plan.remove_task(task)
+                    end
                     requirement_tasks.each { |t| t.success_event.emit if !t.finished? }
-                end
-                placeholder_tasks.each do |task|
-                    plan.remove_task(task)
                 end
 
                 if Roby.app.public_logs?
@@ -539,9 +543,11 @@ module Syskit
                     trsc.commit_transaction
                 end
 
-                mapped_tasks.each do |old, new|
-                    if old != new
-                        plan.remove_task(old)
+                execute do
+                    mapped_tasks.each do |old, new|
+                        if old != new
+                            plan.remove_task(old)
+                        end
                     end
                 end
                 root_tasks.map { |t, _| mapped_tasks[t] }
@@ -608,12 +614,9 @@ module Syskit
             end
 
             def syskit_start_all_execution_agents
-                plan.add_permanent_event(sync_ev = Roby::EventGenerator.new)
+                guard = syskit_guard_against_configure
 
                 agents = plan.each_task.map do |t|
-                    if t.respond_to?(:should_configure_after)
-                        t.should_configure_after(sync_ev)
-                    end
                     if t.execution_agent && !t.execution_agent.ready?
                         t.execution_agent
                     end
@@ -625,8 +628,10 @@ module Syskit
                     to { emit(*not_ready.map(&:ready_event)) }
 
             ensure
-                begin plan.remove_free_event(sync_ev)
-                rescue Roby::LocalizedError, Roby::SynchronousEventProcessingMultipleErrors
+                if guard
+                    expect_execution do
+                        plan.remove_free_event(guard)
+                    end.validate_unexpected_errors(false).to_run
                 end
             end
 
@@ -653,8 +658,10 @@ module Syskit
                     end.to { emit(*not_ready.map(&:ready_event)) }
                 end
             ensure
-                begin plan.remove_free_event(guard)
-                rescue Roby::LocalizedError, Roby::SynchronousEventProcessingMultipleErrors
+                if guard
+                    expect_execution do
+                        plan.remove_free_event(guard)
+                    end.validate_unexpected_errors(false).to_run
                 end
             end
 
@@ -747,7 +754,7 @@ module Syskit
 
                 pending = tasks.dup.to_set
                 while !pending.empty?
-                    execution_engine.process_events_synchronous do
+                    execute do
                         Syskit::Runtime::ConnectionManagement.update(plan)
                     end
                     current_state = pending.size
@@ -787,9 +794,9 @@ module Syskit
 
             ensure
                 if guard
-                    begin plan.remove_free_event(guard)
-                    rescue Roby::LocalizedError, Roby::SynchronousEventProcessingMultipleErrors
-                    end
+                    expect_execution do
+                        plan.remove_free_event(guard)
+                    end.validate_unexpected_errors(false).to_run
                 end
             end
             
@@ -909,9 +916,9 @@ module Syskit
 
             ensure
                 if guard
-                    begin plan.remove_free_event(guard)
-                    rescue Roby::LocalizedError, Roby::SynchronousEventProcessingMultipleErrors
-                    end
+                    expect_execution do
+                        plan.remove_free_event(guard)
+                    end.validate_unexpected_errors(false).to_run
                 end
             end
 
