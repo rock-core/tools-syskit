@@ -26,6 +26,8 @@ module Syskit
         end
         Roby::Test::Spec.roby_plan_with Component.match.with_child(InstanceRequirementsTask), InstanceRequirementPlanningHandler
 
+        Roby::Test::ExecutionExpectations.include ExecutionExpectations
+
         class Spec < Roby::Test::Spec
             include Test::Base
 

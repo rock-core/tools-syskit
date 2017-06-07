@@ -59,52 +59,21 @@ module Syskit
         def unplug_connection_management
             RobyApp::Plugin.unplug_handler_from_roby(execution_engine, :connection_management)
         end
-
-        def run_engine(timeout, poll_period = 0.1)
-            start_time = Time.now
-            cycle_start = Time.now
-            while Time.now < start_time + timeout
-                process_events
-                yield if block_given?
-
-                sleep_time = Time.now - cycle_start - poll_period
-                if sleep_time > 0
-                    sleep(sleep_time)
-                end
-                cycle_start += poll_period
-            end
-        end
         
-        # Verify that no sample arrives on +reader+ within +timeout+ seconds
+        # @deprecated use the expectations on {ExecutionExpectations} instead
         def assert_has_no_new_sample(reader, timeout = 0.2)
-            run_engine(timeout) do
-                if sample = reader.read_new
-                    flunk("#{reader} has one new sample #{sample}, but none was expected")
-                end
+            Roby.warn_deprecated "#{__method__} is deprecated, use the have_no_new_sample expectation on expect_execution instead"
+            expect_execution.to do
+                have_no_new_sample(reader, at_least_during: timeout)
             end
-            assert(true, "no sample got received by #{reader}")
         end
 
-        # Verifies that +reader+ gets one sample within +timeout+ seconds
+        # @deprecated use the expectations on {ExecutionExpectations} instead
         def assert_has_one_new_sample(reader, timeout = 3)
-            if reader.respond_to?(:to_orocos_port)
-                reader = Orocos.allow_blocking_calls do
-                    reader.to_orocos_port
-                end
+            Roby.warn_deprecated "#{__method__} is deprecated, use the have_one_new_sample expectation on expect_execution instead"
+            expect_execution.to do
+                have_one_new_sample(reader)
             end
-            if !reader.respond_to?(:read_new)
-                if reader.respond_to?(:reader)
-                    reader = Orocos.allow_blocking_calls do
-                        reader.reader
-                    end
-                end
-            end
-            run_engine(timeout) do
-                if sample = reader.read_new
-                    return sample
-                end
-            end
-            flunk("expected to get one new sample out of #{reader}, but got none")
         end
 
         # Creates a new null type and returns it

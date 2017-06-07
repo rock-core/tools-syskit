@@ -5,6 +5,7 @@ require 'roby/test/spec'
 require 'syskit/test/flexmock_extension'
 require 'syskit/test/network_manipulation'
 require 'syskit/test/profile_assertions'
+require 'syskit/test/execution_expectations'
 
 require 'syskit/test/spec'
 require 'syskit/test/action_interface_test'
