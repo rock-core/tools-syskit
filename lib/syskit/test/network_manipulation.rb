@@ -119,7 +119,7 @@ module Syskit
 
                 not_running = requirement_tasks.find_all { |t| !t.running? }
                 expect_execution { not_running.each(&:start!) }.
-                    to { emit not_running.map(&:start_event) }
+                    to { emit *not_running.map(&:start_event) }
 
                 begin
                     syskit_engine ||= Syskit::NetworkGeneration::Engine.new(plan)
