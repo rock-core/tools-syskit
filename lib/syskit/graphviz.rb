@@ -496,14 +496,16 @@ module Syskit
 
                 # Finally, emit the dot code for connections
                 connections.each do |(source_task, source_port, sink_port, sink_task), policy|
-                    if source_task.kind_of?(Composition) || sink_task.kind_of?(Composition)
+                    source_port = source_task.find_port(source_port)
+                    sink_port   = sink_task.find_port(sink_port)
+                    if !(source_port.output? ^ sink_port.output?)
                         style = "style=dashed,"
                     end
 
-                    source_port_id = dot_id(source_task.find_port(source_port), source_task)
-                    sink_port_id   = dot_id(sink_task.find_port(sink_port), sink_task)
+                    source_port_id = dot_id(source_port, source_task)
+                    sink_port_id   = dot_id(sink_port, sink_task)
 
-                    label = conn_annotations[[source_task, source_port, sink_task, sink_port]].join(",")
+                    label = conn_annotations[[source_task, source_port.name, sink_task, sink_port.name]].join(",")
                     result << "  #{source_port_id} -> #{sink_port_id} [#{style}label=\"#{label}\"];"
                 end
 
