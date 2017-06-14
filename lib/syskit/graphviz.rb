@@ -89,7 +89,7 @@ module Syskit
                 string.
                     gsub(/</, "&lt;").
                     gsub(/>/, "&gt;").
-                    gsub(/[^\[\]&;:\w]/, "_")
+                    gsub(/[^\[\]&;:\w ]/, "_")
             end
 
             def annotate_tasks(annotations)
@@ -436,9 +436,9 @@ module Syskit
                     connected_ports[task] << p
                 end
                 additional_edges.each do |(from_id, from_task), (to_id, to_task), _|
-                    from_id = from_id.name if from_id.respond_to?(:name)
+                    from_id = from_task.find_port(from_id) if !from_id.respond_to?(:name)
                     connected_ports[from_task] << from_id
-                    to_id = to_id.name if to_id.respond_to?(:name)
+                    to_id = to_task.find_port(to_id) if !to_id.respond_to?(:name)
                     connected_ports[to_task] << to_id
                 end
                 connections = Hash.new
@@ -454,11 +454,11 @@ module Syskit
                     next if options[:remove_compositions] && source_task.kind_of?(Composition)
                     next if excluded_models.include?(source_task.concrete_model)
 
-                    source_task.model.each_input_port do |port|
-                        input_ports[source_task] << port.name
+                    source_task.each_input_port do |port|
+                        input_ports[source_task] << port
                     end
-                    source_task.model.each_output_port do |port|
-                        output_ports[source_task] << port.name
+                    source_task.each_output_port do |port|
+                        output_ports[source_task] << port
                     end
 
                     all_tasks << source_task
@@ -480,7 +480,9 @@ module Syskit
                 # Register ports that are part of connections, but are not
                 # defined on the task's interface. They are dynamic ports.
                 connections.each do |(source_task, source_port, sink_port, sink_task), policy|
+                    source_port = source_task.find_port(source_port)
                     connected_ports[source_task] << source_port
+                    sink_port   = sink_task.find_port(sink_port)
                     connected_ports[sink_task]   << sink_port
                     if !input_ports[source_task].include?(source_port)
                         output_ports[source_task] << source_port
@@ -542,8 +544,8 @@ module Syskit
                         inputs  = input_ports[task]
                         outputs = output_ports[task]
                         if !options[:show_all_ports]
-                            inputs  = (inputs & connected_ports[task]).to_a.sort
-                            outputs = (outputs & connected_ports[task]).to_a.sort
+                            inputs  = (inputs & connected_ports[task]).to_a.sort_by(&:name)
+                            outputs = (outputs & connected_ports[task]).to_a.sort_by(&:name)
                         end
                         result << render_task(task, inputs, outputs, style)
                     end
@@ -598,6 +600,11 @@ module Syskit
                 end
             end
 
+            HTML_CHAR_CLASSES = Hash[
+                '<' => '&lt;',
+                '>' => '&gt;'
+            ]
+
             def render_task(task, input_ports, output_ports, style = nil)
                 task_link = if make_links?
                                 "href=\"plan://syskit/#{task.dot_id}\""
@@ -623,9 +630,10 @@ module Syskit
                 if !input_ports.empty?
                     input_port_label = "<TABLE BORDER=\"0\" CELLBORDER=\"1\" CELLSPACING=\"0\">"
                     input_ports.each do |p|
-                        port_id = dot_id(p)
-                        ann = format_annotations(port_annotations, [task, p])
-                        input_port_label << "<TR><TD><TABLE BORDER=\"0\" CELLBORDER=\"0\"><TR><TD PORT=\"#{port_id}\" COLSPAN=\"2\">#{p}</TD></TR>#{ann}</TABLE></TD></TR>"
+                        port_id = dot_id(p.name)
+                        ann = format_annotations(port_annotations, [task, p.name])
+                        doc = escape_dot(p.model.doc || '<no documentation for this port>')
+                        input_port_label << "<TR><TD HREF=\"syskit://types/#{p.type.object_id}\" TITLE=\"#{doc}\"><TABLE BORDER=\"0\" CELLBORDER=\"0\"><TR><TD PORT=\"#{port_id}\" COLSPAN=\"2\">#{p.name}</TD></TR>#{ann}</TABLE></TD></TR>"
                     end
                     input_port_label << "\n</TABLE>"
                     result << "    inputs#{task.dot_id} [label=< #{input_port_label} >,shape=none];"
@@ -635,9 +643,10 @@ module Syskit
                 if !output_ports.empty?
                     output_port_label = "<TABLE BORDER=\"0\" CELLBORDER=\"1\" CELLSPACING=\"0\">"
                     output_ports.each do |p|
-                        port_id = dot_id(p)
-                        ann = format_annotations(port_annotations, [task, p])
-                        output_port_label << "<TR><TD><TABLE BORDER=\"0\" CELLBORDER=\"0\"><TR><TD PORT=\"#{port_id}\" COLSPAN=\"2\">#{p}</TD></TR>#{ann}</TABLE></TD></TR>"
+                        port_id = dot_id(p.name)
+                        ann = format_annotations(port_annotations, [task, p.name])
+                        doc = escape_dot(p.model.doc || '<no documentation for this port>')
+                        output_port_label << "<TR><TD HREF=\"syskit://types/#{p.type.object_id}\" TITLE=\"#{doc}\"><TABLE BORDER=\"0\" CELLBORDER=\"0\"><TR><TD PORT=\"#{port_id}\" COLSPAN=\"2\">#{p.name}</TD></TR>#{ann}</TABLE></TD></TR>"
                     end
                     output_port_label << "\n</TABLE>"
                     result << "    outputs#{task.dot_id} [label=< #{output_port_label} >,shape=none];"
@@ -647,10 +656,7 @@ module Syskit
                 result << "    }"
                 result.join("\n")
             end
-            def format_annotations(annotations, key = nil, options = Hash.new)
-                options = Kernel.validate_options options,
-                    :include_empty => false
-
+            def format_annotations(annotations, key = nil, include_empty: false)
                 if key
                     if !annotations.has_key?(key)
                         return
@@ -664,7 +670,7 @@ module Syskit
                 result = ann.map do |category, values|
                     # Values are allowed to be an array of strings or plain strings, normalize to array
                     values = [*values]
-                    next if (values.empty? && !options[:include_empty])
+                    next if (values.empty? && !include_empty)
 
                     values = values.map { |v| v.tr("<>", "[]") }
                     values = values.map { |v| v.tr("{}", "[]") }
