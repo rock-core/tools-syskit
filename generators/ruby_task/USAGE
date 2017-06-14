@@ -1,0 +1,13 @@
+Generates a new ruby task context (a subclass of Syskit::RubyTaskContext).
+The argument is the name of the composition class, either in
+CamelCase or in snake_case form. It can be prefixed with namespace(s)
+in/this/form or In::This::Form. It is not necessary to add the bundle namespace
+in front (it gets added automatically)
+
+Example: running the following command in a rock_auv app
+  roby gen cmp sensing/position_generator
+
+  will generate a RockAuv::Compositions::Sensing::PositionGenerator ruby task in
+  models/compositions/sensing/position_generator.rb, and the associated
+  test template in test/compositions/sensing/test_position_generator.rb.
+
