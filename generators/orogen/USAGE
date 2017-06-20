@@ -8,5 +8,4 @@ Example: running the following command in a rock_auv app
   will create a template extension file in models/orogen/auv_control.rb, which
   already contains the definitions of the tasks found in the auv_control oroGen
   project. It also generates an associated test file in
-  test/orogen/test_auv_control.rb and updates test/suite_orogen.rb to require the
-  new file.
+  test/orogen/test_auv_control.rb.

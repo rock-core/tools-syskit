@@ -9,7 +9,5 @@ Example: running the following command in a rock_auv app
 
   will generate a RockAuv::Compositions::Sensing::Localization composition in
   models/compositions/sensing/localization.rb, and the associated
-  test template in test/compositions/sensing/test_localization.rb. The
-  files up in the hierarchy (models/compositions/sensing.rb and
-  test/compositions/suite_sensing.rb) are updated to require the new file(s)
+  test template in test/compositions/sensing/test_localization.rb.
 

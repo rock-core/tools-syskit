@@ -9,7 +9,5 @@ Example: running the following command in a rock_auv app
 
   will generate a RockAuv::Profiles::Sensing::Localization profile in
   models/profiles/sensing/localization.rb, and the associated
-  test template in test/profiles/sensing/test_localization.rb. The files up in
-  the hierarchy (here models/profiles/sensing.rb and
-  test/profiles/suite_sensing.rb) are updated to require the new file(s).
+  test template in test/profiles/sensing/test_localization.rb.
 
