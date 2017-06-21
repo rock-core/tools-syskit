@@ -4,6 +4,7 @@ module Syskit
         # updates the running TaskContext tasks.
         def self.update_task_states(plan) # :nodoc:
             query = plan.find_tasks(Syskit::TaskContext).not_finished
+            schedule = plan.execution_engine.scheduler.enabled?
             for t in query
                 execution_agent = t.execution_agent
                 # The task's deployment is not started yet
@@ -28,7 +29,7 @@ module Syskit
 		    next
 		end
 
-                if t.pending? && !t.setup? && !t.setting_up?
+                if schedule && t.pending? && !t.setup? && !t.setting_up?
                     next if !t.meets_configurationg_precedence_constraints?
 
                     t.freeze_delayed_arguments
