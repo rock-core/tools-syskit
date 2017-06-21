@@ -294,11 +294,11 @@ module Syskit
             end
 
             # Create empty configuration sections for the given task model
-            def syskit_stub_conf(task_m, *conf)
+            def syskit_stub_conf(task_m, *conf, data: Hash.new)
                 concrete_task_m = task_m.concrete_model
                 syskit_protect_configuration_manager(concrete_task_m)
                 conf.each do |conf_name|
-                    concrete_task_m.configuration_manager.add(conf_name, Hash.new, merge: true)
+                    concrete_task_m.configuration_manager.add(conf_name, data, merge: true)
                 end
             end
 
