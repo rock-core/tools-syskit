@@ -431,6 +431,8 @@ module Syskit
                             formatted_arguments << "  #{arg.name}: "
                         elsif arg.default.nil?
                             formatted_arguments << "  #{arg.name}: nil"
+                        elsif arg.default.respond_to?(:name) && MetaRuby::Registration.accessible_by_name?(arg.default)
+                            formatted_arguments << "  #{arg.name}: #{arg.default.name}"
                         else
                             formatted_arguments << "  #{arg.name}: #{arg.default}"
                         end
