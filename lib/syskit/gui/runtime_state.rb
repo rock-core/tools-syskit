@@ -425,7 +425,8 @@ module Syskit
                         if !formatted_arguments.empty?
                             formatted_arguments << ",\n"
                         end
-                        formatted_arguments << "  # #{arg.doc}\n"
+                        doc_lines = (arg.doc || "").split("\n")
+                        formatted_arguments << "  # #{doc_lines.join("\n  # ")}\n"
                         if arg.required?
                             formatted_arguments << "  #{arg.name}: "
                         elsif arg.default.nil?
