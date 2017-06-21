@@ -609,5 +609,42 @@ describe Syskit::InstanceRequirements do
             ir.each_child.to_a
         end
     end
+
+    describe "#to_action_model" do
+        it "uses the task model as return value for the action" do
+            task_m = Syskit::TaskContext.new_submodel
+            action_m = Syskit::InstanceRequirements.new([task_m]).to_action_model
+            assert_equal task_m, action_m.returned_type
+        end
+        it "defines a required argument for each task argument without default" do
+            action_m = to_action_model { argument :test }
+            assert action_m.find_arg(:test).required
+        end
+        it "defines an optional argument with default for each task argument that has a static default" do
+            action_m = to_action_model { argument :test, default: 10 }
+            refute action_m.find_arg(:test).required
+            assert_equal 10, action_m.find_arg(:test).default
+        end
+        it "defines an optional argument without default for each task argument that has a delayed argument as default" do
+            action_m = to_action_model { argument :test, default: from(:parent_task) }
+            refute action_m.find_arg(:test).required
+            refute action_m.find_arg(:test).default
+        end
+        it "propagates the argument's documentation" do
+            action_m = to_action_model { argument :test, doc: 'the documentation' }
+            assert_equal "the documentation", action_m.find_arg(:test).doc
+        end
+        it "ignores the argument from its root model" do
+            action_m = to_action_model
+            refute action_m.has_arg?(:orocos_name)
+        end
+
+        # Helper method that creates a component model, the corresponding
+        # InstanceRequirements and then the action model
+        def to_action_model(&block)
+            task_m = Syskit::TaskContext.new_submodel(&block)
+            Syskit::InstanceRequirements.new([task_m]).to_action_model
+        end
+    end
 end
 

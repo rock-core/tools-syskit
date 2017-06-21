@@ -1094,7 +1094,7 @@ module Syskit
                         if default_argument.kind_of?(Roby::DefaultArgument)
                             default_argument = default_argument.value
                         elsif arg.has_delayed_default?
-                            optional = false
+                            default_argument = nil
                         end
                     end
 
