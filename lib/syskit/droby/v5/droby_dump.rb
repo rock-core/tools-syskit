@@ -102,15 +102,9 @@ module Syskit
                     DRoby.new(name, xml)
                 end
             end
+
+
         end
     end
-end
-
-class Orocos::RubyTasks::TaskContext
-    extend Roby::DRoby::V5::DRobyConstant::Dump
-end
-
-class Orocos::TaskContext
-    extend Roby::DRoby::V5::DRobyConstant::Dump
 end
 
