@@ -103,7 +103,35 @@ module Syskit
                 end
             end
 
+            module ProfileDumper
+                class DRoby
+                    def initialize(name)
+                        @name = name
+                    end
 
+                    def proxy(peer)
+                        if !@name
+                            return Actions::Profile.new
+                        elsif local = peer.object_manager.find_model_by_name(@name)
+                            return local
+                        end
+
+                        profile = 
+                            begin
+                                constant(@name)
+                            rescue Exception
+                                Actions::Profile.new(@name)
+                            end
+
+                        peer.register_model(profile)
+                        profile
+                    end
+                end
+
+                def droby_dump(peer)
+                    DRoby.new(name)
+                end
+            end
         end
     end
 end

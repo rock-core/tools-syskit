@@ -3,6 +3,8 @@ module Syskit
         # A representation of a set of dependency injections and definition of
         # pre-instanciated models
         class Profile
+            include Roby::DRoby::Identifiable
+
             class << self
                 # Set of known profiles
                 attr_reader :profiles

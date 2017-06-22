@@ -80,6 +80,57 @@ module Syskit
                 assert_equal 0xDDCCBB, Typelib.to_ruby(unmarshalled)
             end
         end
+
+        describe V5::ProfileDumper do
+            describe "an anonymous profile" do
+                it "can transfer it" do
+                    unmarshalled = droby_transfer(Actions::Profile.new)
+                    assert_kind_of Actions::Profile, unmarshalled
+                end
+
+                it "creates a new profile each time" do
+                    a = droby_transfer(Actions::Profile.new)
+                    b = droby_transfer(Actions::Profile.new)
+                    refute_same a, b
+                end
+            end
+
+            describe "a named profile not registered as a constant" do
+                it "can transfer it" do
+                    unmarshalled = droby_transfer(Actions::Profile.new("AProfile"))
+                    assert_kind_of Actions::Profile, unmarshalled
+                end
+                it "can transfer it even if the name is not a valid constant name" do
+                    unmarshalled = droby_transfer(Actions::Profile.new("not_a_valid_constant"))
+                    assert_kind_of Actions::Profile, unmarshalled
+                end
+                it "transfers the name" do
+                    unmarshalled = droby_transfer(Actions::Profile.new("AProfile"))
+                    assert_equal "AProfile", unmarshalled.name
+                end
+                it "unmarshals to the same object when the same name is given" do
+                    a = droby_transfer(Actions::Profile.new("AProfile"))
+                    b = droby_transfer(Actions::Profile.new("AProfile"))
+                    assert_same a, b
+                end
+                it "unmarshals to different objects with different names" do
+                    a = droby_transfer(Actions::Profile.new("AProfile"))
+                    b = droby_transfer(Actions::Profile.new("AnotherProfile"))
+                    refute_same a, b
+                end
+            end
+
+            describe "a named profile registered as a constant" do
+                it "returns the constant" do
+                    droby = droby_local_marshaller.dump(Actions::Profile.new("AProfile"))
+                    droby = Marshal.load(Marshal.dump(droby))
+                    flexmock(droby).should_receive(:constant).with('AProfile').
+                        and_return(profile = Actions::Profile.new)
+                    unmarshalled = droby_remote_marshaller.local_object(droby)
+                    assert_same profile, unmarshalled
+                end
+            end
+        end
     end
 end
 
