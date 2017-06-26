@@ -73,7 +73,7 @@ module Syskit
                 end
                 placeholder = req.as_plan(**job_id)
                 placeholder.planning_task.action_model = self
-                placeholder.planning_task.action_arguments = arguments
+                placeholder.planning_task.action_arguments = req.arguments
                 placeholder
             end
 
@@ -109,18 +109,19 @@ module Syskit
             # are not (yet) marshallable in droby
             def droby_dump!(peer)
                 super
-                @requirements_name = requirements.name
-                @requirements_model = peer.dump(requirements.model)
-                @requirements_arguments = peer.dump(requirements.arguments)
-                @requirements = InstanceRequirements.new
+                @requirements = peer.dump(requirements)
             end
 
             def proxy!(peer)
                 super
-                @requirements.add_models([peer.local_object(@requirements_model)])
-                @requirements.name = @requirements_name
-                @requirements.with_arguments(peer.local_object(@requirements_arguments))
-                @requirements_model = @requirements_name = @requirements_arguments = nil
+                if @requirements_model # Backward compatibility
+                    @requirements.add_models([peer.local_object(@requirements_model)])
+                    @requirements.name = @requirements_name
+                    @requirements.with_arguments(peer.local_object(@requirements_arguments))
+                    @requirements_model = @requirements_name = @requirements_arguments = nil
+                else
+                    @requirements = peer.local_object(@requirements)
+                end
             end
 
             def respond_to_missing?(m, include_private)

@@ -103,6 +103,27 @@ module Syskit
                 end
             end
 
+            module InstanceRequirementsDumper
+                class DRoby
+                    def initialize(name, model, arguments)
+                        @name, @model, @arguments = name, model, arguments
+                    end
+
+                    def proxy(peer)
+                        requirements = InstanceRequirements.new([peer.local_object(@model)])
+                        requirements.name = @name
+                        requirements.with_arguments(@arguments)
+                        requirements
+                    end
+                end
+
+                def droby_dump(peer)
+                    DRoby.new(name,
+                              peer.dump(model),
+                              peer.dump(arguments))
+                end
+            end
+
             module ProfileDumper
                 class DRoby
                     def initialize(name)
