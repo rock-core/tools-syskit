@@ -23,10 +23,18 @@ module Syskit
             # Qt handler called when the context menu is activated
             def contextMenuEvent(event)
                 if !actions.empty?
+                    app_state_menu(event.global_pos)
+                    event.accept
+                end
+            end
+
+            # Execute the app state menu
+            def app_state_menu(global_pos)
+                if !actions.empty?
                     menu = Qt::Menu.new(self)
                     actions.each { |act| menu.add_action(act) }
-                    menu.exec(event.global_pos)
-                    event.accept
+                    menu.exec(global_pos)
+                    true
                 end
             end
 
@@ -43,10 +51,10 @@ module Syskit
             #
             # It emits the 'clicked' signal
             def mouseReleaseEvent(event)
-                emit clicked
+                emit clicked(event.global_pos)
                 event.accept
             end
-            signals :clicked
+            signals 'clicked(QPoint)'
         end
     end
 end

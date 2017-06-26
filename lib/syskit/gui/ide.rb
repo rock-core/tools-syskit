@@ -83,6 +83,9 @@ module Syskit
                 @connection_state = GlobalStateLabel.new(
                     actions: runtime_state.global_actions.values,
                     name: runtime_state.remote_name)
+                @connection_state.connect(SIGNAL('clicked(QPoint)')) do |global_pos|
+                    @connection_state.app_state_menu(global_pos)
+                end
 
                 tab_widget.set_corner_widget(connection_state, Qt::TopLeftCorner)
                 runtime_state.on_connection_state_changed do |connected|

@@ -302,7 +302,7 @@ module Syskit
                     connection_state.update_text("%s - %s" % [state, message])
                 end
                 job_status_list.add_widget connection_state
-                connection_state.connect(SIGNAL('clicked()')) do
+                connection_state.connect(SIGNAL('clicked(QPoint)')) do
                     deselect_job
                 end
 
