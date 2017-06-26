@@ -105,11 +105,12 @@ module Syskit
             # @param [Integer] poll_period how often should the syskit interface
             #   be polled (milliseconds). Set to nil if the polling is already
             #   done externally
-            def initialize(parent: nil, syskit: Roby::Interface::Async::Interface.new, poll_period: 10)
+            def initialize(parent: nil, robot_name: 'default', syskit: Roby::Interface::Async::Interface.new, poll_period: 10)
                 super(parent)
 
                 orocos_corba_nameservice = Orocos::CORBA::NameService.new(syskit.remote_name)
                 @name_service = Orocos::Async::NameService.new(orocos_corba_nameservice)
+                @robot_name = robot_name
 
                 if poll_period
                     poll_syskit_interface(syskit, poll_period)
@@ -121,7 +122,7 @@ module Syskit
                 @global_actions = Hash.new
                 action = global_actions[:start]   = Qt::Action.new("Start", self)
                 connect action, SIGNAL('triggered()') do
-                    app_start
+                    app_start(robot_name: @robot_name)
                 end
                 action = global_actions[:restart] = Qt::Action.new("Restart", self)
                 connect action, SIGNAL('triggered()') do
@@ -201,8 +202,8 @@ module Syskit
                 syskit.remote_name
             end
 
-            def app_start
-                robot_name, start_controller = AppStartDialog.exec(Roby.app.robots.names, self)
+            def app_start(robot_name: 'default')
+                robot_name, start_controller = AppStartDialog.exec(Roby.app.robots.names, self, default_robot_name: robot_name)
                 if robot_name
                     extra_args = Array.new
                     if !robot_name.empty?

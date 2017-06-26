@@ -24,13 +24,14 @@ module Syskit
             CONNECTION_STATE_STYLE = "QLabel { font-size: 10pt; background-color: %s; }"
             CONNECTION_STATE_TEXT = "<b>%s</b>: %s"
 
-            def initialize(parent = nil, host: 'localhost', port: Roby::Interface::DEFAULT_PORT, runtime: nil, tests: false)
+            def initialize(parent = nil, host: 'localhost', port: Roby::Interface::DEFAULT_PORT, runtime: nil, tests: false, robot_name: 'default')
                 super(parent)
 
                 @layout = Qt::VBoxLayout.new(self)
                 @tab_widget = Qt::TabWidget.new(self)
                 @testing = Testing.new
                 @model_browser = ModelBrowser.new
+                @robot_name = robot_name
 
                 syskit = Roby::Interface::Async::Interface.new(host, port: port)
                 @btn_reload_models = Qt::PushButton.new("Reload Models", self)
@@ -75,7 +76,7 @@ module Syskit
             end
 
             def create_runtime_state_ui(syskit)
-                @runtime_state = RuntimeState.new(syskit: syskit)
+                @runtime_state = RuntimeState.new(syskit: syskit, robot_name: @robot_name)
                 connect(runtime_state, SIGNAL('fileOpenClicked(const QUrl&)'),
                         self, SLOT('fileOpenClicked(const QUrl&)'))
                 @connection_state = GlobalStateLabel.new(

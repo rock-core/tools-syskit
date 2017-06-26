@@ -16,7 +16,7 @@ module Syskit
             # Text used to allow the user to not load any robot configuration
             NO_ROBOT = " -- None -- "
 
-            def initialize(names, parent = nil)
+            def initialize(names, parent = nil, default_robot_name: 'default')
                 super(parent)
 
                 self.window_title = "Start App"
@@ -26,8 +26,11 @@ module Syskit
                 layout.add_widget(@robot_names = Qt::ComboBox.new)
 
                 robot_names.add_item NO_ROBOT
-                names.sort.each do |n|
+                names.sort.each_with_index do |n, i|
                     robot_names.add_item(n)
+                    if n == default_robot_name
+                        robot_names.current_index = i + 1
+                    end
                 end
                 layout.add_widget(@start_controller = Qt::CheckBox.new("Start controller"))
                 start_controller.checked = true
@@ -65,8 +68,8 @@ module Syskit
             #   controller blocks should be executed. The robot name can be
             #   empty to indicate that the dialog was accepted but no robot
             #   configuration should be loaded
-            def self.exec(names, parent = nil)
-                dialog = new(names, parent)
+            def self.exec(names, parent = nil, default_robot_name: 'default')
+                dialog = new(names, parent, default_robot_name: default_robot_name)
                 if Qt::Dialog::Accepted == dialog.exec
                     return dialog.selected_name, dialog.start_controller?
                 end
