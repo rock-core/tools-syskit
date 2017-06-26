@@ -70,6 +70,19 @@ describe Syskit::Robot::RobotDefinition do
             flexmock(robot).should_receive(:invalidate_dependency_injection).at_least.once
             robot.device device_m, as: 'test'
         end
+
+        it "auto-discovers documentation by parsing a documentation block" do
+            flexmock(Roby.app).should_receive(:app_file?).and_return(true)
+            # The documentation
+            device = robot.device device_m, as: 'test'
+            assert_equal 'The documentation', device.doc
+        end
+
+        it "accepts being passed the documentation string expicitely" do
+            # A documentation string that should be ignored
+            device = robot.device device_m, as: 'test', doc: 'the documentation'
+            assert_equal 'the documentation', device.doc
+        end
     end
 end
 
