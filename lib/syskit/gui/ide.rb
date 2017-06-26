@@ -41,11 +41,12 @@ module Syskit
                 connect(testing, SIGNAL('fileOpenClicked(const QUrl&)'),
                         self, SLOT('fileOpenClicked(const QUrl&)'))
 
-                layout.add_widget btn_reload_models
                 layout.add_widget tab_widget
                 browse_container = Qt::Widget.new
                 browse_container_layout = Qt::VBoxLayout.new(browse_container)
-                browse_container_layout.add_layout(testing.create_status_bar_ui)
+                status_bar = testing.create_status_bar_ui
+                status_bar.insert_widget(0, btn_reload_models)
+                browse_container_layout.add_layout(status_bar)
                 browse_container_layout.add_widget(model_browser)
                 tab_widget.add_tab browse_container, "Browse"
                 tab_widget.add_tab testing, "Testing"
