@@ -129,7 +129,7 @@ module Syskit
                         requirement_tasks.each { |t| t.failed_event.emit(e) }
                     end.to do
                         requirement_tasks.each do |t|
-                            have_error_matching PlanningFailedError.match.
+                            have_error_matching Roby::PlanningFailedError.match.
                                 with_origin(t)
                         end
                     end
