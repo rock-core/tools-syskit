@@ -98,9 +98,13 @@ module Syskit
                     begin
                         self.assertions += 1
                         syskit_engine = Syskit::NetworkGeneration::Engine.new(plan)
-                        task = syskit_deploy(act, syskit_engine: syskit_engine, compute_policies: false, compute_deployments: false, validate_generated_network: false, **instanciate_options)
+                        task = syskit_deploy(act, syskit_engine: syskit_engine,
+                                             compute_policies: false, compute_deployments: false,
+                                             validate_generated_network: false, **instanciate_options)
+                        # Get rid of all the tasks that 
                         still_abstract = plan.find_local_tasks(Syskit::Component).
-                            abstract.to_a
+                            abstract.to_set
+                        still_abstract &= plan.compute_useful_tasks([task])
                         tags, other = still_abstract.partition { |task| task.class <= Actions::Profile::Tag }
                         tags_from_other = tags.find_all { |task| task.class.profile != subject_syskit_model }
                         if !other.empty?
