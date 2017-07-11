@@ -64,7 +64,6 @@ module Syskit
                 @load_component_extensions = true
                 @redirect_local_process_server = true
                 @reject_ambiguous_deployments = true
-                @auto_configure = true
                 @only_load_models = nil
                 @disables_local_process_server = false
                 @local_only = false
@@ -174,10 +173,6 @@ module Syskit
             # will generate an error
             attr_predicate :reject_ambiguous_deployments?, true
 
-            # If true (the default), the runtime management will automatically
-            # configure the tasks. If not, it will wait for you (or other
-            # processes) to do it manually
-            attr_predicate :auto_configure?, true
 
             # In normal operations, the plugin initializes the CORBA layer,
             # which takes some time.

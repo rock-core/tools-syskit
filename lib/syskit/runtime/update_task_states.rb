@@ -41,7 +41,7 @@ module Syskit
                                     t.start_event))
                             next
                         end
-                    elsif t.ready_for_setup? && Syskit.conf.auto_configure?
+                    elsif t.ready_for_setup?
                         t.setup.execute
                         next
                     else
