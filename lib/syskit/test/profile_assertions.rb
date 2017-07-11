@@ -110,9 +110,7 @@ module Syskit
                             raise Roby::Test::Assertion.new(TaskAllocationFailed.new(syskit_engine, tags)), "#{act} contains tags from another profile (found #{other_profiles.map(&:name).sort.join(", ")}, expected #{subject_syskit_model}"
                         end
                         plan.unmark_mission_task(task)
-                        plan.execution_engine.process_events_synchronous do
-                            plan.execution_engine.garbage_collect
-                        end
+                        expect_execution.garbage_collect(true).to_run
                     rescue Exception => e
                         raise ProfileAssertionFailed.new(act, e), e.message
                     end
@@ -147,9 +145,7 @@ module Syskit
                 actions.each do |action|
                     task = assert_can_instanciate_together(action)
                     plan.unmark_mission_task(task)
-                    plan.execution_engine.process_events_synchronous do
-                        plan.execution_engine.garbage_collect
-                    end
+                    expect_execution.garbage_collect(true).to_run
                 end
             end
 
@@ -226,9 +222,7 @@ module Syskit
                 actions.each do |action|
                     task = assert_can_deploy_together(action)
                     plan.unmark_mission_task(task)
-                    plan.execution_engine.process_events_synchronous do
-                        plan.execution_engine.garbage_collect
-                    end
+                    expect_execution.garbage_collect(true).to_run
                 end
             end
 
