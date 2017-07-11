@@ -128,7 +128,11 @@ module Syskit
 
                     deployment_task =
                         (deployment_tasks[[machine, configured_deployment]] ||= configured_deployment.new(on: machine))
-                    plan.add(deployment_task)
+                    if Syskit.conf.permanent_deployments?
+                        plan.add_permanent_task(deployment_task)
+                    else
+                        plan.add(deployment_task)
+                    end
                     deployed_task = deployment_task.task(task_name)
                     debug { "deploying #{task} with #{task_name} of #{configured_deployment.short_name} (#{deployed_task})" }
                     merge_solver.apply_merge_group(task => deployed_task)

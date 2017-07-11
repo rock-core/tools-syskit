@@ -67,6 +67,7 @@ module Syskit
                 @only_load_models = nil
                 @disables_local_process_server = false
                 @local_only = false
+                @permanent_deployments = true
                 @prefix_blacklist = []
                 @sd_publish_list = []
                 @ignore_missing_orogen_projects_during_load = false
@@ -173,6 +174,9 @@ module Syskit
             # will generate an error
             attr_predicate :reject_ambiguous_deployments?, true
 
+            # If true (the default), deployments are markes as permanent, i.e.
+            # won't be garbage-collected when the corresponding tasks are unused
+            attr_predicate :permanent_deployments?, true
 
             # In normal operations, the plugin initializes the CORBA layer,
             # which takes some time.
