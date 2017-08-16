@@ -6,18 +6,21 @@ module Syskit
 
             attr_reader :ui_job_actions
             attr_reader :ui_start
-            attr_reader :ui_kill
             attr_reader :ui_drop
             attr_reader :ui_state
             attr_reader :exceptions
             attr_reader :notifications
             attr_reader :ui_notifications
 
-            def initialize(job, parent = nil)
-                super(parent)
+            attr_predicate :show_actions?, true
+
+            def initialize(job, batch_manager)
+                super(nil)
+                @batch_manager = batch_manager
                 @job = job
                 @exceptions = Array.new
                 @notifications = Hash.new
+                @show_actions = true
 
                 create_ui
                 connect_to_hooks
@@ -31,17 +34,21 @@ module Syskit
                 Roby::Interface::JOB_PLANNING_FAILED.upcase.to_s
             ]
 
+            def label
+                "##{job.job_id} #{job.action_name}"
+            end
+
             def create_ui
-                @ui_state = JobStateLabel.new name: "##{job.job_id} #{job.action_name}"
+                @ui_state = JobStateLabel.new name: label
                 if job.state
                     ui_state.update_state(job.state.upcase)
                 end
 
                 @ui_job_actions = Qt::Widget.new(self)
                 hlayout    = Qt::HBoxLayout.new(ui_job_actions)
-                hlayout.add_widget(@ui_kill   = Qt::PushButton.new("Kill", self))
                 hlayout.add_widget(@ui_drop   = Qt::PushButton.new("Drop", self))
-                hlayout.add_widget(@ui_start  = Qt::PushButton.new("Restart", self))
+                hlayout.add_widget(@ui_start  = Qt::PushButton.new("Start Again", self))
+                ui_start.hide
                 hlayout.set_contents_margins(0, 0, 0, 0)
 
                 @ui_notifications = Qt::Label.new("", self)
@@ -70,12 +77,16 @@ module Syskit
 
             def enterEvent(event)
                 super
-                show_job_actions
+                if show_actions?
+                    show_job_actions
+                end
             end
 
             def leaveEvent(event)
                 super
-                hide_job_actions
+                if show_actions?
+                    hide_job_actions
+                end
             end
 
             def mousePressEvent(event)
@@ -90,14 +101,13 @@ module Syskit
             signals 'fileOpenClicked(const QUrl&)'
 
             def connect_to_hooks
-                ui_start.connect(SIGNAL('clicked()')) do
-                    job.restart
-                end
                 ui_drop.connect(SIGNAL('clicked()')) do
-                    job.drop
+                    @batch_manager.drop_job(self)
                 end
-                ui_kill.connect(SIGNAL('clicked()')) do
-                    job.kill
+                ui_start.connect(SIGNAL('clicked()')) do
+                    arguments = job.action_arguments.dup
+                    arguments.delete(:job_id)
+                    @batch_manager.create_new_job(job.action_name, arguments)
                 end
                 job.on_progress do |state|
                     if INTERMEDIATE_TERMINAL_STATES.include?(ui_state.current_state)
@@ -113,8 +123,7 @@ module Syskit
                         ui_drop.hide
                     elsif Roby::Interface.terminal_state?(state)
                         ui_drop.hide
-                        ui_kill.hide
-                        ui_start.text = "Start Again"
+                        ui_start.show
                     end
                 end
                 job.on_exception do |kind, exception|

@@ -6,6 +6,7 @@ require 'syskit/gui/widget_list'
 require 'syskit/gui/expanded_job_status'
 require 'syskit/gui/global_state_label'
 require 'syskit/gui/app_start_dialog'
+require 'syskit/gui/batch_manager'
 
 module Syskit
     module GUI
@@ -292,7 +293,6 @@ module Syskit
                 job_summary = Qt::Widget.new
                 job_summary_layout = Qt::VBoxLayout.new(job_summary)
                 job_summary_layout.add_layout(@new_job_layout  = create_ui_new_job)
-                job_summary_layout.add_widget(@job_status_list = WidgetList.new(self))
 
                 @connection_state = GlobalStateLabel.new(name: remote_name)
                 connection_state.declare_state 'CONNECTED', :green
@@ -301,11 +301,24 @@ module Syskit
                     state = connection_state.current_state.to_s
                     connection_state.update_text("%s - %s" % [state, message])
                 end
-                job_status_list.add_widget connection_state
+                job_summary_layout.add_widget(connection_state, 0)
+
+                @batch_manager = BatchManager.new(@syskit, self)
+                job_summary_layout.add_widget(@batch_manager)
+                @batch_manager.connect(SIGNAL('active(bool)')) do |active|
+                    if active then @batch_manager.show
+                    else @batch_manager.hide
+                    end
+                end
+                @batch_manager.hide
                 connection_state.connect(SIGNAL('clicked(QPoint)')) do
                     deselect_job
                 end
 
+                @job_status_list = WidgetList.new(self)
+                job_status_scroll = Qt::ScrollArea.new
+                job_status_scroll.widget = @job_status_list
+                job_summary_layout.add_widget(job_status_scroll, 1)
                 main_layout = Qt::VBoxLayout.new(self)
                 splitter = Qt::Splitter.new
                 splitter.add_widget job_summary
@@ -336,115 +349,9 @@ module Syskit
                 new_job_layout.add_widget label
                 new_job_layout.add_widget action_combo, 1
                 action_combo.connect(SIGNAL('activated(QString)')) do |action_name|
-                    create_new_job(action_name)
+                    @batch_manager.create_new_job(action_name)
                 end
                 new_job_layout
-            end
-
-            class NewJobDialog < Qt::Dialog
-                attr_reader :editor
-
-                def initialize(parent = nil, text = '')
-                    super(parent)
-                    resize(800, 600)
-
-                    layout = Qt::VBoxLayout.new(self)
-                    @error_message = Qt::Label.new(self)
-                    @error_message.style_sheet = "QLabel { background-color: #ffb8b9; border: 1px solid #ff6567; padding: 5px; }"
-                    @error_message.frame_style = Qt::Frame::StyledPanel
-                    layout.add_widget(@error_message)
-                    @error_message.hide
-
-                    @editor = Qt::TextEdit.new(self)
-                    self.text = text
-                    layout.add_widget editor
-
-                    buttons = Qt::DialogButtonBox.new(Qt::DialogButtonBox::Ok | Qt::DialogButtonBox::Cancel)
-                    buttons.connect(SIGNAL('accepted()')) do
-                        begin
-                            @error_message.hide
-                            @result = Parser.parse(self.text)
-                            accept
-                        rescue Exception => e
-                            @error_message.text = e.message
-                            @error_message.show
-                        end
-                    end
-                    buttons.connect(SIGNAL('rejected()')) { reject }
-                    layout.add_widget buttons
-                end
-
-                def self.exec(parent, text)
-                    new(parent, text).exec
-                end
-
-                class Parser < BasicObject
-                    def self.const_missing(const_name)
-                        ::Object.const_get(const_name)
-                    end
-
-                    def self.parse(text)
-                        parser = new
-                        parser.instance_eval(text)
-                        parser.__result
-                    end
-
-                    def method_missing(m, **options)
-                        @method_name = m
-                        @method_options = options
-                    end
-
-                    def __result
-                        return @method_name, @method_options
-                    end
-                end
-
-                def result
-                    @result
-                end
-
-                def text=(text)
-                    editor.plain_text = text
-                end
-
-                def text
-                    editor.to_plain_text
-                end
-            end
-
-            def create_new_job(action_name)
-                action_model = syskit.actions.find { |m| m.name == action_name }
-                if !action_model
-                    raise ArgumentError, "no action named #{action_name} found"
-                end
-
-                if action_model.arguments.empty?
-                    syskit.client.send("#{action_name}!", Hash.new)
-                else
-                    formatted_arguments = String.new
-                    action_model.arguments.each do |arg|
-                        if !formatted_arguments.empty?
-                            formatted_arguments << ",\n"
-                        end
-                        doc_lines = (arg.doc || "").split("\n")
-                        formatted_arguments << "  # #{doc_lines.join("\n  # ")}\n"
-                        if arg.required?
-                            formatted_arguments << "  #{arg.name}: "
-                        elsif arg.default.nil?
-                            formatted_arguments << "  #{arg.name}: nil"
-                        elsif arg.default.respond_to?(:name) && MetaRuby::Registration.accessible_by_name?(arg.default)
-                            formatted_arguments << "  #{arg.name}: #{arg.default.name}"
-                        else
-                            formatted_arguments << "  #{arg.name}: #{arg.default}"
-                        end
-                    end
-                    formatted_action = "#{action_name}!(\n#{formatted_arguments}\n)"
-                    dialog = NewJobDialog.new(self, formatted_action)
-                    if dialog.exec == Qt::Dialog::Accepted
-                        action_name, action_options = dialog.result
-                        syskit.client.send(action_name, action_options)
-                    end
-                end
             end
 
             attr_reader :syskit_poll
@@ -474,7 +381,7 @@ module Syskit
             #
             # @param [Roby::Interface::Async::JobMonitor] job
             def monitor_job(job)
-                job_status = JobStatusDisplay.new(job)
+                job_status = JobStatusDisplay.new(job, @batch_manager)
                 job_status_list.add_widget job_status
                 job_status.connect(SIGNAL('clicked()')) do
                     select_job(job_status)
