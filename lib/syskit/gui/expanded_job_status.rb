@@ -29,7 +29,6 @@ module Syskit
                 @ui_chronicle = Roby::GUI::ChronicleWidget.new
                 ui_chronicle.show_mode = :in_range
                 ui_chronicle.reverse_sort = true
-                ui_chronicle.vertical_scroll_bar_policy = Qt::ScrollBarAlwaysOff
                 add_widget ui_exception_view
                 ui_exception_view.hide
                 add_widget ui_chronicle
