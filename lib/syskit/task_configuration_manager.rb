@@ -72,13 +72,25 @@ module Syskit
             super(section_name, path, replace: replace)
         end
 
+        # Tests whether the file changed on disk, i.e. whether reload will do
+        # something
+        def changed_on_disk?
+            if conf_file = existing_configuration_file
+                stat = File.stat(conf_file)
+                conf_file != @loaded_file || stat != @loaded_file_stat
+            end
+        end
+
         # Loads or reload the configuration for this task from disk
         #
         # @return [Array<String>] a list of configuration sections that have
         #   been modified
         def reload
             if conf_file = existing_configuration_file
+                stat = File.stat(conf_file)
                 app.isolate_load_errors("could not load oroGen configuration file #{conf_file}") do
+                    @loaded_file = conf_file
+                    @loaded_file_stat = stat
                     load_from_yaml(conf_file)
                 end
             else

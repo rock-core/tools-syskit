@@ -418,6 +418,14 @@ module Syskit
                 end
             end
 
+            # List of task (orocos names) that are marked as needing
+            # reconfiguration
+            def pending_reconfigurations
+                remote_task_handles.keys.find_all do |orocos_name|
+                    remote_task_handles[orocos_name].needs_reconfiguration
+                end
+            end
+
             # @api private
             #
             # Mark tasks affected by a change in configuration section as

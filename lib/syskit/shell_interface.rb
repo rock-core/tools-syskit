@@ -115,24 +115,19 @@ module Syskit
         command :restart_deployments, 'restarts deployment processes',
             :models => '(optional) if given, a list of task or deployment models pointing to what should be restarted. If not given, all deployments are restarted'
 
-        # Reloads the configuration files
-        #
-        # The new configuration will only be applied to running tasks after
-        # {#redeploy} is called as well
+        # (see Application#syskit_reload_config)
         def reload_config
-            TaskContext.each_submodel do |model|
-                next if !model.concrete_model?
-                changed_sections = model.configuration_manager.reload
-                plan.find_tasks(Deployment).each do |deployment_task|
-                    deployment_task.mark_changed_configuration_as_not_reusable(model => changed_sections).each do |orocos_name|
-                        ::Robot.info "task #{orocos_name} needs reconfiguration"
-                    end
-                end
-            end
-            nil
+            app.syskit_reload_config
         end
         command :reload_config, 'reloads YAML configuration files from disk',
             'You need to call the redeploy command to apply the new configuration'
+
+        # (see Application#syskit_pending_reloaded_configurations)
+        def pending_reloaded_configurations
+            app.syskit_pending_reloaded_configurations
+        end
+        command :pending_reloaded_configurations, 'returns the list of TaskContext names that are marked as needing reconfiguration',
+            'They will be reconfigured on the next redeploy or system transition'
 
         # Require the engine to redeploy the current network
         #

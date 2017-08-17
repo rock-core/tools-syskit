@@ -67,8 +67,89 @@ module Syskit
                     assert_same client, Syskit.conf.process_server_for('localhost')
                 end
             end
-        end
 
+            describe "configuration reloading" do
+                before do
+                    # The tests currently don't bother with completely cleaning
+                    # up the plan to save time. This obviously assumes that each
+                    # test gets a new plan object
+                    #
+                    # Use this new plan object for #app as well, since that's
+                    # what we're testing here
+                    app.reset_plan(plan)
+                end
+                it "reloads the configuration of all task context models" do
+                    model = TaskContext.new_submodel
+                    flexmock(model.configuration_manager).should_receive(:reload).once
+                    app.syskit_reload_config
+                end
+                it "does not attempt to reload the configuration of specialized models" do
+                    model = TaskContext.new_submodel
+                    specialized = model.specialize
+                    # The two share the same specialization manager. If
+                    # #reload_config passes through the specialized models, #reload
+                    # would be called twice
+                    flexmock(specialized.configuration_manager).should_receive(:reload).once
+                    app.syskit_reload_config
+                end
+                it "marks already configured components with changed configuration as needing to be reconfigured" do
+                    model = TaskContext.new_submodel
+                    task = syskit_stub_deploy_and_configure(model)
+                    plan.add_permanent_task(deployment = task.execution_agent)
+                    expect_execution { plan.unmark_mission_task(task) }.
+                        garbage_collect(true).
+                        to { finalize task }
+                    # NOTE: we need to mock the configuration manager AFTER the
+                    # model stub, as stubbing protects the original manager
+                    flexmock(model.configuration_manager).should_receive(:reload).once.
+                        and_return(['default'])
+                    flexmock(app).should_receive(:notify).
+                        with('syskit', 'INFO', "task #{task.orocos_name} needs reconfiguration").once
+                    app.syskit_reload_config
+                    assert_equal [task.orocos_name], deployment.pending_reconfigurations
+                    assert_equal [[task.orocos_name], []],
+                        app.syskit_pending_reloaded_configurations
+                end
+                it "announces specifically if running tasks have had their configuration changed" do
+                    model = TaskContext.new_submodel
+                    task = syskit_stub_deploy_and_configure(model)
+                    deployment = task.execution_agent
+                    # NOTE: we need to mock the configuration manager AFTER the
+                    # model stub, as stubbing protects the original manager
+                    flexmock(model.configuration_manager).should_receive(:reload).once.
+                        and_return(['default'])
+                    flexmock(app).should_receive(:notify).
+                        with('syskit', 'INFO', "task #{task.orocos_name} needs reconfiguration").once
+                    flexmock(app).should_receive(:notify).
+                        with('syskit', 'INFO', "1 running tasks configuration changed. In the shell, use 'redeploy' to trigger reconfiguration.").once
+                    app.syskit_reload_config
+                    assert task.needs_reconfiguration?
+                    assert_equal [task.orocos_name], deployment.pending_reconfigurations
+                    assert_equal [[task.orocos_name], [task.orocos_name]],
+                        app.syskit_pending_reloaded_configurations
+                end
+                it "ignores models that have never been configured" do
+                    model = TaskContext.new_submodel
+                    task = syskit_stub_and_deploy(model)
+                    deployment = task.execution_agent
+                    flexmock(model.configuration_manager).should_receive(:reload).once.
+                        and_return(['default'])
+                    app.syskit_reload_config
+                    refute task.needs_reconfiguration?
+                    assert_equal [], deployment.pending_reconfigurations
+                    assert_equal [[], []],
+                        app.syskit_pending_reloaded_configurations
+                end
+                it "does not redeploy the network" do
+                    model = TaskContext.new_submodel
+                    task = syskit_stub_deploy_and_configure(model)
+                    flexmock(model.configuration_manager).should_receive(:reload).once.
+                        and_return(['default'])
+                    flexmock(Runtime).should_receive(:apply_requirement_modifications).never
+                    app.syskit_reload_config
+                end
+            end
+        end
     end
 end
 

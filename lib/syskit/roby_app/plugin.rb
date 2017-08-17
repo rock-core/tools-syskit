@@ -23,6 +23,13 @@ module Syskit
         # This gets mixed in Roby::Application when the orocos plugin is loaded.
         # It adds the configuration facilities needed to plug-in orogen projects
         # in Roby.
+        #
+        # When in development mode, it will emit the following UI events:
+        #
+        # syskit_orogen_config_changed::
+        #   files under config/orogen/ have been modified, and this affects
+        #   loaded models. In addition, a text notification is sent to inform
+        #   a shell user
         module Plugin
             def default_loader
                 if !@default_loader
@@ -179,6 +186,92 @@ module Syskit
                     concat(Roby.app.find_dirs('models', 'ROBOT', 'pack', 'ros', :all => true, :order => :specific_last))
             end
 
+            def syskit_listen_to_configuration_changes
+                dirs = find_dirs('config', 'orogen', 'ROBOT', all: true, order: :specific_last)
+                @conf_listener = Listen.to(*dirs) do |modified, added, removed|
+                    if syskit_has_pending_configuration_changes?
+                        notify 'syskit', 'INFO', 'oroGen configuration files changed on disk. In the shell, reload with #reload_config and reconfigure affected running components with #redeploy'
+                        ui_event 'syskit_orogen_config_changed'
+                    end
+                end
+                @conf_listener.start
+            end
+
+            def syskit_remove_configuration_changes_listener
+                if @conf_listener
+                    @conf_listener.stop
+                end
+            end
+
+            # Verifies whether the configuration on disk and the configurations
+            # currently loaded in the running deployments are identical
+            def syskit_has_pending_configuration_changes?
+                TaskContext.each_submodel do |model|
+                    return true if model.configuration_manager.changed_on_disk?
+                end
+                false
+            end
+
+            # Reloads the configuration files
+            #
+            # This only modifies the configuration loaded internally, but does
+            # not change the configuration of existing task contexts. The new
+            # configuration will only be applied after the next deployment
+            #
+            # @return [(Array,Array)] the names of the components whose configuration
+            #   changed, and the subset of those that are currently running
+            #
+            # @see syskit_pending_reloaded_configurations
+            def syskit_reload_config
+                needs_reconfiguration = []
+                running_needs_reconfiguration = []
+                TaskContext.each_submodel do |model|
+                    next if !model.concrete_model?
+                    changed_sections = model.configuration_manager.reload
+                    plan.find_tasks(Deployment).each do |deployment_task|
+                        deployment_task.mark_changed_configuration_as_not_reusable(
+                            model => changed_sections).each do |orocos_name|
+
+                            needs_reconfiguration << orocos_name
+                            deployment_task.each_executed_task do |t|
+                                if t.orocos_name == orocos_name
+                                    running_needs_reconfiguration << orocos_name
+                                end
+                            end
+                            notify 'syskit', 'INFO', "task #{orocos_name} needs reconfiguration"
+                        end
+                    end
+                end
+
+                if !running_needs_reconfiguration.empty?
+                    notify 'syskit', 'INFO', "#{running_needs_reconfiguration.size} running tasks configuration changed. In the shell, use 'redeploy' to trigger reconfiguration."
+                end
+                ui_event 'syskit_orogen_config_reloaded', needs_reconfiguration,
+                    running_needs_reconfiguration
+                needs_reconfiguration
+            end
+
+            # Returns the names of the TaskContext that will need to be reconfigured
+            # on the next deployment (either #redeploy or transition)
+            #
+            # @return [(Array,Array)] the list of all task names for tasks whose
+            #   configuration has changed, and the subset of these tasks that are
+            #   currently running
+            def syskit_pending_reloaded_configurations
+                pending_reconfigurations = Array.new
+                pending_running_reconfigurations = Array.new
+                plan.find_tasks(Deployment).each do |deployment_task|
+                    pending = deployment_task.pending_reconfigurations
+                    deployment_task.each_executed_task do |t|
+                        if pending.include?(t.orocos_name)
+                            pending_running_reconfigurations << t.orocos_name
+                        end
+                    end
+                    pending_reconfigurations.concat(pending)
+                end
+                return pending_reconfigurations, pending_running_reconfigurations
+            end
+
             # Called by the main Roby application on setup. This is the first
             # configuration step.
             def self.setup(app)
@@ -192,6 +285,11 @@ module Syskit
                 # This is a HACK. We should be able to specify it differently
                 if app.testing? && app.auto_load_models?
                     app.auto_load_all_task_libraries = true
+                end
+
+                if app.development_mode?
+                    require 'listen'
+                    app.syskit_listen_to_configuration_changes
                 end
 
                 if app.testing?
@@ -578,6 +676,10 @@ module Syskit
                 if @handler_ids
                     unplug_engine_from_roby(@handler_ids.values, app.execution_engine)
                     @handler_ids = nil
+                end
+
+                if app.development_mode?
+                    app.syskit_remove_configuration_changes_listener
                 end
 
                 disconnect_all_process_servers

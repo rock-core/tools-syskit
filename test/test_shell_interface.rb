@@ -25,50 +25,6 @@ module Syskit
             end
         end
 
-        describe "#reload_config" do
-            it "reloads the configuration of all task context models" do
-                model = TaskContext.new_submodel
-                flexmock(model.configuration_manager).should_receive(:reload).once
-                subject.reload_config
-            end
-            it "does not attempt to reload the configuration of specialized models" do
-                model = TaskContext.new_submodel
-                specialized = model.specialize
-                # The two share the same specialization manager. If
-                # #reload_config passes through the specialized models, #reload
-                # would be called twice
-                flexmock(specialized.configuration_manager).should_receive(:reload).once
-                subject.reload_config
-            end
-            it "marks the tasks with changed sections as non-reusable" do
-                model = TaskContext.new_submodel
-                task = syskit_stub_deploy_and_configure(model)
-                # NOTE: we need to mock the configuration manager AFTER the
-                # model stub, as stubbing protects the original manager
-                flexmock(model.configuration_manager).should_receive(:reload).once.
-                    and_return(['default'])
-                flexmock(::Robot).should_receive(:info).with("task #{task.orocos_name} needs reconfiguration").once
-                subject.reload_config
-                assert task.needs_reconfiguration?
-            end
-            it "ignores models that have never been configured" do
-                model = TaskContext.new_submodel
-                task = syskit_stub_and_deploy(model)
-                flexmock(model.configuration_manager).should_receive(:reload).once.
-                    and_return(['default'])
-                subject.reload_config
-                refute task.needs_reconfiguration?
-            end
-            it "does not redeploy the network" do
-                model = TaskContext.new_submodel
-                task = syskit_stub_deploy_and_configure(model)
-                flexmock(model.configuration_manager).should_receive(:reload).once.
-                    and_return(['default'])
-                flexmock(Runtime).should_receive(:apply_requirement_modifications).never
-                subject.reload_config
-            end
-        end
-
         describe "#restart_deployments" do
             attr_reader :task_m, :task
             before do

@@ -14,6 +14,7 @@
     <depend package="tools/metaruby" />
     <depend package="tools/pocolog" />
     <depend package="timecop" />
+    <depend_optional package="listen" />
 
     <test_depend package="minitest" />
     <test_depend package="flexmock" />
