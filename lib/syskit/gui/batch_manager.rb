@@ -100,15 +100,19 @@ module Syskit
                             formatted_arguments << ",\n"
                         end
                         doc_lines = (arg.doc || "").split("\n")
-                        formatted_arguments << "  # #{doc_lines.join("\n  # ")}\n"
+                        formatted_arguments << "\n  # #{doc_lines.join("\n  # ")}\n"
                         if !has_default_arg
                             formatted_arguments << "  #{arg.name}: "
                         elsif default_arg.nil?
                             formatted_arguments << "  #{arg.name}: nil"
                         elsif default_arg.respond_to?(:name) && MetaRuby::Registration.accessible_by_name?(default_arg)
+                            formatted_arguments << "  #{arg.name}: #{default_arg.name}"
+                        elsif ToStringValidation.valid?(default_arg)
                             formatted_arguments << "  #{arg.name}: #{default_arg}"
                         else
-                            formatted_arguments << "  #{arg.name}: #{default_arg}"
+                            formatted_arguments << "  # #{arg.name}'s default argument cannot be handled by the IDE\n"
+                            formatted_arguments << "  # #{arg.name}: #{default_arg}"
+
                         end
                     end
                     formatted_action = "#{action_name}!(\n#{formatted_arguments}\n)"
@@ -119,6 +123,22 @@ module Syskit
                     end
                 end
             end
+
+            class ToStringValidation < BasicObject
+                def self.const_missing(const_name)
+                    ::Object.const_get(const_name)
+                end
+
+                def self.valid?(obj)
+                    parser = new
+                    begin
+                        parser.instance_eval(obj.to_s) == obj
+                    rescue
+                        false
+                    end
+                end
+            end
+
 
             class NewJobDialog < Qt::Dialog
                 attr_reader :editor
