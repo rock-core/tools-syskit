@@ -70,23 +70,26 @@ describe Syskit::Actions::Models::Action do
     end
 
     describe "#plan_pattern" do
+        attr_reader :req, :action_m
+        before do
+            @req = Syskit::InstanceRequirements.new
+            @action_m = Syskit::Actions::Models::Action.new(req)
+        end
         it "adds the arguments to the underlying instance requirement object" do
-            req = Syskit::InstanceRequirements.new
-            action_m = Syskit::Actions::Models::Action.new(req)
-            plan.add(task = action_m.plan_pattern(test: 10))
+            task = action_m.plan_pattern(test: 10)
             assert_equal 10, task.arguments[:test]
             assert_equal Hash[test: 10], task.planning_task.requirements.arguments
         end
         it "sets the job ID on the planning task" do
-            req = Syskit::InstanceRequirements.new
-            action_m = Syskit::Actions::Models::Action.new(req)
-            plan.add(task = action_m.plan_pattern(job_id: 20, test: 10))
+            task = action_m.plan_pattern(job_id: 20, test: 10)
             assert_equal 20, task.planning_task.job_id
         end
+        it "does not pass the job ID argument to the action" do
+            task = action_m.plan_pattern(job_id: 20, test: 10)
+            assert_equal Hash[test: 10], task.planning_task.action_arguments
+        end
         it "does not set the job ID at all if not given" do
-            req = Syskit::InstanceRequirements.new
-            action_m = Syskit::Actions::Models::Action.new(req)
-            plan.add(task = action_m.plan_pattern)
+            task = action_m.plan_pattern
             # Will raise if already set, even if set to nil
             task.planning_task.job_id = 10
         end

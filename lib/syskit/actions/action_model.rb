@@ -66,11 +66,11 @@ module Syskit
             end
 
             def plan_pattern(**arguments)
-                req = to_instance_requirements(**arguments)
                 job_id = Hash.new
                 if arguments.has_key?(:job_id)
                     job_id[:job_id] = arguments.delete(:job_id)
                 end
+                req = to_instance_requirements(**arguments)
                 placeholder = req.as_plan(**job_id)
                 placeholder.planning_task.action_model = self
                 placeholder.planning_task.action_arguments = req.arguments
