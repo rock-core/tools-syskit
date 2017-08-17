@@ -139,7 +139,16 @@ module Syskit
                 @all_tasks = Set.new
                 @known_loggers = nil
                 @all_job_info = Hash.new
+                syskit.on_ui_event do |event_name, *args|
+                    if w = @ui_event_widgets[event_name]
+                        w.show
+                        w.update(*args)
+                    else
+                        puts "don't know what to do with UI event #{event_name}, known events: #{@ui_event_widgets}"
+                    end
+                end
                 syskit.on_reachable do
+                    @syskit_commands = syskit.client.syskit
                     update_log_server_connection(syskit.client.log_server_port)
                     action_combo.clear
                     syskit.actions.sort_by(&:name).each do |action|
@@ -153,6 +162,8 @@ module Syskit
                     run_hook :on_connection_state_changed, true
                 end
                 syskit.on_unreachable do
+                    @syskit_commands = nil
+                    @ui_event_widgets.each_value(&:hide)
                     if remote_name == 'localhost'
                         global_actions[:start].visible = true
                     end
@@ -289,6 +300,18 @@ module Syskit
                 @current_orocos_tasks = orocos_tasks
             end
 
+            EventWidget = Struct.new :name, :widget, :hook do
+                def show
+                    widget.show
+                end
+                def hide
+                    widget.hide
+                end
+                def update(*args)
+                    hook.call(*args)
+                end
+            end
+
             def create_ui
                 job_summary = Qt::Widget.new
                 job_summary_layout = Qt::VBoxLayout.new(job_summary)
@@ -319,7 +342,13 @@ module Syskit
                 job_status_scroll = Qt::ScrollArea.new
                 job_status_scroll.widget = @job_status_list
                 job_summary_layout.add_widget(job_status_scroll, 1)
-                main_layout = Qt::VBoxLayout.new(self)
+                @main_layout = Qt::VBoxLayout.new(self)
+
+                @ui_event_widgets = create_ui_event_widgets
+                @ui_event_widgets.each_value do |w|
+                    @main_layout.add_widget(w.widget)
+                end
+
                 splitter = Qt::Splitter.new
                 splitter.add_widget job_summary
                 splitter.add_widget(@job_expanded_status = ExpandedJobStatus.new)
@@ -335,9 +364,81 @@ module Syskit
 
                 splitter.add_widget(task_inspector_widget)
                 job_expanded_status.set_size_policy(Qt::SizePolicy::MinimumExpanding, Qt::SizePolicy::MinimumExpanding)
-                main_layout.add_widget splitter
+                @main_layout.add_widget splitter, 1
                 w = splitter.size.width
                 splitter.sizes = [Integer(w * 0.25), Integer(w * 0.50), Integer(w * 0.25)]
+            end
+
+            def create_ui_event_frame
+                frame = Qt::Frame.new(self)
+                frame.frame_shape = Qt::Frame::StyledPanel
+                frame.setStyleSheet("QFrame { background-color: rgb(205,235,255); border-radius: 2px; }")
+                frame
+            end
+
+            def create_ui_event_button(text)
+                button = Qt::PushButton.new(text)
+                button.flat = true
+                button
+            end
+            
+            def create_ui_event_orogen_config_changed
+                syskit_orogen_config_changed = create_ui_event_frame
+                layout = Qt::HBoxLayout.new(syskit_orogen_config_changed)
+                layout.add_widget(Qt::Label.new("oroGen configuration files changes on disk"), 1)
+                layout.add_widget(reload = create_ui_event_button("Reload"))
+                layout.add_widget(close  = create_ui_event_button("Close"))
+                reload.connect(SIGNAL('clicked()')) do
+                    syskit_orogen_config_changed.hide
+                    @syskit_commands.reload_config
+                end
+                close.connect(SIGNAL('clicked()')) do
+                    syskit_orogen_config_changed.hide
+                end
+                EventWidget.new('syskit_orogen_config_changed', syskit_orogen_config_changed, lambda { })
+            end
+
+            def create_ui_event_orogen_config_reloaded
+                syskit_orogen_config_reloaded = create_ui_event_frame
+                layout = Qt::HBoxLayout.new(syskit_orogen_config_reloaded)
+                layout.add_widget(label = Qt::Label.new(), 1)
+                layout.add_widget(apply = create_ui_event_button("Reconfigure"))
+                layout.add_widget(close = create_ui_event_button("Close"))
+                apply.connect(SIGNAL('clicked()')) do
+                    syskit_orogen_config_reloaded.hide
+                    @syskit_commands.redeploy
+                end
+                close.connect(SIGNAL('clicked()')) do
+                    syskit_orogen_config_reloaded.hide
+                end
+                syskit_orogen_config_reloaded_hook = lambda do |changed_tasks, changed_tasks_running|
+                    if changed_tasks.empty?
+                        label.text = "oroGen configuration updated"
+                        apply.hide
+                    elsif changed_tasks_running.empty?
+                        label.text = "oroGen configuration modifications applied to #{changed_tasks.size} configured but not running tasks"
+                        apply.hide
+                    else
+                        label.text = "oroGen configuration modifications applied to #{changed_tasks_running.size} running tasks and #{changed_tasks.size - changed_tasks_running.size} configured but not running tasks"
+                        apply.show
+                    end
+                end
+                EventWidget.new('syskit_orogen_config_reloaded',
+                                syskit_orogen_config_reloaded,
+                                syskit_orogen_config_reloaded_hook)
+            end
+
+            def create_ui_event_widgets
+                widgets = [
+                    create_ui_event_orogen_config_reloaded,
+                    create_ui_event_orogen_config_changed
+                ]
+                ui_event_widgets = Hash.new
+                widgets.each do |w|
+                    w.hide
+                    ui_event_widgets[w.name] = w
+                end
+                ui_event_widgets
             end
 
             def create_ui_new_job
