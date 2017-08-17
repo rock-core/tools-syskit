@@ -6,6 +6,7 @@ module Syskit
 
             attr_reader :ui_job_actions
             attr_reader :ui_start
+            attr_reader :ui_restart
             attr_reader :ui_drop
             attr_reader :ui_state
             attr_reader :exceptions
@@ -46,8 +47,15 @@ module Syskit
 
                 @ui_job_actions = Qt::Widget.new(self)
                 hlayout    = Qt::HBoxLayout.new(ui_job_actions)
-                hlayout.add_widget(@ui_drop   = Qt::PushButton.new("Drop", self))
-                hlayout.add_widget(@ui_start  = Qt::PushButton.new("Start Again", self))
+                @actions_buttons = Hash[
+                    'Drop' => Qt::PushButton.new("Drop", self),
+                    'Restart' => Qt::PushButton.new("Restart", self),
+                    "Start Again" => Qt::PushButton.new("Start Again", self)
+                ]
+                hlayout.add_widget(@ui_drop    = @actions_buttons['Drop'])
+                hlayout.add_widget(@ui_restart = @actions_buttons['Restart'])
+                hlayout.add_widget(@ui_start   = @actions_buttons['Start Again'])
+
                 ui_start.hide
                 hlayout.set_contents_margins(0, 0, 0, 0)
 
@@ -104,6 +112,13 @@ module Syskit
                 ui_drop.connect(SIGNAL('clicked()')) do
                     @batch_manager.drop_job(self)
                 end
+                ui_restart.connect(SIGNAL('clicked()')) do
+                    arguments = job.action_arguments.dup
+                    arguments.delete(:job_id)
+                    if @batch_manager.create_new_job(job.action_name, arguments)
+                        @batch_manager.drop_job(self)
+                    end
+                end
                 ui_start.connect(SIGNAL('clicked()')) do
                     arguments = job.action_arguments.dup
                     arguments.delete(:job_id)
@@ -121,8 +136,11 @@ module Syskit
 
                     if state == Roby::Interface::JOB_DROPPED
                         ui_drop.hide
+                        ui_restart.hide
+                        ui_start.show
                     elsif Roby::Interface.terminal_state?(state)
                         ui_drop.hide
+                        ui_restart.hide
                         ui_start.show
                     end
                 end

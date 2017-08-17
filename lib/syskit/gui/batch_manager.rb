@@ -89,6 +89,7 @@ module Syskit
 
                 if action_model.arguments.empty?
                     start_job(action_name, Hash.new)
+                    true
                 else
                     formatted_arguments = String.new
                     action_model.arguments.each do |arg|
@@ -120,6 +121,8 @@ module Syskit
                     if dialog.exec == Qt::Dialog::Accepted
                         action_name, action_options = dialog.result
                         start_job(action_name, action_options)
+                        true
+                    else false
                     end
                 end
             end
