@@ -40,6 +40,7 @@ module Syskit
             end
 
             def create_ui
+                self.focus_policy = Qt::ClickFocus
                 @ui_state = JobStateLabel.new name: label
                 if job.state
                     ui_state.update_state(job.state.upcase)
@@ -68,6 +69,29 @@ module Syskit
                 vlayout.add_widget ui_notifications
             end
 
+            def keyPressEvent(event)
+                make_actions_immediate(event.key == Qt::Key_Control)
+                super
+            end
+
+            def keyReleaseEvent(event)
+                make_actions_immediate(false)
+                super
+            end
+
+            def make_actions_immediate(enable)
+                @actions_immediate = enable
+                if enable
+                    @actions_buttons.each do |text, btn|
+                        btn.text = "#{text} Now"
+                    end
+                else
+                    @actions_buttons.each do |text, btn|
+                        btn.text = text
+                    end
+                end
+            end
+
             def show_job_actions
                 ui_job_actions.show
                 s = size
@@ -87,6 +111,7 @@ module Syskit
                 super
                 if show_actions?
                     show_job_actions
+                    self.focus = Qt::OtherFocusReason
                 end
             end
 
@@ -111,18 +136,28 @@ module Syskit
             def connect_to_hooks
                 ui_drop.connect(SIGNAL('clicked()')) do
                     @batch_manager.drop_job(self)
+                    if @actions_immediate
+                        @batch_manager.process
+                    end
                 end
                 ui_restart.connect(SIGNAL('clicked()')) do
                     arguments = job.action_arguments.dup
                     arguments.delete(:job_id)
                     if @batch_manager.create_new_job(job.action_name, arguments)
                         @batch_manager.drop_job(self)
+                        if @actions_immediate
+                            @batch_manager.process
+                        end
                     end
                 end
                 ui_start.connect(SIGNAL('clicked()')) do
                     arguments = job.action_arguments.dup
                     arguments.delete(:job_id)
-                    @batch_manager.create_new_job(job.action_name, arguments)
+                    if @batch_manager.create_new_job(job.action_name, arguments)
+                        if @actions_immediate
+                            @batch_manager.process
+                        end
+                    end
                 end
                 job.on_progress do |state|
                     if INTERMEDIATE_TERMINAL_STATES.include?(ui_state.current_state)
