@@ -88,7 +88,7 @@ module Syskit
                 end
 
                 if action_model.arguments.empty?
-                    @syskit.client.send("#{action_name}!", Hash.new)
+                    start_job(action_name, Hash.new)
                 else
                     formatted_arguments = String.new
                     action_model.arguments.each do |arg|
