@@ -18,12 +18,6 @@ module Syskit
             attr_reader :connection_state
             attr_reader :testing
 
-            COLOR_INIT = "rgb(51, 181, 229)"
-            COLOR_CONNECTED = "rgb(153, 204, 0)"
-            COLOR_UNREACHABLE = "rgb(255, 68, 68)"
-            CONNECTION_STATE_STYLE = "QLabel { font-size: 10pt; background-color: %s; }"
-            CONNECTION_STATE_TEXT = "<b>%s</b>: %s"
-
             def initialize(parent = nil, host: 'localhost', port: Roby::Interface::DEFAULT_PORT, runtime: nil, tests: false, robot_name: 'default')
                 super(parent)
 
