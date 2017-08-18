@@ -106,7 +106,7 @@ module Syskit
             # @param [Integer] poll_period how often should the syskit interface
             #   be polled (milliseconds). Set to nil if the polling is already
             #   done externally
-            def initialize(parent: nil, robot_name: 'default', syskit: Roby::Interface::Async::Interface.new, poll_period: 10)
+            def initialize(parent: nil, robot_name: 'default', syskit: Roby::Interface::Async::Interface.new, poll_period: 50)
                 super(parent)
 
                 orocos_corba_nameservice = Orocos::CORBA::NameService.new(syskit.remote_name)
