@@ -587,7 +587,9 @@ module Syskit
                     profile = Profile.new("#{self.name}::#{name}", register: true)
                     const_set(name, profile)
                 end
-                profile.instance_eval(&block)
+                if block
+                    profile.instance_eval(&block)
+                end
                 profile
             end
         end

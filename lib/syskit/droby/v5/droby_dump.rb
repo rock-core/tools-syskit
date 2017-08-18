@@ -125,15 +125,16 @@ module Syskit
             end
 
             module ProfileDumper
-                class DRoby
-                    def initialize(name)
+                class DRoby < Roby::DRoby::V5::DistributedObjectDumper::DRoby
+                    def initialize(name, remote_siblings)
+                        super(remote_siblings, [])
                         @name = name
                     end
 
                     def proxy(peer)
                         if !@name
                             return Actions::Profile.new
-                        elsif local = peer.object_manager.find_model_by_name(@name)
+                        elsif local = peer.find_model_by_name(@name)
                             return local
                         end
 
@@ -150,7 +151,11 @@ module Syskit
                 end
 
                 def droby_dump(peer)
-                    DRoby.new(name)
+                    peer.register_model(self)
+                    DRoby.new(name, peer.known_siblings_for(self))
+                end
+
+                def clear_owners
                 end
             end
         end

@@ -285,9 +285,21 @@ describe Syskit::Actions::Profile do
     end
 
     it "should be usable through droby" do
-        SyskitProfileTest.profile 'Test' do
-        end
-        assert_droby_compatible(SyskitProfileTest::Test)
+        test_profile = SyskitProfileTest.profile('Test')
+        remote_profile = SyskitProfileTest.profile('RemoteTest')
+        # We need to override the name-based resolution to force resolving a
+        # different 'remote' object than a local. This checks object ID
+        # registration logic
+        droby_remote_marshaller.register_object(remote_profile)
+        flexmock(droby_remote_marshaller).should_receive(:find_model_by_name).
+            with('SyskitProfileTest::Test').
+            and_return(remote_profile)
+        remote, local = assert_droby_compatible(SyskitProfileTest::Test, bidirectional: true)
+        refute_same remote, test_profile
+        assert_same local, test_profile
+        # Check that droby IDs are valid
+        new_remote = assert_droby_compatible(SyskitProfileTest::Test, bidirectional: false)
+        assert_same new_remote, remote
     end
 
     it "gets its cached dependency injection object invalidated when the robot is modified" do
