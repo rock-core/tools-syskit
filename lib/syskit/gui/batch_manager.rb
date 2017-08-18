@@ -110,6 +110,8 @@ module Syskit
                             formatted_arguments << "  #{arg.name}: #{default_arg.name}"
                         elsif ToStringValidation.valid?(default_arg)
                             formatted_arguments << "  #{arg.name}: #{default_arg}"
+                        elsif arg.required?
+                            formatted_arguments << "  #{arg.name}: "
                         else
                             formatted_arguments << "  # #{arg.name}'s default argument cannot be handled by the IDE\n"
                             formatted_arguments << "  # #{arg.name}: #{default_arg}"
@@ -136,7 +138,7 @@ module Syskit
                     parser = new
                     begin
                         parser.instance_eval(obj.to_s) == obj
-                    rescue
+                    rescue Exception
                         false
                     end
                 end
