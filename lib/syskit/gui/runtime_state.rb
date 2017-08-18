@@ -122,6 +122,23 @@ module Syskit
 
                 @global_actions = Hash.new
                 action = global_actions[:start]   = Qt::Action.new("Start", self)
+                @starting_monitor = Qt::Timer.new
+                @starting_monitor.connect(SIGNAL('timeout()')) do
+                    if @syskit_pid
+                        begin
+                            _pid, has_quit = Process.waitpid2(
+                                @syskit_pid, Process::WNOHANG)
+                        rescue Errno::ECHILD
+                            has_quit = true
+                        end
+
+                        if has_quit
+                            @syskit_pid = nil
+                            run_hook :on_connection_state_changed, 'UNREACHABLE'
+                            @starting_monitor.stop
+                        end
+                    end
+                end
                 connect action, SIGNAL('triggered()') do
                     app_start(robot_name: @robot_name)
                 end
@@ -147,6 +164,10 @@ module Syskit
                         puts "don't know what to do with UI event #{event_name}, known events: #{@ui_event_widgets}"
                     end
                 end
+                on_connection_state_changed do |state|
+                    @current_state = state
+                    connection_state.update_state state
+                end
                 syskit.on_reachable do
                     @syskit_commands = syskit.client.syskit
                     update_log_server_connection(syskit.client.log_server_port)
@@ -158,8 +179,8 @@ module Syskit
                     global_actions[:start].visible = false
                     global_actions[:restart].visible = true
                     global_actions[:quit].visible = true
-                    connection_state.update_state 'CONNECTED'
-                    run_hook :on_connection_state_changed, true
+                    @starting_monitor.stop
+                    run_hook :on_connection_state_changed, 'CONNECTED'
                 end
                 syskit.on_unreachable do
                     @syskit_commands = nil
@@ -169,8 +190,9 @@ module Syskit
                     end
                     global_actions[:restart].visible = false
                     global_actions[:quit].visible = false
-                    connection_state.update_state 'UNREACHABLE'
-                    run_hook :on_connection_state_changed, false
+                    if @current_state != 'RESTARTING'
+                        run_hook :on_connection_state_changed, 'UNREACHABLE'
+                    end
                 end
                 syskit.on_job do |job|
                     job.start
@@ -224,8 +246,11 @@ module Syskit
                     if start_controller
                         extra_args << "-c"
                     end
-                    Kernel.spawn Gem.ruby, '-S', 'syskit', 'run', *extra_args,
-                        pgroup: true
+                    @syskit_pid =
+                        Kernel.spawn Gem.ruby, '-S', 'syskit', 'run', *extra_args,
+                            pgroup: true
+                    @starting_monitor.start(100)
+                    run_hook :on_connection_state_changed, 'STARTING'
                 end
             end
 
@@ -234,6 +259,10 @@ module Syskit
             end
 
             def app_restart
+                run_hook :on_connection_state_changed, 'RESTARTING'
+                if @syskit_pid
+                    @starting_monitor.start(100)
+                end
                 syskit.restart
             end
 
@@ -318,8 +347,6 @@ module Syskit
                 job_summary_layout.add_layout(@new_job_layout  = create_ui_new_job)
 
                 @connection_state = GlobalStateLabel.new(name: remote_name)
-                connection_state.declare_state 'CONNECTED', :green
-                connection_state.declare_state 'UNREACHABLE', :red
                 on_progress do |message|
                     state = connection_state.current_state.to_s
                     connection_state.update_text("%s - %s" % [state, message])

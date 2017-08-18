@@ -88,20 +88,12 @@ module Syskit
                 end
 
                 tab_widget.set_corner_widget(connection_state, Qt::TopLeftCorner)
-                runtime_state.on_connection_state_changed do |connected|
-                    connection_state_changed(connected)
+                runtime_state.on_connection_state_changed do |state|
+                    connection_state.update_state state
                 end
                 runtime_state.on_progress do |message|
                     state = connection_state.current_state.to_s
                     connection_state.update_text("%s - %s" % [state, message])
-                end
-            end
-
-            def connection_state_changed(connected)
-                if connected
-                    connection_state.update_state 'CONNECTED'
-                else
-                    connection_state.update_state 'UNREACHABLE'
                 end
             end
 
