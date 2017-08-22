@@ -484,11 +484,16 @@ module Syskit
             #         # setup the task to create the required service
             #       end
             #     end
-            def dynamic_service(model, as: nil, addition_requires_reconfiguration: true, remove_when_unused: true, &block)
+            def dynamic_service(model, as: nil, addition_requires_reconfiguration: true, remove_when_unused: true, **backward, &block)
                 if !as
                     raise ArgumentError, "no name given to the dynamic service, please provide one with the :as option"
                 elsif !block_given?
                     raise ArgumentError, "no block given to #dynamic_service, one must be provided and must call provides()"
+                end
+
+                if backward.has_key?(:dynamic)
+                    Roby.warn_deprecated "the dynamic argument to #dynamic_service has been renamed into addition_requires_reconfiguration"
+                    addition_requires_reconfiguration = !backward[:dynamic]
                 end
 
                 dynamic_services[as] = DynamicDataService.new(

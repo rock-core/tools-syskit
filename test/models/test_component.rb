@@ -236,6 +236,14 @@ describe Syskit::Models::Component do
             assert dyn.remove_when_unused?
         end
 
+        it "supports the backward-compatible dynamic: argument" do
+            flexmock(Roby).should_receive(:warn_deprecated).once
+            dyn = task_m.dynamic_service srv_m, as: "dyn", dynamic: true do
+            end
+            refute dyn.addition_requires_reconfiguration?
+            assert dyn.remove_when_unused?
+        end
+
         describe "#find_dynamic_service" do
             it "should return a dynamic service bound to the current component model" do
                 srv_m = self.srv_m
