@@ -655,7 +655,14 @@ module Syskit
             end
 
             # Specifies new arguments that must be set to the instanciated task
-            def with_arguments(**arguments)
+            def with_arguments(hash_argument = nil, **arguments)
+                if hash_argument
+                    Roby.warn_deprecated "InstanceRequirements#with_arguments: providing arguments using a string is not supported anymore use key: value instead of 'key' => value"
+                    hash_argument.each do |key, arg|
+                        arguments[key.to_sym] = arg
+                    end
+                end
+
                 arguments.each do |k, v|
                     if !v.droby_marshallable?
                         raise Roby::NotMarshallable, "values used as task arguments must be marshallable, attempting to set #{k} to #{v} of class #{v.class}, which is not"

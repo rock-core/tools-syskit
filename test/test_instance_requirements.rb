@@ -13,9 +13,29 @@ describe Syskit::InstanceRequirements do
     describe "#with_arguments" do
         attr_reader :req, :not_marshallable
         before do
+            @task_m = Syskit::TaskContext.new_submodel do
+                argument :key
+            end
             @req = Syskit::InstanceRequirements.new
             @not_marshallable = Object.new
             not_marshallable.extend Roby::DRoby::Unmarshallable
+        end
+        it "sets the argument" do
+            req = Syskit::InstanceRequirements.new([@task_m])
+            req.with_arguments(key: 10)
+            task = req.instanciate(plan = Roby::Plan.new)
+            assert_equal 10, task.key
+        end
+        it "does not issue a deprecation warning for symbol keys" do
+            flexmock(Roby).should_receive(:warn_deprecated).never
+            req.with_arguments(key: 10)
+        end
+        it "issues a deprecation warning for string keys and converts them" do
+            req = Syskit::InstanceRequirements.new([@task_m])
+            flexmock(Roby).should_receive(:warn_deprecated).once
+            req.with_arguments('key' => 10)
+            task = req.instanciate(plan = Roby::Plan.new)
+            assert_equal 10, task.key
         end
         it "raises if the argument cannot be marshalled under DRoby" do
             e = assert_raises(Roby::NotMarshallable) do
@@ -28,19 +48,11 @@ describe Syskit::InstanceRequirements do
             actual_e = assert_raises(Roby::NotMarshallable) do
                 req.with_arguments(key: not_marshallable)
             end
-            task = Roby::Task.new_submodel do
-                argument :key
-            end.new
+            task = @task_m.new
             expected_e = assert_raises(Roby::NotMarshallable) do
                 task.key = not_marshallable
             end
             assert_equal expected_e.message, actual_e.message
-        end
-
-        it "raises if arguments are not using symbols as keys" do
-            assert_raises(ArgumentError) do
-                req.with_arguments('key' => not_marshallable)
-            end
         end
     end
 
