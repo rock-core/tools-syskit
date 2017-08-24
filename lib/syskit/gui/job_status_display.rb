@@ -160,29 +160,33 @@ module Syskit
                     end
                 end
                 job.on_progress do |state|
-                    if INTERMEDIATE_TERMINAL_STATES.include?(ui_state.current_state)
-                        ui_state.update_state(
-                            "#{ui_state.current_state},
-                            #{state.upcase}",
-                            color: ui_state.current_color)
-                    else
-                        ui_state.update_state(state.upcase)
-                    end
-
-                    if state == Roby::Interface::JOB_DROPPED
-                        ui_drop.hide
-                        ui_restart.hide
-                        ui_start.show
-                    elsif Roby::Interface.terminal_state?(state)
-                        ui_drop.hide
-                        ui_restart.hide
-                        ui_start.show
-                    end
+                    update_state(state)
                 end
                 job.on_exception do |kind, exception|
                     exceptions << exception.exception
                     notify('exceptions', "#{exceptions.size} exceptions")
                     emit exceptionEvent
+                end
+            end
+
+            def update_state(state)
+                if INTERMEDIATE_TERMINAL_STATES.include?(ui_state.current_state)
+                    ui_state.update_state(
+                        "#{ui_state.current_state},
+                            #{state.upcase}",
+                        color: ui_state.current_color)
+                else
+                    ui_state.update_state(state.upcase)
+                end
+
+                if state == Roby::Interface::JOB_DROPPED
+                    ui_drop.hide
+                    ui_restart.hide
+                    ui_start.show
+                elsif Roby::Interface.terminal_state?(state)
+                    ui_drop.hide
+                    ui_restart.hide
+                    ui_start.show
                 end
             end
 
