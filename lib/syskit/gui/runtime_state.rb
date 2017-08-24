@@ -353,6 +353,17 @@ module Syskit
                 end
                 job_summary_layout.add_widget(connection_state, 0)
 
+                @clear_button = Qt::PushButton.new("Clear Finished Jobs")
+                job_summary_layout.add_widget(@clear_button)
+                @clear_button.connect(SIGNAL(:clicked)) do
+                    @job_status_list.clear_widgets do |w|
+                        if w.job.terminated?
+                            w.job.stop
+                            true
+                        end
+                    end
+                end
+
                 @batch_manager = BatchManager.new(@syskit, self)
                 job_summary_layout.add_widget(@batch_manager)
                 @batch_manager.connect(SIGNAL('active(bool)')) do |active|

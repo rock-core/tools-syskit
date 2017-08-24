@@ -6,6 +6,10 @@ module Syskit
             end
 
             ListItem = Struct.new :widget, :permanent do
+                def job
+                    widget.job
+                end
+
                 def permanent?
                     permanent
                 end
@@ -82,6 +86,11 @@ module Syskit
                 event.accept
             end
             
+            # Clear widgets for which the given filter returns true
+            #
+            # It removes all widgets if no filter is given
+            #
+            # @yieldparam [ListItem] item
             def clear_widgets(&filter)
                 filter ||= ->(w) { true }
                 separators = @separators.values
