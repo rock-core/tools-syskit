@@ -178,18 +178,22 @@ module Syskit
                     self, name, device_model, device_options,
                     driver_model, root_task_arguments)
                 invalidate_dependency_injection
-                devices[name] = device_instance
-                device_model.apply_device_configuration_extensions(devices[name])
+                device_model.apply_device_configuration_extensions(device_instance)
                 device_instance.doc(doc || MetaRuby::DSLs.parse_documentation_block(->(file) { Roby.app.app_file?(file) }, /^device$/))
+                register_device(name, device_instance)
 
                 # And register all the slave services there is on the driver
                 driver_model.service.each_slave_data_service do |slave_service|
-                    slave_device = SlaveDeviceInstance.new(devices[name], slave_service)
+                    slave_device = SlaveDeviceInstance.new(device_instance, slave_service)
                     device_instance.slaves[slave_service.name] = slave_device
-                    devices["#{name}.#{slave_service.name}"] = slave_device
+                    register_device("#{name}.#{slave_service.name}", slave_device)
                 end
 
                 device_instance
+            end
+
+            def register_device(name, device_instance)
+                devices[name] = device_instance
             end
 
             def each_device(&block)
