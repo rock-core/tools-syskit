@@ -483,7 +483,7 @@ module Syskit
                     trsc_tasks.each do |task|
                         task.model.each_master_driver_service do |srv|
                             task.arguments[:"#{srv.name}_dev"] ||=
-                                syskit_stub_device(srv.model, driver: task.model)
+                                syskit_stub_device(srv.model, driver: srv)
                         end
                     end
 
