@@ -357,7 +357,7 @@ module Syskit
                 job_summary_layout.add_widget(@clear_button)
                 @clear_button.connect(SIGNAL(:clicked)) do
                     @job_status_list.clear_widgets do |w|
-                        if w.job.terminated?
+                        if !w.job.active?
                             w.job.stop
                             true
                         end
