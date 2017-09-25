@@ -207,6 +207,15 @@ describe Syskit::Models::TaskContext do
             assert_same model, Syskit::TaskContext.define_from_orogen(orogen)
         end
 
+        it "registers the model by CamelCasing it" do
+            model = Syskit::TaskContext.new_submodel
+            project = OroGen::Spec::Project.new(app.default_orogen_project.loader)
+            project.name 'test'
+            orogen = OroGen::Spec::TaskContext.new(project, 'test::Task')
+            Syskit::TaskContext.define_from_orogen(orogen, register: true)
+            assert_same orogen, OroGen::Test::Task.orogen_model
+        end
+
         it "creates the model from the superclass if it does not exist" do
             orogen_parent = OroGen::Spec::TaskContext.new(app.default_orogen_project)
             orogen = OroGen::Spec::TaskContext.new(app.default_orogen_project)

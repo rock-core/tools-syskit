@@ -1,5 +1,8 @@
 # Module where all the OroGen task context models get registered
 module OroGen
+    extend Syskit::OroGenNamespace
+
+    self.syskit_model_constant_registration = true
 end
 
 module Syskit
@@ -97,54 +100,12 @@ module Syskit
                 klass = supermodel.new_submodel(orogen_model: orogen_model)
 
                 if register && orogen_model.name
-                    register_syskit_model_from_orogen_name(klass)
+                    OroGen.syskit_model_toplevel_constant_registration =
+                        Roby.app.backward_compatible_naming?
+                    OroGen.register_syskit_model(klass)
                 end
 
                 klass
-            end
-
-            # Translates an orogen task context model name into the syskit
-            # equivalent
-            #
-            # @return [(String,String)] the namespace and class names
-            def syskit_names_from_orogen_name(orogen_name)
-                namespace, basename = orogen_name.split '::'
-                return namespace.camelcase(:upper), basename.camelcase(:upper)
-            end
-
-            # Registers the given syskit model on the class hierarchy, using the
-            # (camelized) orogen name as a basis
-            #
-            # If there is a constant clash, the model will not be registered but
-            # its #name method will return the "right" value enclosed in <>
-            #
-            # @return [Boolean] true if the model could be registered and false
-            # otherwise
-            def register_syskit_model_from_orogen_name(model)
-                orogen_model = model.orogen_model
-
-                namespace, basename = syskit_names_from_orogen_name(orogen_model.name)
-                if Roby.app.backward_compatible_naming?
-                    register_syskit_model(Object, namespace, basename, model)
-                end
-                register_syskit_model(OroGen, namespace, basename, model)
-            end
-
-            def register_syskit_model(mod, namespace, basename, model)
-                namespace =
-                    if mod.const_defined_here?(namespace)
-                        mod.const_get(namespace)
-                    else 
-                        mod.const_set(namespace, Module.new)
-                    end
-
-                if namespace.const_defined_here?(basename)
-                    warn "there is already a constant with the name #{namespace.name}::#{basename}, I am not registering the model for #{orogen_model.name} there"
-                    false
-                else
-                    namespace.const_set(basename, model)
-                    true
-                end
             end
 
             # This component's oroGen model

@@ -350,7 +350,7 @@ module Syskit
                 end
 
                 rtt_core_model = app.default_loader.task_model_from_name("RTT::TaskContext")
-                Syskit::TaskContext.define_from_orogen(rtt_core_model, :register => true)
+                Syskit::TaskContext.define_from_orogen(rtt_core_model, register: true)
             end
 
             # Called by the main Roby application to clear all before redoing a
