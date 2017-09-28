@@ -638,6 +638,8 @@ module Syskit
             end
 
             def self.clear_models(app)
+                OroGen.clear
+
                 app.loaded_orogen_projects.clear
                 app.default_loader.clear
 

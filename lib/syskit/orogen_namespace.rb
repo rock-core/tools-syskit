@@ -49,11 +49,18 @@ module Syskit
 
         def self.extend_object(m)
             super
-            m.instance_variable_set :@project_namespaces, Hash.new
-            m.instance_variable_set :@registered_models, Hash.new
+            m.instance_variable_set :@registered_constants, Set.new
+            m.clear
         end
 
         def clear
+            @registered_constants.delete_if do |root, namespace, name|
+                begin
+                    namespace.send(:remove_const, name)
+                rescue NameError
+                end
+                true
+            end
             @project_namespaces = Hash.new
             @registered_models = Hash.new
         end
@@ -65,6 +72,11 @@ module Syskit
             else raise ArgumentError, "#{name} is not registered on #{self}"
             end
         end
+
+        def registered_model_name_prefix
+            @registered_model_name_prefix ||= "#{name || to_s}."
+        end
+
 
         def respond_to_missing?(m, include_private = false)
             @project_namespaces.has_key?(m)
@@ -86,7 +98,7 @@ module Syskit
                 register_syskit_model_as_constant(model)
             end
 
-            project_name = model.orogen_model.project.name
+            project_name = model.orogen_model.name.split("::").first
             if !project_name
                 raise ArgumentError, "cannot register a project with no name"
             end
@@ -95,6 +107,7 @@ module Syskit
 
             project_ns.register_syskit_model(model)
             @registered_models[model.orogen_model.name] = model
+            registered_model_name_prefix + model.orogen_model.name.split("::").join(".")
         end
 
         # @api private
@@ -123,11 +136,13 @@ module Syskit
 
             namespace, basename = syskit_names_from_orogen_name(orogen_model.name)
             if syskit_model_toplevel_constant_registration?
-                OroGenNamespace.register_syskit_model_as_constant(
-                    Object, namespace, basename, model)
+                if namespace_mod = OroGenNamespace.register_syskit_model_as_constant(Object, namespace, basename, model)
+                    @registered_constants << [Object, namespace_mod, basename]
+                end
             end
-            OroGenNamespace.register_syskit_model_as_constant(
-                self, namespace, basename, model)
+            if namespace_mod = OroGenNamespace.register_syskit_model_as_constant(self, namespace, basename, model)
+                @registered_constants << [self, namespace_mod, basename]
+            end
         end
 
         def self.register_syskit_model_as_constant(mod, namespace, basename, model)
@@ -139,11 +154,11 @@ module Syskit
                 end
 
             if namespace.const_defined_here?(basename)
-                warn "there is already a constant with the name #{namespace.name}::#{basename}, I am not registering the model for #{orogen_model.name} there"
+                Syskit::TaskContext.warn "there is already a constant with the name #{namespace.name}::#{basename}, I am not registering the model for #{model.orogen_model.name} there"
                 false
             else
                 namespace.const_set(basename, model)
-                true
+                namespace
             end
         end
 

@@ -8,7 +8,17 @@ end
 
 
 describe Syskit::Models::TaskContext do
+    before do
+        @model_toplevel_constant_registration, @model_constant_registration =
+            OroGen.syskit_model_toplevel_constant_registration?,
+            OroGen.syskit_model_constant_registration?
+
+        OroGen.syskit_model_toplevel_constant_registration = false
+        OroGen.syskit_model_constant_registration = false
+    end
     after do
+        OroGen.syskit_model_toplevel_constant_registration = @model_toplevel_constant_registration
+        OroGen.syskit_model_constant_registration = @model_constant_registration
         Syskit::TaskContext.clear_submodels
     end
 
@@ -137,13 +147,6 @@ describe Syskit::Models::TaskContext do
             submodel.clear_submodels
             assert !Syskit::TaskContext.has_model_for?(subsubmodel.orogen_model)
         end
-
-        it "deregisters the corresponding constants" do
-            submodel = Syskit::TaskContext.new_submodel
-            OroGen::DefinitionModule.const_set(:Task, submodel)
-            Syskit::TaskContext.clear_submodels
-            refute OroGen::DefinitionModule.const_defined_here?(:Task)
-        end
     end
 
     describe "#has_model_for?" do
@@ -190,12 +193,62 @@ describe Syskit::Models::TaskContext do
         end
     end
 
-    it "has a proper name if it is assigned as a module's constant" do
-        model = Syskit::TaskContext.new_submodel
-        begin
-            OroGen::DefinitionModule.const_set :Task, model
-            assert_equal "OroGen::DefinitionModule::Task", model.name
-        ensure OroGen::DefinitionModule.send :remove_const, :Task
+    describe "backward-compatible constant registration behavior" do
+        before do
+            OroGen.syskit_model_constant_registration = true
+        end
+
+        it "registers the model as a constant whose name is based on the oroGen model name, under OroGen" do
+            orogen_model = OroGen::Spec::TaskContext.new(app.default_orogen_project, "my_project::Task")
+            syskit_model = Syskit::TaskContext.define_from_orogen(orogen_model, register: true)
+            assert_same syskit_model, OroGen::MyProject::Task
+        end
+
+        describe "toplevel registration" do
+            before do
+                OroGen.syskit_model_toplevel_constant_registration = true
+            end
+
+            it "registers the model as a global constant whose name is based on the oroGen model name" do
+                orogen_model = OroGen::Spec::TaskContext.new(app.default_orogen_project, "my_project::Task")
+                syskit_model =
+                    Syskit::TaskContext.define_from_orogen(orogen_model, register: true)
+
+                capture_log(Syskit, :fatal) do
+                    assert_same syskit_model, ::MyProject::Task
+                end
+            end
+        end
+
+        describe "conflict with already existing constants" do
+            before do
+                OroGen.syskit_model_constant_registration = true
+            end
+            after do
+                OroGen::DefinitionModule.send(:remove_const, :Task)
+            end
+
+            it "issues a warning if requested to register a model as a constant that already exists" do
+                orogen_model = OroGen::Spec::TaskContext.new(app.default_orogen_project, "definition_module::Task")
+                OroGen::DefinitionModule.const_set(:Task, (obj = Object.new))
+                flexmock(Syskit::TaskContext).should_receive(:warn).once
+                Syskit::TaskContext.define_from_orogen(orogen_model, register: true)
+            end
+            it "refuses to register the model as a constant if the constant already exists" do
+                Syskit.logger.level = Logger::FATAL
+                orogen_model = OroGen::Spec::TaskContext.new(app.default_orogen_project, "definition_module::Task")
+                OroGen::DefinitionModule.const_set(:Task, (obj = Object.new))
+                flexmock(Syskit::TaskContext).should_receive(:warn).once
+                syskit_model = Syskit::TaskContext.define_from_orogen(orogen_model, register: true)
+                assert_same obj, ::OroGen::DefinitionModule::Task
+            end
+        end
+
+        it "#clear_submodels removes the corresponding constants" do
+            submodel = Syskit::TaskContext.new_submodel
+            OroGen::DefinitionModule.const_set(:Task, submodel)
+            Syskit::TaskContext.clear_submodels
+            refute OroGen::DefinitionModule.const_defined_here?(:Task)
         end
     end
 
@@ -203,17 +256,25 @@ describe Syskit::Models::TaskContext do
         it "calls new_submodel to create the new model" do
             model = Syskit::TaskContext.new_submodel
             orogen = OroGen::Spec::TaskContext.new(app.default_orogen_project)
-            flexmock(OroGen::RTT::TaskContext).should_receive(:new_submodel).with(orogen_model: orogen).once.and_return(model)
+            flexmock(OroGen::RTT::TaskContext).should_receive(:new_submodel).
+                with(orogen_model: orogen).once.and_return(model)
             assert_same model, Syskit::TaskContext.define_from_orogen(orogen)
         end
 
-        it "registers the model by CamelCasing it" do
-            model = Syskit::TaskContext.new_submodel
+        it "sets the model name to the OroGen call chain" do
             project = OroGen::Spec::Project.new(app.default_orogen_project.loader)
             project.name 'test'
             orogen = OroGen::Spec::TaskContext.new(project, 'test::Task')
             Syskit::TaskContext.define_from_orogen(orogen, register: true)
-            assert_same orogen, OroGen::Test::Task.orogen_model
+            assert_equal "OroGen.test.Task", OroGen.test.Task.name
+        end
+
+        it "registers the model on the OroGen namespace" do
+            project = OroGen::Spec::Project.new(app.default_orogen_project.loader)
+            project.name 'test'
+            orogen = OroGen::Spec::TaskContext.new(project, 'test::Task')
+            Syskit::TaskContext.define_from_orogen(orogen, register: true)
+            assert_same orogen, OroGen.test.Task.orogen_model
         end
 
         it "creates the model from the superclass if it does not exist" do
@@ -264,56 +325,6 @@ describe Syskit::Models::TaskContext do
             assert task.custom_error_event.child_object?(task.runtime_error_event, Roby::EventStructure::Forwarding)
             assert task.custom_exception_event.child_object?(task.exception_event, Roby::EventStructure::Forwarding)
             assert task.custom_fatal_event.child_object?(task.fatal_error_event, Roby::EventStructure::Forwarding)
-        end
-
-        describe "backward-compatible name registration" do
-            it "registers the model as a global constant whose name is based on the oroGen model name" do
-                orogen_model = OroGen::Spec::TaskContext.new(app.default_orogen_project, "my_project::Task")
-                syskit_model =
-                    begin
-                        app.backward_compatible_naming = true
-                        Syskit::TaskContext.define_from_orogen(orogen_model, register: true)
-                    ensure
-                        app.backward_compatible_naming = false
-                    end
-
-                capture_log(Syskit, :fatal) do
-                    assert_same syskit_model, ::MyProject::Task
-                end
-            end
-        end
-
-        it "registers the model as a constant whose name is based on the oroGen model name, under OroGen" do
-            orogen_model = OroGen::Spec::TaskContext.new(app.default_orogen_project, "my_project::Task")
-            syskit_model = Syskit::TaskContext.define_from_orogen(orogen_model, register: true)
-            assert_same syskit_model, OroGen::MyProject::Task
-        end
-
-        it "has a name derived from the oroGen model name" do
-            orogen_model = OroGen::Spec::TaskContext.new(app.default_orogen_project, "my_project::Task")
-            syskit_model = Syskit::TaskContext.define_from_orogen(orogen_model, register: true)
-            assert_equal 'OroGen::MyProject::Task', syskit_model.name
-        end
-
-        describe "conflict with already existing constants" do
-            after do
-                OroGen::DefinitionModule.send(:remove_const, :Task)
-            end
-
-            it "issues a warning if requested to register a model as a constant that already exists" do
-                orogen_model = OroGen::Spec::TaskContext.new(app.default_orogen_project, "definition_module::Task")
-                OroGen::DefinitionModule.const_set(:Task, (obj = Object.new))
-                flexmock(Syskit::TaskContext).should_receive(:warn).once
-                Syskit::TaskContext.define_from_orogen(orogen_model, register: true)
-            end
-            it "refuses to register the model as a constant if the constant already exists" do
-                Syskit.logger.level = Logger::FATAL
-                orogen_model = OroGen::Spec::TaskContext.new(app.default_orogen_project, "definition_module::Task")
-                OroGen::DefinitionModule.const_set(:Task, (obj = Object.new))
-                flexmock(Syskit::TaskContext).should_receive(:warn).once
-                syskit_model = Syskit::TaskContext.define_from_orogen(orogen_model, register: true)
-                assert_same obj, ::OroGen::DefinitionModule::Task
-            end
         end
     end
 

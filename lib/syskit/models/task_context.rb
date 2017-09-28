@@ -118,7 +118,7 @@ module Syskit
                 if register && orogen_model.name
                     OroGen.syskit_model_toplevel_constant_registration =
                         Roby.app.backward_compatible_naming?
-                    OroGen.register_syskit_model(klass)
+                    klass.name = OroGen.register_syskit_model(klass)
                 end
 
                 klass

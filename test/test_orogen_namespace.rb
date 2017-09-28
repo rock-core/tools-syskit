@@ -16,16 +16,6 @@ module Syskit
             assert_same obj, @object.project.Task
         end
 
-        it "raises if attempting to register a model whose project name does not match" do
-            obj = flexmock(
-                orogen_model: flexmock(
-                    project: flexmock(name: 'test'),
-                    name: 'project::Task'))
-            assert_raises(ArgumentError) do
-                @object.register_syskit_model(obj)
-            end
-        end
-
         it "allows to resolve a project by its orogen name" do
             obj = flexmock(
                 orogen_model: flexmock(
@@ -54,5 +44,15 @@ module Syskit
             assert @object.const_defined?(:Project)
             assert_same obj, @object::Project::Task
         end
+
+        it "returns the call chain that leads to the model" do
+            flexmock(@object, name: 'test')
+            obj = flexmock(
+                orogen_model: flexmock(
+                    project: flexmock(name: 'project'),
+                    name: 'project::Task'))
+            assert_equal 'test.project.Task', @object.register_syskit_model(obj)
+        end
     end
 end
+
