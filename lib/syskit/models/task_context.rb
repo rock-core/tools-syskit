@@ -6,6 +6,22 @@ module OroGen
 end
 
 module Syskit
+    # Extend an auto-generated with custom code
+    #
+    # This is used mainly for Syskit models generated from oroGen models, in
+    # extension files within models/orogen/:
+    #
+    #     Syskit.extend_model OroGen.test.Task do
+    #       def configure
+    #         super
+    #         ...
+    #       end
+    #     end
+    #
+    def self.extend_model(model, &block)
+        model.class_eval(&block)
+    end
+
     module Models
         # This module contains the model-level API for the task context models
         #

@@ -1,4 +1,4 @@
-<% classes.each do |class_name| %>class OroGen::<%= class_name.join("::") %>
+<% orogen_models.each do |model| %>Syskit.extend_model OroGen.<%= model.name.gsub("::", ".") %> do
     # Customizes the configuration step.
     #
     # The orocos task is available from orocos_task
