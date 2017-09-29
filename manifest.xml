@@ -15,7 +15,7 @@
     <depend package="tools/pocolog" />
 
     <depend_optional package="timecop" />
-    <depend_optional package="listen" />
+    <depend_optional package="ruby-listen" />
 
     <test_depend package="minitest" />
     <test_depend package="flexmock" />
