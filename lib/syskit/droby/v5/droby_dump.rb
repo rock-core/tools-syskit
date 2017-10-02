@@ -50,8 +50,15 @@ module Syskit
                 end
 
                 def register_orogen_model(local_model, remote_siblings)
-                    orogen_loader.register_task_context_model(local_model.orogen_model)
-                    register_model(local_model, remote_siblings, name: 'orogen::' + local_model.orogen_model.name)
+                    model_name  = local_model.name
+                    orogen_name = local_model.orogen_model.name
+
+                    if orogen_name
+                        orogen_loader.register_task_context_model(local_model.orogen_model)
+                        register_model(local_model, remote_siblings, name: "orogen::#{orogen_name}")
+                    else
+                        register_model(local_model, remote_siblings, name: model_name)
+                    end
                 end
 
                 def register_typelib_model(type)
@@ -240,12 +247,20 @@ module Syskit
                                     @project_name, @project_text)
                             end
 
-                            begin
-                                orogen_model = peer.
-                                    orogen_task_context_model_from_name(@orogen_name)
-                                local_model = Syskit::TaskContext.
-                                    define_from_orogen(orogen_model, register: false)
-                            rescue OroGen::TaskModelNotFound
+                            if @orogen_name
+                                begin
+                                    orogen_model = peer.
+                                        orogen_task_context_model_from_name(@orogen_name)
+                                    local_model = Syskit::TaskContext.
+                                        define_from_orogen(orogen_model, register: false)
+                                    if name
+                                        local_model.name = name
+                                    end
+                                rescue OroGen::TaskModelNotFound
+                                end
+                            end
+
+                            if !orogen_model
                                 orogen_model = OroGen::Spec::TaskContext.new(
                                     Roby.app.default_orogen_project, @orogen_name)
                                 if @orogen_superclass_name
@@ -253,8 +268,12 @@ module Syskit
                                 end
                                 local_model = Syskit::TaskContext.
                                     define_from_orogen(orogen_model, register: false)
+                                if name
+                                    local_model.name = name
+                                end
                                 peer.register_orogen_model(local_model, remote_siblings)
                             end
+
 
                             # This looks useless, but it actually does ensure
                             # that the peer-local info gets registered, thus
