@@ -252,10 +252,12 @@ module Syskit
                             describe "orocos tasks with non-static half without syskit tasks" do
                                 def prepare(source_static, sink_static)
                                     super
-                                    if source_static
-                                        plan.remove_task(sink_task)
-                                    else
-                                        plan.remove_task(source_task)
+                                    execute do
+                                        if source_static
+                                            plan.remove_task(sink_task)
+                                        else
+                                            plan.remove_task(source_task)
+                                        end
                                     end
                                     dataflow_graph.modified_tasks << source_task << sink_task
                                     ConnectionManagement.update(plan)
@@ -267,10 +269,12 @@ module Syskit
                             describe "orocos tasks with static half without syskit tasks" do
                                 def prepare(source_static, sink_static)
                                     super
-                                    if source_static
-                                        plan.remove_task(source_task)
-                                    else
-                                        plan.remove_task(sink_task)
+                                    execute do
+                                        if source_static
+                                            plan.remove_task(source_task)
+                                        else
+                                            plan.remove_task(sink_task)
+                                        end
                                     end
                                     dataflow_graph.modified_tasks << source_task << sink_task
                                     ConnectionManagement.update(plan)
@@ -282,8 +286,10 @@ module Syskit
                             describe "orocos tasks without syskit tasks" do
                                 def prepare(source_static, sink_static)
                                     super
-                                    plan.remove_task(source_task)
-                                    plan.remove_task(sink_task)
+                                    execute do
+                                        plan.remove_task(source_task)
+                                        plan.remove_task(sink_task)
+                                    end
                                     dataflow_graph.modified_tasks << source_task << sink_task
                                     ConnectionManagement.update(plan)
                                 end
@@ -854,7 +860,7 @@ _                   end
                             with(source_orocos, 'out', 'in').once.globally.ordered
                         flexmock(sink_task).should_receive(:removed_input_port_connection).
                             with(source_orocos, 'out', 'in').once.globally.ordered
-                        source_agent.stop!
+                        execute { source_agent.stop! }
                         Syskit::Runtime::ConnectionManagement.update(plan)
                     end
 
@@ -865,7 +871,7 @@ _                   end
                             with('out', sink_orocos, 'in').once.globally.ordered
                         flexmock(source_task).should_receive(:removed_output_port_connection).
                             with('out', sink_orocos, 'in').once.globally.ordered
-                        sink_agent.stop!
+                        execute { sink_agent.stop! }
                         Syskit::Runtime::ConnectionManagement.update(plan)
                     end
                 end

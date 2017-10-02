@@ -72,7 +72,7 @@ describe Syskit::Coordination::Models::TaskExtension do
         task = action_m.test_machine(arg: 0).instanciate(plan)
         recorder.should_receive(:called).with(0).once
         plan.add_mission_task(task)
-        task.start!
+        execute { task.start! }
         syskit_deploy_configure_and_start(task.current_task_child)
         task.current_task_child.orocos_task.local_ruby_task.out.write(20)
         execute_one_cycle

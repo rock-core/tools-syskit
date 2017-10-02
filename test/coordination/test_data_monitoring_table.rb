@@ -145,13 +145,14 @@ describe Syskit::Coordination::DataMonitoringTable do
                 sample > 10
             end
 
-        recorder.should_receive(:called).with(2).once.ordered
-        recorder.should_receive(:called).with(12).once.ordered
+        recorder.should_receive(:called).with(2).ordered
+        recorder.should_receive(:called).with(12).ordered
 
         component = syskit_stub_deploy_configure_and_start(component_m)
         ruby_task = component.orocos_task.local_ruby_task
         composition = composition_m.use('test' => component.test2_srv).instanciate(plan)
         composition.depends_on composition.test_child, success: :success, remove_when_done: true
+        component.success_event.forward_to composition.success_event
         plan.add_permanent_task(composition)
 
         table = table_m.new(composition)
@@ -166,9 +167,8 @@ describe Syskit::Coordination::DataMonitoringTable do
             have_error_matching Syskit::Coordination::DataMonitoringError.match.
                 with_origin(composition)
             emit component.success_event
+            emit composition.success_event
         end
-        assert component.success?
-        composition.success_event.emit
     end
 
     it "can use whole component networks as data sources" do
