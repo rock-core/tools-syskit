@@ -131,6 +131,93 @@ module Syskit
                 end
             end
         end
+
+        describe V5::Models::TaskContextDumper do
+            before do
+            end
+
+            it "dumps the orogen model and rebuilds the model on the other side" do
+                out_t = stub_type '/Test'
+                loader = OroGen::Loaders::RTT.new
+                loader.register_type_model(out_t)
+                project_text = <<-EOPROJECT
+                name 'test'
+                task_context "Task" do
+                    output_port 'out', '/Test'
+                end
+                EOPROJECT
+                loader.project_model_from_text(project_text)
+                flexmock(loader).should_receive(:project_model_text_from_name).
+                    with('test').and_return(project_text)
+
+                orogen_model = loader.task_model_from_name('test::Task')
+                task_m = Syskit::TaskContext.define_from_orogen(orogen_model, register: false)
+                unmarshalled = droby_transfer task_m
+                assert_equal '/Test', unmarshalled.out_port.type.name
+            end
+
+            it "return an already existing oroGen model" do
+                local_model = OroGen::Spec::TaskContext.new(app.default_orogen_project, 'test::Task')
+                Roby.app.default_loader.register_task_context_model(local_model)
+                remote_model = OroGen::Spec::TaskContext.new(app.default_orogen_project, 'test::Task')
+                task_m = Syskit::TaskContext.new_submodel(orogen_model: remote_model)
+                assert_same local_model, droby_transfer(task_m).orogen_model
+            end
+
+            it "return an already existing oroGen/Syskit model pair" do
+                local_model = OroGen::Spec::TaskContext.new(app.default_orogen_project, 'test::Task')
+                Roby.app.default_loader.register_task_context_model(local_model)
+                local_task_m = Syskit::TaskContext.define_from_orogen(local_model, register: false)
+
+                remote_model = OroGen::Spec::TaskContext.new(app.default_orogen_project, 'test::Task')
+                remote_task_m = Syskit::TaskContext.new_submodel(orogen_model: remote_model)
+                assert_same local_task_m, droby_transfer(remote_task_m)
+            end
+
+            it "returns the same model once reconstructed" do
+                orogen_model = OroGen::Spec::TaskContext.new(app.default_orogen_project, 'test::Task')
+                task_m = Syskit::TaskContext.new_submodel(orogen_model: orogen_model)
+                unmarshalled = droby_transfer task_m
+                assert_same unmarshalled, droby_transfer(task_m)
+            end
+
+            it "gracefully handles models that do not have a textual representation" do
+                loader = OroGen::Loaders::RTT.new
+                project_text = <<-EOPROJECT
+                name 'test'
+                task_context "Task" do
+                end
+                EOPROJECT
+                loader.project_model_from_text(project_text)
+
+                orogen_model = loader.task_model_from_name('test::Task')
+                task_m = Syskit::TaskContext.define_from_orogen(orogen_model, register: false)
+                unmarshalled = droby_transfer task_m
+                assert_equal 'test::Task', unmarshalled.orogen_model.name
+            end
+
+            it "gracefully handles models that do not have a real backing project" do
+                orogen_model = OroGen::Spec::TaskContext.new(app.default_orogen_project, 'test::Task')
+                task_m = Syskit::TaskContext.new_submodel(orogen_model: orogen_model)
+                unmarshalled = droby_transfer task_m
+                assert_equal 'test::Task', unmarshalled.orogen_model.name
+            end
+
+            it "marshals and unmarshals the superclasses" do
+                parent_model = OroGen::Spec::TaskContext.new(app.default_orogen_project, 'parent::Task')
+                parent_m = Syskit::TaskContext.new_submodel(orogen_model: parent_model)
+
+                child_model = OroGen::Spec::TaskContext.new(app.default_orogen_project, 'child::Task')
+                child_model.subclasses parent_model
+                child_m = parent_m.new_submodel(orogen_model: child_model)
+
+                unmarshalled = droby_transfer child_m
+                assert_equal 'parent::Task', unmarshalled.supermodel.orogen_model.name
+                assert_equal 'child::Task', unmarshalled.orogen_model.name
+                assert_same unmarshalled.supermodel.orogen_model,
+                    unmarshalled.orogen_model.superclass
+            end
+        end
     end
 end
 

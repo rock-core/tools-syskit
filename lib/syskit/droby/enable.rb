@@ -7,7 +7,9 @@ Typelib::Type.include Syskit::DRoby::V5::TypelibTypeDumper
 Typelib::Type.extend Syskit::DRoby::V5::TypelibTypeModelDumper
 
 Roby::DRoby::ObjectManager.include Syskit::DRoby::V5::ObjectManagerExtension
+Roby::DRoby::Marshal.include Syskit::DRoby::V5::MarshalExtension
 
 Syskit::InstanceRequirements.include Syskit::DRoby::V5::InstanceRequirementsDumper
 Syskit::Models::ComBusModel.include Syskit::DRoby::V5::ComBusDumper
 Syskit::Actions::Profile.include Syskit::DRoby::V5::ProfileDumper
+Syskit::TaskContext.extend Syskit::DRoby::V5::Models::TaskContextDumper
