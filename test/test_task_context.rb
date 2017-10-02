@@ -931,7 +931,7 @@ module Syskit
             end
             it "keeps the task in the plan until the asynchronous setup is finished" do
                 plan.unmark_mission_task(task)
-                expect_execution.garbage_collect(true).join_all_waiting_work(false).to do
+                expect_execution.scheduler(true).garbage_collect(true).join_all_waiting_work(false).to do
                     achieve { task.setup? }
                 end
                 expect_execution.garbage_collect(true).to do
@@ -950,7 +950,7 @@ module Syskit
                     end
 
                 plan.unmark_mission_task(task)
-                expect_execution.join_all_waiting_work(false).garbage_collect(true).to do
+                expect_execution.scheduler(true).join_all_waiting_work(false).garbage_collect(true).to do
                     fail_to_start task
                 end
             end
@@ -1740,8 +1740,8 @@ module Syskit
                     barrier.wait(2)
                 end
 
-                def wait_for_synchronization
-                    expect_execution { yield if block_given? }.join_all_waiting_work(false).to do
+                def wait_for_synchronization(scheduler: false)
+                    expect_execution { yield if block_given? }.scheduler(scheduler).join_all_waiting_work(false).to do
                         achieve { barrier.number_waiting == 1 }
                     end
                 end
@@ -1754,7 +1754,7 @@ module Syskit
                     flexmock(task.orocos_task).should_receive(:configure).once.
                         pass_thru { barrier.wait }
                     capture_log(task, :info) do
-                        wait_for_synchronization
+                        wait_for_synchronization(scheduler: true)
                         assert_process_events_does_not_block
                     end
                 end
@@ -1782,7 +1782,7 @@ module Syskit
                     flexmock(task.orocos_task).should_receive(:cleanup).once.
                         pass_thru { barrier.wait }
                     capture_log(task, :info) do
-                        wait_for_synchronization
+                        wait_for_synchronization(scheduler: true)
                         assert_process_events_does_not_block
                     end
                 end
@@ -1791,7 +1791,7 @@ module Syskit
                     flexmock(task.orocos_task).should_receive(:reset_exception).once.
                         pass_thru { barrier.wait }
                     capture_log(task, :info) do
-                        wait_for_synchronization
+                        wait_for_synchronization(scheduler: true)
                         assert_process_events_does_not_block
                     end
                 end
