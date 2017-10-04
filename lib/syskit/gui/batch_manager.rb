@@ -108,8 +108,8 @@ module Syskit
                             formatted_arguments << "  #{arg.name}: nil"
                         elsif default_arg.respond_to?(:name) && MetaRuby::Registration.accessible_by_name?(default_arg)
                             formatted_arguments << "  #{arg.name}: #{default_arg.name}"
-                        elsif ToStringValidation.valid?(default_arg)
-                            formatted_arguments << "  #{arg.name}: #{default_arg}"
+                        elsif as_string = ToString.convert(default_arg)
+                            formatted_arguments << "  #{arg.name}: #{as_string}"
                         elsif arg.required?
                             formatted_arguments << "  #{arg.name}: "
                         else
@@ -129,21 +129,28 @@ module Syskit
                 end
             end
 
-            class ToStringValidation < BasicObject
+            class ToString < BasicObject
                 def self.const_missing(const_name)
                     ::Object.const_get(const_name)
                 end
 
-                def self.valid?(obj)
-                    parser = new
-                    begin
-                        parser.instance_eval(obj.to_s) == obj
-                    rescue Exception
-                        false
+                def self.convert(obj)
+                    if obj.kind_of?(Symbol)
+                        ":#{obj}"
+                    elsif obj.kind_of?(String)
+                        "\"#{obj}\""
+                    else
+                        as_string = obj.to_s
+                        parser = new
+                        begin
+                            if parser.instance_eval(as_string) == obj
+                                as_string
+                            end
+                        rescue Exception
+                        end
                     end
                 end
             end
-
 
             class NewJobDialog < Qt::Dialog
                 attr_reader :editor
