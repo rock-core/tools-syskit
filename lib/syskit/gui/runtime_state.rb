@@ -246,6 +246,8 @@ module Syskit
                     if start_controller
                         extra_args << "-c"
                     end
+                    extra_args.concat(
+                        Roby.app.argv_set.flat_map { |arg| ['--set', arg] })
                     @syskit_pid =
                         Kernel.spawn Gem.ruby, '-S', 'syskit', 'run', *extra_args,
                             pgroup: true

@@ -684,10 +684,15 @@ module Syskit
                     end
                     [path, process_id]
                 end
+                argv_set = app.argv_set.flat_map do |string|
+                    ['--set', string]
+                end
+
                 tests.sort_by(&:first).each do |path, process_id|
                     slave = manager.add_slave(
                         Gem.ruby, '-S', 'roby', 'autotest', '--server', server.server_id.to_s, path,
                         '-r', app.robot_name,
+                        *argv_set,
                         name: process_id)
                     slave.register_files([Pathname.new(path)])
                 end
