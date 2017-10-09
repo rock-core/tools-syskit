@@ -7,16 +7,52 @@ require 'roby/gui/exception_view'
 module Syskit
     module GUI
         class ModelBrowser < MetaRuby::GUI::ModelBrowser
-            View = Struct.new :root_model, :renderer, :name, :priority
+            View = Struct.new :root_model, :renderer, :name, :priority, :resolver
+
+            class TypelibResolver
+                def split_name(obj)
+                    if obj == Typelib::Type
+                        ["Types"]
+                    else
+                        ["Types"] + Typelib.split_typename(obj.name)
+                    end
+                end
+
+                def each_submodel(obj)
+                    if obj == Typelib::Type
+                        Roby.app.default_loader.registry.each do |type|
+                            yield(type)
+                        end
+                    end
+                end
+            end
+
+            class OroGenResolver
+                def split_name(model)
+                    name = model.name
+                    if name.start_with?("OroGen.")
+                        name.split(".")
+                    else
+                        name.split("::")
+                    end
+                end
+
+                def each_submodel(model)
+                    model.each_submodel do |m|
+                        yield(m) if !m.private_specialization?
+                    end
+                end
+            end
+
             AVAILABLE_VIEWS = [
-                View.new(Syskit::RubyTaskContext, ModelViews::RubyTaskContext, 'Ruby Task Contexts', 1),
-                View.new(Syskit::TaskContext, ModelViews::TaskContext, 'Task Contexts', 1),
+                View.new(Syskit::RubyTaskContext, ModelViews::RubyTaskContext, 'Ruby Task Contexts', 2),
+                View.new(Syskit::TaskContext, ModelViews::TaskContext, 'Task Contexts', 1, OroGenResolver.new),
                 View.new(Syskit::Composition, ModelViews::Composition, 'Compositions', 1),
                 View.new(Syskit::DataService, ModelViews::DataService, 'Data Services', 0),
                 View.new(Syskit::Actions::Profile, ModelViews::Profile, 'Profiles', 0),
                 View.new(Roby::Actions::Interface, Roby::GUI::ModelViews::ActionInterface, 'Action Interfaces', 0),
                 View.new(Roby::Task, Roby::GUI::ModelViews::Task, 'Roby Tasks', 0),
-                View.new(Typelib::Type, ModelViews::Type, 'Types', 0)
+                View.new(Typelib::Type, ModelViews::Type, 'Types', 0, TypelibResolver.new)
             ]
 
             def initialize(parent = nil)
@@ -31,7 +67,7 @@ module Syskit
 
                 page.load_javascript File.expand_path("composer_buttons.js", File.dirname(__FILE__))
                 AVAILABLE_VIEWS.each do |view|
-                    register_type(view.root_model, view.renderer, view.name, view.priority)
+                    register_type(view.root_model, view.renderer, view.name, view.priority, categories: [view.name], resolver: view.resolver || MetaRuby::GUI::ModelHierarchy::Resolver.new)
                 end
                 update_model_selector
             end
