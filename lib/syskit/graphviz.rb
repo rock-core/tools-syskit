@@ -77,12 +77,17 @@ module Syskit
                 @plan = plan
                 @page = page
                 @make_links = true
+                @typelib_resolver = GUI::ModelBrowser::TypelibResolver.new
 
                 @task_annotations = Hash.new { |h, k| h[k] = Hash.new { |a, b| a[b] = Array.new } }
                 @port_annotations = Hash.new { |h, k| h[k] = Hash.new { |a, b| a[b] = Array.new } }
                 @conn_annotations = Hash.new { |h, k| h[k] = Array.new }
                 @additional_vertices = Hash.new { |h, k| h[k] = Array.new }
                 @additional_edges    = Array.new
+            end
+
+            def uri_for(type)
+                "link://metaruby/" + @typelib_resolver.split_name(type).join("/")
             end
 
             def escape_dot(string)
@@ -635,7 +640,7 @@ module Syskit
                         port_id = dot_id(p.name)
                         ann = format_annotations(port_annotations, [task, p.name])
                         doc = escape_dot(p.model.doc || '<no documentation for this port>')
-                        input_port_label << "<TR><TD HREF=\"syskit://types/#{p.type.object_id}\" TITLE=\"#{doc}\"><TABLE BORDER=\"0\" CELLBORDER=\"0\"><TR><TD PORT=\"#{port_id}\" COLSPAN=\"2\">#{p.name}</TD></TR>#{ann}</TABLE></TD></TR>"
+                        input_port_label << "<TR><TD HREF=\"#{uri_for(p.type)}\" TITLE=\"#{doc}\"><TABLE BORDER=\"0\" CELLBORDER=\"0\"><TR><TD PORT=\"#{port_id}\" COLSPAN=\"2\">#{p.name}</TD></TR>#{ann}</TABLE></TD></TR>"
                     end
                     input_port_label << "\n</TABLE>"
                     result << "    inputs#{task.dot_id} [label=< #{input_port_label} >,shape=none];"
@@ -648,7 +653,7 @@ module Syskit
                         port_id = dot_id(p.name)
                         ann = format_annotations(port_annotations, [task, p.name])
                         doc = escape_dot(p.model.doc || '<no documentation for this port>')
-                        output_port_label << "<TR><TD HREF=\"syskit://types/#{p.type.object_id}\" TITLE=\"#{doc}\"><TABLE BORDER=\"0\" CELLBORDER=\"0\"><TR><TD PORT=\"#{port_id}\" COLSPAN=\"2\">#{p.name}</TD></TR>#{ann}</TABLE></TD></TR>"
+                        output_port_label << "<TR><TD HREF=\"#{uri_for(p.type)}\" TITLE=\"#{doc}\"><TABLE BORDER=\"0\" CELLBORDER=\"0\"><TR><TD PORT=\"#{port_id}\" COLSPAN=\"2\">#{p.name}</TD></TR>#{ann}</TABLE></TD></TR>"
                     end
                     output_port_label << "\n</TABLE>"
                     result << "    outputs#{task.dot_id} [label=< #{output_port_label} >,shape=none];"

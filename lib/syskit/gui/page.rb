@@ -4,7 +4,23 @@ require 'metaruby/gui/html/page'
 require 'metaruby/gui/html/button'
 module Syskit
     module GUI
-        module PageExtension
+        class Page < MetaRuby::GUI::ModelBrowser::Page
+            # Returns the path part of the URI to an object
+            #
+            # Overloaded from MetaRuby to handle task contexts properly in the
+            # oroGen HTML templates. In these templates, the models are
+            # OroGen::Spec::TaskContext, but the model browser only knows about
+            # Syskit::TaskContext
+            def uri_for(object)
+                if object.kind_of?(OroGen::Spec::TaskContext)
+                    if syskit_model = Syskit::TaskContext.find_model_by_orogen(object)
+                        super(syskit_model)
+                    end
+                else
+                    super
+                end
+            end
+
             # Adds a plan representation on the page
             #
             # @param [String] title the title that should be added to the
@@ -56,6 +72,5 @@ module Syskit
                 emit :updated
             end
         end
-        MetaRuby::GUI::HTML::Page.include PageExtension
     end
 end

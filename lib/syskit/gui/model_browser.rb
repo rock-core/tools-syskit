@@ -60,6 +60,7 @@ module Syskit
 
             def initialize(parent = nil)
                 super(parent, exception_view: Roby::GUI::ExceptionView.new)
+                self.page = Page.new(@model_selector, display.page)
 
                 if ENV['SYSKIT_GUI_DEBUG_HTML']
                     display.page.settings.setAttribute(Qt::WebSettings::DeveloperExtrasEnabled, true)
