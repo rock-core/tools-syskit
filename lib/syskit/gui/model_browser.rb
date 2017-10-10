@@ -38,8 +38,10 @@ module Syskit
                 end
 
                 def each_submodel(model)
-                    model.each_submodel do |m|
+                    if model == Syskit::TaskContext
+                        model.each_submodel do |m|
                         yield(m) if !m.private_specialization?
+                        end
                     end
                 end
             end
@@ -67,7 +69,7 @@ module Syskit
 
                 page.load_javascript File.expand_path("composer_buttons.js", File.dirname(__FILE__))
                 AVAILABLE_VIEWS.each do |view|
-                    register_type(view.root_model, view.renderer, view.name, view.priority, categories: [view.name], resolver: view.resolver || MetaRuby::GUI::ModelHierarchy::Resolver.new)
+                    register_type(view.root_model, view.renderer, view.name, view.priority, categories: [view.name], resolver: view.resolver || MetaRuby::GUI::ModelHierarchy::Resolver.new(view.root_model))
                 end
                 update_model_selector
             end
