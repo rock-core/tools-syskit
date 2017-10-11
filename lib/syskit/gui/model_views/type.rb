@@ -34,10 +34,11 @@ module Syskit::GUI
             def render(type, options = Hash.new)
                 type_rendering.render(type)
 
-                producers, consumers = [], []
+                producers, consumers = Set.new, Set.new
                 [Syskit::Component,Syskit::DataService].each do |base_model|
                     base_model.each_submodel do |submodel|
                         next if submodel.respond_to?(:proxied_data_services)
+                        next if (submodel.respond_to?(:private_specialization?) && submodel.private_specialization?) || !submodel.name
                         submodel.each_output_port do |port|
                             if port.type.name == type.name
                                 producers << [page.link_to(submodel), port.name]
@@ -51,9 +52,9 @@ module Syskit::GUI
                     end
                 end
 
-                fragment = render_port_list(producers.sort)
+                fragment = render_port_list(producers.to_a.sort)
                 page.push('Producers', fragment)
-                fragment = render_port_list(consumers.sort)
+                fragment = render_port_list(consumers.to_a.sort)
                 page.push('Consumers', fragment)
             end
 
