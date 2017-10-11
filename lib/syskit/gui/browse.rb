@@ -38,8 +38,8 @@ module Syskit
             end
 
             # Select the current model using its module
-            def select_by_module(mod)
-                model_browser.select_by_module(mod)
+            def select_by_model(mod)
+                model_browser.select_by_model(mod)
             end
         end
     end
