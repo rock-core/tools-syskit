@@ -217,6 +217,20 @@ module Syskit
                 assert_same unmarshalled.supermodel.orogen_model,
                     unmarshalled.orogen_model.superclass
             end
+
+            it "deals with types shared between the superclass and the subclass" do
+                parent_model = OroGen::Spec::TaskContext.new(app.default_orogen_project, 'parent::Task')
+                parent_model.output_port 'out', stub_type('/test')
+                parent_m = Syskit::TaskContext.new_submodel(orogen_model: parent_model)
+
+                child_model = OroGen::Spec::TaskContext.new(app.default_orogen_project, 'child::Task')
+                child_model.subclasses parent_model
+                child_model.output_port 'out2', stub_type('/test')
+                child_m = parent_m.new_submodel(orogen_model: child_model)
+
+                droby_transfer child_m
+                assert droby_remote_marshaller.object_manager.typelib_registry.include?('/test')
+            end
         end
     end
 end

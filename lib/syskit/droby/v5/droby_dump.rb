@@ -285,6 +285,11 @@ module Syskit
                     end
 
                     def droby_dump(peer)
+                        supermodel = Roby::DRoby::V5::DRobyModel.dump_supermodel(peer, self)
+
+                        types = orogen_model.each_interface_type.
+                            map { |t| peer.dump(t) }
+
                         orogen_name = orogen_model.name
                         if orogen_model.name && (project_name = orogen_model.project.name)
                             begin
@@ -293,8 +298,6 @@ module Syskit
                             rescue OroGen::ProjectNotFound
                             end
                         end
-                        types = orogen_model.each_interface_type.
-                            map { |t| peer.dump(t) }
 
                         if orogen_model.superclass
                             orogen_superclass_name = orogen_model.superclass.name
@@ -305,7 +308,7 @@ module Syskit
                             name,
                             peer.known_siblings_for(self),
                             arguments,
-                            Roby::DRoby::V5::DRobyModel.dump_supermodel(peer, self),
+                            supermodel,
                             Roby::DRoby::V5::DRobyModel.dump_provided_models_of(peer, self),
                             each_event.map { |_, ev| [ev.symbol, ev.controlable?, ev.terminal?] },
                             orogen_name, orogen_superclass_name, project_name, project_text, types)
