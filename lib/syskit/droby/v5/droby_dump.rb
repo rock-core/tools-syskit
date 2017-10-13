@@ -235,8 +235,6 @@ module Syskit
                         end
 
                         def create_new_proxy_model(peer)
-                            supermodel = peer.local_model(self.supermodel)
-
                             @types.each do |type|
                                 peer.register_typelib_model(
                                     peer.local_object(type))
@@ -274,18 +272,14 @@ module Syskit
                                 peer.register_orogen_model(local_model, remote_siblings)
                             end
 
-
-                            # This looks useless, but it actually does ensure
-                            # that the peer-local info gets registered, thus
-                            # allowing further unmarshalling that would depend
-                            # on it
-                            @provided_models.each { |m| peer.local_object(m) }
                             local_model
                         end
                     end
 
                     def droby_dump(peer)
                         supermodel = Roby::DRoby::V5::DRobyModel.dump_supermodel(peer, self)
+                        provided_models = Roby::DRoby::V5::DRobyModel.
+                            dump_provided_models_of(peer, self)
 
                         types = orogen_model.each_interface_type.
                             map { |t| peer.dump(t) }
@@ -309,7 +303,7 @@ module Syskit
                             peer.known_siblings_for(self),
                             arguments,
                             supermodel,
-                            Roby::DRoby::V5::DRobyModel.dump_provided_models_of(peer, self),
+                            provided_models,
                             each_event.map { |_, ev| [ev.symbol, ev.controlable?, ev.terminal?] },
                             orogen_name, orogen_superclass_name, project_name, project_text, types)
                     end
