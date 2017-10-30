@@ -274,6 +274,14 @@ module Syskit
 
                             local_model
                         end
+
+                        def update(peer, local_object, fresh_proxy: false)
+                            @types.each do |type|
+                                peer.register_typelib_model(
+                                    peer.local_object(type))
+                            end
+                            super
+                        end
                     end
 
                     def droby_dump(peer)
