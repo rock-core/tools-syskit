@@ -89,13 +89,18 @@ module Syskit
             end
 
             def uri_for(type)
-                "link://metaruby/" + @typelib_resolver.split_name(type).join("/")
+                "link://metaruby/" + escape_dot_uri(@typelib_resolver.split_name(type).join("/"))
+            end
+
+
+            def escape_dot_uri(string)
+                string.
+                    gsub(/</, "&lt;").
+                    gsub(/>/, "&gt;")
             end
 
             def escape_dot(string)
-                string.
-                    gsub(/</, "&lt;").
-                    gsub(/>/, "&gt;").
+                escape_dot_uri(string).
                     gsub(/[^\[\]&;:\w\. ]/, "_")
             end
 
