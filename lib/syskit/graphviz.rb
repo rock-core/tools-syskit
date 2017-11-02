@@ -79,6 +79,8 @@ module Syskit
                 @make_links = true
                 @typelib_resolver = GUI::ModelBrowser::TypelibResolver.new
 
+                @colors = COLORS.dup
+
                 @task_annotations = Hash.new { |h, k| h[k] = Hash.new { |a, b| a[b] = Array.new } }
                 @port_annotations = Hash.new { |h, k| h[k] = Hash.new { |a, b| a[b] = Array.new } }
                 @conn_annotations = Hash.new { |h, k| h[k] = Array.new }
@@ -235,9 +237,10 @@ module Syskit
                 end
             end
 
+            Colors = Struct.new :normal, :abstract, :composition
             COLORS = {
-                :normal => %w{#000000 red},
-                :toned_down => %w{#D3D7CF #D3D7CF}
+                normal: Colors.new("#000000", "red", "#55aaff"),
+                toned_down: Colors.new("#D3D7CF", "#D3D7CF", "#c2cbd7")
             }
 
             def format_edge_info(value)
@@ -299,12 +302,14 @@ module Syskit
                     end
                     color_set =
                         if options[:toned_down].include?(task)
-                            COLORS[:toned_down]
-                        else COLORS[:normal]
+                            @colors[:toned_down]
+                        else @colors[:normal]
                         end
                     color =
-                        if task.abstract? then color_set[1]
-                        else color_set[0]
+                        if task.abstract? then color_set.abstract
+                        elsif task.kind_of?(Syskit::Composition)
+                            color_set.composition
+                        else color_set.normal
                         end
                     attributes << "color=\"#{color}\""
                     if options[:highlights].include?(task)
@@ -503,8 +508,8 @@ module Syskit
                 connections.each do |(source_task, source_port, sink_port, sink_task), policy|
                     source_port = source_task.find_port(source_port)
                     sink_port   = sink_task.find_port(sink_port)
-                    if !(source_port.output? ^ sink_port.output?)
-                        style = "style=dashed,"
+                    if source_task.kind_of?(Syskit::Composition) || sink_task.kind_of?(Syskit::Composition)
+                        style = "color=\"#{@colors[:normal].composition}\","
                     end
 
                     source_port_id = dot_id(source_port, source_task)
@@ -622,7 +627,9 @@ module Syskit
                 result << "        #{task_link};"
                 result << "        label=\"\";"
                 if task.abstract?
-                    result << "      color=\"red\";"
+                    result << "      color=\"#{@colors[:normal].abstract}\";"
+                elsif task.kind_of?(Syskit::Composition)
+                    result << "      color=\"#{@colors[:normal].composition}\";"
                 end
                 result << style if style
 
