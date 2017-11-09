@@ -157,10 +157,10 @@ module Syskit
 
             it 'creates a marshallable instance of the configuration' do
                 conf = subject.logging_conf
-                assert (conf.port_logs_enabled == Syskit.conf.logs.port_logs_enabled?)
-                assert (conf.conf_logs_enabled == Syskit.conf.logs.conf_logs_enabled?)
+                assert_equal conf.port_logs_enabled, Syskit.conf.logs.port_logs_enabled?
+                assert_equal conf.conf_logs_enabled, Syskit.conf.logs.conf_logs_enabled?
                 Syskit.conf.logs.groups.each_pair do |key, group|
-                    assert (group.enabled? == conf.groups[key].enabled)
+                    assert_equal group.enabled?, conf.groups[key].enabled
                 end
                 Marshal.dump(conf)
             end
@@ -169,8 +169,8 @@ module Syskit
                 one = subject.logging_conf
                 two = one.deep_copy
 
-                assert (one == two)
-                assert !one.equal?(two)
+                assert_equal one, two
+                refute_same one, two
             end
 
             it 'triggers a redeployment when the configuration is updated' do
@@ -188,8 +188,8 @@ module Syskit
                 conf.conf_logs_enabled = !previous_conf_status
 
                 subject.update_logging_conf(conf)
-                assert (Syskit.conf.logs.port_logs_enabled? == !previous_port_status)
-                assert (Syskit.conf.logs.conf_logs_enabled? == !previous_conf_status)
+                assert_equal Syskit.conf.logs.port_logs_enabled?, !previous_port_status
+                assert_equal Syskit.conf.logs.conf_logs_enabled?, !previous_conf_status
             end
 
             it 'changes status of an existing log group' do
@@ -197,7 +197,7 @@ module Syskit
                 previous_status = Syskit.conf.logs.group_by_name('test').enabled?
                 conf.groups['test'].enabled = !previous_status
                 subject.update_logging_conf(conf)
-                assert (Syskit.conf.logs.group_by_name('test').enabled? == !previous_status)
+                assert_equal Syskit.conf.logs.group_by_name('test').enabled?, !previous_status
             end
         end
 
