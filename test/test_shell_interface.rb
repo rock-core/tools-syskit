@@ -151,6 +151,74 @@ module Syskit
             end
         end
 
+        describe "the log configuration management" do
+            before { Syskit.conf.logs.create_group 'test' }
+            after { Syskit.conf.logs.remove_group('test') }
+
+            it 'creates a marshallable instance of the configuration' do
+                conf = subject.logging_conf
+                assert (conf.port_logs_enabled == Syskit.conf.logs.port_logs_enabled?)
+                assert (conf.conf_logs_enabled == Syskit.conf.logs.conf_logs_enabled?)
+                Syskit.conf.logs.groups.each_pair do |key, group|
+                    assert (group.enabled? == conf.groups[key].enabled)
+                end
+                Marshal.dump(conf)
+            end
+
+            it "makes a deep copy of the configuration" do
+                one = subject.logging_conf
+                two = one.deep_copy
+
+                assert (one == two)
+                assert !one.equal?(two)
+            end
+
+            it 'triggers a redeployment when the configuration is updated' do
+                conf = subject.logging_conf
+                flexmock(subject).should_receive(:redeploy).once
+                subject.update_logging_conf(conf)
+            end
+
+            it 'changes status of conf and port logging' do
+                conf = subject.logging_conf
+                previous_port_status = Syskit.conf.logs.port_logs_enabled?
+                previous_conf_status = Syskit.conf.logs.conf_logs_enabled?
+
+                conf.port_logs_enabled = !previous_port_status
+                conf.conf_logs_enabled = !previous_conf_status
+
+                subject.update_logging_conf(conf)
+                assert (Syskit.conf.logs.port_logs_enabled? == !previous_port_status)
+                assert (Syskit.conf.logs.conf_logs_enabled? == !previous_conf_status)
+            end
+
+            it 'changes status of an existing log group' do
+                conf = subject.logging_conf
+                previous_status = Syskit.conf.logs.group_by_name('test').enabled?
+                conf.groups['test'].enabled = !previous_status
+                subject.update_logging_conf(conf)
+                assert (Syskit.conf.logs.group_by_name('test').enabled? == !previous_status)
+            end
+
+            it 'removes a log group' do
+                conf = subject.logging_conf
+                conf.groups.delete('test')
+                subject.update_logging_conf(conf)
+
+                assert !Syskit.conf.logs.groups.key?('test')
+                Syskit.conf.logs.create_group 'test'
+            end
+
+            it 'creates a log group' do
+                conf = subject.logging_conf
+                conf.groups['test_new_group'] = ShellInterface::LoggingGroup.new(true)
+                subject.update_logging_conf(conf)
+
+                assert Syskit.conf.logs.group_by_name('test_new_group').enabled?
+                Syskit.conf.logs.remove_group 'test_new_group'
+            end
+        end
+
         describe "the log group management" do
             attr_reader :group
             before do
