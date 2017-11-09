@@ -199,11 +199,8 @@ module Syskit
                 begin
                     Syskit.conf.logs.group_by_name(name).enabled = group.enabled
                 rescue ArgumentError
-                    Syskit.conf.logs.create_group(name, enabled: group.enabled)
+                    Syskit.warn "tried to update a group that does not exist: #{name}"
                 end
-            end
-            Syskit.conf.logs.groups.each_pair do |name, group|
-                Syskit.conf.logs.remove_group(name) if !conf.groups.key? name
             end
             redeploy
         end

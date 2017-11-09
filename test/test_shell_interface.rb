@@ -199,24 +199,6 @@ module Syskit
                 subject.update_logging_conf(conf)
                 assert (Syskit.conf.logs.group_by_name('test').enabled? == !previous_status)
             end
-
-            it 'removes a log group' do
-                conf = subject.logging_conf
-                conf.groups.delete('test')
-                subject.update_logging_conf(conf)
-
-                assert !Syskit.conf.logs.groups.key?('test')
-                Syskit.conf.logs.create_group 'test'
-            end
-
-            it 'creates a log group' do
-                conf = subject.logging_conf
-                conf.groups['test_new_group'] = ShellInterface::LoggingGroup.new(true)
-                subject.update_logging_conf(conf)
-
-                assert Syskit.conf.logs.group_by_name('test_new_group').enabled?
-                Syskit.conf.logs.remove_group 'test_new_group'
-            end
         end
 
         describe "the log group management" do
