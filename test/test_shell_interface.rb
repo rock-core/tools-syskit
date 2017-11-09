@@ -173,13 +173,7 @@ module Syskit
                 refute_same one, two
             end
 
-            it 'triggers a redeployment when the configuration is updated' do
-                conf = subject.logging_conf
-                flexmock(subject).should_receive(:redeploy).once
-                subject.update_logging_conf(conf)
-            end
-
-            it 'changes status of conf and port logging' do
+            it 'changes status of conf and port logging and redeploys' do
                 conf = subject.logging_conf
                 previous_port_status = Syskit.conf.logs.port_logs_enabled?
                 previous_conf_status = Syskit.conf.logs.conf_logs_enabled?
@@ -187,17 +181,22 @@ module Syskit
                 conf.port_logs_enabled = !previous_port_status
                 conf.conf_logs_enabled = !previous_conf_status
 
+                flexmock(subject).should_receive(:redeploy).once.pass_thru do
+                    assert_equal Syskit.conf.logs.port_logs_enabled?, !previous_port_status
+                    assert_equal Syskit.conf.logs.conf_logs_enabled?, !previous_conf_status
+                end
                 subject.update_logging_conf(conf)
-                assert_equal Syskit.conf.logs.port_logs_enabled?, !previous_port_status
-                assert_equal Syskit.conf.logs.conf_logs_enabled?, !previous_conf_status
             end
 
-            it 'changes status of an existing log group' do
+            it 'changes status of an existing log group and redeploys' do
                 conf = subject.logging_conf
                 previous_status = Syskit.conf.logs.group_by_name('test').enabled?
                 conf.groups['test'].enabled = !previous_status
+
+                flexmock(subject).should_receive(:redeploy).once.pass_thru do
+                    assert_equal Syskit.conf.logs.group_by_name('test').enabled?, !previous_status
+                end
                 subject.update_logging_conf(conf)
-                assert_equal Syskit.conf.logs.group_by_name('test').enabled?, !previous_status
             end
         end
 
