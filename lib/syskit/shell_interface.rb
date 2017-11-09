@@ -171,7 +171,7 @@ module Syskit
             disable_log_group(string)
         end
 
-        LoggingGroup = Struct.new(:enabled)
+        LoggingGroup = Struct.new(:name, :enabled)
         LoggingConfiguration = Struct.new(:port_logs_enabled, :conf_logs_enabled, :groups) do
             def deep_copy
                 Marshal.load(Marshal.dump(self))
@@ -182,7 +182,7 @@ module Syskit
             conf.port_logs_enabled = Syskit.conf.logs.port_logs_enabled?
             conf.conf_logs_enabled = Syskit.conf.logs.conf_logs_enabled?
             Syskit.conf.logs.groups.each_pair do |key, group|
-                conf.groups[key] = LoggingGroup.new(group.enabled?)
+                conf.groups[key] = LoggingGroup.new(key, group.enabled?)
             end
             conf
         end
