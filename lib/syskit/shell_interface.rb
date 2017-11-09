@@ -172,11 +172,7 @@ module Syskit
         end
 
         LoggingGroup = Struct.new(:name, :enabled)
-        LoggingConfiguration = Struct.new(:port_logs_enabled, :conf_logs_enabled, :groups) do
-            def deep_copy
-                Marshal.load(Marshal.dump(self))
-            end
-        end
+        LoggingConfiguration = Struct.new(:port_logs_enabled, :conf_logs_enabled, :groups)
         def logging_conf
             conf = LoggingConfiguration.new(false, false, Hash.new)
             conf.port_logs_enabled = Syskit.conf.logs.port_logs_enabled?

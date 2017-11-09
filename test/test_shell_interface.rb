@@ -165,14 +165,6 @@ module Syskit
                 Marshal.dump(conf)
             end
 
-            it "makes a deep copy of the configuration" do
-                one = subject.logging_conf
-                two = one.deep_copy
-
-                assert_equal one, two
-                refute_same one, two
-            end
-
             it 'changes status of conf and port logging and redeploys' do
                 conf = subject.logging_conf
                 previous_port_status = Syskit.conf.logs.port_logs_enabled?
