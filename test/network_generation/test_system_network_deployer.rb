@@ -117,7 +117,7 @@ module Syskit
                         with(on: 'machine').
                         and_return(deployment_task = flexmock(Roby::Task.new))
                     # Add it to the work plan
-                    flexmock(plan).should_receive(:add).once.with(deployment_task).ordered.pass_thru
+                    flexmock(plan).should_receive(:add).once.with([deployment_task]).ordered.pass_thru
                     # Create the task
                     deployment_task.should_receive(:task).explicitly.
                         with('task').and_return(deployed_task = flexmock).ordered

@@ -11,8 +11,8 @@ module Syskit
             it "starts an async resolution when new IR tasks are started" do
                 cmp_m = Composition.new_submodel
                 plan.add_permanent_task(requirement_task = cmp_m.to_instance_requirements.as_plan)
-                requirement_task.planning_task.start!
-                Runtime.apply_requirement_modifications(plan)
+                execute { requirement_task.planning_task.start! }
+                execute { Runtime.apply_requirement_modifications(plan) }
                 assert plan.syskit_current_resolution
                 assert_equal Set[requirement_task.planning_task],
                     plan.syskit_current_resolution.future.requirement_tasks
@@ -22,13 +22,13 @@ module Syskit
                 cmp_m = Composition.new_submodel
                 requirement_tasks = Array.new
                 requirement_tasks << plan.add_permanent_task(cmp_m.to_instance_requirements.as_plan)
-                requirement_tasks[0].planning_task.start!
-                Runtime.apply_requirement_modifications(plan)
+                execute { requirement_tasks[0].planning_task.start! }
+                execute { Runtime.apply_requirement_modifications(plan) }
 
                 requirement_tasks << plan.add_permanent_task(cmp_m.to_instance_requirements.as_plan)
-                requirement_tasks[1].planning_task.start!
+                execute { requirement_tasks[1].planning_task.start! }
                 flexmock(plan.syskit_current_resolution).should_receive(:cancel).once
-                Runtime.apply_requirement_modifications(plan)
+                execute { Runtime.apply_requirement_modifications(plan) }
 
                 assert plan.syskit_current_resolution
                 assert_equal Set[*requirement_tasks.map(&:planning_task)],
@@ -38,12 +38,12 @@ module Syskit
             it "stops the current async resolution all running IR tasks became useless" do
                 cmp_m = Composition.new_submodel
                 requirement_task = plan.add_permanent_task(cmp_m.to_instance_requirements.as_plan)
-                requirement_task.planning_task.start!
-                Runtime.apply_requirement_modifications(plan)
+                execute { requirement_task.planning_task.start! }
+                execute { Runtime.apply_requirement_modifications(plan) }
 
                 flexmock(plan.syskit_current_resolution).should_receive(:cancel).once
                 plan.unmark_permanent_task(requirement_task)
-                Runtime.apply_requirement_modifications(plan)
+                execute { Runtime.apply_requirement_modifications(plan) }
 
                 assert !plan.syskit_current_resolution
             end
@@ -53,7 +53,9 @@ module Syskit
                 requirement_tasks = Array.new
                 requirement_tasks << plan.add_permanent_task(cmp_m.to_instance_requirements.as_plan)
                 requirement_tasks << plan.add_permanent_task(cmp_m.to_instance_requirements.as_plan)
-                requirement_tasks.each { |t| t.planning_task.start! }
+                execute do
+                    requirement_tasks.each { |t| t.planning_task.start! }
+                end
                 Runtime.apply_requirement_modifications(plan)
 
                 flexmock(plan.syskit_current_resolution).should_receive(:cancel).once
@@ -68,12 +70,13 @@ module Syskit
             it "cancels an async resolution if one of the IR tasks has been interrupted" do
                 cmp_m = Composition.new_submodel
                 plan.add_permanent_task(requirement_task = cmp_m.to_instance_requirements.as_plan)
-                requirement_task.planning_task.start!
-                Runtime.apply_requirement_modifications(plan)
+                execute { requirement_task.planning_task.start! }
+                execute { Runtime.apply_requirement_modifications(plan) }
 
                 flexmock(plan.syskit_current_resolution).should_receive(:cancel).once
-                assert_raises(Roby::PlanningFailedError) { requirement_task.planning_task.stop! }
-                Runtime.apply_requirement_modifications(plan)
+                expect_execution { requirement_task.planning_task.stop! }.
+                    to { have_error_matching Roby::PlanningFailedError }
+                execute { Runtime.apply_requirement_modifications(plan) }
 
                 assert !plan.syskit_current_resolution
             end
@@ -82,10 +85,10 @@ module Syskit
                 cmp_m = Composition.new_submodel
                 plan.add_permanent_task(requirement_task = cmp_m.to_instance_requirements.as_plan)
                 requirement_task = requirement_task.planning_task
-                requirement_task.start!
-                Runtime.apply_requirement_modifications(plan)
+                execute { requirement_task.start! }
+                execute { Runtime.apply_requirement_modifications(plan) }
                 plan.syskit_current_resolution.future.value
-                Runtime.apply_requirement_modifications(plan)
+                execute { Runtime.apply_requirement_modifications(plan) }
                 assert requirement_task.success?
             end
 
@@ -93,10 +96,11 @@ module Syskit
                 task_m = TaskContext.new_submodel
                 requirement_task = plan.add_permanent_task(task_m.to_instance_requirements.as_plan)
                 requirement_task = requirement_task.planning_task
-                requirement_task.start!
-                Runtime.apply_requirement_modifications(plan)
+                execute { requirement_task.start! }
+                execute { Runtime.apply_requirement_modifications(plan) }
                 plan.syskit_current_resolution.future.value
-                assert_raises(Roby::PlanningFailedError) { Runtime.apply_requirement_modifications(plan) }
+                expect_execution { Runtime.apply_requirement_modifications(plan) }.
+                    to { have_error_matching Roby::PlanningFailedError }
                 assert requirement_task.failed?
                 assert_kind_of Syskit::MissingDeployments, requirement_task.failed_event.last.context.first
                 assert_exception_can_be_pretty_printed(requirement_task.failed_event.last.context.first)

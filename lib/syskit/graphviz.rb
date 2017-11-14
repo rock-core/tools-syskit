@@ -77,6 +77,9 @@ module Syskit
                 @plan = plan
                 @page = page
                 @make_links = true
+                @typelib_resolver = GUI::ModelBrowser::TypelibResolver.new
+
+                @colors = COLORS.dup
 
                 @task_annotations = Hash.new { |h, k| h[k] = Hash.new { |a, b| a[b] = Array.new } }
                 @port_annotations = Hash.new { |h, k| h[k] = Hash.new { |a, b| a[b] = Array.new } }
@@ -85,11 +88,20 @@ module Syskit
                 @additional_edges    = Array.new
             end
 
-            def escape_dot(string)
+            def uri_for(type)
+                "link://metaruby/" + escape_dot_uri(@typelib_resolver.split_name(type).join("/"))
+            end
+
+
+            def escape_dot_uri(string)
                 string.
                     gsub(/</, "&lt;").
-                    gsub(/>/, "&gt;").
-                    gsub(/[^\[\]&;:\w ]/, "_")
+                    gsub(/>/, "&gt;")
+            end
+
+            def escape_dot(string)
+                escape_dot_uri(string).
+                    gsub(/[^\[\]&;:\w\. ]/, "_")
             end
 
             def annotate_tasks(annotations)
@@ -230,9 +242,10 @@ module Syskit
                 end
             end
 
+            Colors = Struct.new :normal, :abstract, :composition
             COLORS = {
-                :normal => %w{#000000 red},
-                :toned_down => %w{#D3D7CF #D3D7CF}
+                normal: Colors.new("#000000", "red", "#55aaff"),
+                toned_down: Colors.new("#D3D7CF", "#D3D7CF", "#c2cbd7")
             }
 
             def format_edge_info(value)
@@ -294,12 +307,14 @@ module Syskit
                     end
                     color_set =
                         if options[:toned_down].include?(task)
-                            COLORS[:toned_down]
-                        else COLORS[:normal]
+                            @colors[:toned_down]
+                        else @colors[:normal]
                         end
                     color =
-                        if task.abstract? then color_set[1]
-                        else color_set[0]
+                        if task.abstract? then color_set.abstract
+                        elsif task.kind_of?(Syskit::Composition)
+                            color_set.composition
+                        else color_set.normal
                         end
                     attributes << "color=\"#{color}\""
                     if options[:highlights].include?(task)
@@ -498,8 +513,8 @@ module Syskit
                 connections.each do |(source_task, source_port, sink_port, sink_task), policy|
                     source_port = source_task.find_port(source_port)
                     sink_port   = sink_task.find_port(sink_port)
-                    if !(source_port.output? ^ sink_port.output?)
-                        style = "style=dashed,"
+                    if source_task.kind_of?(Syskit::Composition) || sink_task.kind_of?(Syskit::Composition)
+                        style = "color=\"#{@colors[:normal].composition}\","
                     end
 
                     source_port_id = dot_id(source_port, source_task)
@@ -617,7 +632,9 @@ module Syskit
                 result << "        #{task_link};"
                 result << "        label=\"\";"
                 if task.abstract?
-                    result << "      color=\"red\";"
+                    result << "      color=\"#{@colors[:normal].abstract}\";"
+                elsif task.kind_of?(Syskit::Composition)
+                    result << "      color=\"#{@colors[:normal].composition}\";"
                 end
                 result << style if style
 
@@ -635,7 +652,7 @@ module Syskit
                         port_id = dot_id(p.name)
                         ann = format_annotations(port_annotations, [task, p.name])
                         doc = escape_dot(p.model.doc || '<no documentation for this port>')
-                        input_port_label << "<TR><TD HREF=\"syskit://types/#{p.type.object_id}\" TITLE=\"#{doc}\"><TABLE BORDER=\"0\" CELLBORDER=\"0\"><TR><TD PORT=\"#{port_id}\" COLSPAN=\"2\">#{p.name}</TD></TR>#{ann}</TABLE></TD></TR>"
+                        input_port_label << "<TR><TD HREF=\"#{uri_for(p.type)}\" TITLE=\"#{doc}\"><TABLE BORDER=\"0\" CELLBORDER=\"0\"><TR><TD PORT=\"#{port_id}\" COLSPAN=\"2\">#{p.name}</TD></TR>#{ann}</TABLE></TD></TR>"
                     end
                     input_port_label << "\n</TABLE>"
                     result << "    inputs#{task.dot_id} [label=< #{input_port_label} >,shape=none];"
@@ -648,7 +665,7 @@ module Syskit
                         port_id = dot_id(p.name)
                         ann = format_annotations(port_annotations, [task, p.name])
                         doc = escape_dot(p.model.doc || '<no documentation for this port>')
-                        output_port_label << "<TR><TD HREF=\"syskit://types/#{p.type.object_id}\" TITLE=\"#{doc}\"><TABLE BORDER=\"0\" CELLBORDER=\"0\"><TR><TD PORT=\"#{port_id}\" COLSPAN=\"2\">#{p.name}</TD></TR>#{ann}</TABLE></TD></TR>"
+                        output_port_label << "<TR><TD HREF=\"#{uri_for(p.type)}\" TITLE=\"#{doc}\"><TABLE BORDER=\"0\" CELLBORDER=\"0\"><TR><TD PORT=\"#{port_id}\" COLSPAN=\"2\">#{p.name}</TD></TR>#{ann}</TABLE></TD></TR>"
                     end
                     output_port_label << "\n</TABLE>"
                     result << "    outputs#{task.dot_id} [label=< #{output_port_label} >,shape=none];"
@@ -676,7 +693,6 @@ module Syskit
 
                     values = values.map { |v| v.tr("<>", "[]") }
                     values = values.map { |v| v.tr("{}", "[]") }
-                    values = values.map { |v| v.tr(":", "_") }
 
                    "<TR><TD ROWSPAN=\"#{values.size()}\" VALIGN=\"TOP\" ALIGN=\"RIGHT\">#{category}</TD><TD ALIGN=\"LEFT\">#{values.first}</TD></TR>\n" +
                    values[1..-1].map { |v| "<TR><TD ALIGN=\"LEFT\">#{v}</TD></TR>" }.join("\n")

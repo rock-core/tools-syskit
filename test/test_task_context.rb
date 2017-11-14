@@ -470,9 +470,10 @@ module Syskit
                 orocos_task.should_receive(:runtime_state?).with(:blabla).and_return(true)
                 task.should_receive(:state_event).with(:blabla).and_return(:test)
                 expect_execution { task.handle_state_changes }.
-                    to { emit task.start_event }
-                task.stop_event.emit
-                assert task.test_event.emitted?
+                    to do
+                        emit task.start_event
+                        emit task.test_event
+                    end
             end
             it "raises ArgumentError if the state cannot be mapped to an event" do
                 syskit_start(task)
@@ -621,7 +622,7 @@ module Syskit
                 assert task.ready_for_setup?
             end
             it "returns false if the task has been marked as garbage" do
-                task.garbage!
+                execute { task.garbage! }
                 refute task.ready_for_setup?
             end
             it "returns false if task arguments are not set" do
@@ -894,7 +895,7 @@ module Syskit
             end
 
             it "freezes delayed arguments" do
-                plan.remove_task(task)
+                execute { plan.remove_task(task) }
                 task = syskit_stub_network_deployment(TaskContext.new_submodel.new)
                 plan.add_permanent_task(task)
                 syskit_start_execution_agents(task)
@@ -931,7 +932,7 @@ module Syskit
             end
             it "keeps the task in the plan until the asynchronous setup is finished" do
                 plan.unmark_mission_task(task)
-                expect_execution.garbage_collect(true).join_all_waiting_work(false).to do
+                expect_execution.scheduler(true).garbage_collect(true).join_all_waiting_work(false).to do
                     achieve { task.setup? }
                 end
                 expect_execution.garbage_collect(true).to do
@@ -950,7 +951,7 @@ module Syskit
                     end
 
                 plan.unmark_mission_task(task)
-                expect_execution.join_all_waiting_work(false).garbage_collect(true).to do
+                expect_execution.scheduler(true).join_all_waiting_work(false).garbage_collect(true).to do
                     fail_to_start task
                 end
             end
@@ -1289,7 +1290,7 @@ module Syskit
                         exception = assert_raises(NoMethodError) do
                             task.does_not_exist_property
                         end
-                        assert_equal "undefined method `does_not_exist_property' for #{task.class}", exception.message
+                        assert_match /^undefined method `does_not_exist_property' for/, exception.message
                     end
                     it "does follow-up method resolution if the name does not end with _property" do
                         stub_t = stub_type '/test'
@@ -1386,7 +1387,7 @@ module Syskit
                     end
                     it "does not queue an update on a stopping task" do
                         flexmock(task).should_receive(:commit_properties).never
-                        task.stop!
+                        expect_execution { task.stop! }.to { emit task.stop_event }
                         property.write(0.1)
                         execution_engine.join_all_waiting_work
                     end
@@ -1637,7 +1638,7 @@ module Syskit
                     attr_reader :barrier
 
                     before do
-                        plan.remove_free_event(@guard)
+                        execute { plan.remove_free_event(@guard) }
                         @barrier = Concurrent::CyclicBarrier.new(2)
                         syskit_configure_and_start(task)
                         mock_remote_property.should_receive(:write).
@@ -1675,8 +1676,7 @@ module Syskit
 
                     it "does nothing when executing a pending promise while the task was stopped in the meantime" do
                         original_remote_value = task.property('test').remote_value
-                        task.stop!
-                        execution_engine.join_all_waiting_work
+                        expect_execution { task.stop! }.to { emit task.stop_event }
                         assert_equal original_remote_value, task.test_property.remote_value
                         assert_equal original_remote_value,
                             Orocos.allow_blocking_calls { task.orocos_task.test }
@@ -1740,8 +1740,8 @@ module Syskit
                     barrier.wait(2)
                 end
 
-                def wait_for_synchronization
-                    expect_execution { yield if block_given? }.join_all_waiting_work(false).to do
+                def wait_for_synchronization(scheduler: false)
+                    expect_execution { yield if block_given? }.scheduler(scheduler).join_all_waiting_work(false).to do
                         achieve { barrier.number_waiting == 1 }
                     end
                 end
@@ -1754,7 +1754,7 @@ module Syskit
                     flexmock(task.orocos_task).should_receive(:configure).once.
                         pass_thru { barrier.wait }
                     capture_log(task, :info) do
-                        wait_for_synchronization
+                        wait_for_synchronization(scheduler: true)
                         assert_process_events_does_not_block
                     end
                 end
@@ -1782,7 +1782,7 @@ module Syskit
                     flexmock(task.orocos_task).should_receive(:cleanup).once.
                         pass_thru { barrier.wait }
                     capture_log(task, :info) do
-                        wait_for_synchronization
+                        wait_for_synchronization(scheduler: true)
                         assert_process_events_does_not_block
                     end
                 end
@@ -1791,7 +1791,7 @@ module Syskit
                     flexmock(task.orocos_task).should_receive(:reset_exception).once.
                         pass_thru { barrier.wait }
                     capture_log(task, :info) do
-                        wait_for_synchronization
+                        wait_for_synchronization(scheduler: true)
                         assert_process_events_does_not_block
                     end
                 end

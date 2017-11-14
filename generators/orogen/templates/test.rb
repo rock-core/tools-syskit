@@ -1,8 +1,8 @@
 using_task_library '<%= orogen_project_name %>'
-<% indent, open, close = ::Roby::App::GenBase.in_module("OroGen", orogen_project_module_name) %>
+<% indent, open, close = ::Roby::App::GenBase.in_module("OroGen") %>
 <%= open %>
-<% classes.each do |class_name| %>
-<%= indent %>describe <%= class_name.last %> do
+<% orogen_models.each do |model| %>
+<%= indent %>describe OroGen.<%= model.name.gsub("::", ".") %> do
 <%= indent %>    it { is_configurable }
 <%= indent %>end
 <% end %>

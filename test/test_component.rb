@@ -441,15 +441,15 @@ describe Syskit::Component do
             component.should_configure_after(event = Roby::EventGenerator.new)
             assert !component.ready_for_setup?
             component.should_configure_after(Roby::EventGenerator.new)
-            event.emit
+            execute { event.emit }
             assert !component.ready_for_setup?
         end
         it "returns true if all the parent events in a syskit configuration precedence links are either emitted or unreachable" do
             plan.add(component = Syskit::Component.new)
             component.should_configure_after(event = Roby::EventGenerator.new)
-            event.emit
+            execute { event.emit }
             component.should_configure_after(event = Roby::EventGenerator.new)
-            event.unreachable!
+            execute { event.unreachable! }
             assert component.ready_for_setup?
         end
     end

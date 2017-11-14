@@ -631,7 +631,7 @@ module Syskit
                 if guard
                     expect_execution do
                         plan.remove_free_event(guard)
-                    end.validate_unexpected_errors(false).to_run
+                    end.to_run
                 end
             end
 
@@ -661,7 +661,7 @@ module Syskit
                 if guard
                     expect_execution do
                         plan.remove_free_event(guard)
-                    end.validate_unexpected_errors(false).to_run
+                    end.to_run
                 end
             end
 
@@ -796,7 +796,7 @@ module Syskit
                 if guard
                     expect_execution do
                         plan.remove_free_event(guard)
-                    end.validate_unexpected_errors(false).to_run
+                    end.to_run
                 end
             end
             
@@ -918,7 +918,7 @@ module Syskit
                 if guard
                     expect_execution do
                         plan.remove_free_event(guard)
-                    end.validate_unexpected_errors(false).to_run
+                    end.to_run
                 end
             end
 

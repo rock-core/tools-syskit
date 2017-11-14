@@ -113,7 +113,7 @@ module Syskit
 
                     def compute_system_network(*requirements)
                         requirements = requirements.map(&:to_instance_requirements)
-                        subject.compute_system_network(requirements, validate_generated_network: false)
+                        execute { subject.compute_system_network(requirements, validate_generated_network: false) }
                         cmp = subject.plan.find_tasks(cmp_m).to_a
                         assert_equal 1, cmp.size
                         cmp.first
@@ -135,7 +135,7 @@ module Syskit
                     it "enables the use of the abstract flag in InstanceRequirements to use an optional dep only if it is instanciated by other means" do
                         cmp = compute_system_network(cmp_m.use('test' => task_m.to_instance_requirements.abstract))
                         assert !cmp.has_role?('test')
-                        plan.remove_task(cmp)
+                        execute { plan.remove_task(cmp) }
                         cmp = compute_system_network(cmp_m.use('test' => task_m.to_instance_requirements.abstract), task_m)
                         assert cmp.has_role?('test')
                     end

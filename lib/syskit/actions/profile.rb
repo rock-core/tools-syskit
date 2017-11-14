@@ -348,6 +348,20 @@ module Syskit
                 definitions.has_key?(name)
             end
 
+            # Enumerate the definitions
+            #
+            # @yieldparam [Definition] definition
+            # @return [void]
+            def each_definition
+                return enum_for(__method__) if !block_given?
+
+                definitions.each do |name, definition|
+                    definition = definition.dup
+                    definition.name = name
+                    yield(definition)
+                end
+            end
+
             # Returns the instance requirement object that represents the given
             # definition
             #

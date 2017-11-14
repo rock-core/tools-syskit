@@ -47,7 +47,7 @@ Scripts.run do
                     Syskit.warn "cannot find a model named #{remaining.first}"
                 end
         if model
-            main.select_by_module(model)
+            main.select_by_model(model)
         end
     end
 

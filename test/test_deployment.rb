@@ -199,13 +199,17 @@ module Syskit
                     process_server.should_receive(:start).once.
                         with('mapped_task_name', deployment_m.orogen_model, any, any).
                         and_return(process)
-                    deployment_task.start!
+                    expect_execution { deployment_task.start! }.
+                        join_all_waiting_work(false).
+                        to_run
                 end
                 it "passes the process server's log dir as working directory" do
                     process_server.should_receive(:start).once.
                         with(any, any, any, hsh(working_directory: log_dir)).
                         and_return(process)
-                    deployment_task.start!
+                    expect_execution { deployment_task.start! }.
+                        join_all_waiting_work(false).
+                        to_run
                 end
                 it "passes the model-level run command line options to the process server start command" do
                     cmdline_options = {valgrind: true}
@@ -213,7 +217,9 @@ module Syskit
                     process_server.should_receive(:start).
                         with(any, any, any, hsh(cmdline_args: cmdline_options)).
                         and_return(process)
-                    deployment_task.start!
+                    expect_execution { deployment_task.start! }.
+                        join_all_waiting_work(false).
+                        to_run
                 end
                 it "raises if the on option refers to a non-existing process server" do
                     plan.add(task = deployment_m.new(on: 'does_not_exist'))
@@ -226,8 +232,9 @@ module Syskit
                 end
                 it "does not emit ready" do
                     process_server.should_receive(:start).and_return(process)
-                    deployment_task.start!
-                    assert !deployment_task.ready?
+                    expect_execution { deployment_task.start! }.
+                        join_all_waiting_work(false).
+                        to { not_emit deployment_task.ready_event }
                 end
             end
 
@@ -244,7 +251,8 @@ module Syskit
                 end
 
                 it "does not emit ready if the process is not ready yet" do
-                    deployment_task.start!
+                    expect_execution { deployment_task.start! }.
+                        join_all_waiting_work(false).to_run
                     sync = Concurrent::Event.new
                     process.should_receive(:resolve_all_tasks).
                         and_return { sync.set; nil }
@@ -298,7 +306,8 @@ module Syskit
                             end
                         end
 
-                    deployment_task.start!
+                    expect_execution { deployment_task.start! }.
+                        join_all_waiting_work(false).to_run
                     sync.wait
                     expect_execution { sync.wait }.
                         to { emit deployment_task.ready_event }
@@ -398,12 +407,10 @@ module Syskit
                 it "cleans up all stopped tasks" do
                     orocos_task.should_receive(:rtt_state).and_return(:STOPPED)
                     orocos_task.should_receive(:cleanup).once
-                    deployment_task.stop!
-                    execution_engine.join_all_waiting_work(timeout: 2)
+                    execute { deployment_task.stop! }
                 end
                 it "marks the task as ready to die" do
-                    deployment_task.stop!
-                    execution_engine.join_all_waiting_work
+                    execute { deployment_task.stop! }
                     assert deployment_task.ready_to_die?
                 end
                 it "kills the process" do
@@ -432,7 +439,7 @@ module Syskit
                 attr_reader :orocos_task
                 before do
                     deployment_m.event :terminal_e, terminal: true
-                    plan.clear
+                    execute { plan.clear }
                     process_server.should_receive(:start).and_return(process)
                     @orocos_task = Orocos.allow_blocking_calls do
                         Orocos::RubyTasks::TaskContext.new 'test'

@@ -17,6 +17,7 @@ require 'syskit/base'
 
 require 'syskit/instance_requirements'
 
+require 'syskit/orogen_namespace'
 require 'syskit/roby_app'
 
 # Models

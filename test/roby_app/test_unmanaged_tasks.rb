@@ -11,7 +11,7 @@ module Syskit
                 Syskit.conf.use_unmanaged_task task_model => 'unmanaged_deployment_test'
                 task = syskit_deploy(task_model)
                 @deployment_task = task.execution_agent
-                plan.remove_task(task)
+                execute { plan.remove_task(task) }
             end
 
             after do
@@ -88,8 +88,8 @@ module Syskit
 
             it "allows to kill a deployment that is ready" do
                 make_deployment_ready
-                expect_execution { deployment_task.stop_event }.
-                    to { deployment_task.stop! }
+                expect_execution { deployment_task.stop! }.
+                    to { emit deployment_task.stop_event }
             end
 
             it "aborts the execution agent if the monitor thread fails in unexpected ways" do

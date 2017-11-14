@@ -247,7 +247,7 @@ describe Syskit::InputWriter do
             #
             # #start! runs through the synchronous event processing codepath,
             # and therefore does not call any handler
-            expect_execution.join_all_waiting_work(false).to { task.start! }
+            expect_execution { task.start! }.join_all_waiting_work(false).to_run
             expect_execution { writer.disconnect }.to { achieve { !writer.ready? } }
         end
     end
@@ -327,7 +327,7 @@ describe Syskit::OutputReader do
             #
             # #start! runs through the synchronous event processing codepath,
             # and therefore does not call any handler
-            expect_execution.join_all_waiting_work(false).to { task.start! }
+            expect_execution { task.start! }.join_all_waiting_work(false).to_run
             expect_execution { reader.disconnect }.
                 to { achieve { !reader.ready? } }
         end

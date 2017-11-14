@@ -17,7 +17,7 @@ describe Syskit::InstanceRequirementsTask do
 
     it "triggers a network resolution when started" do
         task = plan.add_permanent_task(cmp_m.as_plan)
-        task.planning_task.start!
+        execute { task.planning_task.start! }
         assert plan.syskit_current_resolution
     end
 

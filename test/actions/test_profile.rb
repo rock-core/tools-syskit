@@ -327,5 +327,14 @@ describe Syskit::Actions::Profile do
             assert test_task_1.can_merge?(test_task_2)
         end
     end
+
+    describe "#each_definition" do
+        it 'enumerates the definitions' do
+            profile = Syskit::Actions::Profile.new("name")
+            profile.define 'test1', Syskit::TaskContext
+            profile.define 'test2', Syskit::TaskContext
+            assert_equal ['test1', 'test2'], profile.each_definition.map(&:name)
+        end
+    end
 end
 

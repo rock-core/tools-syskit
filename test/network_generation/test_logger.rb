@@ -107,14 +107,19 @@ describe Syskit::NetworkGeneration::LoggerConfigurationSupport do
                 add_logging_to_network(syskit_engine, plan)
 
             flexmock(logger).should_receive(:create_logging_port).
-                with('task.out1', task, task.out1_port).once
+                with('task.out1', task, task.out1_port).once.and_return(true)
             flexmock(logger).should_receive(:create_logging_port).
-                with('task.out2', task, task.out2_port).once
+                with('task.out2', task, task.out2_port).once.and_return(true)
             flexmock(logger).should_receive(:create_logging_port).
-                with('task.state', task, task.state_port).once
+                with('task.state', task, task.state_port).once.and_return(true)
             flexmock(Orocos.conf).should_receive(:apply)
             syskit_start_execution_agents(logger)
-            syskit_configure(logger)
+            Orocos.allow_blocking_calls do
+                logger.orocos_task.create_input_port 'task.out1', '/double'
+                logger.orocos_task.create_input_port 'task.out2', '/int32_t'
+                logger.orocos_task.create_input_port 'task.state', '/int32_t'
+                syskit_configure(logger)
+            end
         end
     end
 end

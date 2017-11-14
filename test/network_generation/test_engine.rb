@@ -44,16 +44,18 @@ module Syskit
                 end
 
                 it "returns running InstanceRequirementsTask tasks" do
-                    planning_task.start!
+                    execute { planning_task.start! }
                     assert_equal [planning_task], Engine.discover_requirement_tasks_from_plan(plan)
                 end
                 it "returns InstanceRequirementsTask tasks that successfully finished" do
-                    planning_task.start!
-                    planning_task.success_event.emit
+                    execute do
+                        planning_task.start!
+                        planning_task.success_event.emit
+                    end
                     assert_equal [planning_task], Engine.discover_requirement_tasks_from_plan(plan)
                 end
                 it "ignores InstanceRequirementsTask tasks that failed" do
-                    planning_task.start!
+                    execute { planning_task.start! }
                     
                     expect_execution { planning_task.failed_event.emit }.to do
                         have_error_matching Roby::PlanningFailedError.match.
@@ -174,7 +176,8 @@ module Syskit
                         # Should have of course created a new task
                         refute_equal new_cmp.test_child, cmp.test_child
                         # And the old tasks should be ready to garbage-collect
-                        assert_equal [cmp, original_task].to_set, plan.static_garbage_collect.to_set
+                        assert_equal [cmp, original_task].to_set,
+                            execute { plan.static_garbage_collect.to_set }
                     end
                 end
 
@@ -203,7 +206,8 @@ module Syskit
                         assert_equal new_parent, parent
                         refute_equal new_child, child
                         # And the old tasks should be ready to garbage-collect
-                        assert_equal [child].to_set, plan.static_garbage_collect.to_set
+                        assert_equal [child].to_set,
+                            execute { plan.static_garbage_collect.to_set }
                     end
                 end
             end
@@ -322,7 +326,7 @@ module Syskit
                     flexmock(task0).should_receive(can_finalize?: false)
                     plan.add(task1 = component_m.new)
                     task1.should_configure_after(task0.stop_event)
-                    plan.garbage_task(task0)
+                    execute { plan.garbage_task(task0) }
                     task0 = syskit_engine.work_plan[task0]
                     task1 = syskit_engine.work_plan[task1]
                     assert_equal task1, syskit_engine.find_current_deployed_task([task0, task1])
@@ -368,7 +372,7 @@ module Syskit
                     deployed = syskit_deploy(composition_model)
                     # This deregisters the task from the list of requirements in the
                     # syskit engine
-                    plan.remove_task(deployed.planning_task)
+                    execute { plan.remove_task(deployed.planning_task) }
 
                     new_deployed = syskit_deploy(
                         composition_model.use('child' => task_model.with_conf('non_default')))
@@ -391,7 +395,8 @@ module Syskit
                     assert_equal [deployed_task.stop_event],
                         deployed_reconf.start_event.parent_objects(Roby::EventStructure::SyskitConfigurationPrecedence).to_a
                     plan.useful_tasks
-                    assert_equal([planning_task, deployed_task].to_set, plan.static_garbage_collect.to_set)
+                    assert_equal([planning_task, deployed_task].to_set,
+                                 execute { plan.static_garbage_collect.to_set })
                     assert(['non_default'], deployed_reconf.conf)
                 end
 
@@ -405,7 +410,7 @@ module Syskit
                     cmp, original_cmp = syskit_deploy(composition_model.use('child' => task_model))
                     child = cmp.child_child.to_task
                     child.do_not_reuse
-                    plan.remove_task(cmp.planning_task)
+                    execute { plan.remove_task(cmp.planning_task) }
 
                     new_cmp, original_new = syskit_deploy(composition_model.use('child' => task_model))
                     new_child = new_cmp.child_child
@@ -510,12 +515,12 @@ module Syskit
                     it "synchronizes the startup of communication busses and their supported devices" do
                         dev_driver, bus_driver = deploy_dev_and_bus
 
-                        syskit_configure(bus_driver)
-
                         bus_driver.orocos_task.local_ruby_task.create_output_port 'dev', '/int'
                         flexmock(bus_driver.orocos_task, "bus").should_receive(:start).once.globally.ordered(:bus_startup).pass_thru
                         mock_raw_port(bus_driver, 'dev').should_receive(:connect_to).once.globally.ordered(:bus_startup).pass_thru
                         flexmock(dev_driver.orocos_task, "dev").should_receive(:configure).once.globally.ordered.pass_thru
+
+                        syskit_configure(bus_driver)
                         capture_log(bus_driver, :info) do
                             capture_log(dev_driver, :info) do
                                 expect_execution.scheduler(true).to do
@@ -567,7 +572,7 @@ module Syskit
                         cmp2 = cmp_m.use(task_m.out2_srv).as_plan
                         cmp1.depends_on cmp2
                         cmp2_srv = cmp2.as_service
-                        cmp2.planning_task.start!
+                        execute { cmp2.planning_task.start! }
                         syskit_deploy
                         assert_equal Set[cmp1, cmp2, cmp2_srv.task], plan.find_tasks(cmp_m).to_set
                     end
