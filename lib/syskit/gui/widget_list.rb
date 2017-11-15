@@ -27,7 +27,7 @@ module Syskit
                 end
                 @separators = Hash.new
             end
-            
+
             def add_separator(name, label, permanent: true)
                 add_widget(w = Qt::Label.new(label, self), permanent: permanent)
                 @separators[name] = w
@@ -85,7 +85,15 @@ module Syskit
                 self.size = s
                 event.accept
             end
-            
+
+            # Enumerate the widgets in the list
+            def each_widget
+                return enum_for(__method__) if !block_given?
+                @widgets.each do |item|
+                    yield(item.widget)
+                end
+            end
+
             # Clear widgets for which the given filter returns true
             #
             # It removes all widgets if no filter is given
@@ -112,5 +120,3 @@ module Syskit
         end
     end
 end
-
-

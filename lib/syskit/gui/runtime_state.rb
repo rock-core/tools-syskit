@@ -170,8 +170,12 @@ module Syskit
                 end
                 syskit.on_reachable do
                     @syskit_commands = syskit.client.syskit
+                    @job_status_list.each_widget do |w|
+                        w.show_actions = true
+                    end
                     update_log_server_connection(syskit.client.log_server_port)
                     action_combo.clear
+                    action_combo.enabled = true
                     syskit.actions.sort_by(&:name).each do |action|
                         next if action.advanced?
                         action_combo.add_item(action.name, Qt::Variant.new(action.doc))
@@ -184,7 +188,12 @@ module Syskit
                 end
                 syskit.on_unreachable do
                     @syskit_commands = nil
+                    @job_status_list.each_widget do |w|
+                        w.show_actions = false
+                    end
                     @ui_event_widgets.each_value(&:hide)
+                    action_combo.enabled = false
+                    @batch_manager.cancel
                     if remote_name == 'localhost'
                         global_actions[:start].visible = true
                     end
@@ -421,7 +430,7 @@ module Syskit
                 button.flat = true
                 button
             end
-            
+
             def create_ui_event_orogen_config_changed
                 syskit_orogen_config_changed = create_ui_event_frame
                 layout = Qt::HBoxLayout.new(syskit_orogen_config_changed)
@@ -486,6 +495,7 @@ module Syskit
                 label   = Qt::Label.new("New Job", self)
                 label.set_size_policy(Qt::SizePolicy::Minimum, Qt::SizePolicy::Minimum)
                 @action_combo = Qt::ComboBox.new(self)
+                action_combo.enabled = false
                 action_combo.item_delegate = ActionListDelegate.new(self)
                 new_job_layout.add_widget label
                 new_job_layout.add_widget action_combo, 1
@@ -557,4 +567,3 @@ module Syskit
         end
     end
 end
-
