@@ -26,8 +26,12 @@ module Syskit
                 # Ignore tasks whose process is terminating to reduce the
                 # likelihood of that happening
                 if execution_agent.finishing? || execution_agent.ready_to_die?
-		    next
-		end
+                    next
+                end
+
+                if t.setting_up?
+                    plan.execution_engine.scheduler.report_holdoff "is being configured", t
+                end
 
                 if schedule && t.pending? && !t.setup? && !t.setting_up?
                     next if !t.meets_configurationg_precedence_constraints?
