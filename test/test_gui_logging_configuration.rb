@@ -17,7 +17,8 @@ module Syskit
                 @syskit = flexmock('syskit')
                 @syskit.should_receive(:client).and_return { client }
                 @syskit.should_receive(:reachable?).and_return { !!client }
-                @client.should_receive(:call).with(['syskit'], :logging_conf).and_return(conf)
+                @syskit.should_receive(:async_call).with(['syskit'], :logging_conf, any).and_yield(nil, conf)
+                @syskit.should_receive(:async_call_pending?).and_return(false)
                 @subject = LoggingConfiguration.new(syskit)
             end
 

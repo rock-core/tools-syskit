@@ -11,7 +11,7 @@ module Syskit
         # A widget containing an editable TreeView to allow the user to
         # manage basic Syskit's logging configuration
         class LoggingConfiguration < Qt::Widget
-            attr_reader :model, :treeView, :syskit, :item_name, :item_value
+            attr_reader :model, :treeView, :syskit, :item_name, :item_value, :pending_call
             def initialize(parent = nil, syskit)
                 super(parent)
                 main_layout = Qt::VBoxLayout.new(self)
@@ -30,9 +30,14 @@ module Syskit
                 @syskit = syskit
                 @timer = Qt::Timer.new
                 @timer.connect(SIGNAL('timeout()')) { refresh }
-                @timer.start 10000
+                @timer.start 1500
 
                 refresh
+            end
+
+            # Whether there is a refreshing call pending
+            def refreshing?
+                syskit.async_call_pending?(pending_call)
             end
 
             # Fetches the current logging configuration from syskit's
@@ -40,9 +45,15 @@ module Syskit
             def refresh
                 if syskit.reachable?
                     begin
-                        conf = syskit.client.call ['syskit'], :logging_conf
-                        update_model(conf)
-                        enabled true
+                        return if refreshing?
+                        @pending_call = syskit.async_call ['syskit'], :logging_conf do |error, result|
+                            if error.nil?
+                                enabled true
+                                update_model(result)
+                            else
+                                enabled false
+                            end
+                        end
                     rescue Roby::Interface::ComError
                         enabled false
                     end
