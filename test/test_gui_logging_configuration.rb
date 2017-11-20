@@ -160,8 +160,7 @@ module Syskit
                 item_set_bool(item_from_name('images'), conf.groups['images'].enabled)
                 item_set_bool(item_from_name('messages'), conf.groups['images'].enabled)
 
-                client.should_receive(:call).with(['syskit'], :update_logging_conf, conf).times(1)
-
+                syskit.should_receive(:async_call).with(['syskit'], :update_logging_conf, conf, any).and_yield(nil, nil).times(1)
                 subject.item_value.write                
                 assert_view_matches_conf
                 assert_items_modified(all_items, false)

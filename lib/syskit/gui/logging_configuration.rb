@@ -88,7 +88,9 @@ module Syskit
 
                     @item_name.on_accept_changes do |new_conf|
                         begin
-                            conf = syskit.client.call ['syskit'], :update_logging_conf, new_conf
+                            syskit.async_call ['syskit'], :update_logging_conf, new_conf do |error, result|
+                                enabled false unless error.nil?
+                            end
                         rescue Roby::Interface::ComError
                             enabled false
                         end
