@@ -51,6 +51,10 @@ module Syskit
                     svg = e.message
                 end
 
+                # Fixup a mixup in dot's SVG output. The URIs that contain < and >
+                # are not properly escaped to &lt; and &gt;
+                svg = svg.gsub(/xlink:href="[^"]+"/) { |match| match.gsub("<", "&lt;").gsub(">", "&gt;") }
+
                 begin
                     if match = /svg width=\"(\d+)(\w+)\" height=\"(\d+)(\w+)\"/.match(svg)
                         width, w_unit, height, h_unit = *match.captures
