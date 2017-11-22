@@ -1,6 +1,7 @@
 require 'syskit'
 require 'roby/interface/async'
 require 'roby/interface/async/log'
+require 'syskit/gui/logging_configuration'
 require 'syskit/gui/job_status_display'
 require 'syskit/gui/widget_list'
 require 'syskit/gui/expanded_job_status'
@@ -48,6 +49,8 @@ module Syskit
             attr_reader :name_service
             # A task inspector widget we use to display the task states
             attr_reader :ui_task_inspector
+            # A logging configuration widget we use to manage logging
+            attr_reader :ui_logging_configuration
             # The list of task names of the task currently displayed by the task
             # inspector
             attr_reader :current_orocos_tasks
@@ -180,6 +183,7 @@ module Syskit
                         next if action.advanced?
                         action_combo.add_item(action.name, Qt::Variant.new(action.doc))
                     end
+                    ui_logging_configuration.refresh
                     global_actions[:start].visible = false
                     global_actions[:restart].visible = true
                     global_actions[:quit].visible = true
@@ -197,6 +201,7 @@ module Syskit
                     if remote_name == 'localhost'
                         global_actions[:start].visible = true
                     end
+                    ui_logging_configuration.refresh
                     global_actions[:restart].visible = false
                     global_actions[:quit].visible = false
                     if @current_state != 'RESTARTING'
@@ -411,7 +416,13 @@ module Syskit
                     @known_loggers = nil
                 end
 
-                splitter.add_widget(task_inspector_widget)
+                @ui_logging_configuration = LoggingConfiguration.new(syskit)
+
+                management_tab_widget = Qt::TabWidget.new(self)
+                management_tab_widget.addTab(task_inspector_widget, "Tasks")
+                management_tab_widget.addTab(ui_logging_configuration, "Logging")
+
+                splitter.add_widget(management_tab_widget)
                 job_expanded_status.set_size_policy(Qt::SizePolicy::MinimumExpanding, Qt::SizePolicy::MinimumExpanding)
                 @main_layout.add_widget splitter, 1
                 w = splitter.size.width

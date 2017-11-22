@@ -114,6 +114,47 @@ module Syskit
             end
         end
 
+        describe "the log configuration management" do
+            before { Syskit.conf.logs.create_group 'test' }
+            after { Syskit.conf.logs.remove_group('test') }
+
+            it 'creates a marshallable instance of the configuration' do
+                conf = subject.logging_conf
+                assert_equal conf.port_logs_enabled, Syskit.conf.logs.port_logs_enabled?
+                assert_equal conf.conf_logs_enabled, Syskit.conf.logs.conf_logs_enabled?
+                Syskit.conf.logs.groups.each_pair do |key, group|
+                    assert_equal group.enabled?, conf.groups[key].enabled
+                end
+                Marshal.dump(conf)
+            end
+
+            it 'changes status of conf and port logging and redeploys' do
+                conf = subject.logging_conf
+                previous_port_status = Syskit.conf.logs.port_logs_enabled?
+                previous_conf_status = Syskit.conf.logs.conf_logs_enabled?
+
+                conf.port_logs_enabled = !previous_port_status
+                conf.conf_logs_enabled = !previous_conf_status
+
+                flexmock(subject).should_receive(:redeploy).once.pass_thru do
+                    assert_equal Syskit.conf.logs.port_logs_enabled?, !previous_port_status
+                    assert_equal Syskit.conf.logs.conf_logs_enabled?, !previous_conf_status
+                end
+                subject.update_logging_conf(conf)
+            end
+
+            it 'changes status of an existing log group and redeploys' do
+                conf = subject.logging_conf
+                previous_status = Syskit.conf.logs.group_by_name('test').enabled?
+                conf.groups['test'].enabled = !previous_status
+
+                flexmock(subject).should_receive(:redeploy).once.pass_thru do
+                    assert_equal Syskit.conf.logs.group_by_name('test').enabled?, !previous_status
+                end
+                subject.update_logging_conf(conf)
+            end
+        end
+
         describe "the log group management" do
             attr_reader :group
             before do

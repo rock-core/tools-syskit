@@ -165,6 +165,38 @@ module Syskit
         def disable_logging_of(string)
             disable_log_group(string)
         end
+
+        LoggingGroup = Struct.new(:name, :enabled)
+        LoggingConfiguration = Struct.new(:port_logs_enabled, :conf_logs_enabled, :groups)
+        def logging_conf
+            conf = LoggingConfiguration.new(false, false, Hash.new)
+            conf.port_logs_enabled = Syskit.conf.logs.port_logs_enabled?
+            conf.conf_logs_enabled = Syskit.conf.logs.conf_logs_enabled?
+            Syskit.conf.logs.groups.each_pair do |key, group|
+                conf.groups[key] = LoggingGroup.new(key, group.enabled?)
+            end
+            conf
+        end
+        command :logging_conf, 'gets the current logging configuration'
+
+        def update_logging_conf(conf)
+            conf.port_logs_enabled ? Syskit.conf.logs.enable_port_logging :
+                                     Syskit.conf.logs.disable_port_logging
+
+            conf.conf_logs_enabled ? Syskit.conf.logs.enable_conf_logging :
+                                     Syskit.conf.logs.disable_conf_logging
+
+            conf.groups.each_pair do |name, group|
+                begin
+                    Syskit.conf.logs.group_by_name(name).enabled = group.enabled
+                rescue ArgumentError
+                    Syskit.warn "tried to update a group that does not exist: #{name}"
+                end
+            end
+            redeploy
+        end
+        command :update_logging_conf, 'updates the current logging configuration',
+            conf: "the new logging settings"
     end
 end
 
