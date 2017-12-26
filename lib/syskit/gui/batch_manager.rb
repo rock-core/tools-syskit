@@ -38,7 +38,11 @@ module Syskit
                     arguments.delete(:job_id)
                     batch.start_job(j.action_name, arguments)
                 end
-                batch.__process
+                begin
+                    batch.__process
+                rescue Exception => e
+                    Qt::MessageBox.critical(self, "Syskit Process Batch", "failed to process batch: #{e.message}, see console output for more details")
+                end
                 clear
             end
 
