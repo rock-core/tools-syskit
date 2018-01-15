@@ -18,6 +18,7 @@
     <depend_optional package="ruby-listen" />
 
     <test_depend package="minitest" />
+    <test_depend package="aruba" />
     <test_depend package="flexmock" />
     <test_depend package="tools/logger" />
 </package>
