@@ -207,8 +207,9 @@ module Syskit
                 parent_model = OroGen::Spec::TaskContext.new(app.default_orogen_project, 'parent::Task')
                 parent_m = Syskit::TaskContext.new_submodel(orogen_model: parent_model)
 
-                child_model = OroGen::Spec::TaskContext.new(app.default_orogen_project, 'child::Task')
-                child_model.subclasses parent_model
+                child_model = OroGen::Spec::TaskContext.new(
+                    app.default_orogen_project, 'child::Task',
+                    subclasses: parent_model)
                 child_m = parent_m.new_submodel(orogen_model: child_model)
 
                 unmarshalled = droby_transfer child_m
@@ -223,8 +224,9 @@ module Syskit
                 parent_model.output_port 'out', stub_type('/test')
                 parent_m = Syskit::TaskContext.new_submodel(orogen_model: parent_model)
 
-                child_model = OroGen::Spec::TaskContext.new(app.default_orogen_project, 'child::Task')
-                child_model.subclasses parent_model
+                child_model = OroGen::Spec::TaskContext.new(
+                    app.default_orogen_project, 'child::Task',
+                    subclasses: parent_model)
                 child_model.output_port 'out2', stub_type('/test')
                 child_m = parent_m.new_submodel(orogen_model: child_model)
 

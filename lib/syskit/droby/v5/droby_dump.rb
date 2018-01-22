@@ -259,11 +259,11 @@ module Syskit
                             end
 
                             if !orogen_model
+                                superclass = @orogen_superclass_name ||
+                                    Roby.app.default_orogen_project.default_task_superclass
                                 orogen_model = OroGen::Spec::TaskContext.new(
-                                    Roby.app.default_orogen_project, @orogen_name)
-                                if @orogen_superclass_name
-                                    orogen_model.subclasses @orogen_superclass_name
-                                end
+                                    Roby.app.default_orogen_project, @orogen_name,
+                                    subclasses: superclass)
                                 local_model = Syskit::TaskContext.
                                     define_from_orogen(orogen_model, register: false)
                                 if name
