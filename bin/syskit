@@ -1,16 +1,32 @@
 #! /usr/bin/env ruby
 
 require 'rock/bundle'
+
 # The logs are public by default in bundles, but are private by default in Roby
 # (the Roby-oriented scripts must set it to true when needed)
 #
 # Reset to the Roby default
 Roby.app.public_logs = false
 
+require 'syskit/cli/main'
+
+if ARGV.first
+    command_name = ARGV.first.tr('-', '_')
+    if Syskit::CLI::Main.instance_methods.include?(command_name.to_sym)
+        begin
+            Syskit::CLI::Main.start(ARGV)
+            exit 0
+        rescue Roby::CLI::CLIException => e
+            STDERR.puts Roby.color(e.message, :red)
+            exit 1
+        end
+    end
+end
+
 ORIGINAL_ARGV = ARGV.dup
 mode = ARGV.shift
 
-SYSKIT_MODES = ['browse', 'instanciate', 'doc', 'ide', 'process_server']
+SYSKIT_MODES = ['doc', 'ide', 'process_server']
 ROBY_MODES = ['init', 'run', 'shell', 'test', 'gen', 'quit', 'restart']
 if not mode || mode == "--help" || mode == "-h"
     puts "usage: syskit [#{SYSKIT_MODES.join("|")}|#{ROBY_MODES.join("|")}] <mode-arguments>"

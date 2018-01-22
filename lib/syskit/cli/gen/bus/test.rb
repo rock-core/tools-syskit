@@ -1,0 +1,20 @@
+require '<%= require_path %>'
+<% indent, open, close = ::Roby::CLI::Gen.in_module(*bus_name[0..-2]) %>
+<%= open %>
+<%= indent %>describe <%= bus_name.last %> do
+<%= indent %>    # What one usually wants to test for a Bus would be the
+<%= indent %>    # extensions module for attached devices ... Example:
+<%= indent %>    # it "allows to specify a device bus ID on the attached devices" do
+<%= indent %>    #     dev = syskit_stub_attached_device(<%= bus_name.last %>)
+<%= indent %>    #     dev.bus_id(0x01, 0x11)
+<%= indent %>    #     assert_equal [0x01, 0x11], dev.bus_id
+<%= indent %>    # end
+
+<%= indent %>    # ... or the one for the device itself. Example:
+<%= indent %>    # it "allows to specify the bus baudrate" do
+<%= indent %>    #     dev = syskit_stub_device(<%= bus_name.last %>)
+<%= indent %>    #     dev.baudrate(1_000_000) # 1Mbit
+<%= indent %>    #     assert_equal 1_000_000, dev.baudrate
+<%= indent %>    # end
+<%= indent %>end
+<%= close %>
