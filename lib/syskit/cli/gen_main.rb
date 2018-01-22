@@ -26,8 +26,8 @@ Example: running the following command in a rock_auv app
             option :robot, aliases: 'r', desc: 'the robot name for robot-specific scaffolding',
                 type: :string, default: nil
             def bus(name)
-                Roby.app.setup_for_minimal_tooling
-                Roby.app.needs_to_be_in_current_app
+                Roby.app.require_app_dir(needs_current: true)
+                Roby.app.load_base_config
 
                 file_name, class_name = Roby::CLI::Gen.resolve_name(
                     'bus', name, options[:robot], ['models', 'devices'], ["Devices"])
@@ -59,8 +59,8 @@ Example: running the following command in a rock_auv app
             option :robot, aliases: 'r', desc: 'the robot name for robot-specific scaffolding',
                 type: :string, default: nil
             def dev(name)
-                Roby.app.setup_for_minimal_tooling
-                Roby.app.needs_to_be_in_current_app
+                Roby.app.require_app_dir(needs_current: true)
+                Roby.app.load_base_config
 
                 file_name, class_name = Roby::CLI::Gen.resolve_name(
                     'device', name, options[:robot], ['models', 'devices'], ["Devices"])
@@ -93,8 +93,8 @@ Example: running the following command in a rock_auv app
             option :robot, aliases: 'r', desc: 'the robot name for robot-specific scaffolding',
                 type: :string, default: nil
             def cmp(name)
-                Roby.app.setup_for_minimal_tooling
-                Roby.app.needs_to_be_in_current_app
+                Roby.app.require_app_dir(needs_current: true)
+                Roby.app.load_base_config
 
                 file_name, class_name = Roby::CLI::Gen.resolve_name(
                     'composition', name, options[:robot], ['models', 'compositions'], ["Compositions"])
@@ -127,8 +127,8 @@ Example: running the following command in a rock_auv app
             option :robot, aliases: 'r', desc: 'the robot name for robot-specific scaffolding',
                 type: :string, default: nil
             def ruby_task(name)
-                Roby.app.setup_for_minimal_tooling
-                Roby.app.needs_to_be_in_current_app
+                Roby.app.require_app_dir(needs_current: true)
+                Roby.app.load_base_config
 
                 file_name, class_name = Roby::CLI::Gen.resolve_name(
                     'ruby task', name, options[:robot], ['models', 'compositions'], ["Compositions"])
@@ -160,8 +160,8 @@ Example: running the following command in a rock_auv app
             option :robot, aliases: 'r', desc: 'the robot name for robot-specific scaffolding',
                 type: :string, default: nil
             def srv(name)
-                Roby.app.setup_for_minimal_tooling
-                Roby.app.needs_to_be_in_current_app
+                Roby.app.require_app_dir(needs_current: true)
+                Roby.app.load_base_config
 
                 file_name, class_name = Roby::CLI::Gen.resolve_name(
                     'service', name, options[:robot], ['models', 'services'], ["Services"])
@@ -189,8 +189,8 @@ Example: running the following command in a rock_auv app
             option :robot, aliases: 'r', desc: 'the robot name for robot-specific scaffolding',
                 type: :string, default: nil
             def profile(name)
-                Roby.app.setup_for_minimal_tooling
-                Roby.app.needs_to_be_in_current_app
+                Roby.app.require_app_dir(needs_current: true)
+                Roby.app.load_base_config
 
                 file_name, class_name = Roby::CLI::Gen.resolve_name(
                     'profile', name, options[:robot], ['models', 'profiles'], ["Profiles"])
@@ -219,8 +219,8 @@ Example: running the following command in a rock_auv app
   test/orogen/test_auv_control.rb.
             EOD
             def orogen(project_name)
-                Roby.app.setup_for_minimal_tooling
-                Roby.app.needs_to_be_in_current_app
+                Roby.app.require_app_dir(needs_current: true)
+                Roby.app.base_setup
 
                 project = Roby.app.using_task_library(project_name)
                 orogen_models = project.self_tasks.values
@@ -234,6 +234,8 @@ Example: running the following command in a rock_auv app
                     context: Roby::CLI::Gen.make_context(
                         'orogen_project_name' => project_name,
                         'orogen_models' => orogen_models)
+            ensure
+                Roby.app.base_cleanup
             end
 
             no_commands do
@@ -268,8 +270,8 @@ Example: running the following command in a rock_auv app
             option :robot, aliases: 'r', desc: 'the robot name for robot-specific scaffolding',
                 type: :string, default: nil
             def orogenconf(model_name)
-                Roby.app.setup_for_minimal_tooling
-                Roby.app.needs_to_be_in_current_app
+                Roby.app.require_app_dir(needs_current: true)
+                Roby.app.load_base_config
 
                 orogen_model_name = model_name
                 Roby.app.using_task_library(model_name.split('::').first)
