@@ -330,7 +330,7 @@ module Syskit
             # @option options [String] :on (localhost) the name of the process
             #   server on which this deployment should be started
             #
-            # @return [Array<Deployment>]
+            # @return [Array<Models::ConfiguredDeployment>]
             def use_deployment(*names, on: 'localhost', **run_options)
                 deployment_spec = Hash.new
                 if names.last.kind_of?(Hash)
@@ -387,12 +387,31 @@ module Syskit
                 deployments[configured_deployment.process_server_name] << configured_deployment
             end
 
+            # Deregister deployments
+            #
+            # @param [ConfiguredDeployment] the deployment to remove, as
+            #   returned by e.g. {#use_deployment}
+            # @return [void]
+            def deregister_configured_deployment(configured_deployment)
+                configured_deployment.each_orogen_deployed_task_context_model do |task|
+                    if deployed_tasks[task.name] == configured_deployment
+                        deployed_tasks.delete(task.name)
+                    end
+                end
+                deployments[configured_deployment.process_server_name].
+                    delete(configured_deployment)
+            end
+
             # Enumerate the registered configured deployments
             #
-            # @param [String,nil] on name of the process server whose
-            #   deployments should be enumerated, or all servers if nil
+            # @param [String,nil] on name or regexp matching the name of the
+            #   process servers whose deployments should be enumerated, or all
+            #   servers if nil
+            # @param [String,nil] except_on name or regexp matching the name of the
+            #   process servers whose deployments should NOT be enumerated
+            # @yieldparam [Models::ConfiguredDeployment]
             def each_configured_deployment(on: nil, except_on: nil, &block)
-                return enum_for(__method__, on: on) if !block
+                return enum_for(__method__, on: on, except_on: except_on) if !block
 
                 deployments.each do |process_server_name, process_server_deployments|
                     next if except_on && (except_on === process_server_name)
@@ -659,21 +678,6 @@ module Syskit
                     deregister_configured_deployment(d)
                 end
                 registered_deployments
-            end
-
-            # Deregister deployments
-            #
-            # @param [ConfiguredDeployment] the deployment to remove, as
-            #   returned by e.g. {#use_deployment}
-            # @return [void]
-            def deregister_configured_deployment(configured_deployment)
-                configured_deployment.each_orogen_deployed_task_context_model do |task|
-                    if deployed_tasks[task.name] == configured_deployment
-                        deployed_tasks.delete(task.name)
-                    end
-                end
-                deployments[configured_deployment.process_server_name].
-                    delete(configured_deployment)
             end
 
             # Deregisters a process server

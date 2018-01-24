@@ -190,6 +190,10 @@ module Syskit
                 @default_loader
             end
 
+            def default_pkgconfig_loader
+                Orocos.default_pkgconfig_loader
+            end
+
             def orogen_pack_loader
                 @orogen_pack_loader ||= OroGen::Loaders::Files.new(default_loader)
             end
@@ -808,6 +812,11 @@ module Syskit
                         validate_port_has_fixed_size(p, with_global_size, only_warn: only_warn, ignore: ignore)
                     end
                 end
+            end
+
+            def self.setup_rest_interface(app, rest_api)
+                require 'syskit/roby_app/rest_api'
+                rest_api.mount REST_API => '/syskit'
             end
         end
     end

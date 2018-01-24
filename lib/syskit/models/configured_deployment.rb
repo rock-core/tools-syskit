@@ -46,6 +46,7 @@ module Syskit
             #
             # @yieldparam [OroGen::Spec::TaskDeployment]
             def each_orogen_deployed_task_context_model
+                return enum_for(__method__) if !block_given?
                 model.each_orogen_deployed_task_context_model do |deployed_task|
                     task = deployed_task.dup
                     task.name = name_mappings[task.name] || task.name

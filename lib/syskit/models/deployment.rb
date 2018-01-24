@@ -74,10 +74,9 @@ module Syskit
             #   constant's name is the camelized orogen model name.
             #
             # @return [Models::Deployment] the deployment model
-            def define_from_orogen(orogen_model, options = Hash.new)
-                options = Kernel.validate_options options, :register => false
-                model = new_submodel(:orogen_model => orogen_model)
-                if options[:register] && orogen_model.name
+            def define_from_orogen(orogen_model, register: false)
+                model = new_submodel(orogen_model: orogen_model)
+                if register && orogen_model.name
                     Deployments.const_set(orogen_model.name.camelcase(:upper), model)
                 end
                 model
