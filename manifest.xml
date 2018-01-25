@@ -21,5 +21,6 @@
     <test_depend package="aruba" />
     <test_depend package="flexmock" />
     <test_depend package="tools/logger" />
+    <test_depend package="rack-test" />
 </package>
 
