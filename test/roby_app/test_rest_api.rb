@@ -324,6 +324,63 @@ module Syskit
                         assert_equal 403, result.status
                     end
                 end
+
+                describe "GET /deployments/:id/command_line" do
+                    before do
+                        flexmock(@roby_app).should_receive(:log_dir).and_return("/some/log/dir")
+                    end
+                    it "returns the command line as a hash" do
+                        command_line = Orocos::Process::CommandLine.new(
+                            Hash['ENV' => 'VAR'],
+                            "/path/to/command",
+                            ["--some", "args"],
+                            "/working/directory"
+                        )
+                        flexmock(RESTDeploymentManager).new_instances.
+                            should_receive(:command_line).with(123, Hash).
+                            and_return(command_line)
+                        result = get_json "/deployments/123/command_line"
+                        expected = Hash[
+                            'env' => command_line.env,
+                            'command' => command_line.command,
+                            'args' => command_line.args,
+                            'working_directory' => command_line.working_directory
+                        ]
+                        assert_equal expected, result
+                    end
+
+                    it "passes sane default configuration" do
+                        flexmock(RESTDeploymentManager).new_instances.
+                            should_receive(:command_line).
+                            with(123, tracing: false, name_service_ip: 'localhost', log_dir: @roby_app.log_dir).
+                            and_return(Orocos::Process::CommandLine.new)
+                        get_json "/deployments/123/command_line"
+                    end
+
+                    it "allows to override the defaults" do
+                        flexmock(RESTDeploymentManager).new_instances.
+                            should_receive(:command_line).
+                            with(123, tracing: true, name_service_ip: 'some_ip', log_dir: '/custom/directory').
+                            and_return(Orocos::Process::CommandLine.new)
+                        get_json "/deployments/123/command_line?tracing=true&name_service_ip=some_ip&log_dir=/custom/directory"
+                    end
+
+                    it "returns 404 if the deployment does not exist" do
+                        flexmock(RESTDeploymentManager).new_instances.
+                            should_receive(:command_line).
+                            and_raise(RESTDeploymentManager::NotFound)
+                        result = get "/deployments/123/command_line"
+                        assert_equal 404, result.status
+                    end
+
+                    it "returns 403 if the deployment is not suitable for command line generation" do
+                        flexmock(RESTDeploymentManager).new_instances.
+                            should_receive(:command_line).
+                            and_raise(RESTDeploymentManager::Forbidden)
+                        result = get "/deployments/123/command_line"
+                        assert_equal 403, result.status
+                    end
+                end
             end
         end
     end

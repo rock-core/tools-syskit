@@ -22,6 +22,24 @@ module Syskit
                     process_server_name, model, name_mappings, process_name, spawn_options
             end
 
+            # @api private
+            #
+            # Filters out options that are part of the spawn options but not of
+            # the command-line generation options
+            def filter_command_line_options(oro_logfile: nil, wait: nil, output: nil,
+                **command_line_options)
+                return command_line_options
+            end
+             
+
+            # Returns the command line information needed to start this
+            # deployment on the same machine than Syskit
+            def command_line(loader: Roby.app.default_pkgconfig_loader, **options)
+                model.command_line(process_name, name_mappings,
+                    loader: loader,
+                    **filter_command_line_options(options))
+            end
+
             # The oroGen model object that represents this configured deployment
             #
             # It differs from model.orogen_model in that the {#name_mappings}

@@ -150,6 +150,39 @@ module Syskit
                 @overrides.delete(overriden_deployment)
                 true
             end
+
+            # Whether the given deployment is an oroGen deployment
+            def orogen_deployment?(deployment)
+                manager = @conf.process_server_config_for(deployment.process_server_name)
+                manager.client.kind_of?(Orocos::RemoteProcesses::Client)
+            end
+
+            # Returns the command line needed to start the given deployment with the given spawn options
+            #
+            # The returned command line assumes that the Syskit process runs on
+            # the machine where it will be executed
+            def command_line(id, tracing: false,
+                    name_service_ip: 'localhost',
+                    log_dir: Roby.app.log_dir,
+                    loader: @conf.app.default_pkgconfig_loader)
+
+                deployment = find_registered_deployment_by_id(id)
+                if !deployment
+                    overriden_deployment = @overrides.keys.find { |c| c.object_id == id }
+                    if overriden_deployment
+                        raise Forbidden, "#{id} is currently overriden"
+                    else
+                        raise NotFound, "#{id} is not a known deployment"
+                    end
+                elsif !orogen_deployment?(deployment)
+                    raise Forbidden, "#{id} is not an oroGen deployment, cannot generate a command line"
+                end
+
+                deployment.command_line(tracing: tracing,
+                    name_service_ip: name_service_ip,
+                    log_dir: log_dir,
+                    loader: loader)
+            end
         end
     end
 end

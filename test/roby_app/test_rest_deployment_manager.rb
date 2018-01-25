@@ -6,17 +6,18 @@ module Syskit
             stub_process_manager = Class.new
 
             before do
-                app = Roby::Application.new
-                @conf = Configuration.new(app)
-                @localhost = stub_process_manager.new
+                @roby_app = Roby::Application.new
+                @conf = Configuration.new(@roby_app)
+                @localhost = flexmock(:on, Orocos::RemoteProcesses::Client)
                 @conf.register_process_server("localhost", @localhost)
-                @unmanaged_tasks = stub_process_manager.new
+                @unmanaged_tasks = flexmock
                 @conf.register_process_server("unmanaged_tasks", @unmanaged_tasks)
 
                 @orogen_task_m = OroGen::Spec::TaskContext.new(
-                    Roby.app.default_orogen_project, 'test::Task')
+                    @roby_app.default_orogen_project, 'test::Task')
                 @task_m = Syskit::TaskContext.new_submodel(orogen_model: @orogen_task_m)
-                @orogen_deployment_m = OroGen::Spec::Deployment.new(nil, 'test_deployment')
+                @orogen_deployment_m = OroGen::Spec::Deployment.new(
+                    @roby_app.default_orogen_project, 'test_deployment')
                 @orogen_deployment_m.task 'test_task', @orogen_task_m
                 @deployment_m = Syskit::Deployment.define_from_orogen(@orogen_deployment_m)
 
@@ -216,6 +217,39 @@ module Syskit
                     @manager.clear
                     assert_equal [original.object_id], @conf.each_configured_deployment.
                         map(&:object_id)
+                end
+            end
+
+            describe "#command_line" do
+                it "returns a command line valid for the given deployment" do
+                    deployment = stub_registered_deployment
+                    flexmock(@roby_app.default_pkgconfig_loader).
+                        should_receive(:find_deployment_binfile).
+                        with(deployment.model.orogen_model.name).
+                        and_return('/path/to/deployment')
+                    command_line = @manager.command_line(deployment.object_id)
+                    assert_equal '/path/to/deployment', command_line.command
+                end
+
+                it "raises NotFound if the deployment does not exist" do
+                    assert_raises(RESTDeploymentManager::NotFound) do
+                        @manager.command_line(42)
+                    end
+                end
+
+                it "raises Forbidden if the deployment exists but has been overriden" do
+                    deployment = stub_registered_deployment.object_id
+                    @manager.make_unmanaged(deployment)
+                    assert_raises(RESTDeploymentManager::Forbidden) do
+                        @manager.command_line(deployment)
+                    end
+                end
+
+                it "raises Forbidden if the deployment is not an orogen deployment" do
+                    deployment = stub_registered_deployment(on: 'unmanaged_tasks')
+                    assert_raises(RESTDeploymentManager::Forbidden) do
+                        @manager.command_line(deployment.object_id)
+                    end
                 end
             end
         end

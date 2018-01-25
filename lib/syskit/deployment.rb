@@ -180,6 +180,40 @@ module Syskit
                 start_event.emit
             end
 
+            # Create the spawn options needed to start this deployment for the
+            # given configuration
+            #
+            # @return [Orocos::Process::CommandLine]
+            def self.command_line(name, name_mappings,
+                    log_dir: Roby.app.log_dir,
+                    log_level: nil,
+                    cmdline_args: Hash.new,
+                    tracing: false,
+                    gdb: nil,
+                    valgrind: nil,
+                    name_service_ip: 'localhost',
+                    loader: Roby.app.default_pkgconfig_loader)
+
+                cmdline_args = cmdline_args.dup
+                each_default_run_option do |name, value|
+                    if !cmdline_args.has_key?(name)
+                        cmdline_args[name] = value
+                    end
+                end
+
+                process = Orocos::Process.new(name, orogen_model,
+                    loader: loader,
+                    name_mappings: name_mappings)
+                process.command_line(
+                    working_directory: log_dir,
+                    log_level: log_level,
+                    cmdline_args: cmdline_args,
+                    tracing: tracing,
+                    gdb: gdb,
+                    valgrind: valgrind,
+                    name_service_ip: name_service_ip)
+            end
+
             def log_dir
                 process_server_config.log_dir
             end
