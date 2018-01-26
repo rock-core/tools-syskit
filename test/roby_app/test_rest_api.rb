@@ -234,9 +234,17 @@ module Syskit
                         assert_equal Hash['registered_deployment' => 123], result
                     end
 
+                    it "returns 403 if a task model is given without an explicit 'as'" do
+                        flexmock(RESTDeploymentManager).new_instances.
+                            should_receive(:use_deployment).with('test_deployment').
+                            once.and_raise(Syskit::TaskNameRequired)
+                        result = post "/deployments?name=test_deployment"
+                        assert_equal 403, result.status
+                    end
+
                     it "returns 404 if the required deployment does not exist" do
                         flexmock(RESTDeploymentManager).new_instances.
-                            should_receive(:use_deployment).and_raise(Orocos::NotFound)
+                            should_receive(:use_deployment).and_raise(OroGen::NotFound)
                         result = post "/deployments?name=does_not_exist"
                         assert_equal 404, result.status
                     end

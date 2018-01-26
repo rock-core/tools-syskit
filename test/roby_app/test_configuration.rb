@@ -46,6 +46,19 @@ describe Syskit::RobyApp::Configuration do
             conf.use_deployment deployment1_m, on: 'test'
             assert_equal 1, conf.deployments['test'].size
         end
+        it "raises OroGen::NotFound if the deployment does not exist" do
+            e = assert_raises(OroGen::NotFound) do
+                conf.use_deployment "does_not_exist", on: 'test'
+            end
+            assert_equal "does_not_exist is neither a task model nor a deployment name", e.message
+        end
+        it "raises TaskNameRequired if passing a task model without giving an explicit name" do
+            e = assert_raises(Syskit::TaskNameRequired) do
+                conf.use_deployment @task_m, on: 'test'
+            end
+            assert_equal "you must provide a task name when starting a component by type, as e.g. use_deployment OroGen.xsens_imu.Task => 'imu'",
+                e.message
+        end
     end
 end
 

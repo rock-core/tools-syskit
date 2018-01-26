@@ -126,8 +126,10 @@ module Syskit
                         id = deployment_manager.use_deployment(params[:name])
                         return Hash['registered_deployment' => id]
                     end
-                rescue Orocos::NotFound => e
+                rescue OroGen::NotFound => e
                     error! "deployment name #{params[:name]} does not exist: #{e.message}", 404
+                rescue TaskNameRequired => e
+                    error! e.message, 403
                 rescue TaskNameAlreadyInUse => e
                     error! "registering the deployment #{params[:name]} => #{params[:as]} would lead to a naming conflict", 409
                 end

@@ -372,6 +372,8 @@ module Syskit
                     register_configured_deployment(configured_deployment)
                     configured_deployment
                 end
+            rescue Orocos::Process::TaskNameRequired => e
+                raise TaskNameRequired, "you must provide a task name when starting a component by type, as e.g. use_deployment OroGen.xsens_imu.Task => 'imu'", e.backtrace
             end
 
             def register_configured_deployment(configured_deployment)
