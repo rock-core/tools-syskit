@@ -75,10 +75,31 @@ module Syskit
             end
 
             get '/deployments/available' do
-                info = roby_app.default_pkgconfig_loader.
-                    each_available_deployed_task.
-                    map { |info| make_basic_deployed_task_info_hash(info) }
-                { deployed_tasks: info }
+                by_deployment = Hash.new
+                roby_app.default_pkgconfig_loader.each_available_deployed_task do |info|
+                    key = [info.deployment_name, info.project_name]
+                    deployment_info = (by_deployment[key] ||= Hash.new)
+                    deployment_info[info.task_name] = info.task_model_name
+                end
+                info = by_deployment.map do |(deployment_name, project_name), tasks|
+                    default_deployment_for =
+                        if /^orogen_default_/.match?(deployment_name)
+                            tasks[deployment_name]
+                        end
+                    default_logger =
+                        if tasks[default_logger_name = "#{deployment_name}_Logger"] == 'logger::Logger'
+                            default_logger_name
+                        end
+
+                    Hash[
+                        name: deployment_name,
+                        project_name: project_name,
+                        tasks: tasks.map { |task_name, task_model_name| Hash['task_name' => task_name, 'task_model_name' => task_model_name] },
+                        default_deployment_for: default_deployment_for,
+                        default_logger: default_logger
+                    ]
+                end
+                { deployments: info }
             end
 
             get '/deployments/registered' do

@@ -36,51 +36,58 @@ module Syskit
             describe "/deployments" do
                 describe "/available" do
                     before do
-                        @available_deployments = []
                         flexmock(@roby_app.default_pkgconfig_loader).
                             should_receive(:each_available_deployed_task).
-                            and_return { @available_deployments }
+                            by_default
+                    end
+                    def setup_deployed_task(deployed_task)
+                        flexmock(@roby_app.default_pkgconfig_loader).
+                            should_receive(:each_available_deployed_task).
+                            and_iterates([deployed_task])
                     end
 
                     it "returns an empty list if there are no deployments" do
                         result = get_json '/deployments/available'
-                        assert_equal Hash['deployed_tasks' => []], result
+                        assert_equal Hash['deployments' => []], result
                     end
                     it "returns the list of available deployments" do
-                        @available_deployments << OroGen::Loaders::PkgConfig::AvailableDeployedTask.new(
-                            'test_task', 'test_deployment', 'test::Task', 'test')
+                        setup_deployed_task(OroGen::Loaders::PkgConfig::AvailableDeployedTask.new(
+                            'test_task', 'test_deployment', 'test::Task', 'test'))
                         result = get_json '/deployments/available'
-                        task_info = Hash[
-                            "task_name" => 'test_task',
-                            "deployment_name" => 'test_deployment',
-                            "task_model_name" => 'test::Task',
-                            "project_name" => 'test'
+                        expected = Hash[
+                            'name' => 'test_deployment',
+                            'project_name' => 'test',
+                            'tasks' => Array[
+                                Hash['task_name' => 'test_task', 'task_model_name' => 'test::Task']
+                            ],
+                            'default_deployment_for' => nil,
+                            'default_logger' => nil
                         ]
-                        assert_equal [task_info], result['deployed_tasks']
+                        assert_equal [expected], result['deployments']
                     end
-                    it "identifies default tasks and reports them" do
-                        @available_deployments << OroGen::Loaders::PkgConfig::AvailableDeployedTask.new(
-                            'orogen_default_test__Task', 'orogen_default_test__Task', 'test::Task', 'test')
+                    it "identifies default deployments and reports them" do
+                        setup_deployed_task(OroGen::Loaders::PkgConfig::AvailableDeployedTask.new(
+                            'orogen_default_test__Task', 'orogen_default_test__Task', 'test::Task', 'test'))
                         result = get_json '/deployments/available'
-                        assert result['deployed_tasks'][0]['default_deployment']
+                        assert_equal 'test::Task', result['deployments'][0]['default_deployment_for']
                     end
                     it "identifies default loggers and reports them" do
-                        @available_deployments << OroGen::Loaders::PkgConfig::AvailableDeployedTask.new(
-                            'test_deployment_Logger', 'test_deployment', 'logger::Logger', 'test')
+                        setup_deployed_task(OroGen::Loaders::PkgConfig::AvailableDeployedTask.new(
+                            'test_deployment_Logger', 'test_deployment', 'logger::Logger', 'test'))
                         result = get_json '/deployments/available'
-                        assert result['deployed_tasks'][0]['default_logger']
+                        assert_equal 'test_deployment_Logger', result['deployments'][0]['default_logger']
                     end
                     it "uses the model name to identify default loggers" do
-                        @available_deployments << OroGen::Loaders::PkgConfig::AvailableDeployedTask.new(
-                            'test_deployment_Logger', 'test_deployment', 'something::Else', 'test')
+                        setup_deployed_task(OroGen::Loaders::PkgConfig::AvailableDeployedTask.new(
+                            'test_deployment_Logger', 'test_deployment', 'something::Else', 'test'))
                         result = get_json '/deployments/available'
-                        refute result['deployed_tasks'][0]['default_logger']
+                        assert_nil result['deployments'][0]['default_logger']
                     end
                     it "uses the task name pattern to identify default loggers" do
-                        @available_deployments << OroGen::Loaders::PkgConfig::AvailableDeployedTask.new(
-                            'custom_logger', 'test_deployment', 'logger::Logger', 'test')
+                        setup_deployed_task(OroGen::Loaders::PkgConfig::AvailableDeployedTask.new(
+                            'custom_logger', 'test_deployment', 'logger::Logger', 'test'))
                         result = get_json '/deployments/available'
-                        refute result['deployed_tasks'][0]['default_logger']
+                        assert_nil result['deployments'][0]['default_logger']
                     end
                 end
 
