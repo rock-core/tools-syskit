@@ -114,8 +114,8 @@ module Syskit
             end
 
             params do
-                requires :name, type: String, regexp: /^\w+$/
-                optional :as, type: String, regexp: /^\w+$/
+                requires :name, type: String
+                optional :as, type: String
             end
             post '/deployments' do
                 begin
