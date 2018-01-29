@@ -1,4 +1,6 @@
+require 'syskit/gui/model_browser'
 require 'syskit/gui/page'
+require 'syskit/gui/html_page'
 require 'syskit/gui/component_network_view'
 require 'metaruby/gui/exception_view'
 
@@ -32,7 +34,7 @@ module Syskit
 
                 # Add the main view
                 @display = Qt::WebView.new
-                @page = MetaRuby::GUI::HTML::Page.new(@display.page)
+                @page = HTMLPage.new(@display.page)
                 main_layout.add_widget(@display)
                 @rendering = Syskit::GUI::ComponentNetworkView.new(@page)
                 rendering.enable

@@ -1,8 +1,8 @@
-require 'metaruby/gui/model_browser'
+require 'metaruby/gui/html/page'
 require 'syskit/gui/page_extension'
 module Syskit
     module GUI
-        class Page < MetaRuby::GUI::ModelBrowser::Page
+        class HTMLPage < MetaRuby::GUI::HTML::Page
             include PageExtension
         end
     end
