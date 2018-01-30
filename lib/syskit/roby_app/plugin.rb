@@ -47,16 +47,6 @@ module Syskit
                 end
             end
 
-            def self.base_setup(app)
-                setup_loaders(app)
-            end
-
-            # Hook called by the main application to undo what
-            # {.require_models} and {.setup} have done
-            def self.base_cleanup(app)
-                cleanup_loaders(app)
-            end
-
             # Hook called by the main application at the beginning of Application#setup
             def self.setup(app)
                 # We have our own loader, avoid clashing
@@ -134,9 +124,7 @@ module Syskit
             # Hook called by the main application in Application#setup after
             # the main setup hooks have been called
             def self.require_models(app)
-                app.isolate_load_errors("while reloading deployment definitions") do
-                    Syskit.conf.reload_deployments
-                end
+                setup_loaders(app)
 
                 if !app.additional_model_files.empty?
                     toplevel_object.extend SingleFileDSL
@@ -321,11 +309,6 @@ module Syskit
                     concat(Roby.app.find_dirs('models', 'ROBOT', 'orogen', 'ros', :all => app.auto_load_all?, :order => :specific_first))
                 app.ros_loader.packs.
                     concat(Roby.app.find_dirs('models', 'ROBOT', 'pack', 'ros', :all => true, :order => :specific_last))
-            end
-
-            def self.cleanup_loaders(app)
-                app.orogen_pack_loader.clear
-                app.ros_loader.clear
             end
 
             def syskit_listen_to_configuration_changes
@@ -728,11 +711,15 @@ module Syskit
                 # This needs to be cleared here and not in
                 # Component.clear_model. The main reason is that we need to
                 # clear them on every component model class,
-                # including the models that are markes as permanent
+                # including the models that are marked as permanent
                 Syskit::Component.proxy_task_models.clear
                 Syskit::Component.each_submodel do |sub|
                     sub.proxy_task_models.clear
                 end
+
+                # require_models is where the deployments get loaded, so
+                # un-define them here
+                Syskit.conf.clear_deployments
             end
 
             module LoadToplevelMethods

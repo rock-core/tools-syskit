@@ -638,32 +638,13 @@ module Syskit
 
                 ps = ProcessServerConfig.new(name, client, log_dir, host_id)
                 process_servers[name] = ps
-                reload_deployments_for(name)
                 ps
             end
 
-            # Reloads all deployment models
-            def reload_deployments
-                names = deployments.keys
-                names.each do |process_server_name|
-                    reload_deployments_for(process_server_name)
-                end
-            end
-
-            # Reloads the deployments that have been declared for the given
-            # process server
-            def reload_deployments_for(process_server_name)
-                pending_deployments = clear_deployments_for(process_server_name)
-                pending_deployments.each do |d|
-                    next if !d.model.orogen_model.project.name
-
-                    app.using_task_library(d.model.orogen_model.project.name)
-                    model = app.using_deployment(d.model.orogen_model.name)
-                    d = Models::ConfiguredDeployment.new(
-                        process_server_name, model,
-                        d.name_mappings, d.process_name, d.spawn_options)
-                    register_configured_deployment(d)
-                end
+            # Remove all registered deployments
+            def clear_deployments
+                deployments.clear
+                deployed_tasks.clear
             end
 
             # Deregisters deployments that are coming from a given process
