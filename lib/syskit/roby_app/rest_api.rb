@@ -3,6 +3,10 @@ require 'syskit/roby_app/rest_deployment_manager'
 
 module Syskit
     module RobyApp
+        # Extension to Roby's REST API
+        # 
+        # It is mounted on the /syskit namespace by default, i.e. access it with
+        # /api/syskit/...
         class REST_API < Grape::API
             format :json
             
@@ -74,6 +78,34 @@ module Syskit
                 end
             end
 
+            # List the orogen deployments that are available on this app
+            #
+            # GET /deployments/available
+            #
+            # It returns status 200 and the list of available deployments:
+            #
+            #        {
+            #           deployments: [
+            #               {
+            #                   # The deployment's name
+            #                   name: String,
+            #                   # The deployment's defining oroGen project
+            #                   project_name: String,
+            #                   # The deployment's tasks
+            #                   tasks: [
+            #                       {
+            #                           task_name: String,
+            #                           task_model_name: String
+            #                       }, ...
+            #                   ],
+            #                   # If this is a default deployment, the task model that is being deployed
+            #                   default_deployment_for: String | nil,
+            #                   # If this deployment has a default logger, its task name
+            #                   default_logger: String | nil
+            #               }, ...
+            #           ]
+            #       }
+            #
             get '/deployments/available' do
                 by_deployment = Hash.new
                 roby_app.default_pkgconfig_loader.each_available_deployed_task do |info|
@@ -102,6 +134,42 @@ module Syskit
                 { deployments: info }
             end
 
+            # List the orogen deployments that are available on this app
+            #
+            # GET /deployments/registered
+            #
+            # It returns status 200 and the list of registered deployments:
+            #
+            #        {
+            #           registered_deployments: [
+            #               {
+            #                   # The deployment numerical ID that is used in
+            #                   # the other deployment manipulation endpoints
+            #                   id: Integer,
+            #                   # Whether this deployment was created through
+            #                   # the API itself (with POST /deployments), or
+            #                   # is part of the app's configuration
+            #                   created: Boolean,
+            #                   # The name of the deployment
+            #                   deployment_name: String,
+            #                   # The deployment's tasks
+            #                   tasks: [
+            #                       {
+            #                           task_name: String,
+            #                           task_model_name: String
+            #                       }, ...
+            #                   ],
+            #                   # The deployment's process server
+            #                   on: String,
+            #                   # The mapping to be applied on the deployment's
+            #                   # tasks
+            #                   mappings: { String => String },
+            #                   # The deployment type (orocos or unmanaged)
+            #                   type: type
+            #               }, ...
+            #           ]
+            #       }
+            #
             get '/deployments/registered' do
                 registered_info = syskit_conf.each_configured_deployment.map do |d|
                     next if deployment_manager.used_in_override?(d)
@@ -113,6 +181,24 @@ module Syskit
                 Hash['registered_deployments' => (overriden_info + registered_info).compact]
             end
 
+            # Create a new deployment
+            #
+            # POST /deployments?name=model_name[&as=task_name_or_prefix]
+            #
+            # This is functionally equivalent to calling either
+            #     Syskit.conf.use_deployment(name)
+            # or  Syskit.conf.use_deployment(name => as)
+            #
+            # Returns status 200 on success, with the ID that can be used to
+            # manipulate the new deployment further.
+            #
+            #    { registered_deployment: id }
+            #
+            # On failure, status 404 is returned if 'name' is not the name of
+            # an available deployment, 403 (Forbidden) if 'name' is an orogen
+            # model name and 'as' was not provided and 409 (Conflict) if
+            # defining this deployment would create tasks whose name is already
+            # in-use.
             params do
                 requires :name, type: String
                 optional :as, type: String
@@ -135,6 +221,15 @@ module Syskit
                 end
             end
 
+            # Undefines a deployment created by POST'ing /deployments
+            #
+            # @param [Integer] id
+            #
+            # Returns status 204 on success
+            #
+            # On failure, it returns status 404 if the deployment ID is
+            # invalid, and 403 if the deployment had not been created with
+            # 'register'
             params do
                 requires :id, type: Integer
             end
@@ -143,11 +238,35 @@ module Syskit
                 body ''
             end
 
+            # Undefines all deployments created by POST'ing /deployments
+            #
+            # Returns status 204 on success
             delete '/deployments' do
                 deployment_manager.clear
                 body ''
             end
 
+            # Turn an existing oroGen deployment into an unmanaged task
+            #
+            #     PATCH /deployments/:id/unmanage
+            #
+            # This overrides an existing deployment definition (typically
+            # defined in the robot configuration) to turn it into an equivalent
+            # unmanaged task definition. This can be used if one wants to
+            # start a deployment externally, but still be able to integrate
+            # it into the app
+            #
+            # @param [Integer] id the deployment's ID as returned by
+            #    /deployments/registered.
+            #
+            # It returns status 200 on success, and the list of newly
+            # defined deployments, as
+            #
+            #       { overriding_deployments: [Integer] }
+            #
+            # On failure, it returns status 404 if the deployment ID is
+            # invalid, 403 if the deployment was already overriden or if it was
+            # created by another override
             params do
                 requires :id, type: Integer
             end
@@ -156,6 +275,17 @@ module Syskit
                 Hash[overriding_deployments: ids]
             end
 
+            # The inverse of 'unmanage'
+            #
+            #     PATCH /deployments/:id/manage
+            #
+            # @param [Integer] id the deployment's ID as returned by
+            #    /deployments/registered.
+            #
+            # It returns status 200 on success.
+            #
+            # On failure, it returns status 404 if the deployment ID is
+            # invalid, 403 if the deployment was not overriden with 'unmanage'
             params do
                 requires :id, type: Integer
             end
@@ -164,6 +294,32 @@ module Syskit
                 body ''
             end
 
+            # Returns the command line needed to start a given deployment
+            #
+            #     GET /deployments/:id/command_line
+            #
+            # @param [Integer] id the deployment's ID as returned by
+            #    /deployments/registered.
+            # @param [Boolean] tracing whether the lttng tracing should
+            #    be enabled
+            # @param [String] name_serve_ip (localhost) the IP or hostname
+            #    of the naming service
+            #
+            # It returns a status 200 on success and
+            #
+            #     {
+            #         # Environment variables that should be set
+            #         env: { String => String, ... },
+            #         # The program itself
+            #         command: String,
+            #         # The program arguments
+            #         args: [String],
+            #         # The recommended working directory (i.e. the app's log dir)
+            #         working_directory: String
+            #     }
+            #
+            # On failure, status 404 is returned if the deployment ID is
+            # invalid, 403 if the deployment is not an oroGen deployment
             params do
                 requires :id, type: Integer
                 optional :tracing, type: Boolean, default: false
