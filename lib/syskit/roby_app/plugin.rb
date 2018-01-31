@@ -313,6 +313,8 @@ module Syskit
 
             def syskit_listen_to_configuration_changes
                 dirs = find_dirs('config', 'orogen', 'ROBOT', all: true, order: :specific_last)
+                return if dirs.empty?
+
                 @conf_listener = Listen.to(*dirs) do |modified, added, removed|
                     if syskit_has_pending_configuration_changes?
                         notify 'syskit', 'INFO', 'oroGen configuration files changed on disk. In the shell, reload with #reload_config and reconfigure affected running components with #redeploy'
