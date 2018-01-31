@@ -126,11 +126,11 @@ module Syskit
             def self.require_models(app)
                 setup_loaders(app)
 
-                if !app.additional_model_files.empty?
+                if !app.permanent_requirements.empty?
                     toplevel_object.extend SingleFileDSL
-                    Roby.once do
+                    app.execution_engine.once do
                         app.permanent_requirements.each do |req|
-                            Roby.plan.add_mission_task(req.as_plan)
+                            app.plan.add_mission_task(req.as_plan)
                         end
                     end
                 end
