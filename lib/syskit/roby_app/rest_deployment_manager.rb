@@ -163,7 +163,7 @@ module Syskit
             # the machine where it will be executed
             def command_line(id, tracing: false,
                     name_service_ip: 'localhost',
-                    log_dir: Roby.app.log_dir,
+                    working_directory: @conf.app.log_dir,
                     loader: @conf.app.default_pkgconfig_loader)
 
                 deployment = find_registered_deployment_by_id(id)
@@ -178,9 +178,10 @@ module Syskit
                     raise Forbidden, "#{id} is not an oroGen deployment, cannot generate a command line"
                 end
 
-                deployment.command_line(tracing: tracing,
+                deployment.command_line(
+                    working_directory: working_directory,
+                    tracing: tracing,
                     name_service_ip: name_service_ip,
-                    log_dir: log_dir,
                     loader: loader)
             end
         end

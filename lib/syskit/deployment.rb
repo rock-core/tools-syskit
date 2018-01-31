@@ -185,7 +185,7 @@ module Syskit
             #
             # @return [Orocos::Process::CommandLine]
             def self.command_line(name, name_mappings,
-                    log_dir: Roby.app.log_dir,
+                    working_directory: Roby.app.log_dir,
                     log_level: nil,
                     cmdline_args: Hash.new,
                     tracing: false,
@@ -205,7 +205,7 @@ module Syskit
                     loader: loader,
                     name_mappings: name_mappings)
                 process.command_line(
-                    working_directory: log_dir,
+                    working_directory: working_directory,
                     log_level: log_level,
                     cmdline_args: cmdline_args,
                     tracing: tracing,

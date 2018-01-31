@@ -349,7 +349,7 @@ module Syskit
                             Hash['ENV' => 'VAR'],
                             "/path/to/command",
                             ["--some", "args"],
-                            "/working/directory"
+                            "/some/log/dir"
                         )
                         flexmock(RESTDeploymentManager).new_instances.
                             should_receive(:command_line).with(123, Hash).
@@ -359,7 +359,7 @@ module Syskit
                             'env' => command_line.env,
                             'command' => command_line.command,
                             'args' => command_line.args,
-                            'working_directory' => command_line.working_directory
+                            'working_directory' => "/some/log/dir"
                         ]
                         assert_equal expected, result
                     end
@@ -367,7 +367,7 @@ module Syskit
                     it "passes sane default configuration" do
                         flexmock(RESTDeploymentManager).new_instances.
                             should_receive(:command_line).
-                            with(123, tracing: false, name_service_ip: 'localhost', log_dir: @roby_app.log_dir).
+                            with(123, tracing: false, name_service_ip: 'localhost').
                             and_return(Orocos::Process::CommandLine.new)
                         get_json "/deployments/123/command_line"
                     end
@@ -375,9 +375,9 @@ module Syskit
                     it "allows to override the defaults" do
                         flexmock(RESTDeploymentManager).new_instances.
                             should_receive(:command_line).
-                            with(123, tracing: true, name_service_ip: 'some_ip', log_dir: '/custom/directory').
+                            with(123, tracing: true, name_service_ip: 'some_ip').
                             and_return(Orocos::Process::CommandLine.new)
-                        get_json "/deployments/123/command_line?tracing=true&name_service_ip=some_ip&log_dir=/custom/directory"
+                        get_json "/deployments/123/command_line?tracing=true&name_service_ip=some_ip"
                     end
 
                     it "returns 404 if the deployment does not exist" do

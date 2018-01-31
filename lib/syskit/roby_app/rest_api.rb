@@ -168,13 +168,11 @@ module Syskit
                 requires :id, type: Integer
                 optional :tracing, type: Boolean, default: false
                 optional :name_service_ip, type: String, default: 'localhost'
-                optional :log_dir, type: String
             end
             get '/deployments/:id/command_line' do
                 deployment_manager.command_line(params[:id],
                     tracing: params[:tracing],
-                    name_service_ip: params[:name_service_ip],
-                    log_dir: params[:log_dir] || roby_app.log_dir).to_h
+                    name_service_ip: params[:name_service_ip]).to_h
             end
         end
     end

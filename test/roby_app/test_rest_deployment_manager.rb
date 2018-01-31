@@ -221,6 +221,10 @@ module Syskit
             end
 
             describe "#command_line" do
+                before do
+                    flexmock(@roby_app).should_receive(:log_dir).and_return("/some/log/dir")
+                end
+
                 it "returns a command line valid for the given deployment" do
                     deployment = stub_registered_deployment
                     flexmock(@roby_app.default_pkgconfig_loader).
