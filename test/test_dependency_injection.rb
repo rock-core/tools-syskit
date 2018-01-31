@@ -221,6 +221,7 @@ describe Syskit::DependencyInjection do
     end
 end
 
+module Syskit
 class TC_DependencyInjection < Minitest::Test
     def test_to_s
         # Just checking that it does not raise and returns a string
@@ -628,6 +629,7 @@ class TC_DependencyInjection < Minitest::Test
         di = DependencyInjection.new(srv_m => task_m.s0_srv.to_instance_requirements)
         di.instance_selection_for(nil, srv_m.to_instance_requirements)
     end
+end
 end
 
 
