@@ -7,7 +7,12 @@ module Syskit
             source_paths << File.join(__dir__, 'gen')
 
             def app(dir = nil)
-                super(dir, init_path: 'syskit_app')
+                dir = super(dir, init_path: 'syskit_app')
+
+                config_dir = File.join(dir, 'config', 'orogen')
+                empty_directory config_dir
+                create_file File.join(config_dir, '.gitattributes'), ''
+                dir
             end
 
             desc 'bus NAME', "generate a new bus model"
