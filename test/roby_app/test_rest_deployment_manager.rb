@@ -241,12 +241,15 @@ module Syskit
                     end
                 end
 
-                it "raises Forbidden if the deployment exists but has been overriden" do
-                    deployment = stub_registered_deployment.object_id
-                    @manager.make_unmanaged(deployment)
-                    assert_raises(RESTDeploymentManager::Forbidden) do
-                        @manager.command_line(deployment)
-                    end
+                it "returns a command line valid for an overriden deployment" do
+                    deployment = stub_registered_deployment
+                    flexmock(@roby_app.default_pkgconfig_loader).
+                        should_receive(:find_deployment_binfile).
+                        with(deployment.model.orogen_model.name).
+                        and_return('/path/to/deployment')
+                    @manager.make_unmanaged(deployment.object_id)
+                    command_line = @manager.command_line(deployment.object_id)
+                    assert_equal '/path/to/deployment', command_line.command
                 end
 
                 it "raises Forbidden if the deployment is not an orogen deployment" do

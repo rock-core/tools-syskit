@@ -97,6 +97,11 @@ module Syskit
                     find { |c| c.object_id == id }
             end
 
+            # Finds an overriden deployment by ID
+            def find_overriden_deployment_by_id(id)
+                @overrides.keys.find { |c| c.object_id == id }
+            end
+
             # Finds a newly defined deployment by ID
             def find_new_deployment_by_id(id)
                 @new_deployments.find { |c| c.object_id == id }
@@ -166,14 +171,10 @@ module Syskit
                     working_directory: @conf.app.log_dir,
                     loader: @conf.app.default_pkgconfig_loader)
 
-                deployment = find_registered_deployment_by_id(id)
+                deployment = find_registered_deployment_by_id(id) ||
+                    find_overriden_deployment_by_id(id)
                 if !deployment
-                    overriden_deployment = @overrides.keys.find { |c| c.object_id == id }
-                    if overriden_deployment
-                        raise Forbidden, "#{id} is currently overriden"
-                    else
-                        raise NotFound, "#{id} is not a known deployment"
-                    end
+                    raise NotFound, "#{id} is not a known deployment"
                 elsif !orogen_deployment?(deployment)
                     raise Forbidden, "#{id} is not an oroGen deployment, cannot generate a command line"
                 end
