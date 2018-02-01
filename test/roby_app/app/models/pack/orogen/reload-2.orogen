@@ -1,0 +1,7 @@
+name 'reload'
+
+import_types_from 'std'
+
+task_context 'Task' do
+    output_port 'test', '/int32_t'
+end

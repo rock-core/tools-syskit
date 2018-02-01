@@ -2,7 +2,7 @@ require 'syskit/test/self'
 
 class TC_AbstractPlaceholders < Minitest::Test
     def test_proxy_simple_task_context
-	task_model = TaskContext.new_submodel
+	task_model = Syskit::TaskContext.new_submodel
 	proxy_model = Syskit.proxy_task_model_for([task_model])
         assert_same proxy_model, task_model
     end
@@ -24,7 +24,7 @@ class TC_AbstractPlaceholders < Minitest::Test
     end
 
     def test_proxy_task_and_data_service_mix
-	task_model = Component.new_submodel
+	task_model = Syskit::Component.new_submodel
         task_model.name = "NewComponentModel"
 	services = [
 	    data_service_type('B'),
@@ -46,7 +46,7 @@ class TC_AbstractPlaceholders < Minitest::Test
     end
 
     def test_proxy_model_concrete_model_is_the_proxy_model_itself
-	task_model = Component.new_submodel
+	task_model = Syskit::Component.new_submodel
         task_model.name = "NewComponentModel"
 	services = [
 	    data_service_type('B'),
@@ -59,13 +59,13 @@ class TC_AbstractPlaceholders < Minitest::Test
     end
 
     def test_proxy_tasks_are_registered_as_submodels
-	task_model = TaskContext.new_submodel
+	task_model = Syskit::TaskContext.new_submodel
 	proxy_model = Syskit.proxy_task_model_for([data_service_type('A'), task_model])
         assert task_model.has_submodel?(proxy_model)
     end
 
     def test_proxy_task_returns_same_model
-	task_model = TaskContext.new_submodel
+	task_model = Syskit::TaskContext.new_submodel
 	services = [
 	    data_service_type('B'),
 	    data_service_type('A'),
@@ -76,7 +76,7 @@ class TC_AbstractPlaceholders < Minitest::Test
     end
 
     def test_proxy_task_returns_new_value_after_clear_submodels
-	task_model = TaskContext.new_submodel
+	task_model = Syskit::TaskContext.new_submodel
 	services = [
 	    data_service_type('B'),
 	    data_service_type('A'),
@@ -88,7 +88,7 @@ class TC_AbstractPlaceholders < Minitest::Test
     end
 
     def test_new_proxy_is_created_if_service_list_differs
-	task_model = TaskContext.new_submodel
+	task_model = Syskit::TaskContext.new_submodel
 	services = [ data_service_type('B'), data_service_type('A'), data_service_type('C') ]
 	proxy0 = Syskit.proxy_task_model_for(services + [task_model])
 
@@ -98,11 +98,11 @@ class TC_AbstractPlaceholders < Minitest::Test
     end
 
     def test_clear_submodels_removes_cached_values
-	task_model0 = TaskContext.new_submodel
+	task_model0 = Syskit::TaskContext.new_submodel
 	services0 = [ data_service_type('B'), data_service_type('A'), data_service_type('C') ]
 	proxy0 = Syskit.proxy_task_model_for(services0 + [task_model0])
 
-        task_model1 = TaskContext.new_submodel
+        task_model1 = Syskit::TaskContext.new_submodel
 	services1 = [ data_service_type('B'), data_service_type('C') ]
 	proxy1 = Syskit.proxy_task_model_for(services1 + [task_model1])
 
@@ -112,8 +112,8 @@ class TC_AbstractPlaceholders < Minitest::Test
     end
 
     def test_proxy_task_can_use_anonymous_services
-	task_model = TaskContext.new_submodel(name: 'A')
-	services = [DataService.new_submodel(name: 'S')]
+	task_model = Syskit::TaskContext.new_submodel(name: 'A')
+	services = [Syskit::DataService.new_submodel(name: 'S')]
 	proxy = Syskit.proxy_task_model_for(services + [task_model])
 	assert(proxy.abstract?)
 	assert(proxy < task_model)
@@ -122,13 +122,13 @@ class TC_AbstractPlaceholders < Minitest::Test
     end
 
     def test_cannot_proxy_multiple_component_models_at_the_same_time
-        task0 = TaskContext.new_submodel
-        task1 = TaskContext.new_submodel
+        task0 = Syskit::TaskContext.new_submodel
+        task1 = Syskit::TaskContext.new_submodel
         assert_raises(ArgumentError) { Syskit.proxy_task_model_for([task0, task1]) }
     end
 
     def test_each_fullfilled_model_yields_real_task_model_as_well_as_proxied_services
-	task_model = TaskContext.new_submodel
+	task_model = Syskit::TaskContext.new_submodel
         task_model.name = "NewComponentModel"
 	services = [
 	    data_service_type('B'),

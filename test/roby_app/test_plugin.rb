@@ -1,4 +1,5 @@
 require 'syskit/test/self'
+require 'syskit/test/roby_app_helpers'
 require 'syskit/roby_app/process_server'
 
 module Syskit
@@ -147,6 +148,65 @@ module Syskit
                         and_return(['default'])
                     flexmock(Runtime).should_receive(:apply_requirement_modifications).never
                     app.syskit_reload_config
+                end
+            end
+
+            describe 'model reloading' do
+                include Test::RobyAppHelpers
+
+                def perform_app_assertion(result)
+                    success, msg = *result
+                    assert(success, msg || "")
+                end
+
+                before do
+                    app_helpers_source_dir File.join(__dir__, 'app')
+                    gen_app
+                end
+
+                it "reloads and redefines orogen deployments" do
+                    copy_into_app 'models/pack/orogen/reload-1.orogen',
+                        'models/pack/orogen/reload.orogen'
+                    copy_into_app 'config/robots/reload_orogen.rb',
+                        'config/robots/default.rb'
+                    pid = roby_app_spawn 'run', silent: true
+                    interface = assert_roby_app_is_running(pid)
+                    copy_into_app 'models/pack/orogen/reload-2.orogen',
+                        'models/pack/orogen/reload.orogen'
+                    perform_app_assertion interface.unit_tests.orogen_deployment_exists?
+                    interface.reload_models
+                    perform_app_assertion interface.unit_tests.orogen_model_reloaded?
+                    perform_app_assertion interface.unit_tests.orogen_deployment_exists?
+                end
+
+                it "reloads and redefines ruby tasks" do
+                    copy_into_app 'models/compositions/reload_ruby_task-1.rb',
+                        'models/compositions/reload_ruby_task.rb'
+                    copy_into_app 'config/robots/reload_ruby_task.rb',
+                        'config/robots/default.rb'
+                    pid = roby_app_spawn 'run', silent: true
+                    interface = assert_roby_app_is_running(pid)
+                    copy_into_app 'models/compositions/reload_ruby_task-2.rb',
+                        'models/compositions/reload_ruby_task.rb'
+                    perform_app_assertion interface.unit_tests.orogen_deployment_exists?
+                    interface.reload_models
+                    perform_app_assertion interface.unit_tests.orogen_model_reloaded?
+                    perform_app_assertion interface.unit_tests.orogen_deployment_exists?
+                end
+
+                it "reloads and redefines unmanaged tasks" do
+                    copy_into_app 'models/pack/orogen/reload-1.orogen',
+                        'models/pack/orogen/reload.orogen'
+                    copy_into_app 'config/robots/reload_unmanaged_task.rb',
+                        'config/robots/default.rb'
+                    pid = roby_app_spawn 'run', silent: true
+                    interface = assert_roby_app_is_running(pid)
+                    copy_into_app 'models/pack/orogen/reload-2.orogen',
+                        'models/pack/orogen/reload.orogen'
+                    perform_app_assertion interface.unit_tests.orogen_deployment_exists?
+                    interface.reload_models
+                    perform_app_assertion interface.unit_tests.orogen_model_reloaded?
+                    perform_app_assertion interface.unit_tests.orogen_deployment_exists?
                 end
             end
         end

@@ -904,6 +904,11 @@ module Syskit
         end
 
         # Exception raised in {RobyApp::Configuration#use_deployment} when
+        # trying to deploy a task model without providing a task name
+        class TaskNameRequired < ArgumentError
+        end
+
+        # Exception raised in {RobyApp::Configuration#use_deployment} when
         # trying to register a deployment that provides a task identical to an
         # existing task
         class TaskNameAlreadyInUse < ArgumentError

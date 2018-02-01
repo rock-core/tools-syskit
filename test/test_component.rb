@@ -732,15 +732,15 @@ class TC_Component < Minitest::Test
         submodel = model.new_submodel name: "Submodel"
 
         plan.add(merged_task = model.new(id: 'test'))
-        merged_task.fullfilled_model = [Component, [], {id: 'test'}]
+        merged_task.fullfilled_model = [Syskit::Component, [], {id: 'test'}]
         plan.add(merging_task = submodel.new)
 
         merging_task.merge(merged_task)
-        assert_equal([[Component], {id: 'test'}],
+        assert_equal([[Syskit::Component], {id: 'test'}],
                      merging_task.fullfilled_model)
 
         plan.add(merged_task = model.new)
-        merged_task.fullfilled_model = [Component, [], {id: 'test'}]
+        merged_task.fullfilled_model = [Syskit::Component, [], {id: 'test'}]
         plan.add(merging_task = submodel.new(id: 'test'))
         merging_task.fullfilled_model = [model, [], {}]
 
@@ -750,7 +750,7 @@ class TC_Component < Minitest::Test
     end
 
     def test_data_reader_creates_reader_on_associated_port
-        task = flexmock(Component.new)
+        task = flexmock(Syskit::Component.new)
         port = flexmock
         port.should_receive(:reader).once.and_return(expected = Object.new)
         task.should_receive(:find_output_port).once.with('out').and_return(port)
@@ -758,7 +758,7 @@ class TC_Component < Minitest::Test
     end
 
     def test_data_reader_passes_policy
-        task = flexmock(Component.new)
+        task = flexmock(Syskit::Component.new)
         port = flexmock
         policy = Hash[pull: true, type: :buffer, size: 20]
         port.should_receive(:reader).once.with(policy)
@@ -767,13 +767,13 @@ class TC_Component < Minitest::Test
     end
 
     def test_data_reader_raises_if_the_output_port_does_not_exist
-        task = flexmock(Component.new)
+        task = flexmock(Syskit::Component.new)
         task.should_receive(:find_output_port).with('does_not_exist').and_return(nil)
         assert_raises(ArgumentError) { task.data_reader('does_not_exist') }
     end
 
     def test_data_reader_creates_reader_using_pull_by_default
-        task = flexmock(Component.new)
+        task = flexmock(Syskit::Component.new)
         port = flexmock
         port.should_receive(:reader).
             once.with(pull: true, type: :buffer, size: 20)
@@ -783,7 +783,7 @@ class TC_Component < Minitest::Test
     end
 
     def test_data_reader_allows_to_override_pull_flag
-        task = flexmock(Component.new)
+        task = flexmock(Syskit::Component.new)
         port = flexmock
         port.should_receive(:reader).
             once.with(pull: false, type: :buffer, size: 20)
@@ -793,7 +793,7 @@ class TC_Component < Minitest::Test
     end
 
     def test_data_writer_creates_writer_on_associated_port
-        task = flexmock(Component.new)
+        task = flexmock(Syskit::Component.new)
         port = flexmock
         port.should_receive(:writer).once.and_return(expected = Object.new)
         task.should_receive(:find_input_port).once.with('in').and_return(port)
@@ -801,7 +801,7 @@ class TC_Component < Minitest::Test
     end
 
     def test_data_writer_passes_policy
-        task = flexmock(Component.new)
+        task = flexmock(Syskit::Component.new)
         port = flexmock
         policy = Hash[type: :buffer, size: 20]
         port.should_receive(:writer).once.with(policy)
@@ -810,7 +810,7 @@ class TC_Component < Minitest::Test
     end
 
     def test_data_writer_raises_if_the_port_does_not_exist
-        task = flexmock(Component.new)
+        task = flexmock(Syskit::Component.new)
         port = flexmock
         task.should_receive(:find_input_port).once.with('in')
         assert_raises(ArgumentError) { task.data_writer('in') }

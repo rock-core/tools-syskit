@@ -161,9 +161,10 @@ module Syskit
             # @return [void]
             def setup_submodel(submodel, orogen_model: nil, **options)
                 if !orogen_model
-                    orogen_model = self.orogen_model.class.new(Roby.app.default_orogen_project, nil)
+                    orogen_model = self.orogen_model.class.new(
+                        Roby.app.default_orogen_project, nil,
+                        subclasses: self.orogen_model)
                     orogen_model.extended_state_support
-                    orogen_model.subclasses self.orogen_model
                 end
                 submodel.orogen_model = orogen_model
                 super

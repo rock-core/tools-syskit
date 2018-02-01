@@ -1,5 +1,9 @@
 #! /usr/bin/env ruby
 
+# Reset the interrupt handler to the default. An ignored handler is inherited,
+# so this makes sure that the Roby app is based on the handler's expected state
+trap('INT', 'DEFAULT')
+
 require 'rock/bundle'
 
 # The logs are public by default in bundles, but are private by default in Roby

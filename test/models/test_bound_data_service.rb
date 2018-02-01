@@ -301,6 +301,7 @@ describe Syskit::Models::BoundDataService do
     end
 end
 
+module Syskit
 class TC_Models_BoundDataService < Minitest::Test
     DataService = Syskit::DataService
 
@@ -476,6 +477,5 @@ class TC_Models_BoundDataService < Minitest::Test
         service = service_model.as(parent)
         assert !service.find_input_port('in_base')
     end
-
 end
-
+end

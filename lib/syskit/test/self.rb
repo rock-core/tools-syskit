@@ -6,7 +6,6 @@ module Syskit
     module Test
     # Module used in syskit's own test suite
     module Self
-        include Syskit
         include Roby::Test
         include Roby::Test::Assertions
         include Test::Base
@@ -16,13 +15,8 @@ module Syskit
         # easily
         attr_reader :robot
 
-
         def data_dir
             File.join(SYSKIT_ROOT_DIR, "test", "data")
-        end
-
-        def app
-            Roby.app
         end
 
         def setup

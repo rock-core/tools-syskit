@@ -1,5 +1,6 @@
 require 'syskit/test/self'
 
+module Syskit
 class TC_Models_Deployment < Minitest::Test
     module DefinitionModule
         # Module used when we want to do some "public" models
@@ -68,6 +69,7 @@ class TC_Models_Deployment < Minitest::Test
         assert !Deployment.has_submodel?(m2)
         assert !Deployment.has_submodel?(m11)
     end
+end
 end
 
 describe Syskit::Models::Deployment do
