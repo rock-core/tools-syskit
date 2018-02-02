@@ -12,12 +12,12 @@ module Syskit
             
             rescue_from RESTDeploymentManager::NotFound do |e|
                 error! e.message, 404,
-                    "x-roby-error" => "NotFound"
+                    "x-roby-error" => e.class.name.gsub(/^.*::/, '')
             end
 
             rescue_from RESTDeploymentManager::Forbidden do |e|
                 error! e.message, 403,
-                    "x-roby-error" => "Forbidden"
+                    "x-roby-error" => e.class.name.gsub(/^.*::/, '')
             end
 
             helpers Roby::Interface::REST::Helpers
@@ -196,11 +196,13 @@ module Syskit
             #
             #    { registered_deployment: id }
             #
-            # On failure, status 404 is returned if 'name' is not the name of
-            # an available deployment, 403 (Forbidden) if 'name' is an orogen
-            # model name and 'as' was not provided and 409 (Conflict) if
-            # defining this deployment would create tasks whose name is already
-            # in-use.
+            # On failure,
+            # - status 404 is returned if 'name' is not the name of
+            #   an available deployment. x-roby-error is NotFound
+            # - status 403 (Forbidden) if 'name' is an orogen
+            #   model name and 'as' was not provided. x-roby-error is TaskNameRequired
+            # - status 409 (Conflict) if defining this deployment would create
+            #   tasks whose name is already in-use. x-roby-error is TaskNameAlreadyInUse
             params do
                 requires :name, type: String
                 optional :as, type: String
@@ -232,9 +234,10 @@ module Syskit
             #
             # Returns status 204 on success
             #
-            # On failure, it returns status 404 if the deployment ID is
-            # invalid, and 403 if the deployment had not been created with
-            # 'register'
+            # On failure,
+            # - status 404 if the deployment ID is invalid. x-roby-error is NotFound
+            # - 403 if the deployment had not been created with 'register'
+            #   x-roby-error is NotCreatedHere
             params do
                 requires :id, type: Integer
             end
@@ -269,9 +272,12 @@ module Syskit
             #
             #       { overriding_deployments: [Integer] }
             #
-            # On failure, it returns status 404 if the deployment ID is
-            # invalid, 403 if the deployment was already overriden or if it was
-            # created by another override
+            # On failure,
+            # - status 404 if the deployment ID is invalid. x-roby-error is
+            #   NotFound
+            # - status 403 (Forbidden) if the deployment was already
+            #   overriden (x-roby-error is AlreadyOverriden) or if it was
+            #   created by another override (x-roby-error is UsedInOverride)
             params do
                 requires :id, type: Integer
             end
@@ -289,8 +295,10 @@ module Syskit
             #
             # It returns status 200 on success.
             #
-            # On failure, it returns status 404 if the deployment ID is
-            # invalid, 403 if the deployment was not overriden with 'unmanage'
+            # On failure,
+            # - status 404 if the deployment ID is invalid. x-roby-error is NotFound.
+            # - status 403 if the deployment was not overriden with 'unmanage'
+            #   x-roby-error is NotOverriden
             params do
                 requires :id, type: Integer
             end
@@ -323,8 +331,11 @@ module Syskit
             #         working_directory: String
             #     }
             #
-            # On failure, status 404 is returned if the deployment ID is
-            # invalid, 403 if the deployment is not an oroGen deployment
+            # On failure,
+            # - status 404 is returned if the deployment ID is invalid.
+            #   x-roby-error is NotFound
+            # - status 403 if the deployment is not an oroGen deployment.
+            #   x-roby-error is NotOrogen
             params do
                 requires :id, type: Integer
                 optional :tracing, type: Boolean, default: false

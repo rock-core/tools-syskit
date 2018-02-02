@@ -35,7 +35,7 @@ module Syskit
             end
 
             describe "#make_unmanaged" do
-                it "returns nil if the deployment does not exist" do
+                it "raises NotFound if the deployment does not exist" do
                     assert_raises(RESTDeploymentManager::NotFound) { @manager.make_unmanaged(10) }
                 end
                 it "overrides an orocos deployment's tasks by unmanaged tasks" do
@@ -49,16 +49,16 @@ module Syskit
                     assert_equal 'test_task', tasks[0].name
                     assert_equal @orogen_task_m, tasks[0].task_model
                 end
-                it "raises if the deployment is already overriden" do
+                it "raises AlreadyOverriden if the deployment is already overriden" do
                     original = stub_registered_deployment.object_id
                     @manager.make_unmanaged(original)
-                    e = assert_raises(RESTDeploymentManager::UsedInOverride) do
+                    e = assert_raises(RESTDeploymentManager::AlreadyOverriden) do
                         @manager.make_unmanaged(original)
                     end
                     assert_equal "#{original} is already overriden, cannot override it again",
                         e.message
                 end
-                it "raises if the deployment is already used in an override" do
+                it "raises UsedInOverride if the deployment is already used in an override" do
                     original = stub_registered_deployment.object_id
                     overrides = @manager.make_unmanaged(original)
                     e = assert_raises(RESTDeploymentManager::UsedInOverride) do
@@ -141,16 +141,16 @@ module Syskit
             end
 
             describe "#deregister_deployment" do
-                it "raises Forbidden if trying to deregister a deployment that comes from the app" do
+                it "raises NotCreatedHere if trying to deregister a deployment that comes from the app" do
                     original = stub_registered_deployment
-                    assert_raises(RESTDeploymentManager::Forbidden) do
+                    assert_raises(RESTDeploymentManager::NotCreatedHere) do
                         @manager.deregister_deployment(original.object_id)
                     end
                 end
-                it "raises Forbidden if trying to deregister a deployment that has been created for an overidde" do
+                it "raises UsedInOverride if trying to deregister a deployment that has been created for an overidde" do
                     original = stub_registered_deployment
                     overrides = @manager.make_unmanaged(original.object_id)
-                    assert_raises(RESTDeploymentManager::Forbidden) do
+                    assert_raises(RESTDeploymentManager::UsedInOverride) do
                         @manager.deregister_deployment(overrides.first)
                     end
                 end
@@ -172,16 +172,16 @@ module Syskit
             end
 
             describe "#deregister_override" do
-                it "raises Forbidden if trying to deregister a deployment that comes from the app" do
+                it "raises NotOverriden if trying to deregister a deployment that comes from the app" do
                     original = stub_registered_deployment
-                    assert_raises(RESTDeploymentManager::Forbidden) do
+                    assert_raises(RESTDeploymentManager::NotOverriden) do
                         @manager.deregister_override(original.object_id)
                     end
                 end
-                it "raises Forbidden if trying to deregister a deployment that has been created for an overidde" do
+                it "raises NotOverriden if trying to deregister a deployment that has been created for an overidde" do
                     original = stub_registered_deployment
                     overrides = @manager.make_unmanaged(original.object_id)
-                    assert_raises(RESTDeploymentManager::Forbidden) do
+                    assert_raises(RESTDeploymentManager::NotOverriden) do
                         @manager.deregister_override(overrides.first)
                     end
                 end
@@ -252,9 +252,9 @@ module Syskit
                     assert_equal '/path/to/deployment', command_line.command
                 end
 
-                it "raises Forbidden if the deployment is not an orogen deployment" do
+                it "raises NotOrogen if the deployment is not an orogen deployment" do
                     deployment = stub_registered_deployment(on: 'unmanaged_tasks')
-                    assert_raises(RESTDeploymentManager::Forbidden) do
+                    assert_raises(RESTDeploymentManager::NotOrogen) do
                         @manager.command_line(deployment.object_id)
                     end
                 end

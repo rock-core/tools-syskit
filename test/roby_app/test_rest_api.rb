@@ -240,6 +240,7 @@ module Syskit
                             once.and_raise(Syskit::TaskNameRequired)
                         result = post "/deployments?name=test_deployment"
                         assert_equal 403, result.status
+                        assert_equal "TaskNameRequired", result.headers['x-roby-error']
                     end
 
                     it "returns 404 if the required deployment does not exist" do
@@ -247,6 +248,7 @@ module Syskit
                             should_receive(:use_deployment).and_raise(OroGen::NotFound)
                         result = post "/deployments?name=does_not_exist"
                         assert_equal 404, result.status
+                        assert_equal "NotFound", result.headers['x-roby-error']
                     end
 
                     it "returns 409 if attempting to register a task that is already in use" do
@@ -254,6 +256,7 @@ module Syskit
                             should_receive(:use_deployment).and_raise(TaskNameAlreadyInUse.new("bla", nil, nil))
                         result = post "/deployments?name=test_deployment"
                         assert_equal 409, result.status
+                        assert_equal "TaskNameAlreadyInUse", result.headers['x-roby-error']
                     end
                 end
 
@@ -271,13 +274,15 @@ module Syskit
                             and_raise(RESTDeploymentManager::NotFound)
                         result = delete "/deployments/123"
                         assert_equal 404, result.status
+                        assert_equal "NotFound", result.headers['x-roby-error']
                     end
                     it "returns 403 if the ID matches a deployment that was not created by a corresponding register call" do
                         flexmock(RESTDeploymentManager).new_instances.
                             should_receive(:deregister_deployment).
-                            and_raise(RESTDeploymentManager::Forbidden)
+                            and_raise(RESTDeploymentManager::NotCreatedHere)
                         result = delete "/deployments/123"
                         assert_equal 403, result.status
+                        assert_equal "NotCreatedHere", result.headers['x-roby-error']
                     end
                 end
 
@@ -306,13 +311,15 @@ module Syskit
                             and_raise(RESTDeploymentManager::NotFound)
                         result = patch "/deployments/123/unmanage"
                         assert_equal 404, result.status
+                        assert_equal "NotFound", result.headers['x-roby-error']
                     end
                     it "returns 403 if the ID matches a deployment that was not created by a corresponding register call" do
                         flexmock(RESTDeploymentManager).new_instances.
                             should_receive(:make_unmanaged).
-                            and_raise(RESTDeploymentManager::Forbidden)
+                            and_raise(RESTDeploymentManager::UsedInOverride)
                         result = patch "/deployments/123/unmanage"
                         assert_equal 403, result.status
+                        assert_equal "UsedInOverride", result.headers['x-roby-error']
                     end
                 end
 
@@ -330,13 +337,15 @@ module Syskit
                             and_raise(RESTDeploymentManager::NotFound)
                         result = patch "/deployments/123/manage"
                         assert_equal 404, result.status
+                        assert_equal "NotFound", result.headers['x-roby-error']
                     end
                     it "returns 403 if the deployment is not suitable" do
                         flexmock(RESTDeploymentManager).new_instances.
                             should_receive(:deregister_override).
-                            and_raise(RESTDeploymentManager::Forbidden)
+                            and_raise(RESTDeploymentManager::NotOverriden)
                         result = patch "/deployments/123/manage"
                         assert_equal 403, result.status
+                        assert_equal "NotOverriden", result.headers['x-roby-error']
                     end
                 end
 
@@ -386,14 +395,16 @@ module Syskit
                             and_raise(RESTDeploymentManager::NotFound)
                         result = get "/deployments/123/command_line"
                         assert_equal 404, result.status
+                        assert_equal "NotFound", result.headers['x-roby-error']
                     end
 
                     it "returns 403 if the deployment is not suitable for command line generation" do
                         flexmock(RESTDeploymentManager).new_instances.
                             should_receive(:command_line).
-                            and_raise(RESTDeploymentManager::Forbidden)
+                            and_raise(RESTDeploymentManager::NotOrogen)
                         result = get "/deployments/123/command_line"
                         assert_equal 403, result.status
+                        assert_equal "NotOrogen", result.headers['x-roby-error']
                     end
                 end
             end

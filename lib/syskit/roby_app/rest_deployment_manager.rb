@@ -11,7 +11,11 @@ module Syskit
             class Forbidden      < ArgumentError; end
             class NotFound       < ArgumentError; end
             class CannotOverride < Forbidden; end
+            class AlreadyOverriden < CannotOverride; end
             class UsedInOverride < CannotOverride; end
+            class NotOverriden < Forbidden; end
+            class NotOrogen < Forbidden; end
+            class NotCreatedHere < Forbidden; end
 
             # Change the configuration so that all tasks from the given
             # deployment are declared as unmanaged
@@ -26,7 +30,7 @@ module Syskit
                 configured_deployment = find_registered_deployment_by_id(id)
                 if !configured_deployment
                     if overriden?(id)
-                        raise UsedInOverride, "#{id} is already overriden, cannot override it again"
+                        raise AlreadyOverriden, "#{id} is already overriden, cannot override it again"
                     else
                         raise NotFound, "#{id} is not a known deployment"
                     end
@@ -122,8 +126,12 @@ module Syskit
             def deregister_deployment(id)
                 deployment = find_new_deployment_by_id(id)
                 if !deployment
-                    if find_registered_deployment_by_id(id)
-                        raise Forbidden, "#{id} has not been registered through the REST API, cannot deregister it"
+                    if deployment = find_registered_deployment_by_id(id)
+                        if used_in_override?(deployment)
+                            raise UsedInOverride, "#{id} has been created for the purpose of an override, cannot deregister it"
+                        else
+                            raise NotCreatedHere, "#{id} has not been registered through the REST API, cannot deregister it"
+                        end
                     else
                         raise NotFound, "#{id} is not a known deployment"
                     end
@@ -143,7 +151,7 @@ module Syskit
                     if !deployment
                         raise NotFound, "#{id} is not an existing deployment"
                     else
-                        raise Forbidden, "#{id} is not an overriden deployment, cannot deregister"
+                        raise NotOverriden, "#{id} is not an overriden deployment, cannot deregister"
                     end
                 end
 
@@ -176,7 +184,7 @@ module Syskit
                 if !deployment
                     raise NotFound, "#{id} is not a known deployment"
                 elsif !orogen_deployment?(deployment)
-                    raise Forbidden, "#{id} is not an oroGen deployment, cannot generate a command line"
+                    raise NotOrogen, "#{id} is not an oroGen deployment, cannot generate a command line"
                 end
 
                 deployment.command_line(
