@@ -11,11 +11,13 @@ module Syskit
             format :json
             
             rescue_from RESTDeploymentManager::NotFound do |e|
-                error! e.message, 404
+                error! e.message, 404,
+                    "x-roby-error" => "NotFound"
             end
 
             rescue_from RESTDeploymentManager::Forbidden do |e|
-                error! e.message, 403
+                error! e.message, 403,
+                    "x-roby-error" => "Forbidden"
             end
 
             helpers Roby::Interface::REST::Helpers
@@ -213,11 +215,14 @@ module Syskit
                         return Hash['registered_deployment' => id]
                     end
                 rescue OroGen::NotFound => e
-                    error! "deployment name #{params[:name]} does not exist: #{e.message}", 404
+                    error! "deployment name #{params[:name]} does not exist: #{e.message}", 404,
+                        "x-roby-error" => "NotFound"
                 rescue TaskNameRequired => e
-                    error! e.message, 403
+                    error! e.message, 403,
+                        "x-roby-error" => "TaskNameRequired"
                 rescue TaskNameAlreadyInUse => e
-                    error! "registering the deployment #{params[:name]} => #{params[:as]} would lead to a naming conflict", 409
+                    error! "registering the deployment #{params[:name]} => #{params[:as]} would lead to a naming conflict", 409,
+                        "x-roby-error" => "TaskNameAlreadyInUse"
                 end
             end
 
