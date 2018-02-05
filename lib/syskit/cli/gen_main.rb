@@ -4,6 +4,7 @@ require 'roby/cli/exceptions'
 module Syskit
     module CLI
         class GenMain < Roby::CLI::GenMain
+            namespace :gen
             source_paths << File.join(__dir__, 'gen')
 
             def app(dir = nil)
