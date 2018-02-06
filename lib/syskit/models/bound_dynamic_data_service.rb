@@ -22,6 +22,14 @@ module Syskit
             def remove_when_unused?
                 dynamic_service.remove_when_unused?
             end
+
+            # (see BoundDataService#same_service?)
+            def same_service?(other)
+                if other.kind_of?(BoundDynamicDataService)
+                    (dynamic_service.demoted == other.dynamic_service.demoted) &&
+                        (dynamic_service_options == other.dynamic_service_options)
+                end
+            end
         end
     end
 end
