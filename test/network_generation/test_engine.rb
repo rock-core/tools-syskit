@@ -122,6 +122,40 @@ module Syskit
                     assert_same service.task, final_task
                     assert_same final_task.planning_task, planning_task
                 end
+
+                it "filters out cross-component relations in replacement" do
+                    srv_m = DataService.new_submodel { output_port 'p', '/double' }
+                    # This is a regression test. We basically replace a task by
+                    # its reconfigured equivalent, where ports disappeared.
+                    output_m = Syskit::TaskContext.new_submodel do
+                        dynamic_output_port /[ab]/, '/double'
+                        dynamic_service srv_m, as: 'test' do
+                            provides srv_m, as: options[:name], 'p' => options[:name]
+                        end
+                    end
+                    input_m = TaskContext.new_submodel { input_port 'in', '/double' }
+                    plan.add(original = output_m.as_plan)
+                    plan.add(input = input_m.new)
+
+                    original.specialize
+                    original.require_dynamic_service 'test', as: 'a', name: 'a'
+                    original.a_port.connect_to input.in_port
+
+                    new = output_m.new
+                    new.specialize
+                    new.require_dynamic_service 'test', as: 'b', name: 'b'
+                    syskit_engine.work_plan.add_permanent_task(new)
+                    work_input = syskit_engine.work_plan[input]
+                    new.b_port.connect_to work_input.in_port
+
+                    required_instances = Hash[original.planning_task => new]
+
+                    syskit_engine.fix_toplevel_tasks(required_instances)
+                    syskit_engine.work_plan.commit_transaction
+                    flow_graph = plan.task_relation_graph_for(Flows::DataFlow)
+                    info = flow_graph.edge_info(new, input)
+                    assert_equal Hash[['b', 'in'] => Hash.new], info
+                end
             end
 
             describe "#reconfigure_tasks_on_static_port_modification" do
