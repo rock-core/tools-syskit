@@ -1,4 +1,5 @@
 require 'roby/gui/dot_id'
+require 'syskit/gui/model_browser'
 
 module Syskit
         # Used by the to_dot* methods for color allocation
@@ -73,11 +74,11 @@ module Syskit
                 end
             end
 
-            def initialize(plan, page = DummyPage.new)
+            def initialize(plan, page = DummyPage.new, typelib_resolver: nil)
                 @plan = plan
                 @page = page
                 @make_links = true
-                @typelib_resolver = GUI::ModelBrowser::TypelibResolver.new
+                @typelib_resolver = typelib_resolver
 
                 @colors = COLORS.dup
 
@@ -89,9 +90,10 @@ module Syskit
             end
 
             def uri_for(type)
-                "link://metaruby/" + escape_dot_uri(@typelib_resolver.split_name(type).join("/"))
+                if @typelib_resolver
+                    "link://metaruby/" + escape_dot_uri(@typelib_resolver.split_name(type).join("/"))
+                end
             end
-
 
             def escape_dot_uri(string)
                 string.
