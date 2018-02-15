@@ -938,23 +938,28 @@ module Syskit
         # been called on a port that is being modified
         class ModifyingFinalizedPortInfo < ArgumentError
             attr_reader :task, :port_name, :done_at
-            def initialize(task, port_name, done_at)
+            def initialize(task, port_name, done_at, propagation_class_name)
                 @task = task
                 @port_name = port_name
                 @done_at = done_at
+                @propagation_class_name = propagation_class_name
             end
 
             def pretty_print(pp)
-                pp.text "trying to change port information for #{task}.#{port_name} after done_port_info has been called"
+                pp.text "trying to change port information in #{@propagation_class_name} for #{task}.#{port_name} after done_port_info has been called"
                 pp.breakable
                 if done_at
-                    pp.text "done_port_info called at"
+                    pp.text "== START done_port_info called at"
                     done_at.each do |line|
-                        pp.breakable
-                        pp.text "  #{line}"
+                        pp.nest(4) do
+                            pp.breakable
+                            pp.text line
+                        end
                     end
+                    pp.breakable
+                    pp.text "== END done_port_info called at"
                 else
-                    pp.text "turn on debugging to get a full backtrace of where done_port_info was called"
+                    pp.text "set the logger for #{@propagation_class_name.gsub('::', '/')} to DEBUG to get a full backtrace of where done_port_info was called"
                 end
             end
         end

@@ -309,7 +309,7 @@ module Syskit
             def add_port_info(task, port_name, info)
                 if done_ports[task].include?(port_name)
                     done_at = @done_at[[task, port_name]] if @done_at
-                    raise ModifyingFinalizedPortInfo.new(task, port_name, done_at), "trying to change port information for #{task}.#{port_name} after done_port_info has been called"
+                    raise ModifyingFinalizedPortInfo.new(task, port_name, done_at, self.class.name), "trying to change port information for #{task}.#{port_name} after done_port_info has been called"
                 end
 
                 if !has_information_for_port?(task, port_name)
