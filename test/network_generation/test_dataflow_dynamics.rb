@@ -68,6 +68,42 @@ module Syskit
                     assert_equal [PortDynamics::Trigger.new('period', 0.1, 1)],
                         port_dynamics.triggers.to_a
                 end
+
+                describe "master/slave deployments" do
+                    before do
+                        task_m = Syskit::TaskContext.new_submodel
+                        deployment_m = Syskit::Deployment.new_submodel do
+                            master = task('master', task_m.orogen_model).
+                                periodic(0.1)
+                            slave  = task 'slave', task_m.orogen_model
+                            slave.slave_of(master)
+                        end
+                        plan.add(deployment = deployment_m.new)
+                        @master = deployment.task('master')
+                        @slave  = deployment.task('slave')
+                        dynamics.reset([@master, @slave])
+                    end
+
+                    it "resolves if called for the slave after the master" do
+                        flexmock(dynamics).should_receive(:set_port_info).
+                            with(@slave, nil, any).once
+                        flexmock(dynamics).should_receive(:set_port_info)
+                        dynamics.initial_information(@master)
+                        dynamics.initial_information(@slave)
+                        assert dynamics.has_final_information_for_task?(@master)
+                        assert dynamics.has_final_information_for_task?(@slave)
+                    end
+
+                    it "resolves if called for the master after the slave" do
+                        flexmock(dynamics).should_receive(:set_port_info).
+                            with(@slave, nil, any).once
+                        flexmock(dynamics).should_receive(:set_port_info)
+                        dynamics.initial_information(@slave)
+                        dynamics.initial_information(@master)
+                        assert dynamics.has_final_information_for_task?(@master)
+                        assert dynamics.has_final_information_for_task?(@slave)
+                    end
+                end
             end
         end
     end
