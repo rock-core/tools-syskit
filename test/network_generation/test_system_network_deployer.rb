@@ -68,16 +68,14 @@ module Syskit
                 it "does not allocate the same task twice" do
                     plan.add(task0 = task_models[0].new)
                     plan.add(task1 = task_models[0].new)
-                    all_tasks = [task0, task1]
-                    selected, missing = subject.select_deployments(all_tasks)
+                    selected, missing = subject.select_deployments
                     assert_equal 1, missing.size
                     assert [task0, task1].include?(missing.first)
                 end
                 it "does not resolve ambiguities by considering already allocated tasks" do
                     plan.add(task0 = task_models[0].new(orocos_name: 'task'))
                     plan.add(task1 = task_models[0].new)
-                    all_tasks = [task0, task1]
-                    selected, missing = subject.select_deployments(all_tasks)
+                    selected, missing = subject.select_deployments
                     assert_equal [task1], missing.to_a
                 end
             end

@@ -53,8 +53,7 @@ module Syskit
                     break
                 end
 
-                all_tasks = plan.find_local_tasks(TaskContext).to_a
-                selected_deployments, missing_deployments = select_deployments(all_tasks)
+                selected_deployments, missing_deployments = select_deployments
                 log_timepoint 'select_deployments'
 
                 apply_selected_deployments(selected_deployments)
@@ -68,7 +67,7 @@ module Syskit
                 return missing_deployments
             end
 
-            def select_deployments(tasks)
+            def select_deployments
                 used_deployments = Set.new
                 missing_deployments = Set.new
                 selected_deployments = Hash.new
