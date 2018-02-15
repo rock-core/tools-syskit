@@ -687,9 +687,6 @@ module Syskit
                 end
 
                 Deployment.all_deployments.delete(orocos_process)
-                model.each_orogen_deployed_task_context_model do |act|
-                    name = orocos_process.get_mapped_name(act.name)
-                end
 
                 # do NOT call cleanup_dead_connections here.
                 # Runtime.update_deployment_states will first announce all the

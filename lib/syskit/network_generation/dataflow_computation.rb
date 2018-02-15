@@ -108,13 +108,6 @@ module Syskit
                         return [], false 
                     end
 
-                    predicate =
-                        if mode == USE_PARTIAL
-                            state.method(:has_information_for_port?)
-                        else
-                            state.method(:has_final_information_for_port?)
-                        end
-
                     complete = false
                     candidates = []
                     ports.each do |args|
