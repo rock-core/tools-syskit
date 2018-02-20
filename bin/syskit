@@ -16,7 +16,7 @@ require 'syskit/cli/main'
 
 if ARGV.first
     command_name = ARGV.first.tr('-', '_')
-    if Syskit::CLI::Main.instance_methods.include?(command_name.to_sym)
+    if Syskit::CLI::Main.all_commands.has_key?(command_name)
         begin
             Syskit::CLI::Main.start(ARGV)
             exit 0
