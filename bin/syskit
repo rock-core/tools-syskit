@@ -14,9 +14,28 @@ Roby.app.public_logs = false
 
 require 'syskit/cli/main'
 
+# Transform 'syskit help <mode>' to 'syskit <mode> --help' if mode is not
+# handled by thor
+if ARGV[0] == 'help'
+    if (command_name = ARGV[1])
+        if !Syskit::CLI::Main.all_commands.has_key?(command_name)
+            ARGV.shift
+            ARGV << '--help'
+        end
+    end
+# Transform 'syskit <mode> --help' to 'syskit help <mode>' if mode is handled
+# by thor
+elsif ['-h', '--help'].include?(ARGV[1])
+    STDERR.puts "WARN: syskit <mode> --help is deprecated, use syskit help <mode> instead"
+    if Syskit::CLI::Main.all_commands.has_key?(ARGV[0])
+        ARGV.unshift 'help'
+    end
+end
+
 if ARGV.first
     command_name = ARGV.first.tr('-', '_')
-    if Syskit::CLI::Main.instance_methods.include?(command_name.to_sym)
+    global_help = (command_name == 'help') && (ARGV.size == 1)
+    if !global_help && Syskit::CLI::Main.all_commands.has_key?(command_name)
         begin
             Syskit::CLI::Main.start(ARGV)
             exit 0
@@ -31,10 +50,14 @@ ORIGINAL_ARGV = ARGV.dup
 mode = ARGV.shift
 
 SYSKIT_MODES = ['doc', 'ide', 'process_server']
-ROBY_MODES = ['init', 'run', 'shell', 'test', 'gen', 'quit', 'restart']
-if not mode || mode == "--help" || mode == "-h"
-    puts "usage: syskit [#{SYSKIT_MODES.join("|")}|#{ROBY_MODES.join("|")}] <mode-arguments>"
-    puts "Run 'syskit <mode> --help' for more information"
+ROBY_MODES = ['run', 'shell', 'test', 'gen', 'quit', 'restart']
+if [nil, '--help', '-h', 'help'].include?(mode)
+    thor_modes = Syskit::CLI::Main.all_commands.
+        find_all { |_name, command| !command.hidden? }.
+        map(&:first)
+    all_modes = SYSKIT_MODES | ROBY_MODES | thor_modes 
+    puts "usage: syskit [#{all_modes.sort.join("|")}] <mode-arguments>"
+    puts "Run 'syskit help <mode>' for more information"
 else
     if SYSKIT_MODES.include?(mode)
         require "syskit/scripts/#{mode}"
