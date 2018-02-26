@@ -16,6 +16,7 @@
 
     <depend_optional package="timecop" />
     <depend_optional package="ruby-listen" />
+    <depend_optional package="gui/vizkit" />
 
     <test_depend package="minitest" />
     <test_depend package="aruba" />
