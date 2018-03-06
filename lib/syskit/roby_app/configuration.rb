@@ -281,7 +281,24 @@ module Syskit
             end
 
             # Declare deployed versions of some Ruby tasks
+            #
+            # rubocop:disable Metrics/PerceivedComplexity
             def use_ruby_tasks(mappings, remote_task: false, on: 'ruby_tasks')
+                if !mappings.respond_to?(:each_key)
+                    raise ArgumentError, "mappings should be given as model => name"
+                elsif mappings.size > 1
+                    Roby.warn_deprecated "defining more than one ruby task context " \
+                        "deployment in a single use_ruby_tasks call is deprecated"
+                end
+
+                mappings.each_key do |task_model|
+                    valid_model = task_model.kind_of?(Class) &&
+                        (task_model <= Syskit::RubyTaskContext)
+                    unless valid_model
+                        raise ArgumentError, "#{task_model} is not a ruby task model"
+                    end
+                end
+
                 task_context_class =
                     if remote_task
                         Orocos::RubyTasks::RemoteTaskContext
@@ -298,11 +315,12 @@ module Syskit
                     configured_deployment
                 end
             end
+            # rubocop:enable Metrics/PerceivedComplexity
 
             # Declare tasks that are going to be started by some other process,
             # but whose tasks are going to be integrated in the syskit network
             def use_unmanaged_task(mappings, on: 'unmanaged_tasks')
-                mappings.map do |task_model, name|
+                model_to_name = mappings.map do |task_model, name|
                     if task_model.respond_to?(:to_str)
                         task_model_name = task_model
                         task_model = Syskit::TaskContext.find_model_from_orogen_name(task_model_name)
@@ -310,7 +328,20 @@ module Syskit
                             raise ArgumentError, "#{task_model_name} is not a known oroGen model name"
                         end
                     end
-                        
+                    [task_model, name]
+                end
+
+                model_to_name.each do |task_model, _name|
+                    is_pure_task_context_model =
+                        task_model.kind_of?(Class) &&
+                        (task_model <= Syskit::TaskContext) &&
+                        !(task_model <= Syskit::RubyTaskContext)
+                    raise ArgumentError, "expected a mapping from a task context "\
+                        "model to a name, but got #{task_model}" \
+                        unless is_pure_task_context_model
+                end
+
+                model_to_name.map do |task_model, name|
                     orogen_model = task_model.orogen_model
                     deployment_model = Deployment.new_submodel(name: "Deployment::Unmanaged::#{name}") do
                         task name, orogen_model
@@ -322,7 +353,7 @@ module Syskit
                     configured_deployment
                 end
             end
-
+            
             # Add the given deployment (referred to by its process name, that is
             # the name given in the oroGen file) to the set of deployments the
             # engine can use.
@@ -348,16 +379,36 @@ module Syskit
                 deployments_by_name = Hash.new
                 names = names.map do |n|
                     if n.respond_to?(:orogen_model)
+                        if !n.kind_of?(Class)
+                            raise ArgumentError, "only deployment models can be given "\
+                                "without a name"
+                        elsif n <= Syskit::TaskContext && !(n <= Syskit::RubyTaskContext)
+                            raise TaskNameRequired, "you must provide a task name when starting a "\
+                                "component by type, as e.g. use_deployment "\
+                                "OroGen.xsens_imu.Task => 'imu'"
+                        elsif !(n <= Syskit::Deployment)
+                            raise ArgumentError, "only deployment models can be given "\
+                                "without a name"
+                        end
                         deployments_by_name[n.orogen_model.name] = n
                         n.orogen_model
                     else n
                     end
                 end
                 deployment_spec = deployment_spec.map_key do |k|
-                    if k.respond_to?(:orogen_model)
+                    if k.respond_to?(:to_str)
+                        k
+                    else
+                        is_valid =
+                            k.kind_of?(Class) &&
+                            (k <= Syskit::TaskContext || k <= Syskit::Deployment) &&
+                            !(k <= Syskit::RubyTaskContext)
+                        unless is_valid
+                            raise ArgumentError, "only deployment and task context "\
+                                "models can be deployed by use_deployment, got #{k}"
+                        end
                         deployments_by_name[k.orogen_model.name] = k
                         k.orogen_model
-                    else k
                     end
                 end
 
