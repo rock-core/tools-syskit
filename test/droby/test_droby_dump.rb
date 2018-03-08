@@ -203,6 +203,29 @@ module Syskit
                 assert_equal 'test::Task', unmarshalled.orogen_model.name
             end
 
+            it "gracefully handles anonymous models" do
+                orogen_model = OroGen::Spec::TaskContext.new(app.default_orogen_project, nil)
+                task_m = Syskit::TaskContext.new_submodel(orogen_model: orogen_model)
+                unmarshalled = droby_transfer task_m
+            end
+
+            it "gracefully handles submodels of anonymous models" do
+                orogen_model = OroGen::Spec::TaskContext.new(app.default_orogen_project, nil)
+                task_m = Syskit::TaskContext.new_submodel(orogen_model: orogen_model)
+                subtask_m = task_m.new_submodel
+                unmarshalled = droby_transfer subtask_m
+                assert_same droby_transfer(task_m), unmarshalled.superclass
+            end
+
+            it "gracefully handles ruby task contexts" do
+                # This is a regression test, that is also covered by the anonymous
+                # tests above. The problems related to anonymous tests have been
+                # detected because of issues with RubyTaskContext
+                task_m = RubyTaskContext.new_submodel
+                unmarshalled = droby_transfer task_m
+                assert_same RubyTaskContext, unmarshalled.superclass
+            end
+
             it "marshals and unmarshals the superclasses" do
                 parent_model = OroGen::Spec::TaskContext.new(app.default_orogen_project, 'parent::Task')
                 parent_m = Syskit::TaskContext.new_submodel(orogen_model: parent_model)

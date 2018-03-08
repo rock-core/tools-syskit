@@ -259,13 +259,9 @@ module Syskit
                             end
 
                             if !orogen_model
-                                superclass = @orogen_superclass_name ||
-                                    Roby.app.default_orogen_project.default_task_superclass
-                                orogen_model = OroGen::Spec::TaskContext.new(
-                                    Roby.app.default_orogen_project, @orogen_name,
-                                    subclasses: superclass)
-                                local_model = Syskit::TaskContext.
-                                    define_from_orogen(orogen_model, register: false)
+                                syskit_supermodel = peer.local_model(self.supermodel)
+                                local_model = syskit_supermodel.
+                                    new_submodel(name: @orogen_name)
                                 if name
                                     local_model.name = name
                                 end
