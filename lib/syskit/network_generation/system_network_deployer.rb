@@ -134,8 +134,15 @@ module Syskit
                     end
                     deployed_task = deployment_task.task(task_name)
                     debug { "deploying #{task} with #{task_name} of #{configured_deployment.short_name} (#{deployed_task})" }
+                    # We MUST merge one-by-one here. Calling apply_merge_group
+                    # on all the merges at once would NOT copy the connections
+                    # that exist between the tasks of the "from" group to the
+                    # "to" group, which is really not what we want
+                    #
+                    # Calling with all the mappings would be useful if what
+                    # we wanted is replace a subnet of the plan by another
+                    # subnet. This is not the goal here.
                     merge_solver.apply_merge_group(task => deployed_task)
-                    debug { "  => #{deployed_task}" }
                 end
             end
 
