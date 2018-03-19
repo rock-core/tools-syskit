@@ -744,6 +744,7 @@ module Syskit
                         name = task.concrete_model.name || ""
                     end
 
+                    name = name.dup
                     if task.execution_agent && task.respond_to?(:orocos_name)
                         name << "[#{task.orocos_name}]"
                     end
