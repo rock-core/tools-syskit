@@ -37,7 +37,7 @@ module Syskit
 
                 svg_io = Tempfile.open(kind)
                 begin
-                    Syskit::Graphviz.new(plan, self).
+                    Syskit::Graphviz.new(plan, self, typelib_resolver: GUI::ModelBrowser::TypelibResolver.new).
                         to_file(kind, 'svg', svg_io, options)
                     svg_io.flush
                     svg_io.rewind

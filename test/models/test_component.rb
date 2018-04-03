@@ -539,6 +539,44 @@ describe Syskit::Models::Component do
         end
     end
 
+    describe "#fullfills?" do
+        describe "handling of specialized models" do
+            before do
+                @srv_m = srv_m = Syskit::DataService.new_submodel
+                @task_m = Syskit::TaskContext.new_submodel do
+                    dynamic_service srv_m, as: 'test' do
+                        provides srv_m
+                    end
+                end 
+            end
+
+            it "returns false if the argument has required dynamic services that the receiver does not" do
+                argument_m = @task_m.specialize
+                argument_m.require_dynamic_service 'test', as: 'test'
+                receiver_m = @task_m.specialize
+                refute receiver_m.fullfills?(argument_m)
+            end
+            it "returns true if the receiver has all the required dynamic services of the argument" do
+                argument_m = @task_m.specialize
+                argument_m.require_dynamic_service 'test', as: 'test'
+                receiver_m = @task_m.specialize
+                receiver_m.require_dynamic_service 'test', as: 'test'
+                assert receiver_m.fullfills?(argument_m)
+            end
+            it "returns true if the receiver has required dynamic services that the argument does not have" do
+                argument_m = @task_m.specialize
+                receiver_m = @task_m.specialize
+                receiver_m.require_dynamic_service 'test', as: 'test'
+                assert receiver_m.fullfills?(argument_m)
+            end
+            it "returns true if the argument is the concrete model" do
+                receiver_m = @task_m.specialize
+                receiver_m.require_dynamic_service 'test', as: 'test'
+                assert receiver_m.fullfills?(@task_m)
+            end
+        end
+    end
+
     describe "#merge" do
         it "should return the most-derived model" do
             m0 = Syskit::Component.new_submodel

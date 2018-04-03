@@ -173,6 +173,45 @@ describe Syskit::Models::BoundDataService do
                 end
             end
         end
+
+        describe "behavior related to dynamic data services" do
+            before do
+                @srv_m = srv_m = Syskit::DataService.new_submodel
+                @task_m = Syskit::TaskContext.new_submodel do
+                    dynamic_service srv_m, as: 'test' do
+                        provides srv_m
+                    end
+                end 
+            end
+
+            it "binds a dynamic data service horizontally" do
+                sub1_m = @task_m.specialize
+                sub1_m.require_dynamic_service 'test', as: 'test'
+                sub2_m = @task_m.specialize
+                sub2_m.require_dynamic_service 'test', as: 'test'
+
+                task = sub2_m.new
+                assert_equal task.test_srv, sub1_m.test_srv.bind(task)
+            end
+
+            it "refuse binding two services that don't come from the same dynamic service" do
+                srv_m = @srv_m # for the block
+                @task_m.dynamic_service srv_m, as: 'other' do
+                    provides srv_m
+                end
+                sub1_m = @task_m.specialize
+                sub1_m.require_dynamic_service 'test', as: 'test'
+                sub2_m = @task_m.specialize
+                sub2_m.require_dynamic_service 'other', as: 'test'
+
+                task = sub2_m.new
+                e = assert_raises(ArgumentError) do
+                    sub1_m.test_srv.bind(task)
+                end
+                assert_equal "cannot bind #{sub1_m.test_srv} on #{task}: does not fullfill #{sub1_m.test_srv.component_model}",
+                    e.message
+            end
+        end
     end
 
     describe "#fullfills?" do
@@ -297,6 +336,63 @@ describe Syskit::Models::BoundDataService do
             end
             task_m.provides srv_m, as: 'test', 'out' => 'other_out'
             assert_nil task_m.test_srv.find_port_for_task_port(task_m.task_out_port)
+        end
+    end
+
+    describe "#demoted" do
+        before do
+            @task_m = Syskit::TaskContext.new_submodel
+            srv_m  = Syskit::DataService.new_submodel
+            @bound_srv_m = @task_m.provides srv_m, as: 'test'
+        end
+
+        it "returns self if called from the base model" do
+            assert_same @bound_srv_m, @bound_srv_m.demoted
+        end
+        it "returns the parent's model if called from a promoted model" do
+            sub_m = @task_m.new_submodel
+            refute_equal @bound_srv_m, sub_m.find_data_service('test')
+            assert_same @bound_srv_m, sub_m.find_data_service('test').demoted
+        end
+        it "returns the initial model regardless of the number of levels" do
+            sub_m = @task_m.new_submodel
+            subsub_m = sub_m.new_submodel
+            refute_equal @bound_srv_m, subsub_m.find_data_service('test')
+            assert_same @bound_srv_m, subsub_m.find_data_service('test').demoted
+        end
+    end
+
+    describe "#same_service?" do
+        before do
+            @task_m = Syskit::TaskContext.new_submodel
+            @srv_m  = srv_m = Syskit::DataService.new_submodel
+            @bound_srv_m  = @task_m.provides @srv_m, as: 'test'
+        end
+
+        it "returns true if it is the same service" do
+            assert @bound_srv_m.same_service?(@bound_srv_m)
+        end
+        it "returns true if it has been promoted from the same root service" do
+            left_m = @task_m.new_submodel
+            right_m = @task_m.new_submodel
+            assert left_m.test_srv.same_service?(right_m.test_srv)
+        end
+        it "returns true even if there are more than one level of promotion" do
+            left_m = @task_m.new_submodel
+            sub_m = @task_m.new_submodel
+            right_m = sub_m.specialize
+            assert left_m.test_srv.same_service?(right_m.test_srv)
+        end
+        it "returns false for different services" do
+            other_srv_m = @task_m.provides @srv_m, as: 'other'
+            refute @bound_srv_m.same_service?(other_srv_m)
+        end
+        it "returns false for services defined separately even if with the same definition" do
+            left_m = @task_m.new_submodel
+            left_srv_m = left_m.provides @srv_m, as: 'separate'
+            right_m = @task_m.new_submodel
+            right_srv_m = right_m.provides @srv_m, as: 'separate'
+            refute left_srv_m.same_service?(right_srv_m)
         end
     end
 end

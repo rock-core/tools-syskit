@@ -14,7 +14,7 @@ module Syskit
             #
             # It is called as needed when calling {#each_data_service}
             def promote_data_service(full_name, service)
-                service.attach(self)
+                service.attach(self, verify: false)
             end
 
             # The data services defined on this task, as a mapping from the data
@@ -939,6 +939,41 @@ module Syskit
                 if object.fullfills?(self) then object
                 else raise ArgumentError, "#{object} does not provide #{self}, cannot bind"
                 end
+            end
+
+            def fullfills?(object)
+                if !object.respond_to?(:each_required_dynamic_service)
+                    return super
+                end
+
+                self_real_model   = concrete_model
+                object_real_model =
+                    if object.respond_to?(:concrete_model)
+                        object.concrete_model
+                    else object
+                    end
+
+                if self_real_model == self
+                    return super
+                elsif !self_real_model.fullfills?(object_real_model)
+                    return false
+                elsif !object.respond_to?(:each_required_dynamic_service)
+                    return true
+                end
+
+                # We've checked the public interface, Verify that we also have all
+                # dynamic services instanciated in 'object'
+                object.each_required_dynamic_service do |object_srv|
+                    self_srv = find_data_service(object_srv.name)
+                    if !self_srv
+                        return false
+                    elsif !self_srv.dynamic?
+                        return false
+                    elsif !self_srv.same_service?(object_srv)
+                        return false
+                    end
+                end
+                return true
             end
 
             def can_merge?(target_model)

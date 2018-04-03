@@ -10,6 +10,18 @@ module Syskit
         # represented by a corresponding {Syskit::BoundDataService}, whose
         # {Syskit::BoundDataService#model} method returns this object. This
         # instance-level object is created with {#bind}
+        #
+        # Bound data services are _promoted_ from one component model to its
+        # submodels, which means that when one does
+        #
+        #    bound_m = task_m.test_srv
+        #    sub_m = task_m.mew_submodel
+        #    sub_bound_m = bound_m.test_srv
+        #
+        # Then sub_bound_m != bound_m as sub_bound_m is bound to sub_m and
+        # bound_m is bound to task_m. Use {#same_service?} to check whether
+        # two services are different promoted version of the same original
+        # service
         class BoundDataService
             include Models::Base
             include MetaRuby::DSLs::FindThroughMethodMissing
@@ -54,8 +66,13 @@ module Syskit
 
             def hash; [self.class, full_name, component_model].hash end
 
+            # The original service from which self has been promoted
+            #
+            # See {BoundDataService} for more details on promotion
+            attr_reader :demoted
+
             def initialize(name, component_model, master, model, port_mappings)
-                @name, @component_model, @master, @model, @port_mappings = 
+                @name, @component_model, @master, @model, @port_mappings =
                     name, component_model, master, model, port_mappings
 
                 @full_name =
@@ -64,6 +81,8 @@ module Syskit
                     else
                         name
                     end
+
+                @demoted = self
             end
 
             def initialize_copy(original)
@@ -112,10 +131,10 @@ module Syskit
 
             # Returns the bound data service object that represents self being
             # attached to a new component model
-            def attach(new_component_model)
+            def attach(new_component_model, verify: true)
                 if new_component_model == self
                     return self
-                elsif !new_component_model.fullfills?(component_model)
+                elsif verify && !new_component_model.fullfills?(component_model)
                     raise ArgumentError, "cannot attach #{self} on #{new_component_model}: does not fullfill #{component_model}"
                 end
 
@@ -270,16 +289,24 @@ module Syskit
                 elsif task.model <= component_model # This is stronger than #fullfills?
                     Syskit::BoundDataService.new(task, self)
                 elsif task.fullfills?(component_model)
-                    # Fullfills, but does not inherit ? component_model is a data service proxies
-                    if !component_model.placeholder_task?
-                        raise InternalError, "#{component_model} was expected to be a placeholder task, but is not"
-                    end
-                    base_model = component_model.superclass
-                    if base_model_srv = base_model.find_data_service(name)
-                        # The data service is from a concrete task model
-                        Syskit::BoundDataService.new(task, base_model_srv)
+                    # Fullfills, but does not inherit ? component_model may be
+                    # a data service proxies
+                    if component_model.placeholder_task?
+                        base_model = component_model.superclass
+                        if base_model_srv = base_model.find_data_service(name)
+                            # The data service is from a concrete task model
+                            Syskit::BoundDataService.new(task, base_model_srv)
+                        else
+                            task.find_data_service_from_type(model)
+                        end
+                    # Or maybe we're dealing with dynamic service instanciation
                     else
-                        task.find_data_service_from_type(model)
+                        resolved = task.find_data_service(name)
+                        if resolved && resolved.model.same_service?(self)
+                            return resolved
+                        else
+                            raise InternalError, "#{component_model} is fullfilled by #{task}, but is not inherited by its model #{task.model}. I didn't manage to resolve this, either as a task-to-placeholder mapping, or as a dynamic service"
+                        end
                     end
                 else
                     raise ArgumentError, "cannot bind #{self} on #{task}: does not fullfill #{component_model}"
@@ -345,6 +372,29 @@ module Syskit
                     '_srv'.freeze => :find_data_service) || super
             end
 
+            # Whether two services are the same service bound to two different interfaces
+            #
+            # When subclassing, the services are _promoted_ to the new component
+            # interface that is being accessed, so in effect when one does
+            #
+            #    bound_m = task_m.test_srv
+            #    sub_m = task_m.mew_submodel
+            #    sub_bound_m = bound_m.test_srv
+            #
+            # Then sub_bound_m != bound_m as sub_bound_m is bound to sub_m and
+            # bound_m is bound to task_m. This is important, as we sometimes want
+            # to compare services including which interface they're bound to.
+            #
+            # However, in some cases, we want to know whether two services are
+            # actually issues from the same service definition, i.e. have been
+            # promoted from the same service. This method performs that comparison
+            #
+            # @param [BoundDataService] other
+            # @return [Boolean]
+            def same_service?(other)
+                other.demoted == self.demoted
+            end
+
             # The selection object that represents self being selected for
             # requirements
             #
@@ -371,4 +421,3 @@ module Syskit
         end
     end
 end
-

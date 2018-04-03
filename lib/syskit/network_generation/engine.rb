@@ -231,13 +231,22 @@ module Syskit
             #
             # Also updates the permanent and mission flags for these tasks.
             def fix_toplevel_tasks(required_instances)
+                if required_instances.empty?
+                    return
+                end
+
+                replacement_filter = Roby::Plan::ReplacementFilter.new.
+                    exclude_relation(Syskit::Flows::DataFlow).
+                    exclude_tasks(work_plan.find_local_tasks(Syskit::Component))
+
                 required_instances.each do |req_task, actual_task|
                     placeholder_task = work_plan.wrap_task(req_task.planned_task)
                     req_task         = work_plan.wrap_task(req_task)
                     actual_task      = work_plan.wrap_task(actual_task)
 
                     if placeholder_task != actual_task
-                        work_plan.replace(placeholder_task, actual_task)
+                        work_plan.replace(placeholder_task, actual_task,
+                            filter: replacement_filter)
                         # Need to switch the planning relation as well, it is
                         # not done by #replace
                         placeholder_task.remove_planning_task req_task

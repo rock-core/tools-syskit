@@ -21,6 +21,7 @@ module Syskit
                 @component_model, @name, @service_model, @block = component_model, name, service_model, block
                 @addition_requires_reconfiguration = addition_requires_reconfiguration
                 @remove_when_unused = remove_when_unused
+                @demoted = self
             end
 
             def eql?(other)
@@ -41,6 +42,12 @@ module Syskit
                 result.instance_variable_set(:@component_model, component_model)
                 result
             end
+
+            # The actual dynamic data service model we've been promoted from
+            #
+            # See {BoundDataService} documentation for a discussion on
+            # promotion
+            attr_reader :demoted
 
             # Intermediate object used to evaluate the blocks given to
             # Component#dynamic_service
