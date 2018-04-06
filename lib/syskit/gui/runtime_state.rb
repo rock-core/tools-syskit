@@ -252,22 +252,23 @@ module Syskit
 
             def app_start(robot_name: 'default')
                 robot_name, start_controller = AppStartDialog.exec(Roby.app.robots.names, self, default_robot_name: robot_name)
-                if robot_name
-                    extra_args = Array.new
-                    if !robot_name.empty?
-                        extra_args << "-r#{robot_name}"
-                    end
-                    if start_controller
-                        extra_args << "-c"
-                    end
-                    extra_args.concat(
-                        Roby.app.argv_set.flat_map { |arg| ['--set', arg] })
-                    @syskit_pid =
-                        Kernel.spawn Gem.ruby, '-S', 'syskit', 'run', *extra_args,
-                            pgroup: true
-                    @starting_monitor.start(100)
-                    run_hook :on_connection_state_changed, 'STARTING'
+                return unless robot_name
+
+                extra_args = Array.new
+                if !robot_name.empty?
+                    extra_args << "-r" << robot_name
                 end
+                if start_controller
+                    extra_args << "-c"
+                end
+                extra_args.concat(
+                    Roby.app.argv_set.flat_map { |arg| ['--set', arg] })
+                @syskit_pid =
+                    Kernel.spawn Gem.ruby, '-S', 'syskit', 'run', "--wait-shell-connection",
+                        *extra_args,
+                        pgroup: true
+                @starting_monitor.start(100)
+                run_hook :on_connection_state_changed, 'STARTING'
             end
 
             def app_quit
