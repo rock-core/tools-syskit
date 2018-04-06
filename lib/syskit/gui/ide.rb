@@ -146,15 +146,18 @@ module Syskit
                 syskit2orogen = model_names.
                     each_with_object(Hash.new) do |(orogen_name, project_name), result|
                         unless loader.has_loaded_project?(project_name)
-                            result["OroGen.#{orogen_name.gsub('::', '.')}"] = project_name
+                            syskit_path = ['OroGen', *orogen_name.split('::')]
+                            syskit_name = syskit_path.join(".")
+                            result[syskit_name] = [syskit_path, project_name]
                         end
                     end
 
                 if (selected = Picker.select(self, syskit2orogen.keys))
-                    selected_project = syskit2orogen[selected]
-                    Roby.app.using_task_library(selected_project)
-                    Roby.app.extra_required_task_libraries << selected_project
+                    syskit_path, project_name = syskit2orogen[selected]
+                    Roby.app.using_task_library(project_name)
+                    Roby.app.extra_required_task_libraries << project_name
                     @model_browser.reload
+                    @model_browser.select_by_path(*syskit_path)
                 end
             end
 
@@ -165,15 +168,18 @@ module Syskit
                         next if type_name.end_with?("_m")
                         next if type_name =~ /\[/
                         unless loader.has_loaded_typekit?(typekit_name)
-                            result["Types#{type_name.gsub("/", ".")}"] = typekit_name
+                            syskit_path = ["Types", *Typelib.split_typename(type_name)]
+                            syskit_name = syskit_path.join(".")
+                            result[syskit_name] = [syskit_path, typekit_name]
                         end
                     end
 
                 if (selected = Picker.select(self, syskit2orogen.keys))
-                    selected_typekit = syskit2orogen[selected]
-                    Roby.app.extra_required_typekits << selected_typekit
-                    Roby.app.import_types_from(selected_typekit)
+                    syskit_path, typekit_name = syskit2orogen[selected]
+                    Roby.app.extra_required_typekits << typekit_name
+                    Roby.app.import_types_from(typekit_name)
                     @model_browser.reload
+                    @model_browser.select_by_path(*syskit_path)
                 end
             end
 
@@ -186,6 +192,10 @@ module Syskit
                         Roby.app.app_dir
                     end
 
+                existing_models = Roby.app.root_models.
+                    flat_map { |root| root.each_submodel.to_a }.
+                    to_set
+
                 files = Qt::FileDialog.getOpenFileNames(
                     self, "Pick model file(s) to add", initial_dir)
                 files.each do |path|
@@ -193,6 +203,20 @@ module Syskit
                     Roby.app.additional_model_files << path
                     @model_browser.update_exceptions
                     @model_browser.reload
+                end
+
+                new_models = []
+                Roby.app.root_models.each do |root|
+                    root.each_submodel do |m|
+                        new_models << m unless existing_models.include?(m)
+                    end
+                end
+
+                orogen_based, other = new_models.partition do |m|
+                    m <= Syskit::TaskContext && !(m <= Syskit::RubyTaskContext)
+                end
+                if (new_model = other.first || orogen_based.first)
+                    @model_browser.select_by_model(new_model)
                 end
             end
 
