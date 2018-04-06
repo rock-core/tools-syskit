@@ -125,7 +125,8 @@ module Syskit
 
             def create_status_bar_ui
                 status_bar = Qt::HBoxLayout.new
-                status_bar.add_widget(start_stop_button = Qt::PushButton.new("Start", self))
+                status_bar.add_widget(start_stop_button =
+                    Qt::PushButton.new("Start Tests", self))
                 connect SIGNAL('started()') do
                     start_stop_button.text = "Stop"
                 end
@@ -163,7 +164,7 @@ module Syskit
                 test_list_ui.edit_triggers = Qt::AbstractItemView::NoEditTriggers
                 splitter.add_widget(@test_result_ui = Qt::WebView.new(self))
             end
-            
+
             def update_selected_item_state
                 item = @selected_item
                 if runtime = item.runtime
@@ -700,4 +701,3 @@ module Syskit
         end
     end
 end
-
