@@ -10,9 +10,8 @@ module Syskit
             def app(dir = nil)
                 dir = super(dir, init_path: 'syskit_app')
 
-                config_dir = File.join(dir, 'config', 'orogen')
-                empty_directory config_dir
-                create_file File.join(config_dir, '.gitattributes'), ''
+                directory 'syskit_app/', File.join(dir),
+                    verbose: !options[:quiet]
                 dir
             end
 
