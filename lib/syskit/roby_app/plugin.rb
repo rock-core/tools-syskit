@@ -6,7 +6,7 @@ class Module
             require file
             const_set old_name, constant(new_constant)
         else
-            Syskit.error msg 
+            Syskit.error msg
             Syskit.error "set Roby.app.backward_compatible_naming = true to reenable. This option will be removed in the future, so start using the new name and file"
         end
     end
@@ -126,6 +126,13 @@ module Syskit
             def self.require_models(app)
                 setup_loaders(app)
 
+                app.extra_required_task_libraries.each do |name|
+                    app.using_task_library name
+                end
+                app.extra_required_typekits.each do |name|
+                    app.import_types_from name
+                end
+
                 if !app.permanent_requirements.empty?
                     toplevel_object.extend SingleFileDSL
                     app.execution_engine.once do
@@ -193,6 +200,20 @@ module Syskit
             def default_orogen_project
                 @default_orogen_project ||= OroGen::Spec::Project.new(default_loader)
             end
+
+            # A set of task libraries that should be imported when the application
+            # gets reloaded
+            #
+            # This is used in the UIs to load and inspect task libraries even
+            # if they are not part of the app's configuration
+            attribute(:extra_required_task_libraries) { Array.new }
+
+            # A set of typekits that should be imported when the application
+            # gets reloaded
+            #
+            # This is used in the UIs to load and inspect types even
+            # if they are not part of the app's configuration
+            attribute(:extra_required_typekits) { Array.new }
 
             # @return [Hash<String,OroGen::Spec::Project>] the set of projects
             #   loaded so far
@@ -264,7 +285,7 @@ module Syskit
                 # If we are loading under Roby, get the plugins for the orogen
                 # project
                 return if !Syskit.conf.load_component_extensions?
-                    
+
                 file = find_file('models', 'orogen', "#{name}.rb", order: :specific_first) ||
                     find_file('tasks', 'orogen', "#{name}.rb", order: :specific_first) ||
                     find_file('tasks', 'components', "#{name}.rb", order: :specific_first)
@@ -474,7 +495,7 @@ module Syskit
                 end
 
                 if defined? super
-                    super 
+                    super
                 else true
                 end
             end
@@ -521,7 +542,7 @@ module Syskit
                         begin Orocos::RemoteProcesses::Client.new('localhost', @server_port)
                         rescue Errno::ECONNREFUSED
                             sleep 0.1
-                            is_running = 
+                            is_running =
                                 begin
                                     !::Process.waitpid(@server_pid, ::Process::WNOHANG)
                                 rescue Errno::ESRCH
