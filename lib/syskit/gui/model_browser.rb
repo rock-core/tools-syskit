@@ -20,7 +20,12 @@ module Syskit
 
                 def each_submodel(obj)
                     if obj == Typelib::Type
-                        Roby.app.default_loader.registry.each do |type|
+                        loader = Roby.app.default_loader
+                        loader.registry.each do |type|
+                            next if loader.m_type?(type)
+                            next if type.null?
+                            next if type <= Typelib::NumericType
+                            next if type <= Typelib::ArrayType
                             yield(type)
                         end
                     end
@@ -82,4 +87,3 @@ module Syskit
         end
     end
 end
-
