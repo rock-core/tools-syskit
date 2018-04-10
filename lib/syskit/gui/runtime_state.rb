@@ -282,6 +282,13 @@ module Syskit
                 syskit.restart
             end
 
+            def logger_task?(t)
+                return if @logger_m == false
+                @logger_m ||= Syskit::TaskContext.
+                    find_model_from_orogen_name('logger::Logger') || false
+                t.kind_of?(@logger_m)
+            end
+
             def update_tasks_info
                 if current_job
                     job_task = syskit_log_stream.plan.find_tasks(Roby::Interface::Job).
@@ -302,24 +309,23 @@ module Syskit
                     if !@known_loggers
                         @known_loggers = Set.new
                         all_tasks.delete_if do |t|
-                            if t.model.ancestors.any? { |t| t.name == "OroGen::Logger::Logger" }
-                                @known_loggers << t
-                            end
+                            @known_loggers << t if logger_task?(t)
                         end
                     end
 
-                    tasks.delete_if do |t|
+                    tasks = tasks.find_all do |t|
                         if all_tasks.include?(t)
-                            false
-                        elsif @known_loggers.include?(t)
                             true
-                        elsif t.model.ancestors.any? { |t| t.name == "OroGen::Logger::Logger" }
+                        elsif @known_loggers.include?(t)
+                            false
+                        elsif logger_task?(t)
                             @known_loggers << t
+                            false
+                        else true
                         end
                     end
                 end
                 all_tasks.merge(tasks)
-                @hide_loggers_changed = false
                 tasks.each do |job|
                     if job.kind_of?(Roby::Interface::Job)
                         if placeholder_task = job.planned_task
@@ -409,11 +415,14 @@ module Syskit
 
                 task_inspector_widget = Qt::Widget.new
                 task_inspector_layout = Qt::VBoxLayout.new(task_inspector_widget)
-                task_inspector_layout.add_widget(@ui_hide_loggers = Qt::CheckBox.new("Show loggers"))
-                task_inspector_layout.add_widget(@ui_task_inspector = Vizkit.default_loader.TaskInspector)
+                task_inspector_layout.add_widget(
+                    @ui_hide_loggers = Qt::CheckBox.new("Show loggers"))
+                task_inspector_layout.add_widget(
+                    @ui_task_inspector = Vizkit.default_loader.TaskInspector)
                 @ui_hide_loggers.checked = false
                 @ui_hide_loggers.connect SIGNAL('toggled(bool)') do |checked|
                     @known_loggers = nil
+                    update_tasks_info
                 end
 
                 @ui_logging_configuration = LoggingConfiguration.new(syskit)
