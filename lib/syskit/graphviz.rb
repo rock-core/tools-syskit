@@ -13,7 +13,7 @@ module Syskit
             COLOR_PALETTE[@current_color]
         end
         @current_color = 0
-        
+
         # Exception raised when the dot subprocess crashes in the Graphviz class
         class DotCrashError < RuntimeError; end
         # Exception raised when the dot subprocess reported a failure in the Graphviz class
@@ -361,7 +361,8 @@ module Syskit
             def add_port_details_annotations
                 plan.find_local_tasks(Component).each do |task|
                     task.model.each_port do |p|
-                        add_port_annotation(task, p.name, "Type", p.type_name)
+                        port_type = Roby.app.default_loader.opaque_type_for(p.type)
+                        add_port_annotation(task, p.name, "Type", port_type.name)
                     end
                 end
             end
@@ -437,7 +438,7 @@ module Syskit
                     :highlights => Set.new,
                     :show_all_ports => true
                 excluded_models = options[:excluded_models]
-                    
+
                 port_annotations.clear
                 task_annotations.clear
 
@@ -651,10 +652,11 @@ module Syskit
                 if !input_ports.empty?
                     input_port_label = "<TABLE BORDER=\"0\" CELLBORDER=\"1\" CELLSPACING=\"0\">"
                     input_ports.each do |p|
+                        port_type = Roby.app.default_loader.opaque_type_for(p.type)
                         port_id = dot_id(p.name)
                         ann = format_annotations(port_annotations, [task, p.name])
                         doc = escape_dot(p.model.doc || '<no documentation for this port>')
-                        input_port_label << "<TR><TD HREF=\"#{uri_for(p.type)}\" TITLE=\"#{doc}\"><TABLE BORDER=\"0\" CELLBORDER=\"0\"><TR><TD PORT=\"#{port_id}\" COLSPAN=\"2\">#{p.name}</TD></TR>#{ann}</TABLE></TD></TR>"
+                        input_port_label << "<TR><TD HREF=\"#{uri_for(port_type)}\" TITLE=\"#{doc}\"><TABLE BORDER=\"0\" CELLBORDER=\"0\"><TR><TD PORT=\"#{port_id}\" COLSPAN=\"2\">#{p.name}</TD></TR>#{ann}</TABLE></TD></TR>"
                     end
                     input_port_label << "\n</TABLE>"
                     result << "    inputs#{task.dot_id} [label=< #{input_port_label} >,shape=none];"
@@ -664,10 +666,11 @@ module Syskit
                 if !output_ports.empty?
                     output_port_label = "<TABLE BORDER=\"0\" CELLBORDER=\"1\" CELLSPACING=\"0\">"
                     output_ports.each do |p|
+                        port_type = Roby.app.default_loader.opaque_type_for(p.type)
                         port_id = dot_id(p.name)
                         ann = format_annotations(port_annotations, [task, p.name])
                         doc = escape_dot(p.model.doc || '<no documentation for this port>')
-                        output_port_label << "<TR><TD HREF=\"#{uri_for(p.type)}\" TITLE=\"#{doc}\"><TABLE BORDER=\"0\" CELLBORDER=\"0\"><TR><TD PORT=\"#{port_id}\" COLSPAN=\"2\">#{p.name}</TD></TR>#{ann}</TABLE></TD></TR>"
+                        output_port_label << "<TR><TD HREF=\"#{uri_for(port_type)}\" TITLE=\"#{doc}\"><TABLE BORDER=\"0\" CELLBORDER=\"0\"><TR><TD PORT=\"#{port_id}\" COLSPAN=\"2\">#{p.name}</TD></TR>#{ann}</TABLE></TD></TR>"
                     end
                     output_port_label << "\n</TABLE>"
                     result << "    outputs#{task.dot_id} [label=< #{output_port_label} >,shape=none];"
@@ -708,7 +711,7 @@ module Syskit
 
             def format_task_label(task, task_colors = Hash.new)
                 label = []
-                
+
                 if task.respond_to?(:proxied_data_services)
                     name = task.proxied_data_services.map do |model|
                         model.name
@@ -751,7 +754,7 @@ module Syskit
                     ann = format_annotations(annotations)
                     label << ann
                 end
-                
+
                 if ann = format_annotations(task_annotations, task)
                     label << ann
                 end
