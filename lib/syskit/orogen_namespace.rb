@@ -21,8 +21,9 @@ module Syskit
             def register_syskit_model(model)
                 orogen_name = model.orogen_model.name
                 prefix = "#{project_name}::"
-                if !orogen_name.start_with?(prefix)
-                    ::Kernel.raise ::ArgumentError, "#{model} does not seem to be part of the #{project_name} project"
+                unless orogen_name.start_with?(prefix)
+                    ::Kernel.raise ::ArgumentError,
+                        "#{model} does not seem to be part of the #{project_name} project"
                 end
 
                 @registered_models[orogen_name[prefix.size..-1].to_sym] = model
@@ -37,7 +38,8 @@ module Syskit
                     if args.empty?
                         return model
                     else
-                        raise ArgumentError, "expected 0 arguments, got #{args.size}"
+                        ::Kernel.raise ::ArgumentError,
+                            "expected 0 arguments, got #{args.size}"
                     end
                 end
                 super

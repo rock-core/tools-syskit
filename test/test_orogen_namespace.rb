@@ -16,6 +16,18 @@ module Syskit
             assert_same obj, @object.project.Task
         end
 
+        it "raises if given arguments" do
+            obj = flexmock(
+                orogen_model: flexmock(
+                    project: flexmock(name: 'project'),
+                    name: 'project::Task'))
+            @object.register_syskit_model(obj)
+            e = assert_raises(ArgumentError) do
+                @object.project.Task('something')
+            end
+            assert_equal "expected 0 arguments, got 1", e.message
+        end
+
         it "allows to resolve a project by its orogen name" do
             obj = flexmock(
                 orogen_model: flexmock(
