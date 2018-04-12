@@ -28,6 +28,18 @@ module Syskit
             assert_equal "expected 0 arguments, got 1", e.message
         end
 
+        it "raises if resolving a task that does not exist" do
+            obj = flexmock(
+                orogen_model: flexmock(
+                    project: flexmock(name: 'project'),
+                    name: 'project::Task'))
+            @object.register_syskit_model(obj)
+            e = assert_raises(NoMethodError) do
+                @object.project.Other
+            end
+            assert_equal "no task Other on project, available tasks: Task", e.message
+        end
+
         it "allows to resolve a project by its orogen name" do
             obj = flexmock(
                 orogen_model: flexmock(
@@ -35,6 +47,18 @@ module Syskit
                     name: 'project::Task'))
             @object.register_syskit_model(obj)
             assert_same obj, @object.syskit_model_by_orogen_name('project::Task')
+        end
+
+        it "raises if resolving a project that does not exist" do
+            obj = flexmock(
+                orogen_model: flexmock(
+                    project: flexmock(name: 'project'),
+                    name: 'project::Task'))
+            @object.register_syskit_model(obj)
+            e = assert_raises(NoMethodError) do
+                @object.does_not_exist.Other
+            end
+            assert_equal "undefined method `does_not_exist' for #{@object}, available OroGen projects: project", e.message
         end
 
         it "does not register a model by constant by default" do
@@ -67,4 +91,3 @@ module Syskit
         end
     end
 end
-

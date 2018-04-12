@@ -43,6 +43,9 @@ module Syskit
                     end
                 end
                 super
+            rescue ::NoMethodError => e
+                ::Kernel.raise e, "no task #{m} on #{project_name}, available tasks: "\
+                    "#{@registered_models.keys.map(&:to_s).sort.join(', ')}"
             end
         end
 
@@ -93,6 +96,9 @@ module Syskit
                 end
             end
             super
+        rescue NoMethodError => e
+            raise e, "#{e.message}, available OroGen projects: "\
+            "#{@project_namespaces.keys.map(&:to_s).join(", ")}"
         end
 
         def register_syskit_model(model)
@@ -138,11 +144,15 @@ module Syskit
 
             namespace, basename = syskit_names_from_orogen_name(orogen_model.name)
             if syskit_model_toplevel_constant_registration?
-                if namespace_mod = OroGenNamespace.register_syskit_model_as_constant(Object, namespace, basename, model)
+                if namespace_mod =
+                        OroGenNamespace.register_syskit_model_as_constant(
+                            Object, namespace, basename, model)
                     @registered_constants << [Object, namespace_mod, basename]
                 end
             end
-            if namespace_mod = OroGenNamespace.register_syskit_model_as_constant(self, namespace, basename, model)
+            if namespace_mod =
+                    OroGenNamespace.register_syskit_model_as_constant(
+                        self, namespace, basename, model)
                 @registered_constants << [self, namespace_mod, basename]
             end
         end
@@ -151,12 +161,14 @@ module Syskit
             namespace =
                 if mod.const_defined_here?(namespace)
                     mod.const_get(namespace)
-                else 
+                else
                     mod.const_set(namespace, Module.new)
                 end
 
             if namespace.const_defined_here?(basename)
-                Syskit::TaskContext.warn "there is already a constant with the name #{namespace.name}::#{basename}, I am not registering the model for #{model.orogen_model.name} there"
+                Syskit::TaskContext.warn "there is already a constant with the name" \
+                    "#{namespace.name}::#{basename}, I am not registering the model" \
+                    "for #{model.orogen_model.name} there"
                 false
             else
                 namespace.const_set(basename, model)
