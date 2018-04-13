@@ -70,12 +70,7 @@ module Syskit
                 model_browser.model_selector.filter_box.set_focus(Qt::OtherFocusReason)
 
                 btn_reload_models.connect(SIGNAL('clicked()')) do
-                    model_browser.registered_exceptions.clear
-                    Roby.app.clear_exceptions
-                    Roby.app.reload_models
-                    model_browser.update_exceptions
-                    model_browser.reload
-                    testing.reloaded
+                    reload_models
                 end
 
                 if runtime
@@ -85,6 +80,31 @@ module Syskit
                 if tests
                     testing.start
                 end
+            end
+
+            def reload_models
+                if @runtime_state && @runtime_state.current_state != 'UNREACHABLE'
+                    Qt::MessageBox.warning(
+                        self, "Cannot Reload while running",
+                        "Cannot reload while an app is running, quit the app first")
+                    return
+                end
+
+                model_browser.registered_exceptions.clear
+                Roby.app.clear_exceptions
+                Roby.app.reload_models
+                # HACK: reload_models calls Orocos.clear, which actually
+                # HACK: de-initializes Orocos. Overall, this isn't a problem
+                # HACK: on the Syskit side as one is not supposed to reload
+                # HACK: the models while the app is setup (setup being
+                # HACK: what calls Orocos.initialize). However, the IDE also
+                # HACK: has a task inspector, which also needs
+                # HACK: Orocos.initialize, so the IDE *does* call initialize
+                # HACK: explicitely
+                @runtime_state.reset if @runtime_state
+                model_browser.update_exceptions
+                model_browser.reload
+                testing.reloaded
             end
 
             class Picker < Qt::Dialog

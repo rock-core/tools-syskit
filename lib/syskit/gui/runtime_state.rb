@@ -61,6 +61,9 @@ module Syskit
             # @return [Array<Qt::Action>]
             attr_reader :global_actions
 
+            # The current connection state
+            attr_reader :current_state
+
             define_hooks :on_connection_state_changed
             define_hooks :on_progress
 
@@ -109,18 +112,18 @@ module Syskit
             # @param [Integer] poll_period how often should the syskit interface
             #   be polled (milliseconds). Set to nil if the polling is already
             #   done externally
-            def initialize(parent: nil, robot_name: 'default', syskit: Roby::Interface::Async::Interface.new, poll_period: 50)
+            def initialize(parent: nil, robot_name: 'default',
+                syskit: Roby::Interface::Async::Interface.new, poll_period: 50)
+
                 super(parent)
 
-                orocos_corba_nameservice = Orocos::CORBA::NameService.new(syskit.remote_name)
-                @name_service = Orocos::Async::NameService.new(orocos_corba_nameservice)
+                @syskit = syskit
                 @robot_name = robot_name
-
+                reset
                 if poll_period
                     poll_syskit_interface(syskit, poll_period)
                 end
 
-                @syskit = syskit
                 create_ui
 
                 @global_actions = Hash.new
@@ -212,6 +215,13 @@ module Syskit
                     job.start
                     monitor_job(job)
                 end
+            end
+
+            def reset
+                Orocos.initialize
+                @logger_m = nil
+                orocos_corba_nameservice = Orocos::CORBA::NameService.new(syskit.remote_name)
+                @name_service = Orocos::Async::NameService.new(orocos_corba_nameservice)
             end
 
             def update_log_server_connection(port)

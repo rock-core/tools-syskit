@@ -15,7 +15,9 @@ module Syskit
             before do
                 @syskit = flexmock(Roby::Interface::Async::Interface.new)
                 @syskit.should_receive(:client).and_return { client }
-                @subject = RuntimeState.new(syskit: syskit)
+                Orocos.allow_blocking_calls do
+                    @subject = RuntimeState.new(syskit: syskit)
+                end
                 @client = flexmock('client')
                 @client.should_receive(:jobs).and_return([])
                 @client.should_receive(:actions).and_return([])
