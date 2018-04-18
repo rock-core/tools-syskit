@@ -131,8 +131,6 @@ module Syskit
             end
             signals 'clicked()'
 
-            signals 'fileOpenClicked(const QUrl&)'
-
             def connect_to_hooks
                 ui_drop.connect(SIGNAL('clicked()')) do
                     @batch_manager.drop_job(self)

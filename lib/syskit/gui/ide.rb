@@ -65,6 +65,8 @@ module Syskit
                 if runtime != false
                     create_runtime_state_ui(syskit)
                     runtime_idx = tab_widget.add_tab runtime_state, "Runtime"
+                    connect(@runtime_state, SIGNAL('fileOpenClicked(const QUrl&)'),
+                            self, SLOT('fileOpenClicked(const QUrl&)'))
                 end
 
                 model_browser.model_selector.filter_box.set_focus(Qt::OtherFocusReason)

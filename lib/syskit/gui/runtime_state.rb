@@ -423,6 +423,8 @@ module Syskit
                 splitter = Qt::Splitter.new
                 splitter.add_widget job_summary
                 splitter.add_widget(@job_expanded_status = ExpandedJobStatus.new)
+                connect(@job_expanded_status, SIGNAL('fileOpenClicked(const QUrl&)'),
+                    self, SIGNAL('fileOpenClicked(const QUrl&)'))
 
                 task_inspector_widget = Qt::Widget.new
                 task_inspector_layout = Qt::VBoxLayout.new(task_inspector_widget)
@@ -568,8 +570,6 @@ module Syskit
                 job_status.connect(SIGNAL('clicked()')) do
                     select_job(job_status)
                 end
-                connect(job_status, SIGNAL('fileOpenClicked(const QUrl&)'),
-                        self, SIGNAL('fileOpenClicked(const QUrl&)'))
             end
 
             def deselect_job
