@@ -97,6 +97,15 @@ module Syskit
                 Array.new
             end
         end
+
+        # The cache directory used by the Syskit app to speed up configuration loading
+        def cache_dir
+            File.join(app.app_dir, 'config', 'orogen', '.cache')
+        end
+
+        def load_from_yaml(path, cache_dir: self.cache_dir)
+            FileUtils.mkdir_p self.cache_dir
+            super
+        end
     end
 end
-
