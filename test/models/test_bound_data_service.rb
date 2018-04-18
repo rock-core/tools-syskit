@@ -181,7 +181,7 @@ describe Syskit::Models::BoundDataService do
                     dynamic_service srv_m, as: 'test' do
                         provides srv_m
                     end
-                end 
+                end
             end
 
             it "binds a dynamic data service horizontally" do
@@ -237,7 +237,7 @@ describe Syskit::Models::BoundDataService do
 
         it "returns false for services that it does not provide" do
             other_service = Syskit::DataService.new_submodel
-            assert !service.fullfills?(other_service)
+            refute service.fullfills?(other_service)
         end
 
         it "returns true for service proxies that list provided services" do

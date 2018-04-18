@@ -4,6 +4,7 @@ module Syskit
         class RESTDeploymentManager
             def initialize(conf)
                 @conf = conf
+                @deployment_group = conf.deployment_group
                 @new_deployments = Array.new
                 @overrides = Hash.new
             end
@@ -38,20 +39,21 @@ module Syskit
                     raise UsedInOverride, "#{id} is already used in an override, cannot override it"
                 end
 
-                @conf.deregister_configured_deployment(configured_deployment)
+                @deployment_group.deregister_configured_deployment(configured_deployment)
                 configured_deployment.each_orogen_deployed_task_context_model do |orogen_m|
                     task_m = Syskit::TaskContext.find_model_by_orogen(orogen_m.task_model)
-                    overrides.concat(@conf.use_unmanaged_task(task_m => orogen_m.name))
+                    overrides.concat(
+                        @deployment_group.use_unmanaged_task(task_m => orogen_m.name))
                 end
                 @overrides[configured_deployment] = overrides
                 overrides.map(&:object_id)
 
             rescue Exception => e
                 overrides.each do |c|
-                    @conf.deregister_configured_deployment(c)
+                    @deployment_group.deregister_configured_deployment(c)
                 end
                 if configured_deployment
-                    @conf.register_configured_deployment(configured_deployment)
+                    @deployment_group.register_configured_deployment(configured_deployment)
                 end
                 raise
             end
@@ -60,14 +62,14 @@ module Syskit
             def clear
                 @overrides.delete_if do |original, overriden_by|
                     overriden_by.delete_if do |c|
-                        @conf.deregister_configured_deployment(c)
+                        @deployment_group.deregister_configured_deployment(c)
                         true
                     end
-                    @conf.register_configured_deployment(original)
+                    @deployment_group.register_configured_deployment(original)
                     true
                 end
                 @new_deployments.delete_if do |c|
-                    @conf.deregister_configured_deployment(c)
+                    @deployment_group.deregister_configured_deployment(c)
                     true
                 end
             end
@@ -97,7 +99,7 @@ module Syskit
 
             # Finds a registered deployment by ID
             def find_registered_deployment_by_id(id)
-                @conf.each_configured_deployment.
+                @deployment_group.each_configured_deployment.
                     find { |c| c.object_id == id }
             end
 
@@ -115,7 +117,7 @@ module Syskit
             #
             # @return [Integer] the new deployment ID
             def use_deployment(*names, **run_options)
-                c = @conf.use_deployment(*names, **run_options).first
+                c = @deployment_group.use_deployment(*names, **run_options).first
                 @new_deployments << c
                 c.object_id
             end
@@ -137,7 +139,7 @@ module Syskit
                     end
                 end
 
-                @conf.deregister_configured_deployment(deployment)
+                @deployment_group.deregister_configured_deployment(deployment)
                 @new_deployments.delete(deployment)
             end
 
@@ -157,7 +159,7 @@ module Syskit
 
                 overrides = @overrides[overriden_deployment]
                 overrides.delete_if do |c|
-                    @conf.deregister_configured_deployment(c)
+                    @deployment_group.deregister_configured_deployment(c)
                     true
                 end
                 @overrides.delete(overriden_deployment)

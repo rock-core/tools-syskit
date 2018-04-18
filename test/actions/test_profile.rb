@@ -180,8 +180,8 @@ describe Syskit::Actions::Profile do
             parent_profile.tag 'test', srv_m
             parent_profile.define 'argument_action',
                 cmp_m.use(parent_profile.test_tag)
-            parent_profile.define 'test',
-                task_m.with_arguments(action: parent_profile.argument_action_def.to_action_model)
+            parent_profile.define 'test', task_m.with_arguments(
+                action: parent_profile.argument_action_def.to_action_model)
 
             srv_task_m = Syskit::TaskContext.new_submodel
             srv_task_m.provides srv_m, as: 'test'

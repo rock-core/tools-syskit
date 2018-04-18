@@ -37,7 +37,7 @@ module Syskit
                 # Return a definition that has a different underlying profile
                 def rebind(profile)
                     if rebound = profile.find_definition_by_name(name)
-                        rebound.dup
+                        rebound
                     else
                         result = dup
                         result.profile = profile
@@ -47,6 +47,7 @@ module Syskit
 
                 def to_action_model(profile = self.profile, doc = self.doc)
                     action_model = super(doc)
+                    action_model.name = "#{name}_def"
                     action_model.advanced = advanced?
                     action_model
                 end
@@ -54,10 +55,7 @@ module Syskit
 
             class Definition < ProfileInstanceRequirements
                 def to_action_model(profile = self.profile, doc = self.doc)
-                    action_model = resolve.
-                        to_action_model(profile, doc || "defined in #{profile}")
-                    action_model.advanced = advanced?
-                    action_model
+                    resolve.to_action_model(profile, doc || "defined in #{profile}")
                 end
 
                 def resolve

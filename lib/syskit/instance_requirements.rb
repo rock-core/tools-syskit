@@ -877,38 +877,62 @@ module Syskit
                 @template = template
             end
 
-            def instanciate_from_template(plan)
-                if !@template
-                    compute_template
-                end
+            def instanciate_from_template(plan, extra_arguments)
+                compute_template unless @template
 
                 mappings = @template.deep_copy_to(plan)
                 root_task = mappings[@template.root_task]
-                root_task.assign_arguments(arguments)
-                return model.bind(root_task)
+                root_task.assign_arguments(arguments.merge(extra_arguments))
+                root_task
             end
+
             def has_template?
                 !!@template
             end
 
             # Create a concrete task for this requirement
-            def instanciate(plan, context = Syskit::DependencyInjectionContext.new, task_arguments: Hash.new, specialization_hints: Hash.new, use_template: true)
-                if context.empty? && task_arguments.empty? && specialization_hints.empty? && use_template && can_use_template?
-                    from_cache = true
-                    return instanciate_from_template(plan)
+            def instanciate(plan,
+                context = Syskit::DependencyInjectionContext.new,
+                task_arguments: Hash.new,
+                specialization_hints: Hash.new,
+                use_template: true)
+
+                from_cache = context.empty? && specialization_hints.empty? &&
+                    use_template && can_use_template?
+                if from_cache
+                    task = instanciate_from_template(plan, task_arguments)
+                else
+                    begin
+                        task_model = placeholder_model
+
+                        context.save
+                        context.push(resolved_dependency_injection)
+
+                        task_arguments = self.arguments.merge(task_arguments)
+                        specialization_hints = self.specialization_hints | specialization_hints
+                        task = task_model.instanciate(plan, context,
+                            task_arguments: task_arguments,
+                            specialization_hints: specialization_hints)
+                    ensure
+                        context.restore if !from_cache
+                    end
                 end
 
-                task_model = self.placeholder_model
+                post_instanciation_setup(task)
+                model.bind(task)
 
-                context.save
-                context.push(resolved_dependency_injection)
+            rescue InstanciationError => e
+                e.instanciation_chain << self
+                raise
+            ensure
+            end
 
-                task_arguments = self.arguments.merge(task_arguments)
-                specialization_hints = self.specialization_hints | specialization_hints
-                task = task_model.instanciate(plan, context, task_arguments: task_arguments, specialization_hints: specialization_hints)
+            def post_instanciation_setup(task)
                 task_requirements = to_component_model
                 task_requirements.map_use_selections! do |sel|
-                    if sel && !Models.is_model?(sel) && !sel.kind_of?(DependencyInjection::SpecialDIValue)
+                    if sel && !Models.is_model?(sel) &&
+                        !sel.kind_of?(DependencyInjection::SpecialDIValue)
+
                         sel.to_instance_requirements
                     else sel
                     end
@@ -920,13 +944,6 @@ module Syskit
                     task.required_host = required_host
                 end
                 task.abstract = true if abstract?
-                model.bind(task)
-
-            rescue InstanciationError => e
-                e.instanciation_chain << self
-                raise
-            ensure
-                context.restore if !from_cache
             end
 
             def each_fullfilled_model(&block)

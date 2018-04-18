@@ -127,17 +127,17 @@ module Syskit
                         assert_equal Set[other_deployment, template_configured_deployment],
                             selection[grandchild].find_all_deployments_from_process_manager('test-mng')
                     end
-                    
+
                     it "does not merge the default deployments into intermediate tasks with no specific requirements" do
                         # ORDER MATTERS HERE. The issue is with RGL's default
-                        # depth first visit implementation, which picks the 
+                        # depth first visit implementation, which picks the
                         # vertices one by one in order
-                        plan.clear
+                        execute { plan.clear }
                         plan.add(child = task_m.new)
                         plan.task_relation_graph_for(Roby::TaskStructure::Dependency).add_vertex(child)
                         plan.add(parent = task_m.new)
                         parent.depends_on child
-                        configured_deployment = parent.requirements.use_deployment(deployment_m)
+                        parent.requirements.use_deployment(deployment_m)
                         selection = deployer.propagate_deployment_groups
                         assert_equal parent.requirements.deployment_group, selection[child]
                     end
@@ -196,7 +196,8 @@ module Syskit
                     assert_equal [Hash[], Set[]],
                         deployer.select_deployments([task], flexmock)
                 end
-                it "registers a task that has no deployments in the missing_deployments return set" do
+                it "reports a task that has no deployments in the returned "\
+                    "missing_deployments set" do
                     groups = flexmock
                     flexmock(deployer).should_receive(:find_suitable_deployment_for).
                         with(task, groups).
@@ -225,25 +226,28 @@ module Syskit
                     group = flexmock(:on, Models::DeploymentGroup)
                     group.should_receive(:find_all_suitable_deployments_for).with(task).
                         and_return([deployment = flexmock])
-                    assert_equal deployment, deployer.find_suitable_deployment_for(task, Hash[task => group])
+                    assert_equal deployment, deployer.find_suitable_deployment_for(
+                        task, Hash[task => group])
                 end
                 it "disambiguates tasks that have more than one possible deployments" do
                     group = flexmock(:on, Models::DeploymentGroup)
                     group.should_receive(:find_all_suitable_deployments_for).with(task).
-                        and_return(candidates = [deployment0 = flexmock, deployment1 = flexmock])
+                        and_return(candidates = [flexmock, deployment1 = flexmock])
                     flexmock(deployer).should_receive(:resolve_deployment_ambiguity).
                         with(candidates, task).
                         and_return(deployment1)
-                    assert_equal deployment1, deployer.find_suitable_deployment_for(task, Hash[task => group])
+                    assert_equal deployment1, deployer.find_suitable_deployment_for(
+                        task, Hash[task => group])
                 end
                 it "returns nil if the disambiguation failed" do
                     group = flexmock(:on, Models::DeploymentGroup)
                     group.should_receive(:find_all_suitable_deployments_for).with(task).
-                        and_return(candidates = [deployment0 = flexmock, deployment1 = flexmock])
+                        and_return(candidates = [flexmock, flexmock])
                     flexmock(deployer).should_receive(:resolve_deployment_ambiguity).
                         with(candidates, task).
                         and_return(nil)
-                    assert_equal nil, deployer.find_suitable_deployment_for(task, Hash[task => group])
+                    assert_nil deployer.find_suitable_deployment_for(
+                        task, Hash[task => group])
                 end
             end
 
@@ -263,12 +267,12 @@ module Syskit
 
                 it "applies the known deployments before returning the missing ones" do
                     plan.add(task0 = task0_m.new)
-                    task0_srv = task0.as_service
                     task0.requirements.use_deployment(deployment0_m)
                     plan.add(task1 = task1_m.new)
-                    assert_equal Set[task1], deployer.deploy(validate: false)
+                    assert_equal Set[task1], execute { deployer.deploy(validate: false) }
                     assert(deployment_task = plan.find_local_tasks(deployment0_m).first)
-                    assert_equal ['task0'], deployment_task.each_executed_task.map(&:orocos_name)
+                    assert_equal ['task0'], deployment_task.each_executed_task.
+                        map(&:orocos_name)
                 end
 
                 it "validates the plan if 'validate' is true" do
@@ -307,4 +311,3 @@ module Syskit
         end
     end
 end
-

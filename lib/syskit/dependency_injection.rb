@@ -147,7 +147,7 @@ module Syskit
             def has_selection_for?(name)
                 !!direct_selection_for(name)
             end
-            
+
             # Normalizes an explicit selection
             #
             # The input can map any of string, Component and DataService to
@@ -210,7 +210,7 @@ module Syskit
                 normalized
             end
 
-            # Add a list of objects to the default list. 
+            # Add a list of objects to the default list.
             def add_defaults(list)
                 # Invalidate the @resolved cached
                 @resolved = nil
@@ -232,7 +232,7 @@ module Syskit
                     selection_for(name, requirements)
                 selection = InstanceSelection.new(
                     instance,
-                    InstanceRequirements.from_object(component_model, requirements), 
+                    InstanceRequirements.from_object(component_model, requirements),
                     requirements,
                     selected_services)
                 return selection, used_keys
@@ -410,7 +410,7 @@ module Syskit
                         end
 
                     elsif v.respond_to?(:resolve_names)
-                        # The value is e.g. an InstanceRequirements 
+                        # The value is e.g. an InstanceRequirements
                         unresolved |= v.resolve_names(mapping)
                         v
                     else v
@@ -525,8 +525,8 @@ module Syskit
                 value
             end
 
-            IGNORED_MODELS = [DataService]
-            ROOT_MODELS = [TaskContext, Component, Composition]
+            IGNORED_MODELS = [DataService, TaskContext, Component, Composition,
+                Roby::Task, Roby::TaskService]
 
             def self.normalize_selected_object(value, key = nil)
                 if !value
@@ -599,7 +599,6 @@ module Syskit
                             next if selection.find_all_data_services_from_type(m).size != 1
                         end
 
-                        break if ROOT_MODELS.include?(m)
                         if using_spec[m]
                             debug do
                                 debug "  rejected #{selection.short_name}"
@@ -689,4 +688,3 @@ module Syskit
             end
         end
 end
-

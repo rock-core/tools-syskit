@@ -157,15 +157,15 @@ module Syskit
 
                 all_groups = Hash.new
                 dependency_graph.each_vertex do |task|
-                    if dependency_graph.root?(task)
-                        visitor = DeploymentGroupVisitor.new(
-                            dependency_graph, default_deployment_group, use_cow: use_cow)
-                        visitor.handle_start_vertex(task)
-                        dependency_graph.depth_first_visit(task, visitor) {}
+                    next unless dependency_graph.root?(task)
 
-                        visitor.deployment_groups.each do |task, (_shared, task_group)|
-                            DeploymentGroupVisitor.update_deployment_groups(all_groups, task, task_group, use_cow: use_cow)
-                        end
+                    visitor = DeploymentGroupVisitor.new(
+                        dependency_graph, default_deployment_group, use_cow: use_cow)
+                    visitor.handle_start_vertex(task)
+                    dependency_graph.depth_first_visit(task, visitor) {}
+
+                    visitor.deployment_groups.each do |task, (_shared, task_group)|
+                        DeploymentGroupVisitor.update_deployment_groups(all_groups, task, task_group, use_cow: use_cow)
                     end
                 end
 
@@ -222,7 +222,8 @@ module Syskit
                     elsif used_deployments.include?(selected)
                         debug do
                             machine, configured_deployment, task_name = *selected
-                            "#{task} resolves to #{configured_deployment}.#{task_name} on #{machine} for its deployment, but it is already used"
+                            "#{task} resolves to #{configured_deployment}.#{task_name} "\
+                                "on #{machine} for its deployment, but it is already used"
                         end
                         missing_deployments << task
                     else
@@ -230,7 +231,7 @@ module Syskit
                         selected_deployments[task] = selected
                     end
                 end
-                return selected_deployments, missing_deployments
+                [selected_deployments, missing_deployments]
             end
 
             def apply_selected_deployments(selected_deployments)

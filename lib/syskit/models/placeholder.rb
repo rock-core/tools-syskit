@@ -25,7 +25,7 @@ module Syskit
 
             # Whether this proxies only services or not
             def component_model?
-                proxied_component_model != Component
+                proxied_component_model != Syskit::Component
             end
 
             def fullfilled_model
@@ -252,7 +252,7 @@ module Syskit
                             create_for(service_models, component_model: task_model, as: as)
                         task_model.register_placeholder_model(proxy_component_model, service_models, self)
                     end
-                    
+
                     if service
                         service.attach(proxy_component_model)
                     else proxy_component_model
@@ -341,4 +341,3 @@ module Syskit
     # @deprecated has been renamed into Placeholder
     autoload :PlaceholderTask, 'syskit/models/placeholder_task'
 end
-

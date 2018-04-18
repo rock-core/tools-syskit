@@ -18,8 +18,16 @@ module Syskit
             attr_reader :name_mappings
 
             def initialize(process_server_name, model, name_mappings = Hash.new, process_name = model.name, spawn_options = Hash.new)
-                @process_server_name, @model, @name_mappings, @process_name, @spawn_options =
-                    process_server_name, model, name_mappings, process_name, spawn_options
+                default_mappings = model.each_deployed_task_model.
+                    each_with_object(Hash.new) do |(deployed_task_name, _), result|
+                        result[deployed_task_name] = deployed_task_name
+                    end
+
+                @process_server_name = process_server_name
+                @model               = model
+                @name_mappings       = default_mappings.merge(name_mappings)
+                @process_name        = process_name
+                @spawn_options       = spawn_options
             end
 
             # @api private
@@ -30,7 +38,7 @@ module Syskit
                 **command_line_options)
                 return command_line_options
             end
-             
+
 
             # Returns the command line information needed to start this
             # deployment on the same machine than Syskit
@@ -71,7 +79,7 @@ module Syskit
             def each_deployed_task_model
                 return enum_for(__method__) if !block_given?
                 model.each_deployed_task_model do |name, model|
-                    yield(name_mappings[name] || name, model)
+                    yield(name_mappings[name], model)
                 end
             end
 
@@ -130,4 +138,3 @@ module Syskit
         end
     end
 end
-

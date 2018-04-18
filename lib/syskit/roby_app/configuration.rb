@@ -517,28 +517,25 @@ module Syskit
                 @deployment_group = Models::DeploymentGroup.new
             end
 
-            # @api deprecated use the object-based deployment API instead
-            def use_ruby_tasks(mappings)
-                Roby.warn_deprecated "conf.use_ruby_tasks is deprecated, use the profile-level deployment API"
-                deployment_group.use_ruby_tasks(mappings, process_managers: self)
+            def use_ruby_tasks(mappings, on: 'ruby_tasks', remote_task: false)
+                deployment_group.use_ruby_tasks(mappings, on: on,
+                    remote_task: remote_task, process_managers: self)
             end
 
-            # @api deprecated use the object-based deployment API instead
-            def use_unmanaged_task(mappings)
-                Roby.warn_deprecated "conf.use_unmanaged_task is deprecated, use the profile-level deployment API"
-                deployment_group.use_unmanaged_task(mappings, process_managers: self, loader: app.default_loader)
+            def use_unmanaged_task(mappings, on: 'unmanaged_tasks')
+                deployment_group.use_unmanaged_task(mappings, on: on,
+                    process_managers: self)
             end
 
-            # @api deprecated use the object-based deployment API instead
             def use_deployment(*names, on: 'localhost', **run_options)
-                Roby.warn_deprecated "conf.use_deployment is deprecated, use the profile-level deployment API"
-                deployment_group.use_deployment(*names, on: on, process_managers: self, loader: app.default_loader, **run_options)
+                deployment_group.use_deployment(*names, on: on,
+                    process_managers: self, loader: app.default_loader,
+                    **run_options)
             end
 
-            # @api deprecated use the object-based deployment API instead
             def use_deployments_from(*names, on: 'localhost', **run_options)
-                Roby.warn_deprecated "conf.use_deployment is deprecated, use the profile-level deployment API"
-                deployment_group.use_deployment(*names, on: on, process_managers: self, loader: app.default_loader, **run_options)
+                deployment_group.use_deployment(*names, on: on,
+                    process_managers: self, loader: app.default_loader, **run_options)
             end
         end
     end

@@ -182,6 +182,25 @@ module Syskit
                 invalidate_caches
             end
 
+            # Enumerates all the deployments registered on self
+            # 
+            # @yieldparam [ConfiguredDeployment]
+            def each_configured_deployment
+                return enum_for(__method__) unless block_given?
+
+                deployments.each_value do |set|
+                    set.each { |c| yield(c) }
+                end
+            end
+
+            # Remove a deployment from this group
+            def deregister_configured_deployment(configured_deployment)
+                deployments[configured_deployment.process_server_name].delete(configured_deployment)
+                configured_deployment.each_orogen_deployed_task_context_model do |task|
+                    deployed_tasks.delete(task.name)
+                end
+            end
+
             # @api private
             #
             # Invalidate cached values computed based on the deployments
@@ -229,17 +248,23 @@ module Syskit
 
             # Declare tasks that are going to be started by some other process,
             # but whose tasks are going to be integrated in the syskit network
-            def use_unmanaged_task(mappings, on: 'unmanaged_tasks', process_managers: Syskit.conf, loader: Roby.app.default_loader)
+            def use_unmanaged_task(mappings, on: 'unmanaged_tasks',
+                process_managers: Syskit.conf)
+
                 # Verify that the process manager exists
                 process_managers.process_server_config_for(on)
 
                 model_to_name = mappings.map do |task_model, name|
                     if task_model.respond_to?(:to_str)
-                        Roby.warn_deprecated "specifying the task model as string is deprecated. Load the task library and use Syskit's task class"
+                        Roby.warn_deprecated "specifying the task model as string "\
+                            "is deprecated. Load the task library and use Syskit's "\
+                            "task class"
                         task_model_name = task_model
-                        task_model = Syskit::TaskContext.find_model_from_orogen_name(task_model_name)
+                        task_model = Syskit::TaskContext.
+                            find_model_from_orogen_name(task_model_name)
                         unless task_model
-                            raise ArgumentError, "#{task_model_name} is not a known oroGen model name"
+                            raise ArgumentError,
+                                "#{task_model_name} is not a known oroGen model name"
                         end
                     end
                     [task_model, name]
@@ -250,16 +275,18 @@ module Syskit
                         task_model.kind_of?(Class) &&
                         (task_model <= Syskit::TaskContext) &&
                         !(task_model <= Syskit::RubyTaskContext)
-                    raise ArgumentError, "expected a mapping from a task context "\
-                        "model to a name, but got #{task_model}" \
-                        unless is_pure_task_context_model
+                    unless is_pure_task_context_model
+                        raise ArgumentError, "expected a mapping from a task context "\
+                            "model to a name, but got #{task_model}"
+                    end
                 end
 
                 model_to_name.map do |task_model, name|
                     orogen_model = task_model.orogen_model
-                    deployment_model = Deployment.new_submodel(name: "Deployment::Unmanaged::#{name}") do
-                        task name, orogen_model
-                    end
+                    deployment_model = Syskit::Deployment.
+                        new_submodel(name: "Deployment::Unmanaged::#{name}") do
+                            task name, orogen_model
+                        end
 
                     configured_deployment = Models::ConfiguredDeployment.
                         new(on, deployment_model, Hash[name => name], name, Hash.new)
@@ -276,7 +303,10 @@ module Syskit
             #   server on which this deployment should be started
             #
             # @return [Array<Deployment>]
-            def use_deployment(*names, on: 'localhost', simulation: Roby.app.simulation?, loader: Roby.app.default_loader, process_managers: Syskit.conf, **run_options)
+            def use_deployment(*names, on: 'localhost', simulation: Roby.app.simulation?,
+                loader: Roby.app.default_loader, process_managers: Syskit.conf,
+                **run_options)
+
                 deployment_spec = Hash.new
                 if names.last.kind_of?(Hash)
                     deployment_spec = names.pop
@@ -297,8 +327,8 @@ module Syskit
                             raise ArgumentError, "only deployment models can be given "\
                                 "without a name"
                         elsif n <= Syskit::TaskContext && !(n <= Syskit::RubyTaskContext)
-                            raise TaskNameRequired, "you must provide a task name when starting a "\
-                                "component by type, as e.g. use_deployment "\
+                            raise TaskNameRequired, "you must provide a task name when "\
+                                "starting a component by type, as e.g. use_deployment "\
                                 "OroGen.xsens_imu.Task => 'imu'"
                         elsif !(n <= Syskit::Deployment)
                             raise ArgumentError, "only deployment models can be given "\
@@ -328,15 +358,17 @@ module Syskit
 
                 new_deployments, _ = Orocos::Process.parse_run_options(
                     *names, deployment_spec, loader: loader, **run_options)
-                new_deployments.map do |deployment_name, mappings, name, spawn_options|
-                    if !(model = deployments_by_name[deployment_name])
+                new_deployments.map do |deployment_name, name_mappings, name, spawn_options|
+                    unless (model = deployments_by_name[deployment_name])
                         orogen_model = loader.deployment_model_from_name(deployment_name)
                         model = Syskit::Deployment.find_model_by_orogen(orogen_model)
                     end
-                    model.default_run_options.merge!(process_managers.default_run_options(model))
+                    model.default_run_options.merge!(
+                        process_managers.default_run_options(model))
 
                     configured_deployment = Models::ConfiguredDeployment.
-                        new(process_server_config.name, model, mappings, name, spawn_options)
+                        new(process_server_config.name, model, name_mappings, name,
+                            spawn_options)
                     register_configured_deployment(configured_deployment)
                     configured_deployment
                 end

@@ -30,7 +30,7 @@ module Syskit
 
             def stub_registered_deployment(on: 'localhost', model: @deployment_m, process_name: 'test_deployment')
                 configured_deployment = stub_configured_deployment(on: on, model: model, process_name: process_name)
-                @conf.register_configured_deployment(configured_deployment)
+                @conf.deployment_group.register_configured_deployment(configured_deployment)
                 configured_deployment
             end
 
@@ -70,15 +70,17 @@ module Syskit
                 it "deregisters the override if an exception is raised" do
                     @orogen_deployment_m.task 'another_test_task', @orogen_task_m
                     error = Class.new(RuntimeError)
-                    flexmock(@conf).should_receive(:use_unmanaged_task).once.pass_thru
-                    flexmock(@conf).should_receive(:use_unmanaged_task).once.and_raise(error)
+                    flexmock(@conf.deployment_group).
+                        should_receive(:use_unmanaged_task).once.pass_thru
+                    flexmock(@conf.deployment_group).
+                        should_receive(:use_unmanaged_task).once.and_raise(error)
 
                     original = stub_registered_deployment.object_id
                     assert_raises(error) do
                         @manager.make_unmanaged(original)
                     end
-                    assert_equal [original], @conf.each_configured_deployment.
-                        map(&:object_id)
+                    assert_equal [original], @conf.deployment_group.
+                        each_configured_deployment.map(&:object_id)
                 end
             end
 
@@ -208,14 +210,14 @@ module Syskit
                 it "deregisters new deployments" do
                     @manager.use_deployment(@deployment_m => 'test')
                     @manager.clear
-                    assert_equal [], @conf.each_configured_deployment.
+                    assert_equal [], @conf.deployment_group.each_configured_deployment.
                         map(&:object_id)
                 end
                 it "deregisters overrides" do
                     original = stub_registered_deployment
                     @manager.make_unmanaged(original.object_id)
                     @manager.clear
-                    assert_equal [original.object_id], @conf.each_configured_deployment.
+                    assert_equal [original.object_id], @conf.deployment_group.each_configured_deployment.
                         map(&:object_id)
                 end
             end

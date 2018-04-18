@@ -205,4 +205,3 @@ module Robot
 end
 
 Roby::Interface::Interface.subcommand 'syskit', Syskit::ShellInterface, 'Commands specific to Syskit'
-

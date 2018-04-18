@@ -334,7 +334,7 @@ describe Syskit::InstanceRequirements do
         end
         it "should return an empty list as second element if no data services are present" do
             component_model = Syskit::Component.new_submodel
-            assert_equal [Roby::TaskService],
+            assert_equal [],
                 Syskit::InstanceRequirements.new([component_model]).fullfilled_model[1]
         end
         it "should list the data services as second element" do
@@ -345,7 +345,7 @@ describe Syskit::InstanceRequirements do
                 provides srv2, as: "2"
             end
             ir = Syskit::InstanceRequirements.new([component_model])
-            assert_equal [srv1, srv2, Syskit::DataService, Roby::TaskService].to_set,
+            assert_equal [srv1, srv2, Syskit::DataService].to_set,
                 ir.fullfilled_model[1].to_set
         end
         it "should return the required arguments as third element" do
