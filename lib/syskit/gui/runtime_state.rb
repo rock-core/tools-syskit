@@ -120,8 +120,14 @@ module Syskit
                 @syskit = syskit
                 @robot_name = robot_name
                 reset
+
+                @syskit_poll = Qt::Timer.new
+                @syskit_poll_period = poll_period
+                connect syskit_poll, SIGNAL('timeout()'),
+                    self, SLOT('poll_syskit_interface()')
+
                 if poll_period
-                    poll_syskit_interface(syskit, poll_period)
+                    @syskit_poll.start(poll_period)
                 end
 
                 create_ui
@@ -129,22 +135,8 @@ module Syskit
                 @global_actions = Hash.new
                 action = global_actions[:start]   = Qt::Action.new("Start", self)
                 @starting_monitor = Qt::Timer.new
-                @starting_monitor.connect(SIGNAL('timeout()')) do
-                    if @syskit_pid
-                        begin
-                            _pid, has_quit = Process.waitpid2(
-                                @syskit_pid, Process::WNOHANG)
-                        rescue Errno::ECHILD
-                            has_quit = true
-                        end
-
-                        if has_quit
-                            @syskit_pid = nil
-                            run_hook :on_connection_state_changed, 'UNREACHABLE'
-                            @starting_monitor.stop
-                        end
-                    end
-                end
+                connect @starting_monitor, SIGNAL('timeout()'),
+                    self, SLOT('monitor_syskit_startup()')
                 connect action, SIGNAL('triggered()') do
                     app_start(robot_name: @robot_name)
                 end
@@ -216,6 +208,24 @@ module Syskit
                     monitor_job(job)
                 end
             end
+
+            def monitor_syskit_startup
+                return unless @syskit_pid
+
+                begin
+                    _pid, has_quit = Process.waitpid2(
+                        @syskit_pid, Process::WNOHANG)
+                rescue Errno::ECHILD
+                    has_quit = true
+                end
+
+                if has_quit
+                    @syskit_pid = nil
+                    run_hook :on_connection_state_changed, 'UNREACHABLE'
+                    @starting_monitor.stop
+                end
+            end
+            slots 'monitor_syskit_startup()'
 
             def reset
                 Orocos.initialize
@@ -543,21 +553,17 @@ module Syskit
             # @api private
             #
             # Sets up polling on a given syskit interface
-            def poll_syskit_interface(syskit, period)
-                @syskit_poll = Qt::Timer.new
-                syskit_poll.connect(SIGNAL('timeout()')) do
-                    syskit.poll
-                    if syskit_log_stream
-                        if syskit_log_stream.poll(max: 0.05) == Roby::Interface::Async::Log::STATE_PENDING_DATA
-                            syskit_poll.interval = 0
-                        else
-                            syskit_poll.interval = period
-                        end
+            def poll_syskit_interface
+                syskit.poll
+                if syskit_log_stream
+                    if syskit_log_stream.poll(max: 0.05) == Roby::Interface::Async::Log::STATE_PENDING_DATA
+                        syskit_poll.interval = 0
+                    else
+                        syskit_poll.interval = @syskit_poll_period
                     end
                 end
-                syskit_poll.start(period)
-                syskit
             end
+            slots 'poll_syskit_interface()'
 
             # @api private
             #
