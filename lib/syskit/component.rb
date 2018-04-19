@@ -19,7 +19,7 @@ module Syskit
         # Data services are referred to by name. In the case of a main service,
         # its name is the name used during the declaration. In the case of slave
         # services, it is main_data_service_name.slave_name. I.e. the name of
-        # the slave service depends on the selected 
+        # the slave service depends on the selected
         class Component < ::Roby::Task
             extend Models::Component
             extend Logger::Hierarchy
@@ -167,7 +167,7 @@ module Syskit
                     return false
                 elsif !fully_instanciated?
                     debug { "#{self} not ready for setup: not fully instanciated" }
-                    return false 
+                    return false
                 end
 
                 meets_configurationg_precedence_constraints?
@@ -260,6 +260,12 @@ module Syskit
             # User-provided part of the component configuration
             def configure
                 super if defined? super
+            end
+
+            # Whether this task should be started only after all its inputs
+            # have been connected
+            def start_only_when_connected?
+                true
             end
 
             # Test if the given task could be merged in self
@@ -613,7 +619,7 @@ module Syskit
                 req = self.class.to_instance_requirements
                 req.with_arguments(arguments.assigned_arguments)
                 if required_host
-                    req.on_server(required_host) 
+                    req.on_server(required_host)
                 end
                 req
             end
@@ -762,4 +768,3 @@ module Syskit
             end
         end
 end
-
