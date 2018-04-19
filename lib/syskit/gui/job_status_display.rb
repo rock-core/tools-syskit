@@ -13,19 +13,16 @@ module Syskit
             attr_reader :notifications
             attr_reader :ui_notifications
 
-            attr_predicate :show_actions?, true
-
-            def initialize(job, batch_manager)
+            def initialize(job, batch_manager, job_item_info)
                 super(nil)
                 @batch_manager = batch_manager
                 @job = job
                 @exceptions = Array.new
                 @notifications = Hash.new
-                @show_actions = true
+                @job_item_info = job_item_info
 
                 create_ui
                 connect_to_hooks
-                hide_job_actions
             end
 
             INTERMEDIATE_TERMINAL_STATES = [
@@ -39,34 +36,82 @@ module Syskit
                 "##{job.job_id} #{job.action_name}"
             end
 
+            class AutoHeightList < Qt::ListView
+                def update_geometry_if_needed
+                    count = model.rowCount(root_index)
+                    if count == 0
+                        hide
+                    elsif !@last_row_count || @last_row_count == 0
+                        show
+                    elsif !@last_row_count || count != @last_row_count
+                        update_geometry
+                    end
+                    @last_row_count = count
+                end
+                slots 'update_geometry_if_needed()'
+
+                def sizeHint
+                    count = model.rowCount(root_index)
+                    @last_row_count = count
+                    Qt::Size.new(sizeHintForColumn(0),
+                        count * sizeHintForRow(0))
+                end
+            end
+
             def create_ui
                 self.focus_policy = Qt::ClickFocus
-                @ui_state = JobStateLabel.new name: label
+
+                header_layout    = Qt::HBoxLayout.new
+                @ui_job_actions  = Qt::Widget.new
+                header_layout.add_widget(@ui_state   = JobStateLabel.new(name: label))
+                header_layout.add_widget(@ui_job_actions)
+                header_layout.set_contents_margins(0, 0, 0, 0)
+
+                ui_job_actions_layout = Qt::HBoxLayout.new(@ui_job_actions)
+                @actions_buttons = Hash[
+                    'Drop'        => Qt::PushButton.new("Drop", self),
+                    'Restart'     => Qt::PushButton.new("Restart", self),
+                    "Start Again" => Qt::PushButton.new("Start Again", self)
+                ]
+                ui_job_actions_layout.add_widget(@ui_drop    = @actions_buttons['Drop'])
+                ui_job_actions_layout.add_widget(@ui_restart = @actions_buttons['Restart'])
+                ui_job_actions_layout.add_widget(@ui_start   = @actions_buttons['Start Again'])
+                ui_job_actions_layout.set_contents_margins(0, 0, 0, 0)
+                ui_start.hide
+
+                @ui_events            = AutoHeightList.new(self)
+                @ui_events.edit_triggers = Qt::AbstractItemView::NoEditTriggers
+                @ui_events.vertical_scroll_bar_policy = Qt::ScrollBarAlwaysOff
+                @ui_events.horizontal_scroll_bar_policy = Qt::ScrollBarAlwaysOff
+                @ui_events.size_policy = Qt::SizePolicy.new(
+                    Qt::SizePolicy::Preferred, Qt::SizePolicy::Minimum)
+                @ui_events.style_sheet = <<-STYLESHEET
+                QListView {
+                    font-size: 80%;
+                    padding: 3;
+                    border: none;
+                    background: transparent;
+                }
+                STYLESHEET
+                @job_item_info.display_notifications_on_list(@ui_events)
+                connect(@ui_events.model,
+                    SIGNAL('rowsInserted(const QModelIndex&, int, int)'),
+                    @ui_events, SLOT('update_geometry_if_needed()'))
+                connect(@ui_events.model,
+                    SIGNAL('rowsRemoved(const QModelIndex&, int, int)'),
+                    @ui_events, SLOT('update_geometry_if_needed()'))
+                ui_notifications      = Qt::Label.new("", self)
+
+                vlayout = Qt::VBoxLayout.new(self)
+                vlayout.add_layout header_layout
+                vlayout.add_widget ui_notifications
+                vlayout.add_widget @ui_events
+
+                ui_notifications.hide
+
                 if job.state
                     ui_state.update_state(job.state.upcase)
                 end
-
-                @ui_job_actions = Qt::Widget.new(self)
-                hlayout    = Qt::HBoxLayout.new(ui_job_actions)
-                @actions_buttons = Hash[
-                    'Drop' => Qt::PushButton.new("Drop", self),
-                    'Restart' => Qt::PushButton.new("Restart", self),
-                    "Start Again" => Qt::PushButton.new("Start Again", self)
-                ]
-                hlayout.add_widget(@ui_drop    = @actions_buttons['Drop'])
-                hlayout.add_widget(@ui_restart = @actions_buttons['Restart'])
-                hlayout.add_widget(@ui_start   = @actions_buttons['Start Again'])
-
-                ui_start.hide
-                hlayout.set_contents_margins(0, 0, 0, 0)
-
-                @ui_notifications = Qt::Label.new("", self)
-                ui_notifications.hide
-
-                vlayout = Qt::VBoxLayout.new(self)
-                vlayout.add_widget ui_state
-                vlayout.add_widget ui_job_actions
-                vlayout.add_widget ui_notifications
             end
 
             def keyPressEvent(event)
@@ -94,32 +139,10 @@ module Syskit
 
             def show_job_actions
                 ui_job_actions.show
-                s = size
-                s.height = size_hint.height
-                self.size = s
             end
 
             def hide_job_actions
                 ui_job_actions.hide
-                s = size
-                s.height = size_hint.height
-                self.size = s
-            end
-
-
-            def enterEvent(event)
-                super
-                if show_actions?
-                    show_job_actions
-                    self.focus = Qt::OtherFocusReason
-                end
-            end
-
-            def leaveEvent(event)
-                super
-                if show_actions?
-                    hide_job_actions
-                end
             end
 
             def mousePressEvent(event)

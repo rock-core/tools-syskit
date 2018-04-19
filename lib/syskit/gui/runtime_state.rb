@@ -8,6 +8,7 @@ require 'syskit/gui/expanded_job_status'
 require 'syskit/gui/global_state_label'
 require 'syskit/gui/app_start_dialog'
 require 'syskit/gui/batch_manager'
+require 'syskit/gui/job_item_model'
 
 module Syskit
     module GUI
@@ -29,9 +30,6 @@ module Syskit
             # The [WidgetList] widget in which we display the
             # summary of job status
             attr_reader :job_status_list
-            # The [ExpandedJobStatus] widget in which we display expanded job
-            # information
-            attr_reader :job_expanded_status
             # The combo box used to create new jobs
             attr_reader :action_combo
             # The job that is currently selected
@@ -119,6 +117,7 @@ module Syskit
 
                 @syskit = syskit
                 @robot_name = robot_name
+                @job_item_model = JobItemModel.new(Roby::DRoby::RebuiltPlan.new, self)
                 reset
 
                 @syskit_poll = Qt::Timer.new
@@ -159,7 +158,8 @@ module Syskit
                         w.show
                         w.update(*args)
                     else
-                        puts "don't know what to do with UI event #{event_name}, known events: #{@ui_event_widgets}"
+                        puts "don't know what to do with UI event #{event_name}, "\
+                            "known events: #{@ui_event_widgets}"
                     end
                 end
                 on_connection_state_changed do |state|
@@ -170,13 +170,13 @@ module Syskit
                     @syskit_commands = syskit.client.syskit
                     update_log_server_connection(syskit.log_server_port)
                     @job_status_list.each_widget do |w|
-                        w.show_actions = true
+                        w.show_job_actions
                     end
                     action_combo.clear
                     action_combo.enabled = true
-                    syskit.actions.sort_by(&:name).each do |action|
-                        next if action.advanced?
-                        action_combo.add_item(action.name, Qt::Variant.new(action.doc))
+                    syskit.actions.sort_by(&:name).each do |a|
+                        next if a.advanced?
+                        action_combo.add_item(a.name, Qt::Variant.new(a.doc))
                     end
                     ui_logging_configuration.refresh
                     global_actions[:start].visible = false
@@ -188,7 +188,7 @@ module Syskit
                 syskit.on_unreachable do
                     @syskit_commands = nil
                     @job_status_list.each_widget do |w|
-                        w.show_actions = false
+                        w.hide_job_actions
                     end
                     @ui_event_widgets.each_value(&:hide)
                     action_combo.enabled = false
@@ -240,24 +240,32 @@ module Syskit
                 elsif syskit_log_stream
                     syskit_log_stream.close
                 end
-                @syskit_log_stream = Roby::Interface::Async::Log.new(syskit.remote_name, port: port)
+                @syskit_log_stream = Roby::Interface::Async::Log.new(
+                    syskit.remote_name, port: port)
                 syskit_log_stream.on_reachable do
                     deselect_job
                 end
                 syskit_log_stream.on_init_progress do |rx, expected|
                     run_hook :on_progress, ("loading %02i" % [Float(rx) / expected * 100])
                 end
+
+                init_events = Set.new
                 syskit_log_stream.on_update do |cycle_index, cycle_time|
+                    @job_item_model.plan = syskit_log_stream.plan
                     if syskit_log_stream.init_done?
                         time_s = "#{cycle_time.strftime('%H:%M:%S.%3N')}"
                         run_hook :on_progress, ("@%i %s" % [cycle_index, time_s])
 
-                        job_expanded_status.update_time(cycle_index, cycle_time)
+                        @job_item_model.update(cycle_time)
+                        unless init_events.empty?
+                            @job_item_model.update_events(init_events)
+                            init_events.clear
+                        end
                         update_tasks_info
-                        job_expanded_status.add_tasks_info(all_tasks, all_job_info)
-                        job_expanded_status.scheduler_state = syskit_log_stream.scheduler_state
-                        job_expanded_status.update_chronicle
+                    else
+                        init_events.merge(syskit_log_stream.plan.emitted_events)
                     end
+
                     syskit_log_stream.clear_integrated
                 end
             end
@@ -385,19 +393,23 @@ module Syskit
             end
 
             def create_ui
-                job_summary = Qt::Widget.new
-                job_summary_layout = Qt::VBoxLayout.new(job_summary)
-                job_summary_layout.add_layout(@new_job_layout  = create_ui_new_job)
+                job_widget = Qt::Widget.new(self)
+                job_layout = Qt::VBoxLayout.new(job_widget)
 
+                # Create the toplevel actions
+                job_toplevel_header = Qt::HBoxLayout.new
                 @connection_state = GlobalStateLabel.new(name: remote_name)
                 on_progress do |message|
                     state = connection_state.current_state.to_s
                     connection_state.update_text("%s - %s" % [state, message])
                 end
-                job_summary_layout.add_widget(connection_state, 0)
-
+                job_toplevel_header.add_widget(@connection_state)
+                connection_state.connect(SIGNAL('clicked(QPoint)')) do
+                    deselect_job
+                end
+                create_ui_new_job(job_toplevel_header)
                 @clear_button = Qt::PushButton.new("Clear Finished Jobs")
-                job_summary_layout.add_widget(@clear_button)
+                job_toplevel_header.add_widget(@clear_button)
                 @clear_button.connect(SIGNAL(:clicked)) do
                     @job_status_list.clear_widgets do |w|
                         if !w.job.active?
@@ -406,35 +418,29 @@ module Syskit
                         end
                     end
                 end
+                job_layout.add_layout(job_toplevel_header)
 
+                # Add the UI events
+                @ui_event_widgets = create_ui_event_widgets
+                @ui_event_widgets.each_value do |w|
+                    job_layout.add_widget(w.widget)
+                end
+
+                # Add the batch manager, hidden at first
                 @batch_manager = BatchManager.new(@syskit, self)
-                job_summary_layout.add_widget(@batch_manager)
                 @batch_manager.connect(SIGNAL('active(bool)')) do |active|
                     if active then @batch_manager.show
                     else @batch_manager.hide
                     end
                 end
                 @batch_manager.hide
-                connection_state.connect(SIGNAL('clicked(QPoint)')) do
-                    deselect_job
-                end
+                job_layout.add_widget(@batch_manager)
 
+                # And finally the job list
                 @job_status_list = WidgetList.new(self)
                 job_status_scroll = Qt::ScrollArea.new
                 job_status_scroll.widget = @job_status_list
-                job_summary_layout.add_widget(job_status_scroll, 1)
-                @main_layout = Qt::VBoxLayout.new(self)
-
-                @ui_event_widgets = create_ui_event_widgets
-                @ui_event_widgets.each_value do |w|
-                    @main_layout.add_widget(w.widget)
-                end
-
-                splitter = Qt::Splitter.new
-                splitter.add_widget job_summary
-                splitter.add_widget(@job_expanded_status = ExpandedJobStatus.new)
-                connect(@job_expanded_status, SIGNAL('fileOpenClicked(const QUrl&)'),
-                    self, SIGNAL('fileOpenClicked(const QUrl&)'))
+                job_layout.add_widget(job_status_scroll, 1)
 
                 task_inspector_widget = Qt::Widget.new
                 task_inspector_layout = Qt::VBoxLayout.new(task_inspector_widget)
@@ -535,19 +541,17 @@ module Syskit
                 ui_event_widgets
             end
 
-            def create_ui_new_job
-                new_job_layout = Qt::HBoxLayout.new
+            def create_ui_new_job(layout)
                 label   = Qt::Label.new("New Job", self)
                 label.set_size_policy(Qt::SizePolicy::Minimum, Qt::SizePolicy::Minimum)
                 @action_combo = Qt::ComboBox.new(self)
                 action_combo.enabled = false
                 action_combo.item_delegate = ActionListDelegate.new(self)
-                new_job_layout.add_widget label
-                new_job_layout.add_widget action_combo, 1
+                layout.add_widget label
+                layout.add_widget action_combo, 1
                 action_combo.connect(SIGNAL('activated(QString)')) do |action_name|
                     @batch_manager.create_new_job(action_name)
                 end
-                new_job_layout
             end
 
             attr_reader :syskit_poll
@@ -573,7 +577,10 @@ module Syskit
             #
             # @param [Roby::Interface::Async::JobMonitor] job
             def monitor_job(job)
-                job_status = JobStatusDisplay.new(job, @batch_manager)
+                @job_item_model.update_job_name(job.job_id, job.action_name)
+
+                job_status = JobStatusDisplay.new(job, @batch_manager,
+                    @job_item_model.fetch_job_info(job.job_id))
                 job_status_list.add_widget job_status
                 job_status.connect(SIGNAL('clicked()')) do
                     select_job(job_status)
@@ -582,14 +589,12 @@ module Syskit
 
             def deselect_job
                 @current_job = nil
-                job_expanded_status.deselect
                 all_tasks.clear
                 @known_loggers = nil
                 all_job_info.clear
                 if syskit_log_stream
                     update_tasks_info
                 end
-                job_expanded_status.add_tasks_info(all_tasks, all_job_info)
             end
 
             def select_job(job_status)
@@ -598,8 +603,6 @@ module Syskit
                 @known_loggers = nil
                 all_job_info.clear
                 update_tasks_info
-                job_expanded_status.select(job_status)
-                job_expanded_status.add_tasks_info(all_tasks, all_job_info)
             end
 
             signals 'fileOpenClicked(const QUrl&)'
