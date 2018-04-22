@@ -240,8 +240,9 @@ module Syskit
                 elsif syskit_log_stream
                     syskit_log_stream.close
                 end
+                rebuilder = JobStateRebuilder.new(@job_item_model)
                 @syskit_log_stream = Roby::Interface::Async::Log.new(
-                    syskit.remote_name, port: port)
+                    syskit.remote_name, port: port, plan_rebuilder: rebuilder)
                 syskit_log_stream.on_reachable do
                     deselect_job
                 end
@@ -249,21 +250,15 @@ module Syskit
                     run_hook :on_progress, ("loading %02i" % [Float(rx) / expected * 100])
                 end
 
-                init_events = Set.new
                 syskit_log_stream.on_update do |cycle_index, cycle_time|
                     @job_item_model.plan = syskit_log_stream.plan
                     if syskit_log_stream.init_done?
                         time_s = "#{cycle_time.strftime('%H:%M:%S.%3N')}"
                         run_hook :on_progress, ("@%i %s" % [cycle_index, time_s])
 
+                        rebuilder.init_done!
                         @job_item_model.update(cycle_time)
-                        unless init_events.empty?
-                            @job_item_model.update_events(init_events)
-                            init_events.clear
-                        end
                         update_tasks_info
-                    else
-                        init_events.merge(syskit_log_stream.plan.emitted_events)
                     end
 
                     syskit_log_stream.clear_integrated
@@ -412,8 +407,9 @@ module Syskit
                 job_toplevel_header.add_widget(@clear_button)
                 @clear_button.connect(SIGNAL(:clicked)) do
                     @job_status_list.clear_widgets do |w|
-                        if !w.job.active?
+                        unless w.job.active?
                             w.job.stop
+                            @job_item_model.remove_job(w.job.job_id)
                             true
                         end
                     end
@@ -460,11 +456,13 @@ module Syskit
                 management_tab_widget.addTab(task_inspector_widget, "Tasks")
                 management_tab_widget.addTab(ui_logging_configuration, "Logging")
 
+                splitter = Qt::Splitter.new
+                splitter.add_widget(job_widget)
                 splitter.add_widget(management_tab_widget)
-                job_expanded_status.set_size_policy(Qt::SizePolicy::MinimumExpanding, Qt::SizePolicy::MinimumExpanding)
+                @main_layout = Qt::VBoxLayout.new(self)
                 @main_layout.add_widget splitter, 1
                 w = splitter.size.width
-                splitter.sizes = [Integer(w * 0.25), Integer(w * 0.50), Integer(w * 0.25)]
+                splitter.sizes = [Integer(w * 0.75), Integer(w * 0.25)]
             end
 
             def create_ui_event_frame

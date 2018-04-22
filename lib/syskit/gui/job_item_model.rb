@@ -1,128 +1,18 @@
+require 'syskit/gui/job_item_info'
+require 'syskit/gui/job_state_rebuilder'
+
 module Syskit
     module GUI
         # @api private
         #
         # Expose job information to the Qt model system
         class JobItemModel < Qt::StandardItemModel
-            class JobInfo
-                attr_reader :job_id
-                attr_reader :placeholder_task
-                attr_reader :job_task
+            Notification = Struct.new :task, :time, :message, :job_id, :role, :type
 
-                attr_reader :name
-
-                def initialize(job_id)
-                    @job_id = job_id
-                end
-
-                def update_job_tasks(placeholder_task, job_task)
-                    @placeholder_task = placeholder_task
-                    @job_task = job_task
-                end
-
-                def update_name(name)
-                    @name = name
-
-                    return unless @root_item
-                    @root_item.text =
-                        if name
-                            "##{job_id} #{name}"
-                        else
-                            "##{job_id}"
-                        end
-                end
-
-                def create_item_model
-                    @root_item = Qt::StandardItem.new
-                    @root_item.setData(Qt::Variant.new(@job_id), ROLE_JOB_ID)
-                    @notifications_root_item = Qt::StandardItem.new("Notifications")
-                    @tasks_root_item = Qt::StandardItem.new("Tasks")
-                    @root_item.append_row(@notifications_root_item)
-                    @root_item.append_row(@tasks_root_item)
-
-                    update_name(@name)
-                    @root_item
-                end
-
-                def has_created_items?
-                    @root_item
-                end
-
-                def display_notifications_on_list(list_view)
-                    list_view.model      = @notifications_root_item.model
-                    list_view.root_index = @notifications_root_item.index
-                end
-
-                def take_model_from(model)
-                    model.takeRow(@root_item.row)
-                end
-
-                ROLE_NOTIFICATION_TIME        = Qt::UserRole + 1
-                ROLE_NOTIFICATION_CHILD_LABEL = Qt::UserRole + 2
-                ROLE_NOTIFICATION_CHILD_TEXT  = Qt::UserRole + 3
-
-                def move_notifications_to_top(items)
-                    return if items.empty?
-
-                    # Optimization if all items are consecutive (happens quite
-                    # often)
-                    items = items.sort_by(&:row)
-                    is_consecutive = items.each_cons(2).
-                        all? { |a, b| a.row + 1 == b.row }
-                    if is_consecutive
-                        return if items.first.row == 0 # Nothing to do
-
-                        @notifications_root_item.model.begin_move_rows(
-                            @notifications_root_item.index,
-                            items.first.row, items.last.row,
-                            @notifications_root_item.index, 0)
-                        items.each do |item|
-                            @notifications_root_item.take_row(item.row)
-                        end
-                        @notifications_root_item.insert_rows(0, items)
-                        @notifications_root_item.model.end_move_rows()
-                    else
-                        # Keep relative order
-                        items.each_with_index do |item, i|
-                            # Nothing to be done, it's already where we want it
-                            next if item.row == i
-
-                            @notifications_root_item.model.begin_move_rows(
-                                @notifications_root_item.index, item.row, item.row,
-                                @notifications_root_item.index, i)
-                            @notifications_root_item.take_row(item.row)
-                            @notifications_root_item.insert_row(i, item)
-                            @notifications_root_item.model.end_move_rows()
-                        end
-                    end
-                end
-
-                def add_notification_items(items)
-                    return if items.empty?
-                    @notifications_root_item.insert_rows(0, items)
-                end
-
-                def create_notification_item(notification)
-                    child_label =
-                        unless notification.task.empty?
-                            "(#{notification.task})"
-                        end
-
-                    time = notification.time.strftime("%H:%M:%S.%3N") if notification.time
-                    text = [time, child_label, notification.message].
-                        compact.join(" ")
-                    item = Qt::StandardItem.new(text)
-                    item.setData(Qt::Variant.new(notification.time),
-                        ROLE_NOTIFICATION_TIME)
-                    item.setData(Qt::Variant.new(notification.task),
-                        ROLE_NOTIFICATION_CHILD_LABEL)
-                    item.setData(Qt::Variant.new(notification.message),
-                        ROLE_NOTIFICATION_CHILD_TEXT)
-                    item
-                end
-            end
-
-            Notification = Struct.new :task, :time, :message
+            NOTIFICATION_SCHEDULER_PENDING = 1
+            NOTIFICATION_SCHEDULER_HOLDOFF = 2
+            NOTIFICATION_SCHEDULER_ACTION  = 3
+            NOTIFICATION_EVENT_EMITTED     = 4
 
             attr_accessor :plan
 
@@ -130,7 +20,51 @@ module Syskit
                 super(parent)
                 @plan = plan
                 @job_info = Hash.new
-                @scheduler_messages = Hash.new
+                @notification_state = Hash.new
+                @pending_notifications = Array.new
+            end
+
+            def queue_notification(notification)
+                @pending_notifications << notification
+            end
+
+            def remove_job(job_id)
+                @job_info.delete(job_id).take_from(self)
+                @notification_state.delete_if do |task, message2job2item|
+                    message2job2item.delete_if do |message, job2item|
+                        job2item.delete(job_id)
+                        job2item.empty?
+                    end
+                    message2job2item.empty?
+                end
+            end
+
+            def find_job_id(task)
+                (job_task = task.planning_task) &&
+                    job_task.kind_of?(Roby::Interface::Job) &&
+                    job_task.job_id
+            end
+
+            def find_jobs_of_task(task)
+                dependency_graph = task.relation_graph_for(
+                    Roby::TaskStructure::Dependency)
+                labels = TaskLabelVisitor.compute(
+                    dependency_graph.reverse, task)
+                has_mission = labels.each_key.any?(&:mission?)
+
+                if has_mission
+                    labels.each_with_object(Hash.new) do |(t, chain), result|
+                        if job_id = find_job_id(t)
+                            result[job_id] = chain
+                        end
+                    end
+                else
+                    @job_info.each_value.each_with_object(Hash.new) do |info, result|
+                        if (roles = info.find_roles_from_snapshot(task))
+                            result[info.job_id] = roles
+                        end
+                    end
+                end
             end
 
             # Compute task labels (as role chains) from a given root
@@ -195,7 +129,7 @@ module Syskit
                         info.update_job_tasks(placeholder_task, t)
                         updated_jobs << job_id
                     else
-                        info = JobInfo.new(job_id)
+                        info = JobItemInfo.new(job_id)
                         new_jobs << job_id
                     end
                     info.update_job_tasks(placeholder_task, t)
@@ -260,65 +194,26 @@ module Syskit
                 end
             end
 
-            ROLE_JOB_ID = Qt::UserRole + 1
-            ROLE_NOTIFICATION_TIME = Qt::UserRole + 1
-
             # Update the model from a new plan state
             def update(time = Time.now)
-                @job_info, =
+                current_job_info, _new, _updated, finalized_jobs =
                     update_job_info(@job_info)
+                @job_info = current_job_info.merge(finalized_jobs)
                 @job_info.each_value do |info|
                     unless info.has_created_items?
-                        appendRow(info.create_item_model)
+                        info.add_to(self)
                     end
                 end
 
                 @jobs_to_task_labels, @task_to_job_labels =
                     compute_tasks_labels(@job_info.each_value.map(&:placeholder_task))
 
-                @plan.scheduler_states.each do |state|
-                    update_scheduler_state(time, state)
-                end
-                update_events
+                add_notifications(@pending_notifications)
+                @pending_notifications = Array.new
             end
 
-            def update_events(events = @plan.emitted_events)
-                notifications = events.map do |event|
-                    next unless event.respond_to?(:task)
-                    Notification.new(event.task, event.time, event.symbol.to_s)
-                end
-                add_notifications(notifications)
-            end
-
-            def update_scheduler_state(time, state)
-                notifications = Array.new
-
-                state.pending_non_executable_tasks.each do |msg, *args|
-                    formatted_msg = Roby::Schedulers::State.format_message_into_string(msg, *args)
-                    args.each do |obj|
-                        if obj.kind_of?(Roby::Task)
-                            notifications << Notification.new(obj, nil, formatted_msg)
-                        end
-                    end
-                end
-                state.non_scheduled_tasks.each do |task, messages|
-                    messages.each do |msg, *args|
-                        formatted_msg = Roby::Schedulers::State.format_message_into_string(msg, task, *args)
-                        notifications << Notification.new(task, nil, formatted_msg)
-                    end
-                end
-
-                state.actions.each do |task, messages|
-                    messages.each do |msg, *args|
-                        formatted_msg = Roby::Schedulers::State.format_message_into_string(msg, task, *args)
-                        notifications << Notification.new(task, time, formatted_msg)
-                    end
-                end
-
-                current_messages = @scheduler_messages
-                @scheduler_messages =
-                    add_notifications(notifications, items: current_messages)
-                used_items, old_items = [@scheduler_messages, current_messages].
+            def remove_old_notification_items(old, new)
+                old_items, new_items = [old, new].
                     map do |task2msg2job2items|
                         task2msg2job2items.each_value.flat_map do |msg2job2items|
                             msg2job2items.each_value.flat_map do |job2items|
@@ -328,8 +223,7 @@ module Syskit
                     end
 
                 old_items.each do |item|
-                    next if used_items.include?(item)
-                    item.parent.take_row(item.row)
+                    item.parent.take_row(item.row) unless new_items.include?(item)
                 end
             end
 
@@ -337,47 +231,48 @@ module Syskit
                 fetch_or_create_job_info(job_id).update_name(job_name)
             end
 
-            def add_notifications(notifications, items: Hash.new)
+            def add_notifications(notifications)
+                old_notification_state = @notification_state
+
                 per_job = notifications.each_with_object(Hash.new) do |n, result|
-                    next unless (jobs_and_labels = @task_to_job_labels[n.task])
-                    jobs_and_labels.map do |job_task, chains|
-                        next unless (job_id = job_task.planning_task&.job_id)
-                        child_label = chains.first.join(".")
-                        notification = n.dup
-                        notification.task = child_label
-                        (result[job_id] ||= Array.new) <<
-                            [n.task, notification]
-                    end
+                    next unless @job_info.has_key?(n.job_id)
+                    (result[n.job_id] ||= Array.new) << n
+                    next
                 end
 
-                per_job.each_with_object(Hash.new) do |(job_id, messages), result_items|
+                @notification_state = per_job.each_with_object(Hash.new) do |(job_id, messages), result_items|
                     job_info = fetch_job_info(job_id)
 
                     new_messages_without_time, new_messages, updated_messages =
                         Array.new, Array.new, Array.new
-                    messages.each do |task, n|
-                        if !n.time
-                            if (item = items.dig(task, n.message, job_id))
+                    messages.each do |n|
+                        if n.time
+                            item = job_info.create_notification_item(n)
+                            new_messages << item
+                        elsif result_items.dig(n.task, n.message, job_id)
+                            next
+                        else
+                            if (item = old_notification_state.dig(n.task, n.message, job_id))
                                 updated_messages << item
                             else
                                 item = job_info.create_notification_item(n)
                                 new_messages_without_time << item
                             end
-                        else
-                            item = job_info.create_notification_item(n)
-                            new_messages << item
-                        end
-                        unless n.time
-                            result_items[task] ||= Hash.new
-                            result_items[task][n.message] ||= Hash.new
-                            result_items[task][n.message][job_id] = item
+
+                            result_items[n.task] ||= Hash.new
+                            result_items[n.task][n.message] ||= Hash.new
+                            result_items[n.task][n.message][job_id] = item
                         end
                     end
 
+                    updated_messages = updated_messages.uniq
                     job_info.add_notification_items(new_messages.reverse)
                     job_info.move_notifications_to_top(updated_messages.reverse)
                     job_info.add_notification_items(new_messages_without_time.reverse)
                 end
+
+                remove_old_notification_items(old_notification_state, @notification_state)
+                @notification_state
             end
 
             def fetch_job_info(job_id)
@@ -389,10 +284,38 @@ module Syskit
                     return info
                 end
 
-                info = JobInfo.new(job_id)
+                info = JobItemInfo.new(job_id)
                 @job_info[job_id] = info
-                appendRow(info.create_item_model)
+                info.add_to(self)
                 info
+            end
+
+            def queue_rebuilder_notification(task, time, message, type)
+                jobs = find_jobs_of_task(task)
+                jobs.each do |job_id, chain|
+                    queue_notification(JobItemModel::Notification.new(
+                        task, time, message, job_id, chain.first.reverse.join("."), type))
+                end
+            end
+
+            def queue_generator_fired(event)
+                if event.task.kind_of?(Roby::Interface::Job) && event.task.job_id
+                    if planned_task = event.task.planned_task
+                        queue_rebuilder_notification(planned_task, event.time,
+                            "planning:#{event.symbol.to_s}", NOTIFICATION_EVENT_EMITTED)
+                    end
+                end
+                queue_rebuilder_notification(event.task, event.time, event.symbol.to_s,
+                    NOTIFICATION_EVENT_EMITTED)
+            end
+
+            def garbage_task(task)
+                jobs = find_jobs_of_task(task)
+                jobs.each do |job_id, chains|
+                    if chains == [[]]
+                        fetch_job_info(job_id).snapshot
+                    end
+                end
             end
         end
     end
