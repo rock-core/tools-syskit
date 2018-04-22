@@ -10,16 +10,16 @@ module Syskit
             attr_reader :ui_drop
             attr_reader :ui_state
             attr_reader :exceptions
-            attr_reader :notifications
-            attr_reader :ui_notifications
 
             def initialize(job, batch_manager, job_item_info)
                 super(nil)
                 @batch_manager = batch_manager
                 @job = job
                 @exceptions = Array.new
-                @notifications = Hash.new
+                @ui_summaries_labels = Hash.new
                 @job_item_info = job_item_info
+                connect @job_item_info, SIGNAL('notification_accounting_updated()'),
+                    self, SLOT('update_notification_summaries()')
 
                 create_ui
                 connect_to_hooks
@@ -37,21 +37,37 @@ module Syskit
             end
 
             class AutoHeightList < Qt::ListView
+                attr_reader :max_row_count
+
+                def initialize(*)
+                    super
+                    @max_row_count = Float::INFINITY
+                end
+
+                def show_all_rows
+                    self.max_row_count = Float::INFINITY
+                end
+
+                def max_row_count=(count)
+                    @max_row_count = count
+                    update_geometry
+                end
+
                 def update_geometry_if_needed
                     count = model.rowCount(root_index)
                     if count == 0
                         hide
                     elsif !@last_row_count || @last_row_count == 0
                         show
+                        update_geometry
                     elsif !@last_row_count || count != @last_row_count
                         update_geometry
                     end
-                    @last_row_count = count
                 end
                 slots 'update_geometry_if_needed()'
 
                 def sizeHint
-                    count = model.rowCount(root_index)
+                    count = [@max_row_count, model.rowCount(root_index)].min
                     @last_row_count = count
                     Qt::Size.new(sizeHintForColumn(0),
                         count * sizeHintForRow(0))
@@ -100,14 +116,13 @@ module Syskit
                 connect(@ui_events.model,
                     SIGNAL('rowsRemoved(const QModelIndex&, int, int)'),
                     @ui_events, SLOT('update_geometry_if_needed()'))
-                ui_notifications      = Qt::Label.new("", self)
 
                 vlayout = Qt::VBoxLayout.new(self)
                 vlayout.add_layout header_layout
-                vlayout.add_widget ui_notifications
+                @ui_summaries = Qt::VBoxLayout.new
+                @ui_summaries.set_contents_margins(0, 0, 0, 0)
+                vlayout.add_layout @ui_summaries
                 vlayout.add_widget @ui_events
-
-                ui_notifications.hide
 
                 if job.state
                     ui_state.update_state(job.state.upcase)
@@ -185,7 +200,7 @@ module Syskit
                 end
                 job.on_exception do |kind, exception|
                     exceptions << exception.exception
-                    notify('exceptions', "#{exceptions.size} exceptions")
+                    update_summary('exceptions', "#{exceptions.size} exceptions")
                     emit exceptionEvent
                 end
             end
@@ -211,11 +226,35 @@ module Syskit
                 end
             end
 
-            def notify(key, text)
-                notifications[key] = text
-                ui_notifications.show
-                ui_notifications.text = "<small>#{notifications.values.join(", ")}</small>"
+            def update_summary(key, text)
+                unless (n = @ui_summaries_labels[key])
+                    n = Qt::Label.new(self)
+                    @ui_summaries_labels[key] = n
+                    @ui_summaries.add_widget(n)
+                end
+                n.text = "<small>#{text}</small>"
             end
+
+            def remove_summary(key)
+                if (n = @ui_summaries_labels.delete(key))
+                    n.dispose
+                    true
+                end
+            end
+
+            def update_notification_summaries
+                holdoff_accounting = @job_item_info.notification_count(
+                    JobItemModel::NOTIFICATION_SCHEDULER_HOLDOFF)
+                holdoff_count = holdoff_accounting.size
+                if holdoff_count == 0
+                    remove_summary('scheduler_holdoff')
+                else
+                    update_summary('scheduler_holdoff',
+                        "#{holdoff_count} tasks cannot be scheduled: "\
+                        "#{holdoff_accounting.keys.sort.join(", ")}")
+                end
+            end
+            slots 'update_notification_summaries()'
 
             # Signal emitted when one exception got added at the end of
             # {#exceptions}
