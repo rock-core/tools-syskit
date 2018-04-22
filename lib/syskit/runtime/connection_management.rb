@@ -454,9 +454,9 @@ module Syskit
 
             def mark_connected_pending_tasks_as_executable(pending_tasks)
                 pending_tasks.each do |t|
-                    if !t.setup?
-                        scheduler.report_holdoff "not yet configured", t
-                    elsif !t.start_only_when_connected?
+                    next unless t.setup?
+
+                    if !t.start_only_when_connected?
                         t.ready_to_start!
                     elsif t.all_inputs_connected?
                         t.ready_to_start!

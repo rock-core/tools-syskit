@@ -9,7 +9,7 @@ module Syskit
                 execution_agent = t.execution_agent
                 # The task's deployment is not started yet
                 if !t.orocos_task
-                    plan.execution_engine.scheduler.report_holdoff "did not configure, execution agent not started yet", t
+                    plan.execution_engine.scheduler.report_holdoff "execution agent not started yet", t
                     next
                 elsif execution_agent.aborted_event.pending?
                     next
@@ -30,7 +30,7 @@ module Syskit
                 end
 
                 if t.setting_up?
-                    plan.execution_engine.scheduler.report_holdoff "is being configured", t
+                    plan.execution_engine.scheduler.report_holdoff "being configured", t
                 end
 
                 if schedule && t.pending? && !t.setup? && !t.setting_up?
@@ -49,7 +49,7 @@ module Syskit
                         t.setup.execute
                         next
                     else
-                        plan.execution_engine.scheduler.report_holdoff "did not configure, not ready for setup", t
+                        plan.execution_engine.scheduler.report_holdoff "not ready for setup", t
                     end
                 end
 
