@@ -205,8 +205,10 @@ module Syskit
                     end
                 end
 
+                current_placeholder_tasks = current_job_info.each_value.
+                    map(&:placeholder_task)
                 @jobs_to_task_labels, @task_to_job_labels =
-                    compute_tasks_labels(@job_info.each_value.map(&:placeholder_task))
+                    compute_tasks_labels(current_placeholder_tasks)
 
                 update_execution_agents(@jobs_to_task_labels)
 
