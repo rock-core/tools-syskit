@@ -81,9 +81,17 @@ module Syskit
 
                 header_layout    = Qt::HBoxLayout.new
                 @ui_job_actions  = Qt::Widget.new
-                header_layout.add_widget(@ui_state   = JobStateLabel.new(name: label))
+                @ui_events_actions_layout = Qt::HBoxLayout.new
+
+                header_layout.add_widget(@ui_state = JobStateLabel.new(name: label), 10)
+                header_layout.add_stretch(1)
                 header_layout.add_widget(@ui_job_actions)
+                header_layout.add_stretch(1)
+                header_layout.add_layout(@ui_events_actions_layout)
                 header_layout.set_contents_margins(0, 0, 0, 0)
+
+                @ui_state.size_policy = Qt::SizePolicy.new(
+                    Qt::SizePolicy::Expanding, Qt::SizePolicy::Preferred)
 
                 ui_job_actions_layout = Qt::HBoxLayout.new(@ui_job_actions)
                 @actions_buttons = Hash[
@@ -102,11 +110,16 @@ module Syskit
                 ui_job_actions_layout.set_contents_margins(0, 0, 0, 0)
                 ui_start.hide
 
-                @ui_events_actions_layout = Qt::HBoxLayout.new
+                @ui_events_actions_layout.add_widget(
+                    @ui_events_actions_label = Qt::Label.new("Events"))
                 @ui_events_actions_layout.add_widget(
                     @ui_last_10s = Qt::PushButton.new("Last 10s"))
                 @ui_events_actions_layout.add_widget(
-                    @ui_all_events = Qt::PushButton.new("All Events"))
+                    @ui_all_events = Qt::PushButton.new("All"))
+                @ui_events_actions_layout.add_stretch()
+                @ui_events_actions_label.style_sheet = "QLabel { font-size: 10pt }"
+                @ui_last_10s.style_sheet =
+                    @ui_all_events.style_sheet = "QPushButton { font-size: 10pt }"
                 @ui_last_10s.flat = true
                 @ui_last_10s.checkable = true
                 @ui_last_10s.checked = true
@@ -157,7 +170,6 @@ module Syskit
 
                 vlayout = Qt::VBoxLayout.new(self)
                 vlayout.add_layout header_layout
-                vlayout.add_layout @ui_events_actions_layout
                 @ui_summaries = Qt::VBoxLayout.new
                 @ui_summaries.set_contents_margins(0, 0, 0, 0)
                 vlayout.add_layout @ui_summaries

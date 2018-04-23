@@ -390,6 +390,14 @@ module Syskit
                 end
             end
 
+            class WidgetListScrollArea < Qt::ScrollArea
+                def resizeEvent(event)
+                    super
+                    widget.resize(event.size.width, widget.geometry.height)
+                    event.accept
+                end
+            end
+
             def create_ui
                 job_widget = Qt::Widget.new(self)
                 job_layout = Qt::VBoxLayout.new(job_widget)
@@ -437,7 +445,7 @@ module Syskit
 
                 # And finally the job list
                 @job_status_list = WidgetList.new(self)
-                job_status_scroll = Qt::ScrollArea.new
+                job_status_scroll = WidgetListScrollArea.new
                 job_status_scroll.widget = @job_status_list
                 job_layout.add_widget(job_status_scroll, 1)
 
