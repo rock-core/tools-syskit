@@ -258,6 +258,9 @@ module Syskit
 
                         rebuilder.init_done!
                         @job_item_model.update(cycle_time)
+                        @job_status_list.each_widget do |w|
+                            w.update_current_time(cycle_time)
+                        end
                         update_tasks_info
                     end
 

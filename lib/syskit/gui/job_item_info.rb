@@ -78,8 +78,12 @@ module Syskit
             end
 
             def display_notifications_on_list(list_view)
-                list_view.model      = @notifications_root_item.model
-                list_view.root_index = @notifications_root_item.index
+                time_filter = FilterTime.new(@notifications_root_item, self)
+                time_filter.source_model = @notifications_root_item.model
+                list_view.model = time_filter
+                list_view.root_index = time_filter.map_from_source(
+                    @notifications_root_item.index)
+                time_filter
             end
 
             # How many notifications of the given type are currently present
@@ -206,6 +210,48 @@ module Syskit
                     ROLE_NOTIFICATION_MESSAGE)
                 item.setData(Qt::Variant.new(notification.type), ROLE_NOTIFICATION_TYPE)
                 item
+            end
+
+            class FilterTime < Qt::SortFilterProxyModel
+                def initialize(notification_root, parent = nil)
+                    super(parent)
+                    @notification_root = notification_root
+                    @deadline = Qt::Time.new(Time.at(0))
+                    self.dynamic_sort_filter = true
+                end
+
+                def show_all
+                    @timeout  = nil
+                    @deadline = Qt::Time.new(Time.at(0))
+                    invalidate_filter
+                end
+
+                def timeout=(timeout)
+                    @timeout = timeout
+                    update_deadline(@current_time) if @current_time
+                end
+
+                def update_deadline(current_time)
+                    @current_time = current_time
+                    if @timeout
+                        @deadline = Qt::Time.new(current_time - @timeout)
+                        invalidate_filter
+                    end
+                end
+
+                def lessThan(left, right)
+                    left.row < right.row
+                end
+
+                def filterAcceptsRow(row, source_parent)
+                    return true if source_parent != @notification_root.index
+
+                    v_time = @notification_root.child(row).data(ROLE_NOTIFICATION_TIME)
+                    return false if v_time.isNull()
+
+                    time = v_time.to_time
+                    time > @deadline
+                end
             end
         end
     end

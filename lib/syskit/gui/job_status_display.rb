@@ -41,6 +41,7 @@ module Syskit
 
                 def initialize(*)
                     super
+                    @last_row_count = 0
                     @max_row_count = Float::INFINITY
                 end
 
@@ -57,12 +58,13 @@ module Syskit
                     count = model.rowCount(root_index)
                     if count == 0
                         hide
-                    elsif !@last_row_count || @last_row_count == 0
+                    elsif @last_row_count == 0
                         show
                         update_geometry
-                    elsif !@last_row_count || count != @last_row_count
+                    elsif count != @last_row_count
                         update_geometry
                     end
+                    @last_row_count = count
                 end
                 slots 'update_geometry_if_needed()'
 
@@ -70,7 +72,7 @@ module Syskit
                     count = [@max_row_count, model.rowCount(root_index)].min
                     @last_row_count = count
                     Qt::Size.new(sizeHintForColumn(0),
-                        count * sizeHintForRow(0))
+                        (count + 0.25) * sizeHintForRow(0))
                 end
             end
 
@@ -89,13 +91,48 @@ module Syskit
                     'Restart'     => Qt::PushButton.new("Restart", self),
                     "Start Again" => Qt::PushButton.new("Start Again", self)
                 ]
-                ui_job_actions_layout.add_widget(@ui_drop    = @actions_buttons['Drop'])
-                ui_job_actions_layout.add_widget(@ui_restart = @actions_buttons['Restart'])
-                ui_job_actions_layout.add_widget(@ui_start   = @actions_buttons['Start Again'])
+                ui_job_actions_layout.add_widget(
+                    @ui_drop    = @actions_buttons['Drop'])
+                ui_job_actions_layout.add_widget(
+                    @ui_restart = @actions_buttons['Restart'])
+                ui_job_actions_layout.add_widget(
+                    @ui_start   = @actions_buttons['Start Again'])
+                ui_job_actions_layout.add_widget(
+                    @ui_start   = @actions_buttons['Start Again'])
                 ui_job_actions_layout.set_contents_margins(0, 0, 0, 0)
                 ui_start.hide
 
-                @ui_events            = AutoHeightList.new(self)
+                @ui_events_actions_layout = Qt::HBoxLayout.new
+                @ui_events_actions_layout.add_widget(
+                    @ui_last_10s = Qt::PushButton.new("Last 10s"))
+                @ui_events_actions_layout.add_widget(
+                    @ui_all_events = Qt::PushButton.new("All Events"))
+                @ui_last_10s.flat = true
+                @ui_last_10s.checkable = true
+                @ui_last_10s.checked = true
+                @ui_all_events.flat = true
+                @ui_all_events.checkable = true
+                @ui_last_10s.connect(SIGNAL('clicked(bool)')) do |toggled|
+                    if toggled
+                        @ui_all_events.checked = false
+                        @event_filter.timeout = 10
+                        @ui_events.update_geometry_if_needed
+                    else
+                        @ui_last_10s.checked = true
+                    end
+                end
+                @ui_all_events.connect(SIGNAL('clicked(bool)')) do |toggled|
+                    if toggled
+                        @ui_last_10s.checked = false
+                        @event_filter.show_all
+                        @ui_events.update_geometry_if_needed
+                    else
+                        @ui_all_events.checked = true
+                    end
+                end
+
+
+                @ui_events = AutoHeightList.new(self)
                 @ui_events.edit_triggers = Qt::AbstractItemView::NoEditTriggers
                 @ui_events.vertical_scroll_bar_policy = Qt::ScrollBarAlwaysOff
                 @ui_events.horizontal_scroll_bar_policy = Qt::ScrollBarAlwaysOff
@@ -109,7 +146,8 @@ module Syskit
                     background: transparent;
                 }
                 STYLESHEET
-                @job_item_info.display_notifications_on_list(@ui_events)
+                @event_filter = @job_item_info.display_notifications_on_list(@ui_events)
+                @event_filter.timeout = 10
                 connect(@ui_events.model,
                     SIGNAL('rowsInserted(const QModelIndex&, int, int)'),
                     @ui_events, SLOT('update_geometry_if_needed()'))
@@ -119,6 +157,7 @@ module Syskit
 
                 vlayout = Qt::VBoxLayout.new(self)
                 vlayout.add_layout header_layout
+                vlayout.add_layout @ui_events_actions_layout
                 @ui_summaries = Qt::VBoxLayout.new
                 @ui_summaries.set_contents_margins(0, 0, 0, 0)
                 vlayout.add_layout @ui_summaries
@@ -127,6 +166,10 @@ module Syskit
                 if job.state
                     ui_state.update_state(job.state.upcase)
                 end
+            end
+
+            def update_current_time(time)
+                @event_filter.update_deadline(time)
             end
 
             def keyPressEvent(event)
