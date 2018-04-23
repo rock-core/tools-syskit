@@ -169,8 +169,7 @@ module Syskit
                 return unless parent_index == @notifications_root_item.index
                 (row_start...row_end + 1).each do |row|
                     child = @notifications_root_item.child(row)
-                    notification_messages_for(child) << child.text
-                    emit job_summary_updated
+                    add_notification_message_for(child, child.text)
                 end
             end
             slots 'rows_inserted(const QModelIndex&, int, int)'
@@ -179,8 +178,7 @@ module Syskit
                 return unless parent_index == @notifications_root_item.index
                 (row_start...row_end + 1).each do |row|
                     child = @notifications_root_item.child(row)
-                    notification_messages_for(child).delete(child.text)
-                    emit job_summary_updated
+                    remove_notification_message_for(child, child.text)
                 end
             end
             slots 'rows_about_to_be_removed(const QModelIndex&, int, int)'
@@ -191,7 +189,22 @@ module Syskit
                 role = item.data(ROLE_NOTIFICATION_ROLE).to_string
                 type = item.data(ROLE_NOTIFICATION_TYPE).to_int
                 messages_by_roles = (@notification_messages[type] ||= Hash.new)
-                messages_by_roles[role] ||= Array.new
+                [messages_by_roles, role]
+            end
+
+            private def add_notification_message_for(child, text)
+                by_role, role = notification_messages_for(child)
+                (by_role[role] ||= Array.new) << text
+                emit job_summary_updated
+            end
+
+            private def remove_notification_message_for(child, text)
+                by_role, role = notification_messages_for(child)
+                if (messages = by_role[role])
+                    messages.delete(text)
+                    by_role.delete(role) if messages.empty?
+                    emit job_summary_updated
+                end
             end
 
             def create_notification_item(notification)
