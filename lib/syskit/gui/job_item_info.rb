@@ -18,6 +18,7 @@ module Syskit
                 @snapshot = Hash.new
                 @notification_messages = Hash.new
                 @execution_agents = Hash.new
+                @localized_errors = Array.new
             end
 
             def execution_agents=(agents)
@@ -86,17 +87,27 @@ module Syskit
                 time_filter
             end
 
+            NotificationMessages = Struct.new :message, :extended_message
+
             # How many notifications of the given type are currently present
             #
             # @param [Integer] type the notification type as one of the
             #   `JobItemModel::NOTIFICATION_` constants (e.g.
             #   {JobItemModel::NOTIFICATION_SCHEDULER_PENDING})
-            # @return [{String=>Integer}] per-role messages of the notifications
+            # @return [{String=>[NotificationMessages]}] per-role messages of the
+            #   notifications
             def notifications_by_type(type)
                 @notification_messages[type] || Hash.new
             end
 
+            def find_roles_of_task(task)
+                @model.find_jobs_of_task(task)[job_id] || []
+            end
+
+            PropagatedLocalizedError = Struct.new :time, :mode, :roles, :error
+
             def add_to(model)
+                @model = model
                 item = create_item_model
                 model.appendRow(item)
                 connect \
@@ -119,10 +130,11 @@ module Syskit
 
             ROLE_JOB_ID = Qt::UserRole + 1
 
-            ROLE_NOTIFICATION_TIME    = Qt::UserRole + 1
-            ROLE_NOTIFICATION_ROLE    = Qt::UserRole + 2
-            ROLE_NOTIFICATION_MESSAGE = Qt::UserRole + 3
-            ROLE_NOTIFICATION_TYPE    = Qt::UserRole + 4
+            ROLE_NOTIFICATION_TIME             = Qt::UserRole + 1
+            ROLE_NOTIFICATION_ROLE             = Qt::UserRole + 2
+            ROLE_NOTIFICATION_MESSAGE          = Qt::UserRole + 3
+            ROLE_NOTIFICATION_EXTENDED_MESSAGE = Qt::UserRole + 4
+            ROLE_NOTIFICATION_TYPE             = Qt::UserRole + 5
 
             def move_notifications_to_top(items)
                 return if items.empty?
@@ -169,7 +181,7 @@ module Syskit
                 return unless parent_index == @notifications_root_item.index
                 (row_start...row_end + 1).each do |row|
                     child = @notifications_root_item.child(row)
-                    add_notification_message_for(child, child.text)
+                    add_notification_message_for(child)
                 end
             end
             slots 'rows_inserted(const QModelIndex&, int, int)'
@@ -178,7 +190,7 @@ module Syskit
                 return unless parent_index == @notifications_root_item.index
                 (row_start...row_end + 1).each do |row|
                     child = @notifications_root_item.child(row)
-                    remove_notification_message_for(child, child.text)
+                    remove_notification_message_for(child)
                 end
             end
             slots 'rows_about_to_be_removed(const QModelIndex&, int, int)'
@@ -192,16 +204,21 @@ module Syskit
                 [messages_by_roles, role]
             end
 
-            private def add_notification_message_for(child, text)
+            private def add_notification_message_for(child)
+                message = child.text
+                extended_message = child.data(ROLE_NOTIFICATION_EXTENDED_MESSAGE).
+                    to_string
                 by_role, role = notification_messages_for(child)
-                (by_role[role] ||= Array.new) << text
+                (by_role[role] ||= Array.new) <<
+                    NotificationMessages.new(message, extended_message)
                 emit job_summary_updated
             end
 
-            private def remove_notification_message_for(child, text)
+            private def remove_notification_message_for(child)
                 by_role, role = notification_messages_for(child)
                 if (messages = by_role[role])
-                    messages.delete(text)
+                    text = child.text
+                    messages.delete_if { |m| m.message == text }
                     by_role.delete(role) if messages.empty?
                     emit job_summary_updated
                 end
@@ -217,6 +234,7 @@ module Syskit
                 text = [time, role, notification.message].compact.join(" ")
 
                 item = Qt::StandardItem.new(text)
+                item.tool_tip = notification.extended_message || ""
                 if notification.time
                     date_time = Qt::DateTime.new(notification.time)
                 end
@@ -225,6 +243,8 @@ module Syskit
                 item.setData(Qt::Variant.new(notification.message),
                     ROLE_NOTIFICATION_MESSAGE)
                 item.setData(Qt::Variant.new(notification.type), ROLE_NOTIFICATION_TYPE)
+                item.setData(Qt::Variant.new(notification.extended_message),
+                    ROLE_NOTIFICATION_EXTENDED_MESSAGE)
                 item
             end
 

@@ -9,13 +9,11 @@ module Syskit
             attr_reader :ui_restart
             attr_reader :ui_drop
             attr_reader :ui_state
-            attr_reader :exceptions
 
             def initialize(job, batch_manager, job_item_info)
                 super(nil)
                 @batch_manager = batch_manager
                 @job = job
-                @exceptions = Array.new
                 @ui_summaries_labels = Hash.new
                 @job_item_info = job_item_info
                 connect @job_item_info, SIGNAL('job_summary_updated()'),
@@ -153,7 +151,7 @@ module Syskit
                     Qt::SizePolicy::Preferred, Qt::SizePolicy::Minimum)
                 @ui_events.style_sheet = <<-STYLESHEET
                 QListView {
-                    font-size: 80%;
+                    font-size: 10pt;
                     padding: 3;
                     border: none;
                     background: transparent;
@@ -254,9 +252,6 @@ module Syskit
                     update_state(state)
                 end
                 job.on_exception do |kind, exception|
-                    exceptions << exception.exception
-                    update_summary('exceptions', "#{exceptions.size} exceptions")
-                    emit exceptionEvent
                 end
             end
 
@@ -281,25 +276,48 @@ module Syskit
                 end
             end
 
-            def update_summary(key, text, extended_info: "")
-                unless (n = @ui_summaries_labels[key])
-                    n = Qt::Label.new(self)
-                    @ui_summaries_labels[key] = n
-                    @ui_summaries.add_widget(n)
+            def update_summary(key, messages, extended_info: [])
+                messages = messages
+                extended_info = extended_info
+                labels = @ui_summaries_labels[key] || Array.new
+
+                if labels.empty?
+                    last_label_index = @ui_summaries.count
+                else
+                    last_label_index = @ui_summaries.index_of(labels.last)
                 end
-                n.text = "<small>#{text}</small>"
-                n.tool_tip = extended_info
-                n
+                while labels.size < messages.size
+                    n = Qt::Label.new(self)
+                    labels << n
+                    @ui_summaries.insert_widget(last_label_index, n)
+                    last_label_index += 1
+                end
+                while labels.size > messages.size
+                    l = labels.pop
+                    @ui_summaries.remove_widget(l)
+                    l.dispose
+                end
+                @ui_summaries_labels[key] = labels
+
+                labels.zip(messages, extended_info).map do |label, text, info|
+                    label.text = "<small>#{text}</small>"
+                    label.tool_tip = info || ""
+                    label
+                end
             end
 
             def remove_summary(key)
-                if (n = @ui_summaries_labels.delete(key))
-                    n.dispose
-                    true
-                end
+                update_summary(key, [])
             end
 
             def update_notification_summaries
+                update_summary_execution_agents_not_ready
+                update_summary_fatal_exceptions
+                update_summary_scheduler_holdoff
+            end
+            slots 'update_notification_summaries()'
+
+            def update_summary_execution_agents_not_ready
                 agents = @job_item_info.execution_agents
                 not_ready = agents.each_key.
                     find_all { |a| !a.ready_event.emitted? }
@@ -315,30 +333,44 @@ module Syskit
                     end.join("\n")
 
                     update_summary('execution_agents_not_ready',
-                        "#{not_ready.size} execution agents are not ready, supporting "\
+                        ["#{not_ready.size} execution agents are not ready, supporting "\
                         "#{all_supported_roles.size} tasks in this job: "\
-                        "#{all_supported_roles.sort.join(", ")}",
-                        extended_info: full_info)
+                        "#{all_supported_roles.sort.join(", ")}"],
+                        extended_info: [full_info])
                 end
+            end
 
+            def update_summary_fatal_exceptions
+                messages = @job_item_info.notifications_by_type(
+                    JobItemModel::NOTIFICATION_EXCEPTION_FATAL)
+                messages = messages.values.flatten.reverse
+                summary = ["#{messages.size} exceptions"] +
+                    messages.map { |m| "&nbsp;&nbsp;#{m.message}" }
+                extended = [""] + messages.map(&:extended_message)
+
+                if messages.size == 0
+                    remove_summary('exceptions')
+                else
+                    update_summary('exceptions', summary,
+                        extended_info: extended)
+                end
+            end
+
+            def update_summary_scheduler_holdoff
                 holdoff_messages = @job_item_info.notifications_by_type(
                     JobItemModel::NOTIFICATION_SCHEDULER_HOLDOFF)
                 holdoff_count = holdoff_messages.size
                 if holdoff_count == 0
                     remove_summary('scheduler_holdoff')
                 else
-                    full_info = holdoff_messages.values.flatten.join("\n")
+                    full_info = holdoff_messages.values.flatten.
+                        map(&:message).join("\n")
                     update_summary('scheduler_holdoff',
-                        "#{holdoff_count} tasks cannot be scheduled: "\
-                        "#{holdoff_messages.keys.sort.join(", ")}",
-                        extended_info: full_info)
+                        ["#{holdoff_count} tasks cannot be scheduled: "\
+                        "#{holdoff_messages.keys.sort.join(", ")}"],
+                        extended_info: [full_info])
                 end
             end
-            slots 'update_notification_summaries()'
-
-            # Signal emitted when one exception got added at the end of
-            # {#exceptions}
-            signals 'exceptionEvent()'
         end
     end
 end

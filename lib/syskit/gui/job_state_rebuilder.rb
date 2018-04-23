@@ -63,6 +63,14 @@ module Syskit
                 @job_item_model.queue_rebuilder_notification(task, time, formatted_msg,
                     JobItemModel::NOTIFICATION_SCHEDULER_ACTION)
             end
+
+            def exception_notification(time, plan_id, mode, error, involved_objects)
+                _plan, error, involved_objects = super
+                if error.exception.respond_to?(:failed_task)
+                    @job_item_model.queue_localized_error(
+                        time, mode, error.exception, involved_objects)
+                end
+            end
         end
     end
 end

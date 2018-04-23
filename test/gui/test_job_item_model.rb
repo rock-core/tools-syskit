@@ -285,6 +285,47 @@ module Syskit
                 end
             end
 
+            describe "#queue_localized_error" do
+                before do
+                    @rebuilt_plan.add_mission_task(@task = @task_m.new)
+                    @task.planned_by(@job_m.new(job_id: 42))
+                    @task.depends_on(@child = @task_m.new, role: 'child')
+                    @model.update
+                end
+                it "adds notifications to the involved jobs" do
+                    t = Time.gm(2018, 02, 24, 16, 32, 5.04)
+                    @model.queue_localized_error(t, :fatal,
+                        Roby::LocalizedError.new(@child.start_event), [@task, @child])
+                    @model.update
+                    assert_has_notification @model.item(0), text: "16:32:05.040 (child) "\
+                        "fatal exception Roby::LocalizedError from start"
+                end
+                it "does not mention the 'from' if the task is localized on the task" do
+                    t = Time.gm(2018, 02, 24, 16, 32, 5.04)
+                    @model.queue_localized_error(t, :fatal,
+                        Roby::LocalizedError.new(@child), [@task, @child])
+                    @model.update
+                    assert_has_notification @model.item(0), text: "16:32:05.040 (child) "\
+                        "fatal exception Roby::LocalizedError"
+                end
+                it "handles UntypedLocalizedError" do
+                    t = Time.gm(2018, 02, 24, 16, 32, 5.04)
+                    error = Roby::DRoby::V5::UntypedLocalizedError.new(@child.start_event)
+                    error.exception_class = flexmock(name: "Some::Error::Class")
+                    error.formatted_message = []
+                    @model.queue_localized_error(t, :fatal, error, [@task, @child])
+                    @model.update
+                    assert_has_notification @model.item(0), text: "16:32:05.040 (child) "\
+                        "fatal exception Some::Error::Class from start"
+                end
+                it "ignores jobs that are parent of the origin but are not involved" do
+                    @model.queue_localized_error(Time.now, :fatal,
+                        Roby::LocalizedError.new(@child.start_event), [@child])
+                    @model.update
+                    assert_has_notification @model.item(0), count: 0
+                end
+            end
+
             describe "#add_notifications" do
                 before do
                     @rebuilt_plan.add_mission_task(@task = @task_m.new)
@@ -420,16 +461,17 @@ module Syskit
                 it "accounts for new notifications" do
                     @model.add_notifications([
                         JobItemModel::Notification.new(@task, nil, "a", 42, "", 1)])
-                    assert_equal Hash['' => ['a']],
-                        @model.fetch_job_info(42).notification_messages(1)
+                    expected = JobItemInfo::NotificationMessages.new('a')
+                    assert_equal Hash['' => [expected]], @model.fetch_job_info(42).
+                        notifications_by_type(1)
                 end
                 it "accounts for removed notifications" do
                     @model.add_notifications([
                         JobItemModel::Notification.new(@task, nil, "a", 42, "", 1)])
                     item = assert_has_notification(@model.item(0), count: 1)
                     item.parent.take_row(item.row)
-                    assert_equal Hash['' => []],
-                        @model.fetch_job_info(42).notification_messages(1)
+                    assert_equal Hash.new, @model.fetch_job_info(42).
+                        notifications_by_type(1)
                 end
                 it "ignores a duplicate notification" do
                     @model.add_notifications([

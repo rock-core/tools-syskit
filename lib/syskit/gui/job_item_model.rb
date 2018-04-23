@@ -7,12 +7,15 @@ module Syskit
         #
         # Expose job information to the Qt model system
         class JobItemModel < Qt::StandardItemModel
-            Notification = Struct.new :task, :time, :message, :job_id, :role, :type
+            Notification = Struct.new :task, :time, :message, :job_id, :role, :type,
+                :extended_message
 
             NOTIFICATION_SCHEDULER_PENDING = 1
             NOTIFICATION_SCHEDULER_HOLDOFF = 2
             NOTIFICATION_SCHEDULER_ACTION  = 3
             NOTIFICATION_EVENT_EMITTED     = 4
+            NOTIFICATION_EXCEPTION_FATAL   = 5
+            NOTIFICATION_EXCEPTION_HANDLED = 6
 
             attr_accessor :plan
 
@@ -307,31 +310,77 @@ module Syskit
                 info
             end
 
-            def queue_rebuilder_notification(task, time, message, type)
+            def queue_rebuilder_notification(
+                task, time, message, type, extended_message = "")
+
                 jobs = find_jobs_of_task(task)
                 jobs.each do |job_id, chain|
-                    queue_notification(JobItemModel::Notification.new(
-                        task, time, message, job_id, chain.first.reverse.join("."), type))
+                    role = chain.first.reverse.join(".")
+                    queue_notification(Notification.new(task, time, message, job_id,
+                        role, type, extended_message))
                 end
             end
 
             def queue_generator_fired(event)
+                extended_message = PP.pp(event, "")
                 if event.task.kind_of?(Roby::Interface::Job) && event.task.job_id
                     if planned_task = event.task.planned_task
                         queue_rebuilder_notification(planned_task, event.time,
-                            "planning:#{event.symbol.to_s}", NOTIFICATION_EVENT_EMITTED)
+                            "planning:#{event.symbol.to_s}", NOTIFICATION_EVENT_EMITTED,
+                            extended_message)
                     end
                 end
                 queue_rebuilder_notification(event.task, event.time, event.symbol.to_s,
-                    NOTIFICATION_EVENT_EMITTED)
+                    NOTIFICATION_EVENT_EMITTED, extended_message)
             end
 
             def garbage_task(task)
                 jobs = find_jobs_of_task(task)
                 jobs.each do |job_id, chains|
-                    if chains == [[]]
-                        fetch_job_info(job_id).snapshot
+                    fetch_job_info(job_id).snapshot if chains == [[]]
+                end
+            end
+
+            def localized_error_summary(exception)
+                exception_class =
+                    if exception.respond_to?(:exception_class)
+                        exception.exception_class.name
+                    else
+                        exception.class.name
                     end
+
+                if (failed_generator = exception.failed_generator)
+                    "#{exception_class} from #{failed_generator.symbol}"
+                else
+                    exception_class.dup
+                end
+            end
+
+            EXCEPTION_MODE_TO_NOTIFICATION_TYPE = Hash[
+                fatal:   NOTIFICATION_EXCEPTION_FATAL,
+                handled: NOTIFICATION_EXCEPTION_HANDLED
+            ].freeze
+
+            def queue_localized_error(time, mode, error, involved_objects)
+                return unless error.failed_task
+
+                job_roles = find_jobs_of_task(error.failed_task)
+                involved_objects.each do |obj|
+                    next unless (job_id = find_job_id(obj))
+
+                    roles = job_roles[job_id]
+                    role  = roles.first.join(".")
+                    type  = EXCEPTION_MODE_TO_NOTIFICATION_TYPE[mode]
+                    message = "#{mode} exception #{localized_error_summary(error)}"
+                    extended_message =
+                        if error.respond_to?(:formatted_message)
+                            error.formatted_message.join("\n")
+                        else
+                            PP.pp(error, "")
+                        end
+                    queue_notification(Notification.new(
+                        error.failed_task, time, message, job_id, role, type,
+                        extended_message))
                 end
             end
         end
