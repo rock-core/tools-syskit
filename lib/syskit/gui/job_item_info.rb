@@ -217,7 +217,10 @@ module Syskit
                 text = [time, role, notification.message].compact.join(" ")
 
                 item = Qt::StandardItem.new(text)
-                item.setData(Qt::Variant.new(notification.time), ROLE_NOTIFICATION_TIME)
+                if notification.time
+                    date_time = Qt::DateTime.new(notification.time)
+                end
+                item.setData(Qt::Variant.new(date_time), ROLE_NOTIFICATION_TIME)
                 item.setData(Qt::Variant.new(notification.role), ROLE_NOTIFICATION_ROLE)
                 item.setData(Qt::Variant.new(notification.message),
                     ROLE_NOTIFICATION_MESSAGE)
@@ -229,13 +232,13 @@ module Syskit
                 def initialize(notification_root, parent = nil)
                     super(parent)
                     @notification_root = notification_root
-                    @deadline = Qt::Time.new(Time.at(0))
+                    @deadline = Qt::DateTime.new(Time.at(0))
                     self.dynamic_sort_filter = true
                 end
 
                 def show_all
                     @timeout  = nil
-                    @deadline = Qt::Time.new(Time.at(0))
+                    @deadline = Qt::DateTime.new(Time.at(0))
                     invalidate_filter
                 end
 
@@ -247,7 +250,7 @@ module Syskit
                 def update_deadline(current_time)
                     @current_time = current_time
                     if @timeout
-                        @deadline = Qt::Time.new(current_time - @timeout)
+                        @deadline = Qt::DateTime.new(current_time - @timeout)
                         invalidate_filter
                     end
                 end
@@ -262,7 +265,7 @@ module Syskit
                     v_time = @notification_root.child(row).data(ROLE_NOTIFICATION_TIME)
                     return false if v_time.isNull()
 
-                    time = v_time.to_time
+                    time = v_time.to_date_time
                     time > @deadline
                 end
             end
