@@ -208,8 +208,23 @@ module Syskit
                 @jobs_to_task_labels, @task_to_job_labels =
                     compute_tasks_labels(@job_info.each_value.map(&:placeholder_task))
 
+                update_execution_agents(@jobs_to_task_labels)
+
                 add_notifications(@pending_notifications)
                 @pending_notifications = Array.new
+            end
+
+            def update_execution_agents(jobs_to_task_labels)
+                jobs_to_task_labels.each do |job_task, task2labels|
+                    next unless (job_id = find_job_id(job_task))
+
+                    fetch_job_info(job_id).execution_agents = task2labels.
+                        each_with_object(Hash.new) do |(task, labels), result|
+                            if (agent = task.execution_agent)
+                                (result[agent] ||= Array.new) << labels.first.join(".")
+                            end
+                        end
+                end
             end
 
             def remove_old_notification_items(old, new)

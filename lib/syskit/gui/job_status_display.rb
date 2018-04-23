@@ -18,7 +18,7 @@ module Syskit
                 @exceptions = Array.new
                 @ui_summaries_labels = Hash.new
                 @job_item_info = job_item_info
-                connect @job_item_info, SIGNAL('notification_accounting_updated()'),
+                connect @job_item_info, SIGNAL('job_summary_updated()'),
                     self, SLOT('update_notification_summaries()')
 
                 create_ui
@@ -226,13 +226,15 @@ module Syskit
                 end
             end
 
-            def update_summary(key, text)
+            def update_summary(key, text, extended_info: "")
                 unless (n = @ui_summaries_labels[key])
                     n = Qt::Label.new(self)
                     @ui_summaries_labels[key] = n
                     @ui_summaries.add_widget(n)
                 end
                 n.text = "<small>#{text}</small>"
+                n.tool_tip = extended_info
+                n
             end
 
             def remove_summary(key)
@@ -243,15 +245,38 @@ module Syskit
             end
 
             def update_notification_summaries
-                holdoff_accounting = @job_item_info.notification_count(
+                agents = @job_item_info.execution_agents
+                not_ready = agents.each_key.
+                    find_all { |a| !a.ready_event.emitted? }
+                if not_ready.size == 0
+                    remove_summary('execution_agents_not_ready')
+                else
+                    all_supported_roles = Set.new
+                    full_info = not_ready.map do |agent_task|
+                        supported_roles = agents[agent_task]
+                        all_supported_roles.merge(supported_roles)
+                        "Agent of #{supported_roles.sort.join(", ")}:\n  " +
+                            PP.pp(agent_task, '').split("\n").join("\n  ")
+                    end.join("\n")
+
+                    update_summary('execution_agents_not_ready',
+                        "#{not_ready.size} execution agents are not ready, supporting "\
+                        "#{all_supported_roles.size} tasks in this job: "\
+                        "#{all_supported_roles.sort.join(", ")}",
+                        extended_info: full_info)
+                end
+
+                holdoff_messages = @job_item_info.notifications_by_type(
                     JobItemModel::NOTIFICATION_SCHEDULER_HOLDOFF)
-                holdoff_count = holdoff_accounting.size
+                holdoff_count = holdoff_messages.size
                 if holdoff_count == 0
                     remove_summary('scheduler_holdoff')
                 else
+                    full_info = holdoff_messages.values.flatten.join("\n")
                     update_summary('scheduler_holdoff',
                         "#{holdoff_count} tasks cannot be scheduled: "\
-                        "#{holdoff_accounting.keys.sort.join(", ")}")
+                        "#{holdoff_messages.keys.sort.join(", ")}",
+                        extended_info: full_info)
                 end
             end
             slots 'update_notification_summaries()'

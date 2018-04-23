@@ -420,16 +420,16 @@ module Syskit
                 it "accounts for new notifications" do
                     @model.add_notifications([
                         JobItemModel::Notification.new(@task, nil, "a", 42, "", 1)])
-                    assert_equal Hash['' => 1],
-                        @model.fetch_job_info(42).notification_count(1)
+                    assert_equal Hash['' => ['a']],
+                        @model.fetch_job_info(42).notification_messages(1)
                 end
                 it "accounts for removed notifications" do
                     @model.add_notifications([
                         JobItemModel::Notification.new(@task, nil, "a", 42, "", 1)])
                     item = assert_has_notification(@model.item(0), count: 1)
                     item.parent.take_row(item.row)
-                    assert_equal Hash['' => 0],
-                        @model.fetch_job_info(42).notification_count(1)
+                    assert_equal Hash['' => []],
+                        @model.fetch_job_info(42).notification_messages(1)
                 end
                 it "ignores a duplicate notification" do
                     @model.add_notifications([

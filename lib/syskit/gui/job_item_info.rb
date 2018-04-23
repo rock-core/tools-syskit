@@ -7,11 +7,24 @@ module Syskit
 
             attr_reader :name
 
+            # The mapping from this job's tasks to the supporting execution agents
+            #
+            # This is updated by {JobItemModel#update}
+            attr_reader :execution_agents
+
             def initialize(job_id)
                 super()
                 @job_id = job_id
                 @snapshot = Hash.new
-                @notification_accounting = Hash.new
+                @notification_messages = Hash.new
+                @execution_agents = Hash.new
+            end
+
+            def execution_agents=(agents)
+                if @execution_agents != agents
+                    @execution_agents = agents
+                    emit job_summary_updated()
+                end
             end
 
             def update_job_tasks(placeholder_task, job_task)
@@ -74,9 +87,9 @@ module Syskit
             # @param [Integer] type the notification type as one of the
             #   `JobItemModel::NOTIFICATION_` constants (e.g.
             #   {JobItemModel::NOTIFICATION_SCHEDULER_PENDING})
-            # @return [{String=>Integer}] per-role accounting of the notifications
-            def notification_count(type)
-                @notification_accounting[type] || Hash.new
+            # @return [{String=>Integer}] per-role messages of the notifications
+            def notifications_by_type(type)
+                @notification_messages[type] || Hash.new
             end
 
             def add_to(model)
@@ -152,8 +165,8 @@ module Syskit
                 return unless parent_index == @notifications_root_item.index
                 (row_start...row_end + 1).each do |row|
                     child = @notifications_root_item.child(row)
-                    update_notification_accounting(child, 1)
-                    emit notification_accounting_updated
+                    notification_messages_for(child) << child.text
+                    emit job_summary_updated
                 end
             end
             slots 'rows_inserted(const QModelIndex&, int, int)'
@@ -162,19 +175,19 @@ module Syskit
                 return unless parent_index == @notifications_root_item.index
                 (row_start...row_end + 1).each do |row|
                     child = @notifications_root_item.child(row)
-                    update_notification_accounting(child, -1)
-                    emit notification_accounting_updated
+                    notification_messages_for(child).delete(child.text)
+                    emit job_summary_updated
                 end
             end
             slots 'rows_about_to_be_removed(const QModelIndex&, int, int)'
 
-            signals 'notification_accounting_updated()'
+            signals 'job_summary_updated()'
 
-            private def update_notification_accounting(item, diff)
+            private def notification_messages_for(item)
                 role = item.data(ROLE_NOTIFICATION_ROLE).to_string
                 type = item.data(ROLE_NOTIFICATION_TYPE).to_int
-                per_role = (@notification_accounting[type] ||= Hash.new(0))
-                per_role[role] += diff
+                messages_by_roles = (@notification_messages[type] ||= Hash.new)
+                messages_by_roles[role] ||= Array.new
             end
 
             def create_notification_item(notification)
