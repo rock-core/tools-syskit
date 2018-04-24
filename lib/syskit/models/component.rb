@@ -608,14 +608,19 @@ module Syskit
             #   end
             #
             def provides(model, port_mappings = Hash.new, as: nil, slave_of: nil, bound_service_class: BoundDataService)
-                if !model.kind_of?(DataServiceModel)
-                    raise ArgumentError, "expected a data service model as argument and got #{model}"
+                unless model.kind_of?(DataServiceModel)
+                    if model.kind_of?(Roby::Models::TaskServiceModel)
+                        return super(model)
+                    else
+                        raise ArgumentError, "expected a data service model as argument and got #{model}"
+                    end
                 end
 
-                if !as
+                unless as
                     raise ArgumentError, "no service name given, please use the as: option"
-                else name = as.to_str
                 end
+
+                name = as.to_str
                 full_name = name
 
                 if master = slave_of

@@ -642,6 +642,12 @@ describe Syskit::Models::Component do
     end
 
     describe "#provides" do
+        it "passes Roby task services to super" do
+            task_service_m = Roby::TaskService.new_submodel
+            component_m = Syskit::Component.new_submodel
+            component_m.provides task_service_m
+            assert component_m.fullfills?(task_service_m)
+        end
         it "raises if no service name is given" do
             service = Syskit::DataService.new_submodel
             component = Syskit::TaskContext.new_submodel
