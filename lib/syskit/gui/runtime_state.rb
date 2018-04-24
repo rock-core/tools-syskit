@@ -117,7 +117,6 @@ module Syskit
 
                 @syskit = syskit
                 @robot_name = robot_name
-                @job_item_model = JobItemModel.new(Roby::DRoby::RebuiltPlan.new, self)
                 reset
 
                 @syskit_poll = Qt::Timer.new
@@ -148,6 +147,7 @@ module Syskit
                     app_quit
                 end
 
+                @previous_job_item_models = Array.new
                 @current_job = nil
                 @current_orocos_tasks = Set.new
                 @all_tasks = Set.new
@@ -240,6 +240,8 @@ module Syskit
                 elsif syskit_log_stream
                     syskit_log_stream.close
                 end
+                @previous_job_item_models << @job_item_model if @job_item_model
+                @job_item_model = JobItemModel.new(Roby::DRoby::RebuiltPlan.new, self)
                 rebuilder = JobStateRebuilder.new(@job_item_model)
                 @syskit_log_stream = Roby::Interface::Async::Log.new(
                     syskit.remote_name, port: port, plan_rebuilder: rebuilder)
@@ -420,10 +422,11 @@ module Syskit
                     @job_status_list.clear_widgets do |w|
                         unless w.job.active?
                             w.job.stop
-                            @job_item_model.remove_job(w.job.job_id)
+                            w.remove
                             true
                         end
                     end
+                    @previous_job_item_models.clear
                 end
                 job_layout.add_layout(job_toplevel_header)
 
@@ -588,8 +591,7 @@ module Syskit
             def monitor_job(job)
                 @job_item_model.update_job_name(job.job_id, job.action_name)
 
-                job_status = JobStatusDisplay.new(job, @batch_manager,
-                    @job_item_model.fetch_job_info(job.job_id))
+                job_status = JobStatusDisplay.new(job, @batch_manager, @job_item_model)
                 job_status_list.add_widget job_status
                 job_status.connect(SIGNAL('clicked()')) do
                     select_job(job_status)

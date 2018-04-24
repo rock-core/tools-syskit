@@ -10,17 +10,22 @@ module Syskit
             attr_reader :ui_drop
             attr_reader :ui_state
 
-            def initialize(job, batch_manager, job_item_info)
+            def initialize(job, batch_manager, job_item_model)
                 super(nil)
                 @batch_manager = batch_manager
                 @job = job
+                @job_item_model = job_item_model
+                @job_item_info  = job_item_model.fetch_job_info(job.job_id)
                 @ui_summaries_labels = Hash.new
-                @job_item_info = job_item_info
                 connect @job_item_info, SIGNAL('job_summary_updated()'),
                     self, SLOT('update_notification_summaries()')
 
                 create_ui
                 connect_to_hooks
+            end
+
+            def remove
+                @job_item_model.remove_job(job.job_id)
             end
 
             INTERMEDIATE_TERMINAL_STATES = [
