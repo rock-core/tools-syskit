@@ -10,12 +10,13 @@ module Syskit
             Notification = Struct.new :task, :time, :message, :job_id, :role, :type,
                 :extended_message
 
-            NOTIFICATION_SCHEDULER_PENDING = 1
-            NOTIFICATION_SCHEDULER_HOLDOFF = 2
-            NOTIFICATION_SCHEDULER_ACTION  = 3
-            NOTIFICATION_EVENT_EMITTED     = 4
-            NOTIFICATION_EXCEPTION_FATAL   = 5
-            NOTIFICATION_EXCEPTION_HANDLED = 6
+            NOTIFICATION_SCHEDULER_PENDING     = 1
+            NOTIFICATION_SCHEDULER_HOLDOFF     = 2
+            NOTIFICATION_SCHEDULER_ACTION      = 3
+            NOTIFICATION_EVENT_EMITTED         = 4
+            NOTIFICATION_EVENT_EMISSION_FAILED = 5
+            NOTIFICATION_EXCEPTION_FATAL       = 6
+            NOTIFICATION_EXCEPTION_HANDLED     = 7
 
             attr_accessor :plan
 
@@ -25,10 +26,13 @@ module Syskit
                 @job_info = Hash.new
                 @notification_state = Hash.new
                 @pending_notifications = Array.new
+                @emitted_events = Hash.new
+                @pending_forwards = Hash.new
             end
 
             def queue_notification(notification)
                 @pending_notifications << notification
+                notification
             end
 
             def remove_job(job_id)
@@ -217,6 +221,8 @@ module Syskit
 
                 add_notifications(@pending_notifications)
                 @pending_notifications = Array.new
+                @pending_forwards = Hash.new
+                @emitted_events = Hash.new
             end
 
             def update_execution_agents(jobs_to_task_labels)
@@ -314,14 +320,20 @@ module Syskit
                 task, time, message, type, extended_message = "")
 
                 jobs = find_jobs_of_task(task)
-                jobs.each do |job_id, chain|
+                jobs.map do |job_id, chain|
                     role = chain.first.reverse.join(".")
-                    queue_notification(Notification.new(task, time, message, job_id,
-                        role, type, extended_message))
+                    notification = Notification.new(task, time, message, job_id,
+                        role, type, extended_message)
+                    queue_notification(notification)
+                    notification
                 end
             end
 
             def queue_generator_fired(event)
+                if (forwarded_from = @pending_forwards.delete(event.generator))
+                    return queue_forwarded_event(event, forwarded_from)
+                end
+
                 extended_message = PP.pp(event, "")
                 if event.task.kind_of?(Roby::Interface::Job) && event.task.job_id
                     if planned_task = event.task.planned_task
@@ -330,8 +342,40 @@ module Syskit
                             extended_message)
                     end
                 end
-                queue_rebuilder_notification(event.task, event.time, event.symbol.to_s,
-                    NOTIFICATION_EVENT_EMITTED, extended_message)
+
+                @emitted_events[[event.time, event.generator]] =
+                    queue_rebuilder_notification(event.task, event.time,
+                        event.symbol.to_s, NOTIFICATION_EVENT_EMITTED, extended_message)
+            end
+
+            def queue_forwarded_event(event, forwarded_from)
+                forwarded_from.each do |ev|
+                    notifications = @emitted_events[[ev.time, ev.generator]]
+                    @emitted_events[[event.time, event.generator]] = notifications
+                    notifications.each do |existing|
+                        existing.message += " -> #{event.symbol}"
+                        existing.extended_message =
+                            "event '#{event.symbol}' emitted at "\
+                            "[#{Roby.format_time(event.time)} @#{event.propagation_id}]"\
+                            "\n#{existing.extended_message}"
+                    end
+                end
+            end
+
+            def queue_generator_emit_failed(time, generator, error)
+                return unless generator.respond_to?(:task)
+                extended_message = PP.pp(error, "")
+                queue_rebuilder_notification(generator.task, time,
+                    "emission of #{generator.symbol.to_s} failed",
+                    NOTIFICATION_EVENT_EMISSION_FAILED, extended_message)
+            end
+
+            def queue_generator_forward_events(time, events, generator)
+                return unless generator.respond_to?(:task)
+                events = events.find_all do |ev|
+                    ev.respond_to?(:task) && ev.task == generator.task
+                end
+                @pending_forwards[generator] = events unless events.empty?
             end
 
             def garbage_task(task)

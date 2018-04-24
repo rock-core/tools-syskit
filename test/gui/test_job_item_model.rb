@@ -199,6 +199,56 @@ module Syskit
                     assert_has_notification(@model.item(0),
                         text: "16:32:05.040 planning:start")
                 end
+
+                it "gathers all forwarded events from the same task in a single "\
+                    "notification" do
+
+                    t = Time.gm(2018, 02, 24, 16, 32, 5.04)
+                    start_ev   = @task.start_event.new([], 1, t)
+                    success_ev = @task.success_event.new([], 1, Time.now)
+                    stop_ev    = @task.stop_event.new([], 1, Time.now)
+
+                    @model.queue_generator_fired(start_ev)
+                    @model.queue_generator_forward_events(
+                        Time.now, [start_ev], @task.success_event)
+                    @model.queue_generator_fired(success_ev)
+                    @model.queue_generator_forward_events(
+                        Time.now, [success_ev], @task.stop_event)
+                    @model.queue_generator_fired(stop_ev)
+                    @model.update
+                    assert_has_notification(@model.item(0),
+                        text: "16:32:05.040 start -> success -> stop")
+                end
+            end
+
+            describe "#queue_generator_emit_failed" do
+                before do
+                    @rebuilt_plan.add_mission_task(@task = @task_m.new)
+                    @task.planned_by(@job_m.new(job_id: 42))
+                    @model.update
+                end
+
+                it "adds a notification for it" do
+                    t = Time.gm(2018, 02, 24, 16, 32, 5.04)
+                    error = Class.new do
+                        def pretty_print(pp)
+                            pp.text "some pretty-printed stuff"
+                        end
+                    end
+                    @model.queue_generator_emit_failed(
+                        t, @task.start_event, error.new)
+                    @model.update
+                    assert_has_notification @model.item(0),
+                        text: "16:32:05.040 emission of start failed",
+                        extended_message: "some pretty-printed stuff\n"
+                end
+                it "ignores free generators" do
+                    @rebuilt_plan.add(generator = Roby::EventGenerator.new)
+                    @model.queue_generator_emit_failed(
+                        Time.now, generator, Object.new)
+                    @model.update
+                    assert_has_notification @model.item(0), count: 0
+                end
             end
 
             describe "#garbage_task" do
@@ -486,7 +536,9 @@ module Syskit
                 notification_root_item.child(0, 0)
             end
 
-            def assert_has_notification(root_item, count: nil, text: nil, row: 0)
+            def assert_has_notification(root_item, count: nil, text: nil, row: 0,
+                extended_message: nil)
+
                 notification_root_item = root_item.child(0, 0)
                 if count
                     assert_equal count, notification_root_item.row_count
@@ -500,6 +552,9 @@ module Syskit
                 if text
                     refute_nil item, "no notifications"
                     assert_equal text, item.text
+                end
+                if extended_message
+                    assert_equal extended_message, item.tool_tip
                 end
                 item
             end

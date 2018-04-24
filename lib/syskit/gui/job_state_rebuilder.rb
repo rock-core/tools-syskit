@@ -21,6 +21,21 @@ module Syskit
                 @job_item_model.garbage_task(task)
             end
 
+            def generator_propagate_events(time, is_forwarding, events, generator)
+                events, generator = super
+                return unless is_forwarding
+                events = events.find_all { |ev| ev.respond_to?(:task) }
+                return if events.empty?
+                @job_item_model.queue_generator_forward_events(
+                    time, events, generator)
+            end
+
+            def generator_emit_failed(time, generator, error)
+                generator, error = super
+                return unless generator.respond_to?(:task)
+                @job_item_model.queue_generator_emit_failed(time, generator, error)
+            end
+
             def generator_fired(*)
                 event = super
                 return unless event.respond_to?(:task)
