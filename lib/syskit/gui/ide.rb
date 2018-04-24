@@ -94,7 +94,10 @@ module Syskit
 
                 model_browser.registered_exceptions.clear
                 Roby.app.clear_exceptions
-                Roby.app.reload_models
+                Roby.app.cleanup
+                Roby.app.clear_models
+                Roby.app.clear_config
+                Roby.app.setup
                 # HACK: reload_models calls Orocos.clear, which actually
                 # HACK: de-initializes Orocos. Overall, this isn't a problem
                 # HACK: on the Syskit side as one is not supposed to reload
