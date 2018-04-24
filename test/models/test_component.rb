@@ -532,7 +532,7 @@ describe Syskit::Models::Component do
                 provides srv_m, as: name
             end
             task_m.each_required_dynamic_service.empty?
-            
+
             model_m = task_m.new_submodel
             dyn_srv = model_m.require_dynamic_service 'dyn', as: 'test'
             assert_equal [dyn_srv], model_m.each_required_dynamic_service.to_a
@@ -547,7 +547,7 @@ describe Syskit::Models::Component do
                     dynamic_service srv_m, as: 'test' do
                         provides srv_m
                     end
-                end 
+                end
             end
 
             it "returns false if the argument has required dynamic services that the receiver does not" do
@@ -1104,4 +1104,3 @@ describe Syskit::Models::Component do
         end
     end
 end
-

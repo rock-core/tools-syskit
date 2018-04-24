@@ -75,7 +75,7 @@ module Syskit
             # Generic data service selection method, based on a service type
             # and an optional service name. It implements the following
             # algorithm:
-            #  
+            #
             #  * only services that match +target_model+ are considered
             #  * if there is only one service of that type and no pattern is
             #    given, that service is returned
@@ -119,7 +119,7 @@ module Syskit
             def stub(&block)
                 stub_modules.first.class_eval(&block)
             end
-            
+
             # Apply what's necessary for this component (from the underlying
             # component implementation) to be a proper component stub
             def prepare_stub(component)
@@ -160,7 +160,7 @@ module Syskit
                 end
             end
 
-            # Generic instanciation of a component. 
+            # Generic instanciation of a component.
             #
             # It creates a new task from the component model using
             # Component.new, adds it to the plan and returns it.
@@ -249,7 +249,7 @@ module Syskit
 
 	    # Defined to be compatible, in port mapping code, with the data services
             def port_mappings_for(model)
-                if model.kind_of?(Class) 
+                if model.kind_of?(Class)
                     if fullfills?(model)
                         mappings = Hash.new
                         model.each_port do |port|
@@ -329,7 +329,7 @@ module Syskit
                     elsif !to.respond_to?(:to_str)
                         raise ArgumentError, "unexpected value given in port mapping: #{to}, expected a string"
                     else
-                        normalized_mappings[from] = to 
+                        normalized_mappings[from] = to
                     end
                 end
 
@@ -424,7 +424,7 @@ module Syskit
             # ports that are not mapped to the task are automatically created
             # (provided a corresponding dynamic_input_port or
             # dynamic_output_port declaration exists on the oroGen model).
-            # 
+            #
             # @param [Syskit::DataService] service_model the service model
             # @param [Hash] port_mappings explicit port mappings needed to
             #   resolve the service's ports  to the task's ports
@@ -510,7 +510,7 @@ module Syskit
                 return enum_for(:each_required_dynamic_service) if !block_given?
                 each_data_service do |_, srv|
                     if srv.dynamic?
-                        yield(srv) 
+                        yield(srv)
                     end
                 end
             end
@@ -915,7 +915,7 @@ module Syskit
             end
 
             # Adds a new port to this model based on a known dynamic port
-            # 
+            #
             # @param [String] name the new port's name
             # @param [Orocos::Spec::DynamicInputPort] port the port model, as
             #   returned for instance by Orocos::Spec::TaskContext#find_dynamic_input_ports
@@ -928,7 +928,7 @@ module Syskit
             end
 
             # Adds a new port to this model based on a known dynamic port
-            # 
+            #
             # @param [String] name the new port's name
             # @param [Orocos::Spec::DynamicOutputPort] port the port model, as
             #   returned for instance by Orocos::Spec::TaskContext#find_dynamic_output_ports
@@ -1332,11 +1332,10 @@ module Syskit
             else
                 task_model.proxy_task_model(service_models)
             end
-        
+
         if service
             service.attach(task_model)
         else task_model
         end
     end
 end
-

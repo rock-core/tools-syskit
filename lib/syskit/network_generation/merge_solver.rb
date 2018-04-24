@@ -138,6 +138,14 @@ module Syskit
                     end
                     register_replacement(merged_task, task)
                 end
+
+                if MergeSolver.tracing_directory
+                    Engine.autosave_plan_to_dot(plan,
+                        MergeSolver.tracing_directory,
+                        MergeSolver.tracing_options.merge(
+                            highlights: merged_task_to_task.to_a.flatten.to_set,
+                            suffix: "0"))
+                end
             end
 
             # Create a new solver on the given plan and perform

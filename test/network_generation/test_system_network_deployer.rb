@@ -68,16 +68,14 @@ module Syskit
                 it "does not allocate the same task twice" do
                     plan.add(task0 = task_models[0].new)
                     plan.add(task1 = task_models[0].new)
-                    all_tasks = [task0, task1]
-                    selected, missing = subject.select_deployments(all_tasks)
+                    _, missing = subject.select_deployments
                     assert_equal 1, missing.size
                     assert [task0, task1].include?(missing.first)
                 end
                 it "does not resolve ambiguities by considering already allocated tasks" do
                     plan.add(task0 = task_models[0].new(orocos_name: 'task'))
                     plan.add(task1 = task_models[0].new)
-                    all_tasks = [task0, task1]
-                    selected, missing = subject.select_deployments(all_tasks)
+                    _, missing = subject.select_deployments
                     assert_equal [task1], missing.to_a
                 end
             end
@@ -85,14 +83,27 @@ module Syskit
             describe "#deploy" do
                 attr_reader :deployment_models, :deployments, :task_models
                 before do
-                    @deployment_models = [Syskit::Deployment.new_submodel, Syskit::Deployment.new_submodel]
-                    @task_models = [Syskit::TaskContext.new_submodel, Syskit::TaskContext.new_submodel]
+                    @task_models = task_models = [
+                        Syskit::TaskContext.new_submodel do
+                            output_port 'out', '/int32_t'
+                        end,
+                        Syskit::TaskContext.new_submodel do
+                            input_port 'in', '/int32_t'
+                        end
+                    ]
+                    @deployment_models = [
+                        Deployment.new_submodel do
+                            task 'task', task_models[0].orogen_model
+                        end,
+                        Deployment.new_submodel do
+                            task 'other_task', task_models[1].orogen_model
+                        end
+                    ]
+
                     @deployments = Hash[
                         task_models[0] => [['machine', deployment_models[0], 'task']],
                         task_models[1] => [['other_machine', deployment_models[1], 'other_task']]
                     ]
-                    deployment_models[0].orogen_model.task 'task', task_models[0].orogen_model
-                    deployment_models[1].orogen_model.task 'other_task', task_models[1].orogen_model
                 end
 
                 subject do
@@ -124,6 +135,17 @@ module Syskit
                     # And finally replace the task with the deployed task
                     merge_solver.should_receive(:apply_merge_group).once.with(task => deployed_task)
                     subject.deploy(validate: false)
+                end
+                it "copies the connections from the tasks to their deployed counterparts" do
+                    plan.add(task0 = task_models[0].new)
+                    plan.add(task1 = task_models[1].new)
+                    task0.out_port.connect_to task1.in_port
+                    result = expect_execution { subject.deploy(validate: false) }.to_run
+                    deployed_task0 = subject.merge_solver.replacement_for(task0)
+                    deployed_task1 = subject.merge_solver.replacement_for(task1)
+                    refute_same task0, deployed_task0
+                    refute_same task1, deployed_task1
+                    assert deployed_task0.out_port.connected_to?(deployed_task1.in_port)
                 end
                 it "instanciates the same deployment only once on the same machine" do
                     plan.add(task0 = task_models[0].new(orocos_name: 'task'))

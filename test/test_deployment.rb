@@ -183,6 +183,53 @@ module Syskit
                     deployment_task.task("mapped_task_name")
                 end
             end
+            describe "slave tasks" do
+                before do
+                    @task_m = TaskContext.new_submodel do
+                        event :ready
+                    end
+
+                    orogen_model = Orocos::Spec::Deployment.new(Orocos.default_loader, 'deployment')
+                    orogen_master = orogen_model.task 'master', task_m.orogen_model
+                    orogen_slave = orogen_model.task 'slave', task_m.orogen_model
+                    orogen_slave.slave_of(orogen_master)
+                    @deployment_m = Deployment.new_submodel(orogen_model: orogen_model)
+                end
+
+                it "adds its master task as dependency" do
+                    plan.add(deployment_task = @deployment_m.new)
+                    task = deployment_task.task('slave')
+                    assert_same deployment_task, task.execution_agent
+                    scheduler_task = task.child_from_role('scheduler')
+                    assert_equal 'master', scheduler_task.orocos_name
+                    assert_same deployment_task, scheduler_task.execution_agent
+                end
+
+                it "auto-selects the configuration of the master task" do
+                    @task_m.configuration_manager.add 'master', Hash.new
+
+                    plan.add(deployment_task = @deployment_m.new)
+                    task = deployment_task.task('slave')
+                    assert_equal ['default', 'master'],
+                        task.child_from_role('scheduler').conf
+                end
+
+                it "constrains the configuration of the slave task" do
+                    plan.add(deployment_task = @deployment_m.new)
+                    scheduler_task = deployment_task.task('master')
+                    scheduled_task = deployment_task.task('slave')
+                    assert scheduler_task.start_event.child_object?(
+                        scheduled_task.start_event,
+                        Roby::EventStructure::SyskitConfigurationPrecedence)
+                end
+
+                it "reuses an existing agent" do
+                    plan.add(deployment_task = @deployment_m.new)
+                    master = deployment_task.task('master')
+                    slave = deployment_task.task('slave')
+                    assert_same master, slave.child_from_role('scheduler')
+                end
+            end
         end
 
         describe "runtime behaviour" do
@@ -386,7 +433,7 @@ module Syskit
                         exception.error.message
                 end
             end
-            
+
             describe "stop event" do
                 attr_reader :orocos_task
                 before do
@@ -430,7 +477,7 @@ module Syskit
                 end
             end
 
-            
+
         end
 
         describe "#dead!" do
@@ -682,4 +729,3 @@ module Syskit
         end
     end
 end
-

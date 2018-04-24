@@ -136,8 +136,3 @@ module Minitest
         include Syskit::Test::Self
     end
 end
-
-
-
-
-

@@ -53,8 +53,7 @@ module Syskit
                     break
                 end
 
-                all_tasks = plan.find_local_tasks(TaskContext).to_a
-                selected_deployments, missing_deployments = select_deployments(all_tasks)
+                selected_deployments, missing_deployments = select_deployments
                 log_timepoint 'select_deployments'
 
                 apply_selected_deployments(selected_deployments)
@@ -68,7 +67,7 @@ module Syskit
                 return missing_deployments
             end
 
-            def select_deployments(tasks)
+            def select_deployments
                 used_deployments = Set.new
                 missing_deployments = Set.new
                 selected_deployments = Hash.new
@@ -135,8 +134,15 @@ module Syskit
                     end
                     deployed_task = deployment_task.task(task_name)
                     debug { "deploying #{task} with #{task_name} of #{configured_deployment.short_name} (#{deployed_task})" }
+                    # We MUST merge one-by-one here. Calling apply_merge_group
+                    # on all the merges at once would NOT copy the connections
+                    # that exist between the tasks of the "from" group to the
+                    # "to" group, which is really not what we want
+                    #
+                    # Calling with all the mappings would be useful if what
+                    # we wanted is replace a subnet of the plan by another
+                    # subnet. This is not the goal here.
                     merge_solver.apply_merge_group(task => deployed_task)
-                    debug { "  => #{deployed_task}" }
                 end
             end
 

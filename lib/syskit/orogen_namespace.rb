@@ -149,7 +149,7 @@ module Syskit
             namespace =
                 if mod.const_defined_here?(namespace)
                     mod.const_get(namespace)
-                else 
+                else
                     mod.const_set(namespace, Module.new)
                 end
 

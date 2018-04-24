@@ -151,7 +151,7 @@ module Syskit
 
             def initialize(plan)
                 @plan = plan
-                @task_from_name = Hash.new
+                super()
             end
 
             def self.compute_connection_policies(plan)
@@ -160,12 +160,13 @@ module Syskit
                 engine.result
             end
 
-            def propagate(tasks)
+            def reset(tasks = Array.new)
+                super
+                @triggers = Hash.new { |h, k| h[k] = Set.new }
+                @task_from_name = Hash.new
                 tasks.each do |t|
                     task_from_name[t.orocos_name] = t
                 end
-                @triggers = Hash.new { |h, k| h[k] = Set.new }
-                super
             end
 
             def has_information_for_task?(task)
@@ -315,6 +316,23 @@ module Syskit
             # Computes the initial port dynamics, i.e. the dynamics that can be
             # computed without knowing anything about the dataflow
             def initial_information(task)
+                # Master tasks resolve their children recursively, so we need
+                # to guard against initial_information being called twice for
+                # the slaves
+                #
+                # The recursive call is required in order to make sure that
+                # we have resolved the info *before* the call done_task_info
+                # (which forbids any change later on)
+                return if has_final_information_for_task?(task)
+
+                task.orogen_model.slaves.each do |orogen_slave_task|
+                    if slave_task = task_from_name[orogen_slave_task.name]
+                        if !has_information_for_task?(slave_task)
+                            initial_information(slave_task)
+                        end
+                    end
+                end
+
                 set_port_info(task, nil, PortDynamics.new("#{task.orocos_name}.main"))
                 task.model.each_output_port do |port|
                     create_port_info(task, port.name)
@@ -338,11 +356,10 @@ module Syskit
                     DataFlowDynamics.debug { "  adding periodic trigger #{task.orogen_model.period} 1" }
                     add_task_trigger(task, "#{task.orocos_name}.main-period", task.orogen_model.period, 1)
                     done_task_info(task)
+
                 elsif activity_type == "SlaveActivity"
-                else
-                    if !task.model.each_event_port.find { true }
-                        done_task_info(task)
-                    end
+                elsif !task.model.each_event_port.find { true }
+                    done_task_info(task)
                 end
             end
 
