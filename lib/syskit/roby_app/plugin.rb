@@ -71,17 +71,22 @@ module Syskit
                     Syskit.conf.logs.disable_port_logging
                 end
 
-                Syskit.conf.logs.create_configuration_log(File.join(app.log_dir, 'properties'))
-                Orocos.disable_sigchld_handler = true
+                unless Syskit.conf.only_load_models?
+                    Syskit.conf.logs.create_configuration_log(
+                        File.join(app.log_dir, 'properties'))
+                    Orocos.disable_sigchld_handler = true
 
-                Syskit.conf.register_process_server(
-                    'ruby_tasks', Orocos::RubyTasks::ProcessManager.new(app.default_loader), app.log_dir, host_id: 'syskit')
+                    Syskit.conf.register_process_server('ruby_tasks',
+                        Orocos::RubyTasks::ProcessManager.new(app.default_loader),
+                        app.log_dir, host_id: 'syskit')
 
-                Syskit.conf.register_process_server(
-                    'unmanaged_tasks', UnmanagedTasksManager.new, app.log_dir)
+                    Syskit.conf.register_process_server(
+                        'unmanaged_tasks', UnmanagedTasksManager.new, app.log_dir)
 
-                Syskit.conf.register_process_server(
-                   'ros', Orocos::ROS::ProcessManager.new(app.ros_loader), app.log_dir)
+                    Syskit.conf.register_process_server(
+                        'ros', Orocos::ROS::ProcessManager.new(app.ros_loader),
+                        app.log_dir)
+                end
 
                 if Orocos.orocos_logfile
                     ENV['ORO_LOGFILE'] = Orocos.orocos_logfile

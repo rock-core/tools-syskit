@@ -12,7 +12,7 @@ module Syskit
             #   performed on the remote Roby instance
             def initialize(actions: Array.new, **options)
                 super(extra_style: 'margin-left: 2px; margin-top: 2px; font-size: 10pt;',
-                      **options)
+                      rate_limited: true, **options)
                 @actions = actions
                 declare_state 'STARTING', :blue
                 declare_state 'RESTARTING', :blue
@@ -60,4 +60,3 @@ module Syskit
         end
     end
 end
-

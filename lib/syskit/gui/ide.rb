@@ -65,6 +65,8 @@ module Syskit
                 if runtime != false
                     create_runtime_state_ui(syskit)
                     runtime_idx = tab_widget.add_tab runtime_state, "Runtime"
+                    connect(@runtime_state, SIGNAL('fileOpenClicked(const QUrl&)'),
+                            self, SLOT('fileOpenClicked(const QUrl&)'))
                 end
 
                 model_browser.model_selector.filter_box.set_focus(Qt::OtherFocusReason)
@@ -92,7 +94,10 @@ module Syskit
 
                 model_browser.registered_exceptions.clear
                 Roby.app.clear_exceptions
-                Roby.app.reload_models
+                Roby.app.cleanup
+                Roby.app.clear_models
+                Roby.app.clear_config
+                Roby.app.setup
                 # HACK: reload_models calls Orocos.clear, which actually
                 # HACK: de-initializes Orocos. Overall, this isn't a problem
                 # HACK: on the Syskit side as one is not supposed to reload
