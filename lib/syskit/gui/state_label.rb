@@ -25,7 +25,7 @@ module Syskit
             # Set to nil to remove any additional text
             def name=(name)
                 @name = name
-                update_text
+                update_text(rate_limit: false)
             end
 
             # The current state
@@ -158,7 +158,7 @@ module Syskit
             def update_state(state, text: state.to_s, color: color_from_state(state))
                 return if !color
                 update_style(color)
-                update_text(text)
+                update_text(text, rate_limit: false)
                 @current_state = state.to_s
             end
 
@@ -182,8 +182,8 @@ module Syskit
             #
             # The text is displayed using the {#current_color} and
             # {#extra_style}
-            def update_text(text = current_text)
-                return if rate_limited? && @last_update && (Time.now - @last_update) < 1
+            def update_text(text = current_text, rate_limit: true)
+                return if rate_limit && rate_limited? && @last_update && (Time.now - @last_update) < 1
                 @last_update = Time.now
 
                 text = text.to_str
