@@ -54,11 +54,12 @@ module Syskit
 
                 def max_row_count=(count)
                     @max_row_count = count
-                    update_geometry
+                    update_geometry_if_needed
                 end
 
                 def update_geometry_if_needed
                     count = model.rowCount(root_index)
+                    count = [@max_row_count, count].min
                     if count == 0
                         hide
                     elsif @last_row_count == 0
@@ -108,42 +109,63 @@ module Syskit
                     @ui_restart = @actions_buttons['Restart'])
                 ui_job_actions_layout.add_widget(
                     @ui_start   = @actions_buttons['Start Again'])
-                ui_job_actions_layout.add_widget(
-                    @ui_start   = @actions_buttons['Start Again'])
                 ui_job_actions_layout.set_contents_margins(0, 0, 0, 0)
                 ui_start.hide
 
+                @ui_events_actions_layout.set_contents_margins(0, 0, 0, 0)
                 @ui_events_actions_layout.add_widget(
-                    @ui_events_actions_label = Qt::Label.new("Events"))
+                    @ui_events_actions_label = Qt::Label.new("<b>Events</b>"))
+                @ui_events_actions_layout.add_widget(
+                    @ui_last_5 = Qt::PushButton.new("Last 5"))
                 @ui_events_actions_layout.add_widget(
                     @ui_last_10s = Qt::PushButton.new("Last 10s"))
                 @ui_events_actions_layout.add_widget(
                     @ui_all_events = Qt::PushButton.new("All"))
                 @ui_events_actions_layout.add_stretch()
-                @ui_events_actions_label.style_sheet = "QLabel { font-size: 10pt }"
-                @ui_last_10s.style_sheet =
+                @ui_events_actions_label.style_sheet =
+                    @ui_last_10s.style_sheet =
+                    @ui_last_5.style_sheet =
                     @ui_all_events.style_sheet = "QPushButton { font-size: 10pt }"
+                @ui_last_5.flat = true
+                @ui_last_5.checkable = true
                 @ui_last_10s.flat = true
                 @ui_last_10s.checkable = true
-                @ui_last_10s.checked = true
                 @ui_all_events.flat = true
                 @ui_all_events.checkable = true
-                @ui_last_10s.connect(SIGNAL('clicked(bool)')) do |toggled|
+                @ui_last_5.connect(SIGNAL('clicked(bool)')) do |toggled|
                     if toggled
+                        @ui_events.show
+                        @ui_last_10s.checked = false
                         @ui_all_events.checked = false
-                        @event_filter.timeout = 10
+                        @event_filter.show_all
+                        @ui_events.max_row_count = 5
                         @ui_events.update_geometry_if_needed
                     else
-                        @ui_last_10s.checked = true
+                        @ui_events.max_row_count = 0
+                    end
+                end
+                @ui_last_10s.connect(SIGNAL('clicked(bool)')) do |toggled|
+                    if toggled
+                        @ui_events.show
+                        @ui_last_5.checked = false
+                        @ui_all_events.checked = false
+                        @event_filter.timeout = 10
+                        @ui_events.max_row_count = Float::INFINITY
+                        @ui_events.update_geometry_if_needed
+                    else
+                        @ui_events.max_row_count = 0
                     end
                 end
                 @ui_all_events.connect(SIGNAL('clicked(bool)')) do |toggled|
                     if toggled
+                        @ui_events.show
+                        @ui_last_5.checked = false
                         @ui_last_10s.checked = false
                         @event_filter.show_all
+                        @ui_events.max_row_count = Float::INFINITY
                         @ui_events.update_geometry_if_needed
                     else
-                        @ui_all_events.checked = true
+                        @ui_events.max_row_count = 0
                     end
                 end
 
@@ -163,7 +185,7 @@ module Syskit
                 }
                 STYLESHEET
                 @event_filter = @job_item_info.display_notifications_on_list(@ui_events)
-                @event_filter.timeout = 10
+                @event_filter.show_all
                 connect(@ui_events.model,
                     SIGNAL('rowsInserted(const QModelIndex&, int, int)'),
                     @ui_events, SLOT('update_geometry_if_needed()'))
@@ -178,6 +200,7 @@ module Syskit
                 vlayout.add_layout @ui_summaries
                 vlayout.add_widget @ui_events
 
+                @ui_events.max_row_count = 0
                 if job.state
                     ui_state.update_state(job.state.upcase)
                 end
