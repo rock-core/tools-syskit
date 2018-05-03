@@ -481,8 +481,9 @@ module Syskit
                 layout.add_widget(reload = create_ui_event_button("Reload"))
                 layout.add_widget(close  = create_ui_event_button("Close"))
                 reload.connect(SIGNAL('clicked()')) do
-                    syskit_orogen_config_changed.hide
-                    @syskit_commands.reload_config
+                    @syskit_commands.async_reload_config do
+                        syskit_orogen_config_changed.hide
+                    end
                 end
                 close.connect(SIGNAL('clicked()')) do
                     syskit_orogen_config_changed.hide
@@ -497,8 +498,9 @@ module Syskit
                 layout.add_widget(apply = create_ui_event_button("Reconfigure"))
                 layout.add_widget(close = create_ui_event_button("Close"))
                 apply.connect(SIGNAL('clicked()')) do
-                    syskit_orogen_config_reloaded.hide
-                    @syskit_commands.redeploy
+                    @syskit_commands.async_redeploy do
+                        syskit_orogen_config_reloaded.hide
+                    end
                 end
                 close.connect(SIGNAL('clicked()')) do
                     syskit_orogen_config_reloaded.hide
