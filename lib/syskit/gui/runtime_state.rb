@@ -168,10 +168,10 @@ module Syskit
                 end
                 syskit.on_reachable do
                     @syskit_commands = syskit.client.syskit
+                    update_log_server_connection(syskit.log_server_port)
                     @job_status_list.each_widget do |w|
                         w.show_actions = true
                     end
-                    update_log_server_connection(syskit.client.log_server_port)
                     action_combo.clear
                     action_combo.enabled = true
                     syskit.actions.sort_by(&:name).each do |action|
