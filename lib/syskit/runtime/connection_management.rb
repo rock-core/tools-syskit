@@ -53,7 +53,7 @@ module Syskit
                 end
 
                 # Create the new connections
-                # 
+                #
                 # We're only updating on a partial set of tasks ... so we do
                 # have to enumerate both output and input connections. We can
                 # however avoid doulbing work by avoiding the update of sink
@@ -317,7 +317,7 @@ module Syskit
                     end
                 end
             end
-            
+
             # Remove port-to-port connections
             #
             # @param [{(Orocos::TaskContext,Orocos::TaskContext) => [[String,String]]}] removed
@@ -458,14 +458,21 @@ module Syskit
 
             def mark_connected_pending_tasks_as_executable(pending_tasks)
                 pending_tasks.each do |t|
-                    if t.setup? && t.all_inputs_connected?
+                    if !t.setup?
+                        scheduler.report_holdoff "not yet configured", t
+                    elsif !t.start_only_when_connected?
                         t.ready_to_start!
-                        debug { "#{t} has all its inputs connected, set executable to nil and executable? = #{t.executable?}" }
-                        scheduler.report_action "all inputs connected, marking as executable", t
-
+                    elsif t.all_inputs_connected?
+                        t.ready_to_start!
+                        debug do
+                            "#{t} has all its inputs connected, set executable "\
+                            "to nil and executable? = #{t.executable?}"
+                        end
+                        scheduler.report_action(
+                            "all inputs connected, marking as ready to start", t)
                     else
-                        scheduler.report_holdoff "some inputs are not yet connected, Syskit maintains its state to non-executable", t
-                        scheduler.report_action "some inputs are not yet connected, Syskit maintains its state to non-executable", t
+                        scheduler.report_holdoff(
+                            "waiting for all inputs to be connected", t)
                     end
                 end
             end
@@ -509,7 +516,7 @@ module Syskit
                 return early, Hash[late]
             end
 
-            # Partition new connections between 
+            # Partition new connections between
             def new_connections_partition_held_ready(new)
                 additions_held, additions_ready = Hash.new, Hash.new
                 new.each do |(from_task, to_task), mappings|
@@ -628,13 +635,13 @@ module Syskit
             end
 
             def active_task?(t)
-                t.plan && !t.finished? && t.execution_agent && !t.execution_agent.finished? && !t.execution_agent.ready_to_die? 
+                t.plan && !t.finished? && t.execution_agent && !t.execution_agent.finished? && !t.execution_agent.ready_to_die?
             end
 
             def update
                 # Don't do anything if the engine is deploying
                 return if plan.syskit_has_async_resolution?
-                
+
                 tasks = dataflow_graph.modified_tasks
                 tasks.delete_if { |t| !active_task?(t) }
                 debug "connection: updating, #{tasks.size} tasks modified in dataflow graph"
@@ -645,12 +652,8 @@ module Syskit
                 #
                 # The normal workflow does not work in this case, as it is only
                 # looking for tasks whose input connections have been modified
-                tasks.each do |t|
-                    if t.setup? && !t.executable? && t.plan == plan && t.all_inputs_connected?
-                        t.ready_to_start!
-                        scheduler.report_action "all inputs connected, marking as executable", t
-                    end
-                end
+                mark_connected_pending_tasks_as_executable(
+                    tasks.reject(&:executable?))
 
                 if !tasks.empty?
                     if dataflow_graph.pending_changes
@@ -725,4 +728,3 @@ module Syskit
         end
     end
 end
-

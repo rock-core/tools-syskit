@@ -20,6 +20,10 @@ module Syskit
                 @logged_ports = Set.new
             end
 
+            def start_only_when_connected?
+                false
+            end
+
             # Wrapper on top of the createLoggingPort operation
             #
             # @param [String] sink_port_name the desired port name on the logger
@@ -208,5 +212,3 @@ module Syskit
             &LoggerConfigurationSupport.method(:add_logging_to_network))
     end
 end
-
-
