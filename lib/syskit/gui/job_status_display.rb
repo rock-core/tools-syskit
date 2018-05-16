@@ -94,6 +94,7 @@ module Syskit
                 header_layout.add_layout(@ui_events_actions_layout)
                 header_layout.set_contents_margins(0, 0, 0, 0)
 
+                @ui_state.tool_tip = PP.pp(job, "")
                 @ui_state.size_policy = Qt::SizePolicy.new(
                     Qt::SizePolicy::Expanding, Qt::SizePolicy::Preferred)
 
