@@ -149,7 +149,7 @@ module Syskit
             end
             self
         end
-        
+
         def writer(policy = Hash.new)
             InputWriter.new(self, policy)
         end
@@ -196,35 +196,82 @@ module Syskit
         def output?; true end
     end
 
-    # A data source for a port attached to a component
-    class OutputReader
-        # The port for which this is a reader
+    # Base class for output reader/input writer
+    class PortAccessor
+        # The port for which this is a writer
         # @return [Syskit::OutputPort]
         attr_reader :port
         # The port actually resolved. This is different from #port if #port is
         # on an abstract task that got replaced
         # @return [Syskit::OutputPort]
         attr_reader :resolved_port
-	# The actual port, when resolved. This is the port on the TaskContext
-	# object that actually serves the data
+        # The actual port, when resolved. This is the port on the TaskContext
+        # object that actually serves the data
         # @return [Syskit::OutputPort]
         attr_reader :actual_port
         # The connection policy
         attr_reader :policy
-        # The actual data reader itself
-        # @return [Orocos::OutputReader]
-        attr_reader :reader
 
         def initialize(port, policy = Hash.new)
             @port = port.to_component_port
             @policy = policy
             @disconnected = false
-            @port.component.execute do |component|
-                if !@disconnected
-                    resolve(component).execute
+            schedule_resolution(@port) do |resolved_port, _|
+                @resolved_port = resolved_port
+            end
+        end
+
+        private def schedule_resolution(port)
+            port.component.execute do |component|
+                unless @disconnected
+                    resolved_port = component.find_port(port.name)
+                    unless resolved_port
+                        raise ArgumentError,
+                            "cannot find a port called #{port.name} on #{component}"
+                    end
+
+                    @actual_port = resolved_port.to_actual_port
+                    yield(resolved_port, @actual_port) if block_given?
+
+                    if @actual_port.static? || @actual_port.component.setup?
+                        resolve(component, @actual_port)
+                    else
+                        @actual_port.component.execute do
+                            resolve(component, @actual_port)
+                        end
+                    end
                 end
             end
         end
+
+        # @api private
+        #
+        # Resolves the underlying writer object
+        private def resolve(main, port, accessor)
+            distance = port.component.distance_to_syskit
+
+            resolver = main.promise(description: "#{port}##{accessor} for #{self}") do
+                port.to_orocos_port.public_send(accessor, distance: distance, **policy)
+            end
+            resolver.on_success(description: "#{self}#resolve#ready") do |obj|
+                unless @disconnected
+                    yield(obj)
+                end
+            end
+            resolver.on_error(description: "#{self}#resolve#failed") do |error|
+                actual_component = port.component
+                actual_component.execution_engine.
+                    add_error(PortAccessFailure.new(error, actual_component))
+            end
+            resolver.execute
+        end
+    end
+
+    # A data source for a port attached to a component
+    class OutputReader < PortAccessor
+        # The actual data reader itself
+        # @return [Orocos::OutputReader]
+        attr_reader :reader
 
         def model
             Models::OutputReader.new(port.model, policy)
@@ -233,26 +280,8 @@ module Syskit
         # @api private
         #
         # Resolves the underlying reader object
-        def resolve(component)
-            @resolved_port = component.find_port(@port.name)
-            if !@resolved_port
-                raise ArgumentError, "cannot find a port called #{@port.name} on #{component}"
-            end
-            @actual_port = resolved_port.to_actual_port
-            distance = actual_port.component.distance_to_syskit
-            resolver = component.promise(description: "#{self}#resolve") do
-                @actual_port.to_orocos_port.reader(distance: distance, **policy)
-            end
-            resolver.on_success(description: "#{self}#resolve#ready") do |reader|
-                if !@disconnected
-                    @reader = reader
-                end
-            end
-            resolver.on_error(description: "#{self}#resolve#failed") do |error|
-                actual_component = actual_port.component
-                actual_component.execution_engine.
-                    add_error(PortAccessFailure.new(error, actual_component))
-            end
+        def resolve(main, port)
+            super(main, port, :reader) { |r| @reader = r }
         end
 
         def disconnect
@@ -274,51 +303,28 @@ module Syskit
             reader.read if reader
         end
 
-	def ready?
-	    reader && actual_port.component.running?
-	end
+        def ready?
+            reader && actual_port.component.running?
+        end
 
         def connected?
             reader && reader.connected?
         end
     end
-    
+
     # A data writer for a port attached to a component
-    class InputWriter 
-        # The port for which this is a writer 
-        # @return [Syskit::OutputPort]
-        attr_reader :port
-        # The port actually resolved. This is different from #port if #port is
-        # on an abstract task that got replaced
-        # @return [Syskit::OutputPort]
-        attr_reader :resolved_port
-	# The actual port, when resolved. This is the port on the TaskContext
-	# object that actually serves the data
-        # @return [Syskit::OutputPort]
-        attr_reader :actual_port
-        # The connection policy
-        attr_reader :policy
+    class InputWriter < PortAccessor
         # The actual data writer itself
         # @return [Orocos::InputWriter]
         attr_reader :writer
-
-        def initialize(port, policy = Hash.new)
-            @port = port.to_component_port
-            @policy = policy
-            @port.component.execute do |component|
-                if !@disconnected
-                    resolve(component).execute
-                end
-            end
-        end
 
         def model
             Models::InputWriter.new(port.model, policy)
         end
 
-	def ready?
-	    writer && actual_port.component.running?
-	end
+        def ready?
+            writer && actual_port.component.running?
+        end
 
         def connected?
             writer && writer.connected?
@@ -338,39 +344,20 @@ module Syskit
         # @api private
         #
         # Resolves the underlying writer object
-        def resolve(component)
-            @resolved_port = component.find_port(@port.name)
-            if !@resolved_port
-                raise ArgumentError, "cannot find a port called #{@port.name} on #{component}"
-            end
-            @actual_port = resolved_port.to_actual_port
-            distance = actual_port.component.distance_to_syskit
-            resolver = component.promise(description: "#{@actual_port}#writer for #{self}") do
-                @actual_port.to_orocos_port.writer(distance: distance, **policy)
-            end
-            resolver.on_success(description: "#{self}#resolve#ready") do |writer|
-                if !@disconnected
-                    @writer = writer
-                end
-            end
-            resolver.on_error(description: "#{self}#resolve#failed") do |error|
-                actual_component = actual_port.component
-                actual_component.execution_engine.
-                    add_error(PortAccessFailure.new(error, actual_component))
-            end
-            resolver
+        def resolve(main, port)
+            super(main, port, :writer) { |w| @writer = w }
         end
 
-	# Write a sample on the associated port
-	#
-	# @return [Boolean] true if the writer was in a state that allowed
-	#   writing to the actual task, false otherwise
-        def write(sample) 
+        # Write a sample on the associated port
+        #
+        # @return [Boolean] true if the writer was in a state that allowed
+        #   writing to the actual task, false otherwise
+        def write(sample)
             if ready?
                 writer.write(sample)
             else
                 Typelib.from_ruby(sample, port.type)
-		nil
+                nil
             end
         end
 
@@ -379,6 +366,3 @@ module Syskit
         end
     end
 end
-
-
-

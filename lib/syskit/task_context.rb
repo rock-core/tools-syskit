@@ -107,7 +107,7 @@ module Syskit
                 end
                 @properties = Properties.new(self, properties)
                 @property_overrides = Properties.new(self, property_overrides)
-                
+
                 @current_property_commit = nil
 
                 @setup = false
@@ -1094,7 +1094,7 @@ module Syskit
             end
 
             # Adds a new port to this model based on a known dynamic port
-            # 
+            #
             # @param [String] name the new port's name
             # @param [Orocos::Spec::DynamicInputPort] port the port model, as
             #   returned for instance by Orocos::Spec::TaskContext#find_dynamic_input_ports
@@ -1105,7 +1105,7 @@ module Syskit
             end
 
             # Adds a new port to this model based on a known dynamic port
-            # 
+            #
             # @param [String] name the new port's name
             # @param [Orocos::Spec::DynamicOutputPort] port the port model, as
             #   returned for instance by Orocos::Spec::TaskContext#find_dynamic_output_ports
@@ -1195,4 +1195,3 @@ module Syskit
             end
         end
 end
-
