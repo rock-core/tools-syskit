@@ -191,13 +191,13 @@ describe Syskit::Component do
         attr_reader :srv_m, :task_m, :testing_task, :tested_task
         before do
             srv_m = Syskit::DataService.new_submodel
-            task_m = Syskit::TaskContext.new_submodel do
+            @task_m = Syskit::TaskContext.new_submodel do
                 argument :arg
                 dynamic_service srv_m, as: 'dyn' do
                     provides srv_m.new_submodel, as: name
                 end
             end
-            @testing_task, @tested_task = task_m.new, task_m.new
+            @testing_task, @tested_task = @task_m.new, @task_m.new
         end
 
         it "returns true if tasks are of identical models" do
@@ -228,6 +228,30 @@ describe Syskit::Component do
         it "returns true if an argument is set on the tested task but not set on the testing task" do
             tested_task.arg = 10
             assert testing_task.can_merge?(tested_task)
+        end
+
+        describe "handling of delayed arguments" do
+            before do
+                @cmp_m = Syskit::Composition.new_submodel
+                @cmp_m.argument :arg
+                @cmp_m.add(@task_m, as: 'test').
+                    with_arguments(arg: Roby::Task.from(:parent_task).arg)
+            end
+
+            it "does not merge if the two tasks have from(:parent_task) ... arguments that "\
+                "resolve to different values" do
+                testing_cmp = @cmp_m.with_arguments(arg: 5).instanciate(plan)
+                tested_cmp  = @cmp_m.with_arguments(arg: 10).instanciate(plan)
+                refute testing_cmp.test_child.can_merge?(tested_cmp.test_child)
+            end
+            it "does merge if the two tasks have from(:parent_task) ... arguments that "\
+                "resolve to the same value" do
+                testing_cmp = @cmp_m.with_arguments(arg: 10).instanciate(plan)
+                tested_cmp  = @cmp_m.with_arguments(arg: 10).instanciate(plan)
+                assert testing_cmp.test_child.can_merge?(tested_cmp.test_child)
+                testing_cmp.test_child.merge(tested_cmp.test_child)
+                assert_equal 10, testing_cmp.test_child.arg
+            end
         end
     end
 
@@ -322,7 +346,7 @@ describe Syskit::Component do
                 @task_m = Syskit::Component.new_submodel do
                     argument :arg
                 end
-                @default_arg = flexmock(evaluate_delayed_argument: 10)
+                @default_arg = Roby::DefaultArgument.new(10)
             end
 
             it "propagates default arguments to components that have no argument at all" do
@@ -332,7 +356,7 @@ describe Syskit::Component do
                 assert_equal default_arg, receiver.arguments.values[:arg]
             end
             it "does not propagate a default argument if the receiver has a default argument set" do
-                receiver_arg = flexmock(evaluate_delayed_argument: 20)
+                receiver_arg = Roby::DefaultArgument.new(20)
                 plan.add(receiver = task_m.new(arg: receiver_arg))
                 plan.add(argument = task_m.new(arg: default_arg))
                 receiver.merge(argument)
