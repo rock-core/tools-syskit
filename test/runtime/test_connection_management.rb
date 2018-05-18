@@ -513,6 +513,93 @@ module Syskit
                     dataflow_graph.modified_tasks << sink_task
                     manager.update
                 end
+
+                describe "handling of reconfigured tasks" do
+                    before do
+                        @source_m = Syskit::TaskContext.new_submodel do
+                            output_port 'out', '/double'
+                        end
+                        @sink_m = Syskit::TaskContext.new_submodel do
+                            input_port 'in', '/double'
+                        end
+                        @cmp_m = Syskit::Composition.new_submodel
+                        @cmp_m.add @source_m, as: 'source'
+                        @cmp_m.add @sink_m, as: 'sink'
+                        @cmp_m.source_child.out_port.connect_to \
+                            @cmp_m.sink_child.in_port
+
+                        cmp = syskit_stub_deploy_and_configure(@cmp_m)
+                        @source_old = cmp.source_child
+                        @sink       = cmp.sink_child
+                    end
+
+                    def create_new_source
+                        agent = @source_old.execution_agent
+                        name  = @source_old.orocos_name
+                        plan.add_permanent_task(source_new = agent.task(name))
+                        source_new.out_port.connect_to @sink.in_port
+                        source_new.should_configure_after(@source_old.stop_event)
+                        source_new
+                    end
+
+                    it "handles the old task being finalized" do
+                        source_new = create_new_source
+                        source_old = @source_old
+                        expect_execution do
+                            plan.execution_engine.garbage_collect([source_old])
+                            ConnectionManagement.update(plan)
+                        end.to do
+                            achieve { !source_old.plan }
+                        end
+                        assert(Orocos.allow_blocking_calls do
+                            source_new.out_port.to_orocos_port.connected?
+                        end)
+                    end
+
+                    it "handles a sequential add/finalize" do
+                        source_new = create_new_source
+                        source_old = @source_old
+                        expect_execution { ConnectionManagement.update(plan) }.
+                            to_run
+                        assert source_old.plan
+
+                        execute do
+                            plan.execution_engine.garbage_collect([source_old])
+                            ConnectionManagement.update(plan)
+                        end
+                        assert(Orocos.allow_blocking_calls do
+                            source_new.out_port.to_orocos_port.connected?
+                        end)
+                    end
+
+                    it "handles the old task being disconnected but not finalized" do
+                        source_new = create_new_source
+                        source_old = @source_old
+                        execute do
+                            source_old.out_port.disconnect_from @sink.in_port
+                            ConnectionManagement.update(plan)
+                        end
+                        assert(Orocos.allow_blocking_calls do
+                            source_new.out_port.to_orocos_port.connected?
+                        end)
+                    end
+
+                    it "handles a sequential add/disconnect" do
+                        source_new = create_new_source
+                        source_old = @source_old
+                        expect_execution { ConnectionManagement.update(plan) }.
+                            to_run
+                        assert source_old.plan
+
+                        execute do
+                            source_old.out_port.disconnect_from @sink.in_port
+                            ConnectionManagement.update(plan)
+                        end
+                        assert(Orocos.allow_blocking_calls do
+                            source_new.out_port.to_orocos_port.connected?
+                        end)
+                    end
+                end
             end
 
             describe "connections involving finalized task" do

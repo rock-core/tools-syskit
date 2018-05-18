@@ -662,6 +662,15 @@ module Syskit
                         tasks.merge(pending_tasks)
                     end
 
+                    # Auto-add any Syskit task that has the same underlying
+                    # orocos task, or we might get inconsistencies
+                    orocos_tasks = tasks.map(&:orocos_task).to_set
+                    plan.find_tasks(TaskContext).each do |t|
+                        if orocos_tasks.include?(t.orocos_task) && active_task?(t)
+                            tasks << t
+                        end
+                    end
+
                     debug do
                         debug "computing data flow update from modified tasks"
                         for t in tasks
