@@ -20,7 +20,7 @@ module Syskit
             attr_reader :dependency_graph
 
             # A graph that holds all replacements done during resolution
-	    attr_reader :task_replacement_graph
+            attr_reader :task_replacement_graph
 
             # The list of merges that are known to be invalid, as (merged_task,
             # task)
@@ -199,13 +199,13 @@ module Syskit
                 end
 
                 candidates.each do |merged_task|
-                    next if task == merged_task 
+                    next if task == merged_task
 
                     debug { "  #{merged_task}" }
                     if merged_task.respond_to?(:proxied_data_services)
                         debug "    data service proxy"
                         next
-                    elsif !merged_task.plan 
+                    elsif !merged_task.plan
                         debug "    removed from plan"
                         next
                     elsif invalid_merges.include?([merged_task, task])
@@ -489,5 +489,3 @@ module Syskit
         end
     end
 end
-
-

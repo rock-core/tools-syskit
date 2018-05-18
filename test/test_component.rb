@@ -307,7 +307,8 @@ describe Syskit::Component do
             task_m.provides srv_m, as: 'master'
             task_m = task_m.specialize
             merged_task_m = task_m.specialize
-            merged_task_m.require_dynamic_service 'dyn', as: 'srv', model: (actual_m = srv_m.new_submodel), master: 'master'
+            merged_task_m.require_dynamic_service 'dyn', as: 'srv',
+                model: srv_m.new_submodel, master: 'master'
             plan.add(merged_task = merged_task_m.new)
             plan.add(task = task_m.new)
             flexmock(task).should_receive(:specialize).once
@@ -317,7 +318,8 @@ describe Syskit::Component do
             task_m = self.task_m.new_submodel
             task_m.provides srv_m, as: 'master'
             merged_task_m = task_m.specialize
-            merged_task_m.require_dynamic_service 'dyn', as: 'srv', model: (actual_m = srv_m.new_submodel), master: 'master'
+            merged_task_m.require_dynamic_service 'dyn', as: 'srv',
+                model: srv_m.new_submodel, master: 'master'
             plan.add(task = task_m.new)
             plan.add(merged_task = merged_task_m.new)
             task.merge(merged_task)
@@ -840,5 +842,3 @@ class TC_Component < Minitest::Test
         assert_raises(ArgumentError) { task.data_writer('in') }
     end
 end
-
-
