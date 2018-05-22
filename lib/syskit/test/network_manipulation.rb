@@ -532,7 +532,9 @@ module Syskit
                     root_tasks.each do |root_t, status|
                         replacement_t = mapped_tasks[root_t]
                         if replacement_t != root_t
-                            replacement_t.planned_by trsc[root_t.planning_task]
+                            unless replacement_t.planning_task
+                                replacement_t.planned_by trsc[root_t.planning_task]
+                            end
                             trsc.send("add_#{status}", replacement_t)
                         end
                     end
@@ -542,6 +544,7 @@ module Syskit
                     NetworkGeneration::SystemNetworkGenerator.verify_task_allocation(trsc)
                     trsc.commit_transaction
                 end
+
 
                 execute do
                     mapped_tasks.each do |old, new|
