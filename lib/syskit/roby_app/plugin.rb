@@ -45,6 +45,8 @@ module Syskit
                 if app.testing?
                     require 'syskit/test'
                 end
+
+                Orocos.disable_sigchld_handler = true
             end
 
             # Hook called by the main application at the beginning of Application#setup
@@ -74,7 +76,6 @@ module Syskit
                 unless Syskit.conf.only_load_models?
                     Syskit.conf.logs.create_configuration_log(
                         File.join(app.log_dir, 'properties'))
-                    Orocos.disable_sigchld_handler = true
 
                     Syskit.conf.register_process_server('ruby_tasks',
                         Orocos::RubyTasks::ProcessManager.new(app.default_loader),
