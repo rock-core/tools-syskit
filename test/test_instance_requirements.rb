@@ -559,7 +559,7 @@ describe Syskit::InstanceRequirements do
             @task_m = Syskit::TaskContext.new_submodel
             task_m.provides srv_m, as: 'test'
         end
-        it "should return a planning pattern for itself" do
+        it "returns a planning pattern for itself" do
             ir = Syskit::InstanceRequirements.new([task_m])
             plan.add(task = ir.as_plan)
             assert_kind_of task_m, task
@@ -567,12 +567,26 @@ describe Syskit::InstanceRequirements do
             assert_equal ir, task.planning_task.requirements
         end
 
-        it "should allow to be created from a service selection" do
+        it "can be created from a service selection" do
             ir = Syskit::InstanceRequirements.new([task_m.test_srv])
             plan.add(task = ir.as_plan)
             assert_kind_of task_m, task
             assert task.planning_task
             assert_equal ir, task.planning_task.requirements
+        end
+
+        it "passes arguments to the generated pattern" do
+            @task_m.argument :foo
+            ir = Syskit::InstanceRequirements.new([@task_m])
+            task = ir.as_plan(foo: 10)
+            assert_equal 10, task.planning_task.requirements.arguments[:foo]
+        end
+
+        it "does not modify self when passing arguments" do
+            @task_m.argument :foo
+            ir = Syskit::InstanceRequirements.new([@task_m])
+            ir.as_plan(foo: 10)
+            assert_nil ir.arguments[:foo]
         end
     end
 

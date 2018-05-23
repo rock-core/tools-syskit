@@ -919,7 +919,13 @@ module Syskit
             #
             # @return [Syskit::Component]
             def as_plan(**arguments)
-                Syskit::InstanceRequirementsTask.subplan(self, **arguments)
+                if arguments.empty?
+                    req = self
+                else
+                    req = dup
+                    req.with_arguments(**arguments)
+                end
+                Syskit::InstanceRequirementsTask.subplan(req, **arguments)
             end
 
             def to_s
@@ -1076,8 +1082,27 @@ module Syskit
                 end
             end
 
+            class CoordinationTask < Roby::Coordination::Models::TaskWithDependencies
+                def initialize(requirements)
+                    super(requirements.proxy_task_model)
+                    @requirements = requirements
+                end
+
+                # Called by the state machine implementation to create a Roby::Task
+                # instance that will perform the state's actions
+                def instanciate(plan, variables = Hash.new)
+                    arguments = @requirements.arguments.map_value do |key, value|
+                        if value.respond_to?(:evaluate)
+                            value.evaluate(variables)
+                        else value
+                        end
+                    end
+                    @requirements.as_plan(**arguments)
+                end
+            end
+
             def to_coordination_task(task_model)
-                Roby::Coordination::Models::TaskFromAsPlan.new(self, proxy_task_model)
+                CoordinationTask.new(self)
             end
 
             def selected_for(requirements)
