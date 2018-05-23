@@ -686,8 +686,8 @@ module Syskit
                         properties = each_property.map do |syskit_p|
                             [syskit_p, syskit_p.remote_property.raw_read]
                         end
-                        [properties, orocos_task.port_names, orocos_task.rtt_state]
-                    end.on_success(description: "#{self}#prepare_for_setup#write properties and needs_reconfiguration") do |properties, port_names, state|
+                        [properties, orocos_task.rtt_state]
+                    end.on_success(description: "#{self}#prepare_for_setup#write properties and needs_reconfiguration") do |properties, state|
                         properties.each do |syskit_p, remote_value|
                             syskit_p.update_remote_value(remote_value)
                         end
@@ -700,21 +700,19 @@ module Syskit
                         if !needs_reconfiguration
                             info "not reconfiguring #{self}: the task is already configured as required"
                         end
-                        [needs_reconfiguration, port_names, state]
-                    end.then(description: "#{self}#prepare_for_setup#ensure_pre_operational") do |needs_reconfiguration, port_names, state|
+                        [needs_reconfiguration, state]
+                    end.then(description: "#{self}#prepare_for_setup#ensure_pre_operational") do |needs_reconfiguration, state|
                         if state == :EXCEPTION
                             info "reconfiguring #{self}: the task was in exception state"
                             orocos_task.reset_exception(false)
-                            [true, port_names]
+                            orocos_task.port_names
                         elsif needs_reconfiguration && (state != :PRE_OPERATIONAL)
                             info "cleaning up #{self}"
                             orocos_task.cleanup(false)
-                            [true, port_names]
-                        else
-                            [false, port_names]
+                            orocos_task.port_names
                         end
-                    end.on_success(description: "#{self}#prepare_for_setup#clean_dynamic_port_connections") do |cleaned_up, port_names|
-                        if cleaned_up
+                    end.on_success(description: "#{self}#prepare_for_setup#clean_dynamic_port_connections") do |port_names|
+                        if port_names
                             clean_dynamic_port_connections(port_names)
                         end
                     end

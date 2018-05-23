@@ -861,6 +861,31 @@ module Syskit
                 end
                 assert_equal ["cleaning up #{task}"], messages
             end
+            it "checks that #cleanup has removed dynamic ports" do
+                port_names = []
+                orocos_task.should_receive(:port_names).and_return { port_names }
+                orocos_task.should_receive(:cleanup).once.
+                    and_return { port_names = ['test'] }
+                task.should_receive(:clean_dynamic_port_connections).
+                    with(['test']).once
+
+                task.should_receive(:needs_reconfiguration?).and_return(true)
+                capture_log(task, :info) do
+                    prepare_task_for_setup(:STOPPED)
+                end
+            end
+            it "checks that #reset_exception has removed dynamic ports" do
+                port_names = []
+                orocos_task.should_receive(:port_names).and_return { port_names }
+                orocos_task.should_receive(:reset_exception).
+                    and_return { port_names = ['test'] }
+                task.should_receive(:clean_dynamic_port_connections).
+                    with(['test']).once
+
+                capture_log(task, :info) do
+                    prepare_task_for_setup(:EXCEPTION)
+                end
+            end
         end
         describe "#setup" do
             attr_reader :task, :orocos_task, :recorder
