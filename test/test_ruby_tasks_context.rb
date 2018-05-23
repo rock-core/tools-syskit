@@ -8,6 +8,13 @@ module Syskit
                 input_port 'in', '/double'
                 output_port 'out', '/double'
             end
+            Syskit.conf.register_process_server(
+               'ruby_tasks', Orocos::RubyTasks::ProcessManager.new(Roby.app.default_loader))
+        end
+
+        after do
+            teardown_registered_plans
+            Syskit.conf.remove_process_server('ruby_tasks')
         end
 
         it "allows to specify a component interface and have it deployed" do
