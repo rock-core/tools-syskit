@@ -54,7 +54,7 @@ module Syskit
             end
 
             describe "initial port information" do
-                it "uses the task's requirements as final initial information for a port" do
+                it "uses the task's requirements as final information for a port" do
                     stub_t = stub_type '/test'
                     task_m = Syskit::TaskContext.new_submodel do
                         output_port 'out', stub_t
@@ -80,6 +80,7 @@ module Syskit
                             slave  = task 'slave', task_m.orogen_model
                             slave.slave_of(master)
                         end
+
                         plan.add(deployment = deployment_m.new)
                         @master = deployment.task('master')
                         @slave  = deployment.task('slave')
