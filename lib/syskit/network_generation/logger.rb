@@ -147,7 +147,6 @@ module Syskit
                         end
                         required_connections << [t, connections]
                     end
-                    next if required_logging_ports.empty?
 
                     if !(logger_task = deployment.logger_task)
                         warn "deployment #{deployment.process_name} has no logger (default logger name would be #{deployment.process_name}_Logger))"
@@ -166,6 +165,8 @@ module Syskit
                             end
                         end
                     end
+
+                    next if required_logging_ports.empty?
 
                     # Make sure that the tasks are started after the logger was
                     # started

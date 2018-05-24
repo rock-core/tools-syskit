@@ -102,6 +102,17 @@ describe Syskit::NetworkGeneration::LoggerConfigurationSupport do
                 @dataflow_graph.edge_info(task, logger)
         end
 
+        it "completely disconnects a task if all its ports are ignored" do
+            logger = deployment.task 'deployment_Logger'
+            Syskit::NetworkGeneration::LoggerConfigurationSupport.
+                add_logging_to_network(syskit_engine, plan)
+
+            flexmock(deployment).should_receive(:log_port?).and_return(false)
+            Syskit::NetworkGeneration::LoggerConfigurationSupport.
+                add_logging_to_network(syskit_engine, plan)
+            refute @dataflow_graph.has_edge?(task, logger)
+        end
+
         it "leaves connections to tasks that are not part of the final plan alone" do
             logger = deployment.task 'deployment_Logger'
             Syskit::NetworkGeneration::LoggerConfigurationSupport.
