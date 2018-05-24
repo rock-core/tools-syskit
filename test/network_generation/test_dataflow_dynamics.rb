@@ -71,7 +71,9 @@ module Syskit
 
                 describe "master/slave deployments" do
                     before do
-                        task_m = Syskit::TaskContext.new_submodel
+                        task_m = Syskit::TaskContext.new_submodel do
+                            output_port 'out', '/double'
+                        end
                         deployment_m = Syskit::Deployment.new_submodel do
                             master = task('master', task_m.orogen_model).
                                 periodic(0.1)
@@ -103,9 +105,44 @@ module Syskit
                         assert dynamics.has_final_information_for_task?(@master)
                         assert dynamics.has_final_information_for_task?(@slave)
                     end
+
+                    it "resolves the slave's main trigger using the master's" do
+                        dynamics.propagate([@master, @slave])
+                        assert_equal 0.1, dynamics.task_info(@slave).
+                            minimal_period
+                    end
+
+                    it "samples the slave's port using the trigger activity" do
+                        source_m = Syskit::TaskContext.new_submodel do
+                            output_port('out', '/double')
+                        end
+                        master_m = Syskit::TaskContext.new_submodel
+                        sink_m = Syskit::TaskContext.new_submodel do
+                            input_port 'in', '/double'
+                            output_port('out', '/double').triggered_on('in')
+                        end
+                        deployment_m = Syskit::Deployment.new_submodel do
+                            task('source', source_m.orogen_model).
+                                periodic(0.01)
+                            master = task('master', master_m.orogen_model).
+                                periodic(0.1)
+                            slave  = task 'slave', sink_m.orogen_model
+                            slave.slave_of(master)
+                        end
+
+                        plan.add(deployment = deployment_m.new)
+                        master = deployment.task('master')
+                        source = deployment.task('source')
+                        slave  = deployment.task('slave')
+                        source.out_port.connect_to slave.in_port
+                        dynamics.propagate([master, slave, source])
+
+                        port_info = dynamics.port_info(slave, 'out')
+                        assert_equal 1, port_info.triggers.size
+                        assert(port_info.triggers.first.sample_count > 10)
+                    end
                 end
             end
         end
     end
 end
-
