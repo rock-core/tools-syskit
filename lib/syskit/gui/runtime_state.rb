@@ -168,10 +168,10 @@ module Syskit
                 end
                 syskit.on_reachable do
                     @syskit_commands = syskit.client.syskit
+                    update_log_server_connection(syskit.log_server_port)
                     @job_status_list.each_widget do |w|
                         w.show_actions = true
                     end
-                    update_log_server_connection(syskit.client.log_server_port)
                     action_combo.clear
                     action_combo.enabled = true
                     syskit.actions.sort_by(&:name).each do |action|
@@ -481,8 +481,9 @@ module Syskit
                 layout.add_widget(reload = create_ui_event_button("Reload"))
                 layout.add_widget(close  = create_ui_event_button("Close"))
                 reload.connect(SIGNAL('clicked()')) do
-                    syskit_orogen_config_changed.hide
-                    @syskit_commands.reload_config
+                    @syskit_commands.async_reload_config do
+                        syskit_orogen_config_changed.hide
+                    end
                 end
                 close.connect(SIGNAL('clicked()')) do
                     syskit_orogen_config_changed.hide
@@ -497,8 +498,9 @@ module Syskit
                 layout.add_widget(apply = create_ui_event_button("Reconfigure"))
                 layout.add_widget(close = create_ui_event_button("Close"))
                 apply.connect(SIGNAL('clicked()')) do
-                    syskit_orogen_config_reloaded.hide
-                    @syskit_commands.redeploy
+                    @syskit_commands.async_redeploy do
+                        syskit_orogen_config_reloaded.hide
+                    end
                 end
                 close.connect(SIGNAL('clicked()')) do
                     syskit_orogen_config_reloaded.hide
