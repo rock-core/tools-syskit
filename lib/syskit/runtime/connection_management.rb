@@ -9,12 +9,6 @@ module Syskit
 
             attr_reader :dataflow_graph
 
-            # Mapping from the orocos_task objects to the corresponding
-            # Syskit::Task in the plan
-            #
-            # @see find_setup_syskit_task_context_from_orocos_task
-            attr_reader :orocos_task_to_setup_syskit_task
-
             def scheduler
                 plan.execution_engine.scheduler
             end
@@ -26,10 +20,12 @@ module Syskit
             def initialize(plan)
                 @plan = plan
                 @dataflow_graph = plan.task_relation_graph_for(Flows::DataFlow)
+                @orocos_task_to_syskit_tasks = Hash.new
                 @orocos_task_to_setup_syskit_task = Hash.new
                 plan.find_tasks(Syskit::TaskContext).each do |t|
+                    (@orocos_task_to_syskit_tasks[t.orocos_task] ||= []) << t
                     if t.setup?
-                        orocos_task_to_setup_syskit_task[t.orocos_task] = t
+                        @orocos_task_to_setup_syskit_task[t.orocos_task] = t
                     end
                 end
             end
@@ -164,7 +160,7 @@ module Syskit
             #
             # @return [nil,Syskit::TaskContext]
             def find_setup_syskit_task_context_from_orocos_task(orocos_task)
-                orocos_task_to_setup_syskit_task[orocos_task]
+                @orocos_task_to_setup_syskit_task[orocos_task]
             end
 
             # Checks whether the removal of some connections require to run the
@@ -617,25 +613,20 @@ module Syskit
             # @return [Hash]
             def dangling_task_cleanup
                 removed = Hash.new
-
-                present_tasks = plan.find_tasks(TaskContext).inject(Hash.new) do |h, t|
-                    h[t.orocos_task] = t
-                    h
-                end
-                dangling_tasks = ActualDataFlow.each_vertex.find_all do |orocos_task|
-                    !present_tasks.has_key?(orocos_task)
-                end
-                dangling_tasks.each do |parent_t|
-                    ActualDataFlow.each_out_neighbour(parent_t) do |child_t|
-                        mappings = ActualDataFlow.edge_info(parent_t, child_t)
-                        removed[[parent_t, child_t]] = mappings.keys.to_set
+                ActualDataFlow.each_vertex do |parent_t|
+                    unless @orocos_task_to_syskit_tasks.has_key?(parent_t)
+                        ActualDataFlow.each_out_neighbour(parent_t) do |child_t|
+                            mappings = ActualDataFlow.edge_info(parent_t, child_t)
+                            removed[[parent_t, child_t]] = mappings.keys.to_set
+                        end
                     end
                 end
                 removed
             end
 
             def active_task?(t)
-                t.plan && !t.finished? && t.execution_agent && !t.execution_agent.finished? && !t.execution_agent.ready_to_die?
+                t.plan && !t.finished? && t.execution_agent &&
+                    !t.execution_agent.finished? && !t.execution_agent.ready_to_die?
             end
 
             def update
@@ -657,10 +648,17 @@ module Syskit
 
                 if !tasks.empty?
                     if dataflow_graph.pending_changes
-                        pending_tasks = dataflow_graph.pending_changes.first
-                        pending_tasks.delete_if { |t| !active_task?(t) }
-                        tasks.merge(pending_tasks)
+                        dataflow_graph.pending_changes.first.each do |t|
+                            tasks << t if active_task?(t)
+                        end
                     end
+
+                    # Auto-add any Syskit task that has the same underlying
+                    # orocos task, or we might get inconsistencies
+                    tasks = tasks.each_with_object(Set.new) do |t, s|
+                        s.merge(@orocos_task_to_syskit_tasks[t.orocos_task])
+                    end
+                    tasks.delete_if { |t| !active_task?(t) }
 
                     debug do
                         debug "computing data flow update from modified tasks"

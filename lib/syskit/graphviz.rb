@@ -1,5 +1,4 @@
 require 'roby/gui/dot_id'
-require 'syskit/gui/model_browser'
 
 module Syskit
         # Used by the to_dot* methods for color allocation

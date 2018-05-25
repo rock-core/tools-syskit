@@ -126,7 +126,7 @@ module Syskit
             def queue_size(duration)
                 (1 + sample_count(duration)) * sample_size
             end
-            
+
             def pretty_print(pp)
                 pp.seplist(triggers) do |tr|
                     pp.text "(#{tr.name}): #{tr.period} #{tr.sample_count}"
@@ -358,6 +358,8 @@ module Syskit
                     done_task_info(task)
 
                 elsif activity_type == "SlaveActivity"
+                    # The master's main trigger is propagated in #done_task_info
+
                 elsif !task.model.each_event_port.find { true }
                     done_task_info(task)
                 end
@@ -415,6 +417,16 @@ module Syskit
                 result
             end
 
+            def find_period_of(task)
+                orogen_model = task.orogen_model
+                while (master = orogen_model.master)
+                    orogen_model = master
+                end
+                if orogen_model.activity_type.name == "Periodic"
+                    orogen_model.period
+                end
+            end
+
             # Try to compute the information for the given task and port (or, if
             # port_name is nil, for the task). Returns true if the required
             # information could be computed as requested, and false otherwise.
@@ -424,16 +436,18 @@ module Syskit
                         port_info(trigger_task, trigger_port)
                     else
                         DataFlowDynamics.debug do
-                            DataFlowDynamics.debug "  missing info on #{trigger_task}.#{trigger_port} to compute #{task}.#{port_name}"
+                            DataFlowDynamics.debug "  missing info on "\
+                                "#{trigger_task}.#{trigger_port} to compute "\
+                                "#{task}.#{port_name}"
                             break
                         end
                         return false
                     end
                 end
 
-                if task.orogen_model.activity_type.name == "Periodic"
+                if (period = find_period_of(task))
                     triggers = triggers.map do |trigger_info|
-                        trigger_info.sampled_at(task.orogen_model.period)
+                        trigger_info.sampled_at(period)
                     end
                 end
 
@@ -479,7 +493,7 @@ module Syskit
                 # tasks are triggered (what activity / priority / ...)
                 deployed_tasks = plan.find_local_tasks(TaskContext).
                     find_all(&:execution_agent)
-                
+
                 propagate(deployed_tasks)
 
                 DataFlowDynamics.debug do
@@ -604,4 +618,3 @@ module Syskit
         end
     end
 end
-

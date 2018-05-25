@@ -295,7 +295,7 @@ module Syskit
                 file = find_file('models', 'orogen', "#{name}.rb", order: :specific_first) ||
                     find_file('tasks', 'orogen', "#{name}.rb", order: :specific_first) ||
                     find_file('tasks', 'components', "#{name}.rb", order: :specific_first)
-                return if !file
+                return unless file
 
                 Roby::Application.info "loading task extension #{file}"
                 if require(file)

@@ -113,7 +113,7 @@ describe Syskit::Port do
             end
         end
     end
-    
+
     describe "#connected_to?" do
         attr_reader :task_m, :source, :sink, :transaction
         before do
@@ -171,6 +171,7 @@ describe Syskit::InputWriter do
     before do
         @task_m = Syskit::TaskContext.new_submodel do
             input_port 'in', '/double'
+            dynamic_input_port /in\d/, '/double'
         end
     end
 
@@ -181,6 +182,38 @@ describe Syskit::InputWriter do
         assert_equal task.in_port, port_writer.resolved_port
         assert_equal Orocos.allow_blocking_calls { task.orocos_task.port('in') },
             port_writer.writer.port
+    end
+    it "waits for the underlying component to be configured if the port is dynamic" do
+        in_srv_m = Syskit::DataService.new_submodel do
+            input_port 'in', '/double'
+        end
+        @task_m.class_eval do
+            def configure
+                super
+                Orocos.allow_blocking_calls do
+                    orocos_task.create_input_port 'in2', '/double'
+                end
+            end
+            dynamic_service in_srv_m, as: 'in' do
+                provides in_srv_m, 'in' => 'in2'
+            end
+        end
+
+        cmp_m = Syskit::Composition.new_submodel
+        cmp_m.add in_srv_m, as: 'in'
+        cmp_m.export cmp_m.in_child.in_port
+        task_m = @task_m.specialize
+        in_srv =  task_m.require_dynamic_service 'in', as: 'in2'
+
+        cmp = syskit_stub_and_deploy(cmp_m.use('in' => in_srv), remote_task: false)
+        port_reader = cmp.in_port.writer
+        syskit_configure_and_start(cmp, recursive: false)
+        refute cmp.in_child.setup?
+        refute port_reader.ready?
+
+        expect_execution.scheduler(true).to do
+            achieve { port_reader.ready? }
+        end
     end
     it "queues a PortAccessFailure error on the port's component if creating the port failed" do
         error = Class.new(RuntimeError)
@@ -258,6 +291,7 @@ describe Syskit::OutputReader do
     before do
         @task_m = Syskit::TaskContext.new_submodel do
             output_port 'out', '/double'
+            dynamic_output_port /out\d/, '/double'
         end
     end
 
@@ -268,6 +302,38 @@ describe Syskit::OutputReader do
         assert_equal task.out_port, port_reader.resolved_port
         assert_equal Orocos.allow_blocking_calls { task.orocos_task.port('out') },
             port_reader.reader.port
+    end
+    it "waits for the underlying component to be configured if the port is dynamic" do
+        out_srv_m = Syskit::DataService.new_submodel do
+            output_port 'out', '/double'
+        end
+        @task_m.class_eval do
+            def configure
+                super
+                Orocos.allow_blocking_calls do
+                    orocos_task.create_output_port 'out2', '/double'
+                end
+            end
+            dynamic_service out_srv_m, as: 'out' do
+                provides out_srv_m, 'out' => 'out2'
+            end
+        end
+
+        cmp_m = Syskit::Composition.new_submodel
+        cmp_m.add out_srv_m, as: 'out'
+        cmp_m.export cmp_m.out_child.out_port
+        task_m = @task_m.specialize
+        out_srv =  task_m.require_dynamic_service 'out', as: 'out2'
+
+        cmp = syskit_stub_and_deploy(cmp_m.use('out' => out_srv), remote_task: false)
+        port_reader = cmp.out_port.reader
+        syskit_configure_and_start(cmp, recursive: false)
+        refute cmp.out_child.setup?
+        refute port_reader.ready?
+
+        expect_execution.scheduler(true).to do
+            achieve { port_reader.ready? }
+        end
     end
     it "queues a PortAccessFailure error on the port's component if creating the port failed" do
         error = Class.new(RuntimeError)
@@ -333,4 +399,3 @@ describe Syskit::OutputReader do
         end
     end
 end
-

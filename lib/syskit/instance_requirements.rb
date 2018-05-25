@@ -35,7 +35,7 @@ module Syskit
             # @see prefer_deployed_tasks
             attr_reader :deployment_hints
 
-            # A set of hints for specialization disambiguation 
+            # A set of hints for specialization disambiguation
             #
             # @see prefer_specializations
             attr_reader :specialization_hints
@@ -133,7 +133,7 @@ module Syskit
                 do_copy(old)
             end
 
-            def self.from_object(object, original_requirements = Syskit::InstanceRequirements.new) 
+            def self.from_object(object, original_requirements = Syskit::InstanceRequirements.new)
                 if object.plain?
                     object = object.dup
                     object.merge(original_requirements, keep_abstract: true)
@@ -441,7 +441,7 @@ module Syskit
                 if keep_abstract
                     @abstract ||= other_spec.abstract?
                 elsif !other_spec.abstract?
-                    @abstract = false 
+                    @abstract = false
                 end
 
                 @base_model = base_model.merge(other_spec.base_model)
@@ -610,7 +610,7 @@ module Syskit
                 @selections = DependencyInjection.new
                 nil
             end
-            
+
             # The instanciated task should be marked as abstract
             #
             # @return [self]
@@ -855,7 +855,7 @@ module Syskit
                 end
 
                 mappings = @template.deep_copy_to(plan)
-                root_task = mappings[@template.root_task] 
+                root_task = mappings[@template.root_task]
                 root_task.assign_arguments(arguments)
                 return model.bind(root_task)
             end
@@ -1119,4 +1119,3 @@ module Syskit
             end
         end
 end
-

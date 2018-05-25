@@ -35,8 +35,12 @@ module Syskit
             # @return [MergeSolver]
             attr_reader :merge_solver
 
-            # The set of tasks that represent the running deployments
+            # The set of deployment tasks that are in-use after adaptation of
+            # the running plan
             attr_reader :deployment_tasks
+
+            # The set of tasks that are in-use after adaptation of the running plan
+            attr_reader :deployed_tasks
 
             # The DataFlowDynamics instance that has been used to compute
             # +port_dynamics+. It is only valid at the postprocesing stage of
@@ -106,7 +110,7 @@ module Syskit
             def apply_deployed_network_to_plan
                 # Finally, we map the deployed network to the currently
                 # running tasks
-                @deployment_tasks =
+                @deployment_tasks, @deployed_tasks =
                     log_timepoint_group 'finalize_deployed_tasks' do
                         finalize_deployed_tasks
                     end
@@ -319,10 +323,12 @@ module Syskit
                     break
                 end
 
-                merged_tasks = Set.new
-                result = Set.new
+                newly_deployed_tasks = Set.new
+                reused_deployed_tasks = Set.new
+                selected_deployment_tasks = Set.new
                 used_deployments.each do |deployment_task|
-                    existing_candidates = work_plan.find_local_tasks(deployment_task.model).
+                    existing_candidates = work_plan.
+                        find_local_tasks(deployment_task.model).
                         not_finishing.not_finished.to_set
 
                     # Check for the corresponding task in the plan
@@ -340,10 +346,10 @@ module Syskit
                         break
                     end
 
-                    selected_deployment = nil
                     if existing_deployment_tasks.empty?
                         debug { "  deployment #{deployment_task.process_name} is not yet represented in the plan" }
                         # Nothing to do, we leave the plan as it is
+                        newly_deployed_tasks.merge(deployment_task.each_executed_task)
                         selected_deployment = deployment_task
                     elsif existing_deployment_tasks.size != 1
                         raise InternalError, "more than one task for #{deploment_task.process_name} present in the plan: #{existing_deployment_tasks}"
@@ -352,21 +358,22 @@ module Syskit
                         new_merged_tasks = adapt_existing_deployment(
                             deployment_task,
                             selected_deployment)
-                        merged_tasks.merge(new_merged_tasks)
+                        reused_deployed_tasks.merge(new_merged_tasks)
                     end
                     if finishing = finishing_deployments[selected_deployment.process_name]
                         selected_deployment.should_start_after finishing.stop_event
                     end
-                    result << selected_deployment
+                    selected_deployment_tasks << deployment_task
                 end
                 log_timepoint 'select_deployments'
 
-                merged_tasks = reconfigure_tasks_on_static_port_modification(merged_tasks)
+                reused_deployed_tasks = reconfigure_tasks_on_static_port_modification(
+                    reused_deployed_tasks)
                 log_timepoint 'reconfigure_tasks_on_static_port_modification'
 
                 debug do
-                    debug "#{merged_tasks.size} tasks merged during deployment"
-                    merged_tasks.each do |t|
+                    debug "#{reused_deployed_tasks.size} tasks reused during deployment"
+                    reused_deployed_tasks.each do |t|
                         debug "  #{t}"
                     end
                     break
@@ -377,7 +384,7 @@ module Syskit
                 merge_solver.merge_identical_tasks
                 log_timepoint 'merge'
 
-                result
+                [selected_deployment_tasks, reused_deployed_tasks | newly_deployed_tasks]
             end
 
             # After the deployment phase, we check whether some static ports are
@@ -400,7 +407,7 @@ module Syskit
                 already_setup_tasks.each do |t|
                     if t.transaction_modifies_static_ports?
                         debug { "#{t} was selected as deployment, but it would require modifications on static ports, spawning a new deployment" }
-                        
+
                         new_task = t.execution_agent.task(t.orocos_name, t.concrete_model)
                         merge_solver.apply_merge_group(t => new_task)
                         new_task.should_configure_after t.stop_event
@@ -741,5 +748,3 @@ module Syskit
         end
     end
 end
-
-

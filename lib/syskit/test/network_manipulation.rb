@@ -318,7 +318,7 @@ module Syskit
                             child_model = selected_child.selected
                             selected_service = child_model.service
                             child_model = child_model.to_component_model
-                            if child_model.composition_model? 
+                            if child_model.composition_model?
                                 deployed_child = syskit_stub_composition_requirements(
                                     child_model, recursive: true, as: "#{as}_#{child_name}", devices: devices)
                             else
@@ -532,7 +532,9 @@ module Syskit
                     root_tasks.each do |root_t, status|
                         replacement_t = mapped_tasks[root_t]
                         if replacement_t != root_t
-                            replacement_t.planned_by trsc[root_t.planning_task]
+                            unless replacement_t.planning_task
+                                replacement_t.planned_by trsc[root_t.planning_task]
+                            end
                             trsc.send("add_#{status}", replacement_t)
                         end
                     end
@@ -542,6 +544,7 @@ module Syskit
                     NetworkGeneration::SystemNetworkGenerator.verify_task_allocation(trsc)
                     trsc.commit_transaction
                 end
+
 
                 execute do
                     mapped_tasks.each do |old, new|
@@ -598,7 +601,8 @@ module Syskit
                     remote_task: self.syskit_stub_resolves_remote_tasks?)
 
                 task_m = task.concrete_model
-                deployment_model = syskit_stub_configured_deployment(task_m, as)
+                deployment_model = syskit_stub_configured_deployment(
+                    task_m, as, remote_task: remote_task)
                 syskit_stub_conf(task_m, *task.arguments[:conf])
                 task.plan.add(deployer = deployment_model.new)
                 deployed_task = deployer.instanciate_all_tasks.first
@@ -621,7 +625,7 @@ module Syskit
                         t.execution_agent
                     end
                 end.compact
-                
+
                 not_running = agents.find_all { |t| !t.running? }
                 not_ready   = agents.find_all { |t| !t.ready? }
                 expect_execution { not_running.each(&:start!) }.
@@ -799,7 +803,7 @@ module Syskit
                     end.to_run
                 end
             end
-            
+
             class NoStartFixedPoint < RuntimeError
                 attr_reader :tasks
 
@@ -1070,4 +1074,3 @@ module Syskit
         end
     end
 end
-

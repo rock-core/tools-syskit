@@ -23,7 +23,7 @@ describe Syskit::InstanceRequirements do
         it "sets the argument" do
             req = Syskit::InstanceRequirements.new([@task_m])
             req.with_arguments(key: 10)
-            task = req.instanciate(plan = Roby::Plan.new)
+            task = req.instanciate(Roby::Plan.new)
             assert_equal 10, task.key
         end
         it "does not issue a deprecation warning for symbol keys" do
@@ -34,7 +34,7 @@ describe Syskit::InstanceRequirements do
             req = Syskit::InstanceRequirements.new([@task_m])
             flexmock(Roby).should_receive(:warn_deprecated).once
             req.with_arguments('key' => 10)
-            task = req.instanciate(plan = Roby::Plan.new)
+            task = req.instanciate(Roby::Plan.new)
             assert_equal 10, task.key
         end
         it "raises if the argument cannot be marshalled under DRoby" do
@@ -263,7 +263,6 @@ describe Syskit::InstanceRequirements do
         end
         it "should return nil if there are no matches" do
             s = Syskit::DataService.new_submodel
-            c = Syskit::Component.new_submodel
             key = Syskit::DataService.new_submodel
             req = Syskit::InstanceRequirements.new([key])
 
@@ -396,7 +395,7 @@ describe Syskit::InstanceRequirements do
 
         it "does not resolve plain models before merging them into Task#requirements" do
             task_m = Syskit::TaskContext.new_submodel
-            plan.add(task = task_m.new)
+            plan.add(task_m.new)
             cmp_m = Syskit::Composition.new_submodel
             cmp_m.add task_m, as: 'test'
             ir = cmp_m.use('test' => task_m)
@@ -475,7 +474,7 @@ describe Syskit::InstanceRequirements do
             srv_m = @srv_m = Syskit::DataService.new_submodel
             @task_m = Syskit::TaskContext.new_submodel
             task_m.provides srv_m, as: 'test'
-                
+
 
             @cmp_m = Syskit::Composition.new_submodel
             cmp_m.add srv_m, as: 'test0'
@@ -659,4 +658,3 @@ describe Syskit::InstanceRequirements do
         end
     end
 end
-
