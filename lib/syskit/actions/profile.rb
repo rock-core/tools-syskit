@@ -143,6 +143,26 @@ module Syskit
                 DependencyInjection.nothing
             end
 
+            # Get an argument from a task accessor
+            #
+            # The common usage for this is to forward an argument from the task's parent:
+            #
+            #    define 'test', Composition.use(
+            #      'some_child' => Model.with_arguments(test: from(:parent_task).test))
+            def from(accessor)
+                Roby::Task.from(accessor)
+            end
+
+            # Get an argument from a state object
+            #
+            # The common usage for this is to access a state variable
+            #
+            #    define 'test', Composition.use(
+            #      'some_child' => Model.with_arguments(enabled: from_state.enabled?))
+            def from_state(state_object = State)
+                Roby::Task.from_state(state_object)
+            end
+
             # Robot definition class inside a profile
             #
             # It is subclassed so that we can invalidate the cached dependency
@@ -166,7 +186,7 @@ module Syskit
                     "#{profile.name}.robot"
                 end
             end
-            
+
             def initialize(name = nil, register: false)
                 @name = name
                 @permanent_model = false
@@ -536,7 +556,7 @@ module Syskit
                     yield(action_model)
                 end
             end
-            
+
             # Whether a tag with this name exists
             def has_tag?(name)
                 !!tags[name]
@@ -579,7 +599,7 @@ module Syskit
                     '_def'.freeze => :find_definition_by_name,
                     '_dev'.freeze => :find_device_requirements_by_name) || super
             end
-            
+
             include MetaRuby::DSLs::FindThroughMethodMissing
             include Roby::DRoby::V5::DRobyConstant::Dump
         end
@@ -597,7 +617,7 @@ module Syskit
             def profile(name, &block)
                 if const_defined_here?(name)
                     profile = const_get(name)
-                else 
+                else
                     profile = Profile.new("#{self.name}::#{name}", register: true)
                     const_set(name, profile)
                 end
@@ -610,5 +630,3 @@ module Syskit
         Module.include ProfileDefinitionDSL
     end
 end
-
-
