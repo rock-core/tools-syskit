@@ -70,7 +70,7 @@ module Syskit
                 # Must include this, Roby uses it to know which models can be
                 # dumped and which not
                 include Roby::DRoby::V5::ModelDumper
-                
+
                 class DRoby < Roby::DRoby::V5::DRobyModel
                     attr_reader :message_type
                     attr_reader :lazy_dispatch
@@ -91,7 +91,7 @@ module Syskit
                         else
                             message_type = peer.local_object(self.message_type)
                         end
-                        
+
                         # We unfortunately must register the type on the global
                         # loader. We're not ready yet for a fully mixed-loader
                         # setup
@@ -199,7 +199,7 @@ module Syskit
                             return local
                         end
 
-                        profile = 
+                        profile =
                             begin
                                 constant(@name)
                             rescue Exception
@@ -316,4 +316,3 @@ module Syskit
         end
     end
 end
-

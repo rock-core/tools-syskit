@@ -4,12 +4,12 @@ require 'syskit/roby_app/rest_deployment_manager'
 module Syskit
     module RobyApp
         # Extension to Roby's REST API
-        # 
+        #
         # It is mounted on the /syskit namespace by default, i.e. access it with
         # /api/syskit/...
         class REST_API < Grape::API
             format :json
-            
+
             rescue_from RESTDeploymentManager::NotFound do |e|
                 error! e.message, 404,
                     "x-roby-error" => e.class.name.gsub(/^.*::/, '')
