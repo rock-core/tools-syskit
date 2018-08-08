@@ -352,7 +352,7 @@ module Syskit
                         newly_deployed_tasks.merge(deployment_task.each_executed_task)
                         selected_deployment = deployment_task
                     elsif existing_deployment_tasks.size != 1
-                        raise InternalError, "more than one task for #{deploment_task.process_name} present in the plan: #{existing_deployment_tasks}"
+                        raise InternalError, "more than one task for #{deployment_task.process_name} present in the plan: #{existing_deployment_tasks}"
                     else
                         selected_deployment = existing_deployment_tasks.first
                         new_merged_tasks = adapt_existing_deployment(
@@ -363,7 +363,7 @@ module Syskit
                     if finishing = finishing_deployments[selected_deployment.process_name]
                         selected_deployment.should_start_after finishing.stop_event
                     end
-                    selected_deployment_tasks << deployment_task
+                    selected_deployment_tasks << selected_deployment
                 end
                 log_timepoint 'select_deployments'
 

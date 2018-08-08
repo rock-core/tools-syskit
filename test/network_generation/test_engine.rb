@@ -379,6 +379,137 @@ module Syskit
                 end
             end
 
+            describe "#finalize_deployed_tasks" do
+                it "creates a transaction proxy of the already existing tasks and deployments" do
+                    deployment_m = create_deployment_model(task_count: 1)
+                    existing_deployment, =
+                        add_deployment_and_tasks(plan, deployment_m, %w[task0])
+                    add_deployment_and_tasks(work_plan, deployment_m, %w[task0])
+
+                    selected_deployments, =
+                        syskit_engine.finalize_deployed_tasks
+
+                    assert_equal [work_plan[existing_deployment]],
+                        selected_deployments.to_a
+                end
+
+                it "clears the deployments that are not in the plan" do
+                    deployment_m = create_deployment_model(task_count: 1)
+                    add_deployment_and_tasks(plan, deployment_m, %w[task0])
+
+                    selected_deployments, =
+                        syskit_engine.finalize_deployed_tasks
+                    assert selected_deployments.empty?
+                end
+
+                it "creates a new deployment if it is added to the plan" do
+                    deployment_m = create_deployment_model(task_count: 1)
+                    add_deployment_and_tasks(plan, deployment_m, %w[task0])
+                    deployment_m_2 = create_deployment_model(task_count: 2)
+                    required_deployment, =
+                        add_deployment_and_tasks(work_plan, deployment_m_2, %w[task0 task1])
+
+                    selected_deployments, selected_deployed_tasks =
+                        syskit_engine.finalize_deployed_tasks
+
+                    assert_equal [required_deployment], selected_deployments.to_a
+                    selected_deployed_tasks.each do |t|
+                        assert_equal t.execution_agent, required_deployment
+                    end
+                end
+
+                it "updates an existing deployment, proxying the existing tasks and creating new ones" do
+                    deployment_m = create_deployment_model(task_count: 3)
+                    existing_deployment, (task0, task1) =
+                        add_deployment_and_tasks(plan, deployment_m, %w[task0 task1])
+                    required_deployment, (required0, task2) =
+                        add_deployment_and_tasks(work_plan, deployment_m, %w[task0 task2])
+
+                    selected_deployments, selected_deployed_tasks =
+                        syskit_engine.finalize_deployed_tasks
+
+                    expected_deployment = work_plan[existing_deployment]
+                    assert_equal [expected_deployment], selected_deployments.to_a
+
+                    task2 = work_plan.find_local_tasks.
+                        with_arguments(orocos_name: 'task2').first
+                    assert task2
+                    refute task2.transaction_proxy?
+
+                    assert_equal [work_plan[task0], work_plan[task1], task2].to_set,
+                        expected_deployment.each_executed_task.to_set
+                    assert_equal [work_plan[task0], task2].to_set,
+                        selected_deployed_tasks.to_set
+                end
+
+                it "maintains the dependencies" do
+                    deployment_m = create_deployment_model(task_count: 2)
+                    existing_deployment, (existing0, existing1) =
+                        add_deployment_and_tasks(plan, deployment_m, %w[task0 task1])
+
+                    required_deployment, (required0, required1) =
+                        add_deployment_and_tasks(work_plan, deployment_m, %w[task0 task1])
+
+                    existing0.depends_on(existing1)
+                    selected_deployments, selected_deployed_tasks =
+                        syskit_engine.finalize_deployed_tasks
+
+                    assert work_plan[existing0].depends_on?(work_plan[existing1])
+                end
+
+                it "maintains the dependencies with two or more layers" do
+                    deployment_m = create_deployment_model(task_count: 3)
+                    existing_deployment, (existing0, ) =
+                        add_deployment_and_tasks(plan, deployment_m, %w[task0])
+
+                    required_deployment, (required0, required1, required2) =
+                        add_deployment_and_tasks(work_plan, deployment_m, %w[task0 task1 task2])
+
+                    required0.depends_on required2
+                    required1.depends_on required2
+
+                    selected_deployments, selected_deployed_tasks =
+                        syskit_engine.finalize_deployed_tasks
+
+                    required2 = work_plan[existing0].children.first
+                    assert_equal 'task2', required2.orocos_name
+                    assert required2.each_parent_task.
+                        find { |t| t.orocos_name == 'task1' }
+                end
+
+                it "raises if there is a repeated deployment" do
+                    deployment_m = create_deployment_model(task_count: 1)
+                    existing_deployment, existing_task =
+                        add_deployment_and_tasks(plan, deployment_m, %w[task0])
+
+                    existing_deployment_dup, existing_task_dup =
+                        add_deployment_and_tasks(plan, deployment_m, %w[task0])
+
+                    required_deployment, required_task =
+                        add_deployment_and_tasks(work_plan, deployment_m, %w[task0])
+
+                    assert_raises Syskit::InternalError do
+                        selected_deployments, selected_deployed_tasks =
+                        syskit_engine.finalize_deployed_tasks
+                    end
+                end
+
+                def create_deployment_model(task_count: )
+                    task_m = (0...task_count).map { TaskContext.new_submodel }
+                    Deployment.new_submodel do
+                        task_m.each_with_index do |m, i|
+                            task "task#{i}", m.orogen_model
+                        end
+                    end
+                end
+
+                def add_deployment_and_tasks(plan, deployment_m, task_names)
+                    plan.add(deployment_task = deployment_m.new)
+                    tasks = task_names.map { |name| deployment_task.task(name) }
+                    [deployment_task, tasks]
+                end
+            end
+
             describe "synthetic tests" do
                 it "deploys a mission as mission" do
                     task_model = Syskit::TaskContext.new_submodel
