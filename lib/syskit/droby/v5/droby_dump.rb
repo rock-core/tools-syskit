@@ -70,7 +70,7 @@ module Syskit
                 # Must include this, Roby uses it to know which models can be
                 # dumped and which not
                 include Roby::DRoby::V5::ModelDumper
-                
+
                 class DRoby < Roby::DRoby::V5::DRobyModel
                     attr_reader :message_type
                     attr_reader :lazy_dispatch
@@ -91,7 +91,7 @@ module Syskit
                         else
                             message_type = peer.local_object(self.message_type)
                         end
-                        
+
                         # We unfortunately must register the type on the global
                         # loader. We're not ready yet for a fully mixed-loader
                         # setup
@@ -199,7 +199,7 @@ module Syskit
                             return local
                         end
 
-                        profile = 
+                        profile =
                             begin
                                 constant(@name)
                             rescue Exception
@@ -271,6 +271,14 @@ module Syskit
                             local_model
                         end
 
+                        def unmarshal_dependent_models(peer)
+                            @types.each do |type|
+                                peer.register_typelib_model(
+                                    peer.local_object(type))
+                            end
+                            super
+                        end
+
                         def update(peer, local_object, fresh_proxy: false)
                             @types.each do |type|
                                 peer.register_typelib_model(
@@ -281,12 +289,13 @@ module Syskit
                     end
 
                     def droby_dump(peer)
-                        supermodel = Roby::DRoby::V5::DRobyModel.dump_supermodel(peer, self)
-                        provided_models = Roby::DRoby::V5::DRobyModel.
-                            dump_provided_models_of(peer, self)
-
                         types = orogen_model.each_interface_type.
                             map { |t| peer.dump(t) }
+
+                        supermodel = Roby::DRoby::V5::DRobyModel.
+                            dump_supermodel(peer, self)
+                        provided_models = Roby::DRoby::V5::DRobyModel.
+                            dump_provided_models_of(peer, self)
 
                         orogen_name = orogen_model.name
                         if orogen_model.name && (project_name = orogen_model.project.name)
@@ -316,4 +325,3 @@ module Syskit
         end
     end
 end
-
