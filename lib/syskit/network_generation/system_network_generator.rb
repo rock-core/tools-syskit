@@ -153,7 +153,7 @@ module Syskit
 
             def self.remove_abstract_composition_optional_children(plan)
                 # Now remove the optional, non-resolved children of compositions
-                plan.find_local_tasks(Syskit::Component).abstract.each do |task|
+                plan.find_local_tasks(AbstractComponent).abstract.each do |task|
                     parent_tasks = task.each_parent_task.to_a
                     parent_tasks.each do |parent_task|
                         next if !parent_task.kind_of?(Syskit::Composition)
@@ -245,7 +245,7 @@ module Syskit
             # @raise [TaskAllocationFailed] if some abstract tasks are still in
             #   the plan
             def self.verify_task_allocation(plan)
-                components = plan.find_local_tasks(Component).to_a
+                components = plan.find_local_tasks(AbstractComponent)
                 still_abstract = components.find_all(&:abstract?)
                 if !still_abstract.empty?
                     raise TaskAllocationFailed.new(self, still_abstract),

@@ -1,4 +1,7 @@
 module Syskit
+    AbstractComponent = Roby::TaskService.new_submodel
+    AbstractComponent.permanent_model = true
+
     module Models
         # Definition of model-level methods for the Component models. See the
         # documentation of Model for an explanation of this.
@@ -242,12 +245,12 @@ module Syskit
                 return srv.as(service_model)
             end
 
-	    # Defined to be compatible, in port mapping code, with the data services
-	    def port_mappings_for_task
-	    	Hash.new { |h,k| k }
-	    end
+            # Defined to be compatible, in port mapping code, with the data services
+            def port_mappings_for_task
+                Hash.new { |h,k| k }
+            end
 
-	    # Defined to be compatible, in port mapping code, with the data services
+            # Defined to be compatible, in port mapping code, with the data services
             def port_mappings_for(model)
                 if model.kind_of?(Class)
                     if fullfills?(model)
@@ -767,8 +770,15 @@ module Syskit
 
             def implicit_fullfilled_model
                 if !@implicit_fullfilled_model
+                    has_abstract = false
                     @implicit_fullfilled_model =
-                        super.find_all { |m| !m.respond_to?(:private_specialization?) || !m.private_specialization? }
+                            super.find_all do |m|
+                                has_abstract ||= (m == AbstractComponent)
+                                !m.respond_to?(:private_specialization?) ||
+                                    !m.private_specialization?
+                            end
+                    @implicit_fullfilled_model << AbstractComponent \
+                        unless has_abstract
                 end
                 @implicit_fullfilled_model
             end
@@ -895,7 +905,7 @@ module Syskit
                 name = service_models.map(&:to_s).sort.join(",")
                 if self != Syskit::Component
                     name = "#{self}<#{name}>"
-                elsif service_models.size > 1
+                else
                     name = "<#{name}>"
                 end
 
@@ -1141,11 +1151,13 @@ module Syskit
             end
 
             def fullfilled_model
-                result = Set.new
+                result = Set[]
                 if component_model?
                     proxied_task_context_model.each_fullfilled_model do |m|
                         result << m
                     end
+                else
+                    result << AbstractComponent
                 end
                 proxied_data_services.each do |srv|
                     srv.each_fullfilled_model do |m|
