@@ -467,7 +467,9 @@ module Syskit
                 # Note that a connection is not guaranteed to be from an output
                 # to an input: on compositions, exported ports are represented
                 # as connections between either two inputs or two outputs
-                plan.find_local_tasks(Component).each do |source_task|
+                tasks = plan.find_local_tasks(DataService).to_a +
+                    plan.find_local_tasks(Component).to_a
+                tasks.each do |source_task|
                     next if options[:remove_compositions] && source_task.kind_of?(Composition)
                     next if excluded_models.include?(source_task.concrete_model)
 
