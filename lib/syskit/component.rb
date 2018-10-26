@@ -29,6 +29,8 @@ module Syskit
             abstract
             terminates
 
+            provides AbstractComponent
+
             # The name of the process server that should run this component
             #
             # On regular task contexts, it is the host on which the task is
@@ -124,11 +126,11 @@ module Syskit
             # @return [BoundDataService,nil] the found data service, or nil if there
             #   are no services of that type in self
             # @raise (see Models::DataService#find_data_service_from_type)
-	    def find_data_service_from_type(service_type)
+            def find_data_service_from_type(service_type)
                 if service_model = model.find_data_service_from_type(service_type)
                     return service_model.bind(self)
                 end
-	    end
+            end
 
             # Declare that this component should not be configured until +event+
             # has been emitted. This is used to sequence configurations with

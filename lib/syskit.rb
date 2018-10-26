@@ -31,6 +31,7 @@ require 'syskit/models/data_service'
 require 'syskit/data_service'
 require 'syskit/models/dynamic_data_service'
 require 'syskit/models/component'
+Syskit::DataService.provides Syskit::AbstractComponent
 require 'syskit/models/bound_data_service'
 require 'syskit/models/bound_dynamic_data_service'
 require 'syskit/models/composition_specialization'

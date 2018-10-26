@@ -37,7 +37,8 @@ module Syskit
                     task_m = Syskit::TaskContext.new_submodel
                     task_m.argument :arg
                     task = subject.instanciate([task_m.with_arguments(arg: 10)]).first
-                    assert_equal [[task_m], Hash[arg: 10]], task.fullfilled_model
+                    assert_equal [[task_m, AbstractComponent], Hash[arg: 10]],
+                        task.fullfilled_model
                 end
                 it "use the arguments as filtered by the task in #fullfilled_model" do
                     task_m = Syskit::TaskContext.new_submodel
@@ -49,7 +50,8 @@ module Syskit
                     end
                     task = subject.instanciate([task_m.with_arguments(arg: 10)]).first
                     assert_equal 5, task.arg
-                    assert_equal [[task_m], Hash[arg: 5]], task.fullfilled_model
+                    assert_equal [[task_m, Syskit::AbstractComponent], Hash[arg: 5]],
+                        task.fullfilled_model
                 end
             end
 
@@ -134,10 +136,20 @@ module Syskit
                     end
                     it "enables the use of the abstract flag in InstanceRequirements to use an optional dep only if it is instanciated by other means" do
                         cmp = compute_system_network(cmp_m.use('test' => task_m.to_instance_requirements.abstract))
-                        assert !cmp.has_role?('test')
+                        refute cmp.has_role?('test')
                         execute { plan.remove_task(cmp) }
                         cmp = compute_system_network(cmp_m.use('test' => task_m.to_instance_requirements.abstract), task_m)
                         assert cmp.has_role?('test')
+                    end
+                end
+            end
+
+            describe "#validate_generated_network" do
+                it "validates that there are no placeholder tasks left in the plan" do
+                    srv_m = Syskit::DataService.new_submodel
+                    plan.add(task = Syskit.proxy_task_model_for([srv_m]).new)
+                    assert_raises(Syskit::TaskAllocationFailed) do
+                        SystemNetworkGenerator.new(plan).validate_generated_network
                     end
                 end
             end

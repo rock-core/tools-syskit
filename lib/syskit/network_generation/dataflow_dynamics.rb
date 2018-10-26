@@ -316,22 +316,28 @@ module Syskit
             # Computes the initial port dynamics, i.e. the dynamics that can be
             # computed without knowing anything about the dataflow
             def initial_information(task)
-                # Master tasks resolve their children recursively, so we need
-                # to guard against initial_information being called twice for
-                # the slaves
-                #
-                # The recursive call is required in order to make sure that
-                # we have resolved the info *before* the call done_task_info
-                # (which forbids any change later on)
-                return if has_final_information_for_task?(task)
+                return if task.orogen_model.master
+                initial_task_information(task)
+            end
 
+            # @api private
+            #
+            # Computes a task's slaves initial information
+            def initial_slaves_information(task)
                 task.orogen_model.slaves.each do |orogen_slave_task|
                     if slave_task = task_from_name[orogen_slave_task.name]
                         if !has_information_for_task?(slave_task)
-                            initial_information(slave_task)
+                            initial_task_information(slave_task)
                         end
                     end
                 end
+            end
+
+            # @api private
+            #
+            # Computes a task's initial information
+            def initial_task_information(task)
+                initial_slaves_information(task)
 
                 set_port_info(task, nil, PortDynamics.new("#{task.orocos_name}.main"))
                 task.model.each_output_port do |port|
