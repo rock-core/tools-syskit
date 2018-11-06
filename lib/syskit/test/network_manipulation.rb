@@ -39,12 +39,14 @@ module Syskit
                 @__test_overriden_configurations << [model, manager]
             end
 
-            def use_deployment(*args)
-                @__test_created_deployments.concat(Syskit.conf.use_deployment(*args).to_a)
+            def use_deployment(*args, **options)
+                @__test_created_deployments.concat(
+                    Syskit.conf.use_deployment(*args, **options).to_a)
             end
 
-            def use_ruby_tasks(*args)
-                @__test_created_deployments.concat(Syskit.conf.use_ruby_tasks(*args).to_a)
+            def use_ruby_tasks(*args, **options)
+                @__test_created_deployments.concat(
+                    Syskit.conf.use_ruby_tasks(*args, **options).to_a)
             end
 
             # @api private
