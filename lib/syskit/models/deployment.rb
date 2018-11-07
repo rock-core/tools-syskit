@@ -4,7 +4,7 @@ module Syskit
             include Models::Base
             include MetaRuby::ModelAsClass
             include Models::OrogenBase
-            
+
             # The options that should be passed when starting the underlying
             # Orocos process.
             #

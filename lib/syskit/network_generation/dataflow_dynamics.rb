@@ -126,7 +126,7 @@ module Syskit
             def queue_size(duration)
                 (1 + sample_count(duration)) * sample_size
             end
-            
+
             def pretty_print(pp)
                 pp.seplist(triggers) do |tr|
                     pp.text "(#{tr.name}): #{tr.period} #{tr.sample_count}"
@@ -151,7 +151,7 @@ module Syskit
 
             def initialize(plan)
                 @plan = plan
-                @task_from_name = Hash.new
+                super()
             end
 
             def self.compute_connection_policies(plan)
@@ -160,12 +160,13 @@ module Syskit
                 engine.result
             end
 
-            def propagate(tasks)
+            def reset(tasks = Array.new)
+                super
+                @triggers = Hash.new { |h, k| h[k] = Set.new }
+                @task_from_name = Hash.new
                 tasks.each do |t|
                     task_from_name[t.orocos_name] = t
                 end
-                @triggers = Hash.new { |h, k| h[k] = Set.new }
-                super
             end
 
             def has_information_for_task?(task)
@@ -315,6 +316,29 @@ module Syskit
             # Computes the initial port dynamics, i.e. the dynamics that can be
             # computed without knowing anything about the dataflow
             def initial_information(task)
+                return if task.orogen_model.master
+                initial_task_information(task)
+            end
+
+            # @api private
+            #
+            # Computes a task's slaves initial information
+            def initial_slaves_information(task)
+                task.orogen_model.slaves.each do |orogen_slave_task|
+                    if slave_task = task_from_name[orogen_slave_task.name]
+                        if !has_information_for_task?(slave_task)
+                            initial_task_information(slave_task)
+                        end
+                    end
+                end
+            end
+
+            # @api private
+            #
+            # Computes a task's initial information
+            def initial_task_information(task)
+                initial_slaves_information(task)
+
                 set_port_info(task, nil, PortDynamics.new("#{task.orocos_name}.main"))
                 task.model.each_output_port do |port|
                     create_port_info(task, port.name)
@@ -338,11 +362,12 @@ module Syskit
                     DataFlowDynamics.debug { "  adding periodic trigger #{task.orogen_model.period} 1" }
                     add_task_trigger(task, "#{task.orocos_name}.main-period", task.orogen_model.period, 1)
                     done_task_info(task)
+
                 elsif activity_type == "SlaveActivity"
-                else
-                    if !task.model.each_event_port.find { true }
-                        done_task_info(task)
-                    end
+                    # The master's main trigger is propagated in #done_task_info
+
+                elsif !task.model.each_event_port.find { true }
+                    done_task_info(task)
                 end
             end
 
@@ -398,6 +423,16 @@ module Syskit
                 result
             end
 
+            def find_period_of(task)
+                orogen_model = task.orogen_model
+                while (master = orogen_model.master)
+                    orogen_model = master
+                end
+                if orogen_model.activity_type.name == "Periodic"
+                    orogen_model.period
+                end
+            end
+
             # Try to compute the information for the given task and port (or, if
             # port_name is nil, for the task). Returns true if the required
             # information could be computed as requested, and false otherwise.
@@ -407,16 +442,18 @@ module Syskit
                         port_info(trigger_task, trigger_port)
                     else
                         DataFlowDynamics.debug do
-                            DataFlowDynamics.debug "  missing info on #{trigger_task}.#{trigger_port} to compute #{task}.#{port_name}"
+                            DataFlowDynamics.debug "  missing info on "\
+                                "#{trigger_task}.#{trigger_port} to compute "\
+                                "#{task}.#{port_name}"
                             break
                         end
                         return false
                     end
                 end
 
-                if task.orogen_model.activity_type.name == "Periodic"
+                if (period = find_period_of(task))
                     triggers = triggers.map do |trigger_info|
-                        trigger_info.sampled_at(task.orogen_model.period)
+                        trigger_info.sampled_at(period)
                     end
                 end
 
@@ -462,7 +499,7 @@ module Syskit
                 # tasks are triggered (what activity / priority / ...)
                 deployed_tasks = plan.find_local_tasks(TaskContext).
                     find_all(&:execution_agent)
-                
+
                 propagate(deployed_tasks)
 
                 DataFlowDynamics.debug do
@@ -592,4 +629,3 @@ module Syskit
         end
     end
 end
-

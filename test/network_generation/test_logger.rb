@@ -6,7 +6,7 @@ describe Syskit::NetworkGeneration::LoggerConfigurationSupport do
     attr_reader :task, :task_m, :deployment_m, :deployment, :dataflow_dynamics
     before do
         Roby.app.using_task_library 'logger'
-        
+
         @task_m = Syskit::TaskContext.new_submodel do
             output_port 'out1', '/double'
             output_port 'out2', '/int'
@@ -17,75 +17,124 @@ describe Syskit::NetworkGeneration::LoggerConfigurationSupport do
             add_default_logger
         end
         @deployment = syskit_stub_deployment('deployment', deployment_m)
-        @syskit_engine = Syskit::NetworkGeneration::Engine.new(plan)
-        flexmock(deployment).should_receive(:log_port?).and_return(true).by_default
-        flexmock(syskit_engine).should_receive(:deployment_tasks).and_return([deployment])
-
         @task   = deployment.task 'task'
-        flexmock(task).should_receive(:connect_ports).by_default
 
-        logger_m = Syskit::TaskContext.find_model_from_orogen_name 'logger::Logger'
-        logger_m.include Syskit::NetworkGeneration::LoggerConfigurationSupport
+        dataflow = flexmock
+        dataflow.should_receive(:policy_for).and_return(Hash.new).by_default
 
-        @dataflow_dynamics = flexmock('dataflow_dynamics')
-        dataflow_dynamics.should_receive(:policy_for).and_return(Hash.new).by_default
-        flexmock(syskit_engine).should_receive(:dataflow_dynamics).and_return(dataflow_dynamics)
+        @syskit_engine = Syskit::NetworkGeneration::Engine.new(plan)
+        flexmock(syskit_engine)
+        syskit_engine.should_receive(:dataflow_dynamics).and_return(dataflow)
+        syskit_engine.should_receive(:deployment_tasks).and_return([deployment])
+        syskit_engine.should_receive(:deployed_tasks).and_return([@task]).
+            by_default
+
+        @logger_m = Syskit::TaskContext.find_model_from_orogen_name 'logger::Logger'
+        @logger_m.include Syskit::NetworkGeneration::LoggerConfigurationSupport
     end
 
     describe "add_logging_to_network" do
-        it "declares connections from the task's output ports to the logger task" do
-            logger = deployment.task 'deployment_Logger'
-            flexmock(task).should_receive(:connect_ports).once.
-                with(logger,
-                     Hash[['state', 'task.state'] => Hash.new,
-                          ['out1', 'task.out1'] => Hash.new,
-                          ['out2', 'task.out2'] => Hash.new])
-            flexmock(syskit_engine).should_receive(:deployment_tasks).and_return([deployment])
-
+        before do
+            @dataflow_graph = plan.task_relation_graph_for(Syskit::Flows::DataFlow)
+        end
+        it "creates a new logger task and uses it if one does not exist" do
             Syskit::NetworkGeneration::LoggerConfigurationSupport.
                 add_logging_to_network(syskit_engine, plan)
+            logger = plan.find_tasks(@logger_m).first
+
+            assert_equal Hash[['state', 'task.state'] => Hash.new,
+                ['out1', 'task.out1'] => Hash.new,
+                ['out2', 'task.out2'] => Hash.new], @dataflow_graph.edge_info(task, logger)
         end
 
-        it "should create a new logger task if one does not exist" do
-            logger_m = Syskit::TaskContext.find_model_from_orogen_name 'logger::Logger'
-            plan.add(logger = logger_m.new)
-            flexmock(deployment).should_receive(:task).with("deployment_Logger").and_return(logger)
-
+        it "reuses an existing logger task if there is one" do
+            logger = @deployment.task('deployment_Logger')
             Syskit::NetworkGeneration::LoggerConfigurationSupport.
                 add_logging_to_network(syskit_engine, plan)
+
+            assert_equal Hash[['state', 'task.state'] => Hash.new,
+                ['out1', 'task.out1'] => Hash.new,
+                ['out2', 'task.out2'] => Hash.new], @dataflow_graph.edge_info(task, logger)
         end
 
-        it "should set the logger as default logger" do
+        it "sets default_logger?" do
             logger = deployment.task 'deployment_Logger'
-            flexmock(logger).should_receive(:default_logger=).with(true).once
             Syskit::NetworkGeneration::LoggerConfigurationSupport.
                 add_logging_to_network(syskit_engine, plan)
+            assert logger.default_logger?
         end
 
-        it "should ensure that pending tasks are started after the logger" do
+        it "ensures that pending tasks are started after the logger" do
             logger = deployment.task 'deployment_Logger'
-            flexmock(task).should_receive(:should_start_after).with(logger.start_event).once
             Syskit::NetworkGeneration::LoggerConfigurationSupport.
                 add_logging_to_network(syskit_engine, plan)
+            assert task.start_event.should_emit_after?(logger.start_event)
         end
 
-        it "should not synchronize already running tasks with new loggers" do
-            logger = deployment.task 'deployment_Logger'
+        it "does not synchronize already running tasks with new loggers" do
             flexmock(task).should_receive(:pending?).and_return(false)
-            flexmock(task).should_receive(:should_start_after).with(logger.start_event).never
+            logger = deployment.task 'deployment_Logger'
             Syskit::NetworkGeneration::LoggerConfigurationSupport.
                 add_logging_to_network(syskit_engine, plan)
+            refute task.start_event.should_emit_after?(logger.start_event)
         end
 
-        it "should not setup the underlying orocos task if it is not already setup" do
+        it "does not setup the underlying orocos task if it is not already setup" do
             logger = deployment.task 'deployment_Logger'
-            flexmock(logger).should_receive(:setup?).and_return(false)
             flexmock(logger).should_receive(:create_logging_port).never
             Syskit::NetworkGeneration::LoggerConfigurationSupport.
                 add_logging_to_network(syskit_engine, plan)
         end
 
-        it "should setup the underlying orocos task if the logger is already setup" do
+        it "removes unnecessary connections" do
+            logger = deployment.task 'deployment_Logger'
+            Syskit::NetworkGeneration::LoggerConfigurationSupport.
+                add_logging_to_network(syskit_engine, plan)
+
+            flexmock(deployment).should_receive(:log_port?).
+                with(task.out1_port).
+                and_return(false)
+            flexmock(deployment).should_receive(:log_port?).and_return(true)
+            Syskit::NetworkGeneration::LoggerConfigurationSupport.
+                add_logging_to_network(syskit_engine, plan)
+            assert_equal Hash[['state', 'task.state'] => Hash.new,
+                ['out2', 'task.out2'] => Hash.new],
+                @dataflow_graph.edge_info(task, logger)
+        end
+
+        it "completely disconnects a task if all its ports are ignored" do
+            logger = deployment.task 'deployment_Logger'
+            Syskit::NetworkGeneration::LoggerConfigurationSupport.
+                add_logging_to_network(syskit_engine, plan)
+
+            flexmock(deployment).should_receive(:log_port?).and_return(false)
+            Syskit::NetworkGeneration::LoggerConfigurationSupport.
+                add_logging_to_network(syskit_engine, plan)
+            refute @dataflow_graph.has_edge?(task, logger)
+        end
+
+        it "leaves connections to tasks that are not part of the final plan alone" do
+            logger = deployment.task 'deployment_Logger'
+            Syskit::NetworkGeneration::LoggerConfigurationSupport.
+                add_logging_to_network(syskit_engine, plan)
+
+            new_task = deployment.task 'task'
+            syskit_engine.should_receive(:deployed_tasks).and_return([new_task])
+            flexmock(task).should_receive(:connect_ports).never
+
+            Syskit::NetworkGeneration::LoggerConfigurationSupport.
+                add_logging_to_network(syskit_engine, plan)
+            assert_equal Hash[['state', 'task.state'] => Hash.new,
+                ['out1', 'task.out1'] => Hash.new,
+                ['out2', 'task.out2'] => Hash.new],
+                @dataflow_graph.edge_info(new_task, logger)
+            assert_equal Hash[['state', 'task.state'] => Hash.new,
+                ['out1', 'task.out1'] => Hash.new,
+                ['out2', 'task.out2'] => Hash.new],
+                @dataflow_graph.edge_info(task, logger)
+        end
+
+        it "creates new logging ports if the logger task is already configured" do
             logger = deployment.task 'deployment_Logger'
             flexmock(logger).should_receive(:setup?).and_return(true)
             flexmock(logger).should_receive(:create_logging_port).
@@ -102,7 +151,6 @@ describe Syskit::NetworkGeneration::LoggerConfigurationSupport do
     describe "#configure" do
         it "sets up the underlying logging task for each input connection" do
             plan.add_permanent_task(logger = deployment.task('deployment_Logger'))
-            flexmock(task).should_receive(:connect_ports).pass_thru
             Syskit::NetworkGeneration::LoggerConfigurationSupport.
                 add_logging_to_network(syskit_engine, plan)
 
@@ -123,4 +171,3 @@ describe Syskit::NetworkGeneration::LoggerConfigurationSupport do
         end
     end
 end
-

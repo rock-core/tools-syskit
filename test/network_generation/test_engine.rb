@@ -128,7 +128,7 @@ module Syskit
                     # This is a regression test. We basically replace a task by
                     # its reconfigured equivalent, where ports disappeared.
                     output_m = Syskit::TaskContext.new_submodel do
-                        dynamic_output_port /[ab]/, '/double'
+                        dynamic_output_port(/[ab]/, '/double')
                         dynamic_service srv_m, as: 'test' do
                             provides srv_m, as: options[:name], 'p' => options[:name]
                         end
@@ -380,10 +380,141 @@ module Syskit
                 end
             end
 
+            describe "#finalize_deployed_tasks" do
+                it "creates a transaction proxy of the already existing tasks and deployments" do
+                    deployment_m = create_deployment_model(task_count: 1)
+                    existing_deployment, =
+                        add_deployment_and_tasks(plan, deployment_m, %w[task0])
+                    add_deployment_and_tasks(work_plan, deployment_m, %w[task0])
+
+                    selected_deployments, =
+                        syskit_engine.finalize_deployed_tasks
+
+                    assert_equal [work_plan[existing_deployment]],
+                        selected_deployments.to_a
+                end
+
+                it "clears the deployments that are not in the plan" do
+                    deployment_m = create_deployment_model(task_count: 1)
+                    add_deployment_and_tasks(plan, deployment_m, %w[task0])
+
+                    selected_deployments, =
+                        syskit_engine.finalize_deployed_tasks
+                    assert selected_deployments.empty?
+                end
+
+                it "creates a new deployment if it is added to the plan" do
+                    deployment_m = create_deployment_model(task_count: 1)
+                    add_deployment_and_tasks(plan, deployment_m, %w[task0])
+                    deployment_m_2 = create_deployment_model(task_count: 2)
+                    required_deployment, =
+                        add_deployment_and_tasks(work_plan, deployment_m_2, %w[task0 task1])
+
+                    selected_deployments, selected_deployed_tasks =
+                        syskit_engine.finalize_deployed_tasks
+
+                    assert_equal [required_deployment], selected_deployments.to_a
+                    selected_deployed_tasks.each do |t|
+                        assert_equal t.execution_agent, required_deployment
+                    end
+                end
+
+                it "updates an existing deployment, proxying the existing tasks and creating new ones" do
+                    deployment_m = create_deployment_model(task_count: 3)
+                    existing_deployment, (task0, task1) =
+                        add_deployment_and_tasks(plan, deployment_m, %w[task0 task1])
+                    required_deployment, (required0, task2) =
+                        add_deployment_and_tasks(work_plan, deployment_m, %w[task0 task2])
+
+                    selected_deployments, selected_deployed_tasks =
+                        syskit_engine.finalize_deployed_tasks
+
+                    expected_deployment = work_plan[existing_deployment]
+                    assert_equal [expected_deployment], selected_deployments.to_a
+
+                    task2 = work_plan.find_local_tasks.
+                        with_arguments(orocos_name: 'task2').first
+                    assert task2
+                    refute task2.transaction_proxy?
+
+                    assert_equal [work_plan[task0], work_plan[task1], task2].to_set,
+                        expected_deployment.each_executed_task.to_set
+                    assert_equal [work_plan[task0], task2].to_set,
+                        selected_deployed_tasks.to_set
+                end
+
+                it "maintains the dependencies" do
+                    deployment_m = create_deployment_model(task_count: 2)
+                    existing_deployment, (existing0, existing1) =
+                        add_deployment_and_tasks(plan, deployment_m, %w[task0 task1])
+
+                    required_deployment, (required0, required1) =
+                        add_deployment_and_tasks(work_plan, deployment_m, %w[task0 task1])
+
+                    existing0.depends_on(existing1)
+                    selected_deployments, selected_deployed_tasks =
+                        syskit_engine.finalize_deployed_tasks
+
+                    assert work_plan[existing0].depends_on?(work_plan[existing1])
+                end
+
+                it "maintains the dependencies with two or more layers" do
+                    deployment_m = create_deployment_model(task_count: 3)
+                    existing_deployment, (existing0, ) =
+                        add_deployment_and_tasks(plan, deployment_m, %w[task0])
+
+                    required_deployment, (required0, required1, required2) =
+                        add_deployment_and_tasks(work_plan, deployment_m, %w[task0 task1 task2])
+
+                    required0.depends_on required2
+                    required1.depends_on required2
+
+                    selected_deployments, selected_deployed_tasks =
+                        syskit_engine.finalize_deployed_tasks
+
+                    required2 = work_plan[existing0].children.first
+                    assert_equal 'task2', required2.orocos_name
+                    assert required2.each_parent_task.
+                        find { |t| t.orocos_name == 'task1' }
+                end
+
+                it "raises if there is a repeated deployment" do
+                    deployment_m = create_deployment_model(task_count: 1)
+                    existing_deployment, existing_task =
+                        add_deployment_and_tasks(plan, deployment_m, %w[task0])
+
+                    existing_deployment_dup, existing_task_dup =
+                        add_deployment_and_tasks(plan, deployment_m, %w[task0])
+
+                    required_deployment, required_task =
+                        add_deployment_and_tasks(work_plan, deployment_m, %w[task0])
+
+                    assert_raises Syskit::InternalError do
+                        selected_deployments, selected_deployed_tasks =
+                        syskit_engine.finalize_deployed_tasks
+                    end
+                end
+
+                def create_deployment_model(task_count: )
+                    task_m = (0...task_count).map { TaskContext.new_submodel }
+                    Deployment.new_submodel do
+                        task_m.each_with_index do |m, i|
+                            task "task#{i}", m.orogen_model
+                        end
+                    end
+                end
+
+                def add_deployment_and_tasks(plan, deployment_m, task_names)
+                    plan.add(deployment_task = deployment_m.new)
+                    tasks = task_names.map { |name| deployment_task.task(name) }
+                    [deployment_task, tasks]
+                end
+            end
+
             describe "synthetic tests" do
                 it "deploys a mission as mission" do
                     task_model = Syskit::TaskContext.new_submodel
-                    syskit_stub_configured_deployment(task_model, 'task')
+                    syskit_stub_deployment_model(task_model, 'task')
                     plan.add_mission_task(original_task = task_model.as_plan)
                     deployed = syskit_deploy(original_task, add_mission: false)
                     assert plan.mission_task?(deployed)
@@ -391,7 +522,7 @@ module Syskit
 
                 it "deploys a permanent task as permanent" do
                     task_model = Syskit::TaskContext.new_submodel
-                    syskit_stub_configured_deployment(task_model, 'task')
+                    syskit_stub_deployment_model(task_model, 'task')
                     plan.add_permanent_task(original_task = task_model.as_plan)
                     deployed = syskit_deploy(original_task, add_mission: false)
                     assert plan.permanent_task?(deployed)
@@ -402,7 +533,7 @@ module Syskit
                     composition_model = Syskit::Composition.new_submodel do
                         add task_model, as: 'child'
                     end
-                    syskit_stub_configured_deployment(task_model, 'task')
+                    syskit_stub_deployment_model(task_model, 'task')
 
                     deployed = syskit_deploy(composition_model)
                     # This deregisters the task from the list of requirements in the
@@ -419,7 +550,7 @@ module Syskit
 
                 it "reconfigures a toplevel task if its configuration changed" do
                     task_model = Syskit::TaskContext.new_submodel
-                    syskit_stub_configured_deployment(task_model, 'task')
+                    syskit_stub_deployment_model(task_model, 'task')
 
                     deployed_task = syskit_deploy(task_model)
                     planning_task = deployed_task.planning_task
@@ -440,14 +571,14 @@ module Syskit
                     composition_model = Syskit::Composition.new_submodel do
                         add task_model, as: 'child'
                     end
-                    syskit_stub_configured_deployment(task_model, 'task')
+                    syskit_stub_deployment_model(task_model, 'task')
 
-                    cmp, original_cmp = syskit_deploy(composition_model.use('child' => task_model))
+                    cmp, = syskit_deploy(composition_model.use('child' => task_model))
                     child = cmp.child_child.to_task
                     child.do_not_reuse
                     execute { plan.remove_task(cmp.planning_task) }
 
-                    new_cmp, original_new = syskit_deploy(composition_model.use('child' => task_model))
+                    new_cmp, = syskit_deploy(composition_model.use('child' => task_model))
                     new_child = new_cmp.child_child
 
                     assert_equal [child.stop_event],
@@ -459,7 +590,7 @@ module Syskit
                     composition_model = Syskit::Composition.new_submodel do
                         add task_model, as: 'child'
                     end
-                    syskit_stub_configured_deployment(task_model, 'task')
+                    syskit_stub_deployment_model(task_model, 'task')
 
                     syskit_deploy(composition_model.use('child' => task_model))
                     plan.execution_engine.garbage_collect
@@ -479,7 +610,7 @@ module Syskit
                         add task_model, as: 'child'
                         export child_child.out_port
                     end
-                    syskit_stub_configured_deployment(task_model, 'task')
+                    syskit_stub_deployment_model(task_model, 'task')
                     cmp, _ = syskit_deploy(composition_model)
                     assert_equal Hash[['out', 'out'] => Hash.new], cmp.child_child[cmp, Syskit::Flows::DataFlow]
                 end
@@ -508,7 +639,7 @@ module Syskit
                     task = syskit_deploy(task_m.with_arguments(arg0: 10))
                     cmp_m = Syskit::Composition.new_submodel
                     cmp_m.add(task_m, as: 'test').with_arguments(arg1: 20)
-                    cmp = syskit_deploy(cmp_m)
+                    syskit_deploy(cmp_m)
                     assert_equal Hash[arg0: 10], task.explicit_fullfilled_model.last
                 end
 
@@ -517,7 +648,9 @@ module Syskit
                     attr_reader :bus, :dev
                     before do
                         @combus_m = Syskit::ComBus.new_submodel message_type: '/int'
-                        @combus_driver_m = Syskit::TaskContext.new_submodel { dynamic_output_port /.*/, '/int' }
+                        @combus_driver_m = Syskit::TaskContext.new_submodel do
+                            dynamic_output_port(/.*/, '/int')
+                        end
                         combus_driver_m.provides combus_m, as: 'driver'
 
                         @device_m = Syskit::Device.new_submodel
@@ -569,7 +702,6 @@ module Syskit
 
                 describe "merging compositions" do
                     it "does not merge compositions with an already deployed one that differs only by the underlying task's service" do
-                        plan = Roby::Plan.new
                         srv_m = Syskit::DataService.new_submodel do
                             output_port 'out', '/double'
                         end

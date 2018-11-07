@@ -532,7 +532,7 @@ describe Syskit::Models::Component do
                 provides srv_m, as: name
             end
             task_m.each_required_dynamic_service.empty?
-            
+
             model_m = task_m.new_submodel
             dyn_srv = model_m.require_dynamic_service 'dyn', as: 'test'
             assert_equal [dyn_srv], model_m.each_required_dynamic_service.to_a
@@ -547,7 +547,7 @@ describe Syskit::Models::Component do
                     dynamic_service srv_m, as: 'test' do
                         provides srv_m
                     end
-                end 
+                end
             end
 
             it "returns false if the argument has required dynamic services that the receiver does not" do
@@ -642,6 +642,12 @@ describe Syskit::Models::Component do
     end
 
     describe "#provides" do
+        it "passes Roby task services to super" do
+            task_service_m = Roby::TaskService.new_submodel
+            component_m = Syskit::Component.new_submodel
+            component_m.provides task_service_m
+            assert component_m.fullfills?(task_service_m)
+        end
         it "raises if no service name is given" do
             service = Syskit::DataService.new_submodel
             component = Syskit::TaskContext.new_submodel
@@ -1008,4 +1014,3 @@ describe Syskit::Models::Component do
         end
     end
 end
-

@@ -69,8 +69,9 @@ module Syskit
                 @default_color = handle_color_argument(color)
             end
 
-            def initialize(name: nil, extra_style: '', parent: nil)
+            def initialize(name: nil, extra_style: '', parent: nil, rate_limited: false)
                 super(parent)
+                @rate_limited = rate_limited
                 @name = name
                 @extra_style = extra_style
                 @states = Hash.new
@@ -169,7 +170,11 @@ module Syskit
                 color = handle_color_argument(color)
                 self.style_sheet = STYLE % [color, extra_style]
             end
-            
+
+            def rate_limited?
+                @rate_limited
+            end
+
             # Update the displayed text
             #
             # If {#name} is set, the resulting text is name: text, otherwise
@@ -178,6 +183,9 @@ module Syskit
             # The text is displayed using the {#current_color} and
             # {#extra_style}
             def update_text(text = current_text)
+                return if rate_limited? && @last_update && (Time.now - @last_update) < 1
+                @last_update = Time.now
+
                 text = text.to_str
                 @current_text = text
                 self.text =
@@ -190,4 +198,3 @@ module Syskit
         end
     end
 end
-

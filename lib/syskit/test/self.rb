@@ -46,7 +46,7 @@ module Syskit
             super
 
             if !Orocos.initialized?
-                Orocos.initialize
+                Orocos.allow_blocking_calls { Orocos.initialize }
             end
             execution_engine.scheduler = Roby::Schedulers::Temporal.new(true, true, plan)
             execution_engine.scheduler.enabled = false

@@ -101,9 +101,9 @@ module Syskit
                 nil
             end
 
-	    def each_fullfilled_model(&block)
-		model.each_fullfilled_model(&block)
-	    end
+            def each_fullfilled_model(&block)
+                model.each_fullfilled_model(&block)
+            end
 
             def fullfills?(*args)
                 model.fullfills?(*args)

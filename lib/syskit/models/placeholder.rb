@@ -40,6 +40,9 @@ module Syskit
                         result << m
                     end
                 end
+                unless component_model?
+                    result << AbstractComponent
+                end
                 result
             end
 

@@ -19,7 +19,7 @@ module Syskit
         # Data services are referred to by name. In the case of a main service,
         # its name is the name used during the declaration. In the case of slave
         # services, it is main_data_service_name.slave_name. I.e. the name of
-        # the slave service depends on the selected 
+        # the slave service depends on the selected
         class Component < ::Roby::Task
             extend Models::Component
             extend Logger::Hierarchy
@@ -28,6 +28,8 @@ module Syskit
 
             abstract
             terminates
+
+            provides AbstractComponent
 
             # The name of the process server that should run this component
             #
@@ -125,11 +127,11 @@ module Syskit
             # @return [BoundDataService,nil] the found data service, or nil if there
             #   are no services of that type in self
             # @raise (see Models::DataService#find_data_service_from_type)
-	    def find_data_service_from_type(service_type)
+            def find_data_service_from_type(service_type)
                 if service_model = model.find_data_service_from_type(service_type)
                     return service_model.bind(self)
                 end
-	    end
+            end
 
             # Declare that this component should not be configured until +event+
             # has been emitted. This is used to sequence configurations with
@@ -168,7 +170,7 @@ module Syskit
                     return false
                 elsif !fully_instanciated?
                     debug { "#{self} not ready for setup: not fully instanciated" }
-                    return false 
+                    return false
                 end
 
                 meets_configurationg_precedence_constraints?
@@ -263,6 +265,12 @@ module Syskit
                 super if defined? super
             end
 
+            # Whether this task should be started only after all its inputs
+            # have been connected
+            def start_only_when_connected?
+                true
+            end
+
             # Test if the given task could be merged in self
             #
             # This method should only consider intrinsic criteria for the
@@ -307,13 +315,7 @@ module Syskit
             def merge(merged_task)
                 # Copy arguments of +merged_task+ that are not yet assigned in
                 # +self+
-                merged_task.arguments.each do |key, value|
-                    if value.respond_to?(:evaluate_delayed_argument)
-                        arguments[key] = value if !arguments.assigned?(key)
-                    else
-                        arguments[key] = value if !arguments.set?(key)
-                    end
-                end
+                arguments.semantic_merge!(merged_task.arguments)
 
                 # Merge the fullfilled model if set explicitely
                 explicit_merged_fullfilled_model = merged_task.explicit_fullfilled_model
@@ -521,7 +523,8 @@ module Syskit
                 task
             end
 
-            def update_requirements(new_requirements, keep_abstract: false)
+            def update_requirements(new_requirements, name: nil, keep_abstract: false)
+                requirements.name = name if name
                 requirements.merge(new_requirements, keep_abstract: keep_abstract)
             end
 
@@ -614,7 +617,7 @@ module Syskit
                 req = self.class.to_instance_requirements
                 req.with_arguments(arguments.assigned_arguments)
                 if required_host
-                    req.on_server(required_host) 
+                    req.on_server(required_host)
                 end
                 req
             end
@@ -763,4 +766,3 @@ module Syskit
             end
         end
 end
-

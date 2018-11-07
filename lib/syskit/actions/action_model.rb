@@ -20,8 +20,8 @@ module Syskit
 
             def to_s
                 name =
-                    if requirement_name = requirements.name
-                        "#{requirements.name}_def"
+                    if (requirement_name = requirements.name)
+                        "#{requirement_name}_def"
                     else
                         requirements.to_s
                     end
@@ -140,4 +140,3 @@ module Syskit
         end
     end
 end
-

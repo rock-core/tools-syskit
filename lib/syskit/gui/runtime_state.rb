@@ -61,6 +61,9 @@ module Syskit
             # @return [Array<Qt::Action>]
             attr_reader :global_actions
 
+            # The current connection state
+            attr_reader :current_state
+
             define_hooks :on_connection_state_changed
             define_hooks :on_progress
 
@@ -109,39 +112,31 @@ module Syskit
             # @param [Integer] poll_period how often should the syskit interface
             #   be polled (milliseconds). Set to nil if the polling is already
             #   done externally
-            def initialize(parent: nil, robot_name: 'default', syskit: Roby::Interface::Async::Interface.new, poll_period: 50)
+            def initialize(parent: nil, robot_name: 'default',
+                syskit: Roby::Interface::Async::Interface.new, poll_period: 50)
+
                 super(parent)
 
-                orocos_corba_nameservice = Orocos::CORBA::NameService.new(syskit.remote_name)
-                @name_service = Orocos::Async::NameService.new(orocos_corba_nameservice)
+                @syskit = syskit
                 @robot_name = robot_name
+                reset
+
+                @syskit_poll = Qt::Timer.new
+                @syskit_poll_period = poll_period
+                connect syskit_poll, SIGNAL('timeout()'),
+                    self, SLOT('poll_syskit_interface()')
 
                 if poll_period
-                    poll_syskit_interface(syskit, poll_period)
+                    @syskit_poll.start(poll_period)
                 end
 
-                @syskit = syskit
                 create_ui
 
                 @global_actions = Hash.new
                 action = global_actions[:start]   = Qt::Action.new("Start", self)
                 @starting_monitor = Qt::Timer.new
-                @starting_monitor.connect(SIGNAL('timeout()')) do
-                    if @syskit_pid
-                        begin
-                            _pid, has_quit = Process.waitpid2(
-                                @syskit_pid, Process::WNOHANG)
-                        rescue Errno::ECHILD
-                            has_quit = true
-                        end
-
-                        if has_quit
-                            @syskit_pid = nil
-                            run_hook :on_connection_state_changed, 'UNREACHABLE'
-                            @starting_monitor.stop
-                        end
-                    end
-                end
+                connect @starting_monitor, SIGNAL('timeout()'),
+                    self, SLOT('monitor_syskit_startup()')
                 connect action, SIGNAL('triggered()') do
                     app_start(robot_name: @robot_name)
                 end
@@ -173,10 +168,10 @@ module Syskit
                 end
                 syskit.on_reachable do
                     @syskit_commands = syskit.client.syskit
+                    update_log_server_connection(syskit.log_server_port)
                     @job_status_list.each_widget do |w|
                         w.show_actions = true
                     end
-                    update_log_server_connection(syskit.client.log_server_port)
                     action_combo.clear
                     action_combo.enabled = true
                     syskit.actions.sort_by(&:name).each do |action|
@@ -212,6 +207,31 @@ module Syskit
                     job.start
                     monitor_job(job)
                 end
+            end
+
+            def monitor_syskit_startup
+                return unless @syskit_pid
+
+                begin
+                    _pid, has_quit = Process.waitpid2(
+                        @syskit_pid, Process::WNOHANG)
+                rescue Errno::ECHILD
+                    has_quit = true
+                end
+
+                if has_quit
+                    @syskit_pid = nil
+                    run_hook :on_connection_state_changed, 'UNREACHABLE'
+                    @starting_monitor.stop
+                end
+            end
+            slots 'monitor_syskit_startup()'
+
+            def reset
+                Orocos.initialize
+                @logger_m = nil
+                orocos_corba_nameservice = Orocos::CORBA::NameService.new(syskit.remote_name)
+                @name_service = Orocos::Async::NameService.new(orocos_corba_nameservice)
             end
 
             def update_log_server_connection(port)
@@ -413,6 +433,8 @@ module Syskit
                 splitter = Qt::Splitter.new
                 splitter.add_widget job_summary
                 splitter.add_widget(@job_expanded_status = ExpandedJobStatus.new)
+                connect(@job_expanded_status, SIGNAL('fileOpenClicked(const QUrl&)'),
+                    self, SIGNAL('fileOpenClicked(const QUrl&)'))
 
                 task_inspector_widget = Qt::Widget.new
                 task_inspector_layout = Qt::VBoxLayout.new(task_inspector_widget)
@@ -459,8 +481,9 @@ module Syskit
                 layout.add_widget(reload = create_ui_event_button("Reload"))
                 layout.add_widget(close  = create_ui_event_button("Close"))
                 reload.connect(SIGNAL('clicked()')) do
-                    syskit_orogen_config_changed.hide
-                    @syskit_commands.reload_config
+                    @syskit_commands.async_reload_config do
+                        syskit_orogen_config_changed.hide
+                    end
                 end
                 close.connect(SIGNAL('clicked()')) do
                     syskit_orogen_config_changed.hide
@@ -475,8 +498,9 @@ module Syskit
                 layout.add_widget(apply = create_ui_event_button("Reconfigure"))
                 layout.add_widget(close = create_ui_event_button("Close"))
                 apply.connect(SIGNAL('clicked()')) do
-                    syskit_orogen_config_reloaded.hide
-                    @syskit_commands.redeploy
+                    @syskit_commands.async_redeploy do
+                        syskit_orogen_config_reloaded.hide
+                    end
                 end
                 close.connect(SIGNAL('clicked()')) do
                     syskit_orogen_config_reloaded.hide
@@ -531,21 +555,17 @@ module Syskit
             # @api private
             #
             # Sets up polling on a given syskit interface
-            def poll_syskit_interface(syskit, period)
-                @syskit_poll = Qt::Timer.new
-                syskit_poll.connect(SIGNAL('timeout()')) do
-                    syskit.poll
-                    if syskit_log_stream
-                        if syskit_log_stream.poll(max: 0.05) == Roby::Interface::Async::Log::STATE_PENDING_DATA
-                            syskit_poll.interval = 0
-                        else
-                            syskit_poll.interval = period
-                        end
+            def poll_syskit_interface
+                syskit.poll
+                if syskit_log_stream
+                    if syskit_log_stream.poll(max: 0.05) == Roby::Interface::Async::Log::STATE_PENDING_DATA
+                        syskit_poll.interval = 0
+                    else
+                        syskit_poll.interval = @syskit_poll_period
                     end
                 end
-                syskit_poll.start(period)
-                syskit
             end
+            slots 'poll_syskit_interface()'
 
             # @api private
             #
@@ -558,8 +578,6 @@ module Syskit
                 job_status.connect(SIGNAL('clicked()')) do
                     select_job(job_status)
                 end
-                connect(job_status, SIGNAL('fileOpenClicked(const QUrl&)'),
-                        self, SIGNAL('fileOpenClicked(const QUrl&)'))
             end
 
             def deselect_job

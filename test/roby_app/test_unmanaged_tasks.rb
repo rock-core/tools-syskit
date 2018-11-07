@@ -7,6 +7,8 @@ module Syskit
 
             before do
                 @task_model = Syskit::TaskContext.new_submodel
+                Syskit.conf.register_process_server(
+                    'unmanaged_tasks', UnmanagedTasksManager.new)
                 @process_manager = Syskit.conf.process_server_for('unmanaged_tasks')
                 use_unmanaged_task task_model => 'unmanaged_deployment_test'
                 @task = syskit_deploy(task_model)
@@ -23,6 +25,8 @@ module Syskit
                 if unmanaged_task
                     unmanaged_task.dispose
                 end
+
+                Syskit.conf.remove_process_server('unmanaged_tasks')
             end
 
             def create_unmanaged_task

@@ -10,7 +10,7 @@ module Syskit
             attr_reader :child_name
             # The set of models that this child should fullfill. It is a
             # Set which contains at most one Component model and any number
-            # of data service models 
+            # of data service models
             attr_accessor :dependency_options
             # [InstanceSelection] information needed to update the composition's
             # parent models about the child (mainly port mappings)

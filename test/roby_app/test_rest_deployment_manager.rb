@@ -3,8 +3,6 @@ require 'syskit/roby_app/rest_deployment_manager'
 module Syskit
     module RobyApp
         describe RESTDeploymentManager do
-            stub_process_manager = Class.new
-
             before do
                 @roby_app = Roby::Application.new
                 @conf = Configuration.new(@roby_app)

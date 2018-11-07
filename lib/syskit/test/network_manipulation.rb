@@ -549,7 +549,9 @@ module Syskit
                     root_tasks.each do |root_t, status|
                         replacement_t = mapped_tasks[root_t]
                         if replacement_t != root_t
-                            replacement_t.planned_by trsc[root_t.planning_task]
+                            unless replacement_t.planning_task
+                                replacement_t.planned_by trsc[root_t.planning_task]
+                            end
                             trsc.send("add_#{status}", replacement_t)
                         end
                     end
@@ -559,6 +561,7 @@ module Syskit
                     NetworkGeneration::SystemNetworkGenerator.verify_task_allocation(trsc)
                     trsc.commit_transaction
                 end
+
 
                 execute do
                     mapped_tasks.each do |old, new|
@@ -615,8 +618,8 @@ module Syskit
                     remote_task: self.syskit_stub_resolves_remote_tasks?)
 
                 task_m = task.concrete_model
-                deployment_model = syskit_stub_configured_deployment(task_m, as,
-                    remote_task: remote_task, register: false)
+                deployment_model = syskit_stub_configured_deployment(
+                    task_m, as, remote_task: remote_task, register: false)
                 syskit_stub_conf(task_m, *task.arguments[:conf])
                 task.plan.add(deployer = deployment_model.new)
                 deployed_task = deployer.instanciate_all_tasks.first

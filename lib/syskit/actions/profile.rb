@@ -144,6 +144,26 @@ module Syskit
                 DependencyInjection.nothing
             end
 
+            # Get an argument from a task accessor
+            #
+            # The common usage for this is to forward an argument from the task's parent:
+            #
+            #    define 'test', Composition.use(
+            #      'some_child' => Model.with_arguments(test: from(:parent_task).test))
+            def from(accessor)
+                Roby::Task.from(accessor)
+            end
+
+            # Get an argument from a state object
+            #
+            # The common usage for this is to access a state variable
+            #
+            #    define 'test', Composition.use(
+            #      'some_child' => Model.with_arguments(enabled: from_state.enabled?))
+            def from_state(state_object = State)
+                Roby::Task.from_state(state_object)
+            end
+
             # Robot definition class inside a profile
             #
             # It is subclassed so that we can invalidate the cached dependency

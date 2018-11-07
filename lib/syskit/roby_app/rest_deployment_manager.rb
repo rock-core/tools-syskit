@@ -26,6 +26,7 @@ module Syskit
             #   deployments, or nil if the given ID does not match any registered
             #   deployment
             def make_unmanaged(id)
+                # Define early to simplify the rescue clause
                 overrides = []
 
                 configured_deployment = find_registered_deployment_by_id(id)
@@ -42,13 +43,19 @@ module Syskit
                 @deployment_group.deregister_configured_deployment(configured_deployment)
                 configured_deployment.each_orogen_deployed_task_context_model do |orogen_m|
                     task_m = Syskit::TaskContext.find_model_by_orogen(orogen_m.task_model)
-                    overrides.concat(
-                        @deployment_group.use_unmanaged_task(task_m => orogen_m.name))
+                    @conf.process_server_config_for('unmanaged_tasks')
+                    new_deployments = @deployment_group.use_unmanaged_task(
+                        { task_m => orogen_m.name }, 
+                        process_managers: @conf)
+                    # Update overrides at each iteration (instead of using a functional
+                    # construct) so that the rescue clause can undo the overrides that
+                    # have already been done when an exception is raised
+                    overrides.concat(new_deployments)
                 end
                 @overrides[configured_deployment] = overrides
                 overrides.map(&:object_id)
 
-            rescue Exception => e
+            rescue Exception
                 overrides.each do |c|
                     @deployment_group.deregister_configured_deployment(c)
                 end

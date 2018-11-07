@@ -1,5 +1,4 @@
 require 'roby/gui/dot_id'
-require 'syskit/gui/model_browser'
 
 module Syskit
         # Used by the to_dot* methods for color allocation
@@ -287,7 +286,7 @@ module Syskit
 
                 all_tasks = Set.new
 
-                plan.find_local_tasks(Component).each do |task|
+                plan.find_local_tasks(AbstractComponent).each do |task|
                     all_tasks << task
                     task.send(options[:accessor]) do |child_task, edge_info|
                         label = []
@@ -359,7 +358,7 @@ module Syskit
             end
 
             def add_port_details_annotations
-                plan.find_local_tasks(Component).each do |task|
+                plan.find_local_tasks(AbstractComponent).each do |task|
                     task.model.each_port do |p|
                         port_type = Roby.app.default_loader.opaque_type_for(p.type)
                         add_port_annotation(task, p.name, "Type", port_type.name)
@@ -369,7 +368,7 @@ module Syskit
             available_task_annotations << 'port_details'
 
             def add_task_info_annotations
-                plan.find_local_tasks(Component).each do |task|
+                plan.find_local_tasks(AbstractComponent).each do |task|
                     arguments = task.arguments.map { |k, v| "#{k}: #{v}" }
                     task.model.arguments.each do |arg_name|
                         if !task.arguments.has_key?(arg_name)
@@ -468,7 +467,7 @@ module Syskit
                 # Note that a connection is not guaranteed to be from an output
                 # to an input: on compositions, exported ports are represented
                 # as connections between either two inputs or two outputs
-                plan.find_local_tasks(Component).each do |source_task|
+                plan.find_local_tasks(AbstractComponent).each do |source_task|
                     next if options[:remove_compositions] && source_task.kind_of?(Composition)
                     next if excluded_models.include?(source_task.concrete_model)
 
@@ -744,6 +743,7 @@ module Syskit
                         name = task.concrete_model.name || ""
                     end
 
+                    name = name.dup
                     if task.execution_agent && task.respond_to?(:orocos_name)
                         name << "[#{task.orocos_name}]"
                     end

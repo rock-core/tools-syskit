@@ -25,7 +25,7 @@ module Syskit
                 end
                 it "creates the config/orogen directory and adds a file to ensure it's saved in git" do
                     run_command_and_stop "syskit gen app"
-                    assert exist?('config/orogen/.gitattributes')
+                    assert exist?('config/orogen/.gitkeep')
                 end
             end
 

@@ -20,7 +20,7 @@ module Syskit
             attr_reader :dependency_graph
 
             # A graph that holds all replacements done during resolution
-	    attr_reader :task_replacement_graph
+            attr_reader :task_replacement_graph
 
             # The list of merges that are known to be invalid, as (merged_task,
             # task)
@@ -38,7 +38,7 @@ module Syskit
                 @dataflow_graph = plan.task_relation_graph_for(Flows::DataFlow)
                 @dependency_graph = plan.task_relation_graph_for(Roby::TaskStructure::Dependency)
                 @merging_candidates_queries = Hash.new
-		@task_replacement_graph = Roby::Relations::BidirectionalDirectedAdjacencyGraph.new
+                @task_replacement_graph = Roby::Relations::BidirectionalDirectedAdjacencyGraph.new
                 @resolved_replacements = Hash.new
                 @invalid_merges = Set.new
             end
@@ -234,13 +234,13 @@ module Syskit
                 end
 
                 candidates.each do |merged_task|
-                    next if task == merged_task 
+                    next if task == merged_task
 
                     debug { "  #{merged_task}" }
                     if merged_task.placeholder?
                         debug "    data service proxy"
                         next
-                    elsif !merged_task.plan 
+                    elsif !merged_task.plan
                         debug "    removed from plan"
                         next
                     elsif invalid_merges.include?([merged_task, task])
@@ -309,13 +309,15 @@ module Syskit
             def composition_children_by_role(task)
                 result = Hash.new
                 task_children_names = task.model.children_names.to_set
-                task_children   = task.each_out_neighbour_merged(Roby::TaskStructure::Dependency, intrusive: true).map do |child_task|
-                    dependency_graph.edge_info(task, child_task)[:roles].each do |r|
-                        if task_children_names.include?(r)
-                            result[r] = child_task
+                task.each_out_neighbour_merged(
+                        Roby::TaskStructure::Dependency, intrusive: true).
+                    map do |child_task|
+                        dependency_graph.edge_info(task, child_task)[:roles].each do |r|
+                            if task_children_names.include?(r)
+                                result[r] = child_task
+                            end
                         end
                     end
-                end
                 result
             end
 
@@ -524,5 +526,3 @@ module Syskit
         end
     end
 end
-
-

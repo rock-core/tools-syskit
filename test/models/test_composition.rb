@@ -805,7 +805,9 @@ describe Syskit::Models::Composition do
                 end
                 specialized_m = cmp_m.narrow(Syskit::DependencyInjectionContext.new('c' => task_m))
                 
-                assert_equal [specialized_m,cmp_m,srv_m,Syskit::DataService,Syskit::Composition,Syskit::Component,Roby::Task].to_set,
+                assert_equal [specialized_m,cmp_m,srv_m,Syskit::DataService,
+                    Syskit::Composition,Syskit::Component,Syskit::AbstractComponent,
+                    Roby::Task].to_set,
                     specialized_m.each_fullfilled_model.to_set
             end
         end

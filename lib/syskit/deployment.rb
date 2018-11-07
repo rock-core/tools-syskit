@@ -105,13 +105,51 @@ module Syskit
                 model.each_orogen_deployed_task_context_model(&block)
             end
 
+            # Either find the existing task that matches the given deployment specification,
+            # or creates and adds it.
+            #
+            # @param (see #task)
+            def find_or_create_task(name, syskit_task_model = nil, auto_conf: false)
+                orogen_task_deployment_model = deployed_orogen_model_by_name(name)
+                if orogen_master = orogen_task_deployment_model.master
+                    mapped_master = name_mappings[orogen_master.name]
+                    scheduler_task = find_or_create_task(
+                        mapped_master, auto_conf: true)
+                    candidates = scheduler_task.each_parent_task
+                else
+                    candidates = each_executed_task
+                end
+
+                # I don't know why name_mappings[orogen.name] would not be
+                # equal to 'name' and I couldn't find a reason for this in the
+                # git history when I refactored this.
+                #
+                # I keep it here for now, just in case, but that would need to
+                # be investigated
+                #
+                # TODO
+                mapped_name = name_mappings[orogen_task_deployment_model.name]
+                candidates.each do |task|
+                    return task if task.orocos_name == mapped_name
+                end
+
+                create_deployed_task(
+                    orogen_task_deployment_model,
+                    syskit_task_model,
+                    scheduler_task, auto_conf: auto_conf)
+            end
+
             def deployed_orogen_model_by_name(name)
                 orogen_task_deployment = each_orogen_deployed_task_context_model.
                     find { |act| name == name_mappings[act.name] }
-                if !orogen_task_deployment
-                    available = each_orogen_deployed_task_context_model.map { |act| name_mappings[act.name] }.sort.join(", ")
-                    mappings  = name_mappings.map { |k,v| "#{k} => #{v}" }.join(", ")
-                    raise ArgumentError, "no task called #{name} in #{self.class.deployment_name}, available tasks are #{available} using name mappings #{mappings}"
+                unless orogen_task_deployment
+                    available = each_orogen_deployed_task_context_model.
+                        map { |act| name_mappings[act.name] }.sort.join(", ")
+                    mappings  = name_mappings.
+                        map { |k,v| "#{k} => #{v}" }.join(", ")
+                    raise ArgumentError, "no task called #{name} in "\
+                        "#{self.class.deployment_name}, available tasks are "\
+                        "#{available} using name mappings #{mappings}"
                 end
                 orogen_task_deployment
             end
@@ -120,33 +158,97 @@ module Syskit
                 TaskContext.model_for(orogen_model.task_model)
             end
 
-            # Returns an task instance that represents the given task in this
-            # deployment.
-            def task(name, model = nil)
-                if finishing? || finished?
-                    raise InvalidState, "#{self} is either finishing or already finished, you cannot call #task"
-                end
+            # @api private
+            #
+            # Create and add a task model supported by this deployment
+            #
+            # @param [OroGen::Spec::TaskDeployment] orogen_task_deployment_model
+            #   the orogen model that describes this
+            #   deployment
+            # @param [Models::TaskContext,nil] syskit_task_model the expected syskit task model, or nil
+            #   if it is meant to use the basic model. This is useful in specialized models (e.g. dynamic
+            #   services)
+            # @param [Deployment,TaskContext] syskit_execution_agent the task that will be used as an execution agent.
+            #   this is usually self, but may be a task in master/slave relationships.
+            # @param [Boolean] auto_conf if true, the method will attempt to select
+            #   a configuration that matches the task's orocos name (if it exists). This
+            #   is mostly used for scheduling tasks, which are automatically instanciated
+            #   by Syskit.
+            #
+            # @see find_or_create_task task
+            def create_deployed_task(orogen_task_deployment_model,
+                syskit_task_model, scheduler_task, auto_conf: false)
 
-                orogen_task_deployment = deployed_orogen_model_by_name(name)
-                orogen_task_model = deployed_model_by_orogen_model(orogen_task_deployment)
-                if model
-                    if !model.fullfills?(orogen_task_model)
-                        raise ArgumentError, "incompatible explicit selection #{model} for the model of #{name} in #{self}"
+                mapped_name = name_mappings[orogen_task_deployment_model.name]
+                base_syskit_task_model = deployed_model_by_orogen_model(
+                    orogen_task_deployment_model)
+                if syskit_task_model
+                    if !(syskit_task_model <= base_syskit_task_model)
+                        raise ArgumentError, "incompatible explicit selection of task "\
+                            "model #{syskit_task_model} for the model of #{mapped_name} "\
+                            " in #{self}"
                     end
                 else
-                    model = orogen_task_model
+                    syskit_task_model = base_syskit_task_model
                 end
-                plan.add(task = model.new(orocos_name: name_mappings[orogen_task_deployment.name]))
+
+                plan.add(task = syskit_task_model.new(orocos_name: mapped_name))
                 task.executed_by self
-                task.orogen_model = orogen_task_deployment
+                if scheduler_task
+                    task.depends_on scheduler_task, role: 'scheduler'
+                    task.should_configure_after scheduler_task.start_event
+                end
+
+                task.orogen_model = orogen_task_deployment_model
                 if ready?
-                    if remote_task = remote_task_handles[name]
+                    if remote_task = remote_task_handles[mapped_name]
                         task.initialize_remote_handles(remote_task)
                     else
-                        raise InternalError, "no handle under then #{name} in #{self} for #{task} (got #{remote_task_handles.keys.sort.join(", ")})"
+                        raise InternalError, "no remote handle describing #{mapped_name} in #{self} for #{task} (got #{remote_task_handles.keys.sort.join(", ")})"
                     end
                 end
+                auto_select_conf(task) if auto_conf
                 task
+            end
+
+            # Returns an task instance that represents the given task in this
+            # deployment.
+            #
+            # @param [String] name the unmapped name of the task
+            # @param [Models::TaskContext,nil] syskit_task_model the Syskit
+            #   model that should be used to create the task, if it is not the
+            #   same as the base model. This is used for specialized models (e.g.
+            #   dynamic services)
+            def task(name, syskit_task_model = nil)
+                if finishing? || finished?
+                    raise InvalidState, "#{self} is either finishing or already "\
+                        "finished, you cannot call #task"
+                end
+
+                orogen_task_deployment_model = deployed_orogen_model_by_name(name)
+
+                if orogen_master = orogen_task_deployment_model.master
+                    scheduler_task = find_or_create_task(
+                        orogen_master.name, auto_conf: true)
+                end
+                create_deployed_task(orogen_task_deployment_model,
+                    syskit_task_model, scheduler_task)
+            end
+
+            # Selects the configuration of a master task
+            #
+            # Master tasks are auto-injected in the network, and as such the
+            # user cannot select their configuration. This picks either
+            # ['default', task.orocos_name] if the master task's has a configuration
+            # section matching the task's name, or ['default'] otherwise.
+            private def auto_select_conf(task)
+                manager = task.model.configuration_manager
+                task.conf =
+                    if manager.has_section?(task.orocos_name)
+                        ['default', task.orocos_name]
+                    else
+                        ['default']
+                    end
             end
 
             ##
@@ -203,9 +305,9 @@ module Syskit
                     loader: Roby.app.default_pkgconfig_loader)
 
                 cmdline_args = cmdline_args.dup
-                each_default_run_option do |name, value|
-                    if !cmdline_args.has_key?(name)
-                        cmdline_args[name] = value
+                each_default_run_option do |option_name, option_value|
+                    if !cmdline_args.has_key?(option_name)
+                        cmdline_args[option_name] = option_value
                     end
                 end
 
@@ -594,9 +696,6 @@ module Syskit
                 end
 
                 Deployment.all_deployments.delete(orocos_process)
-                model.each_orogen_deployed_task_context_model do |act|
-                    name = orocos_process.get_mapped_name(act.name)
-                end
 
                 # do NOT call cleanup_dead_connections here.
                 # Runtime.update_deployment_states will first announce all the

@@ -104,7 +104,7 @@ module Syskit
 		self_port_to_actual_port(exported_port).to_orocos_port
             end
 
-            def update_requirements(new_requirements, keep_abstract: false)
+            def update_requirements(new_requirements, name: nil, keep_abstract: false)
                 super
                 new_requirements.dynamics.ports.each do |port_name, info|
                     find_port(port_name).to_actual_port.component.

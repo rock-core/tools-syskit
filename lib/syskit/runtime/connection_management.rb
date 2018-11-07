@@ -9,12 +9,6 @@ module Syskit
 
             attr_reader :dataflow_graph
 
-            # Mapping from the orocos_task objects to the corresponding
-            # Syskit::Task in the plan
-            #
-            # @see find_setup_syskit_task_context_from_orocos_task
-            attr_reader :orocos_task_to_setup_syskit_task
-
             def scheduler
                 plan.execution_engine.scheduler
             end
@@ -26,10 +20,12 @@ module Syskit
             def initialize(plan)
                 @plan = plan
                 @dataflow_graph = plan.task_relation_graph_for(Flows::DataFlow)
+                @orocos_task_to_syskit_tasks = Hash.new
                 @orocos_task_to_setup_syskit_task = Hash.new
                 plan.find_tasks(Syskit::TaskContext).each do |t|
+                    (@orocos_task_to_syskit_tasks[t.orocos_task] ||= []) << t
                     if t.setup?
-                        orocos_task_to_setup_syskit_task[t.orocos_task] = t
+                        @orocos_task_to_setup_syskit_task[t.orocos_task] = t
                     end
                 end
             end
@@ -53,7 +49,7 @@ module Syskit
                 end
 
                 # Create the new connections
-                # 
+                #
                 # We're only updating on a partial set of tasks ... so we do
                 # have to enumerate both output and input connections. We can
                 # however avoid doulbing work by avoiding the update of sink
@@ -164,7 +160,7 @@ module Syskit
             #
             # @return [nil,Syskit::TaskContext]
             def find_setup_syskit_task_context_from_orocos_task(orocos_task)
-                orocos_task_to_setup_syskit_task[orocos_task]
+                @orocos_task_to_setup_syskit_task[orocos_task]
             end
 
             # Checks whether the removal of some connections require to run the
@@ -317,7 +313,7 @@ module Syskit
                     end
                 end
             end
-            
+
             # Remove port-to-port connections
             #
             # @param [{(Orocos::TaskContext,Orocos::TaskContext) => [[String,String]]}] removed
@@ -458,14 +454,21 @@ module Syskit
 
             def mark_connected_pending_tasks_as_executable(pending_tasks)
                 pending_tasks.each do |t|
-                    if t.setup? && t.all_inputs_connected?
+                    if !t.setup?
+                        scheduler.report_holdoff "not yet configured", t
+                    elsif !t.start_only_when_connected?
                         t.ready_to_start!
-                        debug { "#{t} has all its inputs connected, set executable to nil and executable? = #{t.executable?}" }
-                        scheduler.report_action "all inputs connected, marking as executable", t
-
+                    elsif t.all_inputs_connected?
+                        t.ready_to_start!
+                        debug do
+                            "#{t} has all its inputs connected, set executable "\
+                            "to nil and executable? = #{t.executable?}"
+                        end
+                        scheduler.report_action(
+                            "all inputs connected, marking as ready to start", t)
                     else
-                        scheduler.report_holdoff "some inputs are not yet connected, Syskit maintains its state to non-executable", t
-                        scheduler.report_action "some inputs are not yet connected, Syskit maintains its state to non-executable", t
+                        scheduler.report_holdoff(
+                            "waiting for all inputs to be connected", t)
                     end
                 end
             end
@@ -509,7 +512,7 @@ module Syskit
                 return early, Hash[late]
             end
 
-            # Partition new connections between 
+            # Partition new connections between
             def new_connections_partition_held_ready(new)
                 additions_held, additions_ready = Hash.new, Hash.new
                 new.each do |(from_task, to_task), mappings|
@@ -610,31 +613,26 @@ module Syskit
             # @return [Hash]
             def dangling_task_cleanup
                 removed = Hash.new
-
-                present_tasks = plan.find_tasks(TaskContext).inject(Hash.new) do |h, t|
-                    h[t.orocos_task] = t
-                    h
-                end
-                dangling_tasks = ActualDataFlow.each_vertex.find_all do |orocos_task|
-                    !present_tasks.has_key?(orocos_task)
-                end
-                dangling_tasks.each do |parent_t|
-                    ActualDataFlow.each_out_neighbour(parent_t) do |child_t|
-                        mappings = ActualDataFlow.edge_info(parent_t, child_t)
-                        removed[[parent_t, child_t]] = mappings.keys.to_set
+                ActualDataFlow.each_vertex do |parent_t|
+                    unless @orocos_task_to_syskit_tasks.has_key?(parent_t)
+                        ActualDataFlow.each_out_neighbour(parent_t) do |child_t|
+                            mappings = ActualDataFlow.edge_info(parent_t, child_t)
+                            removed[[parent_t, child_t]] = mappings.keys.to_set
+                        end
                     end
                 end
                 removed
             end
 
             def active_task?(t)
-                t.plan && !t.finished? && t.execution_agent && !t.execution_agent.finished? && !t.execution_agent.ready_to_die? 
+                t.plan && !t.finished? && t.execution_agent &&
+                    !t.execution_agent.finished? && !t.execution_agent.ready_to_die?
             end
 
             def update
                 # Don't do anything if the engine is deploying
                 return if plan.syskit_has_async_resolution?
-                
+
                 tasks = dataflow_graph.modified_tasks
                 tasks.delete_if { |t| !active_task?(t) }
                 debug "connection: updating, #{tasks.size} tasks modified in dataflow graph"
@@ -645,19 +643,22 @@ module Syskit
                 #
                 # The normal workflow does not work in this case, as it is only
                 # looking for tasks whose input connections have been modified
-                tasks.each do |t|
-                    if t.setup? && !t.executable? && t.plan == plan && t.all_inputs_connected?
-                        t.ready_to_start!
-                        scheduler.report_action "all inputs connected, marking as executable", t
-                    end
-                end
+                mark_connected_pending_tasks_as_executable(
+                    tasks.reject(&:executable?))
 
                 if !tasks.empty?
                     if dataflow_graph.pending_changes
-                        pending_tasks = dataflow_graph.pending_changes.first
-                        pending_tasks.delete_if { |t| !active_task?(t) }
-                        tasks.merge(pending_tasks)
+                        dataflow_graph.pending_changes.first.each do |t|
+                            tasks << t if active_task?(t)
+                        end
                     end
+
+                    # Auto-add any Syskit task that has the same underlying
+                    # orocos task, or we might get inconsistencies
+                    tasks = tasks.each_with_object(Set.new) do |t, s|
+                        s.merge(@orocos_task_to_syskit_tasks[t.orocos_task])
+                    end
+                    tasks.delete_if { |t| !active_task?(t) }
 
                     debug do
                         debug "computing data flow update from modified tasks"
@@ -725,4 +726,3 @@ module Syskit
         end
     end
 end
-

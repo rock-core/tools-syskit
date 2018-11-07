@@ -177,10 +177,19 @@ module Syskit
             end
 
             describe "#select_deployments" do
-                attr_reader :task_m, :task
+                attr_reader :task_m, :task, :task_models, :deployments, :deployment_models
                 before do
                     @task_m = Syskit::TaskContext.new_submodel
                     plan.add(@task = task_m.new)
+
+                    @deployment_models = [Syskit::Deployment.new_submodel, Syskit::Deployment.new_submodel]
+                    @task_models = [Syskit::TaskContext.new_submodel, Syskit::TaskContext.new_submodel]
+                    @deployments = Hash[
+                        task_models[0] => [['machine', deployment_models[0], 'task']],
+                        task_models[1] => [['other_machine', deployment_models[1], 'other_task']]
+                    ]
+                    deployment_models[0].orogen_model.task 'task', task_models[0].orogen_model
+                    deployment_models[1].orogen_model.task 'other_task', task_models[1].orogen_model
                 end
 
                 it "selects a deployment returned by #find_suitable_deployment_for" do
@@ -213,6 +222,26 @@ module Syskit
                     assert_equal [Hash[task => deployment], Set[task1]],
                         deployer.select_deployments([task, task1], groups)
                 end
+
+                it "does not allocate the same task twice" do
+                    groups = flexmock
+                    flexmock(deployer).should_receive(:find_suitable_deployment_for).
+                        and_return(deployment = flexmock)
+                    plan.add(task0 = task_models[0].new)
+                    plan.add(task1 = task_models[0].new)
+                    _, missing = deployer.select_deployments([task0, task1], groups)
+                    assert_equal 1, missing.size
+                    assert [task0, task1].include?(missing.first)
+                end
+                it "does not resolve ambiguities by considering already allocated tasks" do
+                    groups = flexmock
+                    flexmock(deployer).should_receive(:find_suitable_deployment_for).
+                        and_return(deployment = flexmock)
+                    plan.add(task0 = task_models[0].new(orocos_name: 'task'))
+                    plan.add(task1 = task_models[0].new)
+                    _, missing = deployer.select_deployments([task0, task1], groups)
+                    assert_equal [task1], missing.to_a
+                end
             end
 
             describe "#find_suitable_deployment_for" do
@@ -220,6 +249,12 @@ module Syskit
                 before do
                     @task_m = Syskit::TaskContext.new_submodel
                     plan.add(@task = task_m.new)
+                end
+
+                subject do
+                    deployer = SystemNetworkDeployer.new(plan)
+                    deployer.task_context_deployment_candidates.merge!(deployments)
+                    deployer
                 end
 
                 it "returns the possible deployment if it is unique" do
@@ -252,26 +287,43 @@ module Syskit
             end
 
             describe "#deploy" do
-                attr_reader :task0_m, :deployment0_m
-                attr_reader :task1_m, :deployment1_m
-                before do
-                    @task0_m = Syskit::TaskContext.new_submodel
-                    @task1_m = Syskit::TaskContext.new_submodel
-                    @deployment0_m = Syskit::Deployment.new_submodel
-                    deployment0_m.orogen_model.task 'task0', task0_m.orogen_model
-                    @deployment1_m = Syskit::Deployment.new_submodel
-                    deployment1_m.orogen_model.task 'task1', task1_m.orogen_model
+                attr_reader :task_models
+                attr_reader :deployment_models
+                attr_reader :deployment_group
 
-                    @deployment_group = Syskit::Models::DeploymentGroup.new
+                before do
+                    @task_models = task_models = [
+                        TaskContext.new_submodel { output_port 'out', '/int32_t' },
+                        TaskContext.new_submodel { input_port 'in', '/int32_t' }
+                    ]
+                    @deployment_models = [
+                        Deployment.new_submodel do
+                            task 'task', task_models[0].orogen_model
+                        end,
+                        Deployment.new_submodel do
+                            task 'other_task', task_models[1].orogen_model
+                        end
+                    ]
+
+                    @deployment_group = Models::DeploymentGroup.new
+                    @deployment_group.register_configured_deployment(
+                        Models::ConfiguredDeployment.new(
+                            'machine', deployment_models[0]))
+                    @deployment_group.register_configured_deployment(
+                        Models::ConfiguredDeployment.new(
+                            'other_machine', deployment_models[1]))
+                    deployer.default_deployment_group = @deployment_group
                 end
 
                 it "applies the known deployments before returning the missing ones" do
-                    plan.add(task0 = task0_m.new)
-                    task0.requirements.use_deployment(deployment0_m)
-                    plan.add(task1 = task1_m.new)
+                    deployer.default_deployment_group = Models::DeploymentGroup.new
+                    plan.add(task0 = task_models[0].new)
+                    task0.requirements.use_deployment(deployment_models[0])
+                    plan.add(task1 = task_models[1].new)
                     assert_equal Set[task1], execute { deployer.deploy(validate: false) }
-                    assert(deployment_task = plan.find_local_tasks(deployment0_m).first)
-                    assert_equal ['task0'], deployment_task.each_executed_task.
+                    deployment_task = plan.find_local_tasks(deployment_models[0]).first
+                    assert deployment_task
+                    assert_equal ['task'], deployment_task.each_executed_task.
                         map(&:orocos_name)
                 end
 
@@ -281,19 +333,51 @@ module Syskit
                 end
 
                 it "creates the necessary deployment task and uses #task to get the deployed task context" do
-                    plan.add(task = task0_m.new)
-                    task.requirements.use_deployment(deployment0_m)
+                    plan.add(root = Roby::Task.new)
+                    root.depends_on(task = task_models[0].new, role: 't')
+                    task.requirements.use_deployment(deployment_models[0])
+                    assert_equal Set.new, execute { deployer.deploy(validate: false) }
+                    refute_equal task, root.t_child
+                    assert_equal 'task', root.t_child.orocos_name
+                    assert_kind_of deployment_models[0], root.t_child.execution_agent
+                end
+                it "copies the connections from the tasks to their deployed counterparts" do
+                    plan.add(task0 = task_models[0].new)
+                    plan.add(task1 = task_models[1].new)
+                    task0.out_port.connect_to task1.in_port
+                    assert_equal Set.new, execute { deployer.deploy(validate: false) }
+                    deployed_task0 = deployer.merge_solver.replacement_for(task0)
+                    deployed_task1 = deployer.merge_solver.replacement_for(task1)
+                    refute_same task0, deployed_task0
+                    refute_same task1, deployed_task1
+                    assert deployed_task0.out_port.connected_to?(deployed_task1.in_port)
+                end
+                it "instanciates the same deployment only once on the same machine" do
+                    task_m = TaskContext.new_submodel
+                    plan.add(root = Roby::Task.new)
+                    root.depends_on(task0 = task_m.new(orocos_name: 't0'), role: 't0')
+                    root.depends_on(task1 = task_m.new(orocos_name: 't1'), role: 't1')
+
+                    deployment_m = Deployment.new_submodel do
+                        task 't0', task_m.orogen_model
+                        task 't1', task_m.orogen_model
+                    end
+
+                    task0.requirements.use_configured_deployment(
+                        Models::ConfiguredDeployment.new('machine', deployment_m))
+                    task1.requirements.use_configured_deployment(
+                        Models::ConfiguredDeployment.new('machine', deployment_m))
+
                     # Create on the right host
-                    flexmock(deployment0_m).should_receive(:new).once.
-                        and_return(deployment_task = flexmock(Roby::Task.new))
-                    # Add it to the work plan
-                    flexmock(plan).should_receive(:add).once.with([deployment_task]).ordered.pass_thru
-                    # Create the task
-                    deployment_task.should_receive(:task).explicitly.
-                        with('task0').and_return(deployed_task = flexmock).ordered
+                    flexmock(deployment_m).should_receive(:new).
+                        with(hsh(on: 'machine')).once.pass_thru
                     # And finally replace the task with the deployed task
-                    merge_solver.should_receive(:apply_merge_group).once.with(task => deployed_task)
-                    deployer.deploy(validate: false)
+                    assert_equal Set.new, execute { deployer.deploy(validate: false) }
+                    refute_equal root.t0_child, task0
+                    refute_equal root.t1_child, task1
+                    assert_kind_of deployment_m, root.t0_child.execution_agent
+                    assert_equal root.t0_child.execution_agent,
+                        root.t1_child.execution_agent
                 end
             end
 

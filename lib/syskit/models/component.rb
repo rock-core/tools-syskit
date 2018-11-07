@@ -242,12 +242,12 @@ module Syskit
                 return srv.as(service_model)
             end
 
-	    # Defined to be compatible, in port mapping code, with the data services
-	    def port_mappings_for_task
-	    	Hash.new { |h,k| k }
-	    end
+            # Defined to be compatible, in port mapping code, with the data services
+            def port_mappings_for_task
+                Hash.new { |h,k| k }
+            end
 
-	    # Defined to be compatible, in port mapping code, with the data services
+            # Defined to be compatible, in port mapping code, with the data services
             def port_mappings_for(model)
                 if model.kind_of?(Class)
                     if fullfills?(model)
@@ -608,14 +608,19 @@ module Syskit
             #   end
             #
             def provides(model, port_mappings = Hash.new, as: nil, slave_of: nil, bound_service_class: BoundDataService)
-                if !model.kind_of?(DataServiceModel)
-                    raise ArgumentError, "expected a data service model as argument and got #{model}"
+                unless model.kind_of?(DataServiceModel)
+                    if model.kind_of?(Roby::Models::TaskServiceModel)
+                        return super(model)
+                    else
+                        raise ArgumentError, "expected a data service model as argument and got #{model}"
+                    end
                 end
 
-                if !as
+                unless as
                     raise ArgumentError, "no service name given, please use the as: option"
-                else name = as.to_str
                 end
+
+                name = as.to_str
                 full_name = name
 
                 if master = slave_of
@@ -762,8 +767,15 @@ module Syskit
 
             def implicit_fullfilled_model
                 if !@implicit_fullfilled_model
+                    has_abstract = false
                     @implicit_fullfilled_model =
-                        super.find_all { |m| !m.respond_to?(:private_specialization?) || !m.private_specialization? }
+                            super.find_all do |m|
+                                has_abstract ||= (m == AbstractComponent)
+                                !m.respond_to?(:private_specialization?) ||
+                                    !m.private_specialization?
+                            end
+                    @implicit_fullfilled_model << AbstractComponent \
+                        unless has_abstract
                 end
                 @implicit_fullfilled_model
             end

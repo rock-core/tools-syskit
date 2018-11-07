@@ -32,6 +32,10 @@ module Syskit
             extend Logger::Hierarchy
             include Logger::Hierarchy
 
+            def initialize
+                reset
+            end
+
             def has_information_for_port?(task, port_name)
                 result.has_key?(task) &&
                     result[task].has_key?(port_name)
@@ -104,13 +108,6 @@ module Syskit
                         return [], false 
                     end
 
-                    predicate =
-                        if mode == USE_PARTIAL
-                            state.method(:has_information_for_port?)
-                        else
-                            state.method(:has_final_information_for_port?)
-                        end
-
                     complete = false
                     candidates = []
                     ports.each do |args|
@@ -153,12 +150,7 @@ module Syskit
                 end
             end
 
-            def propagate(tasks)
-                # Get the periods from the activities themselves directly (i.e.
-                # not taking into account the port-driven behaviour)
-                #
-                # We also precompute relevant connections, as they won't change
-                # during the computation
+            def reset(tasks = Array.new)
                 @result = Hash.new { |h, k| h[k] = Hash.new }
                 # Internal variable that is used to detect whether an iteration
                 # added information
@@ -166,6 +158,11 @@ module Syskit
                 @done_ports = Hash.new { |h, k| h[k] = Set.new }
                 @triggering_connections  = Hash.new { |h, k| h[k] = Hash.new }
                 @triggering_dependencies = Hash.new { |h, k| h[k] = Set.new }
+                @missing_ports = Hash.new
+            end
+
+            def propagate(tasks)
+                reset(tasks)
 
                 debug do
                     debug "#{self.class}: computing on #{tasks.size} tasks"
@@ -309,7 +306,7 @@ module Syskit
             def add_port_info(task, port_name, info)
                 if done_ports[task].include?(port_name)
                     done_at = @done_at[[task, port_name]] if @done_at
-                    raise ModifyingFinalizedPortInfo.new(task, port_name, done_at), "trying to change port information for #{task}.#{port_name} after done_port_info has been called"
+                    raise ModifyingFinalizedPortInfo.new(task, port_name, done_at, self.class.name), "trying to change port information for #{task}.#{port_name} after done_port_info has been called"
                 end
 
                 if !has_information_for_port?(task, port_name)

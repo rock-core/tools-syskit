@@ -209,8 +209,21 @@ module Syskit
                 @task_context_deployment_candidates = nil
             end
 
-            # Declare deployed versions of some Ruby tasks
-            def use_ruby_tasks(mappings, remote_task: false, on: 'ruby_tasks', process_managers: Syskit.conf)
+            # Deploy {RubyTaskContext} models
+            #
+            # @param [Boolean] remote_task when running the task, tell the
+            #   process manager to set it up as if it was a remote task,
+            #   instead of an in-process ruby task. This is used for testing,
+            #   to check for instance that Syskit code does not access blocking
+            #   network calls in the main thread
+            # @param [String] on the name of the process manager that should
+            #   be used
+            # @param process_managers the object that maintains the set of
+            #   process managers
+            # @return [[ConfiguredDeployment]]
+            def use_ruby_tasks(mappings, remote_task: false, on: 'ruby_tasks',
+                    process_managers: Syskit.conf)
+
                 # Verify that the process manager exists
                 process_managers.process_server_config_for(on)
 

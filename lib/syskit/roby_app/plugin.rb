@@ -45,6 +45,8 @@ module Syskit
                 if app.testing?
                     require 'syskit/test'
                 end
+
+                Orocos.disable_sigchld_handler = true
             end
 
             # Hook called by the main application at the beginning of Application#setup
@@ -71,17 +73,21 @@ module Syskit
                     Syskit.conf.logs.disable_port_logging
                 end
 
-                Syskit.conf.logs.create_configuration_log(File.join(app.log_dir, 'properties'))
-                Orocos.disable_sigchld_handler = true
+                unless Syskit.conf.only_load_models?
+                    Syskit.conf.logs.create_configuration_log(
+                        File.join(app.log_dir, 'properties'))
 
-                Syskit.conf.register_process_server(
-                    'ruby_tasks', Orocos::RubyTasks::ProcessManager.new(app.default_loader), app.log_dir, host_id: 'syskit')
+                    Syskit.conf.register_process_server('ruby_tasks',
+                        Orocos::RubyTasks::ProcessManager.new(app.default_loader),
+                        app.log_dir, host_id: 'syskit')
 
-                Syskit.conf.register_process_server(
-                    'unmanaged_tasks', UnmanagedTasksManager.new, app.log_dir)
+                    Syskit.conf.register_process_server(
+                        'unmanaged_tasks', UnmanagedTasksManager.new, app.log_dir)
 
-                Syskit.conf.register_process_server(
-                   'ros', Orocos::ROS::ProcessManager.new(app.ros_loader), app.log_dir)
+                    Syskit.conf.register_process_server(
+                        'ros', Orocos::ROS::ProcessManager.new(app.ros_loader),
+                        app.log_dir)
+                end
 
                 if Orocos.orocos_logfile
                     ENV['ORO_LOGFILE'] = Orocos.orocos_logfile
@@ -292,7 +298,7 @@ module Syskit
                 file = find_file('models', 'orogen', "#{name}.rb", order: :specific_first) ||
                     find_file('tasks', 'orogen', "#{name}.rb", order: :specific_first) ||
                     find_file('tasks', 'components', "#{name}.rb", order: :specific_first)
-                return if !file
+                return unless file
 
                 Roby::Application.info "loading task extension #{file}"
                 if require(file)

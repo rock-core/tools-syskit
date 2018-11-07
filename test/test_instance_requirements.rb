@@ -23,7 +23,7 @@ describe Syskit::InstanceRequirements do
         it "sets the argument" do
             req = Syskit::InstanceRequirements.new([@task_m])
             req.with_arguments(key: 10)
-            task = req.instanciate(plan = Roby::Plan.new)
+            task = req.instanciate(Roby::Plan.new)
             assert_equal 10, task.key
         end
         it "does not issue a deprecation warning for symbol keys" do
@@ -34,7 +34,7 @@ describe Syskit::InstanceRequirements do
             req = Syskit::InstanceRequirements.new([@task_m])
             flexmock(Roby).should_receive(:warn_deprecated).once
             req.with_arguments('key' => 10)
-            task = req.instanciate(plan = Roby::Plan.new)
+            task = req.instanciate(Roby::Plan.new)
             assert_equal 10, task.key
         end
         it "raises if the argument cannot be marshalled under DRoby" do
@@ -263,7 +263,6 @@ describe Syskit::InstanceRequirements do
         end
         it "should return nil if there are no matches" do
             s = Syskit::DataService.new_submodel
-            c = Syskit::Component.new_submodel
             key = Syskit::DataService.new_submodel
             req = Syskit::InstanceRequirements.new([key])
 
@@ -334,7 +333,7 @@ describe Syskit::InstanceRequirements do
         end
         it "should return an empty list as second element if no data services are present" do
             component_model = Syskit::Component.new_submodel
-            assert_equal [],
+            assert_equal [Syskit::AbstractComponent],
                 Syskit::InstanceRequirements.new([component_model]).fullfilled_model[1]
         end
         it "should list the data services as second element" do
@@ -345,7 +344,8 @@ describe Syskit::InstanceRequirements do
                 provides srv2, as: "2"
             end
             ir = Syskit::InstanceRequirements.new([component_model])
-            assert_equal [srv1, srv2, Syskit::DataService].to_set,
+            assert_equal [srv1, srv2, Syskit::DataService,
+                Syskit::AbstractComponent].to_set,
                 ir.fullfilled_model[1].to_set
         end
         it "should return the required arguments as third element" do
@@ -400,7 +400,7 @@ describe Syskit::InstanceRequirements do
 
         it "does not resolve plain models before merging them into Task#requirements" do
             task_m = Syskit::TaskContext.new_submodel
-            plan.add(task = task_m.new)
+            plan.add(task_m.new)
             cmp_m = Syskit::Composition.new_submodel
             cmp_m.add task_m, as: 'test'
             ir = cmp_m.use('test' => task_m)
@@ -563,7 +563,7 @@ describe Syskit::InstanceRequirements do
             @task_m = Syskit::TaskContext.new_submodel
             task_m.provides srv_m, as: 'test'
         end
-        it "should return a planning pattern for itself" do
+        it "returns a planning pattern for itself" do
             ir = Syskit::InstanceRequirements.new([task_m])
             plan.add(task = ir.as_plan)
             assert_kind_of task_m, task
@@ -571,12 +571,26 @@ describe Syskit::InstanceRequirements do
             assert_equal ir, task.planning_task.requirements
         end
 
-        it "should allow to be created from a service selection" do
+        it "can be created from a service selection" do
             ir = Syskit::InstanceRequirements.new([task_m.test_srv])
             plan.add(task = ir.as_plan)
             assert_kind_of task_m, task
             assert task.planning_task
             assert_equal ir, task.planning_task.requirements
+        end
+
+        it "passes arguments to the generated pattern" do
+            @task_m.argument :foo
+            ir = Syskit::InstanceRequirements.new([@task_m])
+            task = ir.as_plan(foo: 10)
+            assert_equal 10, task.planning_task.requirements.arguments[:foo]
+        end
+
+        it "does not modify self when passing arguments" do
+            @task_m.argument :foo
+            ir = Syskit::InstanceRequirements.new([@task_m])
+            ir.as_plan(foo: 10)
+            assert_nil ir.arguments[:foo]
         end
     end
 

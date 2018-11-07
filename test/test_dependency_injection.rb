@@ -419,7 +419,8 @@ class TC_DependencyInjection < Minitest::Test
         c = Component.new_submodel
         c.provides srv0, as: 'srv0'
         c.provides srv1, as: 'srv1'
-        assert_equal(Hash[srv0 => c, srv1 => c, c => c], DependencyInjection.resolve_default_selections(Hash.new, [c]))
+        assert_equal(Hash[srv0 => c, srv1 => c, c => c, Syskit::AbstractComponent => c],
+            DependencyInjection.resolve_default_selections(Hash.new, [c]))
     end
 
     def test_resolve_default_selections_does_not_select_conflicting_defaults
@@ -432,14 +433,16 @@ class TC_DependencyInjection < Minitest::Test
         c1.provides srv0, as: 'srv0'
         c2 = Component.new_submodel
         c2.provides srv0, as: 'srv0'
-        assert_equal(Hash[srv1 => c0, c0 => c0, c1 => c1, c2 => c2], DependencyInjection.resolve_default_selections(Hash.new, [c0, c1, c2]))
+        assert_equal(Hash[srv1 => c0, c0 => c0, c1 => c1, c2 => c2],
+            DependencyInjection.resolve_default_selections(Hash.new, [c0, c1, c2]))
     end
 
     def test_resolve_default_selections_does_not_override_explicit_selections
         srv0 = DataService.new_submodel
         c0 = Component.new_submodel
         c0.provides srv0, as: 'srv0'
-        assert_equal(Hash[srv0 => 'value', c0 => c0], DependencyInjection.resolve_default_selections(Hash[srv0 => 'value'], [c0]))
+        assert_equal(Hash[srv0 => 'value', c0 => c0, Syskit::AbstractComponent => c0],
+            DependencyInjection.resolve_default_selections(Hash[srv0 => 'value'], [c0]))
     end
 
     def test_resolve_default_selections_applies_recursive_selection_before_resolving
@@ -447,7 +450,9 @@ class TC_DependencyInjection < Minitest::Test
         c0 = Component.new_submodel
         c1 = c0.new_submodel
         c1.provides srv0, as: 'srv0'
-        assert_equal(Hash[srv0 => c1, c0 => c1, c1 => c1], DependencyInjection.resolve_default_selections(Hash[c0 => c1], [c0]))
+        expected = Hash[srv0 => c1, c0 => c1, c1 => c1, Syskit::AbstractComponent => c1]
+        assert_equal expected, DependencyInjection.resolve_default_selections(
+            Hash[c0 => c1], [c0])
     end
 
     def test_resolve_default_selections_ignores_services_provided_multiple_times
@@ -456,7 +461,8 @@ class TC_DependencyInjection < Minitest::Test
         c_m.provides srv_m, as: 's0'
         c_m.provides srv_m, as: 's1'
 
-        assert_equal(Hash[c_m => c_m], DependencyInjection.resolve_default_selections(Hash.new, [c_m]))
+        assert_equal Hash[c_m => c_m, Syskit::AbstractComponent => c_m],
+            DependencyInjection.resolve_default_selections(Hash.new, [c_m])
     end
 
     def test_find_name_resolution_plain_name

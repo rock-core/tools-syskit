@@ -20,6 +20,10 @@ module Syskit
                 @logged_ports = Set.new
             end
 
+            def start_only_when_connected?
+                false
+            end
+
             # Wrapper on top of the createLoggingPort operation
             #
             # @param [String] sink_port_name the desired port name on the logger
@@ -129,6 +133,8 @@ module Syskit
                             next
                         elsif t.kind_of?(logger_model)
                             next
+                        elsif !engine.deployed_tasks.include?(t)
+                            next
                         end
 
                         connections = Hash.new
@@ -141,7 +147,6 @@ module Syskit
                         end
                         required_connections << [t, connections]
                     end
-                    next if required_logging_ports.empty?
 
                     if !(logger_task = deployment.logger_task)
                         warn "deployment #{deployment.process_name} has no logger (default logger name would be #{deployment.process_name}_Logger))"
@@ -150,10 +155,18 @@ module Syskit
                     logger_task = work_plan[deployment.logger_task]
 
                     # Disconnect current log connections, we're going to
-                    # reestablish the ones we want later on
-                    if !seen_loggers.include?(logger_task)
-                        logger_task.remove_relations(Syskit::Flows::DataFlow)
+                    # reestablish the ones we want later on. We leave other
+                    # connections as-is
+                    unless seen_loggers.include?(logger_task)
+                        dataflow = work_plan.task_relation_graph_for(Flows::DataFlow)
+                        deployment.each_executed_task do |t|
+                            if engine.deployed_tasks.include?(t)
+                                dataflow.remove_relation(t, logger_task)
+                            end
+                        end
                     end
+
+                    next if required_logging_ports.empty?
 
                     # Make sure that the tasks are started after the logger was
                     # started
@@ -208,5 +221,3 @@ module Syskit
             &LoggerConfigurationSupport.method(:add_logging_to_network))
     end
 end
-
-

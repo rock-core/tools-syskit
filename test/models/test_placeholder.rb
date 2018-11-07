@@ -220,9 +220,21 @@ module Syskit
                     end
                 end
 
+                it "lists AbstractComponent as fullfilled model" do
+                    srv_m = DataService.new_submodel
+                    proxy_m = Placeholder.create_for([srv_m])
+                    assert proxy_m.each_fullfilled_model.to_a.
+                        include?(AbstractComponent)
+                end
+                it "can be found through AbstractComponent" do
+                    srv_m = DataService.new_submodel
+                    proxy_m = Placeholder.create_for([srv_m])
+                    plan.add(task = proxy_m.new)
+                    assert_equal [task], plan.find_local_tasks(AbstractComponent).to_a
+                end
                 it "only fullfills the service models" do
                     proxy_m = Placeholder.create_for([@srv_m])
-                    assert_equal [@srv_m, Syskit::DataService],
+                    assert_equal [@srv_m, Syskit::DataService, Syskit::AbstractComponent],
                         proxy_m.each_fullfilled_model.to_a
                 end
                 it "creates a task model that represents a data service" do

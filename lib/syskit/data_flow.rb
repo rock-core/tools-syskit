@@ -4,7 +4,7 @@ module Syskit
     Flows.relation :DataFlow, child_name: :sink, parent_name: :source, dag: false, weak: true,
         graph: ConnectionGraph
     DataFlow = Flows::DataFlow
-    
+
     # Class out of which the Flows::DataFlow graph object is made
     #
     # see {ConnectionGraph} for a description of the roles of each connection
@@ -315,7 +315,7 @@ module Syskit
             # Connect a set of ports between +self+ and +target_task+.
             #
             # +mappings+ describes the connections. It is a hash of the form
-            #   
+            #
             #   [source_port_name, sink_port_name] => connection_policy
             #
             # where source_port_name is a port of +self+ and sink_port_name a
@@ -471,7 +471,7 @@ module Syskit
                             end
                             break
                         end
-                        return false 
+                        return false
                     end
                 end
                 true
@@ -479,4 +479,3 @@ module Syskit
         end
     end
 end
-

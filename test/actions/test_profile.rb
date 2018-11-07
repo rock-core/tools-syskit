@@ -433,4 +433,50 @@ describe Syskit::Actions::Profile do
             assert_same expected_req, resolved_req
         end
     end
+
+    describe "#from" do
+        it "allows to setup argument forwarding" do
+            task_m = Syskit::TaskContext.new_submodel
+            task_m.argument :arg
+            cmp_m = Syskit::Composition.new_submodel
+            cmp_m.argument :arg
+            cmp_m.add task_m, as: 'test'
+
+            m = Module.new
+            m.profile 'Test' do
+                define 'foo', cmp_m.
+                    use(
+                        'test' => task_m.with_arguments(
+                            arg: from(:parent_task).arg
+                        )
+                    )
+            end
+            cmp = syskit_stub_and_deploy(m::Test.foo_def.with_arguments(arg: 20))
+            assert_equal 20, cmp.test_child.arg
+        end
+    end
+
+    describe "#from_state" do
+        it "allows to setup argument forwarding" do
+            task_m = Syskit::TaskContext.new_submodel
+            task_m.argument :arg
+            cmp_m = Syskit::Composition.new_submodel
+            cmp_m.add task_m, as: 'test'
+
+            state_obj = Roby::StateSpace.new
+            state_obj.arg = 30
+
+            m = Module.new
+            m.profile 'Test' do
+                define 'foo', cmp_m.
+                    use(
+                        'test' => task_m.with_arguments(
+                            arg: from_state(state_obj).arg
+                        )
+                    )
+            end
+            cmp = syskit_stub_and_deploy(m::Test.foo_def)
+            assert_equal 30, cmp.test_child.arg
+        end
+    end
 end
