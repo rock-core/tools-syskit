@@ -22,7 +22,6 @@ require 'syskit/roby_app'
 
 # Models
 require 'metaruby/dsls'
-require 'syskit/custom_require'
 require 'syskit/models/base'
 require 'syskit/models/orogen_base'
 require 'syskit/models/port'
