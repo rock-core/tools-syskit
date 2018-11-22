@@ -295,18 +295,51 @@ module Syskit
             end
         end
 
-        def read_new
-            reader.read_new if reader
+        # Get a sample that has never been read
+        #
+        # Note that as with {#read} and {#clear}, this returns nil
+        # if the output reader is not yet connected.
+        #
+        # @param [Object,nil] sample a Typelib sample of the port's type.
+        #    If provided, the sample will be copied into this object.
+        #    Use this to avoid unnecessary object allocations in known-to-be
+        #    long loops
+        # @return [Object,nil] the sample, or nil if there are no samples
+        #    received on this read that have not already been read
+        def read_new(sample = nil)
+            reader.read_new(sample) if reader
         end
 
-        def read
-            reader.read if reader
+        # Get either a sample that has never been read, or the last read sample
+        #
+        # Note that as with {#read_new} and {#clear}, this returns nil
+        # if the output reader is not yet connected.
+        #
+        # @param [Object,nil] sample a Typelib sample of the port's type.
+        #    If provided, the sample will be copied into this object.
+        #    Use this to avoid unnecessary object allocations in known-to-be
+        #    long loops
+        # @return [Object,nil] the sample, or nil if there are no samples
+        #    received on this read that have not already been read
+        def read(sample = nil)
+            reader.read(sample) if reader
         end
 
+        # Whether the reader may return a new sample
+        #
+        # It is false if it is not yet connected *and/or* the underlying
+        # component is not yet running.
         def ready?
             reader && actual_port.component.running?
         end
 
+        # Whether the reader is connected to the underlying port
+        #
+        # Output readers in Syskit are resolved asynchronously. As such, they
+        # may be created but not yet connected
+        #
+        # When a port is not connected, {#read}, {#read_new} and {#clear}
+        # are no-ops.
         def connected?
             reader && reader.connected?
         end

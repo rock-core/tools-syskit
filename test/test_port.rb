@@ -363,6 +363,110 @@ describe Syskit::OutputReader do
             port_reader.reader.port
     end
 
+    describe "#read_new" do
+        before do
+            @task = syskit_stub_deploy_and_configure(task_m, remote_task: false)
+            @port_reader = @task.out_port.reader
+            @orocos_port = Orocos.allow_blocking_calls do
+                @task.orocos_task.raw_port('out')
+            end
+        end
+        it "returns nil if the reader is not yet connected" do
+            refute @port_reader.connected?
+            assert_nil @port_reader.read_new
+        end
+        describe "without an explicitely-provided sample" do
+            before do
+                syskit_wait_ready(@port_reader)
+            end
+            it "reads new samples" do
+                @orocos_port.write(10)
+                assert_equal 10, @port_reader.read_new
+            end
+            it "returns nil if there are no samples" do
+                assert_nil @port_reader.read_new
+            end
+            it "returns nil if there are no new samples" do
+                @orocos_port.write(10)
+                @port_reader.read_new
+                assert_nil @port_reader.read_new
+            end
+        end
+        describe "with an explicitely-provided sample" do
+            before do
+                syskit_wait_ready(@port_reader)
+                @sample = Typelib.from_ruby(0, @task.out_port.type)
+            end
+            it "reads new samples" do
+                @orocos_port.write(10)
+                assert_equal 10, @port_reader.read_new(@sample)
+                assert_equal 10, @sample.to_ruby
+            end
+            it "returns nil if there are no samples" do
+                assert_nil @port_reader.read_new(@sample)
+                assert_equal 0, @sample.to_ruby
+            end
+            it "returns nil if there are no new samples" do
+                @orocos_port.write(10)
+                @port_reader.read_new(@sample)
+                assert_nil @port_reader.read_new(@sample)
+                assert_equal 10, @sample.to_ruby
+            end
+        end
+    end
+
+    describe "#read" do
+        before do
+            @task = syskit_stub_deploy_and_configure(task_m, remote_task: false)
+            @port_reader = @task.out_port.reader
+            @orocos_port = Orocos.allow_blocking_calls do
+                @task.orocos_task.raw_port('out')
+            end
+        end
+        it "returns nil if the reader is not yet connected" do
+            refute @port_reader.connected?
+            assert_nil @port_reader.read
+        end
+        describe "without an explicitely-provided sample" do
+            before do
+                syskit_wait_ready(@port_reader)
+            end
+            it "reads new samples" do
+                @orocos_port.write(10)
+                assert_equal 10, @port_reader.read
+            end
+            it "returns nil if there are no samples" do
+                assert_nil @port_reader.read
+            end
+            it "returns the last received sample if there are no new samples" do
+                @orocos_port.write(10)
+                @port_reader.read
+                assert_equal 10, @port_reader.read
+            end
+        end
+        describe "with an explicitely-provided sample" do
+            before do
+                syskit_wait_ready(@port_reader)
+                @sample = Typelib.from_ruby(0, @task.out_port.type)
+            end
+            it "reads new samples" do
+                @orocos_port.write(10)
+                assert_equal 10, @port_reader.read(@sample)
+                assert_equal 10, @sample.to_ruby
+            end
+            it "returns nil if there are no samples" do
+                assert_nil @port_reader.read(@sample)
+                assert_equal 0, @sample.to_ruby
+            end
+            it "returns the last received sample if there are no new samples" do
+                @orocos_port.write(10)
+                @port_reader.read
+                assert_equal 10, @port_reader.read(@sample)
+                assert_equal 10, @sample.to_ruby
+            end
+        end
+    end
+
     describe "#disconnect" do
         attr_reader :task, :reader
         before do
