@@ -295,8 +295,8 @@ module Syskit
             end
         end
 
-        def read_new
-            reader.read_new if reader
+        def read_new(sample = nil)
+            reader.read_new(sample) if reader
         end
 
         def read
