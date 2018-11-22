@@ -56,7 +56,7 @@ Syskit::Scripts.run do
         robot_name: Roby.app.robot_name,
         runtime: runtime_mode, tests: test_mode,
         host: options[:host], port: options[:port])
-    main.window_title = "Syskit IDE - #{Roby.app.app_name}"
+    main.window_title = "Syskit #{Roby.app.app_name} #{Roby.app.robot_name} @#{options[:host]}"
 
     main.restore_from_settings
     main.show
