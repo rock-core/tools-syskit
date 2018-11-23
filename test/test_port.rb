@@ -467,6 +467,33 @@ describe Syskit::OutputReader do
         end
     end
 
+    describe "#clear" do
+        before do
+            @task = syskit_stub_deploy_and_configure(task_m, remote_task: false)
+            @port_reader = @task.out_port.reader
+            @orocos_port = Orocos.allow_blocking_calls do
+                @task.orocos_task.raw_port('out')
+            end
+        end
+        it "does nothing if the port is not yet connected" do
+            refute @port_reader.connected?
+            @port_reader.clear
+        end
+        it "removes any newly received sample" do
+            syskit_wait_ready(@port_reader)
+            @orocos_port.write(10)
+            @port_reader.clear
+            assert_nil @port_reader.read
+        end
+        it "removes any already-read sample" do
+            syskit_wait_ready(@port_reader)
+            @orocos_port.write(10)
+            @port_reader.read
+            @port_reader.clear
+            assert_nil @port_reader.read
+        end
+    end
+
     describe "#disconnect" do
         attr_reader :task, :reader
         before do

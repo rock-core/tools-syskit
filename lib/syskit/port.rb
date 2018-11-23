@@ -325,6 +325,17 @@ module Syskit
             reader.read(sample) if reader
         end
 
+        # Clear all samples from the reader
+        #
+        # After this call, {#read} and {#read_new} return nil
+        #
+        # It is a no-op if the port is not yet connected. This makes sense as
+        # new connections are cleared (have no samples) until the writer writes
+        # a new sample
+        def clear
+            reader.clear if reader
+        end
+
         # Whether the reader may return a new sample
         #
         # It is false if it is not yet connected *and/or* the underlying
