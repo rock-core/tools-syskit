@@ -18,61 +18,64 @@ module Syskit
             attr_reader :connection_state
             attr_reader :testing
 
-            def initialize(parent = nil, host: 'localhost', port: Roby::Interface::DEFAULT_PORT, runtime: nil, tests: false, robot_name: 'default')
+            def initialize(parent = nil,
+                runtime_only: false,
+                host: 'localhost', port: Roby::Interface::DEFAULT_PORT, runtime: nil, tests: false, robot_name: 'default')
                 super(parent)
 
                 @layout = Qt::VBoxLayout.new(self)
                 @tab_widget = Qt::TabWidget.new(self)
-                @testing = Testing.new
-                @model_browser = ModelBrowser.new
+                @layout.add_widget tab_widget
                 @robot_name = robot_name
 
-                syskit = Roby::Interface::Async::Interface.new(host, port: port)
-                @btn_reload_models = Qt::PushButton.new("Reload Models", self)
-                @btn_add = Qt::PushButton.new("Add", self)
-                btn_add_menu = Qt::Menu.new
-                btn_add_menu.add_action 'OroGen Project'
-                btn_add_menu.add_action 'OroGen Type'
-                btn_add_menu.add_action 'Model File'
-                btn_add_menu.connect(SIGNAL('triggered(QAction*)')) do |action|
-                    case action.text
-                    when "OroGen Project"
-                        add_orogen_project
-                    when "OroGen Type"
-                        add_orogen_type
-                    when "Model File"
-                        add_model_file
+                unless runtime_only
+                    @testing = Testing.new
+                    @model_browser = ModelBrowser.new
+                    @btn_reload_models = Qt::PushButton.new("Reload Models", self)
+                    @btn_add = Qt::PushButton.new("Add", self)
+                    btn_add_menu = Qt::Menu.new
+                    btn_add_menu.add_action 'OroGen Project'
+                    btn_add_menu.add_action 'OroGen Type'
+                    btn_add_menu.add_action 'Model File'
+                    btn_add_menu.connect(SIGNAL('triggered(QAction*)')) do |action|
+                        case action.text
+                        when "OroGen Project"
+                            add_orogen_project
+                        when "OroGen Type"
+                            add_orogen_type
+                        when "Model File"
+                            add_model_file
+                        end
                     end
+                    @btn_add.menu = btn_add_menu
+
+                    connect(model_browser, SIGNAL('fileOpenClicked(const QUrl&)'),
+                            self, SLOT('fileOpenClicked(const QUrl&)'))
+                    connect(testing, SIGNAL('fileOpenClicked(const QUrl&)'),
+                            self, SLOT('fileOpenClicked(const QUrl&)'))
+
+                    browse_container = Qt::Widget.new
+                    browse_container_layout = Qt::VBoxLayout.new(browse_container)
+                    status_bar = testing.create_status_bar_ui
+                    status_bar.insert_widget(0, @btn_reload_models)
+                    status_bar.insert_widget(1, @btn_add)
+                    browse_container_layout.add_layout(status_bar)
+                    browse_container_layout.add_widget(model_browser)
+                    tab_widget.add_tab browse_container, "Browse"
+                    tab_widget.add_tab testing, "Testing"
+
+                    btn_reload_models.connect(SIGNAL('clicked()')) do
+                        reload_models
+                    end
+                    model_browser.model_selector.filter_box.set_focus(Qt::OtherFocusReason)
                 end
-                @btn_add.menu = btn_add_menu
-
-                connect(model_browser, SIGNAL('fileOpenClicked(const QUrl&)'),
-                        self, SLOT('fileOpenClicked(const QUrl&)'))
-                connect(testing, SIGNAL('fileOpenClicked(const QUrl&)'),
-                        self, SLOT('fileOpenClicked(const QUrl&)'))
-
-                layout.add_widget tab_widget
-                browse_container = Qt::Widget.new
-                browse_container_layout = Qt::VBoxLayout.new(browse_container)
-                status_bar = testing.create_status_bar_ui
-                status_bar.insert_widget(0, @btn_reload_models)
-                status_bar.insert_widget(1, @btn_add)
-                browse_container_layout.add_layout(status_bar)
-                browse_container_layout.add_widget(model_browser)
-                tab_widget.add_tab browse_container, "Browse"
-                tab_widget.add_tab testing, "Testing"
 
                 if runtime != false
+                    syskit = Roby::Interface::Async::Interface.new(host, port: port)
                     create_runtime_state_ui(syskit)
                     runtime_idx = tab_widget.add_tab runtime_state, "Runtime"
                     connect(@runtime_state, SIGNAL('fileOpenClicked(const QUrl&)'),
                             self, SLOT('fileOpenClicked(const QUrl&)'))
-                end
-
-                model_browser.model_selector.filter_box.set_focus(Qt::OtherFocusReason)
-
-                btn_reload_models.connect(SIGNAL('clicked()')) do
-                    reload_models
                 end
 
                 if runtime
@@ -277,6 +280,7 @@ module Syskit
             def restore_from_settings(settings = self.settings)
                 self.size = settings.value("MainWindow/size", Qt::Variant.new(Qt::Size.new(800, 600))).to_size
                 %w{model_browser testing}.each do |child_object_name|
+                    next unless send(child_object_name)
                     settings.begin_group(child_object_name)
                     begin
                         send(child_object_name).restore_from_settings(settings)
@@ -288,6 +292,7 @@ module Syskit
             def save_to_settings(settings = self.settings)
                 settings.set_value("MainWindow/size", Qt::Variant.new(size))
                 %w{model_browser testing}.each do |child_object_name|
+                    next unless send(child_object_name)
                     settings.begin_group(child_object_name)
                     begin
                         send(child_object_name).save_to_settings(settings)

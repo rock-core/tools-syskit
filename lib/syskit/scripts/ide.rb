@@ -5,6 +5,7 @@ require 'vizkit'
 
 load_all = false
 runtime_mode = nil
+runtime_only = false
 test_mode = false
 parser = OptionParser.new do |opt|
     opt.banner = <<-EOD
@@ -27,10 +28,15 @@ Loads the models from this bundle and allows to browse them. If a file is given,
     opt.on '--runtime', 'Start in runtime mode' do
         runtime_mode = true
     end
+
+    opt.on '--runtime-only', 'only show runtime control functionalities' do
+        runtime_mode = true
+        runtime_only = true
+    end
 end
 options = Hash.new
 Roby::Application.host_options(parser, options)
-Roby.app.guess_app_dir
+Roby.app.guess_app_dir unless runtime_only
 Syskit::Scripts.common_options(parser, true)
 remaining = parser.parse(ARGV)
 
@@ -54,6 +60,7 @@ Syskit::Scripts.run do
     Orocos.initialize
     main = Syskit::GUI::IDE.new(
         robot_name: Roby.app.robot_name,
+        runtime_only: runtime_only,
         runtime: runtime_mode, tests: test_mode,
         host: options[:host], port: options[:port])
     main.window_title = "Syskit #{Roby.app.app_name} #{Roby.app.robot_name} @#{options[:host]}"
