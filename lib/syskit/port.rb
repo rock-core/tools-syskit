@@ -303,6 +303,10 @@ module Syskit
             reader.read if reader
         end
 
+        def clear
+            reader.clear if reader
+        end
+
         def ready?
             reader && actual_port.component.running?
         end
