@@ -286,13 +286,13 @@ describe DataService do
     describe "#each_fullfilled_model" do
         it "includes the model itself, the service type and the root models" do
             parent_model = DataService.new_submodel
-            assert_equal [parent_model, DataService], 
+            assert_equal [parent_model, DataService],
                 parent_model.each_fullfilled_model.to_a
         end
         it "includes other service models it provides" do
             parent_model = DataService.new_submodel
             child_model  = DataService.new_submodel { provides parent_model }
-            assert_equal [child_model, parent_model, DataService], 
+            assert_equal [child_model, parent_model, DataService],
                 child_model.each_fullfilled_model.to_a
         end
     end
@@ -321,19 +321,27 @@ describe DataService do
         end
     end
 
-    describe "#resolve" do
+    describe "#bind" do
         it "returns the value of try_resolve is non-nil" do
             srv_m = DataService.new_submodel
             flexmock(srv_m).should_receive(:try_resolve).with(task = flexmock).and_return(obj = flexmock)
-            assert_equal obj, srv_m.resolve(task)
+            assert_equal obj, srv_m.bind(task)
         end
 
         it "raises if try_resolve returns nil" do
             srv_m = DataService.new_submodel
             flexmock(srv_m).should_receive(:try_resolve).with(task = flexmock).and_return(nil)
             assert_raises(ArgumentError) do
-                srv_m.resolve(task)
+                srv_m.bind(task)
             end
+        end
+    end
+
+    describe "#resolve" do
+        it "is an old name for #bind" do
+            srv_m = DataService.new_submodel
+            flexmock(srv_m).should_receive(:bind).with(task = flexmock).and_return(obj = flexmock)
+            assert_equal obj, srv_m.resolve(task)
         end
     end
 
@@ -388,13 +396,13 @@ describe Device do
     describe "#each_fullfilled_model" do
         it "includes the model itself, the service type and the root models" do
             parent_model = Device.new_submodel
-            assert_equal [parent_model, Device, DataService], 
+            assert_equal [parent_model, Device, DataService],
                 parent_model.each_fullfilled_model.to_a
         end
         it "includes other service models it provides" do
             parent_model = Device.new_submodel
             child_model  = Device.new_submodel { provides parent_model }
-            assert_equal [child_model, parent_model, Device, DataService], 
+            assert_equal [child_model, parent_model, Device, DataService],
                 child_model.each_fullfilled_model.to_a
         end
     end
@@ -404,7 +412,6 @@ describe Device do
             device = Device.new_submodel
             task0 = TaskContext.new_submodel { driver_for device, as: 'driver' }
             task1 = TaskContext.new_submodel { driver_for device, as: 'driver' }
-            task2 = TaskContext.new_submodel
             assert_equal [task0, task1].to_set, device.find_all_drivers.to_set
         end
     end
@@ -468,8 +475,8 @@ describe ComBus do
         before do
             @combus_m = ComBus.new_submodel message_type: '/double'
             @driver_m = TaskContext.new_submodel do
-                dynamic_input_port /\w+/, '/double'
-                dynamic_output_port /\w+/, '/double'
+                dynamic_input_port(/\w+/, '/double')
+                dynamic_output_port(/\w+/, '/double')
             end
             flexmock(combus_m).should_receive(:dynamic_service_name).and_return('dyn_srv')
             driver_m.driver_for combus_m, as: 'combus_driver'
@@ -539,7 +546,7 @@ describe ComBus do
         it "includes other service models it provides" do
             parent_model = ComBus.new_submodel message_type: '/int'
             child_model  = ComBus.new_submodel { provides parent_model }
-            assert_equal [child_model, parent_model, ComBus, Device, DataService], 
+            assert_equal [child_model, parent_model, ComBus, Device, DataService],
                 child_model.each_fullfilled_model.to_a
         end
     end

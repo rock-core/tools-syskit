@@ -54,7 +54,7 @@ module Syskit
             #   mappings.
             #
             #   The mapping is of the form
-            #     
+            #
             #     provided_service_model => [provided_service_model_port, port]
             #
             #   @return [Hash<DataServiceModel,Hash<String,String>>] the
@@ -286,6 +286,10 @@ module Syskit
 
             # Resolves a bound data service of this model from the given task
             def resolve(task)
+                bind(task)
+            end
+
+            def bind(task)
                 if task = try_resolve(task)
                     task
                 else
