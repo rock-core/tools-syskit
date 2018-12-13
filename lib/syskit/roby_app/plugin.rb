@@ -76,7 +76,17 @@ module Syskit
                 unless Syskit.conf.only_load_models?
                     Syskit.conf.logs.create_configuration_log(
                         File.join(app.log_dir, 'properties'))
+                end
 
+                if Syskit.conf.define_default_process_managers? && Syskit.conf.only_load_models?
+                    fake_client = Configuration::ModelOnlyServer.new(app.default_loader)
+                    Syskit.conf.register_process_server(
+                        'ruby_tasks', fake_client, app.log_dir, host_id: 'syskit')
+                    Syskit.conf.register_process_server(
+                        'unmanaged_tasks', fake_client, app.log_dir, host_id: 'syskit')
+                    Syskit.conf.register_process_server(
+                        'ros', fake_client, app.log_dir, host_id: 'syskit')
+                elsif Syskit.conf.define_default_process_managers?
                     Syskit.conf.register_process_server('ruby_tasks',
                         Orocos::RubyTasks::ProcessManager.new(app.default_loader),
                         app.log_dir, host_id: 'syskit')
@@ -94,6 +104,7 @@ module Syskit
                 else
                     ENV['ORO_LOGFILE'] = File.join(app.log_dir, "orocos.orocosrb-#{::Process.pid}.txt")
                 end
+
                 if Syskit.conf.only_load_models?
                     Orocos.load
                     if Orocos::ROS.available?
@@ -111,7 +122,9 @@ module Syskit
                     end
                 end
 
-                start_local_process_server = !Syskit.conf.only_load_models? &&
+                start_local_process_server =
+                    Syskit.conf.define_default_process_managers? &&
+                    !Syskit.conf.only_load_models? &&
                     !Syskit.conf.disables_local_process_server? &&
                     !(app.single? && app.simulation?)
 

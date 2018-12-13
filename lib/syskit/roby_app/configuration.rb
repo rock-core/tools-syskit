@@ -75,6 +75,7 @@ module Syskit
                 @reject_ambiguous_deployments = true
                 @only_load_models = nil
                 @disables_local_process_server = false
+                @define_default_process_managers = true
                 @local_only = false
                 @permanent_deployments = true
                 @prefix_blacklist = []
@@ -99,6 +100,24 @@ module Syskit
                 @deployment_group = Models::DeploymentGroup.new
                 @logs = LoggingConfiguration.new
                 @orocos = Roby::OpenStruct.new
+            end
+
+            # Controls whether Syskit sets up its default process managers
+            # (localhost, ruby_tasks, unmanaged_tasks and ros), or leaves
+            # it to the app to set them up
+            #
+            # This is internally used during tests
+            #
+            # @see define_default_process_managers
+            def define_default_process_managers?
+                @define_default_process_managers
+            end
+
+            # (see define_default_process_managers?)
+            #
+            # @see define_default_process_managers?
+            def define_default_process_managers=(value)
+                @define_default_process_managers = value
             end
 
             # @deprecated access {#logs} for logging configuration
@@ -135,7 +154,6 @@ module Syskit
             def exclude_from_log(object, subname = nil)
                 main_group.add(object, subname)
             end
-
 
             # @deprecated access {#logs} for logging configuration
             def enable_log_group(name)
@@ -205,13 +223,27 @@ module Syskit
                 end
             end
 
+            # Controls whether Syskit auto-starts a process server locally
+            #
             # In normal operations, a local proces server called 'localhost' is
             # automatically started on the local machine. If this predicate is
-            # set to true, using self.disables_local_process_server = true), then
-            # this will be disabled
+            # set to true, with Syskit.conf.disables_local_process_server = true,
+            # this server won't be started.
             #
-            # @see connect_to_orocos_process_server Plugin#start_local_process_server
-            attr_predicate :disables_local_process_server?, true
+            # Disable this when the local process server is managed by other
+            # means, or when the machine that runs the Syskit instance is not
+            # the machine that runs the components
+            #
+            # The local process server won't be started if
+            # {#define_default_process_managers?} is explicitely set to false
+            def disables_local_process_server?
+                @disables_local_process_server
+            end
+
+            # (see disables_local_process_server?)
+            def disables_local_process_server=(flag)
+                @disables_local_process_server = flag
+            end
 
             # If set to a non-nil value, the deployment processes will be
             # started with the given prefix

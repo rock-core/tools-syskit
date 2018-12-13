@@ -20,6 +20,8 @@ module Syskit
         end
 
         def setup
+            Syskit.conf.define_default_process_managers = false
+
             if ENV['TEST_ENABLE_COVERAGE'] == '1'
                 null_io = File.open('/dev/null', 'w')
                 current_formatter = Syskit.logger.formatter
