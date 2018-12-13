@@ -537,6 +537,10 @@ module Syskit
                 deployment_group.use_deployment(*names, on: on,
                     process_managers: self, loader: app.default_loader, **run_options)
             end
+
+            def register_configured_deployment(configured_deployment)
+                deployment_group.register_configured_deployment(configured_deployment)
+            end
         end
     end
 end
