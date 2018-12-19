@@ -138,8 +138,15 @@ describe Syskit::Models::BoundDataService do
             srv = task.test_srv
             assert_equal srv, srv_m.bind(task)
         end
-        it" raises ArgumentError if the provided component model is of an invalid type" do
+        it "raises ArgumentError if the provided component model is of an invalid type" do
             assert_raises(ArgumentError) { srv_m.bind(Syskit::TaskContext.new_submodel.new) }
+        end
+        it "is available as #resolve for backward compatibility" do
+            flexmock(Roby).should_receive(:warn_deprecated).
+                with(/resolve/).once
+            task = task_m.new
+            srv = task.test_srv
+            assert_equal srv, srv_m.resolve(task)
         end
 
         describe "behaviour related to placeholder models" do

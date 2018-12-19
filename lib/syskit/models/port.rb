@@ -182,28 +182,28 @@ module Syskit
             end
 
             def to_orocos_port(component)
-                component_model.resolve(component).find_port(name)
+                component_model.bind(component).find_port(name)
             end
 
             def static?
                 orogen_model.static?
             end
-            
+
             def new_sample
                 orogen_model.type.new
             end
-            
+
             def instanciate(plan)
                 bind(component_model.instanciate(plan))
             end
-            
+
             def resolve_data_source(context)
                 if context.kind_of?(Roby::Plan)
                     context.add(context = component_model.as_plan)
                 end
                 bind(context).to_data_source
             end
-            
+
             # @return [Boolean] true if this is an output port, false otherwise.
             #   The default implementation returns false
             def output?; false end
@@ -243,7 +243,7 @@ module Syskit
             def multiplexes?
                 orogen_model.multiplexes?
             end
-            
+
             def bind(component)
                 Syskit::InputPort.new(self, component_model.bind(component))
             end
@@ -254,7 +254,7 @@ module Syskit
 
             def input?; true end
         end
-        
+
         class OutputReader
             attr_reader :port
             attr_reader :policy
@@ -315,7 +315,7 @@ module Syskit
             def instanciate(plan)
                 port.instanciate(plan).writer(policy)
             end
-            
+
             def new_sample
                 port.new_sample
             end
@@ -325,7 +325,7 @@ module Syskit
                     other.port == self.port &&
                     other.policy == self.policy
             end
-        
+
         end
     end
 end

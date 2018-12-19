@@ -478,6 +478,58 @@ describe Syskit::Models::Component do
         end
     end
 
+    describe "#bind" do
+        attr_reader :component_m
+        before do
+            @component_m = Syskit::Component.new_submodel(name: 'component_m')
+        end
+
+        it "returns the object if it fullfills the model" do
+            object = flexmock
+            object.should_receive(:fullfills?).with(component_m).and_return(true)
+            assert_equal object, component_m.bind(object)
+        end
+        it "raises ArgumentError if the object does not fullfill the model" do
+            object = flexmock(to_s: 'object')
+            object.should_receive(:fullfills?).with(component_m).and_return(false)
+            e = assert_raises(ArgumentError) do
+                component_m.bind(object)
+            end
+            assert_equal "cannot bind component_m to object", e.message
+        end
+        it "is available as 'resolve' for backward compatibility" do
+            flexmock(Roby).should_receive(:warn_deprecated).with(/resolve/).once
+            object = flexmock
+            object.should_receive(:fullfills?).with(component_m).and_return(true)
+            assert_equal object, component_m.resolve(object)
+        end
+    end
+
+    describe "#try_bind" do
+        attr_reader :component_m
+        before do
+            @component_m = Syskit::Component.new_submodel(name: 'component_m')
+        end
+
+        it "returns the object if it fullfills the model" do
+            object = flexmock
+            object.should_receive(:fullfills?).with(component_m).and_return(true)
+            assert_equal object, component_m.try_bind(object)
+        end
+        it "returns nil if the object does not fullfill the model" do
+            object = flexmock(to_s: 'object')
+            object.should_receive(:fullfills?).with(component_m).and_return(false)
+            refute component_m.try_bind(object)
+        end
+        it "is available as 'try_resolve' for backward compatibility" do
+            flexmock(Roby).should_receive(:warn_deprecated).with(/try_resolve/).once
+            object = flexmock
+            object.should_receive(:fullfills?).with(component_m).and_return(false)
+            refute component_m.try_resolve(object)
+        end
+    end
+
+
     describe "#self_port_to_component_port" do
         it "should return its argument" do
             stub_t = self.stub_t

@@ -202,16 +202,31 @@ module Syskit
                 result
             end
 
+            # @deprecated use {#bind} instead
+            def resolve(object)
+                Roby.warn_deprecated "#{__method__} is deprecated, use "\
+                    "InstanceRequirements#bind instead"
+                bind(object)
+            end
+
+            # @deprecated use {#try_bind} instead
+            def try_resolve(task)
+                Roby.warn_deprecated "#{__method__} is deprecated, use "\
+                    "InstanceRequirements#try_bind instead"
+                try_bind(task)
+            end
+
+
             # Maps the given task to the underlying model
-            def resolve(task)
-                model.resolve(task)
+            def bind(task)
+                model.bind(task)
             end
 
             # Maps the given task to the underlying model
             #
-            # Unlike {#resolve}, it returns nil if the task cannot be mapped
-            def try_resolve(task)
-                model.try_resolve(task)
+            # Unlike {#bind}, it returns nil if the task cannot be mapped
+            def try_bind(task)
+                model.try_bind(task)
             end
 
             # The component model that is required through this object
@@ -1110,10 +1125,6 @@ module Syskit
                 end
                 dynamics.add_port_period(port_name, period, sample_count)
                 self
-            end
-
-            def bind(object)
-                model.bind(object)
             end
 
             # This module can be used to extend other objects so that instance

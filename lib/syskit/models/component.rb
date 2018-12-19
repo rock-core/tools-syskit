@@ -823,23 +823,41 @@ module Syskit
                 Syskit::InstanceRequirementsTask.subplan(self)
             end
 
-            # Try resolving the given task using this model
             #
-            # @return [nil,Roby::Task] task if it matches +self+, nil otherwise
-            def try_resolve(task)
-                task if task.kind_of?(self)
+            #
+            # @return [nil,Syskit::Component] task if it fullfills self,
+            #   nil otherwise
+            # @see #bind
+            def try_bind(object)
+                object if object.fullfills?(self)
             end
 
-            # Resolves the given task using this model
+            # Return a representation of an instance that is compatible with
+            # self
             #
             # @return [Roby::Task] task if it matches self
             # @raise [ArgumentError] if task does not fullfill self
-            def resolve(task)
-                if task = try_resolve(task)
-                    task
+            # @see #try_bind
+            def bind(object)
+                if component = try_bind(object)
+                    component
                 else
-                    raise ArgumentError, "cannot resolve #{self} into #{component}"
+                    raise ArgumentError, "cannot bind #{self} to #{object}"
                 end
+            end
+
+            # @deprecated use {#bind} instead
+            def resolve(task)
+                Roby.warn_deprecated "#{__method__} is deprecated, use "\
+                    "Models::Component#bind instead"
+                bind(task)
+            end
+
+            # @deprecated use {#try_bind} instead
+            def try_resolve(task)
+                Roby.warn_deprecated "#{__method__} is deprecated, use "\
+                    "Models::Component#try_bind instead"
+                try_bind(task)
             end
 
             # Delegated call from {Port#connected?}
@@ -962,12 +980,6 @@ module Syskit
                 orogen_model.output_ports[name] = port.instanciate(name, type)
                 Syskit::Models.merge_orogen_task_context_models(self.orogen_model, [orogen_model])
                 find_output_port(name)
-            end
-
-            def bind(object)
-                if object.fullfills?(self) then object
-                else raise ArgumentError, "#{object} does not provide #{self}, cannot bind"
-                end
             end
 
             def fullfills?(object)

@@ -59,7 +59,7 @@ module Syskit
             #   mappings.
             #
             #   The mapping is of the form
-            #     
+            #
             #     provided_service_model => [provided_service_model_port, port]
             #
             #   @return [Hash<DataServiceModel,Hash<String,String>>] the
@@ -271,6 +271,13 @@ module Syskit
                 @placeholder_model = Placeholder.for([self])
             end
 
+            # Wether this model represents a placeholder for data services
+            #
+            # @see Placeholder
+            def placeholder?
+                false
+            end
+
             def to_component_model; self end
 
             # Delegated call from {Port#connected?}
@@ -295,21 +302,41 @@ module Syskit
                 pp.text short_name
             end
 
-            # Resolves a bound data service of this model from the given task
-            def try_resolve(task)
+            # Try to bind the data service model on the given task
+            #
+            # @param [Syskit::Component] component
+            # @return [nil,BoundDataService]
+            def try_bind(component)
                 begin
-                    task.find_data_service_from_type(self)
+                    component.find_data_service_from_type(self)
                 rescue AmbiguousServiceSelection
                 end
             end
 
-            # Resolves a bound data service of this model from the given task
-            def resolve(task)
-                if task = try_resolve(task)
-                    task
+            # Binds the data service model on the given task
+            #
+            # @param [Syskit::Component] component
+            # @return [nil,BoundDataService]
+            # @raise [ArgumentError] if the given component has no such data
+            #   service, or if it has more than one
+            def bind(component)
+                if bound = try_bind(component)
+                    bound
                 else
-                    raise ArgumentError, "cannot resolve #{self} into #{task}"
+                    raise ArgumentError, "cannot bind #{self} to #{component}"
                 end
+            end
+
+            # @deprecated use {#try_bind} instead
+            def try_resolve(task)
+                Roby.warn_deprecated "#{__method__} is deprecated, use #try_bind instead"
+                try_bind(task)
+            end
+
+            # @deprecated use {#bind} instead
+            def resolve(task)
+                Roby.warn_deprecated "#{__method__} is deprecated, use #bind instead"
+                bind(task)
             end
 
             def to_dot(io)

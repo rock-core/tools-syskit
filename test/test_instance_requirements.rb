@@ -704,4 +704,62 @@ describe Syskit::InstanceRequirements do
             assert_droby_compatible(Syskit::InstanceRequirements.new)
         end
     end
+
+    describe "#bind" do
+        before do
+            @srv_m = Syskit::DataService.new_submodel
+            @task_m = Syskit::TaskContext.new_submodel
+            @task_m.provides @srv_m, as: 'test'
+            @ir = Syskit::InstanceRequirements.new([@srv_m])
+        end
+        it "binds the task to the model" do
+            # TODO: this is not coherent. The value returned by #bind
+            # does not match what other
+            #
+            # However, since #bind is used for the return value of
+            # InstanceRequirements#instanciate, changing this would have
+            # far-reaching consequences that I can't deal with right now
+            #
+            # I elected to keep the old behavior until I have the time
+            # to dig into it
+            task = @task_m.new
+            assert_equal task, @ir.bind(task)
+        end
+        it "raises if the task can't be bound" do
+            task = Syskit::TaskContext.new_submodel
+            assert_raises(ArgumentError) do
+                @ir.bind(task)
+            end
+        end
+        it "is available as resolve for backward-compatibility" do
+            flexmock(Roby).should_receive(:warn_deprecated).
+                with(/resolve.*bind/).once
+            task = @task_m.new
+            assert_equal task, @ir.resolve(task)
+        end
+    end
+
+    describe "#try_bind" do
+        before do
+            @srv_m = Syskit::DataService.new_submodel
+            @task_m = Syskit::TaskContext.new_submodel
+            @task_m.provides @srv_m, as: 'test'
+            @ir = Syskit::InstanceRequirements.new([@srv_m])
+        end
+        it "binds the task to the model" do
+            # See comment for #bind
+            task = @task_m.new
+            assert_equal task, @ir.try_bind(task)
+        end
+        it "returns nil if the task can't be bound" do
+            task = Syskit::TaskContext.new_submodel
+            assert_nil @ir.try_bind(task)
+        end
+        it "is available as resolve for backward-compatibility" do
+            flexmock(Roby).should_receive(:warn_deprecated).
+                with(/try_resolve.*try_bind/).once
+            task = @task_m.new
+            assert_equal task, @ir.try_resolve(task)
+        end
+    end
 end
