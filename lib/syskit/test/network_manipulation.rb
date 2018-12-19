@@ -12,13 +12,16 @@ module Syskit
             attr_predicate :syskit_stub_resolves_remote_tasks?, true
 
             def setup
-                @__test_created_deployments = Array.new
                 @__test_overriden_configurations = Array.new
                 @__test_deployment_group = Models::DeploymentGroup.new
+                @__orocos_writers = Array.new
                 super
             end
 
             def teardown
+                @__orocos_writers.each do |w|
+                    w.disconnect
+                end
                 super
                 @__test_overriden_configurations.each do |model, manager|
                     model.configuration_manager = manager
@@ -33,16 +36,42 @@ module Syskit
                 @__test_overriden_configurations << [model, manager]
             end
 
-            def use_deployment(*args)
-                @__test_deployment_group.use_deployment(*args)
+            def use_deployment(*args, **options)
+                @__test_deployment_group.use_deployment(*args, **options)
             end
 
-            def use_ruby_tasks(*args)
-                @__test_deployment_group.use_ruby_tasks(*args)
+            def use_ruby_tasks(*args, **options)
+                @__test_deployment_group.use_ruby_tasks(*args, **options)
             end
 
-            def use_unmanaged_task(*args)
-                @__test_deployment_group.use_unmanaged_task(*args)
+            def use_unmanaged_task(*args, **options)
+                @__test_deployment_group.use_unmanaged_task(*args, **options)
+            end
+
+            # @api private
+            #
+            # Helper used to resolve writer objects
+            def resolve_orocos_writer(writer)
+                if writer.respond_to?(:to_orocos_port)
+                    writer = Orocos.allow_blocking_calls do
+                        writer.to_orocos_port
+                    end
+                end
+                if !writer.respond_to?(:read_new)
+                    if writer.respond_to?(:writer)
+                        writer = Orocos.allow_blocking_calls do
+                            writer.writer
+                        end
+                    end
+                end
+                writer
+            end
+
+            # Write a sample on a given input port
+            def syskit_write(writer, sample)
+                writer = resolve_orocos_writer(writer)
+                @__orocos_writers << writer
+                writer.write(sample)
             end
 
             def normalize_instanciation_models(to_instanciate)
