@@ -58,12 +58,14 @@ module Syskit
                         writer.to_orocos_port
                     end
                 end
-                if !writer.respond_to?(:read_new)
-                    if writer.respond_to?(:writer)
-                        writer = Orocos.allow_blocking_calls do
-                            writer.writer
-                        end
+                # We can write on LocalInputPort, LocalOutputPort and InputPort
+                if writer.respond_to?(:writer)
+                    writer = Orocos.allow_blocking_calls do
+                        writer.writer
                     end
+                elsif !writer.respond_to?(:write)
+                    raise ArgumentError, "#{writer} does not seem to be a port "\
+                        "one can write on"
                 end
                 writer
             end
@@ -71,7 +73,7 @@ module Syskit
             # Write a sample on a given input port
             def syskit_write(writer, sample)
                 writer = resolve_orocos_writer(writer)
-                @__orocos_writers << writer
+                @__orocos_writers << writer if writer.respond_to?(:disconnect)
                 writer.write(sample)
             end
 
