@@ -25,9 +25,9 @@ module Syskit
                     syskit_stub_deployment_model(nil, process_name) do
                         task process_name, task_context_m.orogen_model
                     end
+                else
+                    use_deployment(task_context_m => 'task_under_test').first
                 end
-
-                use_deployment(task_context_m => 'task_under_test').first
             end
 
             # Returns the task model under test
