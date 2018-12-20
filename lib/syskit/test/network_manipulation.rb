@@ -494,6 +494,37 @@ module Syskit
                 end
             end
 
+            class CannotStub < RuntimeError
+                def initialize(original, stub)
+                    @original = original
+                    @stub = stub
+                    @semantic_merge_blockers = @original.arguments.
+                        semantic_merge_blockers(@stub.arguments)
+                end
+
+                def pretty_print(pp)
+                    pp.text "cannot stub "
+                    @original.pretty_print(pp)
+
+                    pp.breakable
+                    if @semantic_merge_blockers.empty?
+                        pp.text "The reason is unknown. Consider this a Syskit bug"
+                        return
+                    end
+
+                    pp.text "The following delayed arguments should be made available"
+                    pp.nest(2) do
+                        @semantic_merge_blockers.each do |name, (arg, _)|
+                            pp.breakable
+                            pp.text "#{name} "
+                            pp.nest(2) do
+                                arg.pretty_print(pp)
+                            end
+                        end
+                    end
+                end
+            end
+
             # Stub an already existing network
             def syskit_stub_network(root_tasks, remote_task: self.syskit_stub_resolves_remote_tasks?)
                 tasks = Set.new
@@ -556,6 +587,11 @@ module Syskit
                         end
                     end
                     merge_mappings.each do |original, replacement|
+                        unless original.can_merge?(replacement)
+                            raise CannotStub.new(original, replacement),
+                                "cannot stub #{original} with #{replacement}, maybe "\
+                                "some delayed arguments are not set ?"
+                        end
                         merge_solver.apply_merge_group(original => replacement)
                     end
                     merge_solver.merge_identical_tasks
@@ -568,6 +604,11 @@ module Syskit
                         end
                     end
                     merge_mappings.each do |original, replacement|
+                        unless original.can_merge?(replacement)
+                            raise CannotStub.new(original, replacement),
+                                "cannot stub #{original} with #{replacement}, maybe "\
+                                "some delayed arguments are not set ?"
+                        end
                         merge_solver.apply_merge_group(original => replacement)
                     end
 
