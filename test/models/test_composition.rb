@@ -667,6 +667,55 @@ describe Syskit::Models::Composition do
         end
     end
 
+    describe "child definitions" do
+        it "injects children tasks into children compositions using child objects" do
+            srv_m = Syskit::DataService.new_submodel
+            in_task_m = Syskit::TaskContext.new_submodel
+            task_m = Syskit::TaskContext.new_submodel do
+                provides srv_m, as: 'test'
+            end
+
+            child_cmp_m = Syskit::Composition.new_submodel do
+                add srv_m, as: 'test'
+            end
+            cmp_m = Syskit::Composition.new_submodel do
+                add task_m, as: 'test'
+                add(child_cmp_m, as: 'child').
+                    use('test' => test_child)
+            end
+            cmp = cmp_m.use('test' => task_m).instanciate(plan)
+            assert_same cmp.test_child, cmp.child_child.test_child
+        end
+
+        # This is a very specific test because it is a regression test
+        # The existence of connections is what triggers the bug
+        it "(regression) injects children tasks into children compositions using "\
+            "child objects within overloaded models, and with existing connections" do
+            srv_m = Syskit::DataService.new_submodel { output_port 'out', '/double' }
+            task_m = Syskit::TaskContext.new_submodel do
+                output_port 'out', '/double'
+                provides srv_m, as: 'test'
+            end
+            in_task_m = Syskit::TaskContext.new_submodel { input_port 'in', '/double' }
+
+            provider_cmp_m = Syskit::Composition.new_submodel do
+                add in_task_m, as: 'in'
+                add srv_m, as: 'test'
+                export in_child.in_port
+            end
+            cmp_m = Syskit::Composition.new_submodel do
+                add task_m, as: 'test'
+                add provider_cmp_m, as: 'child'
+                test_child.connect_to child_child
+            end
+            sub_cmp_m = cmp_m.new_submodel do
+                overload 'child', provider_cmp_m.use('test' => test_child)
+            end
+            cmp = sub_cmp_m.use('test' => task_m).instanciate(plan)
+            assert_same cmp.test_child, cmp.child_child.test_child
+        end
+    end
+
     describe "composition submodels" do
         describe "port mappings" do
             it "is applied on exported ports" do
