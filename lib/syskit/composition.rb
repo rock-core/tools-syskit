@@ -117,7 +117,7 @@ module Syskit
             # @return [Syskit::Port] the actuar orocos port with the given name
             # @raises [ArgumentError] if the port does not exist
             def port_by_name(name)
-                if p = find_input_port(name) || find_output_port(name) 
+                if p = find_input_port(name) || find_output_port(name)
                     p
                 else raise ArgumentError, "#{self} has no port called #{name}, known ports are: #{each_port.map(&:name).sort.join(", ")}"
                 end
@@ -206,7 +206,7 @@ module Syskit
             # the underlying Orocos components connections.
             def dataflow_change_handler(ignore_missing_child, child, mappings) # :nodoc:
                 # The case where 'child' is already a task context is already
-                # taken care of by 
+                # taken care of by
                 mappings.each_key do |source_port, sink_port|
                     component =
                         begin find_port(source_port).to_actual_port.component
@@ -236,10 +236,16 @@ module Syskit
                 if dataflow_graph.has_edge?(self, child)
                     # This one is harder, we need to explicitely add the sources
                     # because none of the other triggers will work
-                    dataflow_graph.edge_info(self, child).each_key do |self_port_name, _|
-                        self_port = find_input_port(self_port_name)
-                        self_port.each_concrete_connection do |source_port|
-                            dataflow_graph.modified_tasks << source_port.component
+                    #
+                    # Note that merging and dependency injection can cause a child
+                    # to have a non-forwarding connection to the composition. We
+                    # can't assume that the edges from self to child are all forwarding
+                    # (input-to-input)
+                    dataflow_graph.edge_info(self, child).each_key do |self_port_name, child_port_name|
+                        if (self_port = find_input_port(self_port_name))
+                            self_port.each_concrete_connection do |source_port|
+                                dataflow_graph.modified_tasks << source_port.component
+                            end
                         end
                     end
                 end
