@@ -44,48 +44,133 @@ module Syskit
                     super
             end
 
-            # Tries to resolve the task that corresponds to self, assuming that
-            # the child's parent is the given task
-            #
-            # @return [nil,Roby::Task]
+            # @deprecated use {#try_resolve_and_bind_child} instead
             def try_resolve_child(task)
-                if task = composition_model.try_resolve(task)
-                    return task.find_required_composition_child_from_role(child_name, composition_model)
-                end
+                Roby.warn_deprecated "#{__method__} is deprecated, use "\
+                    "CompositionChild#try_resolve_and_bind_child instead"
+                try_resolve_and_bind_child(task)
+            end
+
+            # @deprecated use {#try_resolve_and_bind_child_recursive} instead
+            def try_resolve_child_recursive(root)
+                Roby.warn_deprecated "#{__method__} is deprecated, use "\
+                    "CompositionChild#try_resolve_and_bind_child_recursive instead"
+                try_resolve_and_bind_child_recursive(root)
+            end
+
+            # @deprecated use {#resolve_and_bind_child} instead
+            def resolve_child(task)
+                Roby.warn_deprecated "#{__method__} is deprecated, "\
+                    "use #resolve_and_bind_child instead"
+                resolve_and_bind_child(task)
             end
 
             # Tries to resolve the task that corresponds to self starting the
             # resolution at the given root
             #
-            # If this child's parent is not itself a CompositionChild, this is
-            # equivalent to {#try_resolve_child}.
+            # If {#composition_model} is not itself a CompositionChild, this is
+            # equivalent to {#try_resolve_and_bind_child}. Otherwise, it
+            # resolves the children one by one starting at the given root.
             #
-            # Otherwise, it resolves the children one by one starting at the
-            # given root
-            #
-            # @return [nil,Roby::Task]
-            def try_resolve_child_recursive(root)
-                if composition_model.respond_to?(:try_resolve_child_recursive)
-                    if resolved_parent = composition_model.try_resolve_child_recursive(root)
-                        try_resolve_child(resolved_parent)
-                    end
+            # @return [nil,Object]
+            def try_resolve_and_bind_child_recursive(root)
+                # Handle a composition child of a composition child
+                if composition_model.respond_to?(:try_resolve_and_bind_child_recursive)
+                    resolved_parent = composition_model.
+                        try_resolve_and_bind_child_recursive(root)
+
+                    try_resolve_and_bind_child(resolved_parent) if resolved_parent
                 else
-                    try_resolve_child(root)
+                    try_resolve_and_bind_child(root)
                 end
             end
 
-            # Resolves the task that corresponds to self, using +task+ as
-            # the root composition
+            # Resolves the task that corresponds to self starting the
+            # resolution at the given root
+            #
+            # If {#composition_model} is not itself a CompositionChild, this is
+            # equivalent to {#resolve_and_bind_child}. Otherwise, it
+            # resolves the children one by one starting at the given root.
+            #
+            # @return [Object]
+            # @raise [ArgumentError] if the root is not suitable for the resolution
+            #   (e.g. wrong model or missing children)
+            def resolve_and_bind_child_recursive(root)
+                if bound = try_resolve_and_bind_child_recursive(root)
+                    bound
+                else
+                    raise ArgumentError, "cannot resolve #{self} from #{root}"
+                end
+            end
+
+            # Resolves the instance that matches self in the given composition
+            #
+            # The method binds the instance to self with {#bind}. This means
+            # that the returned value offers the interface that {#model} expects,
+            # and not necessarily the one of the actual instance.
+            #
+            # For instance, if self represents a data service, it will return
+            # the corresponding {Syskit::BoundDataService}
+            #
+            # @param [Syskit::Composition] composition the composition instance
+            #   whose child we are trying to resolve
+            # @return [nil,Object] the bound children instance, or
+            #   nil if it cannot be resolved
+            def try_resolve_and_bind_child(composition)
+                if bound = composition_model.try_bind(composition)
+                    bound.find_required_composition_child_from_role(
+                        child_name, composition_model)
+                end
+            end
+
+            # Resolves the task instance that corresponds to self, using +task+
+            # as the root composition. The returned instance is bound to self.
             #
             # @return [Roby::Task]
             # @raise [ArgumentError] if task does not fullfill the required
             #   composition model, or if it does not have the required children
-            def resolve_child(task)
-                if resolved_task = try_resolve_child(task)
-                    return resolved_task
+            #
+            # @see InstanceRequirements#bind
+            def resolve_and_bind_child(task)
+                if resolved_task = try_resolve_and_bind_child(task)
+                    resolved_task
                 else
                     raise ArgumentError, "cannot find #{self} from #{task}"
                 end
+            end
+
+            # Binds this child model to the component
+            #
+            # Within Syskit, binding a model to an instance means returning a
+            # 'view' of the instance that is described by the model. For
+            # instance, if the child is defined by a service, the returned
+            # object will be a {Syskit::BoundDataService} instance, which
+            # then allows to for instance resolve ports "as if" they were
+            # from the service itself.
+            #
+            # @param [Syskit::Component] component the component instance
+            # @return [Syskit::Component,Syskit::BoundDataService] the bound
+            #   data service.
+            # @raise if self cannot be bound to the component, usually because
+            #   the component is not the "right" child from the composition
+            def bind(component)
+                compositions = component.each_parent_task.
+                    find_all { |t| t.fullfills?(composition_model) }
+                parent = compositions.
+                    find { |t| component == t.find_child_from_role(child_name) }
+
+                unless parent
+                    if compositions.empty?
+                        raise ArgumentError, "cannot bind #{self} to #{component}: "\
+                            "it is not the child of any #{composition_model} composition"
+                    else
+                        raise ArgumentError, "cannot bind #{self} to #{component}: "\
+                            "it is the child of one or more #{composition_model} compositions, "\
+                            "but not with the role '#{child_name}'"
+                    end
+                end
+
+                resolve_and_bind_child(composition_model.bind(parent))
             end
 
             # The port mappings from this child's parent model to this model
@@ -182,12 +267,6 @@ module Syskit
                 result = dup
                 result.instance_variable_set :@composition_model, composition_model
                 result
-            end
-
-            def bind(component)
-                composition = composition_model.bind(component.parent_task)
-                composition.find_required_composition_child_from_role(
-                    child_name, composition_model.to_component_model)
             end
 
             def to_instance_requirements

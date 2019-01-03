@@ -852,7 +852,7 @@ module Syskit
                 # self, and if it is the case, make sure it is available
                 selected_child.map_use_selections! do |sel|
                     if sel.kind_of?(CompositionChild)
-                        if task = sel.try_resolve_child_recursive(self_task)
+                        if task = sel.try_resolve_and_bind_child_recursive(self_task)
                             task
                         else return
                         end

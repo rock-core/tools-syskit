@@ -286,54 +286,67 @@ describe DataService do
     describe "#each_fullfilled_model" do
         it "includes the model itself, the service type and the root models" do
             parent_model = DataService.new_submodel
-            assert_equal [parent_model, DataService], 
+            assert_equal [parent_model, DataService],
                 parent_model.each_fullfilled_model.to_a
         end
         it "includes other service models it provides" do
             parent_model = DataService.new_submodel
             child_model  = DataService.new_submodel { provides parent_model }
-            assert_equal [child_model, parent_model, DataService], 
+            assert_equal [child_model, parent_model, DataService],
                 child_model.each_fullfilled_model.to_a
         end
     end
 
-    describe "#try_resolve" do
+    describe "#try_bind" do
+        before do
+            @srv_m = DataService.new_submodel
+            @task_m = Component.new_submodel
+        end
         it "returns a non-ambiguous bound service if there is one" do
-            srv_m = DataService.new_submodel
-            task_m = Component.new_submodel
-            task_m.provides srv_m, as: 'test'
-            plan.add(task = task_m.new)
-            assert_equal task.test_srv, srv_m.try_resolve(task)
+            @task_m.provides @srv_m, as: 'test'
+            plan.add(task = @task_m.new)
+            assert_equal task.test_srv, @srv_m.try_bind(task)
         end
         it "returns nil on ambiguities" do
-            srv_m = DataService.new_submodel
-            task_m = Component.new_submodel
-            task_m.provides srv_m, as: 'test1'
-            task_m.provides srv_m, as: 'test2'
-            plan.add(task = task_m.new)
-            assert !srv_m.try_resolve(task)
+            @task_m.provides @srv_m, as: 'test1'
+            @task_m.provides @srv_m, as: 'test2'
+            plan.add(task = @task_m.new)
+            assert_nil @srv_m.try_bind(task)
         end
         it "returns nil if no service matches" do
+            plan.add(task = @task_m.new)
+            assert_nil @srv_m.try_bind(task)
+        end
+        it "is available as #try_resolve for backward compatibility" do
+            flexmock(Roby).should_receive(:warn_deprecated).with(/try_resolve/).once
+            @task_m.provides @srv_m, as: 'test'
+            plan.add(task = @task_m.new)
+            assert_equal task.test_srv, @srv_m.try_resolve(task)
+        end
+    end
+
+    describe "#bind" do
+        it "returns the value of try_bind is non-nil" do
             srv_m = DataService.new_submodel
-            task_m = Component.new_submodel
-            plan.add(task = task_m.new)
-            assert !srv_m.try_resolve(task)
+            flexmock(srv_m).should_receive(:try_bind).with(task = flexmock).and_return(obj = flexmock)
+            assert_equal obj, srv_m.bind(task)
+        end
+
+        it "raises if try_bind returns nil" do
+            srv_m = DataService.new_submodel
+            flexmock(srv_m).should_receive(:try_bind).with(task = flexmock).and_return(nil)
+            assert_raises(ArgumentError) do
+                srv_m.bind(task)
+            end
         end
     end
 
     describe "#resolve" do
-        it "returns the value of try_resolve is non-nil" do
+        it "is an old name for #bind" do
+            flexmock(Roby).should_receive(:warn_deprecated).with(/resolve/).once
             srv_m = DataService.new_submodel
-            flexmock(srv_m).should_receive(:try_resolve).with(task = flexmock).and_return(obj = flexmock)
+            flexmock(srv_m).should_receive(:bind).with(task = flexmock).and_return(obj = flexmock)
             assert_equal obj, srv_m.resolve(task)
-        end
-
-        it "raises if try_resolve returns nil" do
-            srv_m = DataService.new_submodel
-            flexmock(srv_m).should_receive(:try_resolve).with(task = flexmock).and_return(nil)
-            assert_raises(ArgumentError) do
-                srv_m.resolve(task)
-            end
         end
     end
 
@@ -388,13 +401,13 @@ describe Device do
     describe "#each_fullfilled_model" do
         it "includes the model itself, the service type and the root models" do
             parent_model = Device.new_submodel
-            assert_equal [parent_model, Device, DataService], 
+            assert_equal [parent_model, Device, DataService],
                 parent_model.each_fullfilled_model.to_a
         end
         it "includes other service models it provides" do
             parent_model = Device.new_submodel
             child_model  = Device.new_submodel { provides parent_model }
-            assert_equal [child_model, parent_model, Device, DataService], 
+            assert_equal [child_model, parent_model, Device, DataService],
                 child_model.each_fullfilled_model.to_a
         end
     end
@@ -404,7 +417,6 @@ describe Device do
             device = Device.new_submodel
             task0 = TaskContext.new_submodel { driver_for device, as: 'driver' }
             task1 = TaskContext.new_submodel { driver_for device, as: 'driver' }
-            task2 = TaskContext.new_submodel
             assert_equal [task0, task1].to_set, device.find_all_drivers.to_set
         end
     end
@@ -468,8 +480,8 @@ describe ComBus do
         before do
             @combus_m = ComBus.new_submodel message_type: '/double'
             @driver_m = TaskContext.new_submodel do
-                dynamic_input_port /\w+/, '/double'
-                dynamic_output_port /\w+/, '/double'
+                dynamic_input_port(/\w+/, '/double')
+                dynamic_output_port(/\w+/, '/double')
             end
             flexmock(combus_m).should_receive(:dynamic_service_name).and_return('dyn_srv')
             driver_m.driver_for combus_m, as: 'combus_driver'
@@ -539,7 +551,7 @@ describe ComBus do
         it "includes other service models it provides" do
             parent_model = ComBus.new_submodel message_type: '/int'
             child_model  = ComBus.new_submodel { provides parent_model }
-            assert_equal [child_model, parent_model, ComBus, Device, DataService], 
+            assert_equal [child_model, parent_model, ComBus, Device, DataService],
                 child_model.each_fullfilled_model.to_a
         end
     end
