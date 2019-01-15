@@ -3,7 +3,7 @@ require './test/fixtures/simple_composition_model'
 
 describe Syskit::Composition do
     include Syskit::Fixtures::SimpleCompositionModel
-    
+
     describe "#find_required_composition_child_from_role" do
         attr_reader :composition_m, :base_srv_m, :srv_m, :task_m
         before do
@@ -122,7 +122,7 @@ describe Syskit::Composition do
                 end
             end
         end
-        
+
         describe "a provided service" do
             before do
                 cmp_m = Syskit::Composition.new_submodel(name: "Cmp")
@@ -185,12 +185,12 @@ describe Syskit::Composition do
                 provides srv_m, as: 'test'
             end
             cmp_m.specialize cmp_m.test_child => task_m
-            
+
             cmp = cmp_m.use(task_m).instanciate(plan)
             assert_equal cmp.test_child.out_port, cmp_m.test_child.srv_out_port.bind(cmp.test_child).to_actual_port
         end
     end
-    
+
     describe "handling of connection modifications" do
         attr_reader :task_m, :child_cmp_m, :cmp_m, :cmp, :task, :dataflow_graph
         before do
@@ -218,14 +218,14 @@ describe Syskit::Composition do
             cmp.out_port.connect_to task.in_port
             assert_equal [cmp.test_child.test_child], dataflow_graph.modified_tasks.to_a
         end
-        
+
         it "registers concrete components which got a removed connection due to a forwarded port" do
             cmp.out_port.connect_to task.in_port
             dataflow_graph.modified_tasks.clear
             cmp.out_port.disconnect_from task.in_port
             assert_equal [cmp.test_child.test_child], dataflow_graph.modified_tasks.to_a
         end
-        
+
         it "generates an error if adding a connection involving a non-existent child" do
             cmp.remove_child cmp.test_child
             assert_raises(Roby::NoSuchChild) do
@@ -256,6 +256,32 @@ describe Syskit::Composition do
             dataflow_graph.modified_tasks.clear
             cmp.remove_child cmp.test_child
             assert_equal Set[task, grandchild], dataflow_graph.modified_tasks.to_set
+        end
+        it "handles a child that is connected to the composition through "\
+            "a non-forwarding connection" do
+            provider_srv_m = Syskit::DataService.new_submodel do
+                output_port 'out', '/double'
+            end
+            provider_m = Syskit::TaskContext.new_submodel do
+                input_port 'in', '/double'
+                output_port 'out', '/double'
+                provides provider_srv_m, as: 'test'
+            end
+            cmp_m = Syskit::Composition.new_submodel do
+                add provider_srv_m, as: 'provider'
+                add provider_m, as: 'processor'
+                provider_child.connect_to processor_child
+                export processor_child.out_port
+                provides provider_srv_m, as: 'exported'
+            end
+            root_cmp_m = Syskit::Composition.new_submodel do
+                add provider_m, as: 'provider'
+                add cmp_m.use('provider' => provider_child.dup), as: 'source'
+                source_child.connect_to provider_child
+            end
+            root_cmp = root_cmp_m.instanciate(plan)
+            root_cmp.source_child.remove_child(
+                root_cmp.source_child.provider_child)
         end
         it "registers both the child and its sources  when a grandchild is removed" do
             task.out_port.connect_to cmp.in_port

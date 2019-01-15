@@ -39,6 +39,12 @@ module Syskit
                 @overload_info = nil
             end
 
+            def freeze
+                # Precompute memoized values, or we'll get a frozen error
+                overload_info
+                super
+            end
+
             def eql?(other)
                 other.respond_to?(:child_name) && other.child_name == child_name &&
                     super
