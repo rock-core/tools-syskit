@@ -291,7 +291,7 @@ module Syskit
                 elsif task.fullfills?(component_model)
                     # Fullfills, but does not inherit ? component_model may be
                     # a data service proxies
-                    if component_model.placeholder_task?
+                    if component_model.placeholder?
                         base_model = component_model.superclass
                         if base_model_srv = base_model.find_data_service(name)
                             # The data service is from a concrete task model

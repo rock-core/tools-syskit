@@ -58,8 +58,8 @@ module Syskit
                 end
                 def each_submodel(model)
                     super do |m|
-                        yield(m) if !m.respond_to?(:placeholder_task?) ||
-                            !m.placeholder_task?
+                        yield(m) if !m.respond_to?(:placeholder?) ||
+                            !m.placeholder?
                     end
                 end
             end

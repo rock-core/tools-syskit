@@ -27,6 +27,12 @@ module Syskit
         #   override each other. Otherwise, that would generate an error
         # @return [void]
         def apply(syskit_task, conf: syskit_task.conf, override: false)
+            syskit_task.properties.each do |p|
+                if (existing = p.value)
+                    existing.apply_changes_from_converted_types
+                    existing.invalidate_changes_from_converted_types
+                end
+            end
             super(syskit_task, conf, override)
         end
 

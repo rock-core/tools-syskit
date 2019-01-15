@@ -16,8 +16,7 @@ module Syskit
             #   rebound
             # @return [Action]
             def rebind_requirements(profile)
-                model.requirements.rebind(profile).to_action_model.
-                    new(arguments)
+                model.rebind_requirements(profile).new(arguments)
             end
 
             def respond_to_missing?(m, include_private)

@@ -125,4 +125,3 @@ module Syskit
 end
 
 Roby::ExecutablePlan.include Syskit::Runtime::PlanExtension
-

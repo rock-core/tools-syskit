@@ -29,12 +29,13 @@ module Syskit
             attr_reader :task_m, :task
             before do
                 @task_m = TaskContext.new_submodel
-                @task = syskit_stub_deploy_configure_and_start(task_m.with_conf('default'))
+                @task = syskit_stub_deploy_configure_and_start(
+                    syskit_stub_requirements(task_m).with_conf('default'))
                 plan.add_mission_task(task)
-                plug_apply_requirement_modifications
             end
 
             it "stops the matching deployments and redeploys" do
+                plug_apply_requirement_modifications
                 expect_execution do
                     subject.restart_deployments
                 end.to do
@@ -44,22 +45,23 @@ module Syskit
             end
 
             it "restricts the deployments to the given models" do
-                other_m = TaskContext.new_submodel
-                other = syskit_stub_deploy_configure_and_start(other_m)
+                other = syskit_stub_deploy_configure_and_start(
+                    syskit_stub_requirements(TaskContext.new_submodel))
+                plug_apply_requirement_modifications
                 expect_execution do
                     subject.restart_deployments(task.execution_agent.model)
                 end.to do
+                    emit find_tasks(ShellInterface::ShellDeploymentRestart).stop_event
                     emit task.stop_event
                     not_emit other.stop_event
-                    emit find_tasks(ShellInterface::ShellDeploymentRestart).stop_event
                 end
-                assert !other.finished?
                 assert_equal 1, plan.find_tasks(task_m).pending.to_a.size
             end
 
             it "accepts task models as argument" do
-                other_m = TaskContext.new_submodel
-                other = syskit_stub_deploy_configure_and_start(other_m)
+                other = syskit_stub_deploy_configure_and_start(
+                    syskit_stub_requirements(TaskContext.new_submodel))
+                plug_apply_requirement_modifications
                 expect_execution do
                     subject.restart_deployments(task.model)
                 end.to do
@@ -70,7 +72,7 @@ module Syskit
                 assert_equal 1, plan.find_tasks(task_m).pending.to_a.size
             end
         end
-    
+
         describe "#stop_deployments" do
             attr_reader :task_m, :task
             before do
@@ -241,4 +243,3 @@ module Syskit
         end
     end
 end
-

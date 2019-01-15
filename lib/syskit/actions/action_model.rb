@@ -15,7 +15,7 @@ module Syskit
             def initialize(requirements, doc = nil)
                 super(doc)
                 @requirements = requirements
-                returns(requirements.proxy_task_model)
+                returns(requirements.placeholder_model)
             end
 
             def to_s

@@ -116,6 +116,57 @@ module Syskit
             super
         end
 
+        ConnectionInPath = Struct.new :source_task, :source_port, :sink_task, :sink_port, :policy
+
+        def each_concrete_in_path(task, port = nil)
+            return enum_for(__method__, task, port) if !block_given?
+
+            each_in_connection(task, port) do |source_task, source_port, sink_port, policy|
+                connection = ConnectionInPath.new(source_task, source_port, task, sink_port, policy)
+
+                # Follow the forwardings while +sink_task+ is a composition
+                if source_task.kind_of?(Composition)
+                    each_concrete_in_path(source_task, source_port) do |source_path, aggregated_policy|
+                        begin
+                            aggregated_policy = Syskit.update_connection_policy(policy, aggregated_policy)
+                        rescue ArgumentError => e
+                            raise SpecError, "incompatible policies in input chain for #{self}:#{sink_port}: #{e.message}"
+                        end
+                        aggregated_policy.freeze
+
+                        yield(source_path + [connection], aggregated_policy)
+                    end
+                else
+                    yield([connection], policy)
+                end
+            end
+            self
+        end
+
+        def each_concrete_out_path(task, port = nil)
+            return enum_for(__method__, task, port) if !block_given?
+
+            each_out_connection(task, port) do |source_port, sink_port, sink_task, policy|
+                connection = ConnectionInPath.new(task, source_port, sink_task, sink_port, policy)
+
+                if sink_task.kind_of?(Composition)
+                    each_concrete_out_path(sink_task, sink_port) do |sink_path, aggregated_policy|
+                        begin
+                            aggregated_policy = Syskit.update_connection_policy(policy, aggregated_policy)
+                        rescue ArgumentError => e
+                            raise SpecError, "incompatible policies in input chain for #{self}:#{sink_port}: #{e.message}"
+                        end
+                        aggregated_policy.freeze
+
+                        yield([connection] + sink_path, aggregated_policy)
+                    end
+                else
+                    yield([connection], policy)
+                end
+            end
+            self
+        end
+
         # Yield or enumerates the connections that exist towards the input
         # ports of self. It does not include connections to
         # composition ports (i.e. exported ports): these connections are
@@ -143,29 +194,14 @@ module Syskit
 
             if concrete_connection_graph
                 return concrete_connection_graph.each_in_connection(task, port, &proc)
-            end
-
-            each_in_connection(task, port) do |source_task, source_port, sink_port, policy|
-                # Follow the forwardings while +sink_task+ is a composition
-                if source_task.kind_of?(Composition)
-                    each_concrete_in_connection(source_task, source_port) do |source_task, source_port, _, connection_policy|
-                        begin
-                            this_policy = Syskit.update_connection_policy(policy, connection_policy)
-                        rescue ArgumentError => e
-                            raise SpecError, "incompatible policies in input chain for #{self}:#{sink_port}: #{e.message}"
-                        end
-
-                        policy_copy = this_policy.dup
-                        yield(source_task, source_port, sink_port, this_policy)
-                        if policy_copy != this_policy
-                            connection_policy.clear
-                            connection_policy.merge!(this_policy)
-                        end
-                    end
-                else
-                    yield(source_task, source_port, sink_port, policy)
+            else
+                each_concrete_in_path(task, port) do |path, aggregated_policy|
+                    first_conn = path.first
+                    last_conn  = path.last
+                    yield(first_conn.source_task, first_conn.source_port, last_conn.sink_port, aggregated_policy)
                 end
             end
+
             self
         end
 
@@ -196,26 +232,11 @@ module Syskit
 
             if concrete_connection_graph
                 return concrete_connection_graph.each_out_connection(task, port, &proc)
-            end
-
-            each_out_connection(task, port) do |source_port, sink_port, sink_task, policy|
-                # Follow the forwardings while +sink_task+ is a composition
-                if sink_task.kind_of?(Composition)
-                    each_concrete_out_connection(sink_task, sink_port) do |_, sink_port, sink_task, connection_policy|
-                        begin
-                            this_policy = Syskit.update_connection_policy(policy, connection_policy)
-                        rescue ArgumentError => e
-                            raise SpecError, "incompatible policies in output chain for #{self}:#{source_port}: #{e.message}"
-                        end
-                        policy_copy = this_policy.dup
-                        yield(source_port, sink_port, sink_task, this_policy)
-                        if policy_copy != this_policy
-                            connection_policy.clear
-                            connection_policy.merge!(this_policy)
-                        end
-                    end
-                else
-                    yield(source_port, sink_port, sink_task, policy)
+            else
+                each_concrete_out_path(task, port) do |path, aggregated_policy|
+                    first_conn = path.first
+                    last_conn  = path.last
+                    yield(first_conn.source_port, last_conn.sink_port, last_conn.sink_task, aggregated_policy)
                 end
             end
             self

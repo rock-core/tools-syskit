@@ -8,15 +8,20 @@ module Syskit
             include MetaRuby::DSLs::FindThroughMethodMissing
             include Syskit::Models::PortAccess
 
-            class << self
-                # Each subclass of DataServiceModel maps to a "base" module that
-                # all instances of DataServiceModel include.
-                #
-                # For instance, for DataServiceModel itself, it is DataService
-                #
-                # This attribute is the base module for this class of
-                # DataServiceModel
-                attr_accessor :base_module
+            # Create a model that is root for a model hierarchy
+            #
+            # This is used to create e.g. Syskit::DataService
+            #
+            # The result of this method must be assigned to a constant. It is
+            # marked as permanent w.r.t. MetaRuby's model management.
+            def self.new_permanent_root(parent: nil)
+                model = new(project: OroGen::Spec::Project.blank)
+                model.root = true
+                model.permanent_model = true
+                if parent
+                    model.provides parent
+                end
+                model
             end
 
             def initialize(project: Roby.app.default_orogen_project)
@@ -233,23 +238,44 @@ module Syskit
             # service's interface
             attr_reader :orogen_model
 
-            # A task model that can be used to represent an
-            # instance of this data service in a Roby plan
-            #
-            # @return [Model<TaskContext>]
+            # @deprecated use {#placeholder_model} instead
             def proxy_task_model
-                if @proxy_task_model
-                    return @proxy_task_model
-                end
-                @proxy_task_model = Syskit.proxy_task_model_for([self])
+                Roby.warn_deprecated "DataService.proxy_task_model is deprecated, use .placeholder_model instead"
+                placeholder_model
+            end
+
+            # @deprecated use {#create_placeholder_task} instead
+            def create_proxy_task
+                Roby.warn_deprecated "DataService.create_proxy_task is deprecated, use .create_placeholder_task instead"
+                create_placeholder_task
             end
 
             # Create a task that can be used as a placeholder for #self in the
             # plan
             #
-            # @return [TaskContext]
-            def create_proxy_task
-                proxy_task_model.new
+            # @see Placeholder
+            # @return [Component]
+            def create_placeholder_task
+                placeholder_model.new
+            end
+
+            # A component model that can be used to represent an instance of
+            # this data service in a Roby plan
+            #
+            # @see Placeholder
+            # @return [Component]
+            def placeholder_model
+                if @placeholder_model
+                    return @placeholder_model
+                end
+                @placeholder_model = Placeholder.for([self])
+            end
+
+            # Wether this model represents a placeholder for data services
+            #
+            # @see Placeholder
+            def placeholder?
+                false
             end
 
             def to_component_model; self end
@@ -269,7 +295,7 @@ module Syskit
             #
             # @return [TaskContext]
             def instanciate(plan, context = DependencyInjectionContext.new, options = Hash.new, &block)
-                proxy_task_model.instanciate(plan, context, options, &block)
+                placeholder_model.instanciate(plan, context, options, &block)
             end
 
             def pretty_print(pp)

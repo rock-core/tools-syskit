@@ -47,6 +47,15 @@ module Syskit
             # task name and apply configuration stored there (if there is any)
             attr_reader :orocos
 
+            # A global deployment group
+            #
+            # This exists for backward-compatibility reasons, to ease the
+            # transition to the deployment API, as opposed to the older
+            # name-based deployment management
+            #
+            # @return [Models::DeploymentGroup]
+            attr_reader :deployment_group
+
             # Controls whether the orogen types should be exported as Ruby
             # constants
             #
@@ -66,6 +75,7 @@ module Syskit
                 @reject_ambiguous_deployments = true
                 @only_load_models = nil
                 @disables_local_process_server = false
+                @define_default_process_managers = true
                 @local_only = false
                 @permanent_deployments = true
                 @prefix_blacklist = []
@@ -87,10 +97,27 @@ module Syskit
             #
             # Note that it is called by {#initialize}
             def clear
-                @deployments = Hash.new { |h, k| h[k] = Set.new }
-                @deployed_tasks = Hash.new
+                @deployment_group = Models::DeploymentGroup.new
                 @logs = LoggingConfiguration.new
                 @orocos = Roby::OpenStruct.new
+            end
+
+            # Controls whether Syskit sets up its default process managers
+            # (localhost, ruby_tasks, unmanaged_tasks and ros), or leaves
+            # it to the app to set them up
+            #
+            # This is internally used during tests
+            #
+            # @see define_default_process_managers
+            def define_default_process_managers?
+                @define_default_process_managers
+            end
+
+            # (see define_default_process_managers?)
+            #
+            # @see define_default_process_managers?
+            def define_default_process_managers=(value)
+                @define_default_process_managers = value
             end
 
             # @deprecated access {#logs} for logging configuration
@@ -127,7 +154,6 @@ module Syskit
             def exclude_from_log(object, subname = nil)
                 main_group.add(object, subname)
             end
-
 
             # @deprecated access {#logs} for logging configuration
             def enable_log_group(name)
@@ -170,7 +196,7 @@ module Syskit
 
             # If multiple deployments are available for a task, and this task is
             # not a device driver, the resolution engine will randomly pick one
-            # if this flag is set to false (the default). If set to true, it
+            # if this flag is set to false. If set to true (the default), it
             # will generate an error
             attr_predicate :reject_ambiguous_deployments?, true
 
@@ -197,13 +223,27 @@ module Syskit
                 end
             end
 
+            # Controls whether Syskit auto-starts a process server locally
+            #
             # In normal operations, a local proces server called 'localhost' is
             # automatically started on the local machine. If this predicate is
-            # set to true, using self.disables_local_process_server = true), then
-            # this will be disabled
+            # set to true, with Syskit.conf.disables_local_process_server = true,
+            # this server won't be started.
             #
-            # @see connect_to_orocos_process_server Plugin#start_local_process_server
-            attr_predicate :disables_local_process_server?, true
+            # Disable this when the local process server is managed by other
+            # means, or when the machine that runs the Syskit instance is not
+            # the machine that runs the components
+            #
+            # The local process server won't be started if
+            # {#define_default_process_managers?} is explicitely set to false
+            def disables_local_process_server?
+                @disables_local_process_server
+            end
+
+            # (see disables_local_process_server?)
+            def disables_local_process_server=(flag)
+                @disables_local_process_server = flag
+            end
 
             # If set to a non-nil value, the deployment processes will be
             # started with the given prefix
@@ -232,6 +272,12 @@ module Syskit
             # @return [String]
             attr_accessor :sd_domain
 
+            # If set, it is the list of deployments that should be published on
+            # DNS-SD. It has no effect if {#sd_domain} is not set.
+            #
+            # @return [Array<#===>]
+            attr_accessor :publish_white_list
+
             # A set of regular expressions that should match the names of the
             # deployments that should be published on DNS-SD if {#sd_domain} is
             # set
@@ -241,16 +287,6 @@ module Syskit
             # @return [Array<String,Regexp>]
             attr_reader :sd_publish_list
 
-            # The set of known deployments on a per-process-server basis
-            #
-            # @return [Hash<String,[ConfiguredDeployment]>]
-            attr_reader :deployments
-
-            # A mapping from a task name to the deployment that provides it
-            #
-            # @return [{String => Models::ConfiguredDeployment}]
-            attr_reader :deployed_tasks
-
             # Margin added to computed buffer sizes
             #
             # The final buffer size is computed_size * margin rounded upwards.
@@ -259,10 +295,13 @@ module Syskit
             # @return [Float]
             attr_reader :buffer_size_margin
 
-            # The set of known process servers.
+            # @deprecated use {#sim_process_server_config_for} instead for
+            #   consistency with {#process_server_config_for}
             #
-            # It maps the server name to the Orocos::ProcessServer instance
-            attr_reader :process_servers
+            # (see #sim_process_server_config_for)
+            def sim_process_server(name)
+                sim_process_server_config_for(name)
+            end
 
             # Ensures that a ruby process server is present with the given name
             #
@@ -271,229 +310,14 @@ module Syskit
             #
             # @param [String] name the name of the original process server
             # @return [ProcessServerConfig] the registered process server
-            def sim_process_server(name)
+            def sim_process_server_config_for(name)
                 sim_name = "#{name}-sim"
-                if !process_servers[sim_name]
-                    mng = Orocos::RubyTasks::ProcessManager.new(app.default_loader, task_context_class: Orocos::RubyTasks::StubTaskContext)
-                    register_process_server(sim_name, mng, "", host_id: 'syskit')
+                unless process_servers[sim_name]
+                    mng = Orocos::RubyTasks::ProcessManager.new(app.default_loader,
+                        task_context_class: Orocos::RubyTasks::StubTaskContext)
+                    register_process_server(sim_name, mng, "")
                 end
                 process_server_config_for(sim_name)
-            end
-
-            # Declare deployed versions of some Ruby tasks
-            #
-            # rubocop:disable Metrics/PerceivedComplexity
-            def use_ruby_tasks(mappings, remote_task: false, on: 'ruby_tasks')
-                if !mappings.respond_to?(:each_key)
-                    raise ArgumentError, "mappings should be given as model => name"
-                elsif mappings.size > 1
-                    Roby.warn_deprecated "defining more than one ruby task context " \
-                        "deployment in a single use_ruby_tasks call is deprecated"
-                end
-
-                mappings.each_key do |task_model|
-                    valid_model = task_model.kind_of?(Class) &&
-                        (task_model <= Syskit::RubyTaskContext)
-                    unless valid_model
-                        raise ArgumentError, "#{task_model} is not a ruby task model"
-                    end
-                end
-
-                task_context_class =
-                    if remote_task
-                        Orocos::RubyTasks::RemoteTaskContext
-                    else
-                        Orocos::RubyTasks::TaskContext
-                    end
-
-                mappings.map do |task_model, name|
-                    deployment_model = task_model.deployment_model
-                    configured_deployment = Models::ConfiguredDeployment.
-                        new(on, deployment_model, Hash['task' => name],
-                            name, Hash[task_context_class: task_context_class])
-                    register_configured_deployment(configured_deployment)
-                    configured_deployment
-                end
-            end
-            # rubocop:enable Metrics/PerceivedComplexity
-
-            # Declare tasks that are going to be started by some other process,
-            # but whose tasks are going to be integrated in the syskit network
-            def use_unmanaged_task(mappings, on: 'unmanaged_tasks')
-                model_to_name = mappings.map do |task_model, name|
-                    if task_model.respond_to?(:to_str)
-                        task_model_name = task_model
-                        task_model = Syskit::TaskContext.find_model_from_orogen_name(task_model_name)
-                        if !task_model
-                            raise ArgumentError, "#{task_model_name} is not a known oroGen model name"
-                        end
-                    end
-                    [task_model, name]
-                end
-
-                model_to_name.each do |task_model, _name|
-                    is_pure_task_context_model =
-                        task_model.kind_of?(Class) &&
-                        (task_model <= Syskit::TaskContext) &&
-                        !(task_model <= Syskit::RubyTaskContext)
-                    raise ArgumentError, "expected a mapping from a task context "\
-                        "model to a name, but got #{task_model}" \
-                        unless is_pure_task_context_model
-                end
-
-                model_to_name.map do |task_model, name|
-                    orogen_model = task_model.orogen_model
-                    deployment_model = Deployment.new_submodel(name: "Deployment::Unmanaged::#{name}") do
-                        task name, orogen_model
-                    end
-
-                    configured_deployment = Models::ConfiguredDeployment.
-                        new(on, deployment_model, Hash[name => name], name, Hash.new)
-                    register_configured_deployment(configured_deployment)
-                    configured_deployment
-                end
-            end
-            
-            # Add the given deployment (referred to by its process name, that is
-            # the name given in the oroGen file) to the set of deployments the
-            # engine can use.
-            #
-            # @option options [String] :on (localhost) the name of the process
-            #   server on which this deployment should be started
-            #
-            # @return [Array<Models::ConfiguredDeployment>]
-            def use_deployment(*names, on: 'localhost', **run_options)
-                deployment_spec = Hash.new
-                if names.last.kind_of?(Hash)
-                    deployment_spec = names.pop
-                end
-
-                process_server_name = on
-                process_server_config =
-                    if app.simulation?
-                        sim_process_server(process_server_name)
-                    else
-                        process_server_config_for(process_server_name)
-                    end
-
-                deployments_by_name = Hash.new
-                names = names.map do |n|
-                    if n.respond_to?(:orogen_model)
-                        if !n.kind_of?(Class)
-                            raise ArgumentError, "only deployment models can be given "\
-                                "without a name"
-                        elsif n <= Syskit::TaskContext && !(n <= Syskit::RubyTaskContext)
-                            raise TaskNameRequired, "you must provide a task name when starting a "\
-                                "component by type, as e.g. use_deployment "\
-                                "OroGen.xsens_imu.Task => 'imu'"
-                        elsif !(n <= Syskit::Deployment)
-                            raise ArgumentError, "only deployment models can be given "\
-                                "without a name"
-                        end
-                        deployments_by_name[n.orogen_model.name] = n
-                        n.orogen_model
-                    else n
-                    end
-                end
-                deployment_spec = deployment_spec.map_key do |k|
-                    if k.respond_to?(:to_str)
-                        k
-                    else
-                        is_valid =
-                            k.kind_of?(Class) &&
-                            (k <= Syskit::TaskContext || k <= Syskit::Deployment) &&
-                            !(k <= Syskit::RubyTaskContext)
-                        unless is_valid
-                            raise ArgumentError, "only deployment and task context "\
-                                "models can be deployed by use_deployment, got #{k}"
-                        end
-                        deployments_by_name[k.orogen_model.name] = k
-                        k.orogen_model
-                    end
-                end
-
-                new_deployments, _ = Orocos::Process.parse_run_options(*names, deployment_spec, loader: app.default_loader, **run_options)
-                new_deployments.map do |deployment_name, mappings, name, spawn_options|
-                    model = deployments_by_name[deployment_name] ||
-                        app.using_deployment(deployment_name)
-                    model.default_run_options.merge!(default_run_options(model))
-
-                    configured_deployment = Models::ConfiguredDeployment.
-                        new(process_server_config.name, model, mappings, name, spawn_options)
-                    register_configured_deployment(configured_deployment)
-                    configured_deployment
-                end
-            rescue Orocos::Process::TaskNameRequired => e
-                raise TaskNameRequired, "you must provide a task name when starting a component by type, as e.g. use_deployment OroGen.xsens_imu.Task => 'imu'", e.backtrace
-            end
-
-            def register_configured_deployment(configured_deployment)
-                configured_deployment.each_orogen_deployed_task_context_model do |task|
-                    orocos_name = task.name
-                    if deployed_tasks[orocos_name] && deployed_tasks[orocos_name] != configured_deployment
-                        raise TaskNameAlreadyInUse.new(orocos_name, deployed_tasks[orocos_name], configured_deployment), "there is already a deployment that provides #{orocos_name}"
-                    end
-                end
-                configured_deployment.each_orogen_deployed_task_context_model do |task|
-                    deployed_tasks[task.name] = configured_deployment
-                end
-                deployments[configured_deployment.process_server_name] << configured_deployment
-            end
-
-            # Deregister deployments
-            #
-            # @param [ConfiguredDeployment] the deployment to remove, as
-            #   returned by e.g. {#use_deployment}
-            # @return [void]
-            def deregister_configured_deployment(configured_deployment)
-                configured_deployment.each_orogen_deployed_task_context_model do |task|
-                    if deployed_tasks[task.name] == configured_deployment
-                        deployed_tasks.delete(task.name)
-                    end
-                end
-                deployments[configured_deployment.process_server_name].
-                    delete(configured_deployment)
-            end
-
-            # Enumerate the registered configured deployments
-            #
-            # @param [String,nil] on name or regexp matching the name of the
-            #   process servers whose deployments should be enumerated, or all
-            #   servers if nil
-            # @param [String,nil] except_on name or regexp matching the name of the
-            #   process servers whose deployments should NOT be enumerated
-            # @yieldparam [Models::ConfiguredDeployment]
-            def each_configured_deployment(on: nil, except_on: nil, &block)
-                return enum_for(__method__, on: on, except_on: except_on) if !block
-
-                deployments.each do |process_server_name, process_server_deployments|
-                    next if except_on && (except_on === process_server_name)
-                    next if on && !(on === process_server_name)
-                    process_server_deployments.each(&block)
-                end
-            end
-
-            # Add all the deployments defined in the given oroGen project to the
-            # set of deployments that the engine can use.
-            #
-            # @option options [String] :on the name of the process server this
-            #   project should be loaded from
-            # @return [Array<Model<Deployment>>] the set of deployments
-            # @see #use_deployment
-            def use_deployments_from(project_name, options = Hash.new)
-                Syskit.info "using deployments from #{project_name}"
-                orogen = app.using_task_library(project_name, options[:loader])
-
-                result = []
-                orogen.deployers.each_value do |deployment_def|
-                    if deployment_def.install?
-                        Syskit.info "  #{deployment_def.name}"
-                        # Currently, the supervision cannot handle orogen_default tasks 
-                        # properly, thus filtering them out for now 
-                        result << use_deployment(deployment_def.name, options)
-                    end
-                end
-                result
             end
 
             # Returns the set of options that should be given to Process.spawn
@@ -550,16 +374,26 @@ module Syskit
                 process_servers[name.to_str]
             end
 
+            # Exception raised when trying to register a non-local process
+            # server while {#local_only?} is set
+            class LocalOnlyConfiguration < ArgumentError; end
+            # Exception raised when trying to access a process manager that does
+            # not exist
+            class UnknownProcessServer < ArgumentError; end
+            # Exception raised when trying to connect to a process manager that
+            # is already connected
+            class AlreadyConnected < ArgumentError; end
+
             # Returns the process server object named +name+
             #
             # @param [String] name the process server name
-            # @raise [ArgumentError] if no such process server exists
+            # @raise [UnknownProcessServer] if no such process server exists
             # @return [ProcessServerConfig]
             def process_server_config_for(name)
                 config = process_servers[name]
                 if config then config
                 else
-                    raise ArgumentError, "there is no registered process server called #{name}"
+                    raise UnknownProcessServer, "there is no registered process server called #{name}"
                 end
             end
 
@@ -620,9 +454,9 @@ module Syskit
             #
             # @return [Orocos::ProcessClient,Orocos::Generation::Project]
             #
-            # @raise [ArgumentError] if host is not 'localhost' and
+            # @raise [LocalOnlyConfiguration] if host is not 'localhost' and
             #   {#local_only?} is set
-            # @raise [ArgumentError] if there is already a process server
+            # @raise [AlreadyConnected] if there is already a process server
             #   registered with that name
             def connect_to_orocos_process_server(
                 name, host, port: Orocos::RemoteProcesses::DEFAULT_PORT,
@@ -644,9 +478,9 @@ module Syskit
                 end
 
                 if local_only? && host != 'localhost'
-                    raise ArgumentError, "in local only mode"
+                    raise LocalOnlyConfiguration, "in local only mode, one can only connect to process servers on 'localhost' (got #{host})"
                 elsif process_servers[name]
-                    raise ArgumentError, "we are already connected to a process server called #{name}"
+                    raise AlreadyConnected, "we are already connected to a process server called #{name}"
                 end
 
                 if host =~ /^(.*):(\d+)$/
@@ -692,28 +526,6 @@ module Syskit
                 ps
             end
 
-            # Remove all registered deployments
-            def clear_deployments
-                deployments.clear
-                deployed_tasks.clear
-            end
-
-            # Deregisters deployments that are coming from a given process
-            # server
-            #
-            # @param [String] process_server_name the name of the process server
-            # @return [Array<Models::ConfiguredDeployment>] the set of
-            #   configured deployments that were deregistered
-            def clear_deployments_for(process_server_name)
-                registered_deployments = deployments.delete(process_server_name) ||
-                    Array.new
-
-                registered_deployments.each do |d|
-                    deregister_configured_deployment(d)
-                end
-                registered_deployments
-            end
-
             # Deregisters a process server
             #
             # @param [String] name the process server name, as given to
@@ -726,13 +538,41 @@ module Syskit
                 end
 
                 app.default_loader.remove ps.client.loader
-                clear_deployments_for(name)
                 if app.simulation? && process_servers["#{name}-sim"]
                     remove_process_server("#{name}-sim")
                 end
                 ps
             end
+
+            def clear_deployments
+                #Roby.warn_deprecated "conf.clear_deployments is deprecated, use the profile-level deployment API"
+                @deployment_group = Models::DeploymentGroup.new
+            end
+
+            def use_ruby_tasks(mappings, on: 'ruby_tasks', remote_task: false)
+                deployment_group.use_ruby_tasks(mappings, on: on,
+                    remote_task: remote_task, process_managers: self)
+            end
+
+            def use_unmanaged_task(mappings, on: 'unmanaged_tasks')
+                deployment_group.use_unmanaged_task(mappings, on: on,
+                    process_managers: self)
+            end
+
+            def use_deployment(*names, on: 'localhost', **run_options)
+                deployment_group.use_deployment(*names, on: on,
+                    process_managers: self, loader: app.default_loader,
+                    **run_options)
+            end
+
+            def use_deployments_from(*names, on: 'localhost', **run_options)
+                deployment_group.use_deployment(*names, on: on,
+                    process_managers: self, loader: app.default_loader, **run_options)
+            end
+
+            def register_configured_deployment(configured_deployment)
+                deployment_group.register_configured_deployment(configured_deployment)
+            end
         end
     end
 end
-

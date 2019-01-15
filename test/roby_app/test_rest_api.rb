@@ -94,22 +94,26 @@ module Syskit
                 describe "/registered" do
                     before do
                         @configured_deployments = []
-                        flexmock(Syskit.conf).should_receive(:each_configured_deployment).
+                        flexmock(Syskit.conf.deployment_group).should_receive(:each_configured_deployment).
                             and_return { @configured_deployments }
-                        Syskit.conf.register_process_server('localhost', 
+                        Syskit.conf.register_process_server('localhost',
                             flexmock(:on, Orocos::RemoteProcesses::Client))
-                        Syskit.conf.register_process_server('unmanaged_tasks', 
+                        Syskit.conf.register_process_server('unmanaged_tasks',
                             flexmock(:on, UnmanagedTasksManager))
-                        Syskit.conf.register_process_server('something_else', 
+                        Syskit.conf.register_process_server('something_else',
                             flexmock())
 
                         orogen_task_m = OroGen::Spec::TaskContext.new(
                             Roby.app.default_orogen_project, 'test::Task')
-                        orogen_deployment_m = OroGen::Spec::Deployment.new(nil, 'test_deployment')
+                        @syskit_task_m = Syskit::TaskContext.define_from_orogen(
+                            orogen_task_m)
+                        orogen_deployment_m = OroGen::Spec::Deployment.new(
+                            nil, 'test_deployment')
                         orogen_deployment_m.task 'test_task', orogen_task_m
                         @deployment_m = Syskit::Deployment.define_from_orogen(orogen_deployment_m)
                     end
                     after do
+                        @syskit_task_m.clear_model
                         Syskit.conf.remove_process_server('unmanaged_tasks')
                         Syskit.conf.remove_process_server('localhost')
                         Syskit.conf.remove_process_server('something_else')
@@ -205,7 +209,7 @@ module Syskit
                             "id" => overriden.object_id,
                             "deployment_name" => 'test_deployment',
                             "on" => 'localhost',
-                            "mappings" => Hash[],
+                            "mappings" => Hash['test_task' => 'test_task'],
                             "tasks" => [
                                 Hash['task_name' => 'test_task',
                                      'task_model_name' => 'test::Task']

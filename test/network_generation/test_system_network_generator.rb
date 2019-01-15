@@ -147,7 +147,7 @@ module Syskit
             describe "#validate_generated_network" do
                 it "validates that there are no placeholder tasks left in the plan" do
                     srv_m = Syskit::DataService.new_submodel
-                    plan.add(task = Syskit.proxy_task_model_for([srv_m]).new)
+                    plan.add(task = Models::Placeholder.create_for([srv_m]).new)
                     assert_raises(Syskit::TaskAllocationFailed) do
                         SystemNetworkGenerator.new(plan).validate_generated_network
                     end

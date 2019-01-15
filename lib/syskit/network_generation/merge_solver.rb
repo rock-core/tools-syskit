@@ -28,17 +28,6 @@ module Syskit
             # @return [Set<(Syskit::Component,Syskit::Component)>]
             attr_reader :invalid_merges
 
-            class << self
-                # If true, this is a directory path into which SVGs are generated
-                # for each steps of the network generation
-                attr_accessor :tracing_directory
-
-                # If tracing_directory is set, the options that should be used to
-                # generate the graphs
-                attr_accessor :tracing_options
-            end
-            @tracing_options = { :remove_compositions => true }
-
             # The {Roby::DRoby::EventLogger} object on which we log performance
             # information
             attr_reader :event_logger
@@ -49,7 +38,7 @@ module Syskit
                 @dataflow_graph = plan.task_relation_graph_for(Flows::DataFlow)
                 @dependency_graph = plan.task_relation_graph_for(Roby::TaskStructure::Dependency)
                 @merging_candidates_queries = Hash.new
-		@task_replacement_graph = Roby::Relations::BidirectionalDirectedAdjacencyGraph.new
+                @task_replacement_graph = Roby::Relations::BidirectionalDirectedAdjacencyGraph.new
                 @resolved_replacements = Hash.new
                 @invalid_merges = Set.new
             end
@@ -113,6 +102,14 @@ module Syskit
                     break
                 end
 
+                if self.class.trace?
+                    remove_compositions = true
+                    if merged_task_to_task.each_key.any? { |t| t.kind_of?(Syskit::Composition) }
+                        remove_compositions = false
+                    end
+                    self.class.trace_export(plan, phase: 1, highlights: (merged_task_to_task.keys + merged_task_to_task.values), remove_compositions: remove_compositions)
+                end
+
                 merged_task_to_task.each do |merged_task, task|
                     if merged_task == task
                         raise "trying to merge a task onto itself: #{merged_task}"
@@ -139,13 +136,51 @@ module Syskit
                     register_replacement(merged_task, task)
                 end
 
-                if MergeSolver.tracing_directory
-                    Engine.autosave_plan_to_dot(plan,
-                        MergeSolver.tracing_directory,
-                        MergeSolver.tracing_options.merge(
-                            highlights: merged_task_to_task.to_a.flatten.to_set,
-                            suffix: "0"))
+                if self.class.trace?
+                    self.class.trace_export(plan, phase: 2, highlights: merged_task_to_task.values, remove_compositions: remove_compositions)
                 end
+            end
+
+            def self.enable_tracing
+                @@trace_enabled = true
+            end
+
+            def self.disable_tracing
+                @@trace_enabled = false
+            end
+
+            def self.trace?
+                @@trace_enabled
+            end
+
+            def self.trace_file_pattern
+                @@trace_file_pattern
+            end
+
+            def self.trace_file_pattern=(pattern)
+                @@trace_file_pattern = pattern
+            end
+
+            @@trace_file_pattern = "syskit-trace-%04i.%i"
+            @@trace_enabled = false
+            @@trace_count = 0
+            @@trace_last_phase = 1
+            
+            def self.trace_next_file(phase)
+                if @@trace_last_phase >= phase
+                    @@trace_count += 1
+                end
+                @@trace_last_phase = phase
+                trace_file_pattern % [@@trace_count, phase]
+            end
+
+            def self.trace_export(plan, phase: 1, highlights: [], **dataflow_options)
+                basename  = trace_next_file(phase)
+                dataflow = basename + ".dataflow.svg"
+                hierarchy = basename + ".hierarchy.svg"
+                Syskit::Graphviz.new(plan).to_file('dataflow', 'svg', dataflow, highlights: highlights, **dataflow_options)
+                Syskit::Graphviz.new(plan).to_file('hierarchy', 'svg', hierarchy, highlights: highlights)
+                ::Robot.info "#{self} exported trace plan to #{dataflow} and #{hierarchy}"
             end
 
             # Create a new solver on the given plan and perform
@@ -202,7 +237,7 @@ module Syskit
                     next if task == merged_task
 
                     debug { "  #{merged_task}" }
-                    if merged_task.respond_to?(:proxied_data_services)
+                    if merged_task.placeholder?
                         debug "    data service proxy"
                         next
                     elsif !merged_task.plan
@@ -274,13 +309,15 @@ module Syskit
             def composition_children_by_role(task)
                 result = Hash.new
                 task_children_names = task.model.children_names.to_set
-                task_children   = task.each_out_neighbour_merged(Roby::TaskStructure::Dependency, intrusive: true).map do |child_task|
-                    dependency_graph.edge_info(task, child_task)[:roles].each do |r|
-                        if task_children_names.include?(r)
-                            result[r] = child_task
+                task.each_out_neighbour_merged(
+                        Roby::TaskStructure::Dependency, intrusive: true).
+                    map do |child_task|
+                        dependency_graph.edge_info(task, child_task)[:roles].each do |r|
+                            if task_children_names.include?(r)
+                                result[r] = child_task
+                            end
                         end
                     end
-                end
                 result
             end
 
@@ -309,7 +346,7 @@ module Syskit
                     end
                 end
 
-                if merged_children.each_value.any? { |t| t.respond_to?(:proxied_data_services) }
+                if merged_children.each_value.any? { |t| t.placeholder? }
                     info "rejected: compositions still have unresolved children"
                     return false
                 end

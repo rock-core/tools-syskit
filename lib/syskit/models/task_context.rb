@@ -40,22 +40,6 @@ module Syskit
                 super || component.orocos_task.kind_of?(Orocos::RubyTasks::StubTaskContext)
             end
 
-            # Clears all registered submodels
-            #
-            # On TaskContext, it also clears all orogen-to-syskit model mappings
-            def deregister_submodels(set)
-                super
-
-                if @proxy_task_models
-                    set.each do |m|
-                        if m.respond_to?(:proxied_data_services)
-                            proxy_task_models.delete(m.proxied_data_services.to_set)
-                        end
-                    end
-                end
-                true
-            end
-
             def clear_registration_as_constant
                 super
 
@@ -159,10 +143,14 @@ module Syskit
             #
             # @param [String] name an optional name for this submodel
             # @return [void]
-            def setup_submodel(submodel, orogen_model: nil, **options)
-                if !orogen_model
+            def setup_submodel(submodel,
+                    orogen_model: nil,
+                    orogen_model_name: submodel.name,
+                    **options)
+
+                unless orogen_model
                     orogen_model = self.orogen_model.class.new(
-                        Roby.app.default_orogen_project, submodel.name,
+                        Roby.app.default_orogen_project, orogen_model_name,
                         subclasses: self.orogen_model)
                     orogen_model.extended_state_support
                 end
@@ -212,4 +200,3 @@ module Syskit
         end
     end
 end
-

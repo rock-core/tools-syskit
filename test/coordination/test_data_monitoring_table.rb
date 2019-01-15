@@ -198,7 +198,9 @@ describe Syskit::Coordination::DataMonitoringTable do
         recorder.should_receive(:called).with(4, 2).once.ordered
         recorder.should_receive(:called).with(1, 12).once.ordered
 
-        composition = syskit_stub_deploy_configure_and_start(composition_m.use('test' => component_m.test1_srv))
+        syskit_stub_configured_deployment(component_m)
+
+        composition = syskit_deploy_configure_and_start(composition_m.use('test' => component_m.test1_srv))
         table = table_m.new(composition)
         monitors = (plan.find_tasks(composition_m).to_a - [composition])
         assert_equal 1, monitors.size

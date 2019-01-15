@@ -1246,22 +1246,20 @@ module Syskit
                     super(other_model)
                 else
                     base_model = root_model.merge(other_model)
-                    # If base_model is a proxy task model, we apply the
+                    # If base_model is a placeholder model, we apply the
                     # specialization on the proper composition model and then
                     # re-proxy it
-                    base_model, services = base_model, []
-                    if base_model.respond_to?(:proxied_data_services)
-                        base_model, services = base_model.proxied_task_context_model, base_model.proxied_data_services
+                    services = []
+                    if base_model.placeholder?
+                        services   = base_model.proxied_data_service_models
+                        base_model = base_model.proxied_component_model
                     end
 
                     composite_spec = CompositionSpecialization.
                         merge(*needed_specializations)
                     result = base_model.specializations.specialized_model(
                         composite_spec, needed_specializations)
-                    # The specializations might have added some services to the
-                    # task model. Remote those first
-                    services.delete_if { |s| result.fullfills?(s) }
-                    Syskit.proxy_task_model_for([result] + services.to_a)
+                    Placeholder.for(services.to_a, component_model: result)
                 end
             end
 

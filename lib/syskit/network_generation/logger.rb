@@ -84,13 +84,17 @@ module Syskit
                     return @logger_dynamic_port
                 end
 
-                ports = OroGen::Logger::Logger.orogen_model.dynamic_ports.find_all { |p| !p.type && p.kind_of?(Orocos::Spec::InputPort) }
+                ports = find_logger_model.orogen_model.dynamic_ports.find_all { |p| !p.type && p.kind_of?(Orocos::Spec::InputPort) }
                 if ports.size > 1
                     raise InternalError, "oroGen's logger::Logger task should have only one catch-all dynamic input port"
                 elsif ports.empty?
                     raise InternalError, "oroGen's logger::Logger task should have one catch-all dynamic input port, and has none"
                 end
                 @logger_dynamic_port = ports.first
+            end
+
+            def self.find_logger_model
+                TaskContext.find_model_from_orogen_name 'logger::Logger'
             end
 
             def self.setup_logger_model(logger_model)
@@ -113,8 +117,7 @@ module Syskit
             def self.add_logging_to_network(engine, work_plan)
                 return if !engine.dataflow_dynamics
 
-                logger_model = TaskContext.find_model_from_orogen_name 'logger::Logger'
-                return if !logger_model
+                return unless (logger_model = find_logger_model)
                 setup_logger_model(logger_model)
 
                 fallback_policy = Hash[

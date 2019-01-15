@@ -1,3 +1,4 @@
 --plugin utilrb
 --plugin metaruby
 --plugin roby
+--exclude lib/syskit/scripts/

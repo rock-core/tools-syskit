@@ -110,8 +110,7 @@ module Syskit
             #
             # @param (see #task)
             def find_or_create_task(name, syskit_task_model = nil, auto_conf: false)
-                orogen_task_deployment_model = each_orogen_deployed_task_context_model.
-                    find { |act| name == name_mappings[act.name] }
+                orogen_task_deployment_model = deployed_orogen_model_by_name(name)
                 if orogen_master = orogen_task_deployment_model.master
                     mapped_master = name_mappings[orogen_master.name]
                     scheduler_task = find_or_create_task(
@@ -140,6 +139,25 @@ module Syskit
                     scheduler_task, auto_conf: auto_conf)
             end
 
+            def deployed_orogen_model_by_name(name)
+                orogen_task_deployment = each_orogen_deployed_task_context_model.
+                    find { |act| name == name_mappings[act.name] }
+                unless orogen_task_deployment
+                    available = each_orogen_deployed_task_context_model.
+                        map { |act| name_mappings[act.name] }.sort.join(", ")
+                    mappings  = name_mappings.
+                        map { |k,v| "#{k} => #{v}" }.join(", ")
+                    raise ArgumentError, "no task called #{name} in "\
+                        "#{self.class.deployment_name}, available tasks are "\
+                        "#{available} using name mappings #{mappings}"
+                end
+                orogen_task_deployment
+            end
+
+            def deployed_model_by_orogen_model(orogen_model)
+                TaskContext.model_for(orogen_model.task_model)
+            end
+
             # @api private
             #
             # Create and add a task model supported by this deployment
@@ -162,8 +180,8 @@ module Syskit
                 syskit_task_model, scheduler_task, auto_conf: false)
 
                 mapped_name = name_mappings[orogen_task_deployment_model.name]
-                base_syskit_task_model = TaskContext.
-                    model_for(orogen_task_deployment_model.task_model)
+                base_syskit_task_model = deployed_model_by_orogen_model(
+                    orogen_task_deployment_model)
                 if syskit_task_model
                     if !(syskit_task_model <= base_syskit_task_model)
                         raise ArgumentError, "incompatible explicit selection of task "\
@@ -207,16 +225,7 @@ module Syskit
                         "finished, you cannot call #task"
                 end
 
-                orogen_task_deployment_model = each_orogen_deployed_task_context_model.
-                    find { |act| name == name_mappings[act.name] }
-                if !orogen_task_deployment_model
-                    available = each_orogen_deployed_task_context_model.
-                        map { |act| name_mappings[act.name] }.sort.join(", ")
-                    mappings  = name_mappings.map { |k,v| "#{k} => #{v}" }.join(", ")
-                    raise ArgumentError, "no task called #{name} in "\
-                        "#{self.class.deployment_name}, available tasks are #{available}"\
-                        " using name mappings #{mappings}"
-                end
+                orogen_task_deployment_model = deployed_orogen_model_by_name(name)
 
                 if orogen_master = orogen_task_deployment_model.master
                     scheduler_task = find_or_create_task(

@@ -11,11 +11,10 @@ module Syskit
             end
             @profiles = Array.new
 
-            # A definition object created with {#define}
-            #
-            # In addition to the {InstanceRequirements} duties, it also adds
-            # information about the link of the requirements with its profile
-            class Definition < InstanceRequirements
+            dsl_attribute :doc
+
+            # An {InstanceRequirements} object created from a profile {Definition}
+            class ProfileInstanceRequirements < InstanceRequirements
                 # The profile this definition comes from
                 #
                 # @return [Profile]
@@ -28,25 +27,17 @@ module Syskit
                 # for UIs
                 attr_predicate :advanced?, true
 
-                # @!method resolved?
-                # @!method resolved=(flag)
-                #
-                # Whether this definition has been injected with its profile's
-                # DI information
-                attr_predicate :resolved?
-
-                def initialize(profile, name, resolved: false)
+                def initialize(profile, name, advanced: false)
                     super()
                     self.profile = profile
-                    self.advanced = false
+                    self.advanced = advanced
                     self.name = name
-                    @resolved = resolved
                 end
 
                 # Return a definition that has a different underlying profile
                 def rebind(profile)
                     if rebound = profile.find_definition_by_name(name)
-                        rebound.dup
+                        rebound
                     else
                         result = dup
                         result.profile = profile
@@ -54,45 +45,48 @@ module Syskit
                     end
                 end
 
-                # Create an action model that encapsulate this definition
-                def to_action_model
-                    if resolved?
-                        action_model = super(doc || "defined in #{profile}")
-                        action_model.advanced = advanced?
-                        action_model.name = "#{name}_def"
-                        action_model
-                    else
-                        profile.resolved_definition(name).to_action_model
-                    end
+                def to_action_model(profile = self.profile, doc = self.doc)
+                    action_model = super(doc)
+                    action_model.name = "#{name}_def"
+                    action_model.advanced = advanced?
+                    action_model
                 end
             end
 
-            module Models
-                # Model-level API for {Profile::Tag}
-                module Tag
-                    # The name of this tag
-                    # @return [String]
-                    attr_accessor :tag_name
-                    # The profile this tag has been defined on
-                    # @return [Profile]
-                    attr_accessor :profile
+            class Definition < ProfileInstanceRequirements
+                def to_action_model(profile = self.profile, doc = self.doc)
+                    resolve.to_action_model(profile, doc || "defined in #{profile}")
+                end
+
+                def resolve
+                    result = ProfileInstanceRequirements.new(profile, name, advanced: advanced?)
+                    result.merge(self)
+                    result.name = name
+                    profile.inject_di_context(result)
+                    result.doc(doc)
+                    result
                 end
             end
 
+            # Instance-level API for tags
             module Tag
-                include Syskit::PlaceholderTask
-
                 def can_merge?(other)
-                    return false if !super
+                    return false unless super
 
                     other.kind_of?(Tag) &&
                         other.model.tag_name == model.tag_name &&
                         other.model.profile == model.profile
                 end
+            end
 
-                module ClassExtension
-                    include Models::Tag
-                end
+            module Models
+                Tag = Syskit::Models::Placeholder.
+                    new_specialized_placeholder(task_extension: Profile::Tag) do
+                        # The name of this tag
+                        attr_accessor :tag_name
+                        # The profile this tag has been defined on
+                        attr_accessor :profile
+                    end
             end
 
             # Whether this profile should be kept across app setup/cleanup
@@ -129,6 +123,13 @@ module Syskit
             # profile
             # @return [DependencyInjection]
             attr_reader :dependency_injection
+            # The deployments available on this profile
+            #
+            # @return [Models::DeploymentGroup]
+            attr_reader :deployment_group
+            # A set of deployment groups that can be used to narrow deployments
+            # on tasks
+            attr_reader :deployment_groups
 
             # Dependency injection object that signifies "select nothing for
             # this"
@@ -196,6 +197,8 @@ module Syskit
                 @dependency_injection = DependencyInjection.new
                 @robot = RobotDefinition.new(self)
                 @definition_location = caller_locations
+                @deployment_group = Syskit::Models::DeploymentGroup.new
+                @deployment_groups = Hash.new
                 super()
 
                 if register
@@ -204,9 +207,9 @@ module Syskit
             end
 
             def tag(name, *models)
-                tags[name] = Syskit.create_proxy_task_model_for(models,
-                                                                :extension => Tag,
-                                                                :as => "#{self}.#{name}_tag")
+                tags[name] = Models::Tag.create_for(
+                    models,
+                    as: "#{self}.#{name}_tag")
                 tags[name].tag_name = name
                 tags[name].profile = self
                 tags[name]
@@ -293,7 +296,17 @@ module Syskit
 
             # Whether self uses the given profile
             def uses_profile?(profile)
-                used_profiles.any? { |used_profile, _| used_profile == profile }
+                used_profiles.any? { |used_profile, _tags| used_profile == profile }
+            end
+
+            # Enumerate the profiles that have directly been imported in self
+            #
+            # @yieldparam [Profile] profile
+            def each_used_profile(&block)
+                return enum_for(__method__) unless block_given?
+                used_profiles.each do |profile, _tags|
+                    yield(profile)
+                end
             end
 
             # Adds the given profile DI information and registered definitions
@@ -308,6 +321,7 @@ module Syskit
                 invalidate_dependency_injection
                 tags = resolve_tag_selection(profile, tags)
                 used_profiles.push([profile, tags])
+                deployment_group.use_group(profile.deployment_group)
 
                 # Register the definitions, but let the user override
                 # definitions of the given profile locally
@@ -405,10 +419,13 @@ module Syskit
             # @see definition resolved_definition
             def find_definition_by_name(name)
                 if req = definitions[name]
-                    req = req.dup
-                    req.name = name
-                    req
+                    req.dup
                 end
+            end
+
+            # Tests whether self has a definition with a given name
+            def has_definition?(name)
+                definitions.has_key?(name)
             end
 
             # Returns the instance requirement object that represents the given
@@ -421,20 +438,118 @@ module Syskit
             # @raise [ArgumentError] if the definition does not exist
             # @see definition
             def resolved_definition(name)
-                req = definition(name)
-
-                result = Definition.new(self, name, resolved: true)
-                result.merge(req)
-                inject_di_context(result)
-                result.name = req.name
-                result.doc(req.doc)
-                result
+                req = definitions[name]
+                unless req
+                    raise ArgumentError,
+                        "profile #{self.name} has no definition called #{name}"
+                end
+                req.resolve
             end
 
+            # Enumerate all definitions available on this profile
+            #
+            # @yieldparam [Definition] definition the definition object as given
+            #   to {#define}
+            #
+            # @see each_resolved_definition
+            def each_definition(&block)
+                return enum_for(__method__) if !block_given?
+                definitions.each_value do |req|
+                    yield(req.dup)
+                end
+            end
+
+            # Enumerate all definitions on this profile and resolve them
+            #
+            # @yieldparam [Definition] definition the definition resolved with
+            #   {#resolved_definition}
+            def each_resolved_definition
+                return enum_for(__method__) if !block_given?
+                definitions.each_value do |req|
+                    yield(req.resolve)
+                end
+            end
+
+            # (see Models::DeploymentGroup#find_deployed_task_by_name)
+            def find_deployed_task_by_name(task_name)
+                deployment_group.find_deployed_task_by_name(task_name)
+            end
+
+            # (see Models::DeploymentGroup#has_deployed_task?)
+            def has_deployed_task?(task_name)
+                deployment_group.has_deployed_task?(task_name)
+            end
+
+            # (see Models::DeploymentGroup#use_group)
+            def use_group(deployment_group)
+                deployment_group.use_group(deployment_group)
+            end
+
+            # (see Models::DeploymentGroup#use_ruby_tasks)
+            def use_ruby_tasks(mappings, on: 'ruby_tasks')
+                deployment_group.use_ruby_tasks(mappings, on: on)
+            end
+
+            # (see Models::DeploymentGroup#use_unmanaged_task)
+            def use_ruby_tasks(mappings, on: 'ruby_tasks')
+                deployment_group.use_unmanaged_task(mappings, on: on)
+            end
+
+            # (see Models::DeploymentGroup#use_deployment)
+            def use_deployment(*names, on: 'localhost', loader: deployment_group.loader, **run_options)
+                deployment_group.use_deployment(*names, on: on, loader: loader, **run_options)
+            end
+
+            # (see Models::DeploymentGroup#use_deployments_from)
+            def use_deployments_from(project_name, loader: deployment_group.loader, **use_options)
+                deployment_group.use_deployments_from(project_name, loader: loader, **use_options)
+            end
+
+            # Create a deployment group to specify definition deployments
+            #
+            # This only defines the group, but does not declare that the profile
+            # should use it. To use a group in a profile, do the following:
+            #
+            # @example
+            #   create_deployment_group 'left_arm' do
+            #       use_deployments_from 'left_arm'
+            #   end
+            #   use_group left_arm_deployment_group
+            #
+            def define_deployment_group(name, &block)
+                group = Syskit::Models::DeploymentGroup.new
+                group.instance_eval(&block)
+                deployment_groups[name] = group
+            end
+
+            # Whether this profile has a group with the given name
+            def has_deployment_group?(name)
+                deployment_groups.has_key?(name)
+            end
+
+            # Returns a deployment group defined with {#create_deployment_group}
+            def find_deployment_group_by_name(name)
+                deployment_groups[name]
+            end
+
+            # Returns a device from the profile's robot definition
+            def find_device_requirements_by_name(device_name)
+                robot.devices[device_name].to_instance_requirements.dup
+            end
+
+            # Returns the tag object for a given name
+            def find_tag_by_name(name)
+                tags[name]
+            end
+
+            # Returns all profiles that are used by self
             def all_used_profiles
                 resolve_used_profiles(Array.new, Set.new)
             end
 
+            # @api private
+            #
+            # Recursively lists all profiles that are used by self
             def resolve_used_profiles(list, set)
                 new_profiles = used_profiles.find_all do |p, _|
                     !set.include?(p)
@@ -453,6 +568,7 @@ module Syskit
             # @param [InstanceRequirements] req the instance requirement object
             # @return [void]
             def inject_di_context(req)
+                req.deployment_group.use_group(deployment_group)
                 req.push_dependency_injection(resolved_dependency_injection)
                 super if defined? super
                 nil
@@ -486,6 +602,8 @@ module Syskit
                 @robot = Robot::RobotDefinition.new
                 definitions.clear
                 @dependency_injection = DependencyInjection.new
+                @deployment_groups = Hash.new
+                @deployment_group = Syskit::Models::DeploymentGroup.new
                 used_profiles.clear
                 super if defined? super
 
@@ -589,7 +707,9 @@ module Syskit
                     self, m,
                     '_tag'.freeze => :has_tag?,
                     '_def'.freeze => :has_definition?,
-                    '_dev'.freeze => :has_device?) || super
+                    '_dev'.freeze => :has_device?,
+                    '_task'.freeze => :has_deployed_task?,
+                    '_deployment_group'.freeze => :has_deployment_group?) || super
             end
 
             def find_through_method_missing(m, args)
@@ -597,7 +717,9 @@ module Syskit
                     self, m, args,
                     '_tag'.freeze => :find_tag,
                     '_def'.freeze => :find_definition_by_name,
-                    '_dev'.freeze => :find_device_requirements_by_name) || super
+                    '_dev'.freeze => :find_device_requirements_by_name,
+                    '_task' => :find_deployed_task_by_name,
+                    '_deployment_group' => :find_deployment_group_by_name) || super
             end
 
             include MetaRuby::DSLs::FindThroughMethodMissing
@@ -620,6 +742,7 @@ module Syskit
                 else
                     profile = Profile.new("#{self.name}::#{name}", register: true)
                     const_set(name, profile)
+                    profile.doc MetaRuby::DSLs.parse_documentation_block(/.*/, "profile")
                 end
                 if block
                     profile.instance_eval(&block)

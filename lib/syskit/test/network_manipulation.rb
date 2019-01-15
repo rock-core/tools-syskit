@@ -12,8 +12,8 @@ module Syskit
             attr_predicate :syskit_stub_resolves_remote_tasks?, true
 
             def setup
-                @__test_created_deployments = Array.new
                 @__test_overriden_configurations = Array.new
+                @__test_deployment_group = Models::DeploymentGroup.new
                 @__orocos_writers = Array.new
                 super
             end
@@ -26,9 +26,6 @@ module Syskit
                 @__test_overriden_configurations.each do |model, manager|
                     model.configuration_manager = manager
                 end
-                @__test_created_deployments.each do |d|
-                    Syskit.conf.deregister_configured_deployment(d)
-                end
             end
 
             # Ensure that any modification made to a model's configuration
@@ -40,13 +37,15 @@ module Syskit
             end
 
             def use_deployment(*args, **options)
-                @__test_created_deployments.concat(
-                    Syskit.conf.use_deployment(*args, **options).to_a)
+                @__test_deployment_group.use_deployment(*args, **options)
             end
 
             def use_ruby_tasks(*args, **options)
-                @__test_created_deployments.concat(
-                    Syskit.conf.use_ruby_tasks(*args, **options).to_a)
+                @__test_deployment_group.use_ruby_tasks(*args, **options)
+            end
+
+            def use_unmanaged_task(*args, **options)
+                @__test_deployment_group.use_unmanaged_task(*args, **options)
             end
 
             # @api private
@@ -137,27 +136,28 @@ module Syskit
                 to_instanciate = to_instanciate.flatten # For backward-compatibility
                 to_instanciate = normalize_instanciation_models(to_instanciate)
 
-                emit_calls = Set.new
                 placeholder_tasks = to_instanciate.map do |act|
-                    if act.respond_to?(:to_action)
-                        act = act.to_action
-                    end
+                    act = act.to_action if act.respond_to?(:to_action)
                     plan.add(task = act.as_plan)
-                    if add_mission
-                        plan.add_mission_task(task)
-                    end
+                    plan.add_mission_task(task) if add_mission
                     task
                 end.compact
                 root_tasks = placeholder_tasks.map(&:as_service)
                 requirement_tasks = placeholder_tasks.map(&:planning_task)
+                requirement_tasks.each do |task|
+                    task.requirements.deployment_group.use_group!(@__test_deployment_group)
+                end
 
                 not_running = requirement_tasks.find_all { |t| !t.running? }
                 expect_execution { not_running.each(&:start!) }.
                     to { emit *not_running.map(&:start_event) }
 
+                resolve_options = Hash[on_error: :commit].merge(resolve_options)
                 begin
-                    syskit_engine ||= Syskit::NetworkGeneration::Engine.new(plan)
-                    syskit_engine.resolve(**(Hash[on_error: :commit].merge(resolve_options)))
+                    syskit_engine_resolve_handle_plan_export do
+                        syskit_engine ||= Syskit::NetworkGeneration::Engine.new(plan)
+                        syskit_engine.resolve(**resolve_options)
+                    end
                 rescue Exception => e
                     expect_execution do
                         requirement_tasks.each { |t| t.failed_event.emit(e) }
@@ -177,9 +177,28 @@ module Syskit
                     requirement_tasks.each { |t| t.success_event.emit if !t.finished? }
                 end
 
+                root_tasks = root_tasks.map(&:task)
+                if root_tasks.size == 1
+                    return root_tasks.first
+                elsif root_tasks.size > 1
+                    return root_tasks
+                end
+            end
+
+            def syskit_engine_resolve_handle_plan_export
+                failed = false
+                yield
+            rescue Exception
+                failed = true
+                raise
+            ensure
                 if Roby.app.public_logs?
                     filename = name.gsub("/", "_")
                     dataflow_base, hierarchy_base = filename + "-dataflow", filename + "-hierarchy"
+                    if failed
+                        dataflow_base += "-FAILED"
+                        hierarchy_base += "-FAILED"
+                    end
                     dataflow = File.join(Roby.app.log_dir, "#{dataflow_base}.svg")
                     hierarchy = File.join(Roby.app.log_dir, "#{hierarchy_base}.svg")
                     while File.file?(dataflow) || File.file?(hierarchy)
@@ -191,13 +210,6 @@ module Syskit
 
                     Graphviz.new(plan).to_file('dataflow', 'svg', dataflow)
                     Graphviz.new(plan).to_file('hierarchy', 'svg', hierarchy)
-                end
-
-                root_tasks = root_tasks.map(&:task)
-                if root_tasks.size == 1
-                    return root_tasks.first
-                elsif root_tasks.size > 1
-                    return root_tasks
                 end
             end
 
@@ -211,9 +223,8 @@ module Syskit
                 model
             end
 
-            def syskit_stub_configured_deployment(
-                    task_model = nil, name = nil,
-                    remote_task: self.syskit_stub_resolves_remote_tasks?, &block)
+            def syskit_stub_configured_deployment(task_model = nil, name = nil,
+                remote_task: syskit_stub_resolves_remote_tasks?, register: true, &block)
 
                 if task_model
                     task_model = task_model.to_component_model
@@ -238,12 +249,13 @@ module Syskit
                     end
                 end
 
-                process_server.register_deployment_model(deployment_model.orogen_model)
-                configured_deployment = Models::ConfiguredDeployment.
-                    new('stubs', deployment_model, Hash[name => name],
-                        name, Hash[task_context_class: task_context_class])
-                Syskit.conf.register_configured_deployment(configured_deployment)
-                configured_deployment
+                deployment = Models::ConfiguredDeployment.new(
+                    'stubs', deployment_model, Hash[name => name], name,
+                    Hash[task_context_class: task_context_class])
+                if register
+                    @__test_deployment_group.register_configured_deployment(deployment)
+                end
+                deployment
             end
 
             # Create a new stub deployment model that can deploy a given task
@@ -261,7 +273,8 @@ module Syskit
             def syskit_stub_deployment_model(
                     task_model = nil, name = nil,
                     remote_task: self.syskit_stub_resolves_remote_tasks?, &block)
-                configured_deployment = syskit_stub_configured_deployment(task_model, name, remote_task: remote_task, &block)
+                configured_deployment = syskit_stub_configured_deployment(task_model,
+                    name, remote_task: remote_task, &block)
                 configured_deployment.model
             end
 
@@ -293,13 +306,13 @@ module Syskit
                 model = model.to_instance_requirements
 
                 task_m = model.model.to_component_model.concrete_model
-                if task_m.respond_to?(:proxied_data_services)
+                if task_m.placeholder?
                     superclass = if task_m.superclass <= Syskit::TaskContext
                                      task_m.superclass
                                  else Syskit::TaskContext
                                  end
 
-                    services = task_m.proxied_data_services
+                    services = task_m.proxied_data_service_models
                     task_m = superclass.new_submodel(name: "#{task_m.to_s}-stub")
                     services.each_with_index do |srv, idx|
                         srv.each_input_port do |p|
@@ -322,9 +335,10 @@ module Syskit
 
                 syskit_stub_conf(task_m, *model.arguments[:conf])
 
-                syskit_stub_deployment_model(task_m, as)
-                model.deployment_hints.clear
-                model.prefer_deployed_tasks(as)
+                deployment = syskit_stub_configured_deployment(task_m, as, register: false)
+                model.reset_deployment_selection
+                model.use_configured_deployment(deployment)
+                model
             end
 
             # Create empty configuration sections for the given task model
@@ -480,6 +494,37 @@ module Syskit
                 end
             end
 
+            class CannotStub < RuntimeError
+                def initialize(original, stub)
+                    @original = original
+                    @stub = stub
+                    @semantic_merge_blockers = @original.arguments.
+                        semantic_merge_blockers(@stub.arguments)
+                end
+
+                def pretty_print(pp)
+                    pp.text "cannot stub "
+                    @original.pretty_print(pp)
+
+                    pp.breakable
+                    if @semantic_merge_blockers.empty?
+                        pp.text "The reason is unknown. Consider this a Syskit bug"
+                        return
+                    end
+
+                    pp.text "The following delayed arguments should be made available"
+                    pp.nest(2) do
+                        @semantic_merge_blockers.each do |name, (arg, _)|
+                            pp.breakable
+                            pp.text "#{name} "
+                            pp.nest(2) do
+                                arg.pretty_print(pp)
+                            end
+                        end
+                    end
+                end
+            end
+
             # Stub an already existing network
             def syskit_stub_network(root_tasks, remote_task: self.syskit_stub_resolves_remote_tasks?)
                 tasks = Set.new
@@ -534,7 +579,7 @@ module Syskit
                                 syskit_stub_network_abstract_component(abstract_task)
                             end
 
-                        if abstract_task.placeholder_task? && !abstract_task.kind_of?(Syskit::TaskContext) # 'pure' proxied data services
+                        if abstract_task.placeholder? && !abstract_task.kind_of?(Syskit::TaskContext) # 'pure' proxied data services
                             trsc.replace_task(abstract_task, concrete_task)
                             merge_solver.register_replacement(abstract_task, concrete_task)
                         else
@@ -542,6 +587,11 @@ module Syskit
                         end
                     end
                     merge_mappings.each do |original, replacement|
+                        unless original.can_merge?(replacement)
+                            raise CannotStub.new(original, replacement),
+                                "cannot stub #{original} with #{replacement}, maybe "\
+                                "some delayed arguments are not set ?"
+                        end
                         merge_solver.apply_merge_group(original => replacement)
                     end
                     merge_solver.merge_identical_tasks
@@ -554,6 +604,11 @@ module Syskit
                         end
                     end
                     merge_mappings.each do |original, replacement|
+                        unless original.can_merge?(replacement)
+                            raise CannotStub.new(original, replacement),
+                                "cannot stub #{original} with #{replacement}, maybe "\
+                                "some delayed arguments are not set ?"
+                        end
                         merge_solver.apply_merge_group(original => replacement)
                     end
 
@@ -590,13 +645,13 @@ module Syskit
                 root_tasks.map { |t, _| mapped_tasks[t] }
             end
 
-            def syskit_stub_proxied_data_service(model)
+            def syskit_stub_placeholder(model)
                 superclass = if model.superclass <= Syskit::TaskContext
                                  model.superclass
                              else Syskit::TaskContext
                              end
 
-                services = model.proxied_data_services
+                services = model.proxied_data_service_models
                 task_m = superclass.new_submodel(name: "#{model.to_s}-stub")
                 services.each_with_index do |srv, idx|
                     srv.each_input_port do |p|
@@ -616,8 +671,8 @@ module Syskit
 
             def syskit_stub_network_abstract_component(task)
                 task_m = task.concrete_model
-                if task_m.respond_to?(:proxied_data_services)
-                    task_m = syskit_stub_proxied_data_service(task_m)
+                if task_m.placeholder?
+                    task_m = syskit_stub_placeholder(task_m)
                 elsif task_m.abstract?
                     task_m = task_m.new_submodel(name: "#{task_m.name}-stub")
                 end
@@ -636,7 +691,7 @@ module Syskit
 
                 task_m = task.concrete_model
                 deployment_model = syskit_stub_configured_deployment(
-                    task_m, as, remote_task: remote_task)
+                    task_m, as, remote_task: remote_task, register: false)
                 syskit_stub_conf(task_m, *task.arguments[:conf])
                 task.plan.add(deployer = deployment_model.new)
                 deployed_task = deployer.instanciate_all_tasks.first

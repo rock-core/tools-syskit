@@ -53,7 +53,7 @@ module Syskit
                 super(source_task, sink_task, mappings)
             else
                 set_edge_info(source_task, sink_task,
-                              edge_info(source_task, sink_task).merge!(mappings))
+                              edge_info(source_task, sink_task).merge(mappings))
             end
         end
 

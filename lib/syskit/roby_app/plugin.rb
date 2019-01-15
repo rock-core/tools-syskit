@@ -76,7 +76,17 @@ module Syskit
                 unless Syskit.conf.only_load_models?
                     Syskit.conf.logs.create_configuration_log(
                         File.join(app.log_dir, 'properties'))
+                end
 
+                if Syskit.conf.define_default_process_managers? && Syskit.conf.only_load_models?
+                    fake_client = Configuration::ModelOnlyServer.new(app.default_loader)
+                    Syskit.conf.register_process_server(
+                        'ruby_tasks', fake_client, app.log_dir, host_id: 'syskit')
+                    Syskit.conf.register_process_server(
+                        'unmanaged_tasks', fake_client, app.log_dir, host_id: 'syskit')
+                    Syskit.conf.register_process_server(
+                        'ros', fake_client, app.log_dir, host_id: 'syskit')
+                elsif Syskit.conf.define_default_process_managers?
                     Syskit.conf.register_process_server('ruby_tasks',
                         Orocos::RubyTasks::ProcessManager.new(app.default_loader),
                         app.log_dir, host_id: 'syskit')
@@ -94,6 +104,7 @@ module Syskit
                 else
                     ENV['ORO_LOGFILE'] = File.join(app.log_dir, "orocos.orocosrb-#{::Process.pid}.txt")
                 end
+
                 if Syskit.conf.only_load_models?
                     Orocos.load
                     if Orocos::ROS.available?
@@ -111,7 +122,9 @@ module Syskit
                     end
                 end
 
-                start_local_process_server = !Syskit.conf.only_load_models? &&
+                start_local_process_server =
+                    Syskit.conf.define_default_process_managers? &&
+                    !Syskit.conf.only_load_models? &&
                     !Syskit.conf.disables_local_process_server? &&
                     !(app.single? && app.simulation?)
 
@@ -272,6 +285,9 @@ module Syskit
                     end
                 end
 
+                orogen.each_deployment do |deployer_model|
+                    deployment_define_from_orogen(deployer_model)
+                end
                 orogen
             end
 
@@ -430,7 +446,6 @@ module Syskit
             # setup
             def self.clear_config(app)
                 Syskit.conf.clear
-                Syskit.conf.deployments.clear
             end
 
             def self.auto_require_models(app)
@@ -598,10 +613,11 @@ module Syskit
 
             # Loads the oroGen deployment model for the given name and returns
             # the corresponding syskit model
-            def using_deployment(name, options = Hash.new)
-                options = Kernel.validate_options options, :loader => default_loader
-                deployer = options[:loader].deployment_model_from_name(name)
-                deployment_define_from_orogen(deployer)
+            def using_deployment(name, loader: default_loader)
+                # This loads the underlying orogen project which causes the
+                # deployer to be registered
+                deployment_model = loader.deployment_model_from_name(name)
+                Deployment.find_model_by_orogen(deployment_model)
             end
 
             # Loads the oroGen deployment model based on a ROS launcher file
@@ -740,10 +756,10 @@ module Syskit
                 # This needs to be cleared here and not in
                 # Component.clear_model. The main reason is that we need to
                 # clear them on every component model class,
-                # including the models that are marked as permanent
-                Syskit::Component.proxy_task_models.clear
+                # including the models that are markes as permanent
+                Syskit::Component.placeholder_models.clear
                 Syskit::Component.each_submodel do |sub|
-                    sub.proxy_task_models.clear
+                    sub.placeholder_models.clear
                 end
 
                 # require_models is where the deployments get loaded, so

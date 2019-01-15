@@ -162,9 +162,10 @@ describe Syskit::Models::CompositionChild do
             e = assert_raises(ArgumentError) do
                 @cmp_m.test_child.bind(task)
             end
-            assert_equal "cannot bind cmp_m.test_child[<srv_m>] to task_m:: "\
+            assert_equal "cannot bind cmp_m.test_child["\
+                "Syskit::Models::Placeholder<srv_m>] to task_m:: "\
                 "it is not the child of any cmp_m composition",
-                e.message.gsub(/:.*:/, '::')
+                e.message.gsub(/:0x.*:/, '::')
         end
         it "does not move up to parents when the role does not match" do
             plan.add(task = @task_m.new)
@@ -173,9 +174,9 @@ describe Syskit::Models::CompositionChild do
             e = assert_raises(ArgumentError) do
                 @cmp_m.test_child.bind(task)
             end
-            assert_equal "cannot bind cmp_m.test_child[<srv_m>] to task_m:: "\
+            assert_equal "cannot bind cmp_m.test_child[Syskit::Models::Placeholder<srv_m>] to task_m:: "\
                 "it is the child of one or more cmp_m compositions, "\
-                "but not with the role 'test'", e.message.gsub(/:.*:/, '::')
+                "but not with the role 'test'", e.message.gsub(/:0x.*:/, '::')
         end
     end
 

@@ -1,9 +1,5 @@
 module Syskit
-        DataService = Models::DataServiceModel.new(project: OroGen::Spec::Project.blank)
-        DataService.root = true
-        DataService.permanent_model = true
-        DataService.provides Roby::TaskService
-        Models::DataServiceModel.base_module = DataService
+        DataService = Models::DataServiceModel.new_permanent_root(parent: Roby::TaskService)
         module DataService
             # Returns true if at least one port of the given service (designated
             # by its name) is connected to something.
@@ -27,11 +23,7 @@ module Syskit
             end
         end
 
-        Device   = Models::DeviceModel.new(project: OroGen::Spec::Project.blank)
-        Device.root = true
-        Device.permanent_model = true
-        Device.provides DataService
-        Models::DeviceModel.base_module = Device
+        Device = Models::DeviceModel.new_permanent_root(parent: DataService)
 
         # Modelling and instance-level functionality for devices
         #
@@ -126,11 +118,7 @@ module Syskit
             end
         end
 
-        ComBus = Models::ComBusModel.new(project: OroGen::Spec::Project.blank)
-        ComBus.root = true
-        ComBus.permanent_model = true
-        ComBus.provides Device
-        Models::ComBusModel.base_module = ComBus
+        ComBus = Models::ComBusModel.new_permanent_root(parent: Device)
 
         # Module that represents the communication busses in the task models. It
         # defines the methods that are available on task instances. For methods

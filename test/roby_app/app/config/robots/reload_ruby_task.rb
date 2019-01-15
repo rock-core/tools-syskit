@@ -11,10 +11,11 @@ class Interface < Roby::Interface::CommandLibrary
 
     def orogen_deployment_exists?
         reload_model = SyskitUnitTests::Compositions::ReloadRubyTask
-        result = Syskit.conf.each_configured_deployment.any? do |d|
-            d.each_orogen_deployed_task_context_model.any? do |t|
-                (t.task_model == reload_model.orogen_model) && t.name == 'task'
-            end
+        result = Syskit.conf.deployment_group.each_configured_deployment.any? do |d|
+            d.process_server_name == 'ruby_tasks' &&
+                d.each_orogen_deployed_task_context_model.any? do |t|
+                    (t.task_model == reload_model.orogen_model) && t.name == 'task'
+                end
         end
 
         return result, "could not find the 'task' task of model #{reload_model}"

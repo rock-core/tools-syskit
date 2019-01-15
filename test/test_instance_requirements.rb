@@ -337,14 +337,16 @@ describe Syskit::InstanceRequirements do
                 Syskit::InstanceRequirements.new([component_model]).fullfilled_model[1]
         end
         it "should list the data services as second element" do
-            srv1, srv2 = Syskit::DataService.new_submodel, Syskit::DataService.new_submodel
+            srv1 = Syskit::DataService.new_submodel
+            srv2 = Syskit::DataService.new_submodel
             component_model = Syskit::Component.new_submodel do
                 provides srv1, as: "1"
                 provides srv2, as: "2"
             end
+            ir = Syskit::InstanceRequirements.new([component_model])
             assert_equal [srv1, srv2, Syskit::DataService,
                 Syskit::AbstractComponent].to_set,
-                Syskit::InstanceRequirements.new([component_model]).fullfilled_model[1].to_set
+                ir.fullfilled_model[1].to_set
         end
         it "should return the required arguments as third element" do
             arguments = Hash[argument: 'for the task']
@@ -361,7 +363,7 @@ describe Syskit::InstanceRequirements do
         end
         it "accepts selecting services from placeholder tasks if the set of models in the task matches the set of models in the instance requirements" do
             srv_m  = Syskit::DataService.new_submodel
-            task_m = Syskit.proxy_task_model_for([srv_m])
+            task_m = srv_m.placeholder_model
 
             req = Syskit::InstanceRequirements.new([srv_m])
             srv = task_m.find_data_service_from_type(srv_m)
@@ -672,6 +674,34 @@ describe Syskit::InstanceRequirements do
         def to_action_model(&block)
             task_m = Syskit::TaskContext.new_submodel(&block)
             Syskit::InstanceRequirements.new([task_m]).to_action_model
+        end
+    end
+
+    describe "the deployment groups" do
+        before do
+            @task_m = Syskit::RubyTaskContext.new_submodel
+            @ir = Syskit::InstanceRequirements.new([@task_m])
+        end
+        it "annotates the instanciated task with the deployment group" do
+            deployment = @ir.deployment_group.
+                use_ruby_tasks(Hash[@task_m => 'test'], on: 'stubs')
+            task = @ir.instanciate(plan)
+            assert_equal deployment, task.requirements.deployment_group.
+                find_all_suitable_deployments_for(task).map(&:first)
+        end
+        it "applies the group post-template" do
+            @ir.instanciate(plan)
+            deployment = @ir.deployment_group.
+                use_ruby_tasks(Hash[@task_m => 'test'], on: 'stubs')
+            task = @ir.instanciate(plan)
+            assert_equal deployment, task.requirements.deployment_group.
+                find_all_suitable_deployments_for(task).map(&:first)
+        end
+    end
+
+    describe "droby marshalling" do
+        it "should be able to be marshalled and unmarshalled" do
+            assert_droby_compatible(Syskit::InstanceRequirements.new)
         end
     end
 

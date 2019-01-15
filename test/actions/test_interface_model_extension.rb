@@ -32,7 +32,7 @@ describe Syskit::Actions::InterfaceModelExtension do
             tag     = profile.test_tag
             assert_equal 'test', tag.tag_name
             assert_equal profile, tag.profile
-            assert_equal [srv_m], tag.proxied_data_services
+            assert_equal [srv_m], tag.proxied_data_service_models
 
             cmp = profile.cmp_def.instanciate(plan)
             assert_kind_of tag, cmp.test_child

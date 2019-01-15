@@ -30,6 +30,11 @@ module Syskit
             attr_reader :pushed_selections
             protected :pushed_selections
 
+            # The deployments that should be used for self
+            #
+            # @return [Models::DeploymentGroup]
+            attr_reader :deployment_group
+
             # A set of hints for deployment disambiguation
             #
             # @see prefer_deployed_tasks
@@ -96,7 +101,7 @@ module Syskit
             end
 
             def initialize(models = [])
-                @base_model = Syskit.proxy_task_model_for(models)
+                @base_model = Models::Placeholder.for(models)
                 @model = base_model
                 @arguments = Hash.new
                 @selections = DependencyInjection.new
@@ -106,6 +111,7 @@ module Syskit
                 @specialization_hints = Set.new
                 @dynamics = Dynamics.new(NetworkGeneration::PortDynamics.new('Requirements'), Hash.new)
                 @can_use_template = true
+                @deployment_group = Models::DeploymentGroup.new
             end
 
             # HACK: allows CompositionChild#to_instance_requirements to return a
@@ -125,6 +131,7 @@ module Syskit
                 @deployment_hints = old.deployment_hints.dup
                 @specialization_hints = old.specialization_hints.dup
                 @context_selections = old.context_selections.dup
+                @deployment_group = old.deployment_group.dup
                 @can_use_template = old.can_use_template?
             end
 
@@ -146,7 +153,7 @@ module Syskit
             # Add new models to the set of required ones
             def add_models(new_models)
                 invalidate_template
-                @base_model = base_model.merge(Syskit.proxy_task_model_for(new_models))
+                @base_model = base_model.merge(Models::Placeholder.for(new_models))
                 narrow_model
             end
 
@@ -227,8 +234,8 @@ module Syskit
             # @return [Model<Component>]
             def component_model
                 model = self.model.to_component_model
-                if model.respond_to?(:proxied_task_context_model)
-                    return model.proxied_task_context_model
+                if model.placeholder?
+                    return model.proxied_component_model
                 else return model
                 end
             end
@@ -245,8 +252,8 @@ module Syskit
             def service
                 if model.kind_of?(Models::BoundDataService)
                     model
-                elsif model.respond_to?(:proxied_data_services)
-                    ds = model.proxied_data_services
+                elsif model.placeholder?
+                    ds = model.proxied_data_service_models
                     if ds.size == 1
                         return model.find_data_service_from_type(ds.first)
                     end
@@ -273,7 +280,7 @@ module Syskit
                 if !model.to_component_model.fullfills?(service.component_model)
                     raise ArgumentError, "#{service} is not a service of #{self}"
                 end
-                if service.component_model.respond_to?(:proxied_data_services)
+                if service.component_model.placeholder?
                     if srv = base_model.find_data_service_from_type(service.model)
                         @base_model = srv
                         @model = srv.attach(model)
@@ -362,7 +369,7 @@ module Syskit
                     result
                 else
                     models = Array(models) if !models.respond_to?(:each)
-                    Models::FacetedAccess.new(self, Syskit.proxy_task_model_for(models))
+                    Models::FacetedAccess.new(self, Models::Placeholder.for(models))
                 end
             end
 
@@ -469,6 +476,7 @@ module Syskit
                 @selections.merge(other_spec.selections)
                 @pushed_selections.merge(other_spec.pushed_selections)
                 @context_selections.merge(other_spec.context_selections)
+                @deployment_group.use_group(other_spec.deployment_group)
 
                 @deployment_hints |= other_spec.deployment_hints
                 @specialization_hints |= other_spec.specialization_hints
@@ -706,11 +714,31 @@ module Syskit
                 self
             end
 
-            # @deprecated use {#prefer_deployed_tasks} instead
-            def use_deployments(*patterns)
-                Roby.warn_deprecated "InstanceRequirements#use_deployments is deprecated. Use #prefer_deployed_tasks instead"
+            def reset_deployment_selection
+                deployment_hints.clear
+                @deployment_group = Models::DeploymentGroup.new
+            end
+
+            def use_configured_deployment(configured_deployment)
                 invalidate_template
-                prefer_deployed_tasks(*patterns)
+                deployment_group.register_configured_deployment(configured_deployment)
+                self
+            end
+
+            # Declare the deployment that should be used for self
+            def use_deployment(*spec, **options)
+                invalidate_template
+                deployment_group.use_deployment(*spec, **options)
+                self
+            end
+
+            # Add deployments into the deployments this subnet should be using
+            #
+            # @param [Models::DeploymentGroup] deployment_group
+            def use_deployment_group(deployment_group)
+                invalidate_template
+                self.deployment_group.use_group(deployment_group)
+                self
             end
 
             # Add some hints to disambiguate deployment.
@@ -814,7 +842,7 @@ module Syskit
             # Returns the taks model that should be used to represent the result
             # of the deployment of this requirement in a plan
             # @return [Model<Roby::Task>]
-            def proxy_task_model
+            def placeholder_model
                 model.to_component_model
             end
 
@@ -843,7 +871,7 @@ module Syskit
                     # required to avoid recursively reusing names (which was once
                     # upon a time, and is a very confusing feature)
                     barrier = Syskit::DependencyInjection.new
-                    barrier.add_mask(self.proxy_task_model.dependency_injection_names)
+                    barrier.add_mask(self.placeholder_model.dependency_injection_names)
                     context.push(barrier)
                     context.push(pushed_selections)
                     context.push(selections)
@@ -864,55 +892,73 @@ module Syskit
                 @template = template
             end
 
-            def instanciate_from_template(plan)
-                if !@template
-                    compute_template
-                end
+            def instanciate_from_template(plan, extra_arguments)
+                compute_template unless @template
 
                 mappings = @template.deep_copy_to(plan)
                 root_task = mappings[@template.root_task]
-                root_task.assign_arguments(arguments)
+                root_task.assign_arguments(arguments.merge(extra_arguments))
                 return model.bind(root_task)
             end
+
             def has_template?
                 !!@template
             end
 
             # Create a concrete task for this requirement
-            def instanciate(plan, context = Syskit::DependencyInjectionContext.new, task_arguments: Hash.new, specialization_hints: Hash.new, use_template: true)
-                if context.empty? && task_arguments.empty? && specialization_hints.empty? && use_template && can_use_template?
-                    from_cache = true
-                    return instanciate_from_template(plan)
-                end
+            def instanciate(plan,
+                context = Syskit::DependencyInjectionContext.new,
+                task_arguments: Hash.new,
+                specialization_hints: Hash.new,
+                use_template: true)
 
-                task_model = self.proxy_task_model
+                from_cache = context.empty? && specialization_hints.empty? &&
+                    use_template && can_use_template?
+                if from_cache
+                    task = instanciate_from_template(plan, task_arguments)
+                else
+                    begin
+                        task_model = placeholder_model
 
-                context.save
-                context.push(resolved_dependency_injection)
+                        context.save
+                        context.push(resolved_dependency_injection)
 
-                task_arguments = self.arguments.merge(task_arguments)
-                specialization_hints = self.specialization_hints | specialization_hints
-                task = task_model.instanciate(plan, context, task_arguments: task_arguments, specialization_hints: specialization_hints)
-                task_requirements = to_component_model
-                task_requirements.map_use_selections! do |sel|
-                    if sel && !Models.is_model?(sel) && !sel.kind_of?(DependencyInjection::SpecialDIValue)
-                        sel.to_instance_requirements
-                    else sel
+                        task_arguments = self.arguments.merge(task_arguments)
+                        specialization_hints = self.specialization_hints | specialization_hints
+                        task = task_model.instanciate(plan, context,
+                            task_arguments: task_arguments,
+                            specialization_hints: specialization_hints)
+                    ensure
+                        context.restore if !from_cache
                     end
                 end
-                task.update_requirements(task_requirements, keep_abstract: true)
 
-                if required_host && task.respond_to?(:required_host=)
-                    task.required_host = required_host
-                end
-                task.abstract = true if abstract?
+                post_instanciation_setup(task.to_task)
                 model.bind(task)
 
             rescue InstanciationError => e
                 e.instanciation_chain << self
                 raise
             ensure
-                context.restore if !from_cache
+            end
+
+            def post_instanciation_setup(task)
+                task_requirements = to_component_model
+                task_requirements.map_use_selections! do |sel|
+                    if sel && !Models.is_model?(sel) &&
+                        !sel.kind_of?(DependencyInjection::SpecialDIValue)
+
+                        sel.to_instance_requirements
+                    else sel
+                    end
+                end
+                task.update_requirements(task_requirements,
+                    name: name, keep_abstract: true)
+
+                if required_host && task.respond_to?(:required_host=)
+                    task.required_host = required_host
+                end
+                task.abstract = true if abstract?
             end
 
             def each_fullfilled_model(&block)
@@ -1039,7 +1085,10 @@ module Syskit
 
             # Tests if these requirements explicitly point to a component model
             def component_model?
-                model.component_model?
+                if model.placeholder?
+                    model.proxied_component_model != Syskit::Component
+                else true
+                end
             end
 
             # Tests if these requirements explicitly point to a composition model
@@ -1095,7 +1144,7 @@ module Syskit
 
             class CoordinationTask < Roby::Coordination::Models::TaskWithDependencies
                 def initialize(requirements)
-                    super(requirements.proxy_task_model)
+                    super(requirements.placeholder_model)
                     @requirements = requirements
                 end
 
