@@ -578,6 +578,11 @@ module Syskit
                 job_status.connect(SIGNAL('clicked()')) do
                     select_job(job_status)
                 end
+                job_status.connect(SIGNAL('clearJob()')) do
+                    job_status_list.clear_widgets do |job|
+                        job == job_status
+                    end
+                end
             end
 
             def deselect_job

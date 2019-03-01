@@ -8,6 +8,7 @@ module Syskit
             attr_reader :ui_start
             attr_reader :ui_restart
             attr_reader :ui_drop
+            attr_reader :ui_clear
             attr_reader :ui_state
             attr_reader :exceptions
             attr_reader :notifications
@@ -51,13 +52,16 @@ module Syskit
                 @actions_buttons = Hash[
                     'Drop' => Qt::PushButton.new("Drop", self),
                     'Restart' => Qt::PushButton.new("Restart", self),
-                    "Start Again" => Qt::PushButton.new("Start Again", self)
+                    "Start Again" => Qt::PushButton.new("Start Again", self),
+                    "Clear" => Qt::PushButton.new("Clear", self)
                 ]
                 hlayout.add_widget(@ui_drop    = @actions_buttons['Drop'])
                 hlayout.add_widget(@ui_restart = @actions_buttons['Restart'])
                 hlayout.add_widget(@ui_start   = @actions_buttons['Start Again'])
+                hlayout.add_widget(@ui_clear   = @actions_buttons['Clear'])
 
                 ui_start.hide
+                ui_clear.hide
                 hlayout.set_contents_margins(0, 0, 0, 0)
 
                 @ui_notifications = Qt::Label.new("", self)
@@ -157,6 +161,13 @@ module Syskit
                         end
                     end
                 end
+                ui_clear.connect(SIGNAL('clicked()')) do
+                    if !job.active?
+                        job.stop
+                        emit clearJob
+                        true
+                    end
+                end
                 job.on_progress do |state|
                     update_state(state)
                 end
@@ -181,10 +192,12 @@ module Syskit
                     ui_drop.hide
                     ui_restart.hide
                     ui_start.show
+                    ui_clear.show
                 elsif Roby::Interface.terminal_state?(state)
                     ui_drop.hide
                     ui_restart.hide
                     ui_start.show
+                    ui_clear.show
                 end
             end
 
@@ -197,6 +210,7 @@ module Syskit
             # Signal emitted when one exception got added at the end of
             # {#exceptions}
             signals 'exceptionEvent()'
+            signals 'clearJob()'
         end
     end
 end
