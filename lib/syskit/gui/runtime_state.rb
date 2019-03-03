@@ -438,14 +438,23 @@ module Syskit
 
                 task_inspector_widget = Qt::Widget.new
                 task_inspector_layout = Qt::VBoxLayout.new(task_inspector_widget)
-                task_inspector_layout.add_widget(
+                task_inspector_checkboxes_layout = Qt::HBoxLayout.new
+                task_inspector_checkboxes_layout.add_widget(
+                    @ui_show_expanded_job = Qt::CheckBox.new("Show details"))
+                task_inspector_checkboxes_layout.add_widget(
                     @ui_hide_loggers = Qt::CheckBox.new("Show loggers"))
+                task_inspector_checkboxes_layout.add_stretch
+                task_inspector_layout.add_layout(task_inspector_checkboxes_layout)
                 task_inspector_layout.add_widget(
                     @ui_task_inspector = Vizkit.default_loader.TaskInspector)
                 @ui_hide_loggers.checked = false
                 @ui_hide_loggers.connect SIGNAL('toggled(bool)') do |checked|
                     @known_loggers = nil
                     update_tasks_info
+                end
+                @ui_show_expanded_job.checked = true
+                @ui_show_expanded_job.connect SIGNAL("toggled(bool)") do |checked|
+                    job_expanded_status.visible = checked
                 end
 
                 @ui_logging_configuration = LoggingConfiguration.new(syskit)
