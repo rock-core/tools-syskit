@@ -20,12 +20,16 @@ module Syskit
 
                 @main_layout = Qt::VBoxLayout.new(self)
                 @widgets = Array.new
-                @main_layout.size_constraint = Qt::Layout::SetMinAndMaxSize
+                set_size_constraint()
                 @auto_resize = auto_resize
                 if auto_resize
                     @main_layout.add_stretch(1)
                 end
                 @separators = Hash.new
+            end
+
+            def set_size_constraint(constraint = Qt::Layout::SetMinAndMaxSize)
+                @main_layout.size_constraint = constraint
             end
 
             def add_separator(name, label, permanent: true)
