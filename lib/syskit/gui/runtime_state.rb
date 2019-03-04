@@ -266,6 +266,10 @@ module Syskit
                 !@ui_hide_loggers.checked?
             end
 
+            def hide_expanded_jobs?
+                !@ui_show_expanded_job.checked()
+            end
+
             def remote_name
                 syskit.remote_name
             end
