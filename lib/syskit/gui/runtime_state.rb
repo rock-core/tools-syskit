@@ -64,6 +64,10 @@ module Syskit
             # The current connection state
             attr_reader :current_state
 
+            # Checkboxes to select widgets options
+            attr_reader :ui_hide_loggers
+            attr_reader :ui_show_expanded_job
+
             define_hooks :on_connection_state_changed
             define_hooks :on_progress
 
@@ -618,6 +622,19 @@ module Syskit
                 update_tasks_info
                 job_expanded_status.select(job_status)
                 job_expanded_status.add_tasks_info(all_tasks, all_job_info)
+            end
+
+            def restore_from_settings(settings)
+                %w{ui_hide_loggers ui_show_expanded_job}.each do |checkbox_name|
+                    default = Qt::Variant.new( send(checkbox_name).checked )
+                    send(checkbox_name).checked = settings.value(checkbox_name, default).to_bool
+                end
+            end
+
+            def save_to_settings(settings)
+                %w(ui_hide_loggers ui_show_expanded_job).each do |checkbox_name|
+                    settings.set_value checkbox_name, Qt::Variant.new( send(checkbox_name).checked )
+                end
             end
 
             signals 'fileOpenClicked(const QUrl&)'
