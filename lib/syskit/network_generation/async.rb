@@ -60,24 +60,32 @@ module Syskit
                 end
             end
 
-            def prepare(requirement_tasks = Engine.discover_requirement_tasks_from_plan(plan))
-                future.cancel if future
-                resolver = Resolution.new(plan, event_logger, requirement_tasks, executor: thread_pool) do
+            def prepare(requirement_tasks = default_requirement_tasks, **resolver_options)
+                @future&.cancel
+                # Resolver is used within the block ... don't assign directly to @future
+                resolver = Resolution.new(plan, event_logger, requirement_tasks,
+                                          executor: thread_pool) do
                     Thread.current.name = 'syskit-async-resolution'
                     log_timepoint_group 'syskit-async-resolution' do
-                        resolver.engine.resolve_system_network(requirement_tasks)
+                        resolver.engine.resolve_system_network(
+                            requirement_tasks, **resolver_options
+                        )
                     end
                 end
                 @future = resolver
             end
 
-            def start(requirement_tasks = Engine.discover_requirement_tasks_from_plan(plan))
-                resolver = prepare(requirement_tasks)
+            def default_requirement_tasks
+                Engine.discover_requirement_tasks_from_plan(plan)
+            end
+
+            def start(requirement_tasks = default_requirement_tasks, **resolver_options)
+                resolver = prepare(requirement_tasks, **resolver_options)
                 resolver.execute
                 resolver
             end
 
-            def valid?(current = Engine.discover_requirement_tasks_from_plan(plan))
+            def valid?(current = default_requirement_tasks)
                 current.to_set == future.requirement_tasks
             end
 

@@ -13,13 +13,13 @@ module Syskit
                 result
             end
 
-            describe "#prepare" do
-                it "computes the system network in a separate plan" do
+            describe '#prepare' do
+                it 'computes the system network in a separate plan' do
                     requirements = Set[flexmock]
                     resolution = subject.prepare(requirements)
-                    flexmock(resolution.engine).should_receive(:resolve_system_network).
-                        with(requirements).
-                        once.and_return(ret = flexmock)
+                    flexmock(resolution.engine).should_receive(:resolve_system_network)
+                                               .with(requirements, {})
+                                               .once.and_return(ret = flexmock)
                     resolution.execute
                     assert_equal ret, subject.join
                 end
@@ -65,10 +65,10 @@ module Syskit
                     requirements = Set[flexmock]
                     resolution = subject.prepare(requirements)
                     engine = flexmock(resolution.engine, :strict)
-                    engine.should_receive(:resolve_system_network).
-                        with(requirements).once.and_return(ret = flexmock)
-                    engine.should_receive(:apply_system_network_to_plan).
-                        with(ret).once
+                    engine.should_receive(:resolve_system_network)
+                          .with(requirements, {}).once.and_return(ret = flexmock)
+                    engine.should_receive(:apply_system_network_to_plan)
+                          .with(ret).once
                     resolution.execute
                     subject.join
                     assert subject.finished?

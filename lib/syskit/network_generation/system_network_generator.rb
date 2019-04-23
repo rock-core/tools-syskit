@@ -244,8 +244,9 @@ module Syskit
             # @param [Roby::Plan] plan the plan on which we are working
             # @raise [TaskAllocationFailed] if some abstract tasks are still in
             #   the plan
-            def self.verify_task_allocation(plan)
-                components = plan.find_local_tasks(AbstractComponent)
+            def self.verify_task_allocation(
+                plan, components: plan.find_local_tasks(AbstractComponent)
+            )
                 still_abstract = components.find_all(&:abstract?)
                 if !still_abstract.empty?
                     raise TaskAllocationFailed.new(self, still_abstract),
