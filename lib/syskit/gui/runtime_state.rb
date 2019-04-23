@@ -64,6 +64,10 @@ module Syskit
             # The current connection state
             attr_reader :current_state
 
+            # Checkboxes to select widgets options
+            attr_reader :ui_hide_loggers
+            attr_reader :ui_show_expanded_job
+
             define_hooks :on_connection_state_changed
             define_hooks :on_progress
 
@@ -266,6 +270,10 @@ module Syskit
                 !@ui_hide_loggers.checked?
             end
 
+            def hide_expanded_jobs?
+                !@ui_show_expanded_job.checked()
+            end
+
             def remote_name
                 syskit.remote_name
             end
@@ -420,6 +428,7 @@ module Syskit
                 end
 
                 @job_status_list = WidgetList.new(self)
+                @job_status_list.set_size_constraint(Qt::Layout::SetFixedSize)
                 job_status_scroll = Qt::ScrollArea.new
                 job_status_scroll.widget = @job_status_list
                 job_summary_layout.add_widget(job_status_scroll, 1)
@@ -438,14 +447,23 @@ module Syskit
 
                 task_inspector_widget = Qt::Widget.new
                 task_inspector_layout = Qt::VBoxLayout.new(task_inspector_widget)
-                task_inspector_layout.add_widget(
+                task_inspector_checkboxes_layout = Qt::HBoxLayout.new
+                task_inspector_checkboxes_layout.add_widget(
+                    @ui_show_expanded_job = Qt::CheckBox.new("Show details"))
+                task_inspector_checkboxes_layout.add_widget(
                     @ui_hide_loggers = Qt::CheckBox.new("Show loggers"))
+                task_inspector_checkboxes_layout.add_stretch
+                task_inspector_layout.add_layout(task_inspector_checkboxes_layout)
                 task_inspector_layout.add_widget(
                     @ui_task_inspector = Vizkit.default_loader.TaskInspector)
                 @ui_hide_loggers.checked = false
                 @ui_hide_loggers.connect SIGNAL('toggled(bool)') do |checked|
                     @known_loggers = nil
                     update_tasks_info
+                end
+                @ui_show_expanded_job.checked = true
+                @ui_show_expanded_job.connect SIGNAL("toggled(bool)") do |checked|
+                    job_expanded_status.visible = checked
                 end
 
                 @ui_logging_configuration = LoggingConfiguration.new(syskit)
@@ -578,6 +596,11 @@ module Syskit
                 job_status.connect(SIGNAL('clicked()')) do
                     select_job(job_status)
                 end
+                job_status.connect(SIGNAL('clearJob()')) do
+                    job_status_list.clear_widgets do |job|
+                        job == job_status
+                    end
+                end
             end
 
             def deselect_job
@@ -600,6 +623,19 @@ module Syskit
                 update_tasks_info
                 job_expanded_status.select(job_status)
                 job_expanded_status.add_tasks_info(all_tasks, all_job_info)
+            end
+
+            def restore_from_settings(settings)
+                %w{ui_hide_loggers ui_show_expanded_job}.each do |checkbox_name|
+                    default = Qt::Variant.new( send(checkbox_name).checked )
+                    send(checkbox_name).checked = settings.value(checkbox_name, default).to_bool
+                end
+            end
+
+            def save_to_settings(settings)
+                %w(ui_hide_loggers ui_show_expanded_job).each do |checkbox_name|
+                    settings.set_value checkbox_name, Qt::Variant.new( send(checkbox_name).checked )
+                end
             end
 
             signals 'fileOpenClicked(const QUrl&)'
