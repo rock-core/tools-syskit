@@ -63,6 +63,8 @@ module Syskit
                     app.auto_load_all_task_libraries = true
                 end
 
+                require 'orocos/async' if Conf.ui?
+
                 if app.development_mode?
                     require 'listen'
                     app.syskit_listen_to_configuration_changes
