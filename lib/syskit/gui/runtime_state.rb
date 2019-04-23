@@ -260,7 +260,7 @@ module Syskit
                         update_tasks_info
                         job_expanded_status.add_tasks_info(all_tasks, all_job_info)
                         job_expanded_status.scheduler_state = syskit_log_stream.scheduler_state
-                        job_expanded_status.update_chronicle
+                        job_expanded_status.update_chronicle unless hide_expanded_jobs?
                     end
                     syskit_log_stream.clear_integrated
                 end
