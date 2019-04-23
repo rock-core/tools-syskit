@@ -526,7 +526,33 @@ module Syskit
             end
 
             # Stub an already existing network
-            def syskit_stub_network(root_tasks, remote_task: self.syskit_stub_resolves_remote_tasks?)
+            def syskit_stub_network(root_tasks,
+                                    remote_task: syskit_stub_resolves_remote_tasks?)
+                mapped_tasks = plan.in_transaction do |trsc|
+                    mapped_tasks = syskit_stub_network_in_transaction(
+                        trsc, root_tasks, remote_task: remote_task
+                    )
+                    trsc.commit_transaction
+                    mapped_tasks
+                end
+
+                execute do
+                    syskit_stub_network_remove_obsolete_tasks(mapped_tasks)
+                end
+                root_tasks.map { |t, _| mapped_tasks[t] }
+            end
+
+            def syskit_stub_network_remove_obsolete_tasks(mapped_tasks)
+                mapped_tasks.each do |old, new|
+                    plan.remove_task(old) if old != new
+                end
+            end
+
+            def syskit_stub_network_in_transaction(
+                trsc, root_tasks,
+                remote_task: syskit_stub_resolves_remote_tasks?
+            )
+                plan = trsc.plan
                 tasks = Set.new
                 dependency_graph = plan.task_relation_graph_for(Roby::TaskStructure::Dependency)
                 root_tasks = Array(root_tasks).map do |t|
@@ -544,105 +570,122 @@ module Syskit
                     end
                 end
 
-                mapped_tasks = Hash.new
+                other_tasks = tasks.each_with_object(Set.new) do |t, s|
+                    s.merge(t.each_parent_task)
+                end
+                other_tasks -= tasks
+                trsc_other_tasks = other_tasks.map { |plan_t| trsc[plan_t] }
+
+                merge_solver = NetworkGeneration::MergeSolver.new(trsc)
+                trsc_tasks = tasks.map do |plan_t|
+                    trsc_t = trsc[plan_t]
+                    merge_solver.register_replacement(plan_t, trsc_t)
+                    trsc_t
+                end
+
+                trsc_tasks.each do |task|
+                    task.model.each_master_driver_service do |srv|
+                        task.arguments[:"#{srv.name}_dev"] ||=
+                            syskit_stub_device(srv.model, driver: srv)
+                    end
+                end
+
+                stubbed_tags = {}
+                merge_mappings = {}
+                trsc_tasks.find_all(&:abstract?).each do |abstract_task|
+                    # The task is required as being abstract (usually a
+                    # if_already_present tag). Do not stub that
+                    next if abstract_task.requirements.abstract?
+
+                    concrete_task =
+                        if abstract_task.kind_of?(Syskit::Actions::Profile::Tag)
+                            tag_id = [abstract_task.model.tag_name,
+                                      abstract_task.model.profile.name]
+                            stubbed_tags[tag_id] ||=
+                                syskit_stub_network_abstract_component(abstract_task)
+                        else
+                            syskit_stub_network_abstract_component(abstract_task)
+                        end
+
+                    pure_data_service_proxy =
+                        abstract_task.placeholder? &&
+                        !abstract_task.kind_of?(Syskit::TaskContext)
+                    if pure_data_service_proxy
+                        trsc.replace_task(abstract_task, concrete_task)
+                        merge_solver.register_replacement(
+                            abstract_task, concrete_task
+                        )
+                    else
+                        merge_mappings[abstract_task] = concrete_task
+                    end
+                end
+
                 # NOTE: must NOT call #apply_merge_group with merge_mappings
                 # directly. #apply_merge_group "replaces" the subnet represented
                 # by the keys with the subnet represented by the values. In
                 # other words, the connections present between two keys would
                 # NOT be copied between the corresponding values
-                plan.in_transaction do |trsc|
-                    trsc_tasks = tasks.map { |t| trsc[t] }
 
-                    merge_solver = NetworkGeneration::MergeSolver.new(trsc)
-                    tasks.each do |plan_t|
-                        merge_solver.register_replacement(plan_t, trsc[plan_t])
+                merge_mappings.each do |original, replacement|
+                    unless replacement.can_merge?(original)
+                        raise CannotStub.new(original, replacement),
+                              "cannot stub #{original} with #{replacement}, maybe "\
+                              'some delayed arguments are not set ?'
                     end
-                    merge_mappings = Hash.new
-                    stubbed_tags = Hash.new
-                    trsc_tasks.each do |task|
-                        task.model.each_master_driver_service do |srv|
-                            task.arguments[:"#{srv.name}_dev"] ||=
-                                syskit_stub_device(srv.model, driver: srv)
-                        end
-                    end
+                    merge_solver.apply_merge_group(original => replacement)
+                end
+                merge_solver.merge_identical_tasks
 
-                    trsc_tasks.find_all(&:abstract?).each do |abstract_task|
-                        # The task is required as being abstract (usually a
-                        # if_already_present tag). Do not stub that
-                        next if abstract_task.requirements.abstract?
-
-                        concrete_task =
-                            if abstract_task.kind_of?(Syskit::Actions::Profile::Tag)
-                                tag_id = [abstract_task.model.tag_name, abstract_task.model.profile.name]
-                                stubbed_tags[tag_id] ||= syskit_stub_network_abstract_component(abstract_task)
-                            else
-                                syskit_stub_network_abstract_component(abstract_task)
-                            end
-
-                        if abstract_task.placeholder? && !abstract_task.kind_of?(Syskit::TaskContext) # 'pure' proxied data services
-                            trsc.replace_task(abstract_task, concrete_task)
-                            merge_solver.register_replacement(abstract_task, concrete_task)
-                        else
-                            merge_mappings[abstract_task] = concrete_task
-                        end
+                merge_mappings = {}
+                trsc_tasks.each do |original_task|
+                    concrete_task = merge_solver.replacement_for(original_task)
+                    needs_new_deployment =
+                        concrete_task.kind_of?(TaskContext) &&
+                        !concrete_task.execution_agent
+                    if needs_new_deployment
+                        merge_mappings[concrete_task] =
+                            syskit_stub_network_deployment(
+                                concrete_task, remote_task: remote_task
+                            )
                     end
-                    merge_mappings.each do |original, replacement|
-                        unless original.can_merge?(replacement)
-                            raise CannotStub.new(original, replacement),
-                                "cannot stub #{original} with #{replacement}, maybe "\
-                                "some delayed arguments are not set ?"
-                        end
-                        merge_solver.apply_merge_group(original => replacement)
-                    end
-                    merge_solver.merge_identical_tasks
-
-                    merge_mappings = Hash.new
-                    trsc_tasks.each do |original_task|
-                        concrete_task = merge_solver.replacement_for(original_task)
-                        if concrete_task.kind_of?(TaskContext) && !concrete_task.execution_agent
-                            merge_mappings[concrete_task] = syskit_stub_network_deployment(concrete_task, remote_task: remote_task)
-                        end
-                    end
-                    merge_mappings.each do |original, replacement|
-                        unless original.can_merge?(replacement)
-                            raise CannotStub.new(original, replacement),
-                                "cannot stub #{original} with #{replacement}, maybe "\
-                                "some delayed arguments are not set ?"
-                        end
-                        merge_solver.apply_merge_group(original => replacement)
-                    end
-
-                    mapped_tasks = Hash.new
-                    tasks.each do |plan_t|
-                        replacement_t = merge_solver.replacement_for(plan_t)
-                        mapped_tasks[plan_t] = trsc.may_unwrap(replacement_t)
-                    end
-
-                    root_tasks.each do |root_t, status|
-                        replacement_t = mapped_tasks[root_t]
-                        if replacement_t != root_t
-                            unless replacement_t.planning_task
-                                replacement_t.planned_by trsc[root_t.planning_task]
-                            end
-                            trsc.send("add_#{status}", replacement_t)
-                        end
-                    end
-
-                    NetworkGeneration::SystemNetworkGenerator.remove_abstract_composition_optional_children(trsc)
-                    trsc.static_garbage_collect
-                    NetworkGeneration::SystemNetworkGenerator.verify_task_allocation(trsc)
-                    trsc.commit_transaction
                 end
 
-
-                execute do
-                    mapped_tasks.each do |old, new|
-                        if old != new
-                            plan.remove_task(old)
-                        end
+                merge_mappings.each do |original, replacement|
+                    unless original.can_merge?(replacement)
+                        raise CannotStub.new(original, replacement),
+                              "cannot stub #{original} with #{replacement}, maybe "\
+                              'some delayed arguments are not set ?'
                     end
+                    # See big comment on apply_merge_group above
+                    merge_solver.apply_merge_group(original => replacement)
                 end
-                root_tasks.map { |t, _| mapped_tasks[t] }
+
+                mapped_tasks = {}
+                tasks.each do |plan_t|
+                    replacement_t = merge_solver.replacement_for(plan_t)
+                    mapped_tasks[plan_t] = trsc.may_unwrap(replacement_t)
+                end
+
+                trsc_new_roots = Set.new
+                root_tasks.each do |root_t, status|
+                    replacement_t = mapped_tasks[root_t]
+                    if replacement_t != root_t
+                        unless replacement_t.planning_task
+                            replacement_t.planned_by trsc[root_t.planning_task]
+                        end
+                        trsc.send("add_#{status}", replacement_t) if status
+                    end
+                    trsc_new_roots << trsc[replacement_t]
+                end
+
+                NetworkGeneration::SystemNetworkGenerator
+                    .remove_abstract_composition_optional_children(trsc)
+                trsc.static_garbage_collect(
+                    protected_roots: trsc_new_roots | trsc_other_tasks
+                )
+                NetworkGeneration::SystemNetworkGenerator
+                    .verify_task_allocation(trsc, components: trsc_tasks.find_all(&:plan))
+                mapped_tasks
             end
 
             def syskit_stub_placeholder(model)
