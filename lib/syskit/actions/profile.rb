@@ -70,6 +70,8 @@ module Syskit
 
             # Instance-level API for tags
             module Tag
+                include Placeholder
+
                 def can_merge?(other)
                     return false unless super
 
@@ -207,9 +209,7 @@ module Syskit
             end
 
             def tag(name, *models)
-                tags[name] = Models::Tag.create_for(
-                    models,
-                    as: "#{self}.#{name}_tag")
+                tags[name] = Models::Tag.create_for(models, as: "#{self}.#{name}_tag")
                 tags[name].tag_name = name
                 tags[name].profile = self
                 tags[name]
