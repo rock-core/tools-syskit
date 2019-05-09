@@ -359,7 +359,19 @@ module Syskit
                     expect_execution { sync.wait }.
                         to { emit deployment_task.ready_event }
                 end
-                it "emits ready when the process is ready" do
+                it 'fails the ready event if the ready event monitor raises' do
+                    expect_execution do
+                        process.should_receive(:resolve_all_tasks)
+                               .and_raise(RuntimeError.new('some message'))
+                        deployment_task.start!
+                    end.to do
+                        have_error_matching(
+                            Roby::EmissionFailed
+                            .match.with_origin(deployment_task.ready_event)
+                        )
+                    end
+                end
+                it 'emits ready when the process is ready' do
                     make_deployment_ready
                     assert deployment_task.ready?
                 end
