@@ -467,7 +467,7 @@ module Syskit
                 end
                 promise.on_error(description: "#{self}#emit_failed") do |reason|
                     if !finishing? || !finished?
-                        emit_failed(reason)
+                        ready_event.emit_failed(reason)
                     end
                 end
                 ready_event.achieve_asynchronously(promise, emit_on_success: false, on_failure: :nothing)
