@@ -1,8 +1,10 @@
+# frozen_string_literal: true
+
 require '<%= require_path %>'
 <% indent, open, close = ::Roby::CLI::Gen.in_module(*class_name[0..-2]) %>
 <%= open %>
 <%= indent %>describe <%= class_name.last %> do
-<%= indent %>    it "starts" do
+<%= indent %>    it 'starts' do
 <%= indent %>        # Note, you might want to inject specific children
 <%= indent %>        # here, but it is not strictly required. The syskit_stub_*
 <%= indent %>        # methods generate what is needed to have a run-able composition
