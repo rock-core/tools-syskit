@@ -1,3 +1,5 @@
+# frozen_string_literal: true
+
 require '<%= require_path %>'
 <% indent, open, close = ::Roby::CLI::Gen.in_module(*class_name[0..-2]) %>
 <%= open %>
@@ -24,7 +26,7 @@ require '<%= require_path %>'
 <%= indent %>    # the profile being self-contained. And that's a bad idea. Keep both.
 <%= indent %>    it { can_instanciate }
 
-<%= indent %>    # If only parts of the profile should be instanciated, you can 
+<%= indent %>    # If only parts of the profile should be instanciated, you can
 <%= indent %>    # call assert_can_instanciate with specific definitions
 <%= indent %>    # it { can_instanciate a_def }
 
@@ -41,7 +43,7 @@ require '<%= require_path %>'
 <%= indent %>    # them anymore. And that's a bad idea. Keep all.
 <%= indent %>    it { can_deploy }
 
-<%= indent %>    # If only parts of the profile should be deployd, you can 
+<%= indent %>    # If only parts of the profile should be deployd, you can
 <%= indent %>    # call assert_can_deploy with specific definitions
 <%= indent %>    # it { can_deploy a_def }
 

@@ -1,3 +1,5 @@
+# frozen_string_literal: true
+
 <% orogen_models.each do |model| %>Syskit.extend_model OroGen.<%= model.name.gsub("::", ".") %> do
     # Customizes the configuration step.
     #
