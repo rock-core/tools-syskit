@@ -1,3 +1,5 @@
+# frozen_string_literal: true
+
 # Load the relevant typekits with import_types_from
 # import_types_from 'base'
 # You MUST require files that define services that
@@ -8,7 +10,7 @@
 <%= indent %>    # input_port 'in', '/base/Vector3d'
 <%= indent %>    # output_port 'out', '/base/Vector3d'
 <%= indent %>    #
-<%= indent %>    # Tell syskit that this service provides another. It adds the 
+<%= indent %>    # Tell syskit that this service provides another. It adds the
 <%= indent %>    # ports from the provided service to this service
 <%= indent %>    # provides AnotherSrv
 <%= indent %>    #
@@ -36,13 +38,13 @@
 <%= indent %>    # #             bus_id(0x1, 0xF)
 <%= indent %>    # #     end
 <%= indent %>    # # end
-<%= indent %>    # # 
+<%= indent %>    # #
 <%= indent %>    # # and then use the information to auto-configure the bus driver
 <%= indent %>    # # class OroGen::MyBusDeviceDriver::Task
 <%= indent %>    # #     driver_for <%= bus_name.last %>, as: 'driver'
 <%= indent %>    # #     def configure
 <%= indent %>    # #         super
-<%= indent %>    # #         
+<%= indent %>    # #
 <%= indent %>    # #         # Set the bus driver's 'watches' property to the declared devices
 <%= indent %>    # #         orocos_task.watches = each_declared_attached_device.map do |dev|
 <%= indent %>    # #             bus_id = Types.my_bus_device_driver.BusID.new
@@ -73,7 +75,7 @@
 <%= indent %>    # #     device(<%= bus_name.last %>).
 <%= indent %>    # #         baudrate(1_000_000) # Use 1Mbit/s
 <%= indent %>    # # end
-<%= indent %>    # # 
+<%= indent %>    # #
 <%= indent %>    # # and then use the information to auto-configure the device
 <%= indent %>    # # drivers
 <%= indent %>    # # class OroGen::MyDeviceDriver::Task
