@@ -91,6 +91,18 @@ module Syskit
                 result
             end
 
+            # @api private
+            #
+            # Called by {InstanceRequirements#instanciate} to do post-processing
+            # after a task has been instanciated from template
+            #
+            # The default is to simply assign the arguments.
+            # {Composition#post_instanciation_setup} would for instance also
+            # propagate its configuration to its children
+            def post_instanciation_setup(arguments)
+                assign_arguments(arguments)
+            end
+
             # Returns the set of models this task fullfills
             def each_fullfilled_model(&block)
                 model.each_fullfilled_model(&block)

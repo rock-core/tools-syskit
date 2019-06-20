@@ -567,6 +567,54 @@ describe Syskit::Models::Composition do
             assert_kind_of task_m, task.control_child
         end
 
+        describe 'configuration handling' do
+            before do
+                @task_m = Syskit::TaskContext.new_submodel
+                syskit_stub_conf @task_m, 'conf1'
+                @cmp_m = Syskit::Composition.new_submodel
+                @cmp_m.add @task_m, as: 'test'
+            end
+
+            it 'defaults to the default configuration as usual' do
+                cmp = syskit_stub_and_deploy(@cmp_m)
+                assert_equal ['default'], cmp.test_child.conf
+            end
+
+            it 'defaults to the default configuration as defined with the child' do
+                @cmp_m.overload 'test', @task_m.with_conf('conf1')
+                cmp = syskit_stub_and_deploy(@cmp_m)
+                assert_equal ['conf1'], cmp.test_child.conf
+            end
+
+            it 'applies a simple configuration to a task child' do
+                syskit_stub_conf @task_m, 'conf1'
+                @cmp_m.conf 'conf1', @cmp_m.test_child => %w[default conf1]
+
+                cmp = syskit_stub_and_deploy(cmp_m.with_conf('conf1'))
+                assert_equal %w[default conf1], cmp.test_child.conf
+            end
+
+            it 'does not add the default configuration forcefully' do
+                syskit_stub_conf @task_m, 'conf1'
+                @cmp_m.conf 'conf1', @cmp_m.test_child => %w[conf1]
+
+                cmp = syskit_stub_and_deploy(cmp_m.with_conf('conf1'))
+                assert_equal %w[conf1], cmp.test_child.conf
+            end
+
+            it 'applies configurations recursively' do
+                parent_cmp_m = Syskit::Composition.new_submodel
+                parent_cmp_m.add @cmp_m, as: 'test'
+
+                syskit_stub_conf @task_m, 'task'
+                @cmp_m.conf 'middle', parent_cmp_m.test_child => %w[default task]
+                parent_cmp_m.conf 'root', parent_cmp_m.test_child => %w[middle]
+
+                cmp = syskit_stub_and_deploy(parent_cmp_m.with_conf('root'))
+                assert_equal %w[default task], cmp.test_child.test_child.conf
+            end
+        end
+
         describe "dependency relation definition based on information in the child definition" do
             attr_reader :composition_m, :srv_child
             before do

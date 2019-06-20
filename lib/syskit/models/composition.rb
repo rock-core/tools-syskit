@@ -914,7 +914,7 @@ module Syskit
                 child_user_selection = {}
                 match = /^#{child_name}\.(.*)$/
                 selections.each do |name, sel|
-                    if (m = match.match(name))
+                    if name.respond_to?(:to_str) && (m = match.match(name.to_str))
                         child_user_selection[m[1]] = sel
                     end
                 end
