@@ -1,3 +1,5 @@
+# frozen_string_literal: true
+
 module Syskit
         # Representation of a data service as provided by an actual component
         #
@@ -20,13 +22,13 @@ module Syskit
             #
             # self is basically model.bind(component)
             #
-            # @return [Models::BoundDataService] 
+            # @return [Models::BoundDataService]
             # @see service_model
             attr_reader :model
             # The data service name
             #
             # @return [String]
-            def name;
+            def name
                 model.name
             end
 
@@ -52,25 +54,28 @@ module Syskit
             end
 
             def initialize(component, model)
-                @component, @model = component, model
-                if !component.kind_of?(Component)
+                unless component.kind_of?(Component)
                     raise "expected a component instance, got #{component}"
                 end
-                if !model.kind_of?(Models::BoundDataService)
+
+                unless model.kind_of?(Models::BoundDataService)
                     raise "expected a model of a bound data service, got #{model}"
                 end
+
+                @component = component
+                @model = model
             end
 
             # (see Component#self_port_to_component_port)
             def self_port_to_component_port(port)
-                return component.find_port(model.port_mappings_for_task[port.name])
+                component.find_port(model.port_mappings_for_task[port.name])
             end
 
             # Automatically computes connections from the output ports of self
             # to the given port or to the input ports of the given component
             #
             # (see Syskit.connect)
-            def connect_to(port_or_component, policy = Hash.new)
+            def connect_to(port_or_component, policy = {})
                 Syskit.connect(self, port_or_component, policy)
             end
 
@@ -78,14 +83,14 @@ module Syskit
                 "#{component}:#{model.short_name}"
             end
 
-            def each_slave_data_service(&block)
-                component.model.each_slave_data_service(self.model) do |slave_m|
+            def each_slave_data_service
+                component.model.each_slave_data_service(model) do |slave_m|
                     yield(slave_m.bind(component))
                 end
             end
 
             def has_data_service?(name)
-                component.model.each_slave_data_service(self.model) do |slave_m|
+                component.model.each_slave_data_service(model) do |slave_m|
                     return true if slave_m.name == name
                 end
                 false
@@ -93,10 +98,8 @@ module Syskit
 
             # Looks for a slave data service by name
             def find_data_service(name)
-                component.model.each_slave_data_service(self.model) do |slave_m|
-                    if slave_m.name == name
-                        return slave_m.bind(component)
-                    end
+                component.model.each_slave_data_service(model) do |slave_m|
+                    return slave_m.bind(component) if slave_m.name == name
                 end
                 nil
             end
@@ -110,11 +113,17 @@ module Syskit
             end
 
             def data_writer(*names)
-                component.data_writer(model.port_mappings_for_task[names.first], *names[1..-1])
+                component.data_writer(
+                    model.port_mappings_for_task[names.first],
+                    *names[1..-1]
+                )
             end
 
             def data_reader(*names)
-                component.data_reader(model.port_mappings_for_task[names.first], *names[1..-1])
+                component.data_reader(
+                    model.port_mappings_for_task[names.first],
+                    *names[1..-1]
+                )
             end
 
             def as_plan
@@ -126,8 +135,8 @@ module Syskit
             end
 
             def as(service)
-                result = self.dup
-                result.instance_variable_set(:@model, model.as(service)) 
+                result = dup
+                result.instance_variable_set(:@model, model.as(service))
                 result
             end
 
@@ -135,7 +144,9 @@ module Syskit
                 "#<BoundDataService: #{component.name}.#{model.name}>"
             end
 
-            def inspect; to_s end
+            def inspect
+                to_s
+            end
 
             # Generates the InstanceRequirements object that represents +self+
             # best
@@ -150,18 +161,23 @@ module Syskit
             def has_through_method_missing?(m)
                 MetaRuby::DSLs.has_through_method_missing?(
                     self, m,
-                    '_srv'.freeze => :has_data_service?) || super
+                    '_srv' => :has_data_service?
+                ) || super
             end
 
             def find_through_method_missing(m, args)
                 MetaRuby::DSLs.find_through_method_missing(
                     self, m, args,
-                    '_srv'.freeze => :find_data_service) || super
+                    '_srv' => :find_data_service
+                ) || super
             end
 
             DRoby = Struct.new :component, :model do
                 def proxy(peer)
-                    BoundDataService.new(peer.local_object(component), peer.local_object(model))
+                    BoundDataService.new(
+                        peer.local_object(component),
+                        peer.local_object(model)
+                    )
                 end
             end
             def droby_dump(peer)
@@ -169,4 +185,3 @@ module Syskit
             end
         end
 end
-

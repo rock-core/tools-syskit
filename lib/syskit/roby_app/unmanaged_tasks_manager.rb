@@ -41,13 +41,12 @@ module Syskit
             def initialize(loader: Roby.app.default_loader,
                            name_service: Orocos::CORBA.name_service)
                 @loader = loader
-                @processes = Hash.new
+                @processes = {}
                 @name_service = name_service
-                @deployments = Hash.new
+                @deployments = {}
             end
 
-            def disconnect
-            end
+            def disconnect; end
 
             # Register a new deployment model on this server.
             #

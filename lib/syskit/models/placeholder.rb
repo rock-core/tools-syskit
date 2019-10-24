@@ -205,17 +205,17 @@ module Syskit
                 # @param [String] as the name of the newly created model
                 # @return [Component]
                 def create_for(models, component_model: nil, as: nil)
-                    task_model, service_models, _ =
+                    task_model, service_models, =
                         resolve_models_argument(models, component_model: component_model)
 
-                    name_models = service_models.map(&:to_s).sort.join(",")
+                    name_models = service_models.map(&:to_s).sort.join(',')
                     if task_model != Syskit::Component
                         name_models = "#{task_model},#{name_models}"
                     end
                     model = task_model.specialize(as || ("#{self}<%s>" % [name_models]))
                     model.abstract
                     model.concrete_model = nil
-                    model.include self.task_extension
+                    model.include task_extension
                     model.extend  self
                     model.proxied_component_model = task_model
                     model.proxied_data_service_models = service_models.dup

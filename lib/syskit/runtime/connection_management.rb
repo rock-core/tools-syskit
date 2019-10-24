@@ -44,7 +44,7 @@ module Syskit
 
                 # Remove first all tasks. Otherwise, removing some tasks will
                 # also remove the new edges we just added
-                for t in tasks
+                tasks.each do |t|
                     RequiredDataFlow.remove_vertex(t)
                 end
 

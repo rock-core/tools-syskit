@@ -320,13 +320,13 @@ module Syskit
                 end
 
                 def make_deployment_ready
-                    if !execution_engine.in_propagation_context?
-                        return expect_execution { make_deployment_ready }.
-                            to { emit deployment_task.ready_event }
+                    unless execution_engine.in_propagation_context?
+                        return expect_execution { make_deployment_ready }
+                               .to { emit deployment_task.ready_event }
                     end
 
-                    process.should_receive(:resolve_all_tasks).
-                        and_return('mapped_task_name' => orocos_task)
+                    process.should_receive(:resolve_all_tasks)
+                           .and_return('mapped_task_name' => orocos_task)
                     deployment_task.start!
                 end
 
@@ -342,7 +342,7 @@ module Syskit
                     flexmock(task)
                 end
 
-                it "polls for process readiness" do
+                it 'polls for process readiness' do
                     sync = Concurrent::Event.new
                     process.should_receive(:resolve_all_tasks).
                         and_return do
@@ -375,25 +375,31 @@ module Syskit
                     make_deployment_ready
                     assert deployment_task.ready?
                 end
-                it "resolves all deployment tasks into task_handles using mapped names" do
+                it 'resolves all deployment tasks into task_handles using mapped names' do
                     make_deployment_ready
                     assert_equal orocos_task, deployment_task.remote_task_handles['mapped_task_name'].handle
                 end
-                it "creates state readers for each supported tasks" do
+                it 'creates state readers for each supported tasks' do
                     deployment_task.should_receive(:create_state_access).once.
                         with(orocos_task, Hash).
                         and_return([state_reader = flexmock, state_getter = flexmock])
                     make_deployment_ready
-                    assert_equal state_reader, deployment_task.remote_task_handles['mapped_task_name'].state_reader
-                    assert_equal state_getter, deployment_task.remote_task_handles['mapped_task_name'].state_getter
+                    assert_equal(state_reader,
+                                 deployment_task.remote_task_handles['mapped_task_name']
+                                                .state_reader)
+                    assert_equal(state_getter,
+                                 deployment_task.remote_task_handles['mapped_task_name']
+                                                .state_getter)
                 end
-                it "passes the distance-to-syskit at state reader creation" do
-                    deployment_task.should_receive(:create_state_access).once.
-                        with(orocos_task, distance: TaskContext::D_DIFFERENT_HOSTS).
-                        pass_thru
-                    mock_raw_port(flexmock(orocos_task), 'state').should_receive(:reader).
-                        with(hsh(distance: TaskContext::D_DIFFERENT_HOSTS)).
-                        once.pass_thru
+                it 'passes the distance-to-syskit at state reader creation' do
+                    deployment_task
+                        .should_receive(:create_state_access).once
+                        .with(orocos_task, distance: TaskContext::D_DIFFERENT_HOSTS)
+                        .pass_thru
+                    mock_raw_port(flexmock(orocos_task), 'state')
+                        .should_receive(:reader).once
+                        .with(hsh(distance: TaskContext::D_DIFFERENT_HOSTS))
+                        .pass_thru
                     make_deployment_ready
                 end
                 it "initializes supported task contexts" do

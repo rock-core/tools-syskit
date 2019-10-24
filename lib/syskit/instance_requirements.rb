@@ -907,12 +907,13 @@ module Syskit
 
             # Create a concrete task for this requirement
             def instanciate(plan,
-                context = Syskit::DependencyInjectionContext.new,
-                task_arguments: Hash.new,
-                specialization_hints: Hash.new,
-                use_template: true)
+                            context = Syskit::DependencyInjectionContext.new,
+                            task_arguments: {},
+                            specialization_hints: {},
+                            use_template: true)
 
-                from_cache = context.empty? && specialization_hints.empty? &&
+                from_cache =
+                    context.empty? && specialization_hints.empty? &&
                     use_template && can_use_template?
                 if from_cache
                     task = instanciate_from_template(plan, task_arguments)
@@ -923,13 +924,17 @@ module Syskit
                         context.save
                         context.push(resolved_dependency_injection)
 
-                        task_arguments = self.arguments.merge(task_arguments)
-                        specialization_hints = self.specialization_hints | specialization_hints
-                        task = task_model.instanciate(plan, context,
+                        task_arguments = arguments.merge(task_arguments)
+                        specialization_hints =
+                            self.specialization_hints |
+                            specialization_hints
+                        task = task_model.instanciate(
+                            plan, context,
                             task_arguments: task_arguments,
-                            specialization_hints: specialization_hints)
+                            specialization_hints: specialization_hints
+                        )
                     ensure
-                        context.restore if !from_cache
+                        context.restore unless from_cache
                     end
                 end
 

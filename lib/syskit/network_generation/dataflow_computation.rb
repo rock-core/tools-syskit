@@ -105,7 +105,7 @@ module Syskit
                 # #has_final_information_for_port? methods are used.
                 def ports_to_propagate(state)
                     if ports.empty?
-                        return [], false 
+                        return [], false
                     end
 
                     complete = false
@@ -452,4 +452,3 @@ module Syskit
         end
     end
 end
-

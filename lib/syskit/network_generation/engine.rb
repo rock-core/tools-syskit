@@ -529,7 +529,7 @@ module Syskit
 
             # Computes the system network, that is the network that fullfills
             # a list of requirements
-            # 
+            #
             # This phase does not interact at all with {#real_plan}. It only
             # computes the canonical plan that matches the requirements.
             #
