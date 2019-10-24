@@ -102,6 +102,8 @@ module Syskit
             end
 
             def merge(other_dynamics)
+                return if other_dynamics.equal?(self)
+
                 DataFlowDynamics.debug do
                     DataFlowDynamics.debug "adding triggers from #{other_dynamics.name} to #{name}"
                     DataFlowDynamics.log_nest(4) do
