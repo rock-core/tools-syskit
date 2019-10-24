@@ -18,9 +18,7 @@ module Syskit
                 model = new(project: OroGen::Spec::Project.blank)
                 model.root = true
                 model.permanent_model = true
-                if parent
-                    model.provides parent
-                end
+                model.provides(parent) if parent
                 model
             end
 
@@ -68,16 +66,16 @@ module Syskit
 
             # The set of services that this service provides
             def each_fullfilled_model
-                return enum_for(:each_fullfilled_model) if !block_given?
+                return enum_for(:each_fullfilled_model) unless block_given?
+
                 ancestors.each do |m|
-                    if m.kind_of?(DataServiceModel)
-                        yield(m)
-                    end
+                    yield(m) if m.kind_of?(DataServiceModel)
                 end
             end
 
             def each_required_model
-                return enum_for(:each_required_model) if !block_given?
+                return enum_for(:each_required_model) unless block_given?
+
                 yield(self)
             end
 
@@ -101,7 +99,7 @@ module Syskit
                     @name = name || model.name
                     @orogen_model = model.orogen_model
 
-                    if !@orogen_model
+                    unless @orogen_model
                         raise InternalError, "no interface for #{model.short_name}"
                     end
                 end
@@ -128,7 +126,7 @@ module Syskit
 
                 # Now initialize the port_mappings hash. We register our own
                 # ports as identity (from => from)
-                self_mappings = (port_mappings[self] ||= Hash.new)
+                self_mappings = (port_mappings[self] ||= {})
                 each_input_port  { |port| self_mappings[port.name] = port.name }
                 each_output_port { |port| self_mappings[port.name] = port.name }
             end
@@ -144,10 +142,11 @@ module Syskit
             #
             # @raise [ArgumentError] if self does not provide service_type
             def port_mappings_for(service_type)
-                result = port_mappings[service_type]
-                if !result
-                    raise ArgumentError, "#{service_type.short_name} is not provided by #{short_name}"
+                unless (result = port_mappings[service_type])
+                    raise ArgumentError, "#{service_type.short_name} is not "\
+                                         "provided by #{short_name}"
                 end
+
                 result
             end
 
@@ -265,10 +264,7 @@ module Syskit
             # @see Placeholder
             # @return [Component]
             def placeholder_model
-                if @placeholder_model
-                    return @placeholder_model
-                end
-                @placeholder_model = Placeholder.for([self])
+                @placeholder_model ||= Placeholder.for([self])
             end
 
             # Wether this model represents a placeholder for data services
@@ -307,10 +303,8 @@ module Syskit
             # @param [Syskit::Component] component
             # @return [nil,BoundDataService]
             def try_bind(component)
-                begin
-                    component.find_data_service_from_type(self)
-                rescue AmbiguousServiceSelection
-                end
+                component.find_data_service_from_type(self)
+            rescue AmbiguousServiceSelection # rubocop:disable Lint/HandleExceptions
             end
 
             # Binds the data service model on the given task
@@ -320,11 +314,11 @@ module Syskit
             # @raise [ArgumentError] if the given component has no such data
             #   service, or if it has more than one
             def bind(component)
-                if bound = try_bind(component)
-                    bound
-                else
+                unless (bound = try_bind(component))
                     raise ArgumentError, "cannot bind #{self} to #{component}"
                 end
+
+                bound
             end
 
             # @deprecated use {#try_bind} instead
@@ -352,7 +346,6 @@ module Syskit
                         each do |parent_p|
                         io << "  C#{parent_id}:#{parent_p.name} -> C#{id}:#{port_mappings_for(parent_m)[parent_p.name]};"
                     end
-
                 end
             end
 
@@ -522,7 +515,7 @@ module Syskit
             end
 
             def included(mod)
-                return if !(mod <= Syskit::Component)
+                return unless mod <= Syskit::Component
 
                 # declare the relevant dynamic service
                 combus_m = self
@@ -538,22 +531,30 @@ module Syskit
                         end
 
                     begin
-                        client_to_bus, bus_to_client =
-                            options.fetch(:client_to_bus), options.fetch(:bus_to_client)
+                        client_to_bus = options.fetch(:client_to_bus)
+                        bus_to_client = options.fetch(:bus_to_client)
                     rescue KeyError
-                        raise ArgumentError, "you must provide both the client_to_bus and bus_to_client option when instanciating the a com bus dynamic service"
+                        raise ArgumentError, 'you must provide both the client_to_bus '\
+                                             'and bus_to_client option when '\
+                                             'instanciating a com bus dynamic service'
                     end
 
                     if client_to_bus && bus_to_client
                         provides combus_m.bus_srv, 'from_bus' => combus_m.output_name_for(name),
                             'to_bus' => in_name
-                        component_model.orogen_model.find_port(in_name).needs_reliable_connection
+                        component_model.orogen_model
+                                       .find_port(in_name)
+                                       .needs_reliable_connection
                     elsif client_to_bus
                         provides combus_m.bus_in_srv, 'to_bus' => in_name
-                        component_model.orogen_model.find_port(in_name).needs_reliable_connection
+                        component_model.orogen_model
+                                       .find_port(in_name)
+                                       .needs_reliable_connection
                     elsif bus_to_client
                         provides combus_m.bus_out_srv, 'from_bus' => combus_m.output_name_for(name)
-                    else raise ArgumentError, "at least one of bus_to_client or client_to_bus must be true"
+                    else
+                        raise ArgumentError, 'at least one of bus_to_client or '\
+                                             'client_to_bus must be true'
                     end
                 end
             end

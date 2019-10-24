@@ -1,3 +1,5 @@
+# frozen_string_literal: true
+
 module Syskit
     module NetworkGeneration
         class << self
@@ -18,7 +20,8 @@ module Syskit
             def buffer_size_margin=(value)
                 value = Float(value)
                 if value < 0
-                    raise ArgumentError, "only positive values can be used as buffer_size_margin, got #{value}"
+                    raise ArgumentError, 'only positive values can be used as '\
+                                         "buffer_size_margin, got #{value}"
                 end
                 @buffer_size_margin = Float(value)
             end
@@ -60,16 +63,19 @@ module Syskit
                 attr_reader :hash
 
                 def initialize(name, period, sample_count)
-                    @name, @period, @sample_count =
-                        name.to_str, period, sample_count
+                    @name = name.to_str
+                    @period = period
+                    @sample_count = sample_count
                     @hash = [@name, @period, @sample_count].hash
                     freeze
                 end
+
                 def eql?(other)
                     @period == other.period &&
                         @name == other.name &&
                         @sample_count == other.sample_count
                 end
+
                 def ==(other)
                     eql?(other)
                 end
@@ -81,13 +87,18 @@ module Syskit
                 @triggers = Set.new
             end
 
-            def empty?; triggers.empty? end
+            def empty?
+                triggers.empty?
+            end
 
             def add_trigger(name, period, sample_count)
-                if sample_count != 0
-                    DataFlowDynamics.debug { "  [#{self.name}]: adding trigger from #{name} - #{period} #{sample_count}" }
-                    triggers << Trigger.new(name, period, sample_count)
+                return if sample_count == 0
+
+                DataFlowDynamics.debug do
+                    "  [#{self.name}]: adding trigger from #{name} -"\
+                    " #{period} #{sample_count}"
                 end
+                triggers << Trigger.new(name, period, sample_count)
             end
 
             def merge(other_dynamics)
@@ -109,7 +120,7 @@ module Syskit
             def sampled_at(duration)
                 result = PortDynamics.new(name, sample_size)
                 names = triggers.map(&:name)
-                result.add_trigger("#{name}.resample(#{names.join(",")},#{duration})", duration, queue_size(duration))
+                result.add_trigger("#{name}.resample(#{names.join(',')},#{duration})", duration, queue_size(duration))
                 result
             end
 
@@ -231,7 +242,7 @@ module Syskit
 
                 activity_type = task.orogen_model.activity_type.name
                 case activity_type
-                when "Periodic"
+                when 'Periodic'
                     initial_device_information_periodic_triggering(
                         task, triggering_devices.to_a, task.orogen_model.period)
                 else
@@ -246,23 +257,23 @@ module Syskit
             # initial_device_information_internal_triggering
             def initial_device_information_common(task, triggering_devices)
                 triggering_devices.each do |service, device|
-                    DataFlowDynamics.debug { "  #{device.name}: #{device.period} #{device.burst}" }
+                    DataFlowDynamics.debug do
+                        "  #{device.name}: #{device.period} #{device.burst}"
+                    end
                     device_dynamics = PortDynamics.new(device.name, 1)
                     if device.period
                         device_dynamics.add_trigger(device.name, device.period, 1)
                     end
-                    device_dynamics.add_trigger(device.name + "-burst", 0, device.burst)
+                    device_dynamics.add_trigger(device.name + '-burst', 0, device.burst)
 
-                    if !device_dynamics.empty?
-                        yield(service, device, device_dynamics)
-                    end
+                    yield(service, device, device_dynamics) unless device_dynamics.empty?
                 end
             end
 
             # Computes the initial port dynamics due to devices when the task
             # gets triggered by the devices it is attached to
             def initial_device_information_internal_triggering(task, triggering_devices)
-                DataFlowDynamics.debug "  is triggered internally"
+                DataFlowDynamics.debug '  is triggered internally'
 
                 initial_device_information_common(task, triggering_devices) do |service, device, device_dynamics|
                     add_task_info(task, device_dynamics)
@@ -278,14 +289,18 @@ module Syskit
             # Computes the initial port dynamics due to devices when the task is
             # triggered periodically
             def initial_device_information_periodic_triggering(task, triggering_devices, period)
-                DataFlowDynamics.debug { "  is triggered with a period of #{period} seconds" }
+                DataFlowDynamics.debug do
+                    "  is triggered with a period of #{period} seconds"
+                end
 
                 initial_device_information_common(task, triggering_devices) do |service, device, device_dynamics|
                     service.each_output_port do |out_port|
                         out_port = out_port.to_component_port
                         out_port.orogen_model.triggered_on_update = false
-                        add_port_trigger(task, out_port.name,
-                            device.name, period, device_dynamics.queue_size(period))
+                        add_port_trigger(
+                            task, out_port.name, device.name, period,
+                            device_dynamics.queue_size(period)
+                        )
                         done_port_info(task, out_port.name)
                     end
                 end
@@ -317,6 +332,7 @@ module Syskit
             # computed without knowing anything about the dataflow
             def initial_information(task)
                 return if task.orogen_model.master
+
                 initial_task_information(task)
             end
 
@@ -326,7 +342,7 @@ module Syskit
             def initial_slaves_information(task)
                 task.orogen_model.slaves.each do |orogen_slave_task|
                     if slave_task = task_from_name[orogen_slave_task.name]
-                        if !has_information_for_task?(slave_task)
+                        unless has_information_for_task?(slave_task)
                             initial_task_information(slave_task)
                         end
                     end
@@ -350,20 +366,16 @@ module Syskit
                     done_port_info(task, port_name)
                 end
 
-                if task.kind_of?(Device)
-                    initial_device_information(task)
-                end
-                if task.kind_of?(ComBus)
-                    initial_combus_information(task)
-                end
+                initial_device_information(task) if task.kind_of?(Device)
+                initial_combus_information(task) if task.kind_of?(ComBus)
 
                 activity_type = task.orogen_model.activity_type.name
-                if activity_type == "Periodic"
+                if activity_type == 'Periodic'
                     DataFlowDynamics.debug { "  adding periodic trigger #{task.orogen_model.period} 1" }
                     add_task_trigger(task, "#{task.orocos_name}.main-period", task.orogen_model.period, 1)
                     done_task_info(task)
 
-                elsif activity_type == "SlaveActivity"
+                elsif activity_type == 'SlaveActivity'
                     # The master's main trigger is propagated in #done_task_info
 
                 elsif !task.model.each_event_port.find { true }
@@ -461,7 +473,7 @@ module Syskit
                     add_port_info(task, port_name, trigger_info)
                 end
                 done_port_info(task, port_name)
-                return true
+                true
             end
 
             def propagate_task(task)
@@ -497,20 +509,20 @@ module Syskit
             def compute_connection_policies
                 # We only act on deployed tasks, as we need to know how the
                 # tasks are triggered (what activity / priority / ...)
-                deployed_tasks = plan.find_local_tasks(TaskContext).
-                    find_all(&:execution_agent)
+                deployed_tasks = plan.find_local_tasks(TaskContext)
+                                     .find_all(&:execution_agent)
 
                 propagate(deployed_tasks)
 
                 DataFlowDynamics.debug do
-                    DataFlowDynamics.debug "computing connections"
+                    DataFlowDynamics.debug 'computing connections'
                     deployed_tasks.each do |t|
                         DataFlowDynamics.debug "  #{t}"
                     end
 
-                    DataFlowDynamics.debug "available information for"
+                    DataFlowDynamics.debug 'available information for'
                     result.each do |task, ports|
-                        DataFlowDynamics.debug "  #{task}: #{ports.keys.join(", ")}"
+                        DataFlowDynamics.debug "  #{task}: #{ports.keys.join(', ')}"
                     end
                     break
                 end
@@ -542,27 +554,37 @@ module Syskit
                 fallback_policy = policy.delete(:fallback_policy)
 
                 # Don't do anything if the policy has already been set
-                if !policy.empty?
-                    DataFlowDynamics.debug " #{source_task}:#{source_port_name} => #{sink_task}:#{sink_port_name} already connected with #{policy}"
+                unless policy.empty?
+                    DataFlowDynamics.debug " #{source_task}:#{source_port_name} => "\
+                                           "#{sink_task}:#{sink_port_name} already "\
+                                           "connected with #{policy}"
                     return policy
                 end
 
                 source_port = source_task.model.find_output_port(source_port_name)
                 sink_port   = sink_task.model.find_input_port(sink_port_name)
-                if !source_port
-                    raise InternalError, "#{source_port_name} is not a port of #{source_task.model}"
-                elsif !sink_port
-                    raise InternalError, "#{sink_port_name} is not a port of #{sink_task.model}"
+                unless source_port
+                    raise InternalError,
+                          "#{source_port_name} is not a port of #{source_task.model}"
                 end
-                DataFlowDynamics.debug { "   #{source_task}:#{source_port.name} => #{sink_task}:#{sink_port.name}" }
 
-                if !sink_port.needs_reliable_connection?
+                unless sink_port
+                    raise InternalError,
+                          "#{sink_port_name} is not a port of #{sink_task.model}"
+                end
+
+                DataFlowDynamics.debug do
+                    "   #{source_task}:#{source_port.name} => "\
+                    "#{sink_task}:#{sink_port.name}"
+                end
+
+                unless sink_port.needs_reliable_connection?
                     if sink_port.required_connection_type == :data
-                        policy = Orocos::Port.prepare_policy(:type => :data)
+                        policy = Orocos::Port.prepare_policy(type: :data)
                         DataFlowDynamics.debug { "     result: #{policy}" }
                         return policy
                     elsif sink_port.required_connection_type == :buffer
-                        policy = Orocos::Port.prepare_policy(:type => :buffer, :size => 1)
+                        policy = Orocos::Port.prepare_policy(type: :buffer, size: 1)
                         DataFlowDynamics.debug { "     result: #{policy}" }
                         return policy
                     end
@@ -582,7 +604,7 @@ module Syskit
                 reading_latency =
                     if sink_port.trigger_port?
                         sink_task.trigger_latency
-                    elsif sink_task_dynamics && sink_task_dynamics.minimal_period
+                    elsif sink_task_dynamics&.minimal_period
                         sink_task_dynamics.minimal_period + sink_task.trigger_latency
                     end
 
@@ -590,9 +612,9 @@ module Syskit
                     if fallback_policy
                         if !input_dynamics
                             DataFlowDynamics.warn do
-                                DataFlowDynamics.warn "Cannot compute the period information for the output port"
+                                DataFlowDynamics.warn 'Cannot compute the period information for the output port'
                                 DataFlowDynamics.warn "   #{source_task}:#{source_port.name}"
-                                DataFlowDynamics.warn "   This is needed to compute the policy to connect to"
+                                DataFlowDynamics.warn '   This is needed to compute the policy to connect to'
                                 DataFlowDynamics.warn "   #{sink_task}:#{sink_port_name}"
                                 DataFlowDynamics.warn "   The fallback policy #{fallback_policy} will be used"
                                 break

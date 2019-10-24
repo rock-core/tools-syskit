@@ -1,8 +1,8 @@
 module Syskit
     Flows = Roby::RelationSpace(Component)
 
-    Flows.relation :DataFlow, child_name: :sink, parent_name: :source, dag: false, weak: true,
-        graph: ConnectionGraph
+    Flows.relation :DataFlow, child_name: :sink, parent_name: :source, dag: false,
+                              weak: true, graph: ConnectionGraph
     DataFlow = Flows::DataFlow
 
     # Class out of which the Flows::DataFlow graph object is made

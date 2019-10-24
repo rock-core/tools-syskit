@@ -17,7 +17,7 @@ module Syskit
             # Gets or sets a documentation string for this device
             #
             # @return [String]
-            dsl_attribute(:doc) { |s| s.to_str if s }
+            dsl_attribute(:doc) { |s| s&.to_str }
 
             # If this device is on a communication bus, the sample_size
             # statement specifies how many messages on the bus are required to
@@ -38,14 +38,14 @@ module Syskit
             # Declares that this particular device might "every once in a while"
             # sent bursts of data. This is used by the automatic connection code
             # to compute buffer sizes
-            dsl_attribute(:burst)   { |v| Integer(v) }
+            dsl_attribute(:burst) { |v| Integer(v) }
 
             def to_action
                 to_instance_requirements.to_action
             end
 
-            def instanciate(plan, context = DependencyInjectionContext.new, options = Hash.new)
-                to_instance_requirements.instanciate(plan, context, options)
+            def instanciate(plan, context = DependencyInjectionContext.new, **options)
+                to_instance_requirements.instanciate(plan, context, **options)
             end
         end
     end

@@ -1,3 +1,5 @@
+# frozen_string_literal: true
+
 module Syskit
     module Robot
         # Subclass of DeviceInstance used to represent root devices
@@ -17,7 +19,9 @@ module Syskit
             # @return [Syskit::InstanceRequirements]
             attr_reader :requirements
 
-            def model; device_model end
+            def model
+                device_model
+            end
 
             # Defined to be consistent with task and data service models
             def short_name
@@ -27,7 +31,6 @@ module Syskit
             def pretty_print(pp)
                 pp.text "MasterDeviceInstance(#{short_name}_dev)"
             end
-
 
             # The driver for this device
             # @return [BoundDataService]
@@ -45,21 +48,23 @@ module Syskit
 
             def initialize(robot, name, device_model, options,
                            driver_model, task_arguments)
-                @robot, @name, @device_model, @task_arguments =
-                    robot, name, device_model, task_arguments
-                @slaves      = Hash.new
-                @conf = Array.new
-                @com_busses = Array.new
+                @robot = robot
+                @name = name
+                @device_model = device_model
+                @task_arguments = task_arguments
+                @slaves = {}
+                @conf = []
+                @com_busses = []
 
                 driver_model = driver_model.to_instance_requirements
                 @driver_model = driver_model.service
                 @requirements = driver_model.to_component_model
                 requirements.name = "#{name}_dev"
-                requirements.with_arguments(:"#{driver_model.service.name}_dev" => self)
+                requirements.with_arguments("#{driver_model.service.name}_dev": self)
                 requirements.with_arguments(**task_arguments)
 
                 sample_size 1
-                burst   0
+                burst 0
             end
 
             def to_s
@@ -81,7 +86,8 @@ module Syskit
 
             # @deprecated
             def use_conf(*conf)
-                Roby.warn_deprecated "MasterDeviceInstance#use_conf is deprecated. Use #with_conf instead"
+                Roby.warn_deprecated 'MasterDeviceInstance#use_conf is deprecated. '\
+                                     'Use #with_conf instead'
                 with_conf(*conf)
             end
 
@@ -128,7 +134,7 @@ module Syskit
             end
 
             # Attaches this device on the given communication bus
-	    #
+            #
             # @param [Boolean,String] bus_to_client whether the device expects a
             #   connection from the bus. It can be set to a string, in which
             #   case the string is used as the name of the service on the
@@ -139,53 +145,63 @@ module Syskit
             #   device driver that should be used for connection
             def attach_to(com_bus, bus_to_client: true, client_to_bus: true, **options)
                 if com_bus.respond_to?(:to_str)
-                    com_bus, com_bus_name = robot.find_device(com_bus), com_bus
-                    if !com_bus
-                        raise ArgumentError, "no device declared with the name '#{com_bus_name}'"
+                    com_bus_name = com_bus
+                    com_bus = robot.find_device(com_bus)
+                    unless com_bus
+                        raise ArgumentError,
+                              "no device declared with the name '#{com_bus_name}'"
                     end
                 end
 
-                if srv_name = options.delete(:in)
-                    Roby.warn_deprecated "the in: option of MasterDeviceInstance#attach_to has been renamed to bus_to_client"
+                if (srv_name = options.delete(:in))
+                    Roby.warn_deprecated 'the in: option of MasterDeviceInstance'\
+                                         '#attach_to has been renamed to bus_to_client'
                     bus_to_client = srv_name
                 end
-                if srv_name = options.delete(:out)
-                    Roby.warn_deprecated "the out: option of MasterDeviceInstance#attach_to has been renamed to client_to_bus"
+                if (srv_name = options.delete(:out))
+                    Roby.warn_deprecated 'the out: option of MasterDeviceInstance'\
+                                         '#attach_to has been renamed to client_to_bus'
                     client_to_bus = srv_name
                 end
-                if !options.empty?
-                    raise ArgumentError, "unexpected options #{options}"
-                end
+                raise ArgumentError, "unexpected options #{options}" unless options.empty?
 
                 if bus_to_client && com_bus.model.bus_to_client?
-                    client_in_srv =
-                        if bus_to_client.respond_to?(:to_str)
-                            bus_to_client
-                        end
-                    client_in_srv_m  = com_bus.model.client_in_srv
-                    @combus_client_in_srv  =
+                    client_in_srv = bus_to_client if bus_to_client.respond_to?(:to_str)
+                    client_in_srv_m = com_bus.model.client_in_srv
+                    @combus_client_in_srv =
                         begin find_combus_client_srv(client_in_srv_m, client_in_srv)
                         rescue AmbiguousServiceSelection
-                            raise ArgumentError, "#{driver_model.to_component_model} provides more than one input service to connect to the com bus, select one explicitely with the bus_to_client option"
+                            raise ArgumentError,
+                                  "#{driver_model.to_component_model} provides "\
+                                  'more than one input service to connect to '\
+                                  'the com bus, select one explicitely with '\
+                                  'the bus_to_client option'
                         end
-                    if !combus_client_in_srv
-                        raise ArgumentError, "#{driver_model.to_component_model} does not provide an input service to connect to the com bus, and was expected to"
+                    unless combus_client_in_srv
+                        raise ArgumentError,
+                              "#{driver_model.to_component_model} does not "\
+                              'provide an input service to connect to '\
+                              'the com bus, and was expected to'
                     end
                 end
 
                 if client_to_bus && com_bus.model.client_to_bus?
-                    client_out_srv =
-                        if client_to_bus.respond_to?(:to_str)
-                            client_to_bus
-                        end
-                    client_out_srv_m  = com_bus.model.client_out_srv
-                    @combus_client_out_srv  =
+                    client_out_srv = client_to_bus if client_to_bus.respond_to?(:to_str)
+                    client_out_srv_m = com_bus.model.client_out_srv
+                    @combus_client_out_srv =
                         begin find_combus_client_srv(client_out_srv_m, client_out_srv)
                         rescue AmbiguousServiceSelection
-                            raise ArgumentError, "#{driver_model.to_component_model} provides more than one output service to connect to the com bus, select one explicitely with the client_to_bus option"
+                            raise ArgumentError,
+                                  "#{driver_model.to_component_model} provides "\
+                                  'more than one output service to connect '\
+                                  'to the com bus, select one explicitely '\
+                                  'with the client_to_bus option'
                         end
-                    if !combus_client_out_srv
-                        raise ArgumentError, "#{driver_model.to_component_model} does not provide an output service to connect to the com bus, and was expected to"
+                    unless combus_client_out_srv
+                        raise ArgumentError,
+                              "#{driver_model.to_component_model} does not "\
+                              'provide an output service to connect to the '\
+                              'com bus, and was expected to'
                     end
                 end
 
@@ -195,8 +211,8 @@ module Syskit
                 self
             end
 
-            # Finds in {#driver_model}.component_model the data service that should be used to
-            # interface with a combus
+            # Finds in {#driver_model}.component_model the data service that
+            # should be used to interface with a combus
             #
             # @param [Model<DataService>] the data service model for the client
             #   interface to the combus
@@ -204,20 +220,29 @@ module Syskit
             #   is given. In this case, one is searched by type
             def find_combus_client_srv(srv_m, srv_name)
                 driver_task_model = driver_model.to_component_model
-		if srv_name
-		    result = driver_task_model.find_data_service(srv_name)
-		    if !result
-			raise ArgumentError, "#{srv_name} is specified as a client service on device #{name} for combus #{com_bus.name}, but it is not a data service on #{driver_task_model}"
-                    elsif !result.fullfills?(srv_m)
-                        raise ArgumentError, "#{srv_name} is specified as a client service on device #{name} for combus #{com_bus.name}, but it does not provide the required service from #{com_bus.model}"
-		    end
+                if srv_name
+                    result = driver_task_model.find_data_service(srv_name)
+                    unless result
+                        raise ArgumentError,
+                              "#{srv_name} is specified as a client service on device "\
+                              "#{name} for combus #{com_bus.name}, but it is not a data "\
+                              "service on #{driver_task_model}"
+                    end
+
+                    unless result.fullfills?(srv_m)
+                        raise ArgumentError,
+                              "#{srv_name} is specified as a client service on device "\
+                              "#{name} for combus #{com_bus.name}, but it does not "\
+                              "provide the required service from #{com_bus.model}"
+                    end
+
                     result
-		else
-		    driver_task_model.find_data_service_from_type(srv_m)
-		end
+                else
+                    driver_task_model.find_data_service_from_type(srv_m)
+                end
             end
 
-            KNOWN_PARAMETERS = { :period => nil, :sample_size => nil, :device_id => nil }
+            KNOWN_PARAMETERS = { period: nil, sample_size: nil, device_id: nil }.freeze
 
             ##
             # :method:device_id
@@ -273,9 +298,8 @@ module Syskit
             #     created
             #   @return [Syskit::Robot::SlaveDeviceInstance]
             #
-            def slave(slave_service, options = Hash.new)
-                options = Kernel.validate_options options, :as => nil
-                if existing_slave = slaves[slave_service]
+            def slave(slave_service, as: nil)
+                if (existing_slave = slaves[slave_service])
                     return existing_slave
                 end
 
@@ -285,14 +309,19 @@ module Syskit
 
                 slave_name = "#{driver_model.full_name}.#{slave_service}"
                 srv = task_model.find_data_service(slave_name)
-                if !srv
-                    if options[:as]
+                unless srv
+                    if as
                         new_task_model = task_model.ensure_model_is_specialized
-                        srv = new_task_model.require_dynamic_service(slave_service, :as => options[:as])
+                        srv = new_task_model.require_dynamic_service(
+                            slave_service, as: as
+                        )
                     end
-                    if !srv
-                        raise ArgumentError, "there is no service #{slave_name} and no dynamic service in #{task_model.short_name}"
+                    unless srv
+                        raise ArgumentError,
+                              "there is no service #{slave_name} and no dynamic "\
+                              "service in #{task_model.short_name}"
                     end
+
                     @driver_model = driver_model.attach(new_task_model)
                 end
 
@@ -306,12 +335,14 @@ module Syskit
 
             def has_through_method_missing?(m)
                 MetaRuby::DSLs.has_through_method_missing?(
-                    self, m, '_dev'.freeze => :has_slave?) || super
+                    self, m, '_dev' => :has_slave?
+                ) || super
             end
 
             def find_through_method_missing(m, args)
                 MetaRuby::DSLs.find_through_method_missing(
-                    self, m, args, '_dev'.freeze => :slave) || super
+                    self, m, args, '_dev' => :slave
+                ) || super
             end
 
             include MetaRuby::DSLs::FindThroughMethodMissing
@@ -329,19 +360,20 @@ module Syskit
             end
 
             # Add arguments to the underlying device driver
-            def with_arguments(arguments = Hash.new)
+            def with_arguments(arguments = {})
                 requirements.with_arguments(arguments)
                 self
             end
 
             # Specify deployment selection hints for the device's driver
-	    def prefer_deployed_tasks(hints)
-		requirements.prefer_deployed_tasks(hints)
-		self
-	    end
+            def prefer_deployed_tasks(hints)
+                requirements.prefer_deployed_tasks(hints)
+                self
+            end
 
             def use_deployments(hints)
-                Roby.warn_deprecated "MasterDeviceInstance#use_deployments is deprecated. Use #prefer_deployed_tasks instead"
+                Roby.warn_deprecated 'MasterDeviceInstance#use_deployments is '\
+                                     'deprecated. Use #prefer_deployed_tasks instead'
                 prefer_deployed_tasks(hints)
                 self
             end
@@ -363,13 +395,15 @@ module Syskit
                 profile = robot.profile
                 req = to_instance_requirements
                 profile.inject_di_context(req)
-                action_model = Actions::Models::Action.
-                    new(req, doc || "device from profile #{profile.name}")
+                action_model = Actions::Models::Action
+                               .new(req, doc || "device from profile #{profile.name}")
                 action_model.name = "#{name}_dev"
                 action_model
             end
 
-            def as_plan; to_instance_requirements.as_plan end
+            def as_plan
+                to_instance_requirements.as_plan
+            end
 
             def each_fullfilled_model(&block)
                 device_model.each_fullfilled_model(&block)
@@ -377,18 +411,21 @@ module Syskit
 
             DRoby = Struct.new :name, :device_model, :driver_model do
                 def proxy(peer)
-                    MasterDeviceInstance.new(nil, name, peer.local_object(device_model), Hash.new, peer.local_object(driver_model), Hash.new)
+                    MasterDeviceInstance.new(
+                        nil, name, peer.local_object(device_model),
+                        {}, peer.local_object(driver_model), {}
+                    )
                 end
             end
+
             def droby_dump(peer)
                 DRoby.new(name, peer.dump(device_model), peer.dump(driver_model))
             end
 
             def ==(other)
-                if other.kind_of?(MasterDeviceInstance)
+                other.kind_of?(MasterDeviceInstance) &&
                     other.robot == robot &&
-                        other.name == name
-                end
+                    other.name == name
             end
         end
     end

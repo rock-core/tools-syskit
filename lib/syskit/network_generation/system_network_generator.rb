@@ -46,20 +46,22 @@ module Syskit
             end
 
             def find_selected_device_in_hierarchy(argument_name, leaf_task, requirements)
-                _, model, _ = leaf_task.requirements.resolved_dependency_injection.selection_for(nil, requirements)
-                if model && dev = model.arguments[argument_name]
+                _, model, = leaf_task.requirements
+                                     .resolved_dependency_injection
+                                     .selection_for(nil, requirements)
+                if model && (dev = model.arguments[argument_name])
                     return dev
-                else
-                    devices = Set.new
-                    leaf_task.each_parent_task do |parent|
-                        if sel = find_selected_device_in_hierarchy(argument_name, parent, requirements)
-                            devices << sel
-                        end
-                    end
-                    if devices.size == 1
-                        return devices.first
-                    end
                 end
+
+                devices = Set.new
+                leaf_task.each_parent_task do |parent|
+                    sel = find_selected_device_in_hierarchy(
+                        argument_name, parent, requirements
+                    )
+                    devices << sel if sel
+                end
+
+                devices.first if devices.size == 1
             end
 
             # Try to autoallocate the devices in +task+ based on the information
@@ -156,12 +158,13 @@ module Syskit
                 plan.find_local_tasks(AbstractComponent).abstract.each do |task|
                     parent_tasks = task.each_parent_task.to_a
                     parent_tasks.each do |parent_task|
-                        next if !parent_task.kind_of?(Syskit::Composition)
+                        next unless parent_task.kind_of?(Syskit::Composition)
                         next if parent_task.abstract?
 
                         roles = parent_task.roles_of(task).dup
                         remaining_roles = roles.find_all do |child_role|
-                            !(child_model = parent_task.model.find_child(child_role)) || !child_model.optional?
+                            !(child_model = parent_task.model.find_child(child_role)) ||
+                                !child_model.optional?
                         end
                         if remaining_roles.empty?
                             parent_task.remove_child(task)
@@ -198,10 +201,7 @@ module Syskit
 
                 # Finally, select 'default' as configuration for all
                 # remaining tasks that do not have a 'conf' argument set
-                plan.find_local_tasks(Component).
-                    each do |task|
-                        task.freeze_delayed_arguments
-                    end
+                plan.find_local_tasks(Component).each(&:freeze_delayed_arguments)
                 log_timepoint 'default_conf'
 
                 # Cleanup the remainder of the tasks that are of no use right
@@ -248,10 +248,11 @@ module Syskit
                 plan, components: plan.find_local_tasks(AbstractComponent)
             )
                 still_abstract = components.find_all(&:abstract?)
-                if !still_abstract.empty?
-                    raise TaskAllocationFailed.new(self, still_abstract),
-                        "could not find implementation for the following abstract tasks: #{still_abstract}"
-                end
+                return if still_abstract.empty?
+
+                raise TaskAllocationFailed.new(self, still_abstract),
+                      'could not find implementation for the following abstract '\
+                      "tasks: #{still_abstract}"
             end
 
             # Verifies that there are no multiple output - single input
@@ -263,14 +264,18 @@ module Syskit
             def self.verify_no_multiplexing_connections(plan)
                 task_contexts = plan.find_local_tasks(TaskContext).to_a
                 task_contexts.each do |task|
-                    seen = Hash.new
+                    seen = {}
                     task.each_concrete_input_connection do |source_task, source_port, sink_port, _|
-                        if (port_model = task.model.find_input_port(sink_port)) && port_model.multiplexes?
-                            next
-                        elsif seen[sink_port]
+                        port_model = task.model.find_input_port(sink_port)
+                        next if port_model&.multiplexes?
+
+                        if seen[sink_port]
                             seen_task, seen_port = seen[sink_port]
                             if [source_task, source_port] != [seen_task, seen_port]
-                                raise SpecError, "#{task}.#{sink_port} is connected multiple times, at least to #{source_task}.#{source_port} and #{seen_task}.#{seen_port}"
+                                raise SpecError, "#{task}.#{sink_port} is connected "\
+                                                 'multiple times, at least to '\
+                                                 "#{source_task}.#{source_port} and "\
+                                                 "#{seen_task}.#{seen_port}"
                             end
                         end
                         seen[sink_port] = [source_task, source_port]
@@ -295,16 +300,17 @@ module Syskit
                     t.model.each_master_driver_service.
                         any? { |srv| !t.find_device_attached_to(srv) }
                 end
-                if !missing_devices.empty?
+                unless missing_devices.empty?
                     raise DeviceAllocationFailed.new(plan, missing_devices),
-                        "could not allocate devices for the following tasks: #{missing_devices}"
+                          'could not allocate devices for the following tasks: '\
+                          "#{missing_devices}"
                 end
 
-                devices = Hash.new
+                devices = {}
                 components.each do |task|
                     task.each_master_device do |dev|
                         device_name = dev.full_name
-                        if old_task = devices[device_name]
+                        if (old_task = devices[device_name])
                             raise ConflictingDeviceAllocation.new(dev, task, old_task)
                         else
                             devices[device_name] = task
@@ -328,7 +334,6 @@ module Syskit
                 self.class.verify_device_allocation(plan)
                 super if defined? super
             end
-
         end
     end
 end

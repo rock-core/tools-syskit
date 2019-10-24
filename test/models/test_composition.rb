@@ -122,7 +122,7 @@ describe Syskit::Models::Composition do
     describe "#connect" do
         it "can connect ports" do
             component = simple_composition_model
-            composition = Syskit::Composition.new_submodel 
+            composition = Syskit::Composition.new_submodel
             composition.add simple_component_model, as: 'source'
             composition.add simple_component_model, as: 'sink'
             composition.connect composition.source_child.out_port => composition.sink_child.in_port
@@ -261,7 +261,7 @@ describe Syskit::Models::Composition do
             srv = Syskit::DataService.new_submodel do
                 output_port 'test', other_stub_t
             end
-            
+
             child_cmp = Syskit::Composition.new_submodel
             child_cmp.add srv, as: 'child_cmp'
             child_cmp.export child_cmp.child_cmp_child.test_port, as: 'child_cmp'
@@ -283,7 +283,7 @@ describe Syskit::Models::Composition do
             srv = Syskit::DataService.new_submodel do
                 output_port 'test', other_stub_t
             end
-            
+
             child_cmp = Syskit::Composition.new_submodel
             child_cmp.add srv, as: 'child_cmp'
             child_cmp.export child_cmp.child_cmp_child.test_port, as: 'child_cmp'
@@ -574,7 +574,7 @@ describe Syskit::Models::Composition do
                 flexmock(simple_component_model).should_receive(:new).
                     and_return(srv_child).once
             end
-            
+
             def composition_model(dependency_options)
                 m = simple_service_model
                 @composition_m = Syskit::Composition.new_submodel do
@@ -831,7 +831,7 @@ describe Syskit::Models::Composition do
                 srv_m.provides base_srv_m
                 task_m = Syskit::TaskContext.new_submodel
                 task_m.provides srv_m, as: 'test'
-                
+
                 base_cmp_m = Syskit::Composition.new_submodel
                 base_cmp_m.add base_srv_m, as: 'test'
                 cmp_m = base_cmp_m.new_submodel
@@ -853,7 +853,7 @@ describe Syskit::Models::Composition do
                     provides srv_m, as: 's'
                 end
                 specialized_m = cmp_m.narrow(Syskit::DependencyInjectionContext.new('c' => task_m))
-                
+
                 assert_equal [specialized_m,cmp_m,srv_m,Syskit::DataService,
                     Syskit::Composition,Syskit::Component,Syskit::AbstractComponent,
                     Roby::Task].to_set,
@@ -1011,11 +1011,11 @@ describe Syskit::Models::Composition do
             super(root_m)
         end
 
-        it "says that the submodel of a specialized composition fullfills the specialized composition" do 
+        it "says that the submodel of a specialized composition fullfills the specialized composition" do
             spec_m, _ = create_specialized_model
             assert spec_m.new_submodel.fullfills?(spec_m)
         end
-        it "says that a specialized composition fullfills another if it has at least the same specializations" do 
+        it "says that a specialized composition fullfills another if it has at least the same specializations" do
             spec0_m, srv0_m = create_specialized_model
             spec1_m, srv1_m = create_specialized_model
             composite_m = Syskit::Models::Placeholder.for([srv0_m, srv1_m])
@@ -1024,7 +1024,7 @@ describe Syskit::Models::Composition do
             assert spec2_m.new_submodel.fullfills?(spec1_m)
         end
     end
-    
+
     describe "#merge" do
         attr_reader :root_m
 

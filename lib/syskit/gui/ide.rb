@@ -241,7 +241,9 @@ module Syskit
                 end
 
                 orogen_based, other = new_models.partition do |m|
-                    m <= Syskit::TaskContext && !(m <= Syskit::RubyTaskContext)
+                    m.kind_of?(Module) &&
+                        m <= Syskit::TaskContext &&
+                        !(m <= Syskit::RubyTaskContext)
                 end
                 if (new_model = other.first || orogen_based.first)
                     @model_browser.select_by_model(new_model)

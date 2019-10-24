@@ -726,22 +726,22 @@ module Syskit
 
                 properties_updated_in_configure = false
                 promise.on_success(description: "#{self}#perform_setup#log_properties") do
-                    if self.model.needs_stub?(self)
-                        self.model.prepare_stub(self)
-                    end
+                    model.prepare_stub(self) if model.needs_stub?(self)
                     if Syskit.conf.logs.conf_logs_enabled?
                         each_property do |p|
                             p.log_stream = Syskit.conf.logs.log_stream_for(p)
                             p.update_log
                         end
                     end
-                    properties_updated_in_configure = self.properties.each.any? { |p| p.needs_commit? }
+                    properties_updated_in_configure =
+                        properties.each.any? { |p| p.needs_commit? }
                 end
                 commit_properties(promise)
                 promise.then(description: "#{self}#perform_setup#orocos_task.configure") do
                     state = orocos_task.rtt_state
                     if properties_updated_in_configure && state != :PRE_OPERATIONAL
-                        info "properties have been changed within #configure, cleaning up #{self}"
+                        info 'properties have been changed within #configure, '\
+                             "cleaning up #{self}"
                         orocos_task.cleanup(false)
                         state = :PRE_OPERATIONAL
                     end
@@ -773,31 +773,33 @@ module Syskit
             # event will be emitted when the it has successfully been
             # configured and started.
             event :start do |context|
-                info "starting #{to_s}"
+                info "starting #{self}"
                 @last_orogen_state = nil
 
-                if state_reader.respond_to?(:resume)
-                    state_reader.resume
-                end
+                state_reader.resume if state_reader.respond_to?(:resume)
 
-                expected_output_ports = each_concrete_output_connection.
-                    map { |port_name, _| port_name }
-                expected_input_ports = each_concrete_input_connection.
-                    map { |_, _, port_name, _| port_name }
+                expected_output_ports = each_concrete_output_connection
+                                        .map { |port_name, _| port_name }
+                expected_input_ports = each_concrete_input_connection
+                                       .map { |_, _, port_name, _| port_name }
                 promise = promise(description: "promise:#{self}#start")
                 commit_properties(promise)
                 promise.then do
                     port_names = orocos_task.port_names.to_set
-                    # At this point, we should have already created all the dynamic
-                    # ports that are required ... check that
+                    # At this point, we should have already created all the
+                    # dynamic ports that are required ... check that
                     expected_output_ports.each do |source_port|
-                        if !port_names.include?(source_port)
-                            raise Orocos::NotFound, "#{orocos_name}(#{orogen_model.name}) does not have a port named #{source_port}"
+                        unless port_names.include?(source_port)
+                            raise Orocos::NotFound,
+                                  "#{orocos_name}(#{orogen_model.name}) does "\
+                                  "not have a port named #{source_port}"
                         end
                     end
                     expected_input_ports.each do |sink_port|
-                        if !port_names.include?(sink_port)
-                            raise Orocos::NotFound, "#{orocos_name}(#{orogen_model.name}) does not have a port named #{sink_port}"
+                        unless port_names.include?(sink_port)
+                            raise Orocos::NotFound,
+                                  "#{orocos_name}(#{orogen_model.name}) does "\
+                                  "not have a port named #{sink_port}"
                         end
                     end
                     orocos_task.start(false)
@@ -809,21 +811,21 @@ module Syskit
             def handle_state_changes # :nodoc:
                 # If we are starting, we should ignore all states until a
                 # runtime state is found
-                if !@got_running_state
-                    if orocos_task.runtime_state?(orogen_state)
-                        @got_running_state = true
-                        @last_terminal_state = nil
-                        start_event.emit
-                    else
-                        return
-                    end
+                unless @got_running_state
+                    return unless orocos_task.runtime_state?(orogen_state)
+
+                    @got_running_state = true
+                    @last_terminal_state = nil
+                    start_event.emit
                 end
 
                 if orocos_task.runtime_state?(orogen_state)
                     if last_orogen_state && orocos_task.error_state?(last_orogen_state)
                         running_event.emit
                     elsif @last_terminal_state
-                        fatal "#{self} reports state #{orogen_state} after having reported a terminal state (#{@last_terminal_state}). Syskit will try to go on, but this should not happen."
+                        fatal "#{self} reports state #{orogen_state} after having "\
+                              "reported a terminal state (#{@last_terminal_state}). "\
+                              'Syskit will try to go on, but this should not happen.'
                     end
                 end
 
@@ -840,10 +842,14 @@ module Syskit
                         if event_name = state_event(orogen_state)
                             event(event_name)
                         else
-                            raise ArgumentError, "#{self} reports state #{orogen_state}, but I don't have an event for this state transition"
+                            raise ArgumentError,
+                                  "#{self} reports state #{orogen_state}, "\
+                                  "but I don't have an event for this state transition"
                         end
                     end
-                return if !state_event
+
+                return unless state_event
+
                 if state_event.terminal?
                     # This is needed so that the first step of
                     # @current_property_commit cancels the promise.
@@ -884,18 +890,16 @@ module Syskit
                 # Use #rtt_state as it has no problem with asynchronous
                 # communication, unlike the port-based state updates.
                 state = orocos_task.rtt_state
-                if state != :RUNNING
-                    Runtime.debug { "in the interrupt event, StateTransitionFailed: task.state == #{state}" }
-                    # Nothing to do, the poll block will finalize the task
-                    nil
-                else
-                    raise
-                end
+                raise if state == :RUNNING
+
+                Runtime.debug { "in the interrupt event, StateTransitionFailed: task.state == #{state}" }
+                # Nothing to do, the poll block will finalize the task
+                nil
             end
 
             # Interrupts the execution of this task context
             event :interrupt do |context|
-	        info "interrupting #{self}"
+                info "interrupting #{self}"
 
                 if !orocos_task # already killed
                     interrupt_event.emit
@@ -947,14 +951,15 @@ module Syskit
             forward :start => :running
             forward :exception => :failed
             forward :fatal_error => :failed
-            on :fatal_error do |event|
+            on :fatal_error do |_event|
                 kill_execution_agent_if_alone
             end
 
             def kill_execution_agent_if_alone
                 if execution_agent
-                    not_loggers = execution_agent.each_executed_task.
-                        find_all { |t| !Roby.app.syskit_utility_component?(t) }
+                    not_loggers = execution_agent
+                                  .each_executed_task
+                                  .find_all { |t| !Roby.app.syskit_utility_component?(t) }
                     if not_loggers.size == 1
                         plan.unmark_permanent_task(execution_agent)
                         if execution_agent.running?
@@ -966,32 +971,31 @@ module Syskit
                 false
             end
 
-            event :aborted, terminal: true do |context|
+            event :aborted, terminal: true do |_context|
                 if execution_agent && execution_agent.running? && !execution_agent.finishing?
-                    aborted_event.achieve_asynchronously(description: "aborting #{self}") do
-                        begin orocos_task.stop(false)
-                        rescue Exception
+                    aborted_event
+                        .achieve_asynchronously(description: "aborting #{self}") do
+                            begin orocos_task.stop(false)
+                            rescue StandardError # rubocop:disable Lint/HandleExceptions
+                            end
                         end
-                    end
                 else
                     aborted_event.emit
                 end
             end
 
             on :aborted do |event|
-	        info "#{event.task} has been aborted"
+                info "#{event.task} has been aborted"
             end
 
             # Interrupts the execution of this task context
-            event :stop do |context|
+            event :stop do |_context|
                 interrupt!
             end
 
-            on :stop do |event|
+            on :stop do |_event|
                 info "stopped #{self}"
-                if state_reader.respond_to?(:pause)
-                    state_reader.pause
-                end
+                state_reader.pause if state_reader.respond_to?(:pause)
             end
 
             # Default implementation of the configure method.
@@ -1060,20 +1064,23 @@ module Syskit
                     if has_property?(name)
                         property(name).write(value)
                     else
-                        ::Robot.warn "ignoring field #{name} in configuration of #{orocos_name} (#{model.name})"
+                        ::Robot.warn "ignoring field #{name} in configuration "\
+                                     "of #{orocos_name} (#{model.name})"
                     end
                 end
             end
 
-            # Stub this task context by assigning a {Orocos::RubyTaskContext} to {#orocos_task}
+            # Stub this task context by assigning a {Orocos::RubyTaskContext}
+            # to {#orocos_task}
             def stub!(name = nil)
                 if !name && !orocos_name
-                    raise ArgumentError, "orocos_task is not set on #{self}, you must provide an explicit name in #stub!"
+                    raise ArgumentError,
+                          "orocos_task is not set on #{self}, you must "\
+                          'provide an explicit name in #stub!'
                 end
-                if name
-                    self.orocos_name = name
-                end
-                self.orocos_task = Orocos::RubyTaskContext.from_orogen_model(orocos_name, model.orogen_model)
+                self.orocos_name = name if name
+                self.orocos_task = Orocos::RubyTaskContext
+                                   .from_orogen_model(orocos_name, model.orogen_model)
             end
 
             # Resolves the given Syskit::Port object into the actual Port object
@@ -1095,7 +1102,8 @@ module Syskit
             #
             # @param [String] name the new port's name
             # @param [Orocos::Spec::DynamicInputPort] port the port model, as
-            #   returned for instance by Orocos::Spec::TaskContext#find_dynamic_input_ports
+            #   returned for instance by
+            #   Orocos::Spec::TaskContext#find_dynamic_input_ports
             # @return [Port] the new port
             def instanciate_dynamic_input_port(name, type, port)
                 specialize
@@ -1106,7 +1114,8 @@ module Syskit
             #
             # @param [String] name the new port's name
             # @param [Orocos::Spec::DynamicOutputPort] port the port model, as
-            #   returned for instance by Orocos::Spec::TaskContext#find_dynamic_output_ports
+            #   returned for instance by
+            #   Orocos::Spec::TaskContext#find_dynamic_output_ports
             # @return [Port] the new port's model
             def instanciate_dynamic_output_port(name, type, port)
                 specialize
@@ -1119,9 +1128,11 @@ module Syskit
                 # Create dynamically instantiated ports on the real task
                 def commit_transaction
                     super if defined? super
-                    if specialized_model?
-                        Syskit::Models.merge_orogen_task_context_models(__getobj__.model.orogen_model, [model.orogen_model])
-                    end
+                    return unless specialized_model?
+
+                    Syskit::Models.merge_orogen_task_context_models(
+                        __getobj__.model.orogen_model, [model.orogen_model]
+                    )
                 end
 
                 def transaction_modifies_static_ports?
@@ -1140,7 +1151,7 @@ module Syskit
                         end
                     end
 
-                    current_connections_to_static = Hash.new
+                    current_connections_to_static = {}
                     ActualDataFlow.each_in_neighbour(orocos_task) do |source_task|
                         # Transactions neither touch ActualDataFlow nor the
                         # task-to-orocos_task mapping. It's safe to check it
@@ -1174,10 +1185,12 @@ module Syskit
                 super
                 relation_graph_for(Flows::DataFlow).modified_tasks << self
             end
+
             def updated_sink(sink, policy)
                 super
                 relation_graph_for(Flows::DataFlow).modified_tasks << self
             end
+
             def removed_sink(source)
                 super
                 relation_graph_for(Flows::DataFlow).modified_tasks << self
@@ -1187,6 +1200,7 @@ module Syskit
                 MetaRuby::DSLs.has_through_method_missing?(
                     self, m, '_property' => :has_property?) || super
             end
+
             def find_through_method_missing(m, args)
                 MetaRuby::DSLs.find_through_method_missing(
                     self, m, args, '_property' => :find_property) || super

@@ -673,21 +673,28 @@ module Syskit
                         syskit_start_execution_agents(bus_driver)
                         syskit_start_execution_agents(dev_driver)
                         plug_connection_management
-                        return dev_driver, bus_driver
+                        [dev_driver, bus_driver]
                     end
 
-                    it "specifies the connections between the bus and device" do
+                    it 'specifies the connections between the bus and device' do
                         dev_driver, bus_driver = deploy_dev_and_bus
                         assert bus_driver.dev_port.connected_to?(dev_driver.bus_in_port)
                     end
 
-                    it "synchronizes the startup of communication busses and their supported devices" do
+                    it 'synchronizes the startup of communication busses and their supported devices' do
                         dev_driver, bus_driver = deploy_dev_and_bus
 
-                        bus_driver.orocos_task.local_ruby_task.create_output_port 'dev', '/int'
-                        flexmock(bus_driver.orocos_task, "bus").should_receive(:start).once.globally.ordered(:bus_startup).pass_thru
-                        mock_raw_port(bus_driver, 'dev').should_receive(:connect_to).once.globally.ordered(:bus_startup).pass_thru
-                        flexmock(dev_driver.orocos_task, "dev").should_receive(:configure).once.globally.ordered.pass_thru
+                        bus_driver.orocos_task.local_ruby_task
+                                  .create_output_port('dev', '/int')
+                        flexmock(bus_driver.orocos_task, 'bus')
+                            .should_receive(:start).once.pass_thru
+                            .globally.ordered(:bus_startup)
+                        mock_raw_port(bus_driver, 'dev')
+                            .should_receive(:connect_to).once.pass_thru
+                            .globally.ordered(:bus_startup)
+                        flexmock(dev_driver.orocos_task, 'dev')
+                            .should_receive(:configure).once.pass_thru
+                            .globally.ordered
 
                         syskit_configure(bus_driver)
                         capture_log(bus_driver, :info) do

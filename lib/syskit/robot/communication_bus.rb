@@ -1,3 +1,5 @@
+# frozen_string_literal: true
+
 module Syskit
     module Robot
         # This class represents a communication bus on the robot, i.e. a device
@@ -14,14 +16,13 @@ module Syskit
             def instanciate(plan, context = DependencyInjectionContext.new, **options)
                 service = super
                 task = service.to_task
-                if !device_model.lazy_dispatch?
+                unless device_model.lazy_dispatch?
                     each_attached_device do |dev|
                         require_dynamic_service_for_device(task, dev)
                     end
                 end
                 service
             end
-
 
             # Create the dynamic service on the combus driver task that is
             # necessary to connect to the given device
@@ -33,15 +34,18 @@ module Syskit
             def require_dynamic_service_for_device(combus_task, device)
                 combus_task.require_dynamic_service(
                     device_model.dynamic_service_name,
-                    as: device.name, bus_to_client: device.bus_to_client?, client_to_bus: device.client_to_bus?)
+                    as: device.name,
+                    bus_to_client: device.bus_to_client?,
+                    client_to_bus: device.client_to_bus?
+                )
             end
 
             def through(&block)
                 instance_eval(&block)
             end
 
-            def each_attached_device
-                attached_devices.each { |dev| yield(dev) }
+            def each_attached_device(&block)
+                attached_devices.each(&block)
             end
 
             # Used by the #through call to override com_bus specification.
@@ -53,4 +57,3 @@ module Syskit
         end
     end
 end
-

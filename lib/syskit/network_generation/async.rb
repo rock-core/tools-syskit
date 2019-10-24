@@ -22,7 +22,8 @@ module Syskit
             # @return [Resolution]
             attr_reader :future
 
-            def initialize(plan, event_logger: plan.event_logger, thread_pool: Concurrent::CachedThreadPool.new)
+            def initialize(plan, event_logger: plan.event_logger,
+                           thread_pool: Concurrent::CachedThreadPool.new)
                 @plan = plan
                 @event_logger = event_logger
                 @thread_pool = thread_pool
@@ -36,6 +37,7 @@ module Syskit
                 future.engine.work_plan.committed?
             end
 
+            # @api private
             class Resolution < Concurrent::Future
                 attr_reader :plan
                 attr_reader :requirement_tasks
@@ -50,8 +52,8 @@ module Syskit
 
                 def cancel
                     add_observer do
-                        self.plan.execution_engine.once do
-                            if !engine.work_plan.finalized?
+                        plan.execution_engine.once do
+                            unless engine.work_plan.finalized?
                                 engine.work_plan.discard_transaction
                             end
                         end
@@ -99,9 +101,8 @@ module Syskit
 
             def join
                 result = future.value
-                if future.rejected?
-                    raise future.reason
-                end
+                raise future.reason if future.rejected?
+
                 result
             end
 

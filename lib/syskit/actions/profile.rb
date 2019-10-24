@@ -9,7 +9,7 @@ module Syskit
                 # Set of known profiles
                 attr_reader :profiles
             end
-            @profiles = Array.new
+            @profiles = []
 
             dsl_attribute :doc
 
@@ -36,7 +36,7 @@ module Syskit
 
                 # Return a definition that has a different underlying profile
                 def rebind(profile)
-                    if rebound = profile.find_definition_by_name(name)
+                    if (rebound = profile.find_definition_by_name(name))
                         rebound
                     else
                         result = dup
@@ -80,13 +80,13 @@ module Syskit
             end
 
             module Models
-                Tag = Syskit::Models::Placeholder.
-                    new_specialized_placeholder(task_extension: Profile::Tag) do
-                        # The name of this tag
-                        attr_accessor :tag_name
-                        # The profile this tag has been defined on
-                        attr_accessor :profile
-                    end
+                Tag = Syskit::Models::Placeholder
+                      .new_specialized_placeholder(task_extension: Profile::Tag) do
+                          # The name of this tag
+                          attr_accessor :tag_name
+                          # The profile this tag has been defined on
+                          attr_accessor :profile
+                      end
             end
 
             # Whether this profile should be kept across app setup/cleanup
