@@ -310,17 +310,36 @@ module Syskit
             # through a communication bus.
             def initial_combus_information(task)
                 handled_ports = Set.new
+                DataFlowDynamics.debug do
+                    'adding information from attached combus devices'
+                end
+
                 task.each_attached_device do |dev|
                     srv = task.find_data_service(dev.name)
-                    srv.each_input_port do |port|
-                        handled_ports << port.name
+                    DataFlowDynamics.debug do
+                        "  #{dev.name}, period: #{dev.period} burst: #{dev.burst}"
+                    end
+                    srv.each_output_port do |port|
                         port = port.to_component_port
-                        dynamics = PortDynamics.new("#{task.orocos_name}.#{port.name}", dev.sample_size)
+                        handled_ports << port.name
+                        dynamics = PortDynamics.new(
+                            "#{task.orocos_name}.#{port.name}", dev.sample_size
+                        )
                         if dev.period
-                            dynamics.add_trigger(dev.name, dev.period, 1)
-                            dynamics.add_trigger(dev.name, dev.period * dev.burst, dev.burst)
+                            dynamics.add_trigger(dev.name, dev.period, dev.sample_size)
+                        end
+                        if dev.burst != 0
+                            dynamics.add_trigger("#{dev.name}-burst", 0,
+                                                 dev.burst * dev.sample_size)
                         end
                         add_port_info(task, port.name, dynamics)
+                        DataFlowDynamics.debug do
+                            DataFlowDynamics.debug "  #{port.name}:"
+                            DataFlowDynamics.log_nest(4) do
+                                DataFlowDynamics.log_pp(:debug, dynamics)
+                            end
+                            break
+                        end
                     end
                 end
                 handled_ports.each do |port_name|
