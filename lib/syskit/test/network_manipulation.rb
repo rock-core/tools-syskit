@@ -455,16 +455,32 @@ module Syskit
             # @param [Model<TaskContext>] driver the driver that should be used
             #   for the device. If not given, syskit will look for a suitable
             #   driver or stub one
-            def syskit_stub_attached_device(bus, as: syskit_default_stub_name(bus))
+            def syskit_stub_attached_device(bus, as: syskit_default_stub_name(bus),
+                                            client_to_bus: true, bus_to_client: true,
+                                            base_model: Syskit::Device)
                 unless bus.kind_of?(Robot::DeviceInstance)
                     bus = syskit_stub_com_bus(bus, as: "#{as}_bus")
                 end
                 bus_m = bus.model
-                dev_m = Syskit::Device.new_submodel(name: "#{bus}-stub") do
-                    provides bus_m::ClientSrv
+                client_service_m =
+                    if client_to_bus && bus_to_client
+                        bus_m::ClientSrv
+                    elsif client_to_bus
+                        bus_m::ClientOutSrv
+                    elsif bus_to_client
+                        bus_m::ClientInSrv
+                    else
+                        raise ArgumentError, 'at least one of client_to_bus or '\
+                                             'bus_to_client need to be true'
+                    end
+
+                dev_m = base_model.new_submodel(name: "#{bus}-stub") do
+                    provides client_service_m
                 end
                 dev = syskit_stub_device(dev_m, as: as)
-                dev.attach_to(bus)
+                dev.attach_to(
+                    bus, client_to_bus: client_to_bus, bus_to_client: bus_to_client
+                )
                 dev
             end
 

@@ -49,9 +49,10 @@ module Syskit
             end
 
             # Used by the #through call to override com_bus specification.
-            def device(type_name, options = Hash.new)
-                device = robot.device(type_name, options)
-                device.attach_to(self)
+            def device(type_name, bus_to_client: true, client_to_bus: true, **options)
+                device = robot.device(type_name, **options)
+                device.attach_to(self, bus_to_client: bus_to_client,
+                                       client_to_bus: client_to_bus)
                 device
             end
         end
