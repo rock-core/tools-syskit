@@ -54,13 +54,27 @@ module Syskit
                 # have to enumerate both output and input connections. We can
                 # however avoid doulbing work by avoiding the update of sink
                 # tasks that are part of the set
-                for t in tasks
-                    t.each_concrete_input_connection do |source_task, source_port, sink_port, policy|
-                        RequiredDataFlow.add_connections(source_task, t, [source_port, sink_port] => policy)
+                tasks.each do |t|
+                    t.each_concrete_input_connection do |source_t, source_p, sink_p, policy|
+                        policy = dataflow_graph.policy_graph
+                                               .fetch([source_t, t], {})
+                                               .fetch([source_p, sink_p], policy)
+
+                        RequiredDataFlow.add_connections(
+                            source_t, t,
+                            [source_p, sink_p] => policy
+                        )
                     end
-                    t.each_concrete_output_connection do |source_port, sink_port, sink_task, policy|
-                        next if tasks.include?(sink_task)
-                        RequiredDataFlow.add_connections(t, sink_task, [source_port, sink_port] => policy)
+                    t.each_concrete_output_connection do |source_p, sink_p, sink_t, policy|
+                        next if tasks.include?(sink_t)
+
+                        policy = dataflow_graph.policy_graph
+                                               .fetch([t, sink_t], {})
+                                               .fetch([source_p, sink_p], policy)
+                        RequiredDataFlow.add_connections(
+                            t, sink_t,
+                            [source_p, sink_p] => policy
+                        )
                     end
                 end
             end

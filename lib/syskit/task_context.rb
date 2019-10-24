@@ -92,6 +92,10 @@ module Syskit
                 orogen_model.worstcase_trigger_latency
             end
 
+            def trigger_latency=(latency)
+                orogen_model.worstcase_trigger_latency = latency
+            end
+
             def initialize(orogen_model: nil, **arguments)
                 super(**arguments)
 

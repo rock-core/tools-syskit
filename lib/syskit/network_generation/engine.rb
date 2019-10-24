@@ -683,6 +683,19 @@ module Syskit
                 work_plan.commit_transaction
                 log_timepoint 'commit_transaction'
 
+                # Update the work plan's expected policies
+                if @dataflow_dynamics
+                    real_flow_graph = real_plan.task_relation_graph_for(Flows::DataFlow)
+                    work_flow_graph = work_plan.task_relation_graph_for(Flows::DataFlow)
+                    real_flow_graph.policy_graph =
+                        work_flow_graph
+                        .policy_graph
+                        .transform_keys do |(source_t, sink_t)|
+                            [work_plan.may_unwrap(merge_solver.replacement_for(source_t)),
+                             work_plan.may_unwrap(merge_solver.replacement_for(sink_t))]
+                        end
+                end
+
                 # Reset the oroGen model on all already-running tasks
                 real_plan.find_tasks(Syskit::TaskContext).each do |task|
                     if (orocos_task = task.orocos_task) && orocos_task.respond_to?(:model=)

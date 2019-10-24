@@ -33,10 +33,18 @@ module Syskit
         # @return [ConnectionGraph,nil]
         attr_reader :concrete_connection_graph
 
+        # The graph that provides policies between concrete tasks
+        #
+        # It is computed during network generation
+        #
+        # @return [Hash]
+        attr_accessor :policy_graph
+
         def initialize(*args, **options)
             super
             @modified_tasks = Set.new
             @concrete_connection_graph = nil
+            @policy_graph = {}
         end
 
         # @api private

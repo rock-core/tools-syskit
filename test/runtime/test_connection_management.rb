@@ -77,25 +77,68 @@ module Syskit
                 flexmock(port)
             end
 
-            describe "#update_required_dataflow_graph" do
-                it "registers all concrete input and output connections of the given tasks" do
-                    source_task, task, target_task = flexmock('source'), flexmock('task'), flexmock('target')
-                    task.should_receive(:each_concrete_input_connection).and_yield(source_task, 'source_port', 'sink_port', (p0 = :inputs))
-                    task.should_receive(:each_concrete_output_connection).and_yield('source_port', 'sink_port', target_task, (p1 = :outputs))
-                    flexmock(RequiredDataFlow).should_receive(:add_connections).once.
-                        with(source_task, task, ['source_port', 'sink_port'] => p0)
-                    flexmock(RequiredDataFlow).should_receive(:add_connections).once.
-                        with(task, target_task, ['source_port', 'sink_port'] => p1)
-                    ConnectionManagement.new(plan).update_required_dataflow_graph([task])
+            describe '#update_required_dataflow_graph' do
+                before do
+                    flexmock(RequiredDataFlow)
+
+                    @source_task = flexmock('source')
+                    @task = flexmock('task')
+                    @target_task = flexmock('target')
                 end
 
-                it "should not add the same connection twice" do
-                    source_task, task = flexmock, flexmock
-                    task.should_receive(:each_concrete_input_connection).and_yield(source_task, 'source_port', 'sink_port', (p0 = :inputs))
-                    task.should_receive(:each_concrete_output_connection)
-                    flexmock(RequiredDataFlow).should_receive(:add_connections).once.
-                        with(source_task, task, ['source_port', 'sink_port'] => p0)
-                    ConnectionManagement.new(plan).update_required_dataflow_graph([task])
+                it 'registers all concrete input and output connections of the given tasks' do
+                    @task.should_receive(:each_concrete_input_connection)
+                         .and_yield(@source_task, 'source_port', 'sink_port', :inputs)
+                    @task.should_receive(:each_concrete_output_connection)
+                         .and_yield('source_port', 'sink_port', @target_task, :outputs)
+                    RequiredDataFlow
+                        .should_receive(:add_connections).once
+                        .with(@source_task, @task, %w[source_port sink_port] => :inputs)
+                    RequiredDataFlow
+                        .should_receive(:add_connections).once
+                        .with(@task, @target_task, %w[source_port sink_port] => :outputs)
+                    ConnectionManagement.new(plan).update_required_dataflow_graph([@task])
+                end
+
+                it 'primarily uses information stored in the policy grap to determine the policies' do
+                    @task.should_receive(:each_concrete_input_connection)
+                         .and_yield(@source_task, 'source_port', 'sink_port', :inputs)
+                    @task.should_receive(:each_concrete_output_connection)
+                         .and_yield('source_port', 'sink_port', @target_task, :outputs)
+                    RequiredDataFlow
+                        .should_receive(:add_connections).once
+                        .with(@source_task, @task,
+                              %w[source_port sink_port] => :policy_g_input)
+                    RequiredDataFlow
+                        .should_receive(:add_connections).once
+                        .with(@task, @target_task,
+                              %w[source_port sink_port] => :policy_g_output)
+
+                    dataflow_g = plan.task_relation_graph_for(Flows::DataFlow)
+                    dataflow_g.policy_graph.merge!(
+                        [@source_task, @task] => {
+                            %w[source_port sink_port] => :policy_g_input
+                        },
+                        [@task, @target_task] => {
+                            %w[source_port sink_port] => :policy_g_output
+                        }
+                    )
+                    ConnectionManagement.new(plan).update_required_dataflow_graph([@task])
+                end
+
+                it 'does not add the same connection twice' do
+                    @task.should_receive(:each_concrete_input_connection)
+                         .and_yield(@source_task, 'source_port', 'sink_port', :inputs)
+                    @task.should_receive(:each_concrete_output_connection)
+                    @source_task.should_receive(:each_concrete_output_connection)
+                                .and_yield('source_port', 'sink_port', @task, :inputs)
+                    @source_task.should_receive(:each_concrete_input_connection)
+                    flexmock(RequiredDataFlow)
+                        .should_receive(:add_connections).once
+                        .with(@source_task, @task, %w[source_port sink_port] => :inputs)
+                    ConnectionManagement
+                        .new(plan)
+                        .update_required_dataflow_graph([@task, @source_task])
                 end
             end
 
