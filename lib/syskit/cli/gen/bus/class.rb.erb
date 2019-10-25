@@ -34,8 +34,8 @@
 <%= indent %>    # # One can do the following in the robot description:
 <%= indent %>    # # robot do
 <%= indent %>    # #     com_bus <%= class_name.last %>, as: 'bus' do
-<%= indent %>    # #         device(<%= class_name.last %>SpecificDevice, as: 'dev').
-<%= indent %>    # #             bus_id(0x1, 0xF)
+<%= indent %>    # #         device(<%= class_name.last %>SpecificDevice, as: 'dev')
+<%= indent %>    # #             .bus_id(0x1, 0xF)
 <%= indent %>    # #     end
 <%= indent %>    # # end
 <%= indent %>    # #
@@ -46,7 +46,7 @@
 <%= indent %>    # #         super
 <%= indent %>    # #
 <%= indent %>    # #         # Set the bus driver's 'watches' property to the declared devices
-<%= indent %>    # #         orocos_task.watches = each_declared_attached_device.map do |dev|
+<%= indent %>    # #         properties.watches = each_declared_attached_device.map do |dev|
 <%= indent %>    # #             bus_id = Types.my_bus_device_driver.BusID.new
 <%= indent %>    # #             bus_id.name = dev.name
 <%= indent %>    # #             bus_id.id = dev.bus_id.id
@@ -72,8 +72,8 @@
 <%= indent %>    # end
 <%= indent %>    # # One can do the following in the robot description:
 <%= indent %>    # # robot do
-<%= indent %>    # #     device(<%= class_name.last %>).
-<%= indent %>    # #         baudrate(1_000_000) # Use 1Mbit/s
+<%= indent %>    # #     device(<%= class_name.last %>)
+<%= indent %>    # #         .baudrate(1_000_000) # Use 1Mbit/s
 <%= indent %>    # # end
 <%= indent %>    # #
 <%= indent %>    # # and then use the information to auto-configure the device
@@ -82,7 +82,7 @@
 <%= indent %>    # #     driver_for <%= class_name.last %>, as: 'driver'
 <%= indent %>    # #     def configure
 <%= indent %>    # #         super
-<%= indent %>    # #         orocos_task.baudrate = robot_device.baudrate
+<%= indent %>    # #         properties.baudrate = robot_device.baudrate
 <%= indent %>    # #     end
 <%= indent %>    # # end
 <%= indent %>    # #
