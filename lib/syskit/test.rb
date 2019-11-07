@@ -17,32 +17,31 @@ require 'syskit/test/ruby_task_context_test'
 
 Roby::Test::Spec.include Syskit::Test::NetworkManipulation
 module Syskit
-    Minitest::Spec.register_spec_type Syskit::Test::Spec do |desc|
+    Roby::Test.register_spec_type Syskit::Test::Spec do |desc|
         desc.class == Module
     end
-    Minitest::Spec.register_spec_type Syskit::Test::Spec do |desc|
+    Roby::Test.register_spec_type Syskit::Test::Spec do |desc|
         desc.kind_of?(Syskit::Models::DataServiceModel)
     end
-    Minitest::Spec.register_spec_type Syskit::Test::ActionTest do |desc|
+    Roby::Test.register_spec_type Syskit::Test::ActionTest do |desc|
         desc.kind_of?(Roby::Actions::Models::Action) || desc.kind_of?(Roby::Actions::Action)
     end
-    Minitest::Spec.register_spec_type Syskit::Test::TaskContextTest do |desc|
+    Roby::Test.register_spec_type Syskit::Test::TaskContextTest do |desc|
         (desc.kind_of?(Class) && desc <= Syskit::TaskContext)
     end
-    Minitest::Spec.register_spec_type Syskit::Test::RubyTaskContextTest do |desc|
+    Roby::Test.register_spec_type Syskit::Test::RubyTaskContextTest do |desc|
         (desc.kind_of?(Class) && desc <= Syskit::RubyTaskContext)
     end
-    Minitest::Spec.register_spec_type Syskit::Test::ComponentTest do |desc|
+    Roby::Test.register_spec_type Syskit::Test::ComponentTest do |desc|
         (desc.kind_of?(Class) && desc <= Syskit::Component && !(desc <= Syskit::TaskContext))
     end
-    Minitest::Spec.register_spec_type Syskit::Test::ProfileTest do |desc|
+    Roby::Test.register_spec_type Syskit::Test::ProfileTest do |desc|
         desc.kind_of?(Syskit::Actions::Profile)
     end
-    Minitest::Spec.register_spec_type Syskit::Test::ComponentTest do |desc|
+    Roby::Test.register_spec_type Syskit::Test::ComponentTest do |desc|
         (!desc.kind_of?(Class) && desc.kind_of?(Module) && desc <= Syskit::Device)
     end
-    Minitest::Spec.register_spec_type Syskit::Test::ActionInterfaceTest do |desc|
+    Roby::Test.register_spec_type Syskit::Test::ActionInterfaceTest do |desc|
         (desc.kind_of?(Class) && desc <= Roby::Actions::Interface)
     end
 end
-
