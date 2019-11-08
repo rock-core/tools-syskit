@@ -36,7 +36,212 @@ module Syskit
                     assert(device == mock)
                 end
             end
+
+            describe '#attach_to' do
+                before do
+                    @com_bus_m = Syskit::ComBus.new_submodel(
+                        name: 'ComBus', message_type: '/double'
+                    )
+                    @dev_m = Syskit::Device.new_submodel(name: 'ComBus')
+                    @com_bus_driver_m = Syskit::TaskContext.new_submodel
+                    @com_bus_driver_m.driver_for @com_bus_m, as: 'driver'
+                    @dev_driver_m = Syskit::TaskContext.new_submodel(name: 'Driver') do
+                        input_port 'bus_in', '/double'
+                        output_port 'bus_out', '/double'
+                    end
+                    @dev_driver_m.driver_for @dev_m, as: 'driver'
+
+                    robot = RobotDefinition.new
+                    @com_bus = robot.com_bus @com_bus_m, as: 'com_bus'
+                    @device = robot.device @dev_m, as: 'dev'
+                end
+
+                it 'registers the com bus attachment on the device' do
+                    @dev_driver_m.provides @com_bus_m::ClientSrv, as: 'bus'
+                    @device.attach_to @com_bus
+                    assert @device.attached_to?(@com_bus)
+                end
+
+                it 'registers the device attachment on the com bus' do
+                    @dev_driver_m.provides @com_bus_m::ClientSrv, as: 'bus'
+                    @device.attach_to @com_bus
+                    assert_equal [@device], @com_bus.each_attached_device.to_a
+                end
+
+                it 'accepts a com bus object' do
+                    @dev_driver_m.provides @com_bus_m::ClientSrv, as: 'bus'
+                    @device.attach_to @com_bus
+                    assert @device.attached_to?(@com_bus)
+                end
+
+                it 'resolves a com bus as name' do
+                    @dev_driver_m.provides @com_bus_m::ClientSrv, as: 'bus'
+                    @device.attach_to 'com_bus'
+                    assert @device.attached_to?(@com_bus)
+                end
+
+                it 'resolves the bus-to-client and client-to-bus services' do
+                    flexmock(@device).should_receive(:resolve_combus_client_srv)
+                                     .with(@com_bus_m::ClientInSrv, nil,
+                                           @com_bus, 'bus_to_client').once
+                                     .and_return(bus_to_client = flexmock)
+                    flexmock(@device).should_receive(:resolve_combus_client_srv)
+                                     .with(@com_bus_m::ClientOutSrv, nil,
+                                           @com_bus, 'client_to_bus').once
+                                     .and_return(client_to_bus = flexmock)
+                    @device.attach_to(@com_bus)
+                    assert_equal bus_to_client, @device.combus_client_in_srv
+                    assert_equal client_to_bus, @device.combus_client_out_srv
+                end
+
+                it 'uses the bus-to-client and client-to-bus options as service names if they are strings' do
+                    flexmock(@device).should_receive(:resolve_combus_client_srv)
+                                     .with(@com_bus_m::ClientInSrv, 'in_name',
+                                           @com_bus, 'bus_to_client').once
+                                     .and_return(bus_to_client = flexmock)
+                    flexmock(@device).should_receive(:resolve_combus_client_srv)
+                                     .with(@com_bus_m::ClientOutSrv, 'out_name',
+                                           @com_bus, 'client_to_bus').once
+                                     .and_return(client_to_bus = flexmock)
+                    @device.attach_to(
+                        @com_bus, bus_to_client: 'in_name',
+                                  client_to_bus: 'out_name'
+                    )
+                    assert_equal bus_to_client, @device.combus_client_in_srv
+                    assert_equal client_to_bus, @device.combus_client_out_srv
+                end
+
+                it 'selects an existing common in+out services on the driver' do
+                    @dev_driver_m.provides @com_bus_m::ClientSrv, as: 'bus'
+                    @device.attach_to 'com_bus'
+                    assert_equal @dev_driver_m.bus_srv.as(@com_bus_m::ClientOutSrv),
+                                 @device.combus_client_out_srv
+                    assert_equal @dev_driver_m.bus_srv.as(@com_bus_m::ClientInSrv),
+                                 @device.combus_client_in_srv
+                    assert @device.client_to_bus?
+                    assert @device.bus_to_client?
+                end
+
+                it 'selects distinct in and out services on the driver' do
+                    @dev_driver_m.provides @com_bus_m::ClientOutSrv, as: 'bus_out'
+                    @dev_driver_m.provides @com_bus_m::ClientInSrv, as: 'bus_in'
+                    @device.attach_to 'com_bus'
+                    assert_equal @dev_driver_m.bus_out_srv, @device.combus_client_out_srv
+                    assert_equal @dev_driver_m.bus_in_srv, @device.combus_client_in_srv
+                    assert @device.client_to_bus?
+                    assert @device.bus_to_client?
+                end
+
+                it 'allows to disable the bus-to-client communication' do
+                    @dev_driver_m.provides @com_bus_m::ClientSrv, as: 'bus'
+                    @device.attach_to 'com_bus', bus_to_client: false
+                    assert_equal @dev_driver_m.bus_srv.as(@com_bus_m::ClientOutSrv),
+                                 @device.combus_client_out_srv
+                    assert_nil @device.combus_client_in_srv
+                    assert @device.client_to_bus?
+                    refute @device.bus_to_client?
+                end
+
+                it 'accepts devices that have only client-to-bus communication' do
+                    @dev_driver_m.provides @com_bus_m::ClientOutSrv, as: 'bus_out'
+                    @device.attach_to 'com_bus', bus_to_client: false
+                    assert_nil @device.combus_client_in_srv
+                    assert_equal @dev_driver_m.bus_out_srv, @device.combus_client_out_srv
+                    assert @device.client_to_bus?
+                    refute @device.bus_to_client?
+                end
+
+                it 'allows to disable the client-to-bus communication' do
+                    @dev_driver_m.provides @com_bus_m::ClientSrv, as: 'bus'
+                    @device.attach_to 'com_bus', client_to_bus: false
+                    assert_nil @device.combus_client_out_srv
+                    assert_equal @dev_driver_m.bus_srv.as(@com_bus_m::ClientInSrv),
+                                 @device.combus_client_in_srv
+                    refute @device.client_to_bus?
+                    assert @device.bus_to_client?
+                end
+
+                it 'accepts devices that have only bus-to-client communication' do
+                    @dev_driver_m.provides @com_bus_m::ClientInSrv, as: 'bus_in'
+                    @device.attach_to 'com_bus', client_to_bus: false
+                    assert_nil @device.combus_client_out_srv
+                    assert_equal @dev_driver_m.bus_in_srv, @device.combus_client_in_srv
+                    refute @device.client_to_bus?
+                    assert @device.bus_to_client?
+                end
+
+                describe 'resolve_combus_client_srv' do
+                    before do
+                        @srv_m = Syskit::DataService.new_submodel(name: 'ClientInSrv')
+                    end
+
+                    it 'raises if the expected service is not available' do
+                        e = assert_raises(ArgumentError) do
+                            @device.resolve_combus_client_srv(
+                                @srv_m, nil, @com_bus, 'bus_to_client'
+                            )
+                        end
+                        assert_equal 'Driver does not provide a service '\
+                                     'of type ClientInSrv, needed '\
+                                     'to connect to the bus \'com_bus\'. Either disable '\
+                                     'the bus-to-client communication by passing '\
+                                     'bus_to_client: false, or change Driver\'s '\
+                                     'definition to provide the data service',
+                                     e.message
+                    end
+
+                    it 'raises if more than one service is available' do
+                        @dev_driver_m.provides @srv_m, as: 'srv0'
+                        @dev_driver_m.provides @srv_m, as: 'srv1'
+                        e = assert_raises(ArgumentError) do
+                            @device.resolve_combus_client_srv(
+                                @srv_m, nil, @com_bus, 'bus_to_client'
+                            )
+                        end
+                        assert_equal 'Driver provides more than one service '\
+                                     'of type ClientInSrv '\
+                                     'to connect to the bus \'com_bus\'. Select '\
+                                     'one explicitely using the bus_to_client option. '\
+                                     'Available services: srv0, srv1',
+                                     e.message
+                    end
+
+                    it 'allows to explicitely select the bus-to-client service' do
+                        @dev_driver_m.provides @srv_m, as: 'srv0'
+                        @dev_driver_m.provides @srv_m, as: 'srv1'
+                        srv = @device.resolve_combus_client_srv(
+                            @srv_m, 'srv0', @com_bus, 'bus_to_client'
+                        )
+                        assert_equal @dev_driver_m.srv0_srv, srv
+                    end
+
+                    it 'raises if the explicitly selected service does not exist' do
+                        e = assert_raises(ArgumentError) do
+                            @device.resolve_combus_client_srv(
+                                @srv_m, 'not_exist', @com_bus, 'bus_to_client'
+                            )
+                        end
+                        assert_equal 'not_exist is specified as a client service on '\
+                                     'device dev for combus com_bus, but it is not a '\
+                                     'data service on Driver',
+                                     e.message
+                    end
+
+                    it 'raises if the explicitly selected service does fullfill the service model' do
+                        @other_srv_m = Syskit::DataService.new_submodel
+                        @dev_driver_m.provides @other_srv_m, as: 'srv'
+                        e = assert_raises(ArgumentError) do
+                            @device.resolve_combus_client_srv(
+                                @srv_m, 'srv', @com_bus, 'bus_to_client'
+                            )
+                        end
+                        assert_equal 'srv is specified as a client service on '\
+                                     'device dev for combus com_bus, but it does not '\
+                                     'provide the required service ClientInSrv',
+                                     e.message
+                    end
+                end
+            end
         end
     end
 end
-
