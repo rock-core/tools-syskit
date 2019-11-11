@@ -318,7 +318,7 @@ module Syskit
             # when #commit_properties is called
             def property(name)
                 name = name.to_s
-                if p = find_property(name)
+                if (p = find_property(name))
                     p
                 else
                     raise Orocos::InterfaceObjectNotFound.new(self, name), "#{self} has no property called #{name}"
@@ -347,13 +347,15 @@ module Syskit
             # general property update structure, all property updates happening
             # in a single execution cycle will be committed together.
             def queue_property_update_if_needed
-                if !would_use_property_update?
-                    raise InvalidState, "attempting to queue a property update on a finished or finishing task"
+                unless would_use_property_update?
+                    raise InvalidState,
+                          'attempting to queue a property update on a finished '\
+                          'or finishing task'
                 end
 
-                if !@has_pending_property_updates
-                    commit_properties.execute
-                end
+                return if @has_pending_property_updates
+
+                commit_properties.execute
             end
 
             # Create a promise that will apply the properties stored Syskit-side
@@ -492,7 +494,7 @@ module Syskit
                 @state_sample ||= state_reader.new_sample
                 result, v = state_reader.read_with_result(@state_sample, false)
                 if !result
-                    if !state_reader.connected?
+                    unless state_reader.connected?
                         fatal "terminating #{self}, its state reader #{state_reader} is disconnected"
                         aborted!
                     end
@@ -511,7 +513,7 @@ module Syskit
             # It is destructive, as it does "forget" any pending state changes
             # currently queued.
             def read_current_state
-                while new_state = state_reader.read_new
+                while (new_state = state_reader.read_new)
                     state = new_state
                 end
                 state || state_reader.read
@@ -522,6 +524,8 @@ module Syskit
                 state ||= read_current_state
                 state == :FATAL_ERROR
             end
+
+            CONFIGURABLE_RTT_STATES = %I[STOPPED PRE_OPERATIONAL].freeze
 
             # Returns true if this component needs to be setup by calling the
             # #setup method, or if it can be used as-is
@@ -539,13 +543,23 @@ module Syskit
                     return false
                 end
 
-                state ||= read_current_state
-                configurable_state = [:STOPPED, :PRE_OPERATIONAL].include?(state) ||
+                unless state ||= read_current_state
+                    debug do
+                        "#{self} not ready for setup: not yet received current state"
+                    end
+                    return
+                end
+
+                configurable_state =
+                    CONFIGURABLE_RTT_STATES.include?(state) ||
                     orocos_task.exception_state?(state)
                 if configurable_state
                     true
                 else
-                    debug { "#{self} not ready for setup: in state #{state}, expected STOPPED, PRE_OPERATIONAL or an exception state" }
+                    debug do
+                        "#{self} not ready for setup: in state #{state}, "\
+                        "expected STOPPED, PRE_OPERATIONAL or an exception state"
+                    end
                     false
                 end
             end

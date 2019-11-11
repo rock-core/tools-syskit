@@ -12,7 +12,7 @@ module Syskit
 
         # Whether this property is being logged
         def logged?
-            !!log_stream
+            log_stream
         end
 
         def initialize(task_context, name, type)

@@ -431,8 +431,10 @@ module Syskit
                         end.
                         exception
 
-                    assert_equal "expected #{process}'s reported tasks to include mapped_task_name, but got handles only for invalid_name",
-                        exception.original_exceptions.first.message
+                    assert_equal "expected #{process}'s reported tasks to include "\
+                                 "'mapped_task_name' (mapped from 'task'), but got "\
+                                 'handles only for invalid_name',
+                                 exception.original_exceptions.first.message
                 end
                 it "fails an attached TaskContext if its orocos_name does not match the deployment's" do
                     task = add_deployed_task(name: 'invalid_task_name')
