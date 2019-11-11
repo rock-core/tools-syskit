@@ -13,12 +13,6 @@ end
 module Syskit
     extend Logger::Root('Syskit', Logger::WARN)
 
-    # For 1.8 compatibility
-    if !defined?(BasicObject)
-        BasicObject = Object
-    end
-
-    SYSKIT_LIB_DIR = File.expand_path(File.dirname(__FILE__))
-    SYSKIT_ROOT_DIR = File.expand_path(File.join("..", '..'), File.dirname(__FILE__))
+    SYSKIT_LIB_DIR = File.expand_path(__dir__)
+    SYSKIT_ROOT_DIR = File.expand_path(File.join('..', '..'), __dir__)
 end
-
