@@ -492,6 +492,23 @@ describe ComBus do
             )
             assert_same combus_m.bus_in_srv, srv.model.model
         end
+        it 'uses a static input service if one is available' do
+            combus_m = @combus_m
+            driver_m = TaskContext.new_submodel do
+                input_port 'driver_in', '/double'
+                provides combus_m::BusInSrv, as: 'bus_in'
+            end
+            driver_m.driver_for combus_m, as: 'combus_driver'
+
+            srv = driver_m.new.require_dynamic_service(
+                'dyn_srv', as: 'dev', bus_to_client: false, client_to_bus: true
+            )
+
+            in_port_m = srv.to_bus_port.to_component_port.model
+
+            assert_equal driver_m, in_port_m.component_model.superclass
+            assert_equal 'driver_in', in_port_m.name
+        end
         it 'provides the mapping of from_bus to input_name_for if requested an input service' do
             flexmock(combus_m).should_receive(:input_name_for)
                               .with('dev').and_return('in_DEV')
@@ -530,6 +547,23 @@ describe ComBus do
             )
             assert_equal Hash['from_bus' => 'out_DEV', 'to_bus' => 'in_DEV'],
                          srv.model.port_mappings_for_task
+        end
+        it 'uses a static output service if one is available' do
+            combus_m = @combus_m
+            driver_m = TaskContext.new_submodel do
+                output_port 'driver_out', '/double'
+                provides combus_m::BusOutSrv, as: 'bus_out'
+            end
+            driver_m.driver_for combus_m, as: 'combus_driver'
+
+            srv = driver_m.new.require_dynamic_service(
+                'dyn_srv', as: 'dev', bus_to_client: true, client_to_bus: false
+            )
+
+            out_port_m = srv.from_bus_port.to_component_port.model
+
+            assert_equal driver_m, out_port_m.component_model.superclass
+            assert_equal 'driver_out', out_port_m.name
         end
         it 'raises if the bus_to_client option is not provided' do
             assert_raises(ArgumentError) do

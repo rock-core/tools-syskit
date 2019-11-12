@@ -646,9 +646,11 @@ module Syskit
                 describe "com bus handling" do
                     attr_reader :combus_m, :combus_driver_m, :device_m, :device_driver_m
                     attr_reader :bus, :dev
+
                     before do
                         @combus_m = Syskit::ComBus.new_submodel message_type: '/int'
                         @combus_driver_m = Syskit::TaskContext.new_submodel do
+                            input_port 'root_bus_in', '/double'
                             dynamic_output_port(/.*/, '/int')
                         end
                         combus_driver_m.provides combus_m, as: 'driver'
@@ -704,6 +706,25 @@ module Syskit
                                 end
                             end
                         end
+                    end
+
+                    it 'supports busses-on-busses' do
+                        root_combus_m = Syskit::ComBus.new_submodel(
+                            message_type: '/double'
+                        )
+                        root_combus_driver_m = Syskit::TaskContext.new_submodel do
+                            dynamic_output_port(/.*/, '/double')
+                        end
+                        root_combus_driver_m.provides root_combus_m, as: 'driver'
+                        root_bus = robot.com_bus root_combus_m, as: 'root_bus'
+                        @combus_driver_m.provides root_combus_m::ClientInSrv, as: 'root_client'
+                        @bus.attach_to(root_bus, client_to_bus: false)
+                        syskit_stub_deployment_model(root_combus_driver_m)
+                        _, bus_task = deploy_dev_and_bus
+
+                        bus_child, _ = bus_task.each_child.to_a.first
+                        assert bus_child
+                        assert_equal root_bus, bus_child.arguments[:driver_dev]
                     end
                 end
 

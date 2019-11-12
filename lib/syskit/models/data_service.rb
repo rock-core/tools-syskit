@@ -519,15 +519,21 @@ module Syskit
 
                 # declare the relevant dynamic service
                 combus_m = self
-                dyn_name = dynamic_service_name
-                bus_srv  = bus_base_srv
                 mod.dynamic_service bus_base_srv, as: dynamic_service_name do
-                    options = Kernel.validate_options self.options, client_to_bus: nil, bus_to_client: nil
+                    options = Kernel.validate_options self.options, client_to_bus: nil,
+                                                                    bus_to_client: nil
                     in_name =
                         if in_srv = mod.find_data_service_from_type(combus_m.bus_in_srv)
                             in_srv.port_mappings_for_task['to_bus']
                         else
                             combus_m.input_name_for(name)
+                        end
+
+                    out_name =
+                        if out_srv = mod.find_data_service_from_type(combus_m.bus_out_srv)
+                            out_srv.port_mappings_for_task['from_bus']
+                        else
+                            combus_m.output_name_for(name)
                         end
 
                     begin
@@ -540,8 +546,8 @@ module Syskit
                     end
 
                     if client_to_bus && bus_to_client
-                        provides combus_m.bus_srv, 'from_bus' => combus_m.output_name_for(name),
-                            'to_bus' => in_name
+                        provides combus_m.bus_srv, 'from_bus' => out_name,
+                                                   'to_bus' => in_name
                         component_model.orogen_model
                                        .find_port(in_name)
                                        .needs_reliable_connection
@@ -551,7 +557,7 @@ module Syskit
                                        .find_port(in_name)
                                        .needs_reliable_connection
                     elsif bus_to_client
-                        provides combus_m.bus_out_srv, 'from_bus' => combus_m.output_name_for(name)
+                        provides combus_m.bus_out_srv, 'from_bus' => out_name
                     else
                         raise ArgumentError, 'at least one of bus_to_client or '\
                                              'client_to_bus must be true'

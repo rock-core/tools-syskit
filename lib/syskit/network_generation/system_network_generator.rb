@@ -123,26 +123,31 @@ module Syskit
                 toplevel_tasks
             end
 
+            def required_busses_for(device_task)
+                device_task.each_master_device.flat_map do |dev|
+                    dev.com_busses
+                end.uniq
+            end
+
             # Creates communication busses and links the tasks to them
             def link_to_busses
                 # Get all the tasks that need at least one communication bus
-                candidates = plan.find_local_tasks(Syskit::Device).
-                    inject(Hash.new) do |h, t|
-                        required_busses = t.each_master_device.inject(Array.new) do |list, dev|
-                            list + dev.com_busses
-                        end.to_set
-                        if !required_busses.empty?
-                            h[t] = required_busses
-                        end
-                        h
-                    end
+                queue = plan.find_local_tasks(Syskit::Device).to_a
 
-                bus_tasks = Hash.new
-                candidates.each do |task, needed_busses|
-                    needed_busses.each do |bus_device|
-                        com_bus_task = bus_tasks[bus_device] ||
-                            bus_device.instanciate(plan)
-                        bus_tasks[bus_device] ||= com_bus_task
+                bus_tasks = {}
+                handled_tasks = Set.new
+                until queue.empty?
+                    task = queue.shift
+                    next if handled_tasks.include?(task)
+
+                    handled_tasks << task
+
+                    required_busses_for(task).each do |bus_device|
+                        unless (com_bus_task = bus_tasks[bus_device])
+                            com_bus_task = bus_device.instanciate(plan)
+                            bus_tasks[bus_device] = com_bus_task
+                            queue << com_bus_task.component
+                        end
 
                         com_bus_task = com_bus_task.component
                         com_bus_task.attach(task)

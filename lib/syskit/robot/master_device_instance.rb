@@ -166,43 +166,27 @@ module Syskit
                 raise ArgumentError, "unexpected options #{options}" unless options.empty?
 
                 if bus_to_client && com_bus.model.bus_to_client?
-                    client_in_srv = bus_to_client if bus_to_client.respond_to?(:to_str)
-                    client_in_srv_m = com_bus.model.client_in_srv
-                    @combus_client_in_srv =
-                        begin find_combus_client_srv(client_in_srv_m, client_in_srv)
-                        rescue AmbiguousServiceSelection
-                            raise ArgumentError,
-                                  "#{driver_model.to_component_model} provides "\
-                                  'more than one input service to connect to '\
-                                  'the com bus, select one explicitely with '\
-                                  'the bus_to_client option'
-                        end
-                    unless combus_client_in_srv
-                        raise ArgumentError,
-                              "#{driver_model.to_component_model} does not "\
-                              'provide an input service to connect to '\
-                              'the com bus, and was expected to'
+                    if bus_to_client.respond_to?(:to_str)
+                        client_srv_name = bus_to_client.to_str
                     end
+
+                    @combus_client_in_srv = resolve_combus_client_srv(
+                        com_bus.model.client_in_srv,
+                        client_srv_name,
+                        com_bus, 'bus_to_client'
+                    )
                 end
 
                 if client_to_bus && com_bus.model.client_to_bus?
-                    client_out_srv = client_to_bus if client_to_bus.respond_to?(:to_str)
-                    client_out_srv_m = com_bus.model.client_out_srv
-                    @combus_client_out_srv =
-                        begin find_combus_client_srv(client_out_srv_m, client_out_srv)
-                        rescue AmbiguousServiceSelection
-                            raise ArgumentError,
-                                  "#{driver_model.to_component_model} provides "\
-                                  'more than one output service to connect '\
-                                  'to the com bus, select one explicitely '\
-                                  'with the client_to_bus option'
-                        end
-                    unless combus_client_out_srv
-                        raise ArgumentError,
-                              "#{driver_model.to_component_model} does not "\
-                              'provide an output service to connect to the '\
-                              'com bus, and was expected to'
+                    if client_to_bus.respond_to?(:to_str)
+                        client_srv_name = client_to_bus.to_str
                     end
+
+                    @combus_client_out_srv = resolve_combus_client_srv(
+                        com_bus.model.client_out_srv,
+                        client_srv_name,
+                        com_bus, 'client_to_bus'
+                    )
                 end
 
                 com_busses << com_bus
@@ -211,14 +195,51 @@ module Syskit
                 self
             end
 
+            # @api private
+            #
+            # Helper for {#attach_to} to resolve the client-in or client-out
+            # services, with error checking
+            def resolve_combus_client_srv(srv_model, srv_name, com_bus, option_name)
+                driver_task_model = driver_model.to_component_model
+                service = find_combus_client_srv(
+                    srv_model, srv_name, com_bus
+                )
+                unless service
+                    raise ArgumentError,
+                          "#{driver_task_model} does not "\
+                          "provide a service of type #{srv_model}, "\
+                          "needed to connect to the bus '#{com_bus.name}'. Either "\
+                          "disable the #{option_name.gsub('_', '-')} communication "\
+                          "by passing #{option_name}: false, or change Driver\'s "\
+                          'definition to provide the data service'
+                end
+
+                service
+            rescue AmbiguousServiceSelection
+                possible_services =
+                    driver_task_model
+                    .each_data_service
+                    .map { |_, s| s.name if s.fullfills?(srv_model) }
+                    .compact.sort.join(', ')
+
+                raise ArgumentError,
+                      "#{driver_task_model} provides more than one "\
+                      "service of type #{srv_model} "\
+                      "to connect to the bus \'#{com_bus.name}\'. "\
+                      'Select one explicitely using the bus_to_client '\
+                      "option. Available services: #{possible_services}"
+            end
+
             # Finds in {#driver_model}.component_model the data service that
             # should be used to interface with a combus
             #
-            # @param [Model<DataService>] the data service model for the client
+            # @param [Model<DataService>] srv_m, the data service model for the client
             #   interface to the combus
-            # @param [String,nil] the expected data service name, or nil if none
+            # @param [String,nil] srv_name the expected data service name, or nil if none
             #   is given. In this case, one is searched by type
-            def find_combus_client_srv(srv_m, srv_name)
+            # @param [ComBus] com_bus the com bus we're attaching
+            #   ourselves to. It is only used to generate error messages
+            def find_combus_client_srv(srv_m, srv_name, com_bus)
                 driver_task_model = driver_model.to_component_model
                 if srv_name
                     result = driver_task_model.find_data_service(srv_name)
@@ -233,7 +254,7 @@ module Syskit
                         raise ArgumentError,
                               "#{srv_name} is specified as a client service on device "\
                               "#{name} for combus #{com_bus.name}, but it does not "\
-                              "provide the required service from #{com_bus.model}"
+                              "provide the required service #{srv_m}"
                     end
 
                     result
