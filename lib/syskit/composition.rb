@@ -14,6 +14,7 @@ module Syskit
 
         abstract
 
+        argument :conf, default: []
 
         # See Models::Composition#strict_specialization_selection?
         @strict_specialization_selection = true
@@ -71,6 +72,17 @@ module Syskit
                 end
             end
             result
+        end
+
+        # (see Component#post_instanciation_setup)
+        def post_instanciation_setup(arguments)
+            super
+            return unless (conf_names = arguments[:conf])
+
+            conf(conf_names).each do |child_name, selected_conf|
+                child_task = child_from_role(child_name)
+                child_task.post_instanciation_setup(conf: selected_conf)
+            end
         end
 
         def resolve_port(port_name)

@@ -897,8 +897,8 @@ module Syskit
 
                 mappings = @template.deep_copy_to(plan)
                 root_task = mappings[@template.root_task]
-                root_task.assign_arguments(arguments.merge(extra_arguments))
-                return model.bind(root_task)
+                root_task.post_instanciation_setup(arguments.merge(extra_arguments))
+                model.bind(root_task)
             end
 
             def has_template?
