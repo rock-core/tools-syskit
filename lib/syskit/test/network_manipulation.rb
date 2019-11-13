@@ -962,11 +962,19 @@ module Syskit
                     execute do
                         Syskit::Runtime::ConnectionManagement.update(plan)
                     end
-                    current_state = pending.size
+                    current_pending = pending.size
+                    has_missing_states = false
                     pending.delete_if do |t|
                         t.freeze_delayed_arguments
                         should_setup = Orocos.allow_blocking_calls do
-                            !t.setup? && t.ready_for_setup?
+                            if !t.kind_of?(Syskit::TaskContext)
+                                !t.setup? && t.ready_for_setup?
+                            elsif (state = t.read_current_state)
+                                !t.setup? && t.ready_for_setup?(state)
+                            else
+                                has_missing_states = true
+                                false
+                            end
                         end
                         if should_setup
                             capture_log(t, :info) do
@@ -982,12 +990,13 @@ module Syskit
                             t.setup?
                         end
                     end
-                    if current_state == pending.size
+                    if !has_missing_states && (current_pending == pending.size)
                         missing_starts = pending.flat_map do |pending_task|
                             pending_task.start_event.parent_objects(
                                 Roby::EventStructure::SyskitConfigurationPrecedence
                             ).find_all { |e| e.symbol == :start && !e.emitted? }
                         end
+
                         missing_starts = missing_starts.map(&:task) - pending.to_a
                         if missing_starts.empty?
                             raise NoConfigureFixedPoint.new(pending),
@@ -1090,7 +1099,7 @@ module Syskit
 
                 pending = tasks.dup
                 until pending.empty?
-                    current_state = pending.size
+                    current_pending = pending.size
 
                     to_start = []
                     pending.delete_if do |t|
@@ -1111,7 +1120,7 @@ module Syskit
                             to { emit(*to_start.map(&:start_event)) }
                     end
 
-                    if current_state == pending.size
+                    if current_pending == pending.size
                         raise NoStartFixedPoint.new(pending), 'cannot start '\
                             "#{pending.map(&:to_s).join(', ')}"
                     end

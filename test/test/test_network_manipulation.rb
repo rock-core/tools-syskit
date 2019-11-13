@@ -120,6 +120,39 @@ module Syskit
                     assert_equal 'test_level', task.orocos_name
                 end
             end
+
+            describe '#syskit_configure' do
+                before do
+                    @task_m = Syskit::TaskContext.new_submodel
+                    @cmp_m = Syskit::Composition.new_submodel
+                    @cmp_m.add @task_m, as: 'test'
+                end
+
+                it 'configures a plain task context' do
+                    task = syskit_stub_and_deploy(@task_m)
+                    syskit_configure task
+                    assert task.setup?
+                end
+                it 'configures a composition' do
+                    cmp = syskit_stub_and_deploy(@cmp_m)
+                    syskit_configure cmp
+                    assert cmp.test_child.setup?
+                end
+                it 'does not bails out for having a fixed point if tasks do have their state readers connected' do
+                    task = syskit_stub_and_deploy(@task_m)
+                    timeout_expired = Concurrent::Event.new
+                    flexmock(task)
+                        .should_receive(:read_current_state)
+                        .and_return { :PRE_OPERATIONAL if timeout_expired.set? }
+                    syskit_start_execution_agents task
+                    Thread.new do
+                        sleep 0.1
+                        timeout_expired.set
+                    end
+                    syskit_configure task
+                    assert task.setup?
+                end
+            end
         end
     end
 end
