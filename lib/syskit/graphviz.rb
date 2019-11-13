@@ -691,7 +691,7 @@ module Syskit
             def format_task_label(task, task_colors = {})
                 label = []
 
-                if task.placeholder?
+                if task.respond_to?(:placeholder?) && task.placeholder?
                     name = task.proxied_data_service_models.map(&:name)
                     unless COMPONENT_ROOT_CLASSES.include?(task.model.superclass)
                         name = [task.model.superclass.name] + name
