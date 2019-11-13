@@ -732,6 +732,13 @@ module Syskit
                 self
             end
 
+            # Declare that an unmanaged task should be used for self
+            def use_unmanaged_task(*spec, **options)
+                invalidate_template
+                deployment_group.use_unmanaged_task(*spec, **options)
+                self
+            end
+
             # Add deployments into the deployments this subnet should be using
             #
             # @param [Models::DeploymentGroup] deployment_group
