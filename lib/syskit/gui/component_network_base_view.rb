@@ -158,6 +158,28 @@ module Syskit
                 end
             end
 
+            # Compute the deployed network for a model
+            #
+            # @param [Model<Component>] model the model whose representation is
+            #   needed
+            # @param [Roby::Plan,nil] main_plan the plan in which we need to
+            #   generate the network, if nil a new plan object is created
+            # @return [Roby::Task] the toplevel task that represents the
+            #   deployed model
+            def compute_deployed_network(model, main_plan = nil)
+                main_plan ||= Roby::Plan.new
+                main_plan.add(original_task = model.as_plan)
+                base_task = original_task.as_service
+                engine = Syskit::NetworkGeneration::Engine.new(main_plan)
+                engine.resolve_system_network([base_task.task.planning_task])
+                base_task.task
+            ensure
+                if engine && engine.work_plan.respond_to?(:commit_transaction)
+                    engine.commit_work_plan
+                    main_plan.remove_task(original_task)
+                end
+            end
+
             # Instanciate a model
             #
             # @param [Model<Component>] model the model whose instanciation is

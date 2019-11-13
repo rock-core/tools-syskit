@@ -680,6 +680,10 @@ module Syskit
                     log_timepoint 'validate_final_network'
                 end
 
+                commit_work_plan
+            end
+
+            def commit_work_plan
                 work_plan.commit_transaction
                 log_timepoint 'commit_transaction'
 

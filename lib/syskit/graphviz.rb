@@ -366,25 +366,42 @@ module Syskit
             available_task_annotations << 'task_info'
 
             def add_connection_policy_annotations
+                dataflow_graph = plan.task_relation_graph_for(Syskit::DataFlow)
+                policy_graph = dataflow_graph.policy_graph
+                policy_annotations = {}
                 plan.find_local_tasks(TaskContext).each do |source_task|
-                    source_task.each_concrete_output_connection do |source_port, sink_port, sink_task, policy|
-                        policy = policy.dup
-                        policy.delete(:fallback_policy)
-                        policy_s =
-                            if policy.empty?
-                                ''
-                            elsif policy[:type] == :data
-                                'data'
-                            elsif policy[:type] == :buffer
-                                "buffer:#{policy[:size]}"
-                            else
-                                policy.to_s
-                            end
-                        conn_annotations[[source_task, source_port, sink_task, sink_port]] << policy_s
+                    source_task.each_output_connection do |source_port, sink_port, sink_task, policy|
+                        key = [source_task, source_port, sink_task, sink_port]
+                        policy_annotations[key] = policy_to_string(policy)
                     end
+
+                    source_task.each_concrete_output_connection do |source_port, sink_port, sink_task, _|
+                        key = [source_task, source_port, sink_task, sink_port]
+                        if (task_policies = policy_graph[[source_task, sink_task]])
+                            policy = task_policies[[source_port, sink_port]]
+                        end
+                        policy_annotations[key] = policy_to_string(policy || {})
+                    end
+                end
+
+                policy_annotations.each do |key, policy|
+                    conn_annotations[key] << policy
                 end
             end
             available_graph_annotations << 'connection_policy'
+
+            def policy_to_string(policy)
+                puts "to_s: #{policy}"
+                if policy.empty?
+                    '(no policy)'
+                elsif policy[:type] == :data
+                    'data'
+                elsif policy[:type] == :buffer
+                    "buffer:#{policy[:size]}"
+                else
+                    policy.to_s
+                end
+            end
 
             def add_trigger_annotations
                 plan.find_local_tasks(TaskContext).each do |task|

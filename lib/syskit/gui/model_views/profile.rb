@@ -120,10 +120,36 @@ module Syskit::GUI
         end
 
         class ProfileElementView < ComponentNetworkView
-            def render(model, *args, **options)
+            def initialize(page)
+                super
+                @render_method = :compute_system_network
+                add_button(
+                    Button.new('profile/deploy_network',
+                               on_text: 'Deploy Network',
+                               off_text: 'Do not Deploy Network',
+                               state: (@render_method == :compute_deployed_network))
+                )
+            end
+
+            def render(model, *args, show_requirements: true, **options)
                 page.push "#{model.name || '<unnamed>'}(#{model.model.name})",
                           page.main_doc(model.doc || ''), id: options[:id]
-                super
+                puts "METHOD: #{@render_method}"
+                super(model, *args, method: @render_method,
+                                    show_requirements: show_requirements, **options)
+            end
+
+            def buttonClicked(button_id, new_state) # rubocop:disable Naming/MethodName
+                return super unless button_id == '/profile/deploy_network'
+
+                @render_method =
+                    if new_state
+                        :compute_deployed_network
+                    else
+                        :compute_system_network
+                    end
+
+                render(@current_model)
             end
         end
 
@@ -135,8 +161,7 @@ module Syskit::GUI
                 super(page)
                 @instanciation_method = :compute_system_network
 
-                register_type Syskit::InstanceRequirements, ProfileElementView.new(page),
-                              method: :compute_system_network, show_requirements: true
+                register_type Syskit::InstanceRequirements, ProfileElementView.new(page)
             end
 
             def render_object_as_text(model)

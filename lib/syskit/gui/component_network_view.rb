@@ -93,6 +93,19 @@ module Syskit
                 hierarchy_options[:buttons] = buttons
             end
 
+            def add_button(button)
+                add_dataflow_button(button)
+                add_hierarchy_button(button)
+            end
+
+            def add_dataflow_button(button)
+                dataflow_options[:buttons] << button
+            end
+
+            def add_hierarchy_button(button)
+                hierarchy_options[:buttons] << button
+            end
+
             # Render a model on this view
             #
             # @param [Model<Component>] model
@@ -136,6 +149,10 @@ module Syskit
                     if method == :compute_system_network
                         tic = Time.now
                         @task = compute_system_network(model, plan)
+                        timing = Time.now - tic
+                    elsif method == :compute_deployed_network
+                        tic = Time.now
+                        @task = compute_deployed_network(model, plan)
                         timing = Time.now - tic
                     else
                         @task = instanciate_model(model, plan, instanciate_options)
