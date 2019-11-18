@@ -14,38 +14,52 @@ module Syskit
 
             def initialize(name)
                 @project_name = name
-                @registered_models = ::Hash.new
+                @registered_objects = {}
                 super()
             end
+
+            NAMESPACE_PREFIX = /([^:]+)::/.freeze
 
             def register_syskit_model(model)
                 orogen_name = model.orogen_model.name
                 prefix = "#{project_name}::"
                 unless orogen_name.start_with?(prefix)
-                    ::Kernel.raise ::ArgumentError,
+                    ::Kernel.raise(
+                        ::ArgumentError,
                         "#{model} does not seem to be part of the #{project_name} project"
+                    )
                 end
 
-                @registered_models[orogen_name[prefix.size..-1].to_sym] = model
+                remainder = orogen_name[prefix.size..-1]
+                if (m = NAMESPACE_PREFIX.match(remainder))
+                    namespace_name = m[1]
+                    namespace = (
+                        @registered_objects[namespace_name.to_sym] ||=
+                            ProjectNamespace.new("#{prefix}#{namespace_name}")
+                    )
+                    namespace.register_syskit_model(model)
+                else
+                    @registered_objects[remainder.to_sym] = model
+                end
             end
 
-            def respond_to_missing?(m, include_private = false)
-                @registered_models.has_key?(m)
+            def respond_to_missing?(m, _include_private = false)
+                @registered_objects.key?(m)
             end
 
             def method_missing(m, *args, &block)
-                if model = @registered_models[m]
-                    if args.empty?
-                        return model
-                    else
-                        ::Kernel.raise ::ArgumentError,
-                            "expected 0 arguments, got #{args.size}"
-                    end
+                if (model = @registered_objects[m])
+                    return model if args.empty?
+
+                    ::Kernel.raise(
+                        ::ArgumentError,
+                        "expected 0 arguments, got #{args.size}"
+                    )
                 end
                 super
             rescue ::NoMethodError => e
                 ::Kernel.raise e, "no task #{m} on #{project_name}, available tasks: "\
-                    "#{@registered_models.keys.map(&:to_s).sort.join(', ')}"
+                    "#{@registered_objects.keys.map(&:to_s).sort.join(', ')}"
             end
         end
 

@@ -7,7 +7,7 @@ module Syskit
             @object.extend OroGenNamespace
         end
 
-        it "gives access to a registered model by method calls" do
+        it 'gives access to a registered model by method calls' do
             obj = flexmock(
                 orogen_model: flexmock(
                     project: flexmock(name: 'project'),
@@ -16,7 +16,17 @@ module Syskit
             assert_same obj, @object.project.Task
         end
 
-        it "raises if given arguments" do
+        it 'handles namespaces in the component name' do
+            obj = flexmock(
+                orogen_model: flexmock(
+                    project: flexmock(name: 'project'),
+                    name: 'project::test::Task')
+            )
+            @object.register_syskit_model(obj)
+            assert_same obj, @object.project.test.Task
+        end
+
+        it 'raises if given arguments' do
             obj = flexmock(
                 orogen_model: flexmock(
                     project: flexmock(name: 'project'),
@@ -25,10 +35,10 @@ module Syskit
             e = assert_raises(ArgumentError) do
                 @object.project.Task('something')
             end
-            assert_equal "expected 0 arguments, got 1", e.message
+            assert_equal 'expected 0 arguments, got 1', e.message
         end
 
-        it "raises if resolving a task that does not exist" do
+        it 'raises if resolving a task that does not exist' do
             obj = flexmock(
                 orogen_model: flexmock(
                     project: flexmock(name: 'project'),
@@ -37,7 +47,7 @@ module Syskit
             e = assert_raises(NoMethodError) do
                 @object.project.Other
             end
-            assert_equal "no task Other on project, available tasks: Task", e.message
+            assert_equal 'no task Other on project, available tasks: Task', e.message
         end
 
         it "allows to resolve a project by its orogen name" do
