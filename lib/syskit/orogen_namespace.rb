@@ -84,6 +84,10 @@ module Syskit
             @registered_models = Hash.new
         end
 
+        def project_name?(name)
+            @project_namespaces.key?(name)
+        end
+
         # Resolve the registered syskit model that has the given orogen name
         def syskit_model_by_orogen_name(name)
             if model = @registered_models[name]

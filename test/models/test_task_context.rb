@@ -277,6 +277,26 @@ describe Syskit::Models::TaskContext do
             assert_same orogen, OroGen.test.Task.orogen_model
         end
 
+        it 'allows changing how the registration is done by overloading register_model' do
+            orogen_namespace = Module.new do
+                extend Syskit::OroGenNamespace
+            end
+            klass = Class.new(Syskit::TaskContext) do
+                singleton_class.class_eval do
+                    define_method :register_model do
+                        orogen_namespace.register_syskit_model(self)
+                    end
+                end
+            end
+
+            project = OroGen::Spec::Project.new(app.default_orogen_project.loader)
+            project.name 'test'
+            orogen = OroGen::Spec::TaskContext.new(project, 'test::Task')
+            klass.define_from_orogen(orogen, register: true)
+            assert_same orogen, orogen_namespace.test.Task.orogen_model
+            refute OroGen.project_name?('test')
+        end
+
         it "creates the model from the superclass if it does not exist" do
             orogen_parent = OroGen::Spec::TaskContext.new(app.default_orogen_project)
             orogen = OroGen::Spec::TaskContext.new(app.default_orogen_project,
@@ -291,7 +311,7 @@ describe Syskit::Models::TaskContext do
             model = Syskit::TaskContext.define_from_orogen(orogen, register: false)
             assert_same parent_model, model.superclass
         end
-    
+
         it "reuses the model of the superclass if it has already been created" do
             orogen_parent = OroGen::Spec::TaskContext.new(app.default_orogen_project)
             parent_model = Syskit::TaskContext.define_from_orogen(orogen_parent)
