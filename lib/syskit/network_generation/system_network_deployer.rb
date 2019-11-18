@@ -33,9 +33,10 @@ module Syskit
             # @return [Models::DeploymentGroup]
             attr_accessor :default_deployment_group
 
-            def initialize(plan, event_logger: plan.event_logger,
-                    merge_solver: MergeSolver.new(plan),
-                    default_deployment_group: Syskit.conf.deployment_group)
+            def initialize(plan,
+                           event_logger: plan.event_logger,
+                           merge_solver: MergeSolver.new(plan),
+                           default_deployment_group: Syskit.conf.deployment_group)
 
                 @plan = plan
                 @event_logger = event_logger
@@ -54,7 +55,7 @@ module Syskit
             # @return [Set] the set of tasks for which the deployer could
             #   not find a deployment
             def deploy(validate: true)
-                debug "Deploying the system network"
+                debug 'Deploying the system network'
 
                 all_tasks = plan.find_local_tasks(TaskContext).to_a
                 selected_deployments, missing_deployments =
