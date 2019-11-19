@@ -460,10 +460,10 @@ module Syskit
 
                 it "maintains the dependencies with two or more layers" do
                     deployment_m = create_deployment_model(task_count: 3)
-                    existing_deployment, (existing0, ) =
+                    _, (existing0, ) =
                         add_deployment_and_tasks(plan, deployment_m, %w[task0])
 
-                    required_deployment, (required0, required1, required2) =
+                    _, (required0, required1, required2) =
                         add_deployment_and_tasks(work_plan, deployment_m, %w[task0 task1 task2])
 
                     required0.depends_on required2
@@ -514,7 +514,7 @@ module Syskit
             describe "synthetic tests" do
                 it "deploys a mission as mission" do
                     task_model = Syskit::TaskContext.new_submodel
-                    syskit_stub_deployment_model(task_model, 'task')
+                    syskit_stub_configured_deployment(task_model, 'task')
                     plan.add_mission_task(original_task = task_model.as_plan)
                     deployed = syskit_deploy(original_task, add_mission: false)
                     assert plan.mission_task?(deployed)
@@ -522,7 +522,7 @@ module Syskit
 
                 it "deploys a permanent task as permanent" do
                     task_model = Syskit::TaskContext.new_submodel
-                    syskit_stub_deployment_model(task_model, 'task')
+                    syskit_stub_configured_deployment(task_model, 'task')
                     plan.add_permanent_task(original_task = task_model.as_plan)
                     deployed = syskit_deploy(original_task, add_mission: false)
                     assert plan.permanent_task?(deployed)
@@ -533,7 +533,7 @@ module Syskit
                     composition_model = Syskit::Composition.new_submodel do
                         add task_model, as: 'child'
                     end
-                    syskit_stub_deployment_model(task_model, 'task')
+                    syskit_stub_configured_deployment(task_model, 'task')
 
                     deployed = syskit_deploy(composition_model)
                     # This deregisters the task from the list of requirements in the
@@ -550,7 +550,7 @@ module Syskit
 
                 it "reconfigures a toplevel task if its configuration changed" do
                     task_model = Syskit::TaskContext.new_submodel
-                    syskit_stub_deployment_model(task_model, 'task')
+                    syskit_stub_configured_deployment(task_model, 'task')
 
                     deployed_task = syskit_deploy(task_model)
                     planning_task = deployed_task.planning_task
@@ -571,7 +571,7 @@ module Syskit
                     composition_model = Syskit::Composition.new_submodel do
                         add task_model, as: 'child'
                     end
-                    syskit_stub_deployment_model(task_model, 'task')
+                    syskit_stub_configured_deployment(task_model, 'task')
 
                     cmp, = syskit_deploy(composition_model.use('child' => task_model))
                     child = cmp.child_child.to_task
@@ -585,12 +585,12 @@ module Syskit
                         new_child.start_event.parent_objects(Roby::EventStructure::SyskitConfigurationPrecedence).to_a
                 end
 
-                it "does not change anything if asked to deploy the same composition twice" do
+                it 'does not change anything if asked to deploy the same composition twice' do
                     task_model = Syskit::TaskContext.new_submodel
                     composition_model = Syskit::Composition.new_submodel do
                         add task_model, as: 'child'
                     end
-                    syskit_stub_deployment_model(task_model, 'task')
+                    syskit_stub_configured_deployment(task_model, 'task')
 
                     syskit_deploy(composition_model.use('child' => task_model))
                     plan.execution_engine.garbage_collect
@@ -599,10 +599,10 @@ module Syskit
                     syskit_engine.resolve
                     plan.execution_engine.garbage_collect
                     diff = plan.find_plan_difference(plan_copy, mappings)
-                    assert !diff, "#{diff}"
+                    assert !diff, diff.to_s
                 end
 
-                it "applies connections from compositions to the final plan" do
+                it 'applies connections from compositions to the final plan' do
                     task_model = Syskit::TaskContext.new_submodel do
                         output_port 'out', '/double'
                     end
@@ -610,16 +610,21 @@ module Syskit
                         add task_model, as: 'child'
                         export child_child.out_port
                     end
-                    syskit_stub_deployment_model(task_model, 'task')
-                    cmp, _ = syskit_deploy(composition_model)
-                    assert_equal Hash[['out', 'out'] => Hash.new], cmp.child_child[cmp, Syskit::Flows::DataFlow]
+                    syskit_stub_configured_deployment(task_model, 'task')
+                    cmp, = syskit_deploy(composition_model)
+                    assert_equal({ %w[out out] => {} },
+                                 cmp.child_child[cmp, Syskit::Flows::DataFlow])
                 end
 
-                it "sets a task's fullfilled model only for the arguments that are explicitely set in the toplevel requirements" do
+                it 'sets a task\'s fullfilled model only for the arguments that are explicitely set in the toplevel requirements' do
                     task_m = Syskit::TaskContext.new_submodel
                     task_m.argument :arg0
-                    task = syskit_stub_and_deploy(task_m.with_arguments(arg0: flexmock(evaluate_delayed_argument: 10)))
-                    assert_equal Hash[], task.explicit_fullfilled_model.last
+                    task = syskit_stub_and_deploy(
+                        task_m.with_arguments(
+                            arg0: flexmock(evaluate_delayed_argument: 10)
+                        )
+                    )
+                    assert_equal({}, task.explicit_fullfilled_model.last)
                 end
 
                 it "sets a task's fullfilled model only from the toplevel requirements" do

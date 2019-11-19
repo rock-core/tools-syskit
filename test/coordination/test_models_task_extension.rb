@@ -40,7 +40,7 @@ describe Syskit::Coordination::Models::TaskExtension do
                 emit task.monitor_failed_event
             start task
         end
-        syskit_stub_deployment_model(component_m)
+        syskit_stub_configured_deployment(component_m)
         task = action_m.test_machine.instanciate(plan)
         plan.add(task)
         execute { task.start! }
@@ -68,7 +68,7 @@ describe Syskit::Coordination::Models::TaskExtension do
         assert_equal Roby::Coordination::Models::Base::Argument.new(:test_arg, true, nil), task.data_monitoring_table.arguments[:test_arg]
         assert_equal Hash[arg: :test_arg], task.data_monitoring_arguments
 
-        syskit_stub_deployment_model(component_m)
+        syskit_stub_configured_deployment(component_m)
         task = action_m.test_machine(arg: 0).instanciate(plan)
         recorder.should_receive(:called).with(0).once
         plan.add_mission_task(task)

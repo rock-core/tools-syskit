@@ -507,6 +507,10 @@ module Syskit
                 def in_process?
                     host_id == 'syskit'
                 end
+
+                def loader
+                    client.loader
+                end
             end
 
             # Make a process server available to syskit

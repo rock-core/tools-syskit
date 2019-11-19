@@ -368,11 +368,13 @@ module Syskit
             #
             # @return [Array<Deployment>]
             def use_deployment(
-                *names, on: 'localhost', simulation: Roby.app.simulation?,
-                loader: Roby.app.default_loader, process_managers: Syskit.conf,
+                *names,
+                on: 'localhost',
+                simulation: Roby.app.simulation?,
+                loader: nil,
+                process_managers: Syskit.conf,
                 **run_options
             )
-
                 deployment_spec = {}
                 deployment_spec = names.pop if names.last.kind_of?(Hash)
 
@@ -385,6 +387,8 @@ module Syskit
                         process_managers
                             .process_server_config_for(process_server_name)
                     end
+
+                loader ||= process_server_config.loader
 
                 deployments_by_name = {}
                 names = names.map do |n|
