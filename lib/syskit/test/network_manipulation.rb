@@ -126,9 +126,17 @@ module Syskit
                 end
             end
 
+            def default_deployment_group
+                base = Syskit.conf.deployment_group.dup
+                base.use_group!(@__test_deployment_group)
+                base
+            end
+
             # Run Syskit's deployer (i.e. engine) on the current plan
             def syskit_deploy(
-                *to_instanciate, add_mission: true, syskit_engine: nil,
+                *to_instanciate,
+                add_mission: true, syskit_engine: nil,
+                default_deployment_group: self.default_deployment_group,
                 **resolve_options
             )
                 to_instanciate = to_instanciate.flatten # For backward-compatibility
@@ -142,10 +150,6 @@ module Syskit
                 end.compact
                 root_tasks = placeholder_tasks.map(&:as_service)
                 requirement_tasks = placeholder_tasks.map(&:planning_task)
-                requirement_tasks.each do |task|
-                    task.requirements.deployment_group
-                        .use_group!(@__test_deployment_group)
-                end
 
                 not_running = requirement_tasks.find_all { |t| !t.running? }
                 expect_execution { not_running.each(&:start!) }
@@ -155,7 +159,10 @@ module Syskit
                 begin
                     syskit_engine_resolve_handle_plan_export do
                         syskit_engine ||= Syskit::NetworkGeneration::Engine.new(plan)
-                        syskit_engine.resolve(**resolve_options)
+                        syskit_engine.resolve(
+                            default_deployment_group: default_deployment_group,
+                            **resolve_options
+                        )
                     end
                 rescue Exception => e
                     expect_execution do

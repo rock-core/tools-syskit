@@ -596,7 +596,9 @@ module Syskit
                     plan.execution_engine.garbage_collect
                     plan_copy, mappings = plan.deep_copy
 
-                    syskit_engine.resolve
+                    syskit_engine.resolve(
+                        default_deployment_group: default_deployment_group
+                    )
                     plan.execution_engine.garbage_collect
                     diff = plan.find_plan_difference(plan_copy, mappings)
                     assert !diff, diff.to_s

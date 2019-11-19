@@ -88,10 +88,20 @@ module Syskit
             # Transform the system network into a deployed network
             #
             # This does not access {#real_plan}
-            def compute_deployed_network(compute_policies: true, validate_deployed_network: true)
+            def compute_deployed_network(
+                default_deployment_group: Syskit.conf.deployment_group,
+                compute_policies: true,
+                validate_deployed_network: true
+            )
                 log_timepoint_group 'deploy_system_network' do
-                    SystemNetworkDeployer.new(work_plan, event_logger: event_logger, merge_solver: merge_solver).
-                        deploy(validate: validate_deployed_network)
+                    deployer = SystemNetworkDeployer.new(
+                        work_plan,
+                        event_logger: event_logger,
+                        merge_solver: merge_solver,
+                        default_deployment_group: default_deployment_group
+                    )
+
+                    deployer.deploy(validate: validate_deployed_network)
                 end
 
                 # Now that we have a deployed network, we can compute the
@@ -548,13 +558,16 @@ module Syskit
             #   corresponding requirement task in the generated plan. In other
             #   words, the keys are in {#real_plan} and the values in
             #   {#work_plan}
-            def resolve_system_network(requirement_tasks,
-                                       garbage_collect: true,
-                                       validate_abstract_network: true,
-                                       validate_generated_network: true,
-                                       validate_deployed_network: true,
-                                       compute_deployments: true,
-                                       compute_policies: true)
+            def resolve_system_network(
+                requirement_tasks,
+                garbage_collect: true,
+                validate_abstract_network: true,
+                validate_generated_network: true,
+                validate_deployed_network: true,
+                compute_deployments: true,
+                default_deployment_group: Syskit.conf.deployment_group,
+                compute_policies: true
+            )
 
                 required_instances = compute_system_network(
                     requirement_tasks,
@@ -565,6 +578,7 @@ module Syskit
                 if compute_deployments
                     log_timepoint_group 'compute_deployed_network' do
                         compute_deployed_network(
+                            default_deployment_group: default_deployment_group,
                             compute_policies: compute_policies,
                             validate_deployed_network: validate_deployed_network)
                     end
@@ -597,6 +611,7 @@ module Syskit
             #   drop the currently generated plan)
             def resolve(requirement_tasks: Engine.discover_requirement_tasks_from_plan(real_plan),
                         on_error: self.class.on_error,
+                        default_deployment_group: Syskit.conf.deployment_group,
                         compute_deployments: true,
                         compute_policies: true,
                         garbage_collect: true,
@@ -611,6 +626,7 @@ module Syskit
                     validate_abstract_network: validate_abstract_network,
                     validate_generated_network: validate_generated_network,
                     compute_deployments: compute_deployments,
+                    default_deployment_group: default_deployment_group,
                     compute_policies: compute_policies,
                     validate_deployed_network: validate_deployed_network)
 
