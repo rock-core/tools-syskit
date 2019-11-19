@@ -111,7 +111,7 @@ module Syskit
                 end
             end
 
-            describe "#task_context_deployment_candidates" do
+            describe '#task_context_deployment_candidates' do
                 attr_reader :task_m, :deployment_m
                 before do
                     @task_m = task_m = Syskit::TaskContext.new_submodel
@@ -120,17 +120,27 @@ module Syskit
                     end
                 end
 
-                it "registers the mapping from task models to available deployments" do
-                    first  = group.use_deployment(Hash[deployment_m => '1_'],
-                        on: 'test-mng', process_managers: conf, loader: loader).first
-                    second = group.use_deployment(Hash[deployment_m => '2_'],
-                        on: 'test-mng', process_managers: conf, loader: loader).first
-                    assert_equal Hash[task_m => Set[
-                            [first, '1_task'], [second, '2_task']]],
+                it 'registers the mapping from task models to available deployments' do
+                    first = group.use_deployment(
+                        { deployment_m => '1_' },
+                        on: 'test-mng', process_managers: conf, loader: loader
+                    ).first
+                    second = group.use_deployment(
+                        { deployment_m => '2_' },
+                        on: 'test-mng', process_managers: conf, loader: loader
+                    ).first
+
+                    deployed_tasks =
+                        Set[DeploymentGroup::DeployedTask.new(first, '1_task'),
+                            DeploymentGroup::DeployedTask.new(second, '2_task')]
+
+                    assert_equal(
+                        { task_m => deployed_tasks },
                         group.task_context_deployment_candidates
+                    )
                 end
 
-                it "caches the computed result" do
+                it 'caches the computed result' do
                     group.task_context_deployment_candidates
                     flexmock(group).
                         should_receive(:compute_task_context_deployment_candidates).
@@ -138,7 +148,7 @@ module Syskit
                     group.task_context_deployment_candidates
                 end
 
-                it "recomputes on #invalidate_cache" do
+                it 'recomputes on #invalidate_cache' do
                     group.task_context_deployment_candidates
                     flexmock(group).
                         should_receive(:compute_task_context_deployment_candidates).
@@ -158,31 +168,45 @@ module Syskit
                 end
 
                 it "returns matching deployments with the exact task model" do
-                    first  = group.use_deployment(Hash[deployment_m => '1_'],
-                        on: 'test-mng', process_managers: conf, loader: loader).first
-                    second = group.use_deployment(Hash[deployment_m => '2_'],
-                        on: 'test-mng', process_managers: conf, loader: loader).first
+                    first = group.use_deployment(
+                        { deployment_m => '1_' },
+                        on: 'test-mng', process_managers: conf, loader: loader
+                    ).first
+                    second = group.use_deployment(
+                        { deployment_m => '2_' },
+                        on: 'test-mng', process_managers: conf, loader: loader
+                    ).first
                     task = task_m.new
-                    assert_equal Set[[first, '1_task'], [second, '2_task']],
+                    assert_equal(
+                        Set[DeploymentGroup::DeployedTask.new(first, '1_task'),
+                            DeploymentGroup::DeployedTask.new(second, '2_task')],
                         group.find_all_suitable_deployments_for(task)
+                    )
                 end
 
-                it "returns deployments valid for the task's concrete model "\
-                    "if there are none for the actual" do
-                    first  = group.use_deployment(Hash[deployment_m => '1_'],
-                        on: 'test-mng', process_managers: conf, loader: loader).first
-                    second = group.use_deployment(Hash[deployment_m => '2_'],
-                        on: 'test-mng', process_managers: conf, loader: loader).first
+                it 'returns deployments valid for the task\'s concrete model if there are none for the actual' do
+                    first = group.use_deployment(
+                        { deployment_m => '1_' },
+                        on: 'test-mng', process_managers: conf, loader: loader
+                    ).first
+                    second = group.use_deployment(
+                        { deployment_m => '2_' },
+                        on: 'test-mng', process_managers: conf, loader: loader
+                    ).first
                     task = task_m.new
                     task.specialize
                     refute_same task.concrete_model, task.model
-                    assert_equal Set[[first, '1_task'], [second, '2_task']],
+                    assert_equal(
+                        Set[DeploymentGroup::DeployedTask.new(first, '1_task'),
+                            DeploymentGroup::DeployedTask.new(second, '2_task')],
                         group.find_all_suitable_deployments_for(task)
+                    )
                 end
 
-                it "returns an empty set if there is no match" do
-                    assert_equal Set[], group.
-                        find_all_suitable_deployments_for(task_m.new)
+                it 'returns an empty set if there is no match' do
+                    assert_equal(
+                        Set[], group.find_all_suitable_deployments_for(task_m.new)
+                    )
                 end
             end
 

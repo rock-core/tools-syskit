@@ -77,6 +77,8 @@ module Syskit
             #
             # The method falls back to the default deployment group if no
             # deployments for the task could be found in the plan itself
+            #
+            # @return [Set<DeploymentGroup::DeployedTask>]
             def find_all_suitable_deployments_for(task, from: task)
                 candidates = from.requirements.deployment_group
                                  .find_all_suitable_deployments_for(task)
@@ -100,7 +102,7 @@ module Syskit
             #
             # @param [Component] task
             # @param [Models::DeploymentGroup] deployment_groups
-            # @return [nil,Deployment]
+            # @return [nil,DeploymentGroup::DeployedTask]
             def find_suitable_deployment_for(task)
                 candidates = find_all_suitable_deployments_for(task)
 
@@ -142,7 +144,9 @@ module Syskit
                 tasks.each do |task|
                     next if task.execution_agent
 
-                    if !(selected = find_suitable_deployment_for(task))
+                    selected = find_suitable_deployment_for(task)
+
+                    if !selected
                         missing_deployments << task
                     elsif used_deployments.include?(selected)
                         debug do
@@ -166,18 +170,12 @@ module Syskit
             # @return [void]
             def apply_selected_deployments(selected_deployments)
                 deployment_tasks = {}
-                selected_deployments.each do |task, (configured_deployment, task_name)|
-                    deployment_task = (
-                        deployment_tasks[[configured_deployment]] ||=
-                            configured_deployment.new
+                selected_deployments.each do |task, deployed_task|
+                    deployed_task, = deployed_task.instanciate(
+                        plan,
+                        permanent: Syskit.conf.permanent_deployments?,
+                        deployment_tasks: deployment_tasks
                     )
-
-                    if Syskit.conf.permanent_deployments?
-                        plan.add_permanent_task(deployment_task)
-                    else
-                        plan.add(deployment_task)
-                    end
-                    deployed_task = deployment_task.task(task_name)
                     debug do
                         "deploying #{task} with #{task_name} of "\
                         "#{configured_deployment.short_name} (#{deployed_task})"
@@ -208,26 +206,28 @@ module Syskit
             #   deployment groups has been used for which task. This is used
             #   to generate the error messages when needed.
             def verify_all_tasks_deployed
-                not_deployed = plan.find_local_tasks(TaskContext).
-                    not_finished.not_abstract.
-                    find_all { |t| !t.execution_agent }
+                not_deployed = plan.find_local_tasks(TaskContext)
+                                   .not_finished.not_abstract
+                                   .find_all { |t| !t.execution_agent }
 
-                if !not_deployed.empty?
-                    tasks_with_candidates = Hash.new
-                    not_deployed.each do |task|
-                        candidates = find_all_suitable_deployments_for(task)
-                        candidates = candidates.map do |configured_deployment, task_name|
-                            existing = plan.find_local_tasks(task.model).
-                                find_all { |t| t.orocos_name == task_name }
-                            [configured_deployment, task_name, existing]
-                        end
+                return if not_deployed.empty?
 
-                        tasks_with_candidates[task] = candidates
+                tasks_with_candidates = {}
+                not_deployed.each do |task|
+                    candidates = find_all_suitable_deployments_for(task)
+                    candidates = candidates.map do |deployed_task|
+                        task_name = deployed_task.mapped_task_name
+                        existing_tasks =
+                            plan.find_local_tasks(task.model)
+                                .find_all { |t| t.orocos_name == task_name }
+                        [deployed_task, existing_tasks]
                     end
-                    raise MissingDeployments.new(tasks_with_candidates),
-                        "there are tasks for which it exists no deployed equivalent: "\
-                        "#{not_deployed.map { |m| "#{m}(#{m.orogen_model.name})" }}"
+
+                    tasks_with_candidates[task] = candidates
                 end
+                raise MissingDeployments.new(tasks_with_candidates),
+                      'there are tasks for which it exists no deployed equivalent: '\
+                      "#{not_deployed.map { |m| "#{m}(#{m.orogen_model.name})" }}"
             end
 
             # Try to resolve a set of deployment candidates for a given task
@@ -243,35 +243,40 @@ module Syskit
             def resolve_deployment_ambiguity(candidates, task)
                 if task.orocos_name
                     debug { "#{task} requests orocos_name to be #{task.orocos_name}" }
-                    resolved = candidates.
-                        find { |_, task_name| task_name == task.orocos_name }
-                    if !resolved
+                    resolved =
+                        candidates
+                        .find do |deployed_task|
+                            deployed_task.mapped_task_name == task.orocos_name
+                        end
+                    unless resolved
                         debug { "cannot find requested orocos name #{task.orocos_name}" }
                     end
                     return resolved
                 end
+
                 hints = task.deployment_hints
-                debug { "#{task}.deployment_hints: #{hints.map(&:to_s).join(", ")}" }
+                debug { "#{task}.deployment_hints: #{hints.map(&:to_s).join(', ')}" }
                 # Look to disambiguate using deployment hints
-                resolved = candidates.find_all do |deployment_model, task_name|
-                    task.deployment_hints.any? do |rx|
-                        rx == deployment_model || rx === task_name
+                resolved = candidates.find_all do |deployed_task|
+                    task.deployment_hints.any? do |hint|
+                        hint == deployed_task.configured_deployment ||
+                            hint === deployed_task.mapped_task_name
                     end
                 end
-                if resolved.size != 1
-                    info do
-                        info { "ambiguous deployment for #{task} (#{task.model})" }
-                        candidates.each do |deployment_model, task_name|
-                            info do
-                                "  #{task_name} of #{deployment_model.short_name} "\
-                                "on #{deployment_model.process_server_name}"
-                            end
+
+                return resolved.first if resolved.size == 1
+
+                info do
+                    info { "ambiguous deployment for #{task} (#{task.model})" }
+                    candidates.each do |deployment_model, task_name|
+                        info do
+                            "  #{task_name} of #{deployment_model.short_name} "\
+                            "on #{deployment_model.process_server_name}"
                         end
-                        break
                     end
-                    return
+                    break
                 end
-                return resolved.first
+                nil
             end
         end
     end

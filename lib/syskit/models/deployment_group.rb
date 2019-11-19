@@ -10,11 +10,36 @@ module Syskit
         class DeploymentGroup
             # Mapping of a deployed task name to the underlying configured
             # deployment that provides it
+            #
+            # @return [String=>ConfiguredDeployment]
             attr_reader :deployed_tasks
 
             # A mapping of a process server name to the underlying deployments
             # it provides
+            #
+            # @return [String=>Set<ConfiguredDeployment>]
             attr_reader :deployments
+
+            DeployedTask = Struct.new :configured_deployment, :mapped_task_name do
+                # Create an instance of this deployed task on the given plan
+                #
+                # @param [ConfiguredDeployment=>Syskit::Deployment] already
+                #    instanciated deployment tasks, to be reused if self
+                #    is part of the same ConfiguredDeployment
+                def instanciate(plan, permanent: true, deployment_tasks: {})
+                    deployment_task = (
+                        deployment_tasks[[configured_deployment]] ||=
+                            configured_deployment.new
+                    )
+
+                    if permanent
+                        plan.add_permanent_task(deployment_task)
+                    else
+                        plan.add(deployment_task)
+                    end
+                    [deployment_task.task(mapped_task_name), deployment_task]
+                end
+            end
 
             def initialize
                 @deployed_tasks = {}
@@ -102,7 +127,7 @@ module Syskit
             # It is lazily computed when needed by
             # {#compute_task_context_deployment_candidates}
             #
-            # @return [{Models::TaskContext=>Set<(Models::Deployment,String)>}]
+            # @return [{Models::TaskContext=>Set<DeployedTask>}]
             #   mapping from task context models to a set of
             #   (machine_name,deployment_model,task_name) tuples representing
             #   the known ways this task context model could be deployed
@@ -119,9 +144,11 @@ module Syskit
                 deployments.each_value do |machine_deployments|
                     machine_deployments.each do |configured_deployment|
                         configured_deployment
-                            .each_deployed_task_model do |task_name, task_model|
+                            .each_deployed_task_model do |mapped_task_name, task_model|
                                 s = (deployed_models[task_model] ||= Set.new)
-                                s << [configured_deployment, task_name]
+                                s << DeployedTask.new(
+                                    configured_deployment, mapped_task_name
+                                )
                             end
                     end
                 end
@@ -130,21 +157,20 @@ module Syskit
 
             # Returns the set of deployments that are available for a given task
             #
-            # @return [Set<ConfiguredDeployment>]
+            # @return [Set<DeployedTask>]
             def find_all_suitable_deployments_for(task)
                 # task.model would be wrong here as task.model could be the
                 # singleton class (if there are dynamic services)
                 candidates = task_context_deployment_candidates[task.model]
-                if !candidates || candidates.empty?
-                    candidates = task_context_deployment_candidates[task.concrete_model]
-                    if !candidates || candidates.empty?
-                        Syskit.debug do
-                            "no deployments found for #{task} (#{task.concrete_model})"
-                        end
-                        return Set.new
-                    end
+                return candidates if candidates && !candidates.empty?
+
+                candidates = task_context_deployment_candidates[task.concrete_model]
+                return candidates if candidates && !candidates.empty?
+
+                Syskit.debug do
+                    "no deployments found for #{task} (#{task.concrete_model})"
                 end
-                candidates
+                Set.new
             end
 
             # Returns the deployment that provides the given task
@@ -155,8 +181,10 @@ module Syskit
             end
 
             # Returns all the deployments registered on a given process manager
+            #
+            # @return [Set<ConfiguredDeployment>]
             def find_all_deployments_from_process_manager(process_manager_name)
-                deployments[process_manager_name] || []
+                deployments[process_manager_name] || Set.new
             end
 
             # Register a specific task of a configured deployment

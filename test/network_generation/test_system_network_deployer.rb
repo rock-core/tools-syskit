@@ -36,40 +36,42 @@ module Syskit
                     flexmock(process_server_name: 'test-mng')
                 end
 
+                def make_candidates(count)
+                    (0...count).map do |i|
+                        deployed_task_helper(mock_configured_deployment, "task#{i}")
+                    end
+                end
+
                 it 'resolves ambiguity by orocos_name' do
-                    candidates = [[mock_configured_deployment, 'task'],
-                                  [mock_configured_deployment, 'other_task']]
+                    candidates = make_candidates(2)
                     assert_equal(
                         candidates[1],
                         deployer.resolve_deployment_ambiguity(
-                            candidates, flexmock(orocos_name: 'other_task')
+                            candidates, flexmock(orocos_name: 'task1')
                         )
                     )
                 end
                 it 'returns nil if the requested orocos_name cannot be found' do
-                    candidates = [[mock_configured_deployment, 'task']]
+                    candidates = make_candidates(1)
                     refute deployer.resolve_deployment_ambiguity(
-                        candidates, flexmock(orocos_name: 'other_task')
+                        candidates, flexmock(orocos_name: 'task1')
                     )
                 end
                 it 'resolves ambiguity by deployment hints if there are no name' do
-                    candidates = [[mock_configured_deployment, 'task'],
-                                  [mock_configured_deployment, 'other_task']]
-                    task = flexmock(orocos_name: nil, deployment_hints: [/other/])
+                    candidates = make_candidates(2)
+                    task = flexmock(orocos_name: nil, deployment_hints: [/1/])
                     assert_equal candidates[1],
                                  deployer.resolve_deployment_ambiguity(candidates, task)
                 end
                 it 'returns nil if there are neither an orocos name nor hints' do
-                    candidates = [[mock_configured_deployment, 'task'],
-                                  [mock_configured_deployment, 'other_task']]
+                    candidates = make_candidates(2)
                     task = flexmock(orocos_name: nil, deployment_hints: [], model: nil)
                     refute deployer.resolve_deployment_ambiguity(candidates, task)
                 end
                 it 'returns nil if the hints don\'t allow to resolve the ambiguity' do
-                    candidates = [[mock_configured_deployment, 'task'],
-                                  [mock_configured_deployment, 'other_task']]
+                    candidates = make_candidates(2)
                     task = flexmock(orocos_name: nil, model: nil,
-                                    deployment_hints: [/^other/, /^task/])
+                                    deployment_hints: [/0/, /1/])
                     refute deployer.resolve_deployment_ambiguity(candidates, task)
                 end
             end
@@ -98,9 +100,10 @@ module Syskit
                 end
 
                 it 'selects a deployment returned by #find_suitable_deployment_for' do
+                    deployment = deployed_task_helper(flexmock, 'task')
                     flexmock(deployer)
                         .should_receive(:find_suitable_deployment_for)
-                        .with(task).and_return(deployment = flexmock)
+                        .with(task).and_return(deployment)
                     assert_equal [{ task => deployment }, Set.new],
                                  deployer.select_deployments([task])
                 end
@@ -117,18 +120,20 @@ module Syskit
                                  deployer.select_deployments([task])
                 end
                 it 'does not select the same deployment twice' do
+                    deployment = deployed_task_helper(flexmock, 'task')
                     flexmock(deployer)
                         .should_receive(:find_suitable_deployment_for)
-                        .and_return(deployment = flexmock)
+                        .and_return(deployment)
                     plan.add(task1 = task_m.new)
                     assert_equal [Hash[task => deployment], Set[task1]],
                                  deployer.select_deployments([task, task1])
                 end
 
                 it 'does not allocate the same task twice' do
+                    deployment = deployed_task_helper(flexmock, 'task')
                     flexmock(deployer)
                         .should_receive(:find_suitable_deployment_for)
-                        .and_return(flexmock)
+                        .and_return(deployment)
                     plan.add(task0 = task_models[0].new)
                     plan.add(task1 = task_models[0].new)
                     _, missing = deployer.select_deployments([task0, task1])
@@ -136,9 +141,10 @@ module Syskit
                     assert [task0, task1].include?(missing.first)
                 end
                 it 'does not resolve ambiguities by considering already allocated tasks' do
+                    deployment = deployed_task_helper(flexmock, 'task')
                     flexmock(deployer)
                         .should_receive(:find_suitable_deployment_for)
-                        .and_return(flexmock)
+                        .and_return(deployment)
                     plan.add(task0 = task_models[0].new(orocos_name: 'task'))
                     plan.add(task1 = task_models[0].new)
                     _, missing = deployer.select_deployments([task0, task1])
@@ -444,6 +450,51 @@ module Syskit
                         deployer.validate_deployed_network
                     end
                 end
+
+                it 'formats candidate deployments' do
+                    task_m = Syskit::TaskContext.new_submodel
+                    d0 = syskit_stub_deployment_model task_m, 'task0'
+                    deployer.default_deployment_group
+                            .use_deployment(d0 => 'test0_')
+                    deployer.default_deployment_group
+                            .use_deployment(d0 => 'test1_')
+
+                    plan.add(task = task_m.new)
+                    e = assert_raises(MissingDeployments) do
+                        deployer.validate_deployed_network
+                    end
+
+                    info = e.tasks[task]
+                    assert_equal [], info[0] # parents
+                    candidates = info[1]
+                    assert_equal [d0, d0],
+                                 candidates.map { |c, _| c.configured_deployment.model }
+                    assert_equal %w[test0_task0 test1_task0],
+                                 candidates.map { |c, _| c.mapped_task_name }
+                    assert_equal Set[], info[2]
+                end
+
+                it 'snapshots the task\'s parents at the exception point' do
+                    task_m = Syskit::TaskContext.new_submodel
+                    d0 = syskit_stub_deployment_model task_m, 'task0'
+                    deployer.default_deployment_group
+                            .use_deployment(d0 => 'test0_')
+                    deployer.default_deployment_group
+                            .use_deployment(d0 => 'test1_')
+
+                    plan.add(parent = task_m.new)
+                    parent.depends_on(task = task_m.new, role: 'test')
+                    e = assert_raises(MissingDeployments) do
+                        deployer.validate_deployed_network
+                    end
+
+                    info = e.tasks[task]
+                    assert_equal [['test', parent]], info[0] # parents
+                end
+            end
+
+            def deployed_task_helper(model, name)
+                Models::DeploymentGroup::DeployedTask.new(model, name)
             end
         end
     end

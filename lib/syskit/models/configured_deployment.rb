@@ -82,7 +82,8 @@ module Syskit
             # Unlike {#each_orogen_deployed_task_context_model}, it enumerates
             # the Syskit task context model
             #
-            # @yieldparam [String] name the task name
+            # @yieldparam [String] name the task's mapped name, that is the name
+            #     the task will have at runtime
             # @yieldparam [Models::TaskCOntext] the task model
             def each_deployed_task_model
                 return enum_for(__method__) unless block_given?
