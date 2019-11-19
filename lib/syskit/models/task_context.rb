@@ -99,13 +99,14 @@ module Syskit
                 end
                 klass = supermodel.new_submodel(orogen_model: orogen_model)
 
-                if register && orogen_model.name
-                    OroGen.syskit_model_toplevel_constant_registration =
-                        Roby.app.backward_compatible_naming?
-                    klass.name = OroGen.register_syskit_model(klass)
-                end
-
+                klass.register_model if register && orogen_model.name
                 klass
+            end
+
+            def register_model
+                OroGen.syskit_model_toplevel_constant_registration =
+                    Roby.app.backward_compatible_naming?
+                self.name = OroGen.register_syskit_model(self)
             end
 
             # This component's oroGen model
