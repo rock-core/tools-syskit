@@ -1131,8 +1131,8 @@ module Syskit
             dev.attach_to(bus, client_to_bus: false)
 
             # Now, deploy !
-            syskit_stub_deployment_model(combus_driver_m, 'bus_task', remote_task: false)
-            syskit_stub_deployment_model(device_driver_m, 'dev_task')
+            syskit_stub_configured_deployment(combus_driver_m, 'bus_task', remote_task: false)
+            syskit_stub_configured_deployment(device_driver_m, 'dev_task')
             dev_driver = syskit_deploy(dev)
             bus_driver = plan.find_tasks(combus_driver_m).first
             syskit_start_execution_agents(bus_driver)

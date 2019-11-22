@@ -96,6 +96,30 @@ module Syskit
                     end
                 end
             end
+
+            describe '#syskit_deploy' do
+                before do
+                    @task_m = Syskit::TaskContext.new_submodel(name: 'Test')
+                    syskit_stub_deployment_model(@task_m, 'orogen_default_Test')
+                end
+
+                it 'uses a usable deployment from the requirement\'s deployment group' do
+                    task = syskit_deploy(@task_m.deployed_as('local_level', on: 'stubs'))
+                    assert_equal 'local_level', task.orocos_name
+                end
+
+                it 'prefers a requirement-level deployment over a test-level one' do
+                    use_deployment @task_m => 'test_level', on: 'stubs'
+                    task = syskit_deploy(@task_m.deployed_as('local_level', on: 'stubs'))
+                    assert_equal 'local_level', task.orocos_name
+                end
+
+                it 'uses a usable deployment from the test\'s deployment group' do
+                    use_deployment @task_m => 'test_level', on: 'stubs'
+                    task = syskit_deploy(@task_m)
+                    assert_equal 'test_level', task.orocos_name
+                end
+            end
         end
     end
 end

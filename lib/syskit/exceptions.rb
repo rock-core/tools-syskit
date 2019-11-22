@@ -495,18 +495,19 @@ module Syskit
             #
             # @param [Hash{TaskContext=>[Array<Model<Deployment>>]}] tasks_with_candidates
             def initialize(tasks_with_candidates)
-                @tasks = Hash.new
-                tasks_with_candidates.each do |task, candidates|
-                    parents = task.dependency_context
-                    candidates = candidates.map do |process_server_name, deployment, task_name, existing|
-                        existing ||= Array.new
-                        existing = existing.map do |task|
+                @tasks = {}
+                tasks_with_candidates.each do |task_to_deploy, candidates|
+                    parents = task_to_deploy.dependency_context
+                    candidates = candidates.map do |deployed_task, existing_tasks|
+                        existing_tasks = existing_tasks.map do |task|
                             [task, task.dependency_context]
                         end
-                        [process_server_name, deployment, task_name, existing]
+                        [deployed_task, existing_tasks]
                     end
 
-                    @tasks[task] = [parents, candidates, task.deployment_hints]
+                    @tasks[task_to_deploy] = [
+                        parents, candidates, task_to_deploy.deployment_hints
+                    ]
                 end
             end
 
@@ -525,11 +526,11 @@ module Syskit
                 end
 
                 tasks.each do |task, (_parents, possible_deployments, deployment_hints)|
-                    has_free_deployment = possible_deployments.any? { |_, _, existing| existing.empty? }
+                    has_free_deployment = possible_deployments.any? { |_, existing| existing.empty? }
                     pp.breakable
                     if has_free_deployment
                         pp.text "#{task}: multiple possible deployments, choose one with #prefer_deployed_tasks(deployed_task_name)"
-                        if !deployment_hints.empty?
+                        unless deployment_hints.empty?
                             deployment_hints.each do |hint|
                                 pp.text "  current hints: #{deployment_hints.map(&:to_s).join(", ")}"
                             end
@@ -541,9 +542,17 @@ module Syskit
                     end
 
                     pp.nest(2) do
-                        possible_deployments.each do |configured_deployment, task_name, existing|
+                        possible_deployments.each do |deployed_task, existing|
                             pp.breakable
-                            pp.text "task #{task_name} from deployment #{configured_deployment.orogen_model.name} defined in #{configured_deployment.orogen_model.project.name} on #{configured_deployment.process_server_name}"
+                            process_server_name = deployed_task.configured_deployment
+                                                               .process_server_name
+                            orogen_model = deployed_task.configured_deployment
+                                                        .orogen_model
+                            pp.text(
+                                "task #{deployed_task.mapped_task_name} from deployment "\
+                                "#{orogen_model.name} defined in "\
+                                "#{orogen_model.project.name} on #{process_server_name}"
+                            )
                             pp.nest(2) do
                                 existing.each do |task, parents|
                                     pp.breakable

@@ -1,3 +1,5 @@
+# frozen_string_literal: true
+
 module Syskit
     module Models
         # Representation of a deployment that is configured with name mappings
@@ -17,9 +19,14 @@ module Syskit
             #   name in {#model} to the name this task should have while running
             attr_reader :name_mappings
 
-            def initialize(process_server_name, model, name_mappings = Hash.new, process_name = model.name, spawn_options = Hash.new)
-                default_mappings = model.each_deployed_task_model.
-                    each_with_object(Hash.new) do |(deployed_task_name, _), result|
+            def initialize(
+                process_server_name, model, name_mappings = {},
+                process_name = model.name, spawn_options = {}
+            )
+                default_mappings =
+                    model
+                    .each_deployed_task_model
+                    .each_with_object({}) do |(deployed_task_name, _), result|
                         result[deployed_task_name] = deployed_task_name
                     end
 
@@ -34,18 +41,21 @@ module Syskit
             #
             # Filters out options that are part of the spawn options but not of
             # the command-line generation options
-            def filter_command_line_options(oro_logfile: nil, wait: nil, output: nil,
-                **command_line_options)
-                return command_line_options
+            def filter_command_line_options(
+                oro_logfile: nil, wait: nil, output: nil,
+                **command_line_options
+            )
+                command_line_options
             end
-
 
             # Returns the command line information needed to start this
             # deployment on the same machine than Syskit
             def command_line(loader: Roby.app.default_pkgconfig_loader, **options)
-                model.command_line(process_name, name_mappings,
+                model.command_line(
+                    process_name, name_mappings,
                     loader: loader,
-                    **filter_command_line_options(options))
+                    **filter_command_line_options(options)
+                )
             end
 
             # The oroGen model object that represents this configured deployment
@@ -55,9 +65,7 @@ module Syskit
             #
             # @return [OroGen::Spec::Deployment]
             def orogen_model
-                if @orogen_model
-                    return @orogen_model
-                end
+                return @orogen_model if @orogen_model
 
                 @orogen_model = model.orogen_model.dup
                 orogen_model.task_activities.map! do |activity|
@@ -74,10 +82,12 @@ module Syskit
             # Unlike {#each_orogen_deployed_task_context_model}, it enumerates
             # the Syskit task context model
             #
-            # @yieldparam [String] name the task name
+            # @yieldparam [String] name the task's mapped name, that is the name
+            #     the task will have at runtime
             # @yieldparam [Models::TaskCOntext] the task model
             def each_deployed_task_model
-                return enum_for(__method__) if !block_given?
+                return enum_for(__method__) unless block_given?
+
                 model.each_deployed_task_model do |name, model|
                     yield(name_mappings[name], model)
                 end
@@ -87,7 +97,8 @@ module Syskit
             #
             # @yieldparam [OroGen::Spec::TaskDeployment]
             def each_orogen_deployed_task_context_model
-                return enum_for(__method__) if !block_given?
+                return enum_for(__method__) unless block_given?
+
                 model.each_orogen_deployed_task_context_model do |deployed_task|
                     task = deployed_task.dup
                     task.name = name_mappings[task.name] || task.name
@@ -99,12 +110,13 @@ module Syskit
             #
             # @return [Syskit::Deployment] a new, properly configured, instance
             #   of {#model}. Usually a {Syskit::Deployment}
-            def new(options = Hash.new)
+            def new(options = {})
                 options = options.merge(
                     process_name: process_name,
                     name_mappings: name_mappings,
                     spawn_options: spawn_options,
-                    on: process_server_name)
+                    on: process_server_name
+                )
                 options.delete(:working_directory)
                 options.delete(:output)
                 options.delete(:wait)
@@ -112,8 +124,9 @@ module Syskit
             end
 
             def ==(other)
-                return if !other.kind_of?(ConfiguredDeployment)
-                return process_server_name == other.process_server_name &&
+                return unless other.kind_of?(ConfiguredDeployment)
+
+                process_server_name == other.process_server_name &&
                     process_name == other.process_name &&
                     model == other.model &&
                     spawn_options == other.spawn_options &&
@@ -124,7 +137,9 @@ module Syskit
                 [process_name, model].hash
             end
 
-            def eql?(other); self == other end
+            def eql?(other)
+                self == other
+            end
 
             def pretty_print(pp)
                 pp.text "deployment #{model.orogen_model.name} with the following tasks"

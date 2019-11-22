@@ -198,6 +198,21 @@ module Syskit
                 Syskit::Models.merge_orogen_task_context_models(
                     orogen_model, [service_model.orogen_model], port_mappings)
             end
+
+            # Return the instance requirement object that runs this task
+            # model with the given name
+            def deployed_as(name, **options)
+                to_instance_requirements
+                    .use_deployment(self => name, **options)
+            end
+
+            # Return the instance requirement object that will hook onto
+            # an otherwise started component of the given name
+            # model with the given name
+            def deployed_as_unmanaged(name, **options)
+                to_instance_requirements
+                    .use_unmanaged_task(self => name, **options)
+            end
         end
     end
 end

@@ -126,9 +126,17 @@ module Syskit
                 end
             end
 
+            def default_deployment_group
+                base = Syskit.conf.deployment_group.dup
+                base.use_group!(@__test_deployment_group)
+                base
+            end
+
             # Run Syskit's deployer (i.e. engine) on the current plan
             def syskit_deploy(
-                *to_instanciate, add_mission: true, syskit_engine: nil,
+                *to_instanciate,
+                add_mission: true, syskit_engine: nil,
+                default_deployment_group: self.default_deployment_group,
                 **resolve_options
             )
                 to_instanciate = to_instanciate.flatten # For backward-compatibility
@@ -142,10 +150,6 @@ module Syskit
                 end.compact
                 root_tasks = placeholder_tasks.map(&:as_service)
                 requirement_tasks = placeholder_tasks.map(&:planning_task)
-                requirement_tasks.each do |task|
-                    task.requirements.deployment_group
-                        .use_group!(@__test_deployment_group)
-                end
 
                 not_running = requirement_tasks.find_all { |t| !t.running? }
                 expect_execution { not_running.each(&:start!) }
@@ -155,7 +159,10 @@ module Syskit
                 begin
                     syskit_engine_resolve_handle_plan_export do
                         syskit_engine ||= Syskit::NetworkGeneration::Engine.new(plan)
-                        syskit_engine.resolve(**resolve_options)
+                        syskit_engine.resolve(
+                            default_deployment_group: default_deployment_group,
+                            **resolve_options
+                        )
                     end
                 rescue Exception => e
                     expect_execution do
@@ -226,13 +233,17 @@ module Syskit
             end
 
             def syskit_stub_configured_deployment(
-                task_model = nil, name = nil,
-                remote_task: syskit_stub_resolves_remote_tasks?, register: true, &block
+                task_model = nil, task_name = nil,
+                remote_task: syskit_stub_resolves_remote_tasks?,
+                register: true, &block
             )
 
-                task_model = task_model&.to_component_model
-                process_server = Syskit.conf.process_server_for('stubs')
+                task_name ||= syskit_default_stub_name(task_model)
+                deployment_model = syskit_stub_deployment_model(
+                    task_model, task_name, &block
+                )
 
+                process_server = Syskit.conf.process_server_for('stubs')
                 task_context_class =
                     if remote_task
                         Orocos::RubyTasks::RemoteTaskContext
@@ -240,14 +251,8 @@ module Syskit
                         process_server.task_context_class
                     end
 
-                name ||= syskit_default_stub_name(task_model)
-                deployment_model = Deployment.new_submodel(name: name) do
-                    task(name, task_model.orogen_model) if task_model
-                    instance_eval(&block) if block
-                end
-
                 deployment = Models::ConfiguredDeployment.new(
-                    'stubs', deployment_model, Hash[name => name], name,
+                    'stubs', deployment_model, { task_name => task_name }, task_name,
                     Hash[task_context_class: task_context_class]
                 )
                 if register
@@ -269,23 +274,32 @@ module Syskit
             #   available
             # @return [Models::ConfiguredDeployment] the configured deployment
             def syskit_stub_deployment_model(
-                    task_model = nil, name = nil,
-                    remote_task: syskit_stub_resolves_remote_tasks?, &block
-                )
+                task_model = nil, name = nil, register: true, &block
+            )
+                task_model = task_model&.to_component_model
+                process_server = Syskit.conf.process_server_for('stubs')
 
-                configured_deployment = syskit_stub_configured_deployment(
-                    task_model, name, remote_task: remote_task, &block
-                )
-                configured_deployment.model
+                name ||= syskit_default_stub_name(task_model)
+                deployment_model = Deployment.new_submodel(name: name) do
+                    task(name, task_model.orogen_model) if task_model
+                    instance_eval(&block) if block
+                end
+
+                if register
+                    process_server.loader.register_deployment_model(
+                        deployment_model.orogen_model
+                    )
+                end
+                deployment_model
             end
 
             # Create a new stub deployment instance, optionally stubbing the
             # model as well
             def syskit_stub_deployment(
-                    name = 'deployment', deployment_model = nil,
-                    remote_task: syskit_stub_resolves_remote_tasks?, &block
-                )
-                deployment_model ||= syskit_stub_deployment_model(
+                name = 'deployment', deployment_model = nil,
+                remote_task: syskit_stub_resolves_remote_tasks?, &block
+            )
+                deployment_model ||= syskit_stub_configured_deployment(
                     nil, name, remote_task: remote_task, &block
                 )
                 task = deployment_model.new(process_name: name, on: 'stubs')
