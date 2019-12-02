@@ -5,29 +5,35 @@ module Syskit
             # Overloaded to automatically call {#deploy_subject_syskit_model}
             def setup
                 super
-                @deployed_subject_syskit_model = deploy_subject_syskit_model
+                task_context_m = self.class.subject_syskit_model.concrete_model
+                if app.simulation? || !task_context_m.orogen_model.abstract?
+                    @deployed_subject_syskit_model = deploy_subject_syskit_model
+                end
             end
 
             # Define a deployment for the task model under test
             def deploy_subject_syskit_model
                 task_context_m = self.class.subject_syskit_model.concrete_model
-                if task_context_m.orogen_model.abstract?
-                    # This task context is abstract, i.e. does not have a
-                    # default deployment, and therefore cannot be deployed. Stub
-                    # it if we are in stub mode, skip the test otherwise
+                unless task_context_m.orogen_model.abstract?
+                    return use_deployment(task_context_m => 'task_under_test').first
+                end
 
-                    if !app.simulation?
-                        raise RuntimeError, "cannot deploy the abstract task context model #{task_context_m} in live mode"
-                    end
-                    task_context_m.abstract = false
+                # This task context is abstract, i.e. does not have a
+                # default deployment, and therefore cannot be deployed. Stub
+                # it if we are in stub mode, skip the test otherwise
 
-                    process_name = OroGen::Spec::Project
-                                   .default_deployment_name(task_context_m.orogen_model.name)
-                    syskit_stub_configured_deployment(nil, process_name) do
-                        task process_name, task_context_m.orogen_model
-                    end
-                else
-                    use_deployment(task_context_m => 'task_under_test').first
+                unless app.simulation?
+                    raise RuntimeError,
+                          'cannot deploy the abstract task context model '\
+                          "#{task_context_m} in live mode"
+                end
+
+                task_context_m.abstract = false
+
+                process_name = OroGen::Spec::Project
+                               .default_deployment_name(task_context_m.orogen_model.name)
+                syskit_stub_configured_deployment(nil, process_name) do
+                    task process_name, task_context_m.orogen_model
                 end
             end
 
@@ -42,8 +48,8 @@ module Syskit
             # @deprecated use instead
             #   it { is_configurable }
             def self.it_should_be_configurable
-                Test.warn "it_should_be_configurable is deprecated, use"
-                Test.warn "  it { is_configurable } instead"
+                Test.warn 'it_should_be_configurable is deprecated, use'
+                Test.warn '  it { is_configurable } instead'
                 it { is_configurable }
             end
 
@@ -75,36 +81,6 @@ module Syskit
             def is_configurable(task_model = subject_syskit_model)
                 assert_is_configurable(task_model)
             end
-
-            # Automatically skip tests for which the task model under test is
-            # not available
-            def self.ensure_can_deploy_subject_syskit_model(test, app)
-                orogen_model = subject_syskit_model.orogen_model
-
-                if app.simulation?
-                    begin
-                        ruby_task = Orocos::RubyTasks::TaskContext.new(
-                            "spec#{object_id}", model: orogen_model)
-                        ruby_task.dispose
-                    rescue ::Exception => e
-                        test.skip("#{test.__full_name__} cannot run: #{e.message}")
-                    end
-                elsif orogen_model.abstract?
-                    test.skip("#{test.__full_name__} cannot run: #{orogen_model.name} is abstract and we're in live mode")
-                else
-                    project_name = orogen_model.project.name
-                    if !Orocos.default_pkgconfig_loader.has_project?(project_name)
-                        test.skip("#{test.__full_name__} cannot run: oroGen project #{project_name} is not available")
-                    end
-                end
-            end
-
-            # Overloaded from Roby to call {.ensure_can_deploy_subject_syskit_model}
-            def self.roby_should_run(test, app)
-                super
-                ensure_can_deploy_subject_syskit_model(test, app)
-            end
         end
     end
 end
-
