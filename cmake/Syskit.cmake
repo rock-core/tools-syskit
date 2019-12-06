@@ -42,8 +42,18 @@ function(syskit_orogen_tests NAME)
         endif()
     endforeach()
 
+    if (ROCK_TEST_LOG_DIR)
+        file(MAKE_DIRECTORY ${ROCK_TEST_LOG_DIR})
+        list(APPEND __minitest_args
+            --junit
+            --junit-filename=${ROCK_TEST_LOG_DIR}/report.junit.xml
+            --junit-jenkins
+        )
+    endif()
+
     add_test(
         NAME ${NAME}
         COMMAND syskit orogen-test ${testfiles} --workdir ${workdir}/bundle
+                       -- ${__minitest_args}
     )
 endfunction()
