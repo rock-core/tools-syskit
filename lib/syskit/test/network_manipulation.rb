@@ -15,11 +15,13 @@ module Syskit
                 @__test_overriden_configurations = []
                 @__test_deployment_group = Models::DeploymentGroup.new
                 @__orocos_writers = []
+                @__orocos_readers = []
                 super
             end
 
             def teardown
                 @__orocos_writers.each(&:disconnect)
+                @__orocos_readers.each(&:disconnect)
                 super
                 @__test_overriden_configurations.each do |model, manager|
                     model.configuration_manager = manager
@@ -49,7 +51,7 @@ module Syskit
             # @api private
             #
             # Helper used to resolve writer objects
-            def resolve_orocos_writer(writer)
+            def resolve_orocos_writer(writer, **policy)
                 if writer.respond_to?(:to_orocos_port)
                     writer = Orocos.allow_blocking_calls do
                         writer.to_orocos_port
@@ -58,7 +60,7 @@ module Syskit
                 # We can write on LocalInputPort, LocalOutputPort and InputPort
                 if writer.respond_to?(:writer)
                     writer = Orocos.allow_blocking_calls do
-                        writer.writer
+                        writer.writer(**policy)
                     end
                 elsif !writer.respond_to?(:write)
                     raise ArgumentError, "#{writer} does not seem to be a port "\
@@ -69,9 +71,41 @@ module Syskit
 
             # Write a sample on a given input port
             def syskit_write(writer, sample)
-                writer = resolve_orocos_writer(writer)
-                @__orocos_writers << writer if writer.respond_to?(:disconnect)
+                writer = syskit_create_writer(writer)
                 writer.write(sample)
+            end
+
+            def syskit_create_writer(writer, **policy)
+                writer = resolve_orocos_writer(writer, **policy)
+                @__orocos_writers << writer if writer.respond_to?(:disconnect)
+                writer
+            end
+
+            # @api private
+            #
+            # Helper used to resolve writer objects
+            def resolve_orocos_reader(reader, **policy)
+                if reader.respond_to?(:to_orocos_port)
+                    reader = Orocos.allow_blocking_calls do
+                        reader.to_orocos_port
+                    end
+                end
+                # We can write on LocalInputPort, LocalOutputPort and InputPort
+                if reader.respond_to?(:reader)
+                    reader = Orocos.allow_blocking_calls do
+                        reader.reader(**policy)
+                    end
+                elsif !reader.respond_to?(:read)
+                    raise ArgumentError,
+                          "#{reader} does not seem to be a port one can read from"
+                end
+                reader
+            end
+
+            def syskit_create_reader(reader, **policy)
+                reader = resolve_orocos_reader(reader)
+                @__orocos_readers << reader if reader.respond_to?(:disconnect)
+                reader
             end
 
             def normalize_instanciation_models(to_instanciate)

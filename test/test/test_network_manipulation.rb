@@ -30,6 +30,60 @@ module Syskit
                 end
             end
 
+            describe '#syskit_create_writer' do
+                before do
+                    @task_m = Syskit::RubyTaskContext.new_submodel do
+                        input_port 'in', '/int'
+                        output_port 'out', '/int'
+                    end
+                    use_ruby_tasks @task_m => 'test', on: 'stubs'
+                end
+
+                it 'creates a writer to the port' do
+                    task = syskit_deploy_configure_and_start(@task_m)
+                    w = syskit_create_writer task.in_port
+                    w.write(10)
+                    assert_equal 10, task.orocos_task.in.read_new
+                end
+
+                it 'allows creating a writer to a local port' do
+                    task = syskit_deploy_configure_and_start(@task_m)
+                    out_reader = task.out_port.reader
+                    expect_execution.to { achieve { out_reader.ready? } }
+                    w = syskit_create_writer task.out_port
+                    sample = expect_execution { w.write 10 }
+                             .to { have_one_new_sample out_reader }
+                    assert_equal 10, sample
+                end
+            end
+
+            describe '#syskit_create_reader' do
+                before do
+                    @task_m = Syskit::RubyTaskContext.new_submodel do
+                        input_port 'in', '/int'
+                        output_port 'out', '/int'
+                    end
+                    use_ruby_tasks @task_m => 'test', on: 'stubs'
+                end
+
+                it 'creates a reader to the port' do
+                    task = syskit_deploy_configure_and_start(@task_m)
+                    r = syskit_create_reader task.out_port
+                    task.orocos_task.out.write(10)
+                    assert_equal 10, r.read_new
+                end
+
+                it 'allows creating a reader to a local port' do
+                    task = syskit_deploy_configure_and_start(@task_m)
+                    in_writer = task.in_port.writer
+                    expect_execution.to { achieve { in_writer.ready? } }
+                    r = syskit_create_reader task.in_port
+                    sample = expect_execution { in_writer.write 10 }
+                             .to { have_one_new_sample r }
+                    assert_equal 10, sample
+                end
+            end
+
             describe '#syskit_stub_and_deploy' do
                 before do
                     @task_m = Syskit::TaskContext.new_submodel(name: 'Task')
