@@ -33,10 +33,15 @@ module Syskit
                 Hash.new { |h, k| h[k] = [] }
             end
 
+            attribute(:port_writers) do
+                {}
+            end
+
             def clear_model
                 super
                 child_constraints.clear
                 children.clear
+                port_writers.clear
                 configurations.clear
                 exported_inputs.clear
                 exported_outputs.clear
@@ -350,6 +355,42 @@ module Syskit
                 end
 
                 @main_task = add(models, **options)
+            end
+
+            class PortWriter
+                attr_reader :child_name
+                attr_reader :port_name
+
+                def initialize(port)
+                    @child_name = port.component_model.child_name
+                    @port_name = port.name
+                end
+
+                def bind(cmp)
+                    @writer = cmp.child_from_role(child_name)
+                                 .find_input_port(port_name)
+                                 .writer
+                end
+
+                def write(sample)
+                    @writer.write(sample)
+                end
+            end
+
+            def port_writer_by_name(name)
+                @port_writers[name.to_sym]
+            end
+
+            def port_writer(name, port)
+                port_writers[name.to_sym] = PortWriter.new(port)
+
+                script do
+                    execute { model.port_writer_by_name(name.to_sym).bind(self) }
+                end
+
+                define_method name.to_sym do |sample|
+                    execute { model.port_writer_by_name(name.to_sym).write sample }
+                end
             end
 
             # Returns true if this composition model is a specialized version of
