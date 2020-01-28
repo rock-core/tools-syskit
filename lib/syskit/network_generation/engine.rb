@@ -272,7 +272,7 @@ module Syskit
             # Given the network with deployed tasks, this method looks at how we
             # could adapt the running network to the new one
             def finalize_deployed_tasks
-                debug "finalizing deployed tasks"
+                debug 'finalizing deployed tasks'
 
                 used_deployments = work_plan.find_local_tasks(Deployment).to_set
                 used_tasks       = work_plan.find_local_tasks(Component).to_set
@@ -573,14 +573,16 @@ module Syskit
                     requirement_tasks,
                     garbage_collect: garbage_collect,
                     validate_abstract_network: validate_abstract_network,
-                    validate_generated_network: validate_generated_network)
+                    validate_generated_network: validate_generated_network
+                )
 
                 if compute_deployments
                     log_timepoint_group 'compute_deployed_network' do
                         compute_deployed_network(
                             default_deployment_group: default_deployment_group,
                             compute_policies: compute_policies,
-                            validate_deployed_network: validate_deployed_network)
+                            validate_deployed_network: validate_deployed_network
+                        )
                     end
                 end
                 required_instances
@@ -673,7 +675,8 @@ module Syskit
                 # Finally, we should now only have deployed tasks. Verify it
                 # and compute the connection policies
                 if garbage_collect && validate_final_network
-                    validate_final_network(required_instances, work_plan, compute_deployments: compute_deployments)
+                    validate_final_network(required_instances, work_plan,
+                                           compute_deployments: compute_deployments)
                     log_timepoint 'validate_final_network'
                 end
 

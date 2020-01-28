@@ -1,10 +1,14 @@
+# frozen_string_literal: true
+
 require 'roby/gui/dot_id'
+require 'English'
 
 module Syskit
         # Used by the to_dot* methods for color allocation
         attr_reader :current_color
         # A set of colors to be used in graphiz graphs
-        COLOR_PALETTE = %w{#FF9955 #FF0000 #bb9c21 #37c637 #62816e #2A7FFF #AA00D4 #D40055 #0000FF}
+        COLOR_PALETTE = %w[#FF9955 #FF0000 #bb9c21 #37c637
+                           #62816e #2A7FFF #AA00D4 #D40055 #0000FF].freeze
         # Returns a color from COLOR_PALETTE, rotating each time the method is
         # called. It is used by the to_dot* methods.
         def self.allocate_color
@@ -65,11 +69,11 @@ module Syskit
 
             class DummyPage
                 def link_to(obj, text = nil)
-                    if text then text
-                    else
-                        obj.name.gsub("<", "&lt;").
-                            gsub(">", "&gt;")
-                    end
+                    return test if text
+
+                    obj.name
+                       .gsub('<', '&lt;')
+                       .gsub('>', '&gt;')
                 end
             end
 
@@ -81,28 +85,31 @@ module Syskit
 
                 @colors = COLORS.dup
 
-                @task_annotations = Hash.new { |h, k| h[k] = Hash.new { |a, b| a[b] = Array.new } }
-                @port_annotations = Hash.new { |h, k| h[k] = Hash.new { |a, b| a[b] = Array.new } }
-                @conn_annotations = Hash.new { |h, k| h[k] = Array.new }
-                @additional_vertices = Hash.new { |h, k| h[k] = Array.new }
-                @additional_edges    = Array.new
+                @task_annotations = Hash.new do |h, k|
+                    h[k] = Hash.new { |a, b| a[b] = [] }
+                end
+                @port_annotations = Hash.new do |h, k|
+                    h[k] = Hash.new { |a, b| a[b] = [] }
+                end
+                @conn_annotations = Hash.new { |h, k| h[k] = [] }
+                @additional_vertices = Hash.new { |h, k| h[k] = [] }
+                @additional_edges = []
             end
 
             def uri_for(type)
-                if @typelib_resolver
-                    "link://metaruby/" + escape_dot_uri(@typelib_resolver.split_name(type).join("/"))
-                end
+                return unless @typelib_resolver
+
+                uri = escape_dot_uri(@typelib_resolver.split_name(type).join('/'))
+                "link://metaruby/#{uri}"
             end
 
             def escape_dot_uri(string)
-                string.
-                    gsub(/</, "&lt;").
-                    gsub(/>/, "&gt;")
+                string.gsub(/</, '&lt;')
+                      .gsub(/>/, '&gt;')
             end
 
             def escape_dot(string)
-                escape_dot_uri(string).
-                    gsub(/[^\[\]&;:\w\. ]/, "_")
+                escape_dot_uri(string).gsub(/[^\[\]&;:\w\. ]/, '_')
             end
 
             def annotate_tasks(annotations)
@@ -128,9 +135,7 @@ module Syskit
             #   label.
             # @return [void]
             def add_task_annotation(task, name, ann)
-                if !ann.respond_to?(:to_ary)
-                    ann = [ann]
-                end
+                ann = [ann] unless ann.respond_to?(:to_ary)
 
                 task_annotations[task].merge!(name => ann) do |_, old, new|
                     old + new
@@ -190,10 +195,9 @@ module Syskit
                         io.write dot_graph
                         io.flush
 
-                        graph = `#{command % [io.path]}`
-                        if $?.exited?
-                            return graph
-                        end
+                        graph = `#{format(command, io.path)}`
+                        return graph if $CHILD_STATUS.exited?
+
                         puts "dot crashed, retrying (#{i}/#{retry_count})"
                     end
                 end
@@ -202,35 +206,24 @@ module Syskit
 
             # Generate a svg file representing the current state of the
             # deployment
-            def to_file(kind, format, output_io, options = Hash.new)
-                # For backward compatibility reasons
-                filename ||= kind
-                if File.extname(filename) != ".#{format}"
-                    filename += ".#{format}"
-                end
-
-                file_options, display_options = Kernel.filter_options options,
-                    :graphviz_tool => "dot"
-
-                graph = run_dot_with_retries(20, "#{file_options[:graphviz_tool]} -T#{format} %s") do
+            def to_file(kind, format, output_io, graphviz_tool: 'dot', **display_options)
+                graph = run_dot_with_retries(20, "#{graphviz_tool} -T#{format} %s") do
                     send(kind, display_options)
                 end
-                graph ||= run_dot_with_retries(20, "#{file_options[:graphviz_tool]} -Tpng %s") do
+                graph ||= run_dot_with_retries(20, "#{graphviz_tool} -Tpng %s") do
                     send(kind, display_options)
                 end
 
-                if !graph
+                unless graph
                     Syskit.debug do
                         i = 0
-                        pattern = "syskit_graphviz_%i.dot"
-                        while File.file?(pattern % [i])
-                            i += 1
-                        end
-                        path = pattern % [i]
+                        pattern = 'syskit_graphviz_%i.dot'
+                        i += 1 while File.file?(format(pattern, i))
+                        path = format(pattern, i)
                         File.open(path, 'w') { |io| io.write send(kind, display_options) }
                         "saved graphviz input in #{path}"
                     end
-                    raise DotFailedError, "dot reported an error generating the graph"
+                    raise DotFailedError, 'dot reported an error generating the graph'
                 end
 
                 if output_io.respond_to?(:to_str)
@@ -245,15 +238,15 @@ module Syskit
 
             Colors = Struct.new :normal, :abstract, :composition
             COLORS = {
-                normal: Colors.new("#000000", "red", "#55aaff"),
-                toned_down: Colors.new("#D3D7CF", "#D3D7CF", "#c2cbd7")
-            }
+                normal: Colors.new('#000000', 'red', '#55aaff'),
+                toned_down: Colors.new('#D3D7CF', '#D3D7CF', '#c2cbd7')
+            }.freeze
 
             def format_edge_info(value)
                 if value.respond_to?(:to_str)
                     value.to_str
                 elsif value.respond_to?(:each)
-                    value.map { |v| format_edge_info(v) }.join(",")
+                    value.map { |v| format_edge_info(v) }.join(',')
                 else
                     value.to_s
                 end
@@ -261,83 +254,73 @@ module Syskit
 
             # Generates a dot graph that represents the task hierarchy in this
             # deployment
-            def relation_to_dot(options = Hash.new)
-                options = Kernel.validate_options options,
-                    :accessor => nil,
-                    :dot_edge_mark => "->",
-                    :dot_graph_type => 'digraph',
-                    :highlights => [],
-                    :toned_down => [],
-                    :displayed_options => [],
-                    :annotations => ['task_info']
-
-                if !options[:accessor]
-                    raise ArgumentError, "no :accessor option given"
-                end
+            def relation_to_dot(accessor:, dot_edge_mark: '->',
+                                dot_graph_type: 'digraph', highlights: [],
+                                toned_down: [], displayed_options: [],
+                                annotations: ['task_info'])
 
                 port_annotations.clear
                 task_annotations.clear
 
-                options[:annotations].each do |ann_name|
+                annotations.each do |ann_name|
                     send("add_#{ann_name}_annotations")
                 end
 
                 result = []
-
                 all_tasks = Set.new
 
                 plan.find_local_tasks(AbstractComponent).each do |task|
                     all_tasks << task
-                    task.send(options[:accessor]) do |child_task, edge_info|
+                    task.send(accessor) do |child_task, edge_info|
                         label = []
-                        options[:displayed_options].each do |key|
+                        displayed_options.each do |key|
                             label << "#{key}=#{format_edge_info(edge_info[key])}"
                         end
                         all_tasks << child_task
-                        result << "  #{task.dot_id} #{options[:dot_edge_mark]} #{child_task.dot_id} [label=\"#{label.join("\\n")}\"];"
+                        result << "  #{task.dot_id} #{dot_edge_mark} "\
+                                  "#{child_task.dot_id} [label=\"#{label.join('\n')}\"];"
                     end
                 end
 
                 all_tasks.each do |task|
                     attributes = []
                     task_label = format_task_label(task)
-                    label = "  <TABLE ALIGN=\"LEFT\" COLOR=\"white\" BORDER=\"1\" CELLBORDER=\"0\" CELLSPACING=\"0\">\n#{task_label}</TABLE>"
+                    label = format('  <TABLE ALIGN="LEFT" COLOR="white" BORDER="1" '\
+                                   'CELLBORDER="0" CELLSPACING="0">'\
+                                   '%<task_label>s</TABLE>', task_label: task_label)
                     attributes << "label=<#{label}>"
-                    if make_links?
-                        attributes << "href=\"plan://syskit/#{task.dot_id}\""
-                    end
+                    attributes << "href=\"plan://syskit/#{task.dot_id}\"" if make_links?
                     color_set =
-                        if options[:toned_down].include?(task)
+                        if toned_down.include?(task)
                             @colors[:toned_down]
-                        else @colors[:normal]
+                        else
+                            @colors[:normal]
                         end
                     color =
-                        if task.abstract? then color_set.abstract
+                        if task.abstract?
+                            color_set.abstract
                         elsif task.kind_of?(Syskit::Composition)
                             color_set.composition
-                        else color_set.normal
+                        else
+                            color_set.normal
                         end
                     attributes << "color=\"#{color}\""
-                    if options[:highlights].include?(task)
-                        attributes << "penwidth=3"
-                    end
+                    attributes << 'penwidth=3' if highlights.include?(task)
 
-                    result << "  #{task.dot_id} [#{attributes.join(" ")}];"
+                    result << "  #{task.dot_id} [#{attributes.join(' ')}];"
                 end
 
-                if result.empty?
-                    # This workarounds a dot bug in which some degenerate graphs
-                    # (only one node) crash it
-                    return "#{options[:dot_graph_type]} { }"
-                else
-                    ["#{options[:dot_graph_type]} {",
-                     "  mindist=0",
-                     "  rankdir=TB",
-                     "  node [shape=record,height=.1,fontname=\"Arial\"];"].
-                    concat(result).
-                    concat(["}"]).
-                    join("\n")
-                end
+                # This workarounds a dot bug in which some degenerate graphs
+                # (only one node) crash it
+                return "#{dot_graph_type} { }" if result.empty?
+
+                ["#{dot_graph_type} {",
+                 '  mindist=0',
+                 '  rankdir=TB',
+                 '  node [shape=record,height=.1,fontname="Arial"];']
+                    .concat(result)
+                    .concat(['}'])
+                    .join("\n")
             end
 
             # Generates a dot graph that represents the task hierarchy in this
@@ -345,14 +328,14 @@ module Syskit
             #
             # It takes no options. The +options+ argument is used to have a
             # common signature with #dataflow
-            def hierarchy(options = Hash.new)
-                relation_to_dot(:accessor => :each_child)
+            def hierarchy(**)
+                relation_to_dot(accessor: :each_child)
             end
 
             def self.available_annotations
                 instance_methods.map do |m|
-                    if m.to_s =~ /^add_(\w+)_annotations/
-                        $1
+                    if (name_match = /^add_(\w+)_annotations/.match(m.to_s))
+                        name_match[1]
                     end
                 end.compact
             end
@@ -361,7 +344,7 @@ module Syskit
                 plan.find_local_tasks(AbstractComponent).each do |task|
                     task.model.each_port do |p|
                         port_type = Roby.app.default_loader.opaque_type_for(p.type)
-                        add_port_annotation(task, p.name, "Type", port_type.name)
+                        add_port_annotation(task, p.name, 'Type', port_type.name)
                     end
                 end
             end
@@ -371,12 +354,13 @@ module Syskit
                 plan.find_local_tasks(AbstractComponent).each do |task|
                     arguments = task.arguments.map { |k, v| "#{k}: #{v}" }
                     task.model.arguments.each do |arg_name|
-                        if !task.arguments.has_key?(arg_name)
+                        unless task.arguments.has_key?(arg_name)
                             arguments << "#{arg_name}: (unset)"
                         end
                     end
-                    add_task_annotation(task, "Arguments", arguments.sort)
-                    add_task_annotation(task, "Roles", task.roles.to_a.sort.join(", "))
+                    add_task_annotation(task, 'Arguments', arguments.sort)
+                    add_task_annotation(task, 'Roles',
+                                        task.roles.to_a.sort.join(', '))
                 end
             end
             available_task_annotations << 'task_info'
@@ -386,15 +370,16 @@ module Syskit
                     source_task.each_concrete_output_connection do |source_port, sink_port, sink_task, policy|
                         policy = policy.dup
                         policy.delete(:fallback_policy)
-                        if policy.empty?
-                            policy_s = "(no policy)"
-                        else
-                            policy_s = if policy.empty? then ""
-                                       elsif policy[:type] == :data then 'data'
-                                       elsif policy[:type] == :buffer then  "buffer:#{policy[:size]}"
-                                       else policy.to_s
-                                       end
-                        end
+                        policy_s =
+                            if policy.empty?
+                                ''
+                            elsif policy[:type] == :data
+                                'data'
+                            elsif policy[:type] == :buffer
+                                "buffer:#{policy[:size]}"
+                            else
+                                policy.to_s
+                            end
                         conn_annotations[[source_task, source_port, sink_task, sink_port]] << policy_s
                     end
                 end
@@ -404,16 +389,16 @@ module Syskit
             def add_trigger_annotations
                 plan.find_local_tasks(TaskContext).each do |task|
                     task.model.each_port do |p|
-                        if dyn = task.port_dynamics[p.name]
+                        if (dyn = task.port_dynamics[p.name])
                             ann = dyn.triggers.map do |tr|
                                 "#{tr.name}[p=#{tr.period},s=#{tr.sample_count}]"
                             end
                             port_annotations[[task, p.name]]['Triggers'].concat(ann)
                         end
                     end
-                    if dyn = task.dynamics
+                    if (dyn = task.dynamics)
                         ann = dyn.triggers.map do |tr|
-                                "#{tr.name}[p=#{tr.period},s=#{tr.sample_count}]"
+                            "#{tr.name}[p=#{tr.period},s=#{tr.sample_count}]"
                         end
                         task_annotations[task]['Triggers'].concat(ann)
                     end
@@ -423,43 +408,35 @@ module Syskit
 
             # Generates a dot graph that represents the task dataflow in this
             # deployment
-            def dataflow(options = Hash.new, excluded_models = Set.new, annotations = Set.new)
-                # For backward compatibility with the signature
-                # dataflow(remove_compositions = false, excluded_models = Set.new, annotations = Set.new)
-                if !options.kind_of?(Hash)
-                    options = { :remove_compositions => options, :excluded_models => excluded_models, :annotations => annotations }
-                end
-
-                options = Kernel.validate_options options,
-                    :remove_compositions => false,
-                    :excluded_models => Set.new,
-                    :annotations => Set.new,
-                    :highlights => Set.new,
-                    :show_all_ports => true
-                excluded_models = options[:excluded_models]
+            def dataflow(remove_compositions: false,
+                         excluded_models: Set.new,
+                         annotations: Set.new,
+                         highlights: Set.new,
+                         show_all_ports: true)
 
                 port_annotations.clear
                 task_annotations.clear
 
-                annotations = options[:annotations].to_set
-                annotations.each do |ann|
+                annotations.to_set.each do |ann|
                     send("add_#{ann}_annotations")
                 end
 
                 output_ports = Hash.new { |h, k| h[k] = Set.new }
                 input_ports  = Hash.new { |h, k| h[k] = Set.new }
-                connected_ports  = Hash.new { |h, k| h[k] = Set.new }
+                connected_ports = Hash.new { |h, k| h[k] = Set.new }
                 port_annotations.each do |task, p|
                     connected_ports[task] << p
                 end
                 additional_edges.each do |(from_id, from_task), (to_id, to_task), _|
-                    from_id = from_task.find_port(from_id) if !from_id.respond_to?(:name)
+                    unless from_id.respond_to?(:name)
+                        from_id = from_task.find_port(from_id)
+                    end
                     connected_ports[from_task] << from_id
-                    to_id = to_task.find_port(to_id) if !to_id.respond_to?(:name)
+                    to_id = to_task.find_port(to_id) unless to_id.respond_to?(:name)
                     connected_ports[to_task] << to_id
                 end
-                connections = Hash.new
 
+                connections = {}
                 all_tasks = plan.find_local_tasks(Deployment).to_set
 
                 # Register all ports and all connections
@@ -468,7 +445,7 @@ module Syskit
                 # to an input: on compositions, exported ports are represented
                 # as connections between either two inputs or two outputs
                 plan.find_local_tasks(AbstractComponent).each do |source_task|
-                    next if options[:remove_compositions] && source_task.kind_of?(Composition)
+                    next if remove_compositions && source_task.kind_of?(Composition)
                     next if excluded_models.include?(source_task.concrete_model)
 
                     source_task.each_input_port do |port|
@@ -480,31 +457,33 @@ module Syskit
 
                     all_tasks << source_task
 
-                    if !source_task.kind_of?(Composition)
+                    unless source_task.kind_of?(Composition)
                         source_task.each_concrete_output_connection do |source_port, sink_port, sink_task, policy|
                             next if excluded_models.include?(sink_task.concrete_model)
+
                             connections[[source_task, source_port, sink_port, sink_task]] = policy
                         end
                     end
                     source_task.each_output_connection do |source_port, sink_port, sink_task, policy|
-                        next if connections.has_key?([source_port, sink_port, sink_task])
+                        next if connections.key?([source_port, sink_port, sink_task])
                         next if excluded_models.include?(sink_task.concrete_model)
-                        next if options[:remove_compositions] && sink_task.kind_of?(Composition)
+                        next if remove_compositions && sink_task.kind_of?(Composition)
+
                         connections[[source_task, source_port, sink_port, sink_task]] = policy
                     end
                 end
 
                 # Register ports that are part of connections, but are not
                 # defined on the task's interface. They are dynamic ports.
-                connections.each do |(source_task, source_port, sink_port, sink_task), policy|
+                connections.each_key do |source_task, source_port, sink_port, sink_task|
                     source_port = source_task.find_port(source_port)
                     connected_ports[source_task] << source_port
-                    sink_port   = sink_task.find_port(sink_port)
-                    connected_ports[sink_task]   << sink_port
-                    if !input_ports[source_task].include?(source_port)
+                    sink_port = sink_task.find_port(sink_port)
+                    connected_ports[sink_task] << sink_port
+                    unless input_ports[source_task].include?(source_port)
                         output_ports[source_task] << source_port
                     end
-                    if !output_ports[sink_task].include?(sink_port)
+                    unless output_ports[sink_task].include?(sink_port)
                         input_ports[sink_task] << sink_port
                     end
                 end
@@ -512,7 +491,7 @@ module Syskit
                 result = []
 
                 # Finally, emit the dot code for connections
-                connections.each do |(source_task, source_port, sink_port, sink_task), policy|
+                connections.each_key do |source_task, source_port, sink_port, sink_task|
                     source_port = source_task.find_port(source_port)
                     sink_port   = sink_task.find_port(sink_port)
                     if source_task.kind_of?(Syskit::Composition) || sink_task.kind_of?(Syskit::Composition)
@@ -522,14 +501,14 @@ module Syskit
                     source_port_id = dot_id(source_port, source_task)
                     sink_port_id   = dot_id(sink_port, sink_task)
 
-                    label = conn_annotations[[source_task, source_port.name, sink_task, sink_port.name]].join(",")
+                    label = conn_annotations[[source_task, source_port.name, sink_task, sink_port.name]].join(',')
                     result << "  #{source_port_id} -> #{sink_port_id} [#{style}label=\"#{label}\"];"
                 end
 
                 # Group the tasks by deployment
-                clusters = Hash.new { |h, k| h[k] = Array.new }
+                clusters = Hash.new { |h, k| h[k] = [] }
                 all_tasks.each do |task|
-                    if !task.kind_of?(Deployment)
+                    unless task.kind_of?(Deployment)
                         clusters[task.execution_agent] << task
                     end
                 end
@@ -537,7 +516,7 @@ module Syskit
                 # Allocate one color for each task. The ideal would be to do a
                 # graph coloring so that two related tasks don't get the same
                 # color, but that's TODO
-                task_colors = Hash.new
+                task_colors = {}
                 used_deployments = all_tasks.map(&:execution_agent).to_set
                 used_deployments.each do |task|
                     task_colors[task] = Syskit.allocate_color
@@ -546,32 +525,29 @@ module Syskit
                 clusters.each do |deployment, task_contexts|
                     if deployment
                         result << "  subgraph cluster_#{deployment.dot_id} {"
-                        task_label, task_dot_attributes = format_task_label(deployment, task_colors)
-                        label = "  <TABLE ALIGN=\"LEFT\" COLOR=\"white\" BORDER=\"1\" CELLBORDER=\"0\" CELLSPACING=\"0\">\n"
-                        label << "    #{task_label}\n"
-                        label << "  </TABLE>"
+                        task_label, = format_task_label(deployment, task_colors)
+                        label = '  <TABLE ALIGN="LEFT" COLOR="white" BORDER="1"'\
+                                ' CELLBORDER="0" CELLSPACING="0">'\
+                                "#{task_label}</TABLE>"
                         result << "      label=< #{label} >;"
                     end
 
                     task_contexts.each do |task|
-                        if !task
-                            raise "#{task} #{deployment} #{task_contexts.inspect}"
-                        end
-                        if options[:highlights].include?(task)
-                            style = "penwidth=3;"
-                        end
-                        inputs  = input_ports[task]
+                        raise "#{task} #{deployment} #{task_contexts.inspect}" unless task
+
+                        style = 'penwidth=3;' if highlights.include?(task)
+                        inputs = input_ports[task]
                         outputs = output_ports[task]
-                        if !options[:show_all_ports]
-                            inputs  = (inputs & connected_ports[task]).to_a.sort_by(&:name)
-                            outputs = (outputs & connected_ports[task]).to_a.sort_by(&:name)
+                        unless show_all_ports
+                            inputs  = (inputs & connected_ports[task])
+                                      .to_a.sort_by(&:name)
+                            outputs = (outputs & connected_ports[task])
+                                      .to_a.sort_by(&:name)
                         end
                         result << render_task(task, inputs, outputs, style)
                     end
 
-                    if deployment
-                        result << "  };"
-                    end
+                    result << '  };' if deployment
                 end
 
                 additional_edges.each do |from, to, label|
@@ -580,18 +556,16 @@ module Syskit
                     result << "  #{from_id} -> #{to_id} [#{label}];"
                 end
 
-                if result.empty?
-                    # This workarounds a dot bug in which some degenerate graphs
-                    # (only one node) crash it
-                    return "digraph { }"
-                else
-                    ["digraph {",
-                     "  rankdir=LR;",
-                     "  node [shape=none,margin=0,height=.1,fontname=\"Arial\"];"].
-                    concat(result).
-                    concat(["}"]).
-                    join("\n")
-                end
+                # This workarounds a dot bug in which some degenerate graphs
+                # (only one node) crash it
+                return 'digraph { }' if result.empty?
+
+                ['digraph {',
+                 '  rankdir=LR;',
+                 '  node [shape=none,margin=0,height=.1,fontname="Arial"];']
+                    .concat(result)
+                    .concat(['}'])
+                    .join("\n")
             end
 
             def dot_symbol_quote(string)
@@ -608,14 +582,15 @@ module Syskit
                     "outputs#{context.dot_id}:#{dot_id(object.name)}"
                 else
                     if object.respond_to?(:to_str)
-                        if !context
-                            return dot_symbol_quote(object)
-                        elsif context.respond_to?(:dot_id)
+                        return dot_symbol_quote(object) unless context
+                        if context.respond_to?(:dot_id)
                             return "#{dot_symbol_quote(object)}#{context.dot_id}"
                         end
                     end
 
-                    raise ArgumentError, "don't know how to generate a dot ID for #{object} in context #{context}"
+                    raise ArgumentError,
+                          "don't know how to generate a dot ID for #{object} "\
+                          "in context #{context}"
                 end
             end
 
@@ -625,14 +600,12 @@ module Syskit
             ]
 
             def render_task(task, input_ports, output_ports, style = nil)
-                task_link = if make_links?
-                                "href=\"plan://syskit/#{task.dot_id}\""
-                            end
+                task_link = "href=\"plan://syskit/#{task.dot_id}\"" if make_links?
 
                 result = []
                 result << "    subgraph cluster_#{task.dot_id} {"
                 result << "        #{task_link};"
-                result << "        label=\"\";"
+                result << '        label="";'
                 if task.abstract?
                     result << "      color=\"#{@colors[:normal].abstract}\";"
                 elsif task.kind_of?(Syskit::Composition)
@@ -644,141 +617,142 @@ module Syskit
                     result << "      #{dot_id(vertex_name, task)} [#{vertex_label}];"
                 end
 
-                task_label, attributes = format_task_label(task)
-                task_label = "  <TABLE ALIGN=\"LEFT\" COLOR=\"white\" BORDER=\"1\" CELLBORDER=\"0\" CELLSPACING=\"0\">#{task_label}</TABLE>"
-                result << "    label#{task.dot_id} [#{task_link},shape=none,label=< #{task_label} >];";
+                task_label, = format_task_label(task)
+                task_label = '  <TABLE ALIGN="LEFT" COLOR="white" BORDER="1" '\
+                             'CELLBORDER="0" CELLSPACING="0">'\
+                             "#{task_label}</TABLE>"
+                result << "    label#{task.dot_id} [#{task_link},shape=none,"\
+                          "label=< #{task_label} >];"
 
-                if !input_ports.empty?
-                    input_port_label = "<TABLE BORDER=\"0\" CELLBORDER=\"1\" CELLSPACING=\"0\">"
+                unless input_ports.empty?
+                    input_port_label = '<TABLE BORDER="0" CELLBORDER="1" CELLSPACING="0">'
                     input_ports.each do |p|
                         port_type = Roby.app.default_loader.opaque_type_for(p.type)
                         port_id = dot_id(p.name)
                         ann = format_annotations(port_annotations, [task, p.name])
                         doc = escape_dot(p.model.doc || '<no documentation for this port>')
-                        input_port_label << "<TR><TD HREF=\"#{uri_for(port_type)}\" TITLE=\"#{doc}\"><TABLE BORDER=\"0\" CELLBORDER=\"0\"><TR><TD PORT=\"#{port_id}\" COLSPAN=\"2\">#{p.name}</TD></TR>#{ann}</TABLE></TD></TR>"
+                        input_port_label += "<TR><TD HREF=\"#{uri_for(port_type)}\" TITLE=\"#{doc}\"><TABLE BORDER=\"0\" CELLBORDER=\"0\"><TR><TD PORT=\"#{port_id}\" COLSPAN=\"2\">#{p.name}</TD></TR>#{ann}</TABLE></TD></TR>"
                     end
                     input_port_label << "\n</TABLE>"
                     result << "    inputs#{task.dot_id} [label=< #{input_port_label} >,shape=none];"
                     result << "    inputs#{task.dot_id} -> label#{task.dot_id} [style=invis];"
                 end
 
-                if !output_ports.empty?
-                    output_port_label = "<TABLE BORDER=\"0\" CELLBORDER=\"1\" CELLSPACING=\"0\">"
+                unless output_ports.empty?
+                    output_port_label =
+                        '<TABLE BORDER="0" CELLBORDER="1" CELLSPACING="0">'
                     output_ports.each do |p|
                         port_type = Roby.app.default_loader.opaque_type_for(p.type)
                         port_id = dot_id(p.name)
                         ann = format_annotations(port_annotations, [task, p.name])
                         doc = escape_dot(p.model.doc || '<no documentation for this port>')
-                        output_port_label << "<TR><TD HREF=\"#{uri_for(port_type)}\" TITLE=\"#{doc}\"><TABLE BORDER=\"0\" CELLBORDER=\"0\"><TR><TD PORT=\"#{port_id}\" COLSPAN=\"2\">#{p.name}</TD></TR>#{ann}</TABLE></TD></TR>"
+                        output_port_label += "<TR><TD HREF=\"#{uri_for(port_type)}\" TITLE=\"#{doc}\"><TABLE BORDER=\"0\" CELLBORDER=\"0\"><TR><TD PORT=\"#{port_id}\" COLSPAN=\"2\">#{p.name}</TD></TR>#{ann}</TABLE></TD></TR>"
                     end
                     output_port_label << "\n</TABLE>"
                     result << "    outputs#{task.dot_id} [label=< #{output_port_label} >,shape=none];"
                     result << "    label#{task.dot_id} -> outputs#{task.dot_id} [style=invis];"
                 end
 
-                result << "    }"
+                result << '    }'
                 result.join("\n")
             end
+
             def format_annotations(annotations, key = nil, include_empty: false)
                 if key
-                    if !annotations.has_key?(key)
-                        return
-                    end
+                    return unless annotations.key?(key)
+
                     ann = annotations[key]
                 else
                     ann = annotations
                 end
 
-                result = []
                 result = ann.map do |category, values|
-                    # Values are allowed to be an array of strings or plain strings, normalize to array
+                    # Values are allowed to be an array of strings or plain
+                    # strings, normalize to array
                     values = [*values]
-                    next if (values.empty? && !include_empty)
+                    next if values.empty? && !include_empty
 
-                    values = values.map { |v| v.tr("<>", "[]") }
-                    values = values.map { |v| v.tr("{}", "[]") }
+                    values = values.map { |v| v.tr('<>', '[]') }
+                    values = values.map { |v| v.tr('{}', '[]') }
 
-                   "<TR><TD ROWSPAN=\"#{values.size()}\" VALIGN=\"TOP\" ALIGN=\"RIGHT\">#{category}</TD><TD ALIGN=\"LEFT\">#{values.first}</TD></TR>\n" +
-                   values[1..-1].map { |v| "<TR><TD ALIGN=\"LEFT\">#{v}</TD></TR>" }.join("\n")
+                    "<TR><TD ROWSPAN=\"#{values.size}\" VALIGN=\"TOP\" "\
+                    "ALIGN=\"RIGHT\">#{category}</TD><TD ALIGN=\"LEFT\">"\
+                    "#{values.first}</TD></TR>\n" +
+                    values[1..-1].map { |v| "<TR><TD ALIGN=\"LEFT\">#{v}</TD></TR>" }.join("\n")
                 end.flatten
 
-                if !result.empty?
-                    result.map { |l| "    #{l}" }.join("\n")
-                end
+                result.map { |l| "    #{l}" }.join("\n")
             end
 
+            COMPONENT_ROOT_CLASSES = [
+                Syskit::Component, Syskit::TaskContext, Syskit::Composition
+            ].freeze
 
-            def format_task_label(task, task_colors = Hash.new)
+            def format_task_label(task, task_colors = {})
                 label = []
 
                 if task.placeholder?
-                    name = task.proxied_data_service_models.map do |model|
-                        model.name
-                    end
-                    if ![Syskit::Component, Syskit::TaskContext, Syskit::Composition].include?(task.model.superclass) &&
+                    name = task.proxied_data_service_models.map(&:name)
+                    unless COMPONENT_ROOT_CLASSES.include?(task.model.superclass)
                         name = [task.model.superclass.name] + name
                     end
-                    name = escape_dot(name.join(","))
+                    name = escape_dot(name.join(','))
                     if task.model.respond_to?(:tag_name)
                         name = "#{task.model.tag_name}_tag(#{name})"
                     end
-                    if task.transaction_proxy?
-                        name = "[T] #{name}"
-                    end
+                    name = "[T] #{name}" if task.transaction_proxy?
                     label << "<TR><TD COLSPAN=\"2\">#{escape_dot(name)}</TD></TR>"
                 else
-                    annotations = Array.new
+                    annotations = []
                     if task.model.respond_to?(:is_specialization?) && task.model.is_specialization?
-                        annotations = [["Specialized On", [""]]]
-                        name = task.model.root_model.name || ""
+                        annotations = [['Specialized On', ['']]]
+                        name = task.model.root_model.name || ''
                         task.model.specialized_children.each do |child_name, child_models|
                             child_models = child_models.map(&:short_name)
                             annotations << [child_name, child_models.shift]
                             child_models.each do |m|
-                                annotations << ["", m]
+                                annotations << ['', m]
                             end
                         end
 
                     else
-                        name = task.concrete_model.name || ""
+                        name = task.concrete_model.name || ''
                     end
 
                     name = name.dup
                     if task.execution_agent && task.respond_to?(:orocos_name)
                         name << "[#{task.orocos_name}]"
                     end
-                    if task.transaction_proxy?
-                        name = "[T] #{name}"
-                    end
+                    name = "[T] #{name}" if task.transaction_proxy?
                     label << "<TR><TD COLSPAN=\"2\">#{escape_dot(name)}</TD></TR>"
                     ann = format_annotations(annotations)
                     label << ann
                 end
 
-                if ann = format_annotations(task_annotations, task)
+                if (ann = format_annotations(task_annotations, task))
                     label << ann
                 end
 
-                return "    " + label.join("\n    ")
+                '    ' + label.join("\n    ")
             end
 
             def self.dot_iolabel(name, inputs, outputs)
-                label = "{{"
-                if !inputs.empty?
+                label = '{{'
+                unless inputs.empty?
                     label << inputs.sort.map do |port_name|
-                            "<#{port_name}> #{port_name}"
-                    end.join("|")
-                    label << "|"
+                        "<#{port_name}> #{port_name}"
+                    end.join('|')
+                    label << '|'
                 end
                 label << "<main> #{name}"
 
-                if !outputs.empty?
-                    label << "|"
+                unless outputs.empty?
+                    label << '|'
                     label << outputs.sort.map do |port_name|
-                            "<#{port_name}> #{port_name}"
-                    end.join("|")
+                        "<#{port_name}> #{port_name}"
+                    end.join('|')
                 end
-                label << "}}"
+                label << '}}'
             end
         end
 end

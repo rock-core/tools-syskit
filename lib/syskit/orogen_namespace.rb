@@ -102,7 +102,7 @@ module Syskit
 
 
         def respond_to_missing?(m, include_private = false)
-            @project_namespaces.has_key?(m)
+            @project_namespaces.key?(m)
         end
 
         def method_missing(m, *args, &block)

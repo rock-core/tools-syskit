@@ -6,37 +6,41 @@ module Syskit
             attr_reader :trigger, :trigger_name, :period, :sample_count
             before do
                 @trigger = PortDynamics::Trigger.new(
-                    @trigger_name = 'trigger_test', @period = flexmock, @sample_count = flexmock)
+                    @trigger_name = 'trigger_test',
+                    @period = flexmock,
+                    @sample_count = flexmock
+                )
             end
-            it "defines hash-compatible equality" do
+            it 'defines hash-compatible equality' do
                 trigger1 = PortDynamics::Trigger.new(
                     trigger_name, period, sample_count)
                 assert_equal Set[trigger], Set[trigger1]
             end
-            it "is inequal in the hash sense if the name differs" do
+            it 'is inequal in the hash sense if the name differs' do
                 trigger1 = PortDynamics::Trigger.new(
                     'other_name', period, sample_count)
                 refute_equal Set[trigger], Set[trigger1]
             end
-            it "is inequal in the hash sense if the period differs" do
+            it 'is inequal in the hash sense if the period differs' do
                 trigger1 = PortDynamics::Trigger.new(
                     trigger_name, flexmock, sample_count)
                 refute_equal Set[trigger], Set[trigger1]
             end
-            it "is inequal in the hash sense if the sample_count differs" do
+            it 'is inequal in the hash sense if the sample_count differs' do
                 trigger1 = PortDynamics::Trigger.new(
                     trigger_name, period, flexmock)
                 refute_equal Set[trigger], Set[trigger1]
             end
         end
+
         describe PortDynamics do
-            describe "#merge" do
+            describe '#merge' do
                 # This tests against a memory explosion regression.
                 # InstanceRequirements are routinely merged against themselves,
                 # thus PortDynamics too (through InstanceRequirements#dynamics).
                 # This led to having the trigger array of #dynamics explode
                 # after a few deployments.
-                it "stays identical if merged with a duplicate of itself" do
+                it 'stays identical if merged with a duplicate of itself' do
                     dynamics0 = PortDynamics.new('port')
                     dynamics0.add_trigger 'test', 1, 1
                     dynamics1 = PortDynamics.new('port')
@@ -53,8 +57,8 @@ module Syskit
                 @dynamics = NetworkGeneration::DataFlowDynamics.new(plan)
             end
 
-            describe "initial port information" do
-                it "uses the task's requirements as final information for a port" do
+            describe 'initial port information' do
+                it 'uses the task\'s requirements as final information for a port' do
                     stub_t = stub_type '/test'
                     task_m = Syskit::TaskContext.new_submodel do
                         output_port 'out', stub_t
@@ -66,7 +70,7 @@ module Syskit
                     port_dynamics = dynamics.port_info(task, 'out')
 
                     assert_equal [PortDynamics::Trigger.new('period', 0.1, 1)],
-                        port_dynamics.triggers.to_a
+                                 port_dynamics.triggers.to_a
                 end
 
                 describe "master/slave deployments" do
@@ -75,8 +79,8 @@ module Syskit
                             output_port 'out', '/double'
                         end
                         deployment_m = Syskit::Deployment.new_submodel do
-                            master = task('master', task_m.orogen_model).
-                                periodic(0.1)
+                            master = task('master', task_m.orogen_model)
+                                     .periodic(0.1)
                             slave  = task 'slave', task_m.orogen_model
                             slave.slave_of(master)
                         end
@@ -87,7 +91,7 @@ module Syskit
                         dynamics.reset([@master, @slave])
                     end
 
-                    it "resolves if called for the slave after the master" do
+                    it 'resolves if called for the slave after the master' do
                         flexmock(dynamics).should_receive(:set_port_info).
                             with(@slave, nil, any).once
                         flexmock(dynamics).should_receive(:set_port_info)
@@ -97,7 +101,7 @@ module Syskit
                         assert dynamics.has_final_information_for_task?(@slave)
                     end
 
-                    it "resolves if called for the master after the slave" do
+                    it 'resolves if called for the master after the slave' do
                         flexmock(dynamics).should_receive(:set_port_info).
                             with(@slave, nil, any).once
                         flexmock(dynamics).should_receive(:set_port_info)
@@ -123,10 +127,10 @@ module Syskit
                             output_port('out', '/double').triggered_on('in')
                         end
                         deployment_m = Syskit::Deployment.new_submodel do
-                            task('source', source_m.orogen_model).
-                                periodic(0.01)
-                            master = task('master', master_m.orogen_model).
-                                periodic(0.1)
+                            task('source', source_m.orogen_model)
+                                .periodic(0.01)
+                            master = task('master', master_m.orogen_model)
+                                     .periodic(0.1)
                             slave  = task 'slave', sink_m.orogen_model
                             slave.slave_of(master)
                         end

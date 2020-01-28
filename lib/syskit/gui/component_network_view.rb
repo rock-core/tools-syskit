@@ -1,3 +1,5 @@
+# frozen_string_literal: true
+
 require 'metaruby/gui/html/button'
 require 'syskit/gui/component_network_base_view'
 module Syskit
@@ -26,7 +28,9 @@ module Syskit
             # @return [Roby::Plan]
             attr_reader :plan
 
-            # The toplevel task for the model we render
+            # The toplevel task for the last rendered model
+            #
+            # Set by {#render}
             #
             # @return [Syskit::Component]
             attr_reader :task
@@ -40,7 +44,7 @@ module Syskit
                     title: 'Task Dependency Hierarchy',
                     id: 'hierarchy',
                     remove_compositions: false,
-                    annotations: ['task_info', 'port_details'].to_set,
+                    annotations: %w[task_info port_details].to_set,
                     zoom: 1
                 ]
                 @dataflow_options = Hash[
@@ -54,26 +58,34 @@ module Syskit
                 ]
 
                 buttons = []
-                buttons << Button.new("dataflow/show_compositions",
+                buttons << Button.new('dataflow/show_compositions',
                                       on_text: 'Show compositions',
                                       off_text: 'Hide compositions',
                                       state: !dataflow_options[:remove_compositions])
-                buttons << Button.new("dataflow/show_all_ports",
+                buttons << Button.new('dataflow/show_all_ports',
                                       on_text: 'Show all ports',
                                       off_text: 'Hide unused ports',
                                       state: dataflow_options[:show_all_ports])
 
                 if defined? OroGen::Logger::Logger
                     dataflow_options[:excluded_models] << OroGen::Logger::Logger
-                    buttons << Button.new("dataflow/show_loggers",
+                    buttons << Button.new('dataflow/show_loggers',
                                           on_text: 'Show loggers',
                                           off_text: 'Hide loggers',
                                           state: false)
                 end
 
                 buttons.concat(self.class.common_graph_buttons('dataflow'))
-                buttons.concat(self.class.task_annotation_buttons('dataflow', dataflow_options[:annotations]))
-                buttons.concat(self.class.graph_annotation_buttons('dataflow', dataflow_options[:annotations]))
+                buttons.concat(
+                    self.class.task_annotation_buttons(
+                        'dataflow', dataflow_options[:annotations]
+                    )
+                )
+                buttons.concat(
+                    self.class.graph_annotation_buttons(
+                        'dataflow', dataflow_options[:annotations]
+                    )
+                )
                 dataflow_options[:buttons] = buttons
 
                 buttons = []
@@ -101,21 +113,23 @@ module Syskit
             #   of both graphs in {#render_plan}
             def render(model,
                        method: :instanciate_model,
-                       name: nil,
+                       name: model.object_id.to_s,
                        show_requirements: false,
-                       instanciate_options: Hash.new,
-                       dataflow: Hash.new,
-                       hierarchy: Hash.new,
+                       instanciate_options: {},
+                       dataflow: {},
+                       hierarchy: {},
                        **render_options)
                 super
 
                 plan.clear
 
                 if show_requirements
-                    html = ModelViews.render_instance_requirements(page,
-                            model.to_instance_requirements,
-                            resolve_dependency_injection: true).join("\n")
-                    page.push("Resolved Requirements", "<pre>#{html}</pre>")
+                    html = ModelViews.render_instance_requirements(
+                        page,
+                        model.to_instance_requirements,
+                        resolve_dependency_injection: true
+                    ).join("\n")
+                    page.push('Resolved Requirements', "<pre>#{html}</pre>")
                 end
 
                 begin
@@ -126,44 +140,47 @@ module Syskit
                     else
                         @task = instanciate_model(model, plan, instanciate_options)
                     end
-                rescue Exception => e
-                    if view_partial_plans? then
-                        exception = e
-                    else raise
-                    end
+                rescue StandardError => e
+                    raise unless view_partial_plans?
+
+                    exception = e
                 end
 
-                render_options[:name] ||= model.object_id.to_s
                 if timing
-                    page.push("", "<p>Network generated in %.3f</p>" % [timing], id: "timing-#{name}")
+                    html = format('<p>Network generated in %<timing>.3f</p>',
+                                  timing: timing)
+                    page.push('', html, id: "timing-#{name}")
                 end
 
-                hierarchy_options = self.hierarchy_options.
-                    merge(render_options).
-                    merge(hierarchy)
-                hierarchy_options = process_options('hierarchy', model, hierarchy_options)
-                dataflow_options = self.dataflow_options.
-                    merge(render_options).
-                    merge(dataflow)
-                dataflow_options = process_options('dataflow', model, dataflow_options)
+                hierarchy_options = self.hierarchy_options
+                                        .merge(render_options)
+                                        .merge(hierarchy)
+                hierarchy_options = process_options(
+                    'hierarchy', model, name: name, **hierarchy_options
+                )
+                dataflow_options = self.dataflow_options
+                                       .merge(render_options)
+                                       .merge(dataflow)
+                dataflow_options = process_options(
+                    'dataflow', model, name: name, **dataflow_options
+                )
 
-
-                render_plan
-                if exception
-                    raise exception
-                end
+                render_plan(hierarchy: hierarchy_options,
+                            dataflow: dataflow_options)
+                raise exception if exception
             end
 
-            def process_options(kind, model, options)
-                options = Kernel.normalize_options options
-
-                name = options[:name]
+            def process_options(kind, _model, name:, **options)
                 if options[:id]
-                    options[:id] = options[:id] % "#{kind}-#{name}"
+                    options[:id] = format(
+                        options[:id].to_str, "#{kind}-#{name}"
+                    )
                 end
 
-                if externals = options.delete(:external_objects)
-                    options[:external_objects] = externals % "#{kind}-#{name}"
+                if (externals = options[:external_objects])
+                    options[:external_objects] = format(
+                        externals.to_str, "#{kind}-#{name}"
+                    )
                 end
                 options
             end
@@ -180,17 +197,22 @@ module Syskit
             #   and {#dataflow_options}
             # @param [Hash] options options that should be passed to
             # {#push_plan} for both the hierarchy and dataflow graphs
-            def render_plan(hierarchy: Hash.new, dataflow: Hash.new, **options)
+            def render_plan(hierarchy: {}, dataflow: {}, **options)
                 all_annotations = Syskit::Graphviz.available_annotations.to_set
 
-                hierarchy_options = options.merge(self.hierarchy_options).merge(hierarchy)
+                hierarchy_options = options
+                                    .merge(self.hierarchy_options)
+                                    .merge(hierarchy)
                 push_plan('hierarchy', plan, hierarchy_options)
-                dataflow_options = Hash[annotations: all_annotations].
-                    merge(self.dataflow_options).merge(options).merge(dataflow)
+
+                dataflow_options = { annotations: all_annotations }
+                                   .merge(self.dataflow_options)
+                                   .merge(options)
+                                   .merge(dataflow)
                 push_plan('dataflow', plan, dataflow_options)
+
                 emit updated
             end
         end
     end
 end
-

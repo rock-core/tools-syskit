@@ -1,3 +1,5 @@
+# frozen_string_literal: true
+
 module Syskit
     module GUI
         # Base functionality to display plans that contain component networks
@@ -37,9 +39,9 @@ module Syskit
             #   is prefixed before the button ID. The final button ID are
             #   #{namespace}/#{button_name} (e.g. #{namespace}/zoom)
             def self.common_graph_buttons(namespace)
-                [Button.new("#{namespace}/zoom", text: "Zoom +"),
-                 Button.new("#{namespace}/unzoom", text: "Zoom -"),
-                 Button.new("#{namespace}/save", text: "Save SVG")]
+                [Button.new("#{namespace}/zoom", text: 'Zoom +'),
+                 Button.new("#{namespace}/unzoom", text: 'Zoom -'),
+                 Button.new("#{namespace}/save", text: 'Save SVG')]
             end
 
             # Generate the list of buttons that allows to display or hide
@@ -52,7 +54,9 @@ module Syskit
             #
             # @see Graphviz.available_task_annotations
             def self.task_annotation_buttons(namespace, defaults)
-                make_annotation_buttons(namespace, Graphviz.available_task_annotations, defaults)
+                make_annotation_buttons(
+                    namespace, Graphviz.available_task_annotations, defaults
+                )
             end
 
             # Generate the list of buttons that allows to display or hide
@@ -66,7 +70,9 @@ module Syskit
             #
             # @see Graphviz.available_graph_annotations
             def self.graph_annotation_buttons(namespace, defaults)
-                make_annotation_buttons(namespace, Graphviz.available_graph_annotations, defaults)
+                make_annotation_buttons(
+                    namespace, Graphviz.available_graph_annotations, defaults
+                )
             end
 
             def initialize(page)
@@ -79,7 +85,8 @@ module Syskit
             # This is usually not called directly, it is used by
             # {MetaRuby::GUI::ModelBrowser}
             def enable
-                connect(page, SIGNAL('buttonClicked(const QString&,bool)'), self, SLOT('buttonClicked(const QString&,bool)'))
+                connect(page, SIGNAL('buttonClicked(const QString&,bool)'),
+                        self, SLOT('buttonClicked(const QString&,bool)'))
             end
 
             # Disable this HTML renderer
@@ -87,16 +94,17 @@ module Syskit
             # This is usually not called directly, it is used by
             # {MetaRuby::GUI::ModelBrowser}
             def disable
-                disconnect(page, SIGNAL('buttonClicked(const QString&,bool)'), self, SLOT('buttonClicked(const QString&,bool)'))
+                disconnect(page, SIGNAL('buttonClicked(const QString&,bool)'),
+                           self, SLOT('buttonClicked(const QString&,bool)'))
             end
 
             # Template used in {#render_data_services} if the with_names argument is false
-            DATA_SERVICE_WITHOUT_NAMES_TEMPLATE = <<-EOD
+            DATA_SERVICE_WITHOUT_NAMES_TEMPLATE = <<-HTML
             <table>
             <% services.each do |service_name, provided_services| %>
             <tr><td>
               <%= provided_services.map do |srv_model, srv_port_mappings|
-                    if srv_port_mappings.empty? 
+                    if srv_port_mappings.empty?
                         page.link_to(srv_model)
                     else
                         "\#{page.link_to(srv_model)}: \#{srv_port_mappings}"
@@ -106,15 +114,15 @@ module Syskit
             </td></tr>
             <% end %>
             </table>
-            EOD
+            HTML
 
             # Template used in {#render_data_services} if the with_names argument is true
-            DATA_SERVICE_WITH_NAMES_TEMPLATE = <<-EOD
+            DATA_SERVICE_WITH_NAMES_TEMPLATE = <<-HTML
             <table>
             <% services.each do |service_name, provided_services| %>
             <tr><th><%= service_name %></th><td>
               <%= provided_services.map do |srv_model, srv_port_mappings|
-                    if srv_port_mappings.empty? 
+                    if srv_port_mappings.empty?
                         page.link_to(srv_model)
                     else
                         "\#{page.link_to(srv_model)}: \#{srv_port_mappings}"
@@ -124,10 +132,9 @@ module Syskit
             </td></tr>
             <% end %>
             </table>
-            EOD
+            HTML
 
-            def clear
-            end
+            def clear; end
 
             # Compute the system network for a model
             #
@@ -178,13 +185,15 @@ module Syskit
             def list_services(task)
                 services = []
                 task.model.each_data_service.sort_by(&:first).each do |service_name, service|
-                    model_hierarchy = service.model.ancestors.
-                        find_all do |m|
-                        m.kind_of?(Syskit::Models::DataServiceModel) &&
-                            m != Syskit::DataService &&
-                            m != Syskit::Device &&
-                            m != task.model
-                    end
+                    model_hierarchy =
+                        service
+                        .model.ancestors
+                        .find_all do |m|
+                            m.kind_of?(Syskit::Models::DataServiceModel) &&
+                                m != Syskit::DataService &&
+                                m != Syskit::Device &&
+                                m != task.model
+                        end
 
                     provided_services = []
                     model_hierarchy.each do |m|
@@ -206,18 +215,19 @@ module Syskit
             #   service names or not
             def render_data_services(task, with_names = true)
                 services = list_services(task)
-                if services.empty?
-                    html = ""
-                else
-                    if with_names
-                        html = ERB.new(DATA_SERVICE_WITH_NAMES_TEMPLATE).result(binding)
+                html =
+                    if services.empty?
+                        ''
+                    elsif with_names
+                        ERB.new(DATA_SERVICE_WITH_NAMES_TEMPLATE).result(binding)
                     else
-                        html = ERB.new(DATA_SERVICE_WITHOUT_NAMES_TEMPLATE).result(binding)
+                        ERB.new(DATA_SERVICE_WITHOUT_NAMES_TEMPLATE).result(binding)
                     end
-                end
 
-                page.push("Provided Services", html, id: 'provided_services')
+                page.push('Provided Services', html, id: 'provided_services')
             end
+
+            DEFINITION_PLACE_LABELS = %w[require using_task_library].freeze
 
             # Find the file, line number and method name where a model was defined
             #
@@ -225,13 +235,12 @@ module Syskit
             # @return [(String,Integer,String),nil] the definition place or nil
             #   if one cannot be determined
             def self.find_definition_place(model)
-                location = model.definition_location.find do |location|
-                    return if location.label == 'require' || location.label == 'using_task_library'
-                    Roby.app.app_file?(location.absolute_path)
+                location = model.definition_location.find do |defloc|
+                    break if DEFINITION_PLACE_LABELS.include?(defloc.label)
+
+                    Roby.app.app_file?(defloc.absolute_path)
                 end
-                if location
-                    return location.absolute_path, location.lineno
-                end
+                [location.absolute_path, location.lineno] if location
             end
 
             # Render the snippet that represents the definition place of a model
@@ -244,28 +253,31 @@ module Syskit
             #   nil, it will be determined by calling {.find_definition_place}
             # @param [String] format a format string (usable with {String#%}
             #   used to render the definition place in HTML
-            def self.html_defined_in(page, model, with_require: true, definition_location: nil, format: "<b>Defined in</b> %s")
+            def self.html_defined_in(page, model,
+                                     with_require: true, definition_location: nil,
+                                     format: '<b>Defined in</b> %s')
                 path, lineno = *definition_location || find_definition_place(model)
-                if path
-                    path = Pathname.new(path)
-                    path_link = page.link_to(path, "#{path}:#{lineno}", lineno: lineno)
-                    page.push(nil, "<p>#{format % [path_link]}</p>")
-                    if with_require
-                        if req_base = $LOAD_PATH.find { |p| path.fnmatch?(File.join(p, "*")) }
-                            req = path.relative_path_from(Pathname.new(req_base))
-                            page.push(nil, "<code>require '#{req.sub_ext("")}'</code>")
-                        end
-                    end
-                end
+                return unless path
+
+                path = Pathname.new(path)
+                path_link = page.link_to(path, "#{path}:#{lineno}", lineno: lineno)
+                page.push(nil, "<p>#{format % [path_link]}</p>")
+                return unless with_require
+
+                req_base = $LOAD_PATH.find { |p| path.fnmatch?(File.join(p, '*')) }
+                return unless req_base
+
+                req = path.relative_path_from(Pathname.new(req_base))
+                page.push(nil, "<code>require '#{req.sub_ext('')}'</code>")
             end
 
             def render_require_section(model)
-                if model.respond_to?(:definition_location)
-                    ComponentNetworkBaseView.html_defined_in(page, model, with_require: true)
-                end
+                return unless model.respond_to?(:definition_location)
+
+                ComponentNetworkBaseView.html_defined_in(page, model, with_require: true)
             end
 
-            def render(model, options = Hash.new)
+            def render(model, **)
                 render_require_section(model)
                 @current_model = model
             end
@@ -279,14 +291,16 @@ module Syskit
             # @param [String] id the fragment id as given to {Page#push}
             def save_svg(id)
                 page.fragments.each do |f|
-                    if f.id == id
-                        file_name = Qt::FileDialog::getSaveFileName @parent, 
-                            "Save #{id} as SVG", ".", "SVG (*.svg)"
-                        if file_name
-                            File.open(file_name,"w") do |file|
-                                file.write f.html
-                            end
-                        end
+                    next unless f.id == id
+
+                    file_name = Qt::FileDialog.getSaveFileName(
+                        @parent,
+                        "Save #{id} as SVG", '.', 'SVG (*.svg)'
+                    )
+                    next unless file_name
+
+                    File.open(file_name, 'w') do |file|
+                        file.write f.html
                     end
                 end
             end
@@ -297,32 +311,34 @@ module Syskit
             #
             # It handles the common component view buttons
             def buttonClicked(button_id, new_state)
-                button_id =~ /\/(\w+)(.*)/
-                namespace, button_id = $1, $2
+                button_match = %r{/(\w+)(.*)}.match(button_id)
+                namespace = button_match[1]
+                button_id = button_match[2]
                 config = send("#{namespace}_options")
                 case button_id
-                when /\/show_compositions/
+                when %r{/show_compositions}
                     config[:remove_compositions] = !new_state
-                when /\/show_all_ports/
+                when %r{/show_all_ports}
                     config[:show_all_ports] = new_state
-                when /\/show_logger/
+                when %r{/show_logger}
                     if new_state
                         config[:excluded_models].delete(OroGen::Logger::Logger)
                     else
                         config[:excluded_models] << OroGen::Logger::Logger
                     end
-                when /\/zoom/
+                when %r{/zoom}
                     config[:zoom] += 0.1
-                when /\/unzoom/
-                    if config[:zoom] > 0.1
-                        config[:zoom] -= 0.1
-                    end
-                when /\/save/
+                when %r{/unzoom}
+                    config[:zoom] -= 0.1
+                    config[:zoom] = 0.1 if config[:zoom] < 0.1
+                when %r{/save}
                     save_svg namespace
-                when  /\/annotations\/(\w+)/
+                when %r{/annotations/(\w+)}
                     ann_name = $1
-                    if new_state then config[:annotations] << ann_name
-                    else config[:annotations].delete(ann_name)
+                    if new_state
+                        config[:annotations] << ann_name
+                    else
+                        config[:annotations].delete(ann_name)
                     end
                 end
                 push_plan(namespace, plan)
@@ -340,14 +356,11 @@ module Syskit
             #   interactive
             def push_plan(kind, plan, interactive: true, **push_options)
                 config = send("#{kind}_options").merge(push_options)
-                if !interactive
-                    config.delete(:buttons)
-                end
+                config.delete(:buttons) unless interactive
                 title = config.delete(:title)
-                page.push_plan(title, config.delete(:mode) || kind, plan, config.merge(id: kind))
+                page.push_plan(title, config.delete(:mode) || kind,
+                               plan, config.merge(id: kind))
             end
         end
     end
 end
-
-

@@ -49,14 +49,15 @@ end
 ORIGINAL_ARGV = ARGV.dup
 mode = ARGV.shift
 
-SYSKIT_MODES = ['doc', 'ide', 'process_server']
-ROBY_MODES = ['run', 'shell', 'test', 'gen', 'quit', 'restart']
+SYSKIT_MODES = %w[doc ide process_server].freeze
+ROBY_MODES = %w[run shell test gen quit restart].freeze
 if [nil, '--help', '-h', 'help'].include?(mode)
-    thor_modes = Syskit::CLI::Main.all_commands.
-        find_all { |_name, command| !command.hidden? }.
-        map(&:first)
-    all_modes = SYSKIT_MODES | ROBY_MODES | thor_modes 
-    puts "usage: syskit [#{all_modes.sort.join("|")}] <mode-arguments>"
+    thor_modes = Syskit::CLI::Main
+                 .all_commands
+                 .find_all { |_name, command| !command.hidden? }
+                 .map(&:first)
+    all_modes = SYSKIT_MODES | ROBY_MODES | thor_modes
+    puts "usage: syskit [#{all_modes.sort.join('|')}] <mode-arguments>"
     puts "Run 'syskit help <mode>' for more information"
 else
     if SYSKIT_MODES.include?(mode)
@@ -64,7 +65,7 @@ else
     elsif ROBY_MODES.include?(mode)
         require "roby/app/scripts/#{mode}"
     end
-    
+
     begin
         require "syskit/scripts/#{mode}"
     rescue LoadError => e

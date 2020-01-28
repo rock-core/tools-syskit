@@ -6,7 +6,7 @@ module Syskit
         class << self
             # (see RobyApp::Configuration#register_process_server)
             def register_process_server(name, client, log_dir = nil)
-                Syskit.conf.register_process_server(name, client, log_dir = nil)
+                Syskit.conf.register_process_server(name, client, log_dir)
             end
         end
 
@@ -23,11 +23,11 @@ module Syskit
             # and the remote task's state port
             STATE_READER_BUFFER_SIZE = 200
 
-            argument :process_name, :default => from(:model).deployment_name
-            argument :log, :default => true
-            argument :on, :default => 'localhost'
-            argument :name_mappings, :default => nil
-            argument :spawn_options, :default=> nil
+            argument :process_name, default: from(:model).deployment_name
+            argument :log, default: true
+            argument :on, default: 'localhost'
+            argument :name_mappings, default: nil
+            argument :spawn_options, default: nil
             argument :ready_polling_period, default: 0.1
             argument :logger_task, default: nil
 
@@ -38,44 +38,38 @@ module Syskit
             #
             # @return [RobyApp::Configuration::ProcessServerConfig]
             def process_server_config
-                @process_server_config ||= Syskit.conf.process_server_config_for(process_server_name)
+                @process_server_config ||=
+                    Syskit.conf.process_server_config_for(process_server_name)
             end
 
             def initialize(options = Hash.new)
                 super
 
                 @quit_ready_event_monitor = Concurrent::Event.new
-                @remote_task_handles = Hash.new
-                if !self.spawn_options
-                    self.spawn_options = Hash.new
-                end
-                if !self.name_mappings
-                    self.name_mappings = Hash.new
-                end
+                @remote_task_handles = {}
+                self.spawn_options = {} unless spawn_options
+                self.name_mappings = {} unless name_mappings
                 model.each_default_name_mapping do |k, v|
-                    self.name_mappings[k] ||= v
+                    name_mappings[k] ||= v
                 end
             end
 
-            @@all_deployments = Hash.new
+            @@all_deployments = {}
             class << self
-                def all_deployments; @@all_deployments end
+                def all_deployments
+                    @@all_deployments
+                end
             end
 
             # The PID of this process
             def pid
-                if running?
-                    @pid ||= orocos_process.pid
-                end
+                @pid ||= orocos_process.pid if running?
             end
 
             # Handles to all remote tasks from this deployment
             #
             # @return [Hash<String,RemoteTaskHandles>]
             attr_reader :remote_task_handles
-
-            # The underlying Orocos::Process instance
-            attr_reader :orocos_process
 
             # Event emitted when the deployment is up and running
             event :ready
@@ -140,16 +134,19 @@ module Syskit
             end
 
             def deployed_orogen_model_by_name(name)
-                orogen_task_deployment = each_orogen_deployed_task_context_model.
-                    find { |act| name == name_mappings[act.name] }
+                orogen_task_deployment =
+                    each_orogen_deployed_task_context_model
+                    .find { |act| name == name_mappings[act.name] }
                 unless orogen_task_deployment
-                    available = each_orogen_deployed_task_context_model.
-                        map { |act| name_mappings[act.name] }.sort.join(", ")
-                    mappings  = name_mappings.
-                        map { |k,v| "#{k} => #{v}" }.join(", ")
-                    raise ArgumentError, "no task called #{name} in "\
-                        "#{self.class.deployment_name}, available tasks are "\
-                        "#{available} using name mappings #{mappings}"
+                    available = each_orogen_deployed_task_context_model
+                                .map { |act| name_mappings[act.name] }
+                                .sort.join(', ')
+                    mappings = name_mappings
+                               .map { |k,v| "#{k} => #{v}" }.join(', ')
+                    raise ArgumentError,
+                          "no task called #{name} in "\
+                          "#{self.class.deployment_name}, available tasks are "\
+                          "#{available} using name mappings #{mappings}"
                 end
                 orogen_task_deployment
             end
@@ -165,28 +162,32 @@ module Syskit
             # @param [OroGen::Spec::TaskDeployment] orogen_task_deployment_model
             #   the orogen model that describes this
             #   deployment
-            # @param [Models::TaskContext,nil] syskit_task_model the expected syskit task model, or nil
-            #   if it is meant to use the basic model. This is useful in specialized models (e.g. dynamic
-            #   services)
-            # @param [Deployment,TaskContext] syskit_execution_agent the task that will be used as an execution agent.
-            #   this is usually self, but may be a task in master/slave relationships.
+            # @param [Models::TaskContext,nil] syskit_task_model the expected
+            #   syskit task model, or nil if it is meant to use the basic model.
+            #   This is useful in specialized models (e.g. dynamic services)
+            # @param [Deployment,TaskContext] syskit_execution_agent the task
+            #   that will be used as an execution agent. this is usually self,
+            #   but may be a task in master/slave relationships.
             # @param [Boolean] auto_conf if true, the method will attempt to select
             #   a configuration that matches the task's orocos name (if it exists). This
             #   is mostly used for scheduling tasks, which are automatically instanciated
             #   by Syskit.
             #
             # @see find_or_create_task task
-            def create_deployed_task(orogen_task_deployment_model,
-                syskit_task_model, scheduler_task, auto_conf: false)
+            def create_deployed_task(
+                orogen_task_deployment_model,
+                syskit_task_model, scheduler_task, auto_conf: false
+            )
 
                 mapped_name = name_mappings[orogen_task_deployment_model.name]
                 base_syskit_task_model = deployed_model_by_orogen_model(
                     orogen_task_deployment_model)
                 if syskit_task_model
-                    if !(syskit_task_model <= base_syskit_task_model)
-                        raise ArgumentError, "incompatible explicit selection of task "\
-                            "model #{syskit_task_model} for the model of #{mapped_name} "\
-                            " in #{self}"
+                    unless syskit_task_model <= base_syskit_task_model
+                        raise ArgumentError,
+                              'incompatible explicit selection of task model '\
+                              "#{syskit_task_model} for the model of #{mapped_name} "\
+                              " in #{self}"
                     end
                 else
                     syskit_task_model = base_syskit_task_model
@@ -201,10 +202,13 @@ module Syskit
 
                 task.orogen_model = orogen_task_deployment_model
                 if ready?
-                    if remote_task = remote_task_handles[mapped_name]
+                    if (remote_task = remote_task_handles[mapped_name])
                         task.initialize_remote_handles(remote_task)
                     else
-                        raise InternalError, "no remote handle describing #{mapped_name} in #{self} for #{task} (got #{remote_task_handles.keys.sort.join(", ")})"
+                        raise InternalError,
+                              "no remote handle describing #{mapped_name} "\
+                              "in #{self} for #{task} "\
+                              "(got #{remote_task_handles.keys.sort.join(', ')})"
                     end
                 end
                 auto_select_conf(task) if auto_conf
@@ -221,18 +225,21 @@ module Syskit
             #   dynamic services)
             def task(name, syskit_task_model = nil)
                 if finishing? || finished?
-                    raise InvalidState, "#{self} is either finishing or already "\
-                        "finished, you cannot call #task"
+                    raise InvalidState,
+                          "#{self} is either finishing or already "\
+                          'finished, you cannot call #task'
                 end
 
                 orogen_task_deployment_model = deployed_orogen_model_by_name(name)
 
-                if orogen_master = orogen_task_deployment_model.master
+                if (orogen_master = orogen_task_deployment_model.master)
                     scheduler_task = find_or_create_task(
                         orogen_master.name, auto_conf: true)
                 end
-                create_deployed_task(orogen_task_deployment_model,
-                    syskit_task_model, scheduler_task)
+                create_deployed_task(
+                    orogen_task_deployment_model,
+                    syskit_task_model, scheduler_task
+                )
             end
 
             # Selects the configuration of a master task
@@ -257,21 +264,20 @@ module Syskit
             # Starts the process and emits the start event immediately. The
             # :ready event will be emitted when the deployment is up and
             # running.
-            event :start do |context|
-                if !process_name
-                    raise ArgumentError, "must set process_name"
-                end
+            event :start do |_context|
+                raise ArgumentError, 'must set process_name' unless process_name
 
                 spawn_options = self.spawn_options
-                options = (spawn_options[:cmdline_args] || Hash.new).dup
+                options = (spawn_options[:cmdline_args] || {}).dup
                 model.each_default_run_option do |name, value|
                     options[name] = value
                 end
 
                 spawn_options = spawn_options.merge(
-                    output: "%m-%p.txt",
+                    output: '%m-%p.txt',
                     wait: false,
-                    cmdline_args: options)
+                    cmdline_args: options
+                )
 
                 if log_dir
                     spawn_options = spawn_options.merge(working_directory: log_dir)
@@ -280,7 +286,9 @@ module Syskit
                 end
 
                 Deployment.info do
-                    "starting deployment #{process_name} using #{model.deployment_name} on #{arguments[:on]} with #{spawn_options} and mappings #{name_mappings}"
+                    "starting deployment #{process_name} using "\
+                    "#{model.deployment_name} on #{arguments[:on]} with "\
+                    "#{spawn_options} and mappings #{name_mappings}"
                 end
 
                 @orocos_process = process_server_config.client.start(
@@ -294,26 +302,30 @@ module Syskit
             # given configuration
             #
             # @return [Orocos::Process::CommandLine]
-            def self.command_line(name, name_mappings,
-                    working_directory: Roby.app.log_dir,
-                    log_level: nil,
-                    cmdline_args: Hash.new,
-                    tracing: false,
-                    gdb: nil,
-                    valgrind: nil,
-                    name_service_ip: 'localhost',
-                    loader: Roby.app.default_pkgconfig_loader)
+            def self.command_line(
+                name, name_mappings,
+                working_directory: Roby.app.log_dir,
+                log_level: nil,
+                cmdline_args: {},
+                tracing: false,
+                gdb: nil,
+                valgrind: nil,
+                name_service_ip: 'localhost',
+                loader: Roby.app.default_pkgconfig_loader
+            )
 
                 cmdline_args = cmdline_args.dup
                 each_default_run_option do |option_name, option_value|
-                    if !cmdline_args.has_key?(option_name)
+                    unless cmdline_args.key?(option_name)
                         cmdline_args[option_name] = option_value
                     end
                 end
 
-                process = Orocos::Process.new(name, orogen_model,
+                process = Orocos::Process.new(
+                    name, orogen_model,
                     loader: loader,
-                    name_mappings: name_mappings)
+                    name_mappings: name_mappings
+                )
                 process.command_line(
                     working_directory: working_directory,
                     log_level: log_level,
@@ -321,7 +333,8 @@ module Syskit
                     tracing: tracing,
                     gdb: gdb,
                     valgrind: valgrind,
-                    name_service_ip: name_service_ip)
+                    name_service_ip: name_service_ip
+                )
             end
 
             def log_dir
@@ -335,21 +348,22 @@ module Syskit
             def logger_task
                 if arguments[:logger_task]
                     @logger_task = arguments[:logger_task]
-                elsif @logger_task && @logger_task.reusable?
+                elsif @logger_task&.reusable?
                     @logger_task
                 elsif process_name
                     logger_name = "#{process_name}_Logger"
-                    @logger_task =
-                        each_executed_task.find { |t| t.orocos_name == logger_name } ||
-                            begin
-                                task(logger_name)
-                                # Automatic setup by {NetworkGeneration::LoggerConfigurationSupport}
-                            rescue ArgumentError
-                            end
+                    @logger_task = each_executed_task
+                                   .find { |t| t.orocos_name == logger_name }
 
-                    if @logger_task
-                        @logger_task.default_logger = true
-                    end
+                    @logger_task ||=
+                        begin
+                            task(logger_name)
+                            # Automatic setup by
+                            # {NetworkGeneration::LoggerConfigurationSupport}
+                        rescue ArgumentError # rubocop:disable Lint/HandleExceptions
+                        end
+
+                    @logger_task&.default_logger = true
                     @logger_task
                 end
             end
@@ -419,8 +433,8 @@ module Syskit
                 end
             end
 
-            on :start do |event|
-                handles_from_plan = Hash.new
+            on :start do |_event|
+                handles_from_plan = {}
                 each_parent_object(Roby::TaskStructure::ExecutionAgent) do |task|
                     if orocos_task = task.orocos_task
                         handles_from_plan[task.orocos_name] = orocos_task
@@ -443,34 +457,45 @@ module Syskit
             #
             # It will reschedule itself until the process is ready, and will
             # emit the ready event when it happens
-            def schedule_ready_event_monitor(handles_from_plan, ready_polling_period: self.ready_polling_period)
+            def schedule_ready_event_monitor(
+                handles_from_plan, ready_polling_period: self.ready_polling_period
+            )
                 distance_to_syskit = self.distance_to_syskit
                 promise = execution_engine.promise(description: "#{self}:ready_event_monitor") do
-                    while !quit_ready_event_monitor.set? && !(handles = orocos_process.resolve_all_tasks(handles_from_plan))
-                        sleep ready_polling_period
-                    end
-
-                    (handles || Hash.new).map_value do |_, remote_task|
-                        state_reader, state_getter = create_state_access(remote_task, distance: distance_to_syskit)
-                        properties = remote_task.property_names.map do |p_name|
-                            p = remote_task.raw_property(p_name)
-                            [p, p.raw_read]
-                        end
-                        current_configuration = CurrentTaskConfiguration.new(nil, [], Set.new)
-                        RemoteTaskHandles.new(remote_task, state_reader, state_getter, properties, false, current_configuration)
-                    end
-                end.on_success(description: "#{self}#schedule_ready_event_monitor#emit") do |remote_tasks|
+                    resolve_remote_task_handles(handles_from_plan)
+                end
+                promise.on_success(description: "#{self}#schedule_ready_event_monitor#emit") do |remote_tasks|
                     if running? && !finishing? && remote_tasks
                         @remote_task_handles = remote_tasks
                         ready_event.emit
                     end
                 end
                 promise.on_error(description: "#{self}#emit_failed") do |reason|
-                    if !finishing? || !finished?
-                        ready_event.emit_failed(reason)
-                    end
+                    ready_event.emit_failed(reason) if !finishing? || !finished?
                 end
-                ready_event.achieve_asynchronously(promise, emit_on_success: false, on_failure: :nothing)
+                ready_event.achieve_asynchronously(
+                    promise, emit_on_success: false, on_failure: :nothing
+                )
+            end
+
+            def resolve_remote_task_handles(
+                handles_from_plan, ready_polling_period: self.ready_polling_period
+            )
+                until (handles = orocos_process.resolve_all_tasks(handles_from_plan))
+                    return if quit_ready_event_monitor.set?
+
+                    sleep ready_polling_period
+                end
+
+                handles.map_value do |_, remote_task|
+                    state_reader, state_getter = create_state_access(remote_task, distance: distance_to_syskit)
+                    properties = remote_task.property_names.map do |p_name|
+                        p = remote_task.raw_property(p_name)
+                        [p, p.raw_read]
+                    end
+                    current_configuration = CurrentTaskConfiguration.new(nil, [], Set.new)
+                    RemoteTaskHandles.new(remote_task, state_reader, state_getter, properties, false, current_configuration)
+                end
             end
 
             on :ready do |event|
@@ -485,7 +510,10 @@ module Syskit
             # They are initialized once and for all since they won't change
             # across TaskContext restarts, allowing us to save costly
             # back-and-forth between the remote task and the local process
-            RemoteTaskHandles = Struct.new :handle, :state_reader, :state_getter, :default_properties, :configuring, :current_configuration, :needs_reconfiguration
+            RemoteTaskHandles = Struct.new(
+                :handle, :state_reader, :state_getter, :default_properties,
+                :configuring, :current_configuration, :needs_reconfiguration
+            )
 
             # @api private
             #
@@ -525,7 +553,9 @@ module Syskit
             # @api private
             #
             # Update the last known configuration of a task
-            def update_current_configuration(orocos_name, model, conf, current_dynamic_services)
+            def update_current_configuration(
+                orocos_name, model, conf, current_dynamic_services
+            )
                 task_info = remote_task_handles[orocos_name]
                 task_info.needs_reconfiguration = false
                 task_info.current_configuration =
@@ -548,18 +578,14 @@ module Syskit
             # Whether a task should be forcefully reconfigured during the next
             # network adaptation
             def needs_reconfiguration?(orocos_name)
-                if handle = remote_task_handles[orocos_name]
-                    handle.needs_reconfiguration
-                end
+                remote_task_handles[orocos_name]&.needs_reconfiguration
             end
 
             # @api private
             #
             # Force a task to be reconfigured during the next network adaptation
             def needs_reconfiguration!(orocos_name)
-                if handle = remote_task_handles[orocos_name]
-                    handle.needs_reconfiguration = true
-                end
+                remote_task_handles[orocos_name]&.needs_reconfiguration = true
             end
 
             # List of task (orocos names) that are marked as needing
@@ -579,11 +605,16 @@ module Syskit
                 remote_task_handles.each do |orocos_name, remote_handle|
                     current_conf = remote_handle.current_configuration
                     next if current_conf.conf.empty?
-                    if modified_sections = changed[current_conf.model.concrete_model]
-                        if modified_sections.any? { |section_name| current_conf.conf.include?(section_name) }
-                            needed << orocos_name
-                            remote_handle.needs_reconfiguration = true
-                        end
+
+                    modified_sections = changed[current_conf.model.concrete_model]
+                    next unless modified_sections
+
+                    affects_this_task =
+                        modified_sections
+                        .any? { |section_name| current_conf.conf.include?(section_name) }
+                    if affects_this_task
+                        needed << orocos_name
+                        remote_handle.needs_reconfiguration = true
                     end
                 end
                 needed
@@ -593,8 +624,12 @@ module Syskit
             def setup_task_handles(remote_tasks)
                 model.each_orogen_deployed_task_context_model do |act|
                     name = orocos_process.get_mapped_name(act.name)
-                    if !remote_tasks.has_key?(name)
-                        raise InternalError, "expected #{orocos_process}'s reported tasks to include mapped_task_name, but got handles only for invalid_name"
+                    unless remote_tasks.key?(name)
+                        raise InternalError,
+                              "expected #{orocos_process}'s reported tasks to "\
+                              "include '#{name}' (mapped from '#{act.name}'), "\
+                              'but got handles only for '\
+                              "#{remote_tasks.keys.sort.join(' ')}"
                     end
                 end
 
@@ -603,13 +638,17 @@ module Syskit
                 end
 
                 each_parent_object(Roby::TaskStructure::ExecutionAgent) do |task|
-                    if remote_handles = remote_tasks[task.orocos_name]
+                    if (remote_handles = remote_tasks[task.orocos_name])
                         task.initialize_remote_handles(remote_handles)
                     else
+                        root_exception = InternalError.exception(
+                            "#{task} is supported by #{self} but there does "\
+                            "not seem to be any task called #{task.orocos_name} "\
+                            'on this deployment'
+                        )
                         task.failed_to_start!(
-                            Roby::CommandFailed.new(
-                                InternalError.exception("#{task} is supported by #{self} but there does not seem to be any task called #{task.orocos_name} on this deployment"),
-                                task.start_event))
+                            Roby::CommandFailed.new(root_exception, task.start_event)
+                        )
                     end
                 end
             end
@@ -633,21 +672,21 @@ module Syskit
                 else
                     state_reader = state_getter
                 end
-                return state_reader, state_getter
+                [state_reader, state_getter]
             end
 
-	    attr_predicate :ready_to_die?
+            attr_predicate :ready_to_die?
 
-	    def ready_to_die!
-	    	@ready_to_die = true
-	    end
+            def ready_to_die!
+                @ready_to_die = true
+            end
 
             ##
             # method: stop!
             #
             # Stops all tasks that are running on top of this deployment, and
             # kill the deployment
-            event :stop do |context|
+            event :stop do |_context|
                 quit_ready_event_monitor.set
                 promise = execution_engine.promise(description: "#{self}.stop_event.on") do
                     begin
@@ -660,7 +699,7 @@ module Syskit
                         remote_task_handles.each_value do |remote_task|
                             remote_task.state_getter.join
                         end
-                    rescue Orocos::ComError
+                    rescue Orocos::ComError # rubocop:disable Lint/HandleExceptions
                         # Assume that the process is killed as it is not reachable
                     end
                 end.on_success(description: "#{self}#stop_event#command#dead!") do
