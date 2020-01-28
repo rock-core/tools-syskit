@@ -73,7 +73,58 @@ module Syskit
                                  port_dynamics.triggers.to_a
                 end
 
-                describe "master/slave deployments" do
+                describe 'communication busses' do
+                    before do
+                        @stub_t = stub_t = stub_type '/test'
+                        @bus_m = ComBus.new_submodel message_type: stub_t
+                        bus_driver_m = Syskit::TaskContext.new_submodel do
+                            dynamic_output_port(/\w+/, stub_t)
+                        end
+                        bus_driver_m.driver_for @bus_m, as: 'bus'
+
+                        @dev_m = Device.new_submodel
+                        @dev_m.provides @bus_m::ClientInSrv
+                        @dev_driver_m = TaskContext.new_submodel do
+                            input_port 'in', stub_t
+                        end
+                        @dev_driver_m.driver_for @dev_m, as: 'dev'
+
+                        @robot = Robot::RobotDefinition.new
+                        @bus = robot.com_bus @bus_m, driver: bus_driver_m, as: 'bus'
+                        @device = @robot.device(
+                            @dev_m, driver: @dev_driver_m, as: 'dev'
+                        )
+                        @device.attach_to(@bus, client_to_bus: false)
+                    end
+
+                    it 'uses the attached device\'s information as initial information '\
+                       'for the bus port' do
+                        @device.period 42
+                        @device.burst 21
+                        @device.sample_size 2
+
+                        task = syskit_stub_and_deploy(@device)
+                        bus = task.each_child.first[0]
+                        dynamics.initial_task_information(bus)
+
+                        info = dynamics.port_info(bus, 'dev')
+                        assert_equal 1, info.sample_size
+                        triggers = info.triggers.map { |t| [t.name, t.period, t.sample_count] }
+                        assert_equal ['dev', 42, 2], triggers[0]
+                        assert_equal ['dev-burst', 0, 42], triggers[1]
+                    end
+
+                    it 'marks the port as done' do
+                        @device.period 0.1
+
+                        task = syskit_stub_and_deploy(@device)
+                        bus = task.each_child.first[0]
+                        dynamics.initial_task_information(bus)
+                        assert dynamics.has_final_information_for_port?(bus, 'dev')
+                    end
+                end
+
+                describe 'master/slave deployments' do
                     before do
                         task_m = Syskit::TaskContext.new_submodel do
                             output_port 'out', '/double'
