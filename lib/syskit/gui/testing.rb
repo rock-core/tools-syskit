@@ -3,6 +3,10 @@ require 'roby/test/spec'
 require 'syskit/test'
 require 'autorespawn'
 
+require 'metaruby/gui'
+require 'roby/gui/exception_view'
+require 'syskit/gui/state_label'
+
 module Syskit
     module GUI
         # GUI to interface with testing
@@ -244,7 +248,7 @@ module Syskit
 
             def discover_exceptions_from_failure(failure)
                 if failure.kind_of?(Minitest::UnexpectedError)
-                    return discover_exceptions_from_failure(failure.exception)
+                    return discover_exceptions_from_failure(failure.error)
                 end
 
                 result = [failure]
