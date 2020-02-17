@@ -444,5 +444,114 @@ describe Syskit::Models::TaskContext do
             refute @task_m.respond_to?(:does_not_exist_port)
         end
     end
-end
 
+    describe '#deployed_as' do
+        before do
+            @loader = OroGen::Loaders::Base.new
+            @task_m = task_m = Syskit::TaskContext.new_submodel(
+                orogen_model_name: 'test::Task'
+            )
+            default_name = OroGen::Spec::Project.default_deployment_name('test::Task')
+            @default_deployment_name = default_name
+            @deployment_m = Syskit::Deployment.new_submodel(name: 'test_deployment') do
+                task default_name, task_m.orogen_model
+            end
+            flexmock(@loader).should_receive(:deployment_model_from_name)
+                             .with(default_name)
+                             .and_return(@deployment_m.orogen_model)
+        end
+
+        def self.common_behavior(c)
+            c.it 'uses the default deployment using the given name' do
+                task = @task_m.new
+                candidates = @ir
+                             .deployment_group
+                             .find_all_suitable_deployments_for(task)
+
+                assert_equal 1, candidates.size
+                c = candidates.first
+                assert_equal 'test', c.mapped_task_name
+                assert_equal(
+                    { @default_deployment_name => 'test',
+                      "#{@default_deployment_name}_Logger" => 'test_Logger' },
+                    c.configured_deployment.name_mappings
+                )
+            end
+        end
+
+        describe 'called on the task model' do
+            before do
+                @ir = @task_m.deployed_as('test', loader: @loader)
+            end
+
+            common_behavior(self)
+        end
+
+        describe 'called on InstanceRequirements' do
+            before do
+                @ir = Syskit::InstanceRequirements
+                      .new([@task_m])
+                      .deployed_as('test', loader: @loader)
+            end
+
+            common_behavior(self)
+        end
+    end
+
+    describe '#deployed_as_unmanaged' do
+        before do
+            @task_m = Syskit::TaskContext.new_submodel(
+                orogen_model_name: 'test::Task'
+            )
+            @conf = Syskit::RobyApp::Configuration.new(Roby.app)
+            @conf.register_process_server(
+                'unmanaged_tasks', Syskit::RobyApp::UnmanagedTasksManager.new
+            )
+        end
+
+        after do
+            @conf.remove_process_server('unmanaged_tasks')
+        end
+
+        def self.common_behavior(c)
+            c.it 'declares an unmanaged deployment of the given task model' do
+                task = @task_m.new
+                candidates = @ir
+                             .deployment_group
+                             .find_all_suitable_deployments_for(task)
+
+                assert_equal 1, candidates.size
+                deployed_task = candidates.first
+                configured_deployment = deployed_task.configured_deployment
+                # This is the real thing ... Other than the process server,
+                # everything looks exactly the same
+                assert_equal 'unmanaged_tasks',
+                             configured_deployment.process_server_name
+                assert_match(/Unmanaged/, configured_deployment.model.name)
+                assert_equal 'test', deployed_task.mapped_task_name
+                assert_equal(
+                    { 'test' => 'test' },
+                    configured_deployment.name_mappings
+                )
+            end
+        end
+
+        describe 'called on the task model' do
+            before do
+                @ir = @task_m.deployed_as_unmanaged('test', process_managers: @conf)
+            end
+
+            common_behavior(self)
+        end
+
+        describe 'called on InstanceRequirements' do
+            before do
+                @ir = Syskit::InstanceRequirements
+                      .new([@task_m])
+                      .deployed_as_unmanaged('test', process_managers: @conf)
+            end
+
+            common_behavior(self)
+        end
+    end
+end

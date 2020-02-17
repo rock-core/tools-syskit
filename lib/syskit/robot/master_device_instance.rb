@@ -46,8 +46,9 @@ module Syskit
             # runtime to actually configure the task
             attr_reader :configuration_block
 
-            def initialize(robot, name, device_model, options,
-                           driver_model, task_arguments)
+            def initialize(
+                robot, name, device_model, options, driver_model, task_arguments
+            )
                 @robot = robot
                 @name = name
                 @device_model = device_model
@@ -302,7 +303,7 @@ module Syskit
                 return true if slaves[slave_service]
 
                 slave_name = "#{driver_model.full_name}.#{slave_service}"
-                !!task_model.find_data_service(slave_name)
+                task_model.find_data_service(slave_name)
             end
 
             # Gets the required slave device, or creates a dynamic one
@@ -390,6 +391,16 @@ module Syskit
             def prefer_deployed_tasks(hints)
                 requirements.prefer_deployed_tasks(hints)
                 self
+            end
+
+            # Use the default deployment for this device's driver
+            def deployed_as(*args, **kw)
+                requirements.deployed_as(*args, **kw)
+            end
+
+            # Use an unmanaged task for this device's driver
+            def deployed_as_unmanaged(*args, **kw)
+                requirements.deployed_as_unmanaged(*args, **kw)
             end
 
             def use_deployments(hints)

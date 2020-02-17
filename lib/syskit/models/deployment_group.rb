@@ -487,6 +487,33 @@ module Syskit
             def to_deployment_group
                 self
             end
+
+            def pretty_print(pp)
+                pp.text "Deployment group with #{deployed_tasks.size} deployed tasks"
+                pp.breakable
+                pp.text 'By task:'
+                pp.nest(2) do
+                    deployed_tasks.each do |name, task|
+                        pp.breakable
+                        pp.text "#{name}: "
+                        task.pretty_print(pp)
+                    end
+                end
+                pp.breakable
+                pp.text 'By model:'
+                pp.nest(2) do
+                    task_context_deployment_candidates.each do |model, candidates|
+                        pp.breakable
+                        pp.text "#{model}: #{candidates.size} candidates"
+                        pp.nest(2) do
+                            candidates.each do |c|
+                                pp.breakable
+                                c.pretty_print(pp)
+                            end
+                        end
+                    end
+                end
+            end
         end
     end
 end
