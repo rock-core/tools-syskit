@@ -151,7 +151,8 @@ module Syskit
                 end
             end
 
-            OROGEN_MODEL_EXCLUDED_FORWARDINGS = [:task]
+            OROGEN_MODEL_EXCLUDED_FORWARDINGS = [:task].freeze
+
             def method_missing(m, *args, &block)
                 if !OROGEN_MODEL_EXCLUDED_FORWARDINGS.include?(m) && orogen_model.respond_to?(m)
                     orogen_model.public_send(m, *args, &block)

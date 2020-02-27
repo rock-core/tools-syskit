@@ -526,7 +526,7 @@ module Syskit
             # and the oroGen's input port specifications. See the user's guide
             # for more details
             #
-            # It updates DataFlow#concrete_connection_policies
+            # It updates {DataFlow#policy_graph}
             def compute_connection_policies
                 # We only act on deployed tasks, as we need to know how the
                 # tasks are triggered (what activity / priority / ...)
@@ -550,48 +550,54 @@ module Syskit
 
                 dataflow_graph = plan.task_relation_graph_for(Flows::DataFlow)
                 connection_graph = dataflow_graph.compute_concrete_connection_graph
-                policy_graph = Flows::DataFlow::ConcreteConnectionGraph.new
+                policy_graph = {}
                 deployed_tasks.each do |source_task|
-                    connection_graph.each_out_neighbour(source_task) do |sink_task|
-                        mappings = connection_graph.edge_info(source_task, sink_task)
-                        computed_policies = mappings.map_value do |(source_port_name, sink_port_name), policy|
-                            policy_for(source_task, source_port_name, sink_port_name, sink_task, policy)
-                        end
-                        policy_graph.add_edge(source_task, sink_task, computed_policies)
-                    end
+                    compute_policies_from(connection_graph, source_task, policy_graph)
                 end
-                #dataflow_graph.reset_computed_policies(policy_graph)
-                result
+                dataflow_graph.policy_graph = policy_graph
+                policy_graph
+            end
+
+            # @api private
+            #
+            # Compute the policies for all connections starting from a given task
+            def compute_policies_from(connection_graph, source_task, policy_graph = {})
+                connection_graph.each_out_neighbour(source_task) do |sink_task|
+                    mappings = connection_graph.edge_info(source_task, sink_task)
+                    computed_policies =
+                        mappings.map_value do |(source_port_name, sink_port_name), policy|
+                            policy = policy.dup
+                            fallback_policy = policy.delete(:fallback_policy)
+                            if policy.empty?
+                                policy_for(source_task, source_port_name,
+                                           sink_port_name, sink_task, fallback_policy)
+                            else
+                                policy
+                            end
+                        end
+                    policy_graph[[source_task, sink_task]] = computed_policies
+                end
+                policy_graph
             end
 
             # Given the current knowledge about the port dynamics, returns the
             # policy for the provided connection
-            #
-            # +policy+ is either the current connection policy, or a hash with
-            # only a :fallback_policy value that contains a possible policy if
-            # the actual one cannot be computed.
-            def policy_for(source_task, source_port_name, sink_port_name, sink_task, policy)
-                policy = policy.dup
-                fallback_policy = policy.delete(:fallback_policy)
+            def policy_for(
+                source_task, source_port_name, sink_port_name, sink_task, fallback_policy
+            )
+                source_port = source_task.find_output_port(source_port_name)
+                sink_port   = sink_task.find_input_port(sink_port_name)
 
-                # Don't do anything if the policy has already been set
-                unless policy.empty?
-                    DataFlowDynamics.debug " #{source_task}:#{source_port_name} => "\
-                                           "#{sink_task}:#{sink_port_name} already "\
-                                           "connected with #{policy}"
-                    return policy
-                end
-
-                source_port = source_task.model.find_output_port(source_port_name)
-                sink_port   = sink_task.model.find_input_port(sink_port_name)
                 unless source_port
                     raise InternalError,
-                          "#{source_port_name} is not a port of #{source_task.model}"
+                          "#{source_port_name} is not an output port "\
+                          "of #{source_task}"
                 end
 
                 unless sink_port
                     raise InternalError,
-                          "#{sink_port_name} is not a port of #{sink_task.model}"
+                          "#{sink_port_name} is not an input port "\
+                          "of #{sink_task}"
                 end
 
                 DataFlowDynamics.debug do
@@ -599,74 +605,114 @@ module Syskit
                     "#{sink_task}:#{sink_port.name}"
                 end
 
-                unless sink_port.needs_reliable_connection?
-                    if sink_port.required_connection_type == :data
-                        policy = Orocos::Port.prepare_policy(type: :data)
-                        DataFlowDynamics.debug { "     result: #{policy}" }
-                        return policy
-                    elsif sink_port.required_connection_type == :buffer
-                        policy = Orocos::Port.prepare_policy(type: :buffer, size: 1)
-                        DataFlowDynamics.debug { "     result: #{policy}" }
-                        return policy
-                    end
+                sink_port_m = sink_port.model
+                if sink_port_m.needs_reliable_connection?
+                    compute_reliable_connection_policy(
+                        source_port, sink_port, fallback_policy
+                    )
+                elsif sink_port_m.required_connection_type == :data
+                    policy = Orocos::Port.prepare_policy(type: :data)
+                    DataFlowDynamics.debug { "     result: #{policy}" }
+                    policy
+                elsif sink_port_m.required_connection_type == :buffer
+                    policy = Orocos::Port.prepare_policy(type: :buffer, size: 1)
+                    DataFlowDynamics.debug { "     result: #{policy}" }
+                    policy
+                else
+                    raise UnsupportedConnectionType,
+                          'unknown required connection type '\
+                          "#{sink_port_m.required_connection_type} "\
+                          "on #{sink_port}"
+                end
+            end
+
+            def compute_reliable_connection_policy(
+                source_port, sink_port, fallback_policy
+            )
+                source_task = source_port.component
+                sink_task = sink_port.component
+
+                if has_final_information_for_port?(source_task, source_port.name)
+                    source_dynamics = port_info(source_task, source_port.name)
                 end
 
-                # Compute the buffer size
-                input_dynamics =
-                    if has_final_information_for_port?(source_task, source_port.name)
-                        port_info(source_task, source_port.name)
-                    end
+                reading_latency = compute_reading_latency(sink_task, sink_port)
 
-                sink_task_dynamics  =
-                    if has_final_information_for_task?(sink_task)
-                        task_info(sink_task)
-                    end
-
-                reading_latency =
-                    if sink_port.trigger_port?
-                        sink_task.trigger_latency
-                    elsif sink_task_dynamics&.minimal_period
-                        sink_task_dynamics.minimal_period + sink_task.trigger_latency
-                    end
-
-                if !input_dynamics || !reading_latency
-                    if fallback_policy
-                        if !input_dynamics
-                            DataFlowDynamics.warn do
-                                DataFlowDynamics.warn 'Cannot compute the period information for the output port'
-                                DataFlowDynamics.warn "   #{source_task}:#{source_port.name}"
-                                DataFlowDynamics.warn '   This is needed to compute the policy to connect to'
-                                DataFlowDynamics.warn "   #{sink_task}:#{sink_port_name}"
-                                DataFlowDynamics.warn "   The fallback policy #{fallback_policy} will be used"
-                                break
-                            end
-
-                        else
-                            DataFlowDynamics.warn "#{sink_task} has no minimal period"
-                            DataFlowDynamics.warn "This is needed to compute the reading latency on #{sink_port.name}"
-                            DataFlowDynamics.warn "The fallback policy #{fallback_policy} will be used"
-                        end
-                        policy = fallback_policy
-                    elsif !input_dynamics
-                        raise SpecError, "the period information for output port #{source_task}:#{source_port.name} cannot be computed. This is needed to compute the policy to connect to #{sink_task}:#{sink_port_name}"
-                    else
-                        raise SpecError, "#{sink_task} has no minimal period, needed to compute reading latency on #{sink_port.name}"
-                    end
+                if source_dynamics && reading_latency
+                    compute_buffer_policy(source_dynamics, reading_latency)
                 else
-                    policy[:type] = :buffer
-                    size = (1.0 + Syskit.conf.buffer_size_margin) * input_dynamics.queue_size(reading_latency)
-                    policy[:size] = Integer(size) + 1
-                    DataFlowDynamics.debug do
-                        DataFlowDynamics.debug "     input_period:#{input_dynamics.minimal_period} => reading_latency:#{reading_latency}"
-                        DataFlowDynamics.debug "     sample_size:#{input_dynamics.sample_size}"
-                        input_dynamics.triggers.each do |tr|
-                            DataFlowDynamics.debug "     trigger(#{tr.name}): period=#{tr.period} count=#{tr.sample_count}"
+                    handle_missing_connection_policy_input(
+                        source_task, source_port, sink_port, sink_task,
+                        fallback_policy, source_dynamics
+                    )
+                end
+            end
+
+            def handle_missing_connection_policy_input(
+                source_task, source_port, sink_port, sink_task,
+                fallback_policy, has_source_dynamics
+            )
+                if fallback_policy
+                    warn do
+                        if has_source_dynamics
+                            warn "#{sink_task} has no minimal period"
+                            warn 'This is needed to compute the reading latency on '\
+                                    "#{sink_port.name}"
+                            warn "Specified fallback policy #{fallback_policy} will be used"
+                        else
+                            warn 'Cannot compute the period information for output port'
+                            warn "   #{source_task}:#{source_port.name}"
+                            warn '   This is needed to compute the policy to connect to'
+                            warn "   #{sink_task}:#{sink_port.name}"
+                            warn "   The fallback policy #{fallback_policy} will be used"
                         end
                         break
                     end
-                    DataFlowDynamics.debug { "     result: #{policy}" }
+
+                    fallback_policy.dup
+                elsif !has_source_dynamics
+                    raise SpecError,
+                          "period information for output port #{source_task}:"\
+                          "#{source_port.name} cannot be computed. This is needed "\
+                          'to compute the policy to connect to '\
+                          "#{sink_task}:#{sink_port.name}"
+                else
+                    raise SpecError,
+                          "#{sink_task} has no minimal period, needed to compute "\
+                          "reading latency on #{sink_port.name}"
+                end
+            end
+
+            def compute_reading_latency(sink_task, sink_port)
+                # THere's no nice triggering API on Syskit, and I don't think there
+                # should be. Punch through the abstraction layers for the time being
+                if sink_task.model.orogen_model.find_port(sink_port.name).trigger_port?
+                    sink_task.trigger_latency
+                elsif has_final_information_for_task?(sink_task)
+                    dynamics = task_info(sink_task)
+                    if dynamics.minimal_period
+                        dynamics.minimal_period + sink_task.trigger_latency
+                    end
+                end
+            end
+
+            def compute_buffer_policy(source_dynamics, reading_latency)
+                size = (1.0 + Syskit.conf.buffer_size_margin) *
+                       source_dynamics.queue_size(reading_latency)
+
+                debug do
+                    debug "     input_period:#{source_dynamics.minimal_period} => "\
+                            "reading_latency:#{reading_latency}"
+                    debug "     sample_size:#{source_dynamics.sample_size}"
+                    source_dynamics.triggers.each do |tr|
+                        debug "     trigger(#{tr.name}): period=#{tr.period} "\
+                                "count=#{tr.sample_count}"
+                    end
+                    break
                 end
 
+                policy = { type: :buffer, size: size.ceil }
+                debug { "     result: #{policy}" }
                 policy
             end
         end

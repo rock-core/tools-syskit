@@ -478,19 +478,13 @@ module Syskit
                         find { |t| t.orocos_name == 'task1' }
                 end
 
-                it "raises if there is a repeated deployment" do
+                it 'raises if there is a repeated deployment' do
                     deployment_m = create_deployment_model(task_count: 1)
-                    existing_deployment, existing_task =
-                        add_deployment_and_tasks(plan, deployment_m, %w[task0])
-
-                    existing_deployment_dup, existing_task_dup =
-                        add_deployment_and_tasks(plan, deployment_m, %w[task0])
-
-                    required_deployment, required_task =
-                        add_deployment_and_tasks(work_plan, deployment_m, %w[task0])
+                    add_deployment_and_tasks(plan, deployment_m, %w[task0])
+                    add_deployment_and_tasks(plan, deployment_m, %w[task0])
+                    add_deployment_and_tasks(work_plan, deployment_m, %w[task0])
 
                     assert_raises Syskit::InternalError do
-                        selected_deployments, selected_deployed_tasks =
                         syskit_engine.finalize_deployed_tasks
                     end
                 end
@@ -778,6 +772,52 @@ module Syskit
                         execute { cmp2.planning_task.start! }
                         syskit_deploy
                         assert_equal Set[cmp1, cmp2, cmp2_srv.task], plan.find_tasks(cmp_m).to_set
+                    end
+                end
+
+                describe 'connection policies' do
+                    before do
+                        @source_task_m = Syskit::TaskContext.new_submodel do
+                            output_port 'out', '/double'
+                            periodic 0.1
+                        end
+                        @sink_task_m = Syskit::TaskContext.new_submodel do
+                            input_port 'in', '/double'
+                            periodic 0.1
+                        end
+                        syskit_stub_configured_deployment(@source_task_m, 'source')
+                        syskit_stub_configured_deployment(@sink_task_m, 'sink')
+
+                        @cmp_m = Syskit::Composition.new_submodel
+                        @cmp_m.add @source_task_m, as: 'source'
+                        @cmp_m.add @sink_task_m, as: 'sink'
+                    end
+
+                    it 'propagates an explicitly specified policy to the connections' do
+                        @cmp_m.source_child.out_port.connect_to(
+                            @cmp_m.sink_child.in_port, type: :buffer, size: 20
+                        )
+                        cmp = syskit_deploy(@cmp_m, compute_policies: true)
+                        syskit_configure(cmp)
+
+                        assert_equal(
+                            { %w[out in] => { type: :buffer, size: 20 } },
+                            RequiredDataFlow.edge_info(cmp.source_child, cmp.sink_child)
+                        )
+                    end
+
+                    it 'propagates a computed policy to the connections' do
+                        @sink_task_m.in_port.needs_reliable_connection
+                        @cmp_m.source_child.out_port.connect_to(
+                            @cmp_m.sink_child.in_port
+                        )
+                        cmp = syskit_deploy(@cmp_m, compute_policies: true)
+                        syskit_configure(cmp)
+
+                        assert_equal(
+                            { %w[out in] => { type: :buffer, size: 4 } },
+                            RequiredDataFlow.edge_info(cmp.source_child, cmp.sink_child)
+                        )
                     end
                 end
             end
