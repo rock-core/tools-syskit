@@ -4,13 +4,15 @@
 # so this makes sure that the Roby app is based on the handler's expected state
 trap('INT', 'DEFAULT')
 
-require 'rock/bundle'
+if (ENV['SYSKIT_USE_ROCK_BUNDLES'] != '0')
+    require 'rock/bundle'
 
-# The logs are public by default in bundles, but are private by default in Roby
-# (the Roby-oriented scripts must set it to true when needed)
-#
-# Reset to the Roby default
-Roby.app.public_logs = false
+    # The logs are public by default in bundles, but are private by default in Roby
+    # (the Roby-oriented scripts must set it to true when needed)
+    #
+    # Reset to the Roby default
+    Roby.app.public_logs = false
+end
 
 require 'syskit/cli/main'
 
