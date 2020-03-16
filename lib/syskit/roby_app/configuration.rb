@@ -460,41 +460,59 @@ module Syskit
             #   registered with that name
             def connect_to_orocos_process_server(
                 name, host, port: Orocos::RemoteProcesses::DEFAULT_PORT,
-                log_dir: nil, result_dir: nil, host_id: nil)
+                log_dir: nil, result_dir: nil, host_id: nil,
+                name_service: Orocos.name_service
+            )
 
                 if log_dir || result_dir
-                    Syskit.warn "specifying log and/or result dir for remote process servers is deprecated. Use 'syskit process_server' instead of 'orocos_process_server' which will take the log dir information from the environment/configuration"
+                    Syskit.warn(
+                        'specifying log and/or result dir for remote process servers '\
+                        'is deprecated. Use \'syskit process_server\' instead of '\
+                        '\'orocos_process_server\' which will take the log dir '\
+                        'information from the environment/configuration'
+                    )
                 end
 
                 if only_load_models? || (app.simulation? && app.single?)
                     client = ModelOnlyServer.new(app.default_loader)
-                    register_process_server(name, client, app.log_dir, host_id: host_id || 'syskit')
+                    register_process_server(
+                        name, client, app.log_dir, host_id: host_id || 'syskit'
+                    )
                     return client
                 elsif app.single?
                     client = Orocos::RemoteProcesses::Client.new(
                         'localhost', port, root_loader: app.default_loader)
-                    register_process_server(name, client, app.log_dir, host_id: host_id || 'localhost')
+                    register_process_server(
+                        name, client, app.log_dir, host_id: host_id || 'localhost'
+                    )
                     return client
                 end
 
                 if local_only? && host != 'localhost'
-                    raise LocalOnlyConfiguration, "in local only mode, one can only connect to process servers on 'localhost' (got #{host})"
+                    raise LocalOnlyConfiguration,
+                          'in local only mode, one can only connect to process '\
+                          "servers on 'localhost' (got #{host})"
                 elsif process_servers[name]
-                    raise AlreadyConnected, "we are already connected to a process server called #{name}"
+                    raise AlreadyConnected,
+                          "we are already connected to a process server called #{name}"
                 end
 
-                if host =~ /^(.*):(\d+)$/
-                    host = $1
-                    port = Integer($2)
+                if (m = /^(.*):(\d+)$/.match(host))
+                    host = m[1]
+                    port = Integer(m[2])
                 end
 
-                if host == 'localhost'
-                    self.disables_local_process_server = true
-                end
+                self.disables_local_process_server = (host == 'localhost')
 
                 client = Orocos::RemoteProcesses::Client.new(
-                    host, port, root_loader: app.default_loader)
-                client.create_log_dir(log_dir, Roby.app.time_tag, Hash['parent' => Roby.app.app_metadata])
+                    host, port,
+                    root_loader: app.default_loader,
+                    name_service: name_service
+                )
+                client.create_log_dir(
+                    log_dir, Roby.app.time_tag,
+                    { 'parent' => Roby.app.app_metadata }
+                )
                 register_process_server(name, client, log_dir, host_id: host_id || name)
                 client
             end
