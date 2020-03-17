@@ -1,4 +1,5 @@
 require 'syskit/test/self'
+require 'syskit/roby_app/process_server'
 
 describe Syskit::RobyApp::Configuration do
     describe "#use_deployment" do
@@ -65,4 +66,111 @@ describe Syskit::RobyApp::Configuration do
             assert_equal @task_m.orogen_model, deployed_task.task_model
         end
     end
+
+    describe "#connect_to_orocos_process_server" do
+        before do
+            @conf = Syskit::RobyApp::Configuration.new(Roby.app)
+            @mock_process = flexmock(pid: 20)
+            @mock_process.should_receive(:spawn).by_default
+            @mock_process.should_receive(:kill).by_default
+            @mock_process.should_receive(:dead!).by_default
+            @available_project_names = []
+            @available_typekit_names = []
+            @available_deployment_names = ['deployment']
+
+            set_log_level ::Robot, Logger::FATAL + 1
+            set_log_level Orocos::RemoteProcesses::Server, Logger::FATAL + 1
+        end
+
+        after do
+            process_server_stop if @server_thread
+        end
+
+        describe 'process startup' do
+            attr_reader :ruby_task, :deployment_m
+            before do
+                @ruby_task = ruby_task = Orocos.allow_blocking_calls do
+                    Orocos::RubyTasks::TaskContext.new 'remote-task'
+                end
+                @deployment_m = Syskit::Deployment.new_submodel do
+                    task 'name', ruby_task.model
+                end
+                server = process_server_create
+                server.should_receive(:start_process)
+                      .and_return(@mock_process)
+            end
+
+            after do
+                @ruby_task.dispose
+            end
+
+            it 'starts the process and reports its PID' do
+                process_server_start
+
+                client = @conf.connect_to_orocos_process_server(
+                    'test-remote', 'localhost',
+                    port: process_server_port
+                )
+
+                process = client.start 'deployment', deployment_m.orogen_model
+                assert_equal 20, process.pid
+            end
+
+            it 'allows to specify the name service used to resolve the process\' task' do
+                process_server_start
+
+                name_service = Orocos::Local::NameService.new
+                name_service.register ruby_task, 'resolved-remote-name'
+                client = @conf.connect_to_orocos_process_server(
+                    'test-remote', 'localhost',
+                    port: process_server_port,
+                    name_service: name_service
+                )
+
+                process = client.start(
+                    'deployment', deployment_m.orogen_model,
+                    { 'name' => 'resolved-remote-name' }
+                )
+                tasks = process.resolve_all_tasks
+                assert_equal({ 'resolved-remote-name' => ruby_task }, tasks)
+            end
+        end
+
+        def process_server_create
+            @server_loader = OroGen::Loaders::Base.new
+            flexmock(@server_loader)
+            @server_loader.should_receive(:each_available_typekit_name)
+                          .explicitly
+                          .and_return { @available_typekit_names }
+            @server_loader.should_receive(:each_available_deployment_name)
+                          .explicitly
+                          .and_return { @available_deployment_names }
+            @server_loader.should_receive(:each_available_project_name)
+                          .and_return { @available_project_names }
+                              
+            @server = Syskit::RobyApp::ProcessServer.new(
+                Roby.app, port: 0, loader: @server_loader
+            )
+            flexmock(@server)
+        end
+
+        def process_server_start
+            @server.open
+            @server_thread = Thread.new do
+                @server.listen
+            end
+        end
+
+        def process_server_port
+            @server.port
+        end
+
+        def process_server_stop
+            @server_thread.raise Interrupt
+            @server_thread.join
+            @server = nil
+            @server_thread = nil
+        end
+    end
 end
+
