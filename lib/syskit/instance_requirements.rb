@@ -1214,5 +1214,22 @@ module Syskit
             def to_action
                 to_action_model.new
             end
+
+            # Return the instance requirement object that runs this task
+            # model with the given name
+            def deployed_as(name, **options)
+                use_deployment_group(
+                    model.to_deployment_group(name, **options)
+                )
+                self
+            end
+
+            # Return the instance requirement object that will hook onto
+            # an otherwise started component of the given name
+            # model with the given name
+            def deployed_as_unmanaged(name, **options)
+                use_unmanaged_task(model => name, **options)
+                self
+            end
         end
 end

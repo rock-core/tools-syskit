@@ -31,7 +31,8 @@ module Syskit
                     )
                     refute(device == other_device)
                 end
-                it 'returns if this is the device of a given name on the same robot object' do
+                it 'returns if this is the device of a given name '\
+                   'on the same robot object' do
                     mock = flexmock(kind_of?: true, robot: robot_m, name: device.name)
                     assert(device == mock)
                 end
@@ -94,7 +95,8 @@ module Syskit
                     assert_equal client_to_bus, @device.combus_client_out_srv
                 end
 
-                it 'uses the bus-to-client and client-to-bus options as service names if they are strings' do
+                it 'uses the bus-to-client and client-to-bus options as service '\
+                   'names if they are strings' do
                     flexmock(@device).should_receive(:resolve_combus_client_srv)
                                      .with(@com_bus_m::ClientInSrv, 'in_name',
                                            @com_bus, 'bus_to_client').once
@@ -227,7 +229,8 @@ module Syskit
                                      e.message
                     end
 
-                    it 'raises if the explicitly selected service does fullfill the service model' do
+                    it 'raises if the explicitly selected service does fullfill '\
+                       'the service model' do
                         @other_srv_m = Syskit::DataService.new_submodel
                         @dev_driver_m.provides @other_srv_m, as: 'srv'
                         e = assert_raises(ArgumentError) do
@@ -240,6 +243,87 @@ module Syskit
                                      'provide the required service ClientInSrv',
                                      e.message
                     end
+                end
+            end
+
+            describe '#deployed_as' do
+                before do
+                    @loader = OroGen::Loaders::Base.new
+                    @device_m = Device.new_submodel
+                    driver_m = TaskContext.new_submodel(orogen_model_name: 'test::Task')
+                    @driver_m = driver_m
+                    @driver_m.driver_for @device_m, as: 'dev'
+
+                    default_name = OroGen::Spec::Project
+                                   .default_deployment_name('test::Task')
+                    @default_deployment_name = default_name
+                    @deployment_m = Syskit::Deployment.new_submodel(name: 'd') do
+                        task default_name, driver_m.orogen_model
+                    end
+                    flexmock(@loader).should_receive(:deployment_model_from_name)
+                                     .with(default_name)
+                                     .and_return(@deployment_m.orogen_model)
+
+                    @robot_m = RobotDefinition.new
+                    @device = @robot_m.device @device_m, as: 'test', using: @driver_m
+                end
+
+                it 'deploys the device\'s driver as specified' do
+                    @device.deployed_as('test', loader: @loader)
+                    candidates = @device
+                                 .requirements
+                                 .deployment_group
+                                 .find_all_suitable_deployments_for(@driver_m.new)
+
+                    assert_equal 1, candidates.size
+                    c = candidates.first
+                    assert_equal 'test', c.mapped_task_name
+                    assert_equal(
+                        { @default_deployment_name => 'test',
+                          "#{@default_deployment_name}_Logger" => 'test_Logger' },
+                        c.configured_deployment.name_mappings
+                    )
+                end
+            end
+
+            describe '#deployed_as_unmanaged' do
+                before do
+                    @device_m = Device.new_submodel
+                    driver_m = TaskContext.new_submodel(orogen_model_name: 'test::Task')
+                    @driver_m = driver_m
+                    @driver_m.driver_for @device_m, as: 'dev'
+                    @conf = Syskit::RobyApp::Configuration.new(Roby.app)
+                    @conf.register_process_server(
+                        'unmanaged_tasks', Syskit::RobyApp::UnmanagedTasksManager.new
+                    )
+
+                    @robot_m = RobotDefinition.new
+                    @device = @robot_m.device @device_m, as: 'test', using: @driver_m
+                end
+
+                after do
+                    @conf.remove_process_server('unmanaged_tasks')
+                end
+
+                it 'declares an unmanaged deployment of the its driver model' do
+                    ir = @device.deployed_as_unmanaged('test', process_managers: @conf)
+                    candidates = ir
+                                 .deployment_group
+                                 .find_all_suitable_deployments_for(@driver_m.new)
+
+                    assert_equal 1, candidates.size
+                    deployed_task = candidates.first
+                    configured_deployment = deployed_task.configured_deployment
+                    # This is the real thing ... Other than the process server,
+                    # everything looks exactly the same
+                    assert_equal 'unmanaged_tasks',
+                                 configured_deployment.process_server_name
+                    assert_match(/Unmanaged/, configured_deployment.model.name)
+                    assert_equal 'test', deployed_task.mapped_task_name
+                    assert_equal(
+                        { 'test' => 'test' },
+                        configured_deployment.name_mappings
+                    )
                 end
             end
         end

@@ -199,19 +199,23 @@ module Syskit
                     orogen_model, [service_model.orogen_model], port_mappings)
             end
 
+            def to_deployment_group(name, **options)
+                group = Models::DeploymentGroup.new
+                group.use_deployment(self => name, **options)
+                group
+            end
+
             # Return the instance requirement object that runs this task
             # model with the given name
             def deployed_as(name, **options)
-                to_instance_requirements
-                    .use_deployment(self => name, **options)
+                to_instance_requirements.deployed_as(name, **options)
             end
 
             # Return the instance requirement object that will hook onto
             # an otherwise started component of the given name
             # model with the given name
             def deployed_as_unmanaged(name, **options)
-                to_instance_requirements
-                    .use_unmanaged_task(self => name, **options)
+                to_instance_requirements.deployed_as_unmanaged(name, **options)
             end
         end
     end
