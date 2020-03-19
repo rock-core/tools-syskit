@@ -1,3 +1,5 @@
+# frozen_string_literal: true
+
 require 'syskit/test/self'
 require 'vizkit'
 require 'metaruby/gui'
