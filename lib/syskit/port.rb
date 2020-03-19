@@ -256,16 +256,30 @@ module Syskit
         attr_reader :actual_port
         # The connection policy
         attr_reader :policy
+        # The object that actually accesses the remote component's ports
+        attr_reader :orocos_accessor
 
         def initialize(port, accessor_method, policy = {})
             @port = port.to_component_port
             @policy = policy
             @disconnected = false
+
+            @execution_engine = nil
+
             @accessor_method = accessor_method
-            @accessor = nil
+            @orocos_accessor = nil
             port.component.execute do |component|
+                @execution_engine = component.execution_engine
                 perform_resolution(component, @port) unless @disconnected
             end
+        end
+
+        def ready?
+            @orocos_accessor && actual_port.component.running?
+        end
+
+        def connected?
+            @orocos_accessor&.connected?
         end
 
         private def perform_resolution(component, port)
@@ -286,10 +300,24 @@ module Syskit
                 end
             end
 
-            @execution_engine = @actual_port.component.execution_engine
+            component.when_finalized do
+                disconnect
+            end
             @actual_port.component.when_finalized do
                 disconnect
             end
+        end
+
+        def disconnect
+            @disconnected = true
+            return unless @execution_engine && (accessor = @orocos_accessor)
+
+            p = @execution_engine.promise(description: "disconnect #{self}") do
+                begin accessor.disconnect
+                rescue Orocos::ComError # rubocop:disable Lint/SuppressedException
+                end
+            end
+            p.on_success { @orocos_accessor = nil }.execute
         end
 
         # @api private
@@ -305,7 +333,7 @@ module Syskit
                     )
                 end
             resolver.on_success(description: "#{self}#resolve#ready") do |obj|
-                @accessor = obj unless @disconnected
+                @orocos_accessor = obj unless @disconnected
             end
             resolver.on_error(description: "#{self}#resolve#failed") do |error|
                 actual_component = port.component
@@ -327,23 +355,11 @@ module Syskit
         #
         # @return [Orocos::OutputReader]
         def reader
-            @accessor
+            @orocos_accessor
         end
 
         def model
             Models::OutputReader.new(port.model, policy)
-        end
-
-        def disconnect
-            @disconnected = true
-            return unless @execution_engine && (actual_reader = @accessor)
-
-            p = @execution_engine.promise(description: "disconnect #{self}") do
-                begin actual_reader.disconnect
-                rescue Orocos::ComError # rubocop:disable Lint/SuppressedException
-                end
-            end
-            p.on_success { @accessor = nil }.execute
         end
 
         # Get a sample that has never been read
@@ -358,7 +374,7 @@ module Syskit
         # @return [Object,nil] the sample, or nil if there are no samples
         #    received on this read that have not already been read
         def read_new(sample = nil)
-            reader&.read_new(sample)
+            @orocos_accessor&.read_new(sample)
         end
 
         # Get either a sample that has never been read, or the last read sample
@@ -373,7 +389,7 @@ module Syskit
         # @return [Object,nil] the sample, or nil if there are no samples
         #    received on this read that have not already been read
         def read(sample = nil)
-            reader&.read(sample)
+            @orocos_accessor&.read(sample)
         end
 
         # Clear all samples from the reader
@@ -384,26 +400,7 @@ module Syskit
         # new connections are cleared (have no samples) until the writer writes
         # a new sample
         def clear
-            reader&.clear
-        end
-
-        # Whether the reader may return a new sample
-        #
-        # It is false if it is not yet connected *and/or* the underlying
-        # component is not yet running.
-        def ready?
-            reader && actual_port.component.running?
-        end
-
-        # Whether the reader is connected to the underlying port
-        #
-        # Output readers in Syskit are resolved asynchronously. As such, they
-        # may be created but not yet connected
-        #
-        # When a port is not connected, {#read}, {#read_new} and {#clear}
-        # are no-ops.
-        def connected?
-            reader&.connected?
+            @orocos_accessor&.clear
         end
     end
 
@@ -414,31 +411,11 @@ module Syskit
         end
 
         def writer
-            @accessor
+            @orocos_accessor
         end
 
         def model
             Models::InputWriter.new(port.model, policy)
-        end
-
-        def ready?
-            @accessor && actual_port.component.running?
-        end
-
-        def connected?
-            @accessor&.connected?
-        end
-
-        def disconnect
-            @disconnected = true
-            return unless @execution_engine && (actual_writer = @accessor)
-
-            p = @execution_engine.promise(description: "disconnect #{self}") do
-                begin actual_writer.disconnect
-                rescue Orocos::ComError # rubocop:disable Lint/SuppressedException
-                end
-            end
-            p.on_success { @accessor = nil }.execute
         end
 
         # Write a sample on the associated port

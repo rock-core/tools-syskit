@@ -295,6 +295,40 @@ describe Syskit::InputWriter do
             expect_execution { task.start! }.join_all_waiting_work(false).to_run
             expect_execution { writer.disconnect }.to { achieve { !writer.ready? } }
         end
+
+        describe 'automatic disconnection' do
+            attr_reader :cmp, :child, :orocos_writer
+            before do
+                cmp_m = Syskit::Composition.new_submodel
+                cmp_m.add task_m, as: 'c'
+                cmp_m.export cmp_m.c_child.in_port
+
+                @cmp = syskit_stub_deploy_configure_and_start(cmp_m)
+                @child = cmp.c_child
+                @writer = w = cmp.in_port.writer
+                expect_execution.to { achieve { w.ready? } }
+                @orocos_writer = writer.orocos_accessor
+                assert @orocos_writer.connected?
+            end
+
+            it 'automatically disconnects when the port\'s component is finalized' do
+                plan.add_permanent_task(@child)
+                plan.unmark_mission_task(@cmp)
+
+                expect_execution.garbage_collect(true).to { achieve { cmp.finalized? } }
+                refute @child.finalized?
+                expect_execution.to { achieve { !orocos_writer.connected? } }
+            end
+
+            it 'automatically disconnects when the port\'s actual component '\
+               'is finalized' do
+                cmp.remove_child child
+
+                expect_execution.garbage_collect(true).to { achieve { child.finalized? } }
+                refute cmp.finalized?
+                expect_execution.to { achieve { !orocos_writer.connected? } }
+            end
+        end
     end
 end
 
@@ -545,6 +579,40 @@ describe Syskit::OutputReader do
             expect_execution { task.start! }.join_all_waiting_work(false).to_run
             expect_execution { reader.disconnect }
                 .to { achieve { !reader.ready? } }
+        end
+
+        describe 'automatic disconnection' do
+            attr_reader :cmp, :child, :orocos_reader
+            before do
+                cmp_m = Syskit::Composition.new_submodel
+                cmp_m.add task_m, as: 'c'
+                cmp_m.export cmp_m.c_child.out_port
+
+                @cmp = syskit_stub_deploy_configure_and_start(cmp_m)
+                @child = cmp.c_child
+                @reader = r = cmp.out_port.reader
+                expect_execution.to { achieve { r.ready? } }
+                @orocos_reader = reader.orocos_accessor
+                assert @orocos_reader.connected?
+            end
+
+            it 'automatically disconnects when the port\'s component is finalized' do
+                plan.add_permanent_task(@child)
+                plan.unmark_mission_task(@cmp)
+
+                expect_execution.garbage_collect(true).to { achieve { cmp.finalized? } }
+                refute @child.finalized?
+                expect_execution.to { achieve { !orocos_reader.connected? } }
+            end
+
+            it 'automatically disconnects when the port\'s actual component '\
+               'is finalized' do
+                cmp.remove_child child
+
+                expect_execution.garbage_collect(true).to { achieve { child.finalized? } }
+                refute cmp.finalized?
+                expect_execution.to { achieve { !orocos_reader.connected? } }
+            end
         end
     end
 end
