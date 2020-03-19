@@ -257,54 +257,55 @@ module Syskit
         # The connection policy
         attr_reader :policy
 
-        def initialize(port, policy = {})
+        def initialize(port, accessor_method, policy = {})
             @port = port.to_component_port
             @policy = policy
             @disconnected = false
-            schedule_resolution(@port) do |resolved_port, _|
-                @resolved_port = resolved_port
+            @accessor_method = accessor_method
+            @accessor = nil
+            port.component.execute do |component|
+                perform_resolution(component, @port) unless @disconnected
             end
         end
 
-        private def schedule_resolution(port)
-            port.component.execute do |component|
-                unless @disconnected
-                    resolved_port = component.find_port(port.name)
-                    unless resolved_port
-                        raise ArgumentError,
-                              "cannot find a port called #{port.name} on #{component}"
-                    end
+        private def perform_resolution(component, port)
+            resolved_port = component.find_port(port.name)
+            unless resolved_port
+                raise ArgumentError,
+                      "cannot find a port called #{port.name} on #{component}"
+            end
 
-                    @actual_port = resolved_port.to_actual_port
-                    yield(resolved_port, @actual_port) if block_given?
+            @actual_port = resolved_port.to_actual_port
+            @resolved_port = resolved_port
 
-                    if @actual_port.static? || @actual_port.component.setup?
-                        resolve(component, @actual_port)
-                    else
-                        @actual_port.component.execute do
-                            resolve(component, @actual_port)
-                        end
-                    end
-
-                    @execution_engine = @actual_port.component.execution_engine
-                    @actual_port.component.when_finalized do
-                        disconnect
-                    end
+            if @actual_port.static? || @actual_port.component.setup?
+                resolve(component, @actual_port)
+            else
+                @actual_port.component.execute do
+                    resolve(component, @actual_port)
                 end
+            end
+
+            @execution_engine = @actual_port.component.execution_engine
+            @actual_port.component.when_finalized do
+                disconnect
             end
         end
 
         # @api private
         #
         # Resolves the underlying writer object
-        private def resolve(main, port, accessor)
+        protected def resolve(main, port)
             distance = port.component.distance_to_syskit
 
-            resolver = main.promise(description: "#{port}##{accessor} for #{self}") do
-                port.to_orocos_port.public_send(accessor, distance: distance, **policy)
-            end
+            resolver =
+                main.promise(description: "#{port}##{@accessor_method} for #{self}") do
+                    port.to_orocos_port.public_send(
+                        @accessor_method, distance: distance, **policy
+                    )
+                end
             resolver.on_success(description: "#{self}#resolve#ready") do |obj|
-                yield(obj) unless @disconnected
+                @accessor = obj unless @disconnected
             end
             resolver.on_error(description: "#{self}#resolve#failed") do |error|
                 actual_component = port.component
@@ -318,31 +319,31 @@ module Syskit
 
     # A data source for a port attached to a component
     class OutputReader < PortAccessor
+        def initialize(port, policy = {})
+            super(port, :reader, policy)
+        end
+
         # The actual data reader itself
+        #
         # @return [Orocos::OutputReader]
-        attr_reader :reader
+        def reader
+            @accessor
+        end
 
         def model
             Models::OutputReader.new(port.model, policy)
         end
 
-        # @api private
-        #
-        # Resolves the underlying reader object
-        def resolve(main, port)
-            super(main, port, :reader) { |r| @reader = r }
-        end
-
         def disconnect
             @disconnected = true
-            return unless @execution_engine && (actual_reader = reader)
+            return unless @execution_engine && (actual_reader = @accessor)
 
             p = @execution_engine.promise(description: "disconnect #{self}") do
                 begin actual_reader.disconnect
                 rescue Orocos::ComError # rubocop:disable Lint/SuppressedException
                 end
             end
-            p.on_success { @reader = nil }.execute
+            p.on_success { @accessor = nil }.execute
         end
 
         # Get a sample that has never been read
@@ -408,39 +409,36 @@ module Syskit
 
     # A data writer for a port attached to a component
     class InputWriter < PortAccessor
-        # The actual data writer itself
-        # @return [Orocos::InputWriter]
-        attr_reader :writer
+        def initialize(port, policy = {})
+            super(port, :writer, policy)
+        end
+
+        def writer
+            @accessor
+        end
 
         def model
             Models::InputWriter.new(port.model, policy)
         end
 
         def ready?
-            writer && actual_port.component.running?
+            @accessor && actual_port.component.running?
         end
 
         def connected?
-            writer&.connected?
+            @accessor&.connected?
         end
 
         def disconnect
             @disconnected = true
-            return unless @execution_engine && (actual_writer = writer)
+            return unless @execution_engine && (actual_writer = @accessor)
 
             p = @execution_engine.promise(description: "disconnect #{self}") do
                 begin actual_writer.disconnect
                 rescue Orocos::ComError # rubocop:disable Lint/SuppressedException
                 end
             end
-            p.on_success { @writer = nil }.execute
-        end
-
-        # @api private
-        #
-        # Resolves the underlying writer object
-        def resolve(main, port)
-            super(main, port, :writer) { |w| @writer = w }
+            p.on_success { @accessor = nil }.execute
         end
 
         # Write a sample on the associated port
