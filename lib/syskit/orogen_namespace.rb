@@ -1,3 +1,5 @@
+# frozen_string_literal: true
+
 module Syskit
     # Implementation of the model access as available through the OroGen
     # toplevel constant
@@ -142,15 +144,15 @@ module Syskit
         end
 
         def clear
-            @registered_constants.delete_if do |root, namespace, name|
+            @registered_constants.delete_if do |_root, namespace, name|
                 begin
                     namespace.send(:remove_const, name)
-                rescue NameError
+                rescue NameError # rubocop:disable Lint/SuppressedException
                 end
                 true
             end
-            @project_namespaces = Hash.new
-            @registered_models = Hash.new
+            @project_namespaces = {}
+            @registered_models = {}
         end
 
         def project_name?(name)
@@ -159,33 +161,32 @@ module Syskit
 
         # Resolve the registered syskit model that has the given orogen name
         def syskit_model_by_orogen_name(name)
-            if model = @registered_models[name]
-                model
-            else raise ArgumentError, "#{name} is not registered on #{self}"
+            unless (model = @registered_models[name])
+                raise ArgumentError, "#{name} is not registered on #{self}"
             end
+
+            model
         end
 
         def registered_model_name_prefix
             @registered_model_name_prefix ||= "#{name || to_s}."
         end
 
-
-        def respond_to_missing?(m, include_private = false)
+        def respond_to_missing?(m, _include_private = false)
             @project_namespaces.key?(m)
         end
 
         def method_missing(m, *args, &block)
-            if project = @project_namespaces[m]
-                if args.empty?
-                    return project
-                else
-                    raise ArgumentError, "expected 0 arguments, got #{args.size}"
-                end
+            return super unless (project = @project_namespaces[m])
+
+            unless args.empty?
+                raise ArgumentError, "expected 0 arguments, got #{args.size}"
             end
-            super
+
+            project
         rescue NoMethodError => e
             raise e, "#{e.message}, available OroGen projects: "\
-            "#{@project_namespaces.keys.map(&:to_s).join(", ")}"
+                     "#{@project_namespaces.keys.map(&:to_s).join(', ')}"
         end
 
         def register_syskit_model(model)
@@ -193,16 +194,19 @@ module Syskit
                 register_syskit_model_as_constant(model)
             end
 
-            project_name = model.orogen_model.name.split("::").first
-            if !project_name
-                raise ArgumentError, "cannot register a project with no name"
+            project_name = model.orogen_model.name.split('::').first
+            unless project_name
+                raise ArgumentError, 'cannot register a project with no name'
             end
-            project_ns =
-                (@project_namespaces[project_name.to_sym] ||= ProjectNamespace.new(project_name))
+
+            unless (project_ns = @project_namespaces[project_name.to_sym])
+                project_ns = @project_namespaces[project_name.to_sym] =
+                    ProjectNamespace.new(project_name)
+            end
 
             project_ns.register_syskit_model(model)
             @registered_models[model.orogen_model.name] = model
-            registered_model_name_prefix + model.orogen_model.name.split("::").join(".")
+            registered_model_name_prefix + model.orogen_model.name.split('::').join('.')
         end
 
         # @api private
@@ -213,7 +217,7 @@ module Syskit
         # @return [(String,String)] the namespace and class names
         def syskit_names_from_orogen_name(orogen_name)
             namespace, basename = orogen_name.split '::'
-            return namespace.camelcase(:upper), basename.camelcase(:upper)
+            [namespace.camelcase(:upper), basename.camelcase(:upper)]
         end
 
         # @api private
@@ -231,17 +235,17 @@ module Syskit
 
             namespace, basename = syskit_names_from_orogen_name(orogen_model.name)
             if syskit_model_toplevel_constant_registration?
-                if namespace_mod =
-                        OroGenNamespace.register_syskit_model_as_constant(
-                            Object, namespace, basename, model)
+                namespace_mod = OroGenNamespace.register_syskit_model_as_constant(
+                    Object, namespace, basename, model
+                )
+                if namespace_mod
                     @registered_constants << [Object, namespace_mod, basename]
                 end
             end
-            if namespace_mod =
-                    OroGenNamespace.register_syskit_model_as_constant(
-                        self, namespace, basename, model)
-                @registered_constants << [self, namespace_mod, basename]
-            end
+            namespace_mod = OroGenNamespace.register_syskit_model_as_constant(
+                self, namespace, basename, model
+            )
+            @registered_constants << [self, namespace_mod, basename] if namespace_mod
         end
 
         def self.register_syskit_model_as_constant(mod, namespace, basename, model)
@@ -253,15 +257,16 @@ module Syskit
                 end
 
             if namespace.const_defined_here?(basename)
-                Syskit::TaskContext.warn "there is already a constant with the name" \
+                Syskit::TaskContext.warn(
+                    'there is already a constant with the name' \
                     "#{namespace.name}::#{basename}, I am not registering the model" \
                     "for #{model.orogen_model.name} there"
+                )
                 false
             else
                 namespace.const_set(basename, model)
                 namespace
             end
         end
-
     end
 end
