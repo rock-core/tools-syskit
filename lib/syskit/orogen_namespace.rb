@@ -63,6 +63,75 @@ module Syskit
             end
         end
 
+        class DeploymentNamespace < Module
+            def initialize
+                super
+                @deployments = {}
+                @registered_constants = []
+            end
+
+            def register_syskit_model(deployment_model)
+                @deployments[deployment_model.orogen_model.name] = deployment_model
+                if OroGen.syskit_model_constant_registration?
+                    register_syskit_model_as_constant(deployment_model)
+                end
+
+                nil
+            end
+
+            def clear
+                @registered_constants.delete_if do |name|
+                    begin
+                        Deployment.send(:remove_const, name)
+                    rescue NameError # rubocop:disable Lint/SuppressedException
+                    end
+                    true
+                end
+                @deployments = {}
+            end
+
+            # @api private
+            #
+            # Registers the given syskit model on the class hierarchy, using
+            # the
+            # (camelized) orogen name as a basis
+            #
+            # If there is a constant clash, the model will not be registered
+            # but its #name method will return the "right" value enclosed in <>
+            #
+            # @return [Boolean] true if the model could be registered and false
+            #   otherwise
+            def register_syskit_model_as_constant(model)
+                orogen_model = model.orogen_model
+                const_name = orogen_model.name.camelcase(:upper)
+                ::Deployments.const_set(const_name, model)
+                @registered_constants << const_name
+            end
+
+            def respond_to_missing?(name, _include_private = false)
+                @deployments.key?(name.to_s)
+            end
+
+            def method_missing(name, *args, **kw)
+                if (m = @deployments[name.to_s])
+                    unless args.empty? && kw.empty?
+                        raise ArgumentError,
+                              "wrong number of arguments, given #{args.size} and #{kw.size} "\
+                              'keyword arguments, expected 0'
+                    end
+
+                    return m
+                end
+
+                super
+            rescue NoMethodError
+                deployments_s = @deployments.keys.join(', ')
+                raise NoMethodError.new(name),
+                      "no deployment registered with the name '#{name}', "\
+                      "available deployments are: #{deployments_s}"
+            end
+        end
+
         attr_predicate :syskit_model_constant_registration?, true
         attr_predicate :syskit_model_toplevel_constant_registration?, true
 

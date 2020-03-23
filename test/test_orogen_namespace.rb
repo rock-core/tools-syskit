@@ -99,5 +99,59 @@ module Syskit
                     name: 'project::Task'))
             assert_equal 'test.project.Task', @object.register_syskit_model(obj)
         end
+
+        describe OroGenNamespace::DeploymentNamespace do
+            before do
+                @m = OroGenNamespace::DeploymentNamespace.new
+            end
+
+            after do
+                @m.clear
+            end
+
+            it 'resolves a given model through method call' do
+                syskit_m = Deployment.new_submodel(name: 'blablabla')
+                @m.register_syskit_model(syskit_m)
+                assert_equal syskit_m, @m.blablabla
+            end
+
+            it 'reports the list of available models on NoMethodError' do
+                @m.register_syskit_model(Deployment.new_submodel(name: 'depl1'))
+                @m.register_syskit_model(Deployment.new_submodel(name: 'depl2'))
+                e = assert_raises(NoMethodError) do
+                    @m.does_not_exist
+                end
+                assert_equal(
+                    'no deployment registered with the name \'does_not_exist\', '\
+                    'available deployments are: depl1, depl2',
+                    e.message
+                )
+            end
+
+            describe 'constant registration' do
+                before do
+                    @constant_registration = OroGen.syskit_model_constant_registration?
+                end
+                after do
+                    OroGen.syskit_model_constant_registration = @constant_registration
+                end
+
+                it 'registers the deployments as constants on ::Deployments if '\
+                   'OroGen.syskit_model_constant_registration is set' do
+                    OroGen.syskit_model_constant_registration = true
+                    depl_m = Deployment.new_submodel(name: 'depl')
+                    @m.register_syskit_model(depl_m)
+                    assert_same depl_m, ::Deployments::Depl
+                end
+
+                it 'clears the registered constants on clear' do
+                    OroGen.syskit_model_constant_registration = true
+                    depl_m = Deployment.new_submodel(name: 'depl')
+                    @m.register_syskit_model(depl_m)
+                    @m.clear
+                    refute ::Deployments.const_defined?(:Depl)
+                end
+            end
+        end
     end
 end
