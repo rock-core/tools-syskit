@@ -268,7 +268,7 @@ module Syskit
 
             @accessor_method = accessor_method
             @orocos_accessor = nil
-            port.component.execute do |component|
+            @port.component.execute do |component|
                 @execution_engine = component.execution_engine
                 perform_resolution(component, @port) unless @disconnected
             end
