@@ -655,7 +655,7 @@ module Syskit
                 if Deployment.has_model_for?(deployer)
                     Deployment.find_model_by_orogen(deployer)
                 else
-                    Deployment.define_from_orogen(deployer, :register => true)
+                    Deployment.define_from_orogen(deployer, register: true)
                 end
             end
 
@@ -736,6 +736,7 @@ module Syskit
 
             def self.clear_models(app)
                 OroGen.clear
+                OroGen::Deployments.clear
 
                 app.loaded_orogen_projects.clear
                 app.default_loader.clear

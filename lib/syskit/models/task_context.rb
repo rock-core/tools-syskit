@@ -1,6 +1,7 @@
 # Module where all the OroGen task context models get registered
 module OroGen
     extend Syskit::OroGenNamespace
+    Deployments = Syskit::OroGenNamespace::DeploymentNamespace.new
 
     self.syskit_model_constant_registration = true
 end
