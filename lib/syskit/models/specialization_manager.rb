@@ -6,7 +6,7 @@ module Syskit
 
             # The composition model
             #
-            # @return [Model<Composition>] 
+            # @return [Model<Composition>]
             attr_reader :composition_model
 
             inherited_attribute(:default_specialization, :default_specializations, :map => true) { Hash.new }
@@ -61,7 +61,7 @@ module Syskit
 
             # Specifies a modification that should be applied on
             # {#composition_model} when select children fullfill some specific
-            # models. 
+            # models.
             #
             # @param (see #normalize_specialization_mappings)
             # @raise (see #normalize_specialization_mappings)
@@ -72,13 +72,13 @@ module Syskit
             #   only two specialization will exist: the one in which the Control
             #   child is a SimpleController and the one in which it is a
             #   FourWheelController.
-            #   
+            #
             #   In the example below, if the :not option had not been
             #   used, three specializations would have been added: the same two
             #   than above, and the one case where 'Control' fullfills both the
             #   SimpleController and FourWheelController data services.
             #
-            #   @example 
+            #   @example
             #
             #     specialize 'Control', SimpleController, :not => FourWheelController do
             #     end
@@ -144,7 +144,7 @@ module Syskit
                 new_specialization.composition_model = specialized_composition_model
                 register(new_specialization)
 
-                # Finally, we create 
+                # Finally, we create
                 new_specialization
 
             ensure
@@ -418,7 +418,7 @@ module Syskit
                         model.definition_blocks << block
                     end
                 end
- 
+
                 def respond_to_missing?(symbol, include_private)
                     model.respond_to?(symbol) || super
                 end
@@ -550,7 +550,7 @@ module Syskit
             #     representing the desired composite specialization
             #   * atomic_specializations is the set of single specializations
             #     that have been merged to obtain +merged_specialization+
-            # 
+            #
             # Further disambiguation would, for instance, have to pick one of
             # these sets and call
             #
@@ -616,17 +616,15 @@ module Syskit
                             spec.weak_match?(hint)
                         end
                     end
-                    if !filtered_candidates.empty?
-                        candidates = filtered_candidates
-                    end
+
+                    candidates = filtered_candidates unless filtered_candidates.empty?
                 end
                 if candidates.size > 1
                     filtered_candidates = candidates.find_all do |spec, _|
                         spec.weak_match?(selection)
                     end
-                    if !filtered_candidates.empty?
-                        candidates = filtered_candidates
-                    end
+
+                    candidates = filtered_candidates unless filtered_candidates.empty?
                 end
 
                 if candidates.empty?
@@ -636,7 +634,9 @@ module Syskit
                         selection = selection.map_value do |_, sel|
                             sel.selected
                         end
-                        raise AmbiguousSpecialization.new(composition_model, selection, candidates)
+                        raise AmbiguousSpecialization.new(
+                            composition_model, selection, candidates
+                        )
                     else
                         candidates = [find_common_specialization_subset(candidates)]
                     end
@@ -645,11 +645,12 @@ module Syskit
                 specialized_model = specialized_model(*candidates.first)
                 Models.debug do
                     if specialized_model != composition_model
-                        Models.debug "using specialization #{specialized_model.short_name} of #{composition_model.short_name}"
+                        Models.debug "using specialization #{specialized_model.short_name} "\
+                                     "of #{composition_model.short_name}"
                     end
                     break
                 end
-                return specialized_model
+                specialized_model
             end
 
             # Given a set of specialization sets, returns subset common to all

@@ -33,7 +33,8 @@ module Syskit
 
             describe '#resolve_deployment_ambiguity' do
                 def mock_configured_deployment
-                    flexmock(process_server_name: 'test-mng')
+                    flexmock(model: Syskit::Deployment.new_submodel,
+                             process_server_name: 'test-mng')
                 end
 
                 def make_candidates(count)

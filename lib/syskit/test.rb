@@ -1,3 +1,5 @@
+# frozen_string_literal: true
+
 require 'orocos/ruby_tasks/stub_task_context'
 require 'syskit/test/base'
 
@@ -24,7 +26,8 @@ module Syskit
         desc.kind_of?(Syskit::Models::DataServiceModel)
     end
     Roby::Test.register_spec_type Syskit::Test::ActionTest do |desc|
-        desc.kind_of?(Roby::Actions::Models::Action) || desc.kind_of?(Roby::Actions::Action)
+        desc.kind_of?(Roby::Actions::Models::Action) ||
+            desc.kind_of?(Roby::Actions::Action)
     end
     Roby::Test.register_spec_type Syskit::Test::TaskContextTest do |desc|
         (desc.kind_of?(Class) && desc <= Syskit::TaskContext)
@@ -33,7 +36,9 @@ module Syskit
         (desc.kind_of?(Class) && desc <= Syskit::RubyTaskContext)
     end
     Roby::Test.register_spec_type Syskit::Test::ComponentTest do |desc|
-        (desc.kind_of?(Class) && desc <= Syskit::Component && !(desc <= Syskit::TaskContext))
+        (desc.kind_of?(Class) &&
+         desc <= Syskit::Component &&
+         !(desc <= Syskit::TaskContext))
     end
     Roby::Test.register_spec_type Syskit::Test::ProfileTest do |desc|
         desc.kind_of?(Syskit::Actions::Profile)

@@ -163,7 +163,7 @@ describe Syskit::DependencyInjection do
             task_m.provides srv_m, as: 'test'
 
             mapping = { srv_m => proxy_m.m0_srv, proxy_m => proxy2_m, proxy2_m => task_m }
-            assert_equal(task_m.test_srv, 
+            assert_equal(task_m.test_srv,
                 Syskit::DependencyInjection.resolve_recursive_selection_mapping(mapping)[srv_m])
         end
 
@@ -174,7 +174,7 @@ describe Syskit::DependencyInjection do
             task_m.provides srv_m, as: 'ambiguous'
 
             mapping = { srv_m => task_m.test_srv, task_m => task_m }
-            assert_equal(task_m.test_srv, 
+            assert_equal(task_m.test_srv,
                 Syskit::DependencyInjection.resolve_recursive_selection_mapping(mapping)[srv_m])
         end
     end
@@ -263,7 +263,7 @@ class TC_DependencyInjection < Minitest::Test
     def test_pretty_print
         dep = DependencyInjection.new(Component.new_submodel, DataService.new_submodel => 'value')
         # Just verify that it does not raise ...
-        PP.pp(dep, "")
+        PP.pp(dep, ''.dup)
     end
 
     def test_normalize_selection_raises_on_invalid_keys
@@ -300,7 +300,7 @@ class TC_DependencyInjection < Minitest::Test
         component = Component.new_submodel
         component.provides srv, as: 'srv'
         key = component
-        
+
         assert_equal(Hash[key => DependencyInjection.nothing], DependencyInjection.normalize_selection(key => DependencyInjection.nothing))
         assert_equal(Hash[key => DependencyInjection.do_not_inherit], DependencyInjection.normalize_selection(key => DependencyInjection.do_not_inherit))
         assert_equal(Hash[key => 'value'], DependencyInjection.normalize_selection(key => 'value'))
@@ -333,7 +333,7 @@ class TC_DependencyInjection < Minitest::Test
         key = Component.new_submodel
         srv = DataService.new_submodel
         component = Component.new_submodel { provides(srv, as: 'srv') }
-        
+
         assert_raises(ArgumentError) { DependencyInjection.normalize_selection(key => component) }
         assert_raises(ArgumentError) { DependencyInjection.normalize_selection(key => component.srv_srv) }
 	component = component.new

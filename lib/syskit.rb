@@ -1,3 +1,5 @@
+# frozen_string_literal: true
+
 require 'orocos'
 require 'metaruby'
 require 'metaruby/dsls/find_through_method_missing'

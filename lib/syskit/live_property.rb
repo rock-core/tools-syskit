@@ -1,3 +1,5 @@
+# frozen_string_literal: true
+
 module Syskit
     # Syskit-side representation of the property of an actual live task
     class LiveProperty < Property
@@ -35,9 +37,7 @@ module Syskit
         # @param [Time] _timestamp ignored, for compatibility with
         #   {Orocos::Property}
         def write(value, _timestamp = nil)
-            if task_context.would_use_property_update?
-                super
-            end
+            super if task_context.would_use_property_update?
         end
 
         # Update this property with a Typelib object
@@ -49,4 +49,3 @@ module Syskit
         end
     end
 end
-

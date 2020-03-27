@@ -1144,13 +1144,17 @@ module Syskit
             #
             # The object must define #to_instance_requirements
             module Auto
-                METHODS = [:with_arguments, :with_conf, :prefer_deployed_tasks, :use_conf, :use_deployments, :period]
+                METHODS = %I[
+                    with_arguments with_conf prefer_deployed_tasks
+                    use_conf use_deployments period
+                ].freeze
+
                 METHODS.each do |m|
-                    class_eval <<-EOD
-                    def #{m}(*args, &block)
-                        to_instance_requirements.send(m, *args, &block)
-                    end
-                    EOD
+                    class_eval <<~CODE, __FILE__, __LINE__ + 1
+                        def #{m}(*args, &block)
+                            to_instance_requirements.send(m, *args, &block)
+                        end
+                    CODE
                 end
             end
 
@@ -1162,7 +1166,7 @@ module Syskit
 
                 # Called by the state machine implementation to create a Roby::Task
                 # instance that will perform the state's actions
-                def instanciate(plan, variables = Hash.new)
+                def instanciate(_plan, variables = {})
                     arguments = @requirements.arguments.map_value do |key, value|
                         if value.respond_to?(:evaluate)
                             value.evaluate(variables)
@@ -1173,12 +1177,14 @@ module Syskit
                 end
             end
 
-            def to_coordination_task(task_model)
+            def to_coordination_task(_task_model)
                 CoordinationTask.new(self)
             end
 
             def selected_for(requirements)
-                Syskit::InstanceSelection.new(nil, self, requirements.to_instance_requirements)
+                Syskit::InstanceSelection.new(
+                    nil, self, requirements.to_instance_requirements
+                )
             end
 
             def to_action_model(doc = self.doc)

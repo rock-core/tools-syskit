@@ -1,3 +1,5 @@
+# frozen_string_literal: true
+
 module Syskit
     # The graph that represents the connections on the actual ports
     #
@@ -13,7 +15,7 @@ module Syskit
 
         def initialize(*)
             super
-            @static_info = Hash.new
+            @static_info = {}
         end
 
         # Registers a connection between two tasks
@@ -65,8 +67,8 @@ module Syskit
         def static?(task, port)
             static_info.fetch([task, port])
         rescue KeyError
-            raise ArgumentError, "no port #{port} on a task called #{task} is registered on #{self}"
+            raise ArgumentError,
+                  "no port #{port} on a task called #{task} is registered on #{self}"
         end
     end
 end
-

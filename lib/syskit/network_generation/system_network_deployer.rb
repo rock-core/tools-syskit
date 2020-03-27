@@ -266,12 +266,13 @@ module Syskit
 
                 return resolved.first if resolved.size == 1
 
+                info { "ambiguous deployment for #{task} (#{task.model})" }
                 info do
-                    info { "ambiguous deployment for #{task} (#{task.model})" }
-                    candidates.each do |deployment_model, task_name|
+                    candidates.each do |deployed_task|
+                        deployment = deployed_task.configured_deployment
                         info do
-                            "  #{task_name} of #{deployment_model.short_name} "\
-                            "on #{deployment_model.process_server_name}"
+                            "  #{deployed_task.mapped_task_name} of #{deployment.model} "\
+                            "on #{deployment.process_server_name}"
                         end
                     end
                     break

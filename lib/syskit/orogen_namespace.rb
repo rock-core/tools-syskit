@@ -84,7 +84,7 @@ module Syskit
             def clear
                 @registered_constants.delete_if do |name|
                     begin
-                        Deployment.send(:remove_const, name)
+                        ::Deployments.send(:remove_const, name)
                     rescue NameError # rubocop:disable Lint/SuppressedException
                     end
                     true

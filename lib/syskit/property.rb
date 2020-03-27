@@ -1,3 +1,5 @@
+# frozen_string_literal: true
+
 module Syskit
     # Syskit-side representation of a property
     #
@@ -6,17 +8,17 @@ module Syskit
     # is called
     class Property
         # This property's name
-        # 
+        #
         # @return [String]
         attr_reader :name
 
         # This property's type
-        # 
+        #
         # @return [String]
         attr_reader :type
 
         # The value of this property on the component side
-        # 
+        #
         # @return [Typelib::Type]
         attr_reader :remote_value
 
@@ -35,7 +37,7 @@ module Syskit
 
         # Whether this property is being logged
         def logged?
-            !!log_stream
+            log_stream
         end
 
         def initialize(name, type)
@@ -44,12 +46,12 @@ module Syskit
             @remote_value = nil
             @value = nil
             @log_stream = nil
-            @log_metadata = Hash.new
+            @log_metadata = {}
         end
 
         # Whether a value has been set with {#write}
         def has_value?
-            !!@value
+            @value
         end
 
         # Add metadata to {#log_metadata}
@@ -66,7 +68,7 @@ module Syskit
         end
 
         # Read the current Syskit-side value of this property
-        # 
+        #
         # This is not necessarily the value on the component side
         def read
             Typelib.to_ruby(@value)
@@ -74,7 +76,7 @@ module Syskit
 
         # Read the current Syskit-side value of this property as a Typelib
         # object
-        # 
+        #
         # This is not necessarily the value on the component side
         def raw_read
             @value
@@ -97,7 +99,8 @@ module Syskit
         # The object's type and value will not be checked
         def raw_write(value, _timestap = nil)
             if value.class != type
-                raise ArgumentError, "expected a typelib value of type #{type}, but got #{value.class}"
+                raise ArgumentError,
+                      "expected a typelib value of type #{type}, but got #{value.class}"
             end
             @value = value
         end
@@ -110,11 +113,8 @@ module Syskit
         end
 
         # Update the log stream with the currently none remote value
-        def update_log(timestamp = Time.now, value = self.remote_value)
-            if logged?
-                log_stream.write(timestamp, timestamp, value)
-            end
+        def update_log(timestamp = Time.now, value = remote_value)
+            log_stream.write(timestamp, timestamp, value) if logged?
         end
     end
 end
-
