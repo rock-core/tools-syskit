@@ -1139,6 +1139,10 @@ module Syskit
                     end
                 end
             end
+
+            def match
+                Queries::ComponentMatcher.new.with_model(self)
+            end
         end
     end
 end

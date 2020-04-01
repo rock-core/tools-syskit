@@ -60,6 +60,12 @@ require 'syskit/remote_state_getter'
 require 'syskit/deployment'
 require 'syskit/bound_data_service'
 
+# Queries
+require 'syskit/queries/abstract_component_base'
+require 'syskit/queries/component_matcher'
+require 'syskit/queries/data_service_matcher'
+require 'syskit/queries/port_matcher'
+
 # Dependency injection
 require 'syskit/dependency_injection'
 require 'syskit/dependency_injection_context'
