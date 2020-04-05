@@ -705,26 +705,6 @@ module Syskit
                 dserv
             end
 
-            def has_through_method_missing?(m)
-                MetaRuby::DSLs.has_through_method_missing?(
-                    self, m, '_srv'.freeze => :find_data_service) || super
-            end
-
-            def find_through_method_missing(m, args)
-                MetaRuby::DSLs.find_through_method_missing(
-                    self, m, args, '_srv'.freeze => :find_data_service) || super
-            end
-
-            include MetaRuby::DSLs::FindThroughMethodMissing
-
-            def method_missing(m, *args, &block)
-                if m == :orogen_model
-                    raise NoMethodError, "tried to use a method to access an oroGen model, but none exists on #{self}"
-                end
-                super
-            end
-
-
             # Test if the given port is a port of self
             #
             # @param [Port] port
@@ -1142,6 +1122,52 @@ module Syskit
 
             def match
                 Queries::ComponentMatcher.new.with_model(self)
+            end
+
+            # The data services defined on this task, as a mapping from the data
+            # service full name to the BoundDataService object.
+            #
+            # @key_name full_name
+            # @return [Hash<String,BoundDataService>]
+            inherited_attribute(:data_source, :data_sources, map: true) do
+                {}
+            end
+
+            # Define a data source with the lifetime of this component
+            #
+            # The data source model will be available with a `_src` suffix on the
+            # component model. The data source instance will be also available with
+            # the same suffix on the component instance.
+            def data_source(port, as:)
+                data_sources[as] = DynamicDataSource.create(port)
+            end
+
+            def has_through_method_missing?(m) # rubocop:disable Naming/PredicateName
+                MetaRuby::DSLs.has_through_method_missing?(
+                    self, m,
+                    '_srv' => :find_data_service,
+                    '_src' => :find_data_source
+                ) || super
+            end
+
+            def find_through_method_missing(m, args)
+                MetaRuby::DSLs.find_through_method_missing(
+                    self, m, args,
+                    '_srv' => :find_data_service,
+                    '_src' => :find_data_source
+                ) || super
+            end
+
+            include MetaRuby::DSLs::FindThroughMethodMissing
+
+            def method_missing(m, *args, &block) # rubocop:disable Style/MissingRespondToMissing
+                if m == :orogen_model
+                    raise NoMethodError,
+                          'tried to use a method to access an oroGen model, '\
+                          "but none exists on #{self}"
+                end
+
+                super
             end
         end
     end
