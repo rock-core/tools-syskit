@@ -1167,7 +1167,7 @@ module Syskit
                 # Called by the state machine implementation to create a Roby::Task
                 # instance that will perform the state's actions
                 def instanciate(_plan, variables = {})
-                    arguments = @requirements.arguments.map_value do |key, value|
+                    arguments = @requirements.arguments.transform_values do |value|
                         if value.respond_to?(:evaluate)
                             value.evaluate(variables)
                         else value

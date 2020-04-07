@@ -10,7 +10,6 @@ require 'orocos/ruby_tasks/stub_task_context'
 require 'roby'
 require 'orogen'
 
-require 'utilrb/hash/map_key'
 require 'utilrb/module/include'
 require 'utilrb/symbol/to_str'
 require 'utilrb/module/define_or_reuse'

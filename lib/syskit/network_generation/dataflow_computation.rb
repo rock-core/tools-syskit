@@ -439,13 +439,13 @@ module Syskit
             # Maps the tasks stored in the dataflow dynamics information to the
             # ones that +merge_solver+ is pointing to
             def apply_merges(merge_solver)
-                @result = result.map_key do |task, _|
+                @result = result.transform_keys do |task|
                     merge_solver.replacement_for(task)
                 end
-                @missing_ports = missing_ports.map_key do |task, _|
+                @missing_ports = missing_ports.transform_keys do |task|
                     merge_solver.replacement_for(task)
                 end
-                @done_ports = done_ports.map_key do |task, _|
+                @done_ports = done_ports.transform_keys do |task|
                     merge_solver.replacement_for(task)
                 end
             end

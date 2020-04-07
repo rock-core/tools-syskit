@@ -286,7 +286,7 @@ module Syskit
             #
             # Resolves the names in the tags argument given to {#use_profile}
             def resolve_tag_selection(profile, tags)
-                tags.map_key do |key, _|
+                tags.transform_keys do |key|
                     if key.respond_to?(:to_str)
                         profile.send("#{key.gsub(/_tag$/, '')}_tag")
                     else key

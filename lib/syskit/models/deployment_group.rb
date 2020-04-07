@@ -410,7 +410,7 @@ module Syskit
                     else n
                     end
                 end
-                deployment_spec = deployment_spec.map_key do |k|
+                deployment_spec = deployment_spec.transform_keys do |k|
                     if k.respond_to?(:to_str)
                         k
                     else

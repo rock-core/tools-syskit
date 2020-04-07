@@ -383,7 +383,7 @@ describe Syskit::Models::SpecializationManager do
         end
         it "can disambiguate among the possible specializations based on the specialization hints" do
             selection = flexmock
-            selection.should_receive(:map_value).and_return(selection)
+            selection.should_receive(:transform_values).and_return(selection)
             matches = [[a = flexmock, [flexmock]], [b = flexmock, [flexmock]]]
             hint = flexmock
             a.should_receive(:weak_match?).with(hint).and_return(true)

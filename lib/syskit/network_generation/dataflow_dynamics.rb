@@ -565,14 +565,15 @@ module Syskit
                 connection_graph.each_out_neighbour(source_task) do |sink_task|
                     mappings = connection_graph.edge_info(source_task, sink_task)
                     computed_policies =
-                        mappings.map_value do |(source_port_name, sink_port_name), policy|
+                        mappings.each_with_object({}) do |(port_pair, policy), h|
                             policy = policy.dup
                             fallback_policy = policy.delete(:fallback_policy)
                             if policy.empty?
-                                policy_for(source_task, source_port_name,
-                                           sink_port_name, sink_task, fallback_policy)
+                                h[port_pair] =
+                                    policy_for(source_task, *port_pair, sink_task,
+                                               fallback_policy)
                             else
-                                policy
+                                h[port_pair] = policy
                             end
                         end
                     policy_graph[[source_task, sink_task]] = computed_policies

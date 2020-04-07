@@ -660,7 +660,7 @@ module Syskit
                 end
 
                 apply_merge_to_stored_instances
-                required_instances = required_instances.map_value do |_, task|
+                required_instances = required_instances.transform_values do |task|
                     merge_solver.replacement_for(task)
                 end
                 log_timepoint 'apply_merge_to_stored_instances'

@@ -42,20 +42,26 @@ module Syskit
         #
         def add_connections(source_task, sink_task, mappings) # :nodoc:
             force_update = mappings.delete(:force_update)
-            mappings = mappings.map_value do |(source_port, sink_port), info|
+            connections = {}
+            mappings.each do |(source_port, sink_port), info|
                 if info.size != 3
-                    raise ArgumentError, "ActualDataFlowGraph#add_connections expects the mappings to be of the form (source_port,sink_port) => [policy, source_static, sink_static]"
+                    raise ArgumentError,
+                          'ActualDataFlowGraph#add_connections expects '\
+                          'the mappings to be of the form (source_port,sink_port) '\
+                          '=> [policy, source_static, sink_static]'
                 end
+
                 policy, source_static, sink_static = *info
                 static_info[[source_task, source_port]] = source_static
                 static_info[[sink_task, sink_port]] = sink_static
-                policy
+                connections[[source_port, sink_port]] = policy
             end
+
             if !force_update || !has_edge?(source_task, sink_task)
-                super(source_task, sink_task, mappings)
+                super(source_task, sink_task, connections)
             else
                 set_edge_info(source_task, sink_task,
-                              edge_info(source_task, sink_task).merge(mappings))
+                              edge_info(source_task, sink_task).merge(connections))
             end
         end
 

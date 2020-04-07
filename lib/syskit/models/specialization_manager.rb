@@ -593,26 +593,24 @@ module Syskit
             # selection
             #
             # @param [InstanceSelection] selection the current selection
-            # @option options [Boolean] strict (true)
+            # @param [Boolean] strict (true)
             #   If true, an ambiguous match will make the method raise.
             #   Otherwise, the method will return the common subset of the
             #   matching specializations.
             # @return [Model<Composition>] the specialized model, or
             #   {#composition_model} if no specializations match
             # @raise [AmbiguousSpecialization] if multiple models match
-            def matching_specialized_model(selection, options = Hash.new)
-                options = Kernel.validate_options options,
-                    :strict => true,
-                    :specialization_hints => Set.new
-
-                component_selection = selection.map_value do |_, selected|
+            def matching_specialized_model(
+                selection, strict: true, specialization_hints: Set.new
+            )
+                component_selection = selection.transform_values do |selected|
                     selected.selected.model.to_component_model
                 end
                 candidates = find_matching_specializations(component_selection)
 
                 if candidates.size > 1
                     filtered_candidates = candidates.find_all do |spec, _|
-                        options[:specialization_hints].any? do |hint|
+                        specialization_hints.any? do |hint|
                             spec.weak_match?(hint)
                         end
                     end
@@ -630,10 +628,8 @@ module Syskit
                 if candidates.empty?
                     return composition_model
                 elsif candidates.size > 1
-                    if options[:strict]
-                        selection = selection.map_value do |_, sel|
-                            sel.selected
-                        end
+                    if strict
+                        selection = selection.transform_values(&:selected)
                         raise AmbiguousSpecialization.new(
                             composition_model, selection, candidates
                         )

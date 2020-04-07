@@ -119,12 +119,15 @@ module Syskit
                     end
                 end
 
-                merged_event_to_event = Hash.new
+                merged_event_to_event = {}
                 event_resolver = ->(e) { merged_task_to_task[e.task].event(e.symbol) }
-                task_replacements = merged_task_to_task.map_value do |merged_task, task|
+                merged_task_to_task.each_key do |merged_task|
                     merged_task.each_event do |ev|
                         merged_event_to_event[ev] = [nil, event_resolver]
                     end
+                end
+
+                task_replacements = merged_task_to_task.transform_values do |task|
                     [task]
                 end
                 plan.replace_subplan(task_replacements, merged_event_to_event)
@@ -165,7 +168,7 @@ module Syskit
             @@trace_enabled = false
             @@trace_count = 0
             @@trace_last_phase = 1
-            
+
             def self.trace_next_file(phase)
                 if @@trace_last_phase >= phase
                     @@trace_count += 1

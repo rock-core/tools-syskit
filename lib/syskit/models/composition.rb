@@ -122,7 +122,7 @@ module Syskit
                 return super(options) if options.respond_to?(:to_str)
                 return super() if options.empty?
 
-                options = options.map_key do |key, _value|
+                options = options.transform_keys do |key|
                     if key.respond_to?(:to_str) || key.respond_to?(:to_sym)
                         Roby.warn_deprecated 'calling #specialize with child names '\
                                              'is deprecated, use _child accessors '\
@@ -210,13 +210,13 @@ module Syskit
                 end
                 children[name] = child_model
 
-                @exported_outputs = exported_outputs.map_value do |_, port|
+                @exported_outputs = exported_outputs.transform_values do |port|
                     if port.component_model.child_name == name
                         child_model.find_port(port.name)
                     else port
                     end
                 end
-                @exported_inputs = exported_inputs.map_value do |_, port|
+                @exported_inputs = exported_inputs.transform_values do |port|
                     if port.component_model.child_name == name
                         child_model.find_port(port.name)
                     else port
@@ -1207,7 +1207,7 @@ module Syskit
                         spec.specialization_blocks.each do |spec_block|
                             specialized_children =
                                 spec.specialized_children
-                                    .map_key do |child_name, _child_model|
+                                    .transform_keys do |child_name|
                                         submodel.find_child(child_name)
                                     end
                             submodel.specialize(specialized_children, &spec_block)
@@ -1307,8 +1307,9 @@ module Syskit
             # Then the composition children called 'monitoring' and 'sonar' will
             # be both instanciated with ['default', 'narrow_window']
             def conf(name, mappings = {})
-                mappings = mappings.map_key do |child, conf|
+                mappings = mappings.transform_keys do |child|
                     if child.respond_to?(:to_str)
+                        conf = mappings[child]
                         Roby.warn_deprecated 'providing the child as string in #conf '\
                             'is deprecated, use the _child accessors '\
                             "instead (here #{child}_child => [#{conf.join(', ')}])"
