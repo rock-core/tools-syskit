@@ -1,3 +1,5 @@
+# frozen_string_literal: true
+
 require 'syskit/test/self'
 require './test/fixtures/simple_composition_model'
 
@@ -296,7 +298,7 @@ describe Syskit::Models::InvalidCompositionChildPort do
 
     it "can be pretty-printed" do
         e = Syskit::Models::InvalidCompositionChildPort.new(cmp_m, 'test', 'bla')
-        PP.pp(e, "")
+        PP.pp(e, ''.dup)
     end
 end
 

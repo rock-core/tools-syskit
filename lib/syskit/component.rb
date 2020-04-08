@@ -1,3 +1,5 @@
+# frozen_string_literal: true
+
 module Syskit
         Roby::EventStructure.relation 'SyskitConfigurationPrecedence'
 
@@ -55,9 +57,7 @@ module Syskit
             def initialize_copy(source)
                 super
                 @requirements = @requirements.dup
-                if source.specialized_model?
-                    specialize
-                end
+                specialize if source.specialized_model?
                 duplicate_missing_services_from(source)
             end
 
@@ -82,7 +82,7 @@ module Syskit
             # none, it then looks in the parents.
             def deployment_hints
                 hints = requirements.deployment_hints
-                return hints if !hints.empty?
+                return hints unless hints.empty?
 
                 result = Set.new
                 each_parent_task do |p|
@@ -110,15 +110,16 @@ module Syskit
 
             # Yields the data services that are defined on this task
             def each_data_service
-                return enum_for(:each_data_service) if !block_given?
-                model.each_data_service do |name, srv|
+                return enum_for(:each_data_service) unless block_given?
+
+                model.each_data_service do |_name, srv|
                     yield(srv.bind(self))
                 end
                 self
             end
 
             def has_data_service?(service_name)
-                !!model.find_data_service(service_name)
+                model.find_data_service(service_name)
             end
 
             # Finds a data service by its name
@@ -127,22 +128,18 @@ module Syskit
             # @return [BoundDataService,nil] the found data service, or nil if
             #   there are no services with that name in self
             def find_data_service(service_name)
-                if service_model = model.find_data_service(service_name)
-                    return service_model.bind(self)
-                end
+                model.find_data_service(service_name)&.bind(self)
             end
 
             # Finds a data service by its data service model
             #
-            # @param [Model<DataService>] service_type the data service model we want to find
-            #   in self
+            # @param [Model<DataService>] service_type the data service model
+            #   we want to find in self
             # @return [BoundDataService,nil] the found data service, or nil if there
             #   are no services of that type in self
             # @raise (see Models::DataService#find_data_service_from_type)
             def find_data_service_from_type(service_type)
-                if service_model = model.find_data_service_from_type(service_type)
-                    return service_model.bind(self)
-                end
+                model.find_data_service_from_type(service_type)&.bind(self)
             end
 
             # Declare that this component should not be configured until +event+
@@ -160,25 +157,29 @@ module Syskit
             end
 
             def meets_configurationg_precedence_constraints?
-                waiting_precedence_relation = start_event.
-                    parent_objects(Roby::EventStructure::SyskitConfigurationPrecedence).
-                    find do |event|
-                        !event.emitted? && !event.unreachable?
-                    end
+                waiting_precedence_relation =
+                    start_event
+                    .parent_objects(Roby::EventStructure::SyskitConfigurationPrecedence)
+                    .find { |event| !event.emitted? && !event.unreachable? }
 
                 if waiting_precedence_relation
-                    debug { "#{self} not ready for setup: waiting on #{waiting_precedence_relation}" }
-                    false
-                else
-                    true
+                    debug do
+                        "#{self} not ready for setup: "\
+                        "waiting on #{waiting_precedence_relation}"
+                    end
                 end
+
+                !waiting_precedence_relation
             end
 
             # Returns true if the underlying Orocos task is in a state that
             # allows it to be configured
             def ready_for_setup? # :nodoc:
                 if garbage?
-                    debug { "#{self} not ready for setup: garbage collected but not yet finalized" }
+                    debug do
+                        "#{self} not ready for setup: "\
+                        'garbage collected but not yet finalized'
+                    end
                     return false
                 elsif !fully_instanciated?
                     debug { "#{self} not ready for setup: not fully instanciated" }
@@ -198,9 +199,8 @@ module Syskit
             #
             # @return [Promise]
             def setup
-                if setup?
-                    raise ArgumentError, "#{self} is already set up"
-                end
+                raise ArgumentError, "#{self} is already set up" if setup?
+
                 promise = self.promise(description: "promise:#{self}#setup")
                 perform_setup(promise)
                 promise.on_error(description: "#{self}#setup#setup_failed!") do |e|
@@ -221,9 +221,7 @@ module Syskit
             def perform_setup(promise)
                 promise.on_success(description: "#{self}#perform_setup#configure") do
                     freeze_delayed_arguments
-                    if self.model.needs_stub?(self)
-                        self.model.prepare_stub(self)
-                    end
+                    model.prepare_stub(self) if model.needs_stub?(self)
                     configure
                 end
             end
@@ -232,9 +230,8 @@ module Syskit
             #
             # Called once at the beginning of a setup promise
             def setting_up!(promise)
-                if @setting_up
-                    raise InvalidState, "#{self} is already setting up"
-                end
+                raise InvalidState, "#{self} is already setting up" if @setting_up
+
                 @setting_up = promise
             end
 
@@ -254,14 +251,17 @@ module Syskit
                 if start_event.plan
                     start_event.emit_failed(exception)
                 else
-                    Roby.execution_engine.add_framework_error(e, "#{self} got finalized before the setting_up! error handler was called")
+                    Roby.execution_engine.add_framework_error(
+                        e, "#{self} got finalized before the setting_up! "\
+                           'error handler was called'
+                    )
                 end
                 @setting_up = nil
             end
 
             # Whether the task is being set up
             def setting_up?
-                !!@setting_up
+                @setting_up
             end
 
             # Controls whether the task can be removed from the plan
@@ -289,23 +289,29 @@ module Syskit
             # merge, as e.g. compatibility of models or the value abstract? It
             # should never look into the task's neighborhood
             def can_merge?(task)
-                if !super
-                    NetworkGeneration::MergeSolver.info "rejected: Component#can_merge? super returned false"
+                unless super
+                    NetworkGeneration::MergeSolver.info(
+                        'rejected: Component#can_merge? super returned false'
+                    )
                     return
                 end
 
                 # Cannot merge if we are not reusable
-                if !reusable?
-                    NetworkGeneration::MergeSolver.info "rejected: receiver is not reusable"
+                unless reusable?
+                    NetworkGeneration::MergeSolver.info(
+                        'rejected: receiver is not reusable'
+                    )
                     return
                 end
                 # We can not replace a non-abstract task with an
                 # abstract one
                 if !task.abstract? && abstract?
-                    NetworkGeneration::MergeSolver.info "rejected: cannot merge a non-abstract task into an abstract one"
+                    NetworkGeneration::MergeSolver.info(
+                        'rejected: cannot merge a non-abstract task into an abstract one'
+                    )
                     return
                 end
-                return true
+                true
             end
 
             # Tests whether a task can be used as-is to deploy this
@@ -333,10 +339,13 @@ module Syskit
                 explicit_merged_fullfilled_model = merged_task.explicit_fullfilled_model
                 explicit_this_fullfilled_model   = explicit_fullfilled_model
                 if explicit_this_fullfilled_model && explicit_merged_fullfilled_model
-                    self.fullfilled_model = Roby::TaskStructure::Dependency.merge_fullfilled_model(
-                        explicit_merged_fullfilled_model,
-                        [explicit_this_fullfilled_model[0]] + explicit_this_fullfilled_model[1],
-                        explicit_this_fullfilled_model[2])
+                    self.fullfilled_model =
+                        Roby::TaskStructure::Dependency.merge_fullfilled_model(
+                            explicit_merged_fullfilled_model,
+                            [explicit_this_fullfilled_model[0]] +
+                                explicit_this_fullfilled_model[1],
+                            explicit_this_fullfilled_model[2]
+                        )
 
                 elsif explicit_merged_fullfilled_model
                     self.fullfilled_model = explicit_merged_fullfilled_model.dup
@@ -360,30 +369,34 @@ module Syskit
                 end
 
                 missing_services.each do |_, srv|
-                    if !srv.respond_to?(:dynamic_service)
-                        raise InternalError, "attempting to duplicate static service #{srv.name} from #{task} to #{self}"
+                    unless srv.respond_to?(:dynamic_service)
+                        raise InternalError,
+                              'attempting to duplicate static service '\
+                              "#{srv.name} from #{task} to #{self}"
                     end
-                    dynamic_service_options = Hash[as: srv.name].
-                        merge(srv.dynamic_service_options)
-                    require_dynamic_service srv.dynamic_service.name, **dynamic_service_options
+
+                    dynamic_service_options = { as: srv.name }
+                                              .merge(srv.dynamic_service_options)
+                    require_dynamic_service(
+                        srv.dynamic_service.name,
+                        **dynamic_service_options
+                    )
                 end
             end
 
             # The set of data readers created with #data_reader. Used to disconnect
             # them when the task stops
-            attribute(:data_readers) { Array.new }
+            attribute(:data_readers) { [] }
 
             # The set of data writers created with #data_writer. Used to disconnect
             # them when the task stops
-            attribute(:data_writers) { Array.new }
+            attribute(:data_writers) { [] }
 
             # Common implementation of port search for #data_reader and
             # #data_writer
             def data_accessor(*args) # :nodoc:
-                policy = Hash.new
-                if args.last.respond_to?(:to_hash)
-                    policy = args.pop
-                end
+                policy = {}
+                policy = args.pop if args.last.respond_to?(:to_hash)
 
                 port_name = args.pop
                 if !args.empty?
@@ -397,7 +410,7 @@ module Syskit
                     task = self
                 end
 
-                return task, port_name, policy
+                [task, port_name, policy]
             end
 
             # call-seq:
@@ -420,9 +433,7 @@ module Syskit
                 task, port_name, policy = data_accessor(*args)
 
                 port = task.find_input_port(port_name)
-                if !port
-                    raise ArgumentError, "#{task} has no input port #{port_name}"
-                end
+                raise ArgumentError, "#{task} has no input port #{port_name}" unless port
 
                 result = port.writer(policy)
                 data_writers << result
@@ -447,40 +458,36 @@ module Syskit
             # The reader is automatically disconnected when the task quits
             def data_reader(*args)
                 task, port_name, policy = data_accessor(*args)
-                policy, other_policy = Kernel.filter_options policy, :pull => true
+                policy, other_policy = Kernel.filter_options policy, { pull: true }
                 policy.merge!(other_policy)
 
                 port = task.find_output_port(port_name)
-                if !port
-                    raise ArgumentError, "#{task} has no output port #{port_name}"
-                end
+                raise ArgumentError, "#{task} has no output port #{port_name}" unless port
 
                 result = port.reader(policy)
                 data_readers << result
                 result
             end
 
-            on :stop do |event|
+            on :stop do |_event|
                 data_writers.each do |writer|
-                    if writer.connected?
-                        writer.disconnect
-                    end
+                    writer.disconnect if writer.connected?
                 end
                 data_readers.each do |reader|
-                    if reader.connected?
-                        reader.disconnect
-                    end
+                    reader.disconnect if reader.connected?
                 end
             end
 
             def has_through_method_missing?(m)
                 MetaRuby::DSLs.has_through_method_missing?(
-                    self, m, '_srv' => :has_data_service?) || super
+                    self, m, '_srv' => :has_data_service?
+                ) || super
             end
 
             def find_through_method_missing(m, args)
                 MetaRuby::DSLs.find_through_method_missing(
-                    self, m, args, '_srv' => :find_data_service) || super
+                    self, m, args, '_srv' => :find_data_service
+                ) || super
             end
 
             # Returns a view of this component as a provider of the given
@@ -493,18 +500,18 @@ module Syskit
             #
             # The same can be done at the model level with Models::Component#as
             def as(service_model)
-                return model.as(service_model).bind(self)
+                model.as(service_model).bind(self)
             end
 
-	    # Resolves the given Syskit::Port object into a port object that
-	    # points to the real task context port
+            # Resolves the given Syskit::Port object into a port object that
+            # points to the real task context port
             #
             # It should not be used directly. One should usually use
             # Port#to_actual_port instead
             #
             # @return [Syskit::Port]
             def self_port_to_actual_port(port)
-		port
+                port
             end
 
             # Resolves the given Syskit::Port object into a Port object where
@@ -524,14 +531,15 @@ module Syskit
             # to the given port or to the input ports of the given component
             #
             # (see Syskit.connect)
-            def connect_to(port_or_component, policy = Hash.new)
+            def connect_to(port_or_component, policy = {})
                 Syskit.connect(self, port_or_component, policy)
             end
 
             def bind(task)
-                if !task.kind_of?(self)
+                unless task.kind_of?(self)
                     raise TypeError, "cannot bind #{self} to #{task}"
                 end
+
                 task
             end
 
@@ -551,12 +559,11 @@ module Syskit
             # @return [BoundDataService] the newly created service
             def require_dynamic_service(dynamic_service_name, as: nil, **dyn_options)
                 specialize
-                bound_service = self.model.require_dynamic_service(
-                    dynamic_service_name, as: as, **dyn_options)
+                bound_service = model.require_dynamic_service(
+                    dynamic_service_name, as: as, **dyn_options
+                )
                 srv = bound_service.bind(self)
-                if plan && plan.executable? && setup?
-                    added_dynamic_service(srv)
-                end
+                added_dynamic_service(srv) if plan&.executable? && setup?
                 srv
             end
 
@@ -588,11 +595,10 @@ module Syskit
             #   is the original dynamic data service (ouch !)
             # @return [void]
             def each_required_dynamic_service
-                return enum_for(:each_dynamic_service) if !block_given?
+                return enum_for(:each_dynamic_service) unless block_given?
+
                 each_data_service do |srv|
-                    if srv.model.respond_to?(:dynamic_service)
-                        yield(srv)
-                    end
+                    yield(srv) if srv.model.respond_to?(:dynamic_service)
                 end
             end
 
@@ -603,15 +609,15 @@ module Syskit
             # Sets up this task to use its singleton class as model instead of
             # the plain class. It is useful in particular for dynamic services
             def specialize
-                if model != singleton_class
-                    @model = singleton_class
-                    model.name = self.class.name
-                    model.concrete_model = self.class.concrete_model
-                    model.private_specialization = true
-                    model.private_model
-                    self.class.setup_submodel(model)
-                    true
-                end
+                return if model == singleton_class
+
+                @model = singleton_class
+                model.name = self.class.name
+                model.concrete_model = self.class.concrete_model
+                model.private_specialization = true
+                model.private_model
+                self.class.setup_submodel(model)
+                true
             end
 
             # Returns the most-derived model that is not a private specialization
@@ -628,19 +634,19 @@ module Syskit
                 # uses a specialized model
                 req = self.class.to_instance_requirements
                 req.with_arguments(arguments.assigned_arguments)
-                if required_host
-                    req.on_server(required_host)
-                end
+                req.on_server(required_host) if required_host
                 req
             end
 
             # Returns a description of this task based on the dependency
             # information
             def dependency_context
-                enum_for(:each_parent_object, Roby::TaskStructure::Dependency).
-                    map do |parent_task|
-                        options = parent_task[self,
-                                              Roby::TaskStructure::Dependency]
+                enum_for(:each_parent_object, Roby::TaskStructure::Dependency)
+                    .map do |parent_task|
+                        options = parent_task[
+                            self,
+                            Roby::TaskStructure::Dependency
+                        ]
                         [options[:roles].to_a.first, parent_task]
                     end
             end
@@ -767,9 +773,7 @@ module Syskit
                 # Applies model specializations to the target task as well
                 def commit_transaction
                     super if defined? super
-                    if specialized_model?
-                        __getobj__.specialize
-                    end
+                    __getobj__.specialize if specialized_model?
 
                     # Merge the InstanceRequirements objects
                     __getobj__.update_requirements(requirements)

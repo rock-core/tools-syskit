@@ -7,6 +7,12 @@ module Syskit
         before do
             @object = Module.new
             @object.extend OroGenNamespace
+            @constant_registration = OroGen.syskit_model_constant_registration?
+            OroGen.syskit_model_constant_registration = false
+        end
+
+        after do
+            OroGen.syskit_model_constant_registration = @constant_registration
         end
 
         it 'gives access to a registered model by method calls' do
@@ -152,13 +158,6 @@ module Syskit
             end
 
             describe 'constant registration' do
-                before do
-                    @constant_registration = OroGen.syskit_model_constant_registration?
-                end
-                after do
-                    OroGen.syskit_model_constant_registration = @constant_registration
-                end
-
                 it 'registers the deployments as constants on ::Deployments if '\
                    'OroGen.syskit_model_constant_registration is set' do
                     OroGen.syskit_model_constant_registration = true

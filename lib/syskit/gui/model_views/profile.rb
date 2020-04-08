@@ -134,7 +134,6 @@ module Syskit::GUI
             def render(model, *args, show_requirements: true, **options)
                 page.push "#{model.name || '<unnamed>'}(#{model.model.name})",
                           page.main_doc(model.doc || ''), id: options[:id]
-                puts "METHOD: #{@render_method}"
                 super(model, *args, method: @render_method,
                                     show_requirements: show_requirements, **options)
             end

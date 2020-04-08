@@ -1,6 +1,7 @@
+# frozen_string_literal: true
+
 require 'logger'
 require 'utilrb/logger'
-require 'utilrb/hash/map_value'
 require 'syskit/exceptions'
 require 'facets/string/snakecase'
 

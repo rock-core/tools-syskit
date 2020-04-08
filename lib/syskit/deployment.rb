@@ -487,7 +487,7 @@ module Syskit
                     sleep ready_polling_period
                 end
 
-                handles.map_value do |_, remote_task|
+                handles.transform_values do |remote_task|
                     state_reader, state_getter = create_state_access(remote_task, distance: distance_to_syskit)
                     properties = remote_task.property_names.map do |p_name|
                         p = remote_task.raw_property(p_name)

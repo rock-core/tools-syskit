@@ -190,14 +190,28 @@ module Syskit
                         end
                     end
                     required_connections.each do |task, connections|
-                        connections = connections.map_value do |(port_name, log_port_name), policy|
-                            out_port = task.model.find_output_port(port_name)
+                        connections =
+                            connections
+                            .each_with_object({}) do |(outin_port_names, policy), h|
+                                in_port = logger_task.model.find_input_port(
+                                    outin_port_names[1]
+                                )
 
-                            if !logger_task.model.find_input_port(log_port_name)
-                                logger_task.instanciate_dynamic_input_port(log_port_name, out_port.type, logger_dynamic_port)
+                                unless in_port
+                                    out_port = task.model.find_output_port(
+                                        outin_port_names[0]
+                                    )
+                                    logger_task.instanciate_dynamic_input_port(
+                                        outin_port_names[1], out_port.type,
+                                        logger_dynamic_port
+                                    )
+                                end
+
+                                h[outin_port_names] =
+                                    engine.dataflow_dynamics.policy_for(
+                                        task, *outin_port_names, logger_task, policy
+                                    )
                             end
-                            engine.dataflow_dynamics.policy_for(task, port_name, log_port_name, logger_task, policy)
-                        end
 
                         task.connect_ports(logger_task, connections)
                     end

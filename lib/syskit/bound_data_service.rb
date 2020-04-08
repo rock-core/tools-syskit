@@ -180,6 +180,7 @@ module Syskit
                     )
                 end
             end
+
             def droby_dump(peer)
                 DRoby.new(peer.dump(component), peer.dump(model))
             end
