@@ -1482,31 +1482,6 @@ Style/RedundantBegin:
     - 'test/models/test_composition.rb'
     - 'test/test/test_task_context_test.rb'
 
-# Offense count: 42
-# Cop supports --auto-correct.
-Style/RedundantSelf:
-  Exclude:
-    - 'lib/syskit/coordination/models/data_monitor.rb'
-    - 'lib/syskit/coordination/port_handling.rb'
-    - 'lib/syskit/droby/v5/droby_dump.rb'
-    - 'lib/syskit/gui/model_browser.rb'
-    - 'lib/syskit/gui/runtime_state.rb'
-    - 'lib/syskit/gui/widget_list.rb'
-    - 'lib/syskit/instance_requirements.rb'
-    - 'lib/syskit/instance_requirements_task.rb'
-    - 'lib/syskit/models/component.rb'
-    - 'lib/syskit/models/composition_specialization.rb'
-    - 'lib/syskit/models/dynamic_data_service.rb'
-    - 'lib/syskit/models/port.rb'
-    - 'lib/syskit/models/task_context.rb'
-    - 'lib/syskit/placeholder.rb'
-    - 'lib/syskit/roby_app/plugin.rb'
-    - 'lib/syskit/scripts/common.rb'
-    - 'lib/syskit/task_context.rb'
-    - 'test/fixtures/simple_composition_model.rb'
-    - 'test/models/test_component.rb'
-    - 'test/network_generation/test_system_network_generator.rb'
-
 # Offense count: 4
 # Cop supports --auto-correct.
 # Configuration parameters: ExactNameMatch, AllowPredicates, AllowDSLWriters, IgnoreClassMethods, AllowedMethods.

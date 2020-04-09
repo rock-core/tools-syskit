@@ -111,7 +111,7 @@ module Syskit
                                                       bound_service_class: BoundDynamicDataService, **arguments
                     )
                     service.dynamic_service = dynamic_service
-                    service.dynamic_service_options = self.options.dup
+                    service.dynamic_service_options = options.dup
                     service
                 rescue InvalidPortMapping => e
                     raise InvalidProvides.new(component_model, service_model, e), "while instanciating the dynamic service #{dynamic_service}: #{e}", e.backtrace

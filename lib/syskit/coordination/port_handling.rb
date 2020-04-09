@@ -25,7 +25,7 @@ module Syskit
                 if respond_to?(:parent)
                     component_model.resolve_and_bind_child(parent.resolve).self_port_to_component_port(port)
                 else
-                    component_model.bind(self.resolve).self_port_to_component_port(port)
+                    component_model.bind(resolve).self_port_to_component_port(port)
                 end
             end
 

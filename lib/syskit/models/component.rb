@@ -107,7 +107,7 @@ module Syskit
                                              .find_all(&:master?)
 
                     if main_matching_services.size != 1
-                        raise AmbiguousServiceSelection.new(self, target_model, main_matching_services), "there is more than one service of type #{target_model.name} in #{self.name}#{" matching name hint #{pattern}" if pattern}"
+                        raise AmbiguousServiceSelection.new(self, target_model, main_matching_services), "there is more than one service of type #{target_model.name} in #{name}#{" matching name hint #{pattern}" if pattern}"
                     end
 
                     selected = main_matching_services.first
@@ -752,7 +752,7 @@ module Syskit
             def specialize(name = nil)
                 klass = create_private_specialization
                 klass.name = name ||
-                             "#{self.name}{#{self.specialization_counter}}"
+                             "#{self.name}{#{specialization_counter}}"
                 klass.private_specialization = true
                 klass.private_model
                 klass.concrete_model = concrete_model
@@ -1107,7 +1107,7 @@ module Syskit
             end
 
             def selected_for(requirements)
-                InstanceSelection.new(nil, self.to_instance_requirements, requirements.to_instance_requirements)
+                InstanceSelection.new(nil, to_instance_requirements, requirements.to_instance_requirements)
             end
 
             def merge_service_model(service_model, port_mappings)

@@ -22,7 +22,7 @@ module Syskit
                 def name
                     return super if root_model == self
 
-                    specializations = self.specialized_children.map do |child_name, child_models|
+                    specializations = specialized_children.map do |child_name, child_models|
                         "#{child_name}.is_a?(#{child_models.map(&:short_name).join(',')})"
                     end
 

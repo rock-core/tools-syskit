@@ -100,7 +100,7 @@ module Syskit
             # @raise [WrongPortConnectionDirection]
             # @raise [SelfConnection]
             def connect_to(in_port, policy = {})
-                out_port = self.to_component_port
+                out_port = to_component_port
                 if out_port == self
                     if in_port.respond_to?(:to_component_port)
                         in_port = in_port.to_component_port
@@ -126,7 +126,7 @@ module Syskit
 
             # Tests whether self is connected to the provided port
             def connected_to?(sink_port)
-                source_port = self.try_to_component_port
+                source_port = try_to_component_port
                 if source_port == self
                     sink_port = sink_port.try_to_component_port
                     component_model.connected?(source_port, sink_port)
@@ -138,7 +138,7 @@ module Syskit
             # Tests whether this port can be connceted to the provided input
             # port
             def can_connect_to?(sink_port)
-                source_port = self.try_to_component_port
+                source_port = try_to_component_port
                 if source_port == self
                     sink_port = sink_port.try_to_component_port
                     output? && sink_port.input? && type == sink_port.type
@@ -299,8 +299,8 @@ module Syskit
 
             def ==(other)
                 other.kind_of?(OutputReader) &&
-                    other.port == self.port &&
-                    other.policy == self.policy
+                    other.port == port &&
+                    other.policy == policy
             end
         end
 
@@ -339,8 +339,8 @@ module Syskit
 
             def ==(other)
                 other.kind_of?(InputWriter) &&
-                    other.port == self.port &&
-                    other.policy == self.policy
+                    other.port == port &&
+                    other.policy == policy
             end
         end
     end

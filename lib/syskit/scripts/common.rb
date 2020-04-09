@@ -156,7 +156,7 @@ module Syskit
             output_file = self.output_file
             if !DOT_DIRECT_OUTPUT.include?(output_type) && !output_file
                 @output_file =
-                    if base_name = (self.robot_name || self.robot_type)
+                    if base_name = (robot_name || robot_type)
                         "#{base_name}.#{output_type}"
                     else
                         "#{script_name}.#{output_type}"

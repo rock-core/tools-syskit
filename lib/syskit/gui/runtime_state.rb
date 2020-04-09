@@ -375,8 +375,8 @@ module Syskit
             end
 
             def update_orocos_tasks
-                candidate_tasks = self.all_tasks
-                                      .find_all { |t| t.kind_of?(Syskit::TaskContext) }
+                candidate_tasks = all_tasks
+                                  .find_all { |t| t.kind_of?(Syskit::TaskContext) }
                 orocos_tasks = candidate_tasks.map { |t| t.arguments[:orocos_name] }.compact.to_set
                 removed = current_orocos_tasks - orocos_tasks
                 new     = orocos_tasks - current_orocos_tasks

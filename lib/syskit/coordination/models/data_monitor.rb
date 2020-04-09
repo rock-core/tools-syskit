@@ -52,7 +52,7 @@ module Syskit
                     emitted_events.each do |ev|
                         monitor.emit(table.instance_for(ev))
                     end
-                    monitor.raises = self.raises?
+                    monitor.raises = raises?
                     monitor
                 end
 

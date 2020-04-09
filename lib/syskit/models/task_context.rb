@@ -82,7 +82,7 @@ module Syskit
                         end
                     end
 
-                    self.state_events[name.to_sym] = event_name
+                    state_events[name.to_sym] = event_name
                 end
             end
 

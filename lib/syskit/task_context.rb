@@ -104,7 +104,7 @@ module Syskit
 
             properties = {}
             property_overrides = {}
-            self.model.orogen_model.each_property do |p|
+            model.orogen_model.each_property do |p|
                 type = Roby.app.default_loader.intermediate_type_for(p.type)
                 properties[p.name] = LiveProperty.new(self, p.name, type)
                 property_overrides[p.name] = Property.new(p.name, type)
@@ -592,7 +592,7 @@ module Syskit
         # you are doing
         def setup_successful!
             execution_agent.update_current_configuration(
-                orocos_name, model, self.conf.dup, self.each_required_dynamic_service.to_set
+                orocos_name, model, conf.dup, each_required_dynamic_service.to_set
             )
             execution_agent.finished_configuration(orocos_name)
 
@@ -647,8 +647,8 @@ module Syskit
         # connections originating from a dynamic output port
         def dynamic_input_port_connections(existing_port_names)
             to_remove = {}
-            real_model = self.model.concrete_model
-            dynamic_ports = self.model.each_input_port.find_all do |p|
+            real_model = model.concrete_model
+            dynamic_ports = model.each_input_port.find_all do |p|
                 !real_model.find_input_port(p.name)
             end
             dynamic_ports = dynamic_ports.map(&:name).to_set
@@ -674,8 +674,8 @@ module Syskit
         # connections originating from a dynamic output port
         def dynamic_output_port_connections(existing_port_names)
             to_remove = {}
-            real_model = self.model.concrete_model
-            dynamic_ports = self.model.each_output_port.find_all do |p|
+            real_model = model.concrete_model
+            dynamic_ports = model.each_output_port.find_all do |p|
                 !real_model.find_output_port(p.name)
             end
             dynamic_ports = dynamic_ports.map(&:name).to_set
@@ -712,7 +712,7 @@ module Syskit
 
                 needs_reconfiguration = needs_reconfiguration? ||
                     execution_agent.configuration_changed?(
-                        orocos_name, self.conf, each_required_dynamic_service.to_set
+                        orocos_name, conf, each_required_dynamic_service.to_set
                     ) ||
                     self.properties.each.any?(&:needs_commit?)
 

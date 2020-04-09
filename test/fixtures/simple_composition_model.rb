@@ -28,8 +28,8 @@ module Syskit
                     add srv, as: "srv"
                     add srv, as: "srv2"
                     connect srv_child => srv2_child
-                    export self.srv_child.srv_in_port
-                    export self.srv_child.srv_out_port
+                    export srv_child.srv_in_port
+                    export srv_child.srv_out_port
                     provides srv, as: "srv"
                 end
 

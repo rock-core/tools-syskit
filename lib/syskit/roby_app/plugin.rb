@@ -1,6 +1,6 @@
 class Module
     def backward_compatible_constant(old_name, new_constant, file)
-        msg = "  #{self.name}::#{old_name} has been renamed to #{new_constant} and is now in #{file}"
+        msg = "  #{name}::#{old_name} has been renamed to #{new_constant} and is now in #{file}"
         if Roby.app.backward_compatible_naming?
             Syskit.warn msg
             require file

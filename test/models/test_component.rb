@@ -346,7 +346,7 @@ describe Syskit::Models::Component do
                     received_options = nil
                     srv_m = self.srv_m
                     dyn_srv = task_m.dynamic_service srv_m, as: "ddd" do
-                        received_options = self.options
+                        received_options = options
                         provides srv_m, "out" => "#{name}_out", "in" => "#{name}_in"
                     end
                     options = Hash[test: "bla"]

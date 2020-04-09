@@ -72,7 +72,7 @@ module Syskit
             end
 
             def children_size_updated
-                s = self.size
+                s = size
                 new_height = @widgets.inject(0) do |h, w|
                     h + if w.widget.hidden? then 0
                         else w.widget.contents_height
@@ -84,7 +84,7 @@ module Syskit
             end
 
             def resizeEvent(event)
-                s = self.size
+                s = size
                 s.width = event.size.width
                 self.size = s
                 event.accept

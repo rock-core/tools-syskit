@@ -269,7 +269,7 @@ module Syskit
                             end
 
                             unless orogen_model
-                                syskit_supermodel = peer.local_model(self.supermodel)
+                                syskit_supermodel = peer.local_model(supermodel)
                                 local_model = syskit_supermodel
                                               .new_submodel(name: @orogen_name)
                                 if name

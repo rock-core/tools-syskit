@@ -806,7 +806,7 @@ module Syskit
                 end
 
                 context = log_nest(4) do
-                    selection = self.resolved_dependency_injection.dup
+                    selection = resolved_dependency_injection.dup
                     selection.remove_unresolved
                     DependencyInjectionContext.new(selection)
                 end
@@ -849,7 +849,7 @@ module Syskit
         # The returned task is always marked as abstract
         def create_proxy_task
             task = component_model.new(**@arguments)
-            task.required_host = self.required_host
+            task.required_host = required_host
             task.abstract = true
             task
         end
@@ -886,7 +886,7 @@ module Syskit
                 # required to avoid recursively reusing names (which was once
                 # upon a time, and is a very confusing feature)
                 barrier = Syskit::DependencyInjection.new
-                barrier.add_mask(self.placeholder_model.dependency_injection_names)
+                barrier.add_mask(placeholder_model.dependency_injection_names)
                 context.push(barrier)
                 context.push(pushed_selections)
                 context.push(selections)

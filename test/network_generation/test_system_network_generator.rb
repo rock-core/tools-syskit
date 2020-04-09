@@ -45,7 +45,7 @@ module Syskit
                     task_m.argument :arg
                     task_m.class_eval do
                         def arg=(value)
-                            self.arguments[:arg] = value / 2
+                            arguments[:arg] = value / 2
                         end
                     end
                     task = subject.instanciate([task_m.with_arguments(arg: 10)]).first
