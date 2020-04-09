@@ -125,8 +125,8 @@ module Syskit
             end
 
             def has_port?(name)
-                @input_port_models.has_key?(name.to_s) ||
-                    @output_port_models.has_key?(name.to_s)
+                @input_port_models.key?(name.to_s) ||
+                    @output_port_models.key?(name.to_s)
             end
 
             def update_proxy_mappings

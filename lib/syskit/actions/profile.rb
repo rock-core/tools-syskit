@@ -381,7 +381,7 @@ module Syskit
 
             # Test if this profile has a definition with the given name
             def has_definition?(name)
-                definitions.has_key?(name)
+                definitions.key?(name)
             end
 
             # Enumerate the definitions
@@ -509,7 +509,7 @@ module Syskit
 
             # Whether this profile has a group with the given name
             def has_deployment_group?(name)
-                deployment_groups.has_key?(name)
+                deployment_groups.key?(name)
             end
 
             # Returns a deployment group defined with {#create_deployment_group}

@@ -74,11 +74,11 @@ module Syskit
                 end
 
                 def respond_to_missing?(m, include_private)
-                    arguments.has_key?(m) || super
+                    arguments.key?(m) || super
                 end
 
                 def method_missing(m, *args)
-                    if arguments.has_key?(m)
+                    if arguments.key?(m)
                         unless args.empty?
                             raise ArgumentError, "#{args.size} provided to #{m}, zero expected"
                         end

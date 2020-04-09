@@ -62,7 +62,7 @@ module Syskit
                 return false
             end
 
-            edge_info(source_task, sink_task).has_key?([source_port, sink_port])
+            edge_info(source_task, sink_task).key?([source_port, sink_port])
         end
 
         def add_connections(source_task, sink_task, mappings) # :nodoc:

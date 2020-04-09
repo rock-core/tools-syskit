@@ -21,7 +21,7 @@ module Syskit
 
         # Whether there is a property with this name
         def include?(name)
-            @properties.has_key?(name.to_str)
+            @properties.key?(name.to_str)
         end
 
         # Clear all written values

@@ -306,7 +306,7 @@ describe Syskit::Models::CompositionChild do
             srv_m = Syskit::DataService.new_submodel
             test1 = composition_m.add srv_m, as: 'test1'
             test2 = composition_m.add srv_m, as: 'test2'
-            assert !Hash[test1 => 10].has_key?(test2)
+            assert !Hash[test1 => 10].key?(test2)
         end
     end
 end

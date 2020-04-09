@@ -242,7 +242,7 @@ module Syskit
 
                 cmp_connections = composition_model
                                   .explicit_connections[[child_name, sink_port.component_model.child_name]]
-                cmp_connections.has_key?([source_port.name, sink_port.name])
+                cmp_connections.key?([source_port.name, sink_port.name])
             end
 
             # (see Component#connect_ports)

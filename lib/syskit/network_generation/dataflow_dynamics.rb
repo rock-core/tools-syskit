@@ -429,7 +429,7 @@ module Syskit
                     end
                 end
                 task.model.each_output_port do |port|
-                    unless @triggers.has_key?([task, port.name])
+                    unless @triggers.key?([task, port.name])
                         done_port_info(task, port.name)
                     end
                 end
@@ -500,7 +500,7 @@ module Syskit
             end
 
             def propagate_task(task)
-                unless missing_ports.has_key?(task)
+                unless missing_ports.key?(task)
                     return true
                 end
 

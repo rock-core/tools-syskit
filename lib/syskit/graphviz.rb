@@ -354,7 +354,7 @@ module Syskit
             plan.find_local_tasks(AbstractComponent).each do |task|
                 arguments = task.arguments.map { |k, v| "#{k}: #{v}" }
                 task.model.arguments.each do |arg_name|
-                    unless task.arguments.has_key?(arg_name)
+                    unless task.arguments.key?(arg_name)
                         arguments << "#{arg_name}: (unset)"
                     end
                 end

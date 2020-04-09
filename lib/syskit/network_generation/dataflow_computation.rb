@@ -37,12 +37,12 @@ module Syskit
             end
 
             def has_information_for_port?(task, port_name)
-                result.has_key?(task) &&
-                    result[task].has_key?(port_name)
+                result.key?(task) &&
+                    result[task].key?(port_name)
             end
 
             def has_final_information_for_port?(task, port_name)
-                done_ports.has_key?(task) &&
+                done_ports.key?(task) &&
                     done_ports[task].include?(port_name) &&
                     has_information_for_port?(task, port_name)
             end
@@ -64,8 +64,8 @@ module Syskit
             #
             # @raise ArgumentError if there are no information stored for the given port
             def port_info(task, port_name)
-                if result.has_key?(task)
-                    if result[task].has_key?(port_name)
+                if result.key?(task)
+                    if result[task].key?(port_name)
                         return result[task][port_name]
                     end
                 end
@@ -325,7 +325,7 @@ module Syskit
 
             # Deletes all available information about the specified port
             def remove_port_info(task, port_name)
-                unless @result.has_key?(task)
+                unless @result.key?(task)
                     return
                 end
 
@@ -348,7 +348,7 @@ module Syskit
                     end
 
                     done_ports[task] << port_name
-                    if missing_ports.has_key?(task)
+                    if missing_ports.key?(task)
                         missing_ports[task].delete(port_name)
                         if missing_ports[task].empty?
                             missing_ports.delete(task)

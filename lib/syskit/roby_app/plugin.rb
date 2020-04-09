@@ -259,7 +259,7 @@ module Syskit
 
             # Returns true if the given orogen project has already been loaded
             # by #load_orogen_project
-            def loaded_orogen_project?(name); loaded_orogen_projects.has_key?(name) end
+            def loaded_orogen_project?(name); loaded_orogen_projects.key?(name) end
 
             OroGenLocation = Struct.new :absolute_path, :lineno, :label
 
@@ -268,7 +268,7 @@ module Syskit
             # @param [OroGen::Spec::Project] orogen the oroGen project that
             #   should be added to the Syskit side
             def project_define_from_orogen(orogen)
-                return if loaded_orogen_projects.has_key?(orogen.name)
+                return if loaded_orogen_projects.key?(orogen.name)
 
                 Syskit.info "loading oroGen project #{orogen.name}"
 
@@ -710,7 +710,7 @@ module Syskit
             def self.plug_handler_in_roby(roby_engine, *handlers)
                 handlers.each do |handler_name|
                     m, options = roby_engine_propagation_handlers.fetch(handler_name)
-                    next if @handler_ids.has_key?(handler_name)
+                    next if @handler_ids.key?(handler_name)
 
                     @handler_ids[handler_name] = roby_engine.add_propagation_handler(options, &m)
                 end

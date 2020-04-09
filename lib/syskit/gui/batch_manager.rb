@@ -106,7 +106,7 @@ module Syskit
                         default_arg = arguments.fetch(
                             arg.name.to_sym, arg.default
                         )
-                        has_default_arg = arguments.has_key?(arg.name.to_sym) || !arg.required?
+                        has_default_arg = arguments.key?(arg.name.to_sym) || !arg.required?
 
                         unless formatted_arguments.empty?
                             formatted_arguments << ",\n"

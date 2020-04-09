@@ -366,7 +366,7 @@ module Syskit
                 # the same port
                 mapped_to_original.each do |mapped, original|
                     if original.size > 1
-                        not_explicit = original.find_all { |pname| !normalized_mappings.has_key?(pname) }
+                        not_explicit = original.find_all { |pname| !normalized_mappings.key?(pname) }
                         unless not_explicit.empty?
                             raise InvalidPortMapping, "automatic port mapping would map ports #{original.sort.join(", ")} to the same port #{mapped}. I refuse to do this. If you actually mean to do it, provide the mapping #{original.map { |o| "\"#{o}\" => \"#{mapped}\"" }.join(", ")} explicitly"
                         end
@@ -497,7 +497,7 @@ module Syskit
                     raise ArgumentError, "no block given to #dynamic_service, one must be provided and must call provides()"
                 end
 
-                if backward.has_key?(:dynamic)
+                if backward.key?(:dynamic)
                     Roby.warn_deprecated "the dynamic argument to #dynamic_service has been renamed into addition_requires_reconfiguration"
                     addition_requires_reconfiguration = !backward[:dynamic]
                 end

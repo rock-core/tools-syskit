@@ -67,7 +67,7 @@ module Syskit
 
                 def plan_pattern(**arguments)
                     job_id = {}
-                    if arguments.has_key?(:job_id)
+                    if arguments.key?(:job_id)
                         job_id[:job_id] = arguments.delete(:job_id)
                     end
                     req = to_instance_requirements(**arguments)

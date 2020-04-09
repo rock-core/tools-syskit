@@ -154,7 +154,7 @@ module Syskit
                         end
                     end
                     old_mapping.each_key do |ports|
-                        unless new_mapping.has_key?(ports)
+                        unless new_mapping.key?(ports)
                             removed_connections << ports
                         end
                     end
@@ -636,7 +636,7 @@ module Syskit
             def dangling_task_cleanup
                 removed = {}
                 ActualDataFlow.each_vertex do |parent_t|
-                    unless @orocos_task_to_syskit_tasks.has_key?(parent_t)
+                    unless @orocos_task_to_syskit_tasks.key?(parent_t)
                         ActualDataFlow.each_out_neighbour(parent_t) do |child_t|
                             mappings = ActualDataFlow.edge_info(parent_t, child_t)
                             removed[[parent_t, child_t]] = mappings.keys.to_set

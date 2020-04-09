@@ -1637,35 +1637,6 @@ Style/PerlBackrefs:
   Exclude:
     - 'lib/syskit/gui/component_network_base_view.rb'
 
-# Offense count: 39
-# Cop supports --auto-correct.
-# Configuration parameters: EnforcedStyle.
-# SupportedStyles: short, verbose
-Style/PreferredHashMethods:
-  Exclude:
-    - 'bin/syskit'
-    - 'lib/syskit/actions/action_model.rb'
-    - 'lib/syskit/actions/profile.rb'
-    - 'lib/syskit/connection_graph.rb'
-    - 'lib/syskit/coordination/models/data_monitor_predicate_from_block.rb'
-    - 'lib/syskit/coordination/plan_extension.rb'
-    - 'lib/syskit/data_flow.rb'
-    - 'lib/syskit/exceptions.rb'
-    - 'lib/syskit/graphviz.rb'
-    - 'lib/syskit/gui/batch_manager.rb'
-    - 'lib/syskit/gui/state_label.rb'
-    - 'lib/syskit/instance_requirements.rb'
-    - 'lib/syskit/models/component.rb'
-    - 'lib/syskit/models/composition_child.rb'
-    - 'lib/syskit/models/placeholder.rb'
-    - 'lib/syskit/network_generation/dataflow_computation.rb'
-    - 'lib/syskit/network_generation/dataflow_dynamics.rb'
-    - 'lib/syskit/network_generation/merge_solver.rb'
-    - 'lib/syskit/properties.rb'
-    - 'lib/syskit/roby_app/plugin.rb'
-    - 'lib/syskit/runtime/connection_management.rb'
-    - 'test/models/test_composition_child.rb'
-
 # Offense count: 21
 # Cop supports --auto-correct.
 Style/RedundantBegin:

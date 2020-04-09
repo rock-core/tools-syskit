@@ -1209,7 +1209,7 @@ module Syskit
             task_arguments = task_model.arguments.to_a - root_model.arguments.to_a
             task_arguments.each do |arg_name|
                 arg = task_model.find_argument(arg_name)
-                if arguments.has_key?(arg_name)
+                if arguments.key?(arg_name)
                     optional = true
                     default_argument = arguments[arg_name]
                 elsif arg.has_default?

@@ -392,7 +392,7 @@ module Syskit
             self.candidates[abstract_task] = candidates
 
             all_tasks.each do |t|
-                next if task_parents.has_key?(t)
+                next if task_parents.key?(t)
 
                 parents = t
                           .enum_for(:each_parent_object, Roby::TaskStructure::Dependency)
