@@ -23,7 +23,7 @@ module Syskit
             # Controls whether the ports matching this group should be logged
             # (enabled? == true) or not. See {LoggingConfiguration} for the
             # logging behaviour when a port is matched by multiple groups
-            attr_predicate :enabled? , true
+            attr_predicate :enabled?, true
 
             # Set of deployment models whose ports should match
             #
