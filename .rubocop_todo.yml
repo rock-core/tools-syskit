@@ -186,17 +186,6 @@ Layout/LineLength:
     - 'test/test_task_configuration_manager.rb'
     - 'test/test_task_context.rb'
 
-# Offense count: 7
-# Cop supports --auto-correct.
-# Configuration parameters: EnforcedStyle.
-# SupportedStyles: symmetrical, new_line, same_line
-Layout/MultilineArrayBraceLayout:
-  Exclude:
-    - 'lib/syskit/roby_app/plugin.rb'
-    - 'test/runtime/test_connection_management.rb'
-    - 'test/test_data_flow.rb'
-    - 'test/test_task_context.rb'
-
 # Offense count: 204
 # Cop supports --auto-correct.
 # Configuration parameters: EnforcedStyle.

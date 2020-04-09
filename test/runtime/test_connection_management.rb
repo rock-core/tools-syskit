@@ -587,7 +587,8 @@ module Syskit
                     flexmock(manager).should_receive(:apply_connection_changes)
                         .and_return([
                                         flexmock(:base, Hash.new, empty?: false),
-                                        flexmock(:base, Hash.new, empty?: false)])
+                                        flexmock(:base, Hash.new, empty?: false)
+                                    ])
                     dataflow_graph = plan.task_relation_graph_for(Syskit::Flows::DataFlow)
                     dataflow_graph.modified_tasks << source_task
 

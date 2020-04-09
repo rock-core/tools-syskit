@@ -213,7 +213,8 @@ module Syskit
                                                 [source2 = Object.new, 'out', 'in', Hash.new])
                 expected = [
                     [source1, task, ['out', 'in'] => Hash.new],
-                    [source2, task, ['out', 'in'] => Hash.new]]
+                    [source2, task, ['out', 'in'] => Hash.new]
+                ]
 
                 graph = dataflow.compute_concrete_connection_graph
                 assert_equal expected.to_set, graph.each_edge.to_set

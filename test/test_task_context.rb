@@ -1687,7 +1687,8 @@ module Syskit
                     promises = [
                         task.commit_properties,
                         task.setup,
-                        task.commit_properties]
+                        task.commit_properties
+                    ]
 
                     finished = Array.new
                     promises.each_with_index do |p, i|
