@@ -20,8 +20,7 @@ module Syskit
             tasks.fetch(name)
         end
 
-        def disconnect
-        end
+        def disconnect; end
     end
     class ProcessFixture
         attr_reader :process_server
@@ -39,8 +38,7 @@ module Syskit
             process_server.killed_processes << self
         end
 
-        def resolve_all_tasks(*)
-        end
+        def resolve_all_tasks(*); end
     end
 
     describe Deployment do

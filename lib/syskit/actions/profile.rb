@@ -99,8 +99,7 @@ module Syskit
             # clear_model implementation
             #
             # It does nothing
-            def each_submodel
-            end
+            def each_submodel; end
 
             # The call trace at the time of the profile definition
             attr_reader :definition_location
@@ -635,8 +634,7 @@ module Syskit
                 end
             end
 
-            def self.clear_model
-            end
+            def self.clear_model; end
 
             # Yield all actions that can be used to access this profile's
             # definitions and devices

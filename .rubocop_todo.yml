@@ -1178,24 +1178,6 @@ Style/EmptyLiteral:
     - 'test/test_instance_selection.rb'
     - 'test/test_task_context.rb'
 
-# Offense count: 17
-# Cop supports --auto-correct.
-# Configuration parameters: EnforcedStyle.
-# SupportedStyles: compact, expanded
-Style/EmptyMethod:
-  Exclude:
-    - 'lib/syskit/actions/interface_model_extension.rb'
-    - 'lib/syskit/actions/profile.rb'
-    - 'lib/syskit/droby/v5/droby_dump.rb'
-    - 'lib/syskit/gui/model_views/ruby_task_context.rb'
-    - 'lib/syskit/gui/model_views/type.rb'
-    - 'lib/syskit/roby_app/configuration.rb'
-    - 'lib/syskit/roby_app/unmanaged_tasks_manager.rb'
-    - 'lib/syskit/ros/node.rb'
-    - 'lib/syskit/task_configuration_manager.rb'
-    - 'test/roby_app/test_rest_api.rb'
-    - 'test/test_deployment.rb'
-
 # Offense count: 1
 # Cop supports --auto-correct.
 Style/Encoding:

@@ -11,14 +11,11 @@ module Syskit::GUI
                 @type_rendering = OroGen::HTML::Type.new(page)
             end
 
-            def enable
-            end
+            def enable; end
 
-            def disable
-            end
+            def disable; end
 
-            def clear
-            end
+            def clear; end
 
             def render_port_list(content)
                 template = <<-EOHTML

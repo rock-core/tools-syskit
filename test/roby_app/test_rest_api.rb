@@ -12,8 +12,7 @@ module Syskit
                 @roby_interface = Roby::Interface::Interface.new(@roby_app)
             end
 
-            def teardown
-            end
+            def teardown; end
 
             include Rack::Test::Methods
 

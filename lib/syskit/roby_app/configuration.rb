@@ -445,8 +445,7 @@ module Syskit
                     []
                 end
 
-                def disconnect
-                end
+                def disconnect; end
             end
 
             # Call to declare a new process server and add to the set of servers that

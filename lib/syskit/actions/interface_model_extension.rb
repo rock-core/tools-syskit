@@ -20,8 +20,7 @@ module Syskit
                 end
             end
 
-            def setup_main_profile(profile)
-            end
+            def setup_main_profile(profile); end
 
             # Define on self tags that match the profile's tags
             def use_profile_tags(profile)

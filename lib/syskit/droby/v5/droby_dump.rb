@@ -219,8 +219,7 @@ module Syskit
                     DRoby.new(name, peer.known_siblings_for(self))
                 end
 
-                def clear_owners
-                end
+                def clear_owners; end
             end
 
             module Models

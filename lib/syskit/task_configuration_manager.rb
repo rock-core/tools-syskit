@@ -14,8 +14,7 @@ module Syskit
         end
 
         # Extract the configuration from a running task
-        def extract_from_task
-        end
+        def extract_from_task; end
 
         # Applies a configuration to the given component instance
         #

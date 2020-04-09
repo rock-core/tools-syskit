@@ -36,11 +36,9 @@ module Syskit
                 emit :stop
             end
 
-            def update_orogen_state
-            end
+            def update_orogen_state; end
 
-            def configure
-            end
+            def configure; end
         end
     end
 end
