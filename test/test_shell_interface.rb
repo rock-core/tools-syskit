@@ -30,7 +30,8 @@ module Syskit
             before do
                 @task_m = TaskContext.new_submodel
                 @task = syskit_stub_deploy_configure_and_start(
-                    syskit_stub_requirements(task_m).with_conf('default'))
+                    syskit_stub_requirements(task_m).with_conf('default')
+                )
                 plan.add_mission_task(task)
             end
 
@@ -46,7 +47,8 @@ module Syskit
 
             it "restricts the deployments to the given models" do
                 other = syskit_stub_deploy_configure_and_start(
-                    syskit_stub_requirements(TaskContext.new_submodel))
+                    syskit_stub_requirements(TaskContext.new_submodel)
+                )
                 plug_apply_requirement_modifications
                 expect_execution do
                     subject.restart_deployments(task.execution_agent.model)
@@ -60,7 +62,8 @@ module Syskit
 
             it "accepts task models as argument" do
                 other = syskit_stub_deploy_configure_and_start(
-                    syskit_stub_requirements(TaskContext.new_submodel))
+                    syskit_stub_requirements(TaskContext.new_submodel)
+                )
                 plug_apply_requirement_modifications
                 expect_execution do
                     subject.restart_deployments(task.model)

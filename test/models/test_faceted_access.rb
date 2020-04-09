@@ -17,7 +17,8 @@ describe Syskit::Models::FacetedAccess do
         sub_task_m.provides srv_m, as: 'test'
 
         @facet = Syskit::Models::FacetedAccess.new(
-            sub_task_m, Syskit::Models::Placeholder.for([task_m, srv_m]))
+            sub_task_m, Syskit::Models::Placeholder.for([task_m, srv_m])
+        )
     end
 
     describe "#find_ports_on_required" do

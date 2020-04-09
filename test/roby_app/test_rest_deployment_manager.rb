@@ -12,10 +12,12 @@ module Syskit
                 @conf.register_process_server("unmanaged_tasks", @unmanaged_tasks)
 
                 @orogen_task_m = OroGen::Spec::TaskContext.new(
-                    @roby_app.default_orogen_project, 'test::Task')
+                    @roby_app.default_orogen_project, 'test::Task'
+                )
                 @task_m = Syskit::TaskContext.new_submodel(orogen_model: @orogen_task_m)
                 @orogen_deployment_m = OroGen::Spec::Deployment.new(
-                    @roby_app.default_orogen_project, 'test_deployment')
+                    @roby_app.default_orogen_project, 'test_deployment'
+                )
                 @orogen_deployment_m.task 'test_task', @orogen_task_m
                 @deployment_m = Syskit::Deployment.define_from_orogen(@orogen_deployment_m)
 

@@ -485,7 +485,8 @@ module Syskit
                     return client
                 elsif app.single?
                     client = Orocos::RemoteProcesses::Client.new(
-                        'localhost', port, root_loader: app.default_loader)
+                        'localhost', port, root_loader: app.default_loader
+                    )
                     register_process_server(
                         name, client, app.log_dir, host_id: host_id || 'localhost'
                     )

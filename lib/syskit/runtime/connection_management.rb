@@ -272,11 +272,13 @@ module Syskit
                 disconnections.each do |syskit_from_task, from_task, from_port, syskit_to_task, to_task, to_port|
                     if syskit_from_task
                         syskit_from_task.removed_output_port_connection(
-                            from_port, to_task, to_port)
+                            from_port, to_task, to_port
+                        )
                     end
                     if syskit_to_task
                         syskit_to_task.removed_input_port_connection(
-                            from_task, from_port, to_port)
+                            from_task, from_port, to_port
+                        )
                     end
 
                     if ActualDataFlow.static?(from_task, from_port)
@@ -445,7 +447,8 @@ module Syskit
                     ActualDataFlow.add_connections(
                         from_task.orocos_task, to_task.orocos_task,
                         [from_port, to_port] => [policy, from_syskit_port.static?, to_syskit_port.static?],
-                        force_update: true)
+                        force_update: true
+                    )
                 end
             end
 
@@ -477,10 +480,12 @@ module Syskit
                             "to nil and executable? = #{t.executable?}"
                         end
                         scheduler.report_action(
-                            "all inputs connected, marking as ready to start", t)
+                            "all inputs connected, marking as ready to start", t
+                        )
                     else
                         scheduler.report_holdoff(
-                            "waiting for all inputs to be connected", t)
+                            "waiting for all inputs to be connected", t
+                        )
                     end
                 end
             end
@@ -656,7 +661,8 @@ module Syskit
                 # The normal workflow does not work in this case, as it is only
                 # looking for tasks whose input connections have been modified
                 mark_connected_pending_tasks_as_executable(
-                    tasks.reject(&:executable?))
+                    tasks.reject(&:executable?)
+                )
 
                 if !tasks.empty?
                     if dataflow_graph.pending_changes

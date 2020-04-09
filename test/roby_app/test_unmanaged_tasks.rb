@@ -8,7 +8,8 @@ module Syskit
             before do
                 @task_model = Syskit::TaskContext.new_submodel
                 Syskit.conf.register_process_server(
-                    'unmanaged_tasks', UnmanagedTasksManager.new)
+                    'unmanaged_tasks', UnmanagedTasksManager.new
+                )
                 @process_manager = Syskit.conf.process_server_for('unmanaged_tasks')
                 use_unmanaged_task task_model => 'unmanaged_deployment_test'
                 @task = syskit_deploy(task_model)
@@ -36,7 +37,8 @@ module Syskit
 
                 @unmanaged_task = Orocos.allow_blocking_calls do
                     Orocos::RubyTasks::TaskContext.from_orogen_model(
-                        'unmanaged_deployment_test', task_model.orogen_model)
+                        'unmanaged_deployment_test', task_model.orogen_model
+                    )
                 end
             end
 

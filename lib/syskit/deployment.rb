@@ -108,7 +108,8 @@ module Syskit
             if orogen_master = orogen_task_deployment_model.master
                 mapped_master = name_mappings[orogen_master.name]
                 scheduler_task = find_or_create_task(
-                    mapped_master, auto_conf: true)
+                    mapped_master, auto_conf: true
+                )
                 candidates = scheduler_task.each_parent_task
             else
                 candidates = each_executed_task
@@ -130,7 +131,8 @@ module Syskit
             create_deployed_task(
                 orogen_task_deployment_model,
                 syskit_task_model,
-                scheduler_task, auto_conf: auto_conf)
+                scheduler_task, auto_conf: auto_conf
+            )
         end
 
         def deployed_orogen_model_by_name(name)
@@ -181,7 +183,8 @@ module Syskit
 
             mapped_name = name_mappings[orogen_task_deployment_model.name]
             base_syskit_task_model = deployed_model_by_orogen_model(
-                orogen_task_deployment_model)
+                orogen_task_deployment_model
+            )
             if syskit_task_model
                 unless syskit_task_model <= base_syskit_task_model
                     raise ArgumentError,
@@ -234,7 +237,8 @@ module Syskit
 
             if (orogen_master = orogen_task_deployment_model.master)
                 scheduler_task = find_or_create_task(
-                    orogen_master.name, auto_conf: true)
+                    orogen_master.name, auto_conf: true
+                )
             end
             create_deployed_task(
                 orogen_task_deployment_model,
@@ -292,7 +296,8 @@ module Syskit
             end
 
             @orocos_process = process_server_config.client.start(
-                process_name, model.orogen_model, name_mappings, spawn_options)
+                process_name, model.orogen_model, name_mappings, spawn_options
+            )
 
             Deployment.all_deployments[orocos_process] = self
             start_event.emit
@@ -660,13 +665,15 @@ module Syskit
         def create_state_access(remote_task, distance: TaskContext::D_UNKNOWN)
             state_getter = RemoteStateGetter.new(
                 remote_task,
-                initial_state: remote_task.rtt_state)
+                initial_state: remote_task.rtt_state
+            )
 
             if remote_task.model.extended_state_support?
                 state_port = remote_task.raw_port('state')
                 state_reader = state_port.reader(
                     type: :buffer, size: STATE_READER_BUFFER_SIZE, init: true,
-                    distance: distance)
+                    distance: distance
+                )
                 state_reader.extend Orocos::TaskContext::StateReader
                 state_reader.state_symbols = remote_task.state_symbols
             else

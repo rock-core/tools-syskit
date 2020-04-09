@@ -56,14 +56,16 @@ module Syskit
                     MetaRuby::DSLs.has_through_method_missing?(
                         self, m,
                         '_def'.freeze => :find_definition,
-                        '_dev'.freeze => :find_device) || super
+                        '_dev'.freeze => :find_device
+                    ) || super
                 end
 
                 def find_through_method_missing(m, args)
                     MetaRuby::DSLs.find_through_method_missing(
                         self, m, args,
                         '_def'.freeze => :find_definition,
-                        '_dev'.freeze => :find_device) || super
+                        '_dev'.freeze => :find_device
+                    ) || super
                 end
 
                 include MetaRuby::DSLs::FindThroughMethodMissing

@@ -148,13 +148,15 @@ module Syskit
             def has_through_method_missing?(m)
                 MetaRuby::DSLs.has_through_method_missing?(
                     self, m,
-                    '_port'.freeze => :has_port?) || super
+                    '_port'.freeze => :has_port?
+                ) || super
             end
 
             def find_through_method_missing(m, args)
                 MetaRuby::DSLs.find_through_method_missing(
                     self, m, args,
-                    '_port'.freeze => :find_port) || super
+                    '_port'.freeze => :find_port
+                ) || super
             end
 
             include MetaRuby::DSLs::FindThroughMethodMissing

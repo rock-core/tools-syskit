@@ -393,7 +393,8 @@ describe Syskit::Models::SpecializationManager do
                 .with(matches[0][0], matches[0][1]).and_return(model = flexmock)
             assert_equal model, mng.matching_specialized_model(
                 selection, strict: true,
-                           specialization_hints: [hint])
+                           specialization_hints: [hint]
+            )
         end
     end
 

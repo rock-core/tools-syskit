@@ -80,7 +80,8 @@ module Syskit
                     doc = index.data(Qt::UserRole).to_string || ''
                     Qt::Size.new(
                         [fm.width(main), fm.width(doc)].max + 2 * OUTER_MARGIN,
-                        fm.height * 2 + OUTER_MARGIN * 2 + INTERLINE)
+                        fm.height * 2 + OUTER_MARGIN * 2 + INTERLINE
+                    )
                 end
 
                 def paint(painter, option, index)
@@ -98,14 +99,16 @@ module Syskit
                     fm = option.font_metrics
                     painter.draw_text(
                         Qt::Rect.new(option.rect.x + OUTER_MARGIN, option.rect.y + OUTER_MARGIN, option.rect.width - 2 * OUTER_MARGIN, fm.height),
-                        Qt::AlignLeft, main, text_bounds)
+                        Qt::AlignLeft, main, text_bounds
+                    )
 
                     font = painter.font
                     font.italic = true
                     painter.font = font
                     painter.draw_text(
                         Qt::Rect.new(option.rect.x + OUTER_MARGIN, text_bounds.bottom + INTERLINE, option.rect.width - 2 * OUTER_MARGIN, fm.height),
-                        Qt::AlignLeft, doc, text_bounds)
+                        Qt::AlignLeft, doc, text_bounds
+                    )
                 ensure
                     painter.restore
                 end
@@ -219,7 +222,8 @@ module Syskit
 
                 begin
                     _pid, has_quit = Process.waitpid2(
-                        @syskit_pid, Process::WNOHANG)
+                        @syskit_pid, Process::WNOHANG
+                    )
                 rescue Errno::ECHILD
                     has_quit = true
                 end
@@ -292,7 +296,8 @@ module Syskit
                     extra_args << "-c"
                 end
                 extra_args.concat(
-                    Roby.app.argv_set.flat_map { |arg| ['--set', arg] })
+                    Roby.app.argv_set.flat_map { |arg| ['--set', arg] }
+                )
                 @syskit_pid =
                     Kernel.spawn Gem.ruby, '-S', 'syskit', 'run', "--wait-shell-connection",
                                  *extra_args,
@@ -455,13 +460,16 @@ module Syskit
                 task_inspector_layout = Qt::VBoxLayout.new(task_inspector_widget)
                 task_inspector_checkboxes_layout = Qt::HBoxLayout.new
                 task_inspector_checkboxes_layout.add_widget(
-                    @ui_show_expanded_job = Qt::CheckBox.new("Show details"))
+                    @ui_show_expanded_job = Qt::CheckBox.new("Show details")
+                )
                 task_inspector_checkboxes_layout.add_widget(
-                    @ui_hide_loggers = Qt::CheckBox.new("Show loggers"))
+                    @ui_hide_loggers = Qt::CheckBox.new("Show loggers")
+                )
                 task_inspector_checkboxes_layout.add_stretch
                 task_inspector_layout.add_layout(task_inspector_checkboxes_layout)
                 task_inspector_layout.add_widget(
-                    @ui_task_inspector = Vizkit.default_loader.TaskInspector)
+                    @ui_task_inspector = Vizkit.default_loader.TaskInspector
+                )
                 @ui_hide_loggers.checked = false
                 @ui_hide_loggers.connect SIGNAL('toggled(bool)') do |checked|
                     @known_loggers = nil

@@ -91,7 +91,8 @@ module Syskit
                 if @runtime_state && @runtime_state.current_state != 'UNREACHABLE'
                     Qt::MessageBox.warning(
                         self, "Cannot Reload while running",
-                        "Cannot reload while an app is running, quit the app first")
+                        "Cannot reload while an app is running, quit the app first"
+                    )
                     return
                 end
 
@@ -144,7 +145,8 @@ module Syskit
                     layout.add_widget(@list)
 
                     buttons = Qt::DialogButtonBox.new(
-                        Qt::DialogButtonBox::Ok | Qt::DialogButtonBox::Cancel)
+                        Qt::DialogButtonBox::Ok | Qt::DialogButtonBox::Cancel
+                    )
                     connect(buttons, SIGNAL('accepted()'), self, SLOT('accept()'))
                     connect(buttons, SIGNAL('rejected()'), self, SLOT('reject()'))
                     layout.add_widget(buttons)
@@ -226,7 +228,8 @@ module Syskit
                     .to_set
 
                 files = Qt::FileDialog.getOpenFileNames(
-                    self, "Pick model file(s) to add", initial_dir)
+                    self, "Pick model file(s) to add", initial_dir
+                )
                 files.each do |path|
                     Roby.app.require(path)
                     Roby.app.additional_model_files << path
@@ -257,7 +260,8 @@ module Syskit
                         self, SLOT('fileOpenClicked(const QUrl&)'))
                 @connection_state = GlobalStateLabel.new(
                     actions: runtime_state.global_actions.values,
-                    name: runtime_state.remote_name)
+                    name: runtime_state.remote_name
+                )
                 @connection_state.connect(SIGNAL('clicked(QPoint)')) do |global_pos|
                     @connection_state.app_state_menu(global_pos)
                 end

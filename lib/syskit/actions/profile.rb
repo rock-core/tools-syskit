@@ -362,7 +362,8 @@ module Syskit
                 resolved = resolved_dependency_injection
                     .direct_selection_for(requirements) || requirements
                 doc = MetaRuby::DSLs.parse_documentation_block(
-                    ->(file) { Roby.app.app_file?(file) }, /^define$/)
+                    ->(file) { Roby.app.app_file?(file) }, /^define$/
+                )
                 register_definition(name, resolved.to_instance_requirements, doc: doc)
             end
 
@@ -714,7 +715,8 @@ module Syskit
                     '_def'.freeze => :has_definition?,
                     '_dev'.freeze => :has_device?,
                     '_task'.freeze => :has_deployed_task?,
-                    '_deployment_group'.freeze => :has_deployment_group?) || super
+                    '_deployment_group'.freeze => :has_deployment_group?
+                ) || super
             end
 
             def find_through_method_missing(m, args)
@@ -724,7 +726,8 @@ module Syskit
                     '_def'.freeze => :find_definition_by_name,
                     '_dev'.freeze => :find_device_requirements_by_name,
                     '_task' => :find_deployed_task_by_name,
-                    '_deployment_group' => :find_deployment_group_by_name) || super
+                    '_deployment_group' => :find_deployment_group_by_name
+                ) || super
             end
 
             include MetaRuby::DSLs::FindThroughMethodMissing

@@ -77,28 +77,34 @@ module Syskit
 
                 unless Syskit.conf.only_load_models?
                     Syskit.conf.logs.create_configuration_log(
-                        File.join(app.log_dir, 'properties'))
+                        File.join(app.log_dir, 'properties')
+                    )
                 end
 
                 if Syskit.conf.define_default_process_managers? && Syskit.conf.only_load_models?
                     fake_client = Configuration::ModelOnlyServer.new(app.default_loader)
                     Syskit.conf.register_process_server(
-                        'ruby_tasks', fake_client, app.log_dir, host_id: 'syskit')
+                        'ruby_tasks', fake_client, app.log_dir, host_id: 'syskit'
+                    )
                     Syskit.conf.register_process_server(
-                        'unmanaged_tasks', fake_client, app.log_dir, host_id: 'syskit')
+                        'unmanaged_tasks', fake_client, app.log_dir, host_id: 'syskit'
+                    )
                     Syskit.conf.register_process_server(
-                        'ros', fake_client, app.log_dir, host_id: 'syskit')
+                        'ros', fake_client, app.log_dir, host_id: 'syskit'
+                    )
                 elsif Syskit.conf.define_default_process_managers?
                     Syskit.conf.register_process_server('ruby_tasks',
                                                         Orocos::RubyTasks::ProcessManager.new(app.default_loader),
                                                         app.log_dir, host_id: 'syskit')
 
                     Syskit.conf.register_process_server(
-                        'unmanaged_tasks', UnmanagedTasksManager.new, app.log_dir)
+                        'unmanaged_tasks', UnmanagedTasksManager.new, app.log_dir
+                    )
 
                     Syskit.conf.register_process_server(
                         'ros', Orocos::ROS::ProcessManager.new(app.ros_loader),
-                        app.log_dir)
+                        app.log_dir
+                    )
                 end
 
                 if Orocos.orocos_logfile
@@ -403,7 +409,8 @@ module Syskit
                     changed_sections = model.configuration_manager.reload
                     plan.find_tasks(Deployment).each do |deployment_task|
                         deployment_task.mark_changed_configuration_as_not_reusable(
-                            model => changed_sections).each do |orocos_name|
+                            model => changed_sections
+                        ).each do |orocos_name|
                             needs_reconfiguration << orocos_name
                             deployment_task.each_executed_task do |t|
                                 if t.orocos_name == orocos_name
@@ -462,7 +469,8 @@ module Syskit
                 end
                 prefixes.each do |prefix_name|
                     app.load_all_model_files_in(
-                        prefix_name, ignored_exceptions: ignored_exceptions)
+                        prefix_name, ignored_exceptions: ignored_exceptions
+                    )
                 end
 
                 # Also require all the available oroGen projects

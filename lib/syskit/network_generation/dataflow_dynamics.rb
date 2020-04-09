@@ -246,10 +246,12 @@ module Syskit
                 case activity_type
                 when 'Periodic'
                     initial_device_information_periodic_triggering(
-                        task, triggering_devices.to_a, task.orogen_model.period)
+                        task, triggering_devices.to_a, task.orogen_model.period
+                    )
                 else
                     initial_device_information_internal_triggering(
-                        task, triggering_devices.to_a)
+                        task, triggering_devices.to_a
+                    )
                 end
             end
 

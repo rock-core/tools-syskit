@@ -19,7 +19,8 @@ module Syskit
                         server.listen
                     end
                     client = Syskit.conf.connect_to_orocos_process_server(
-                        name, 'localhost', port: server.port)
+                        name, 'localhost', port: server.port
+                    )
                     @process_servers << [name, thread, client]
                 end
 

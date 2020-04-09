@@ -154,7 +154,8 @@ module Syskit
                 unless orogen_model
                     orogen_model = self.orogen_model.class.new(
                         Roby.app.default_orogen_project, orogen_model_name,
-                        subclasses: self.orogen_model)
+                        subclasses: self.orogen_model
+                    )
                     orogen_model.extended_state_support
                 end
                 submodel.orogen_model = orogen_model
@@ -198,7 +199,8 @@ module Syskit
             # service's orogen model
             def merge_service_model(service_model, port_mappings)
                 Syskit::Models.merge_orogen_task_context_models(
-                    orogen_model, [service_model.orogen_model], port_mappings)
+                    orogen_model, [service_model.orogen_model], port_mappings
+                )
             end
 
             def to_deployment_group(name, **options)

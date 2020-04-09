@@ -95,9 +95,10 @@ module Syskit
                 end
 
                 it "unmarshals the received value" do
-                    marshalled   = V5::TypelibTypeDumper::DRoby.new(
+                    marshalled = V5::TypelibTypeDumper::DRoby.new(
                         "\xBB\xCC\xDD\x00",
-                        V5::TypelibTypeModelDumper::DRoby.new('/Test', type.to_xml))
+                        V5::TypelibTypeModelDumper::DRoby.new('/Test', type.to_xml)
+                    )
                     unmarshalled = marshal.local_object(marshalled)
                     assert_equal 0xDDCCBB, Typelib.to_ruby(unmarshalled)
                 end
@@ -255,7 +256,8 @@ module Syskit
 
                 child_model = OroGen::Spec::TaskContext.new(
                     app.default_orogen_project, 'child::Task',
-                    subclasses: parent_model)
+                    subclasses: parent_model
+                )
                 child_m = parent_m.new_submodel(orogen_model: child_model)
 
                 unmarshalled = droby_transfer child_m
@@ -272,7 +274,8 @@ module Syskit
 
                 child_model = OroGen::Spec::TaskContext.new(
                     app.default_orogen_project, 'child::Task',
-                    subclasses: parent_model)
+                    subclasses: parent_model
+                )
                 child_model.output_port 'out2', stub_type('/test')
                 child_m = parent_m.new_submodel(orogen_model: child_model)
 

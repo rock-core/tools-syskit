@@ -70,7 +70,8 @@ module Syskit
                         self,
                         log_file_name: process.default_log_file_name(orocos_task.basename),
                         log_dir: deployment.log_dir,
-                        remote: !deployment.on_localhost?)
+                        remote: !deployment.on_localhost?
+                    )
                 end
 
                 each_input_connection do |source_task, source_port_name, sink_port_name, policy|
@@ -237,6 +238,7 @@ module Syskit
             end
         end
         Engine.register_deployment_postprocessing(
-            &LoggerConfigurationSupport.method(:add_logging_to_network))
+            &LoggerConfigurationSupport.method(:add_logging_to_network)
+        )
     end
 end

@@ -49,7 +49,8 @@ module Syskit
 
                 def make_configured_deployment_info(d)
                     type = find_type_from_process_server(
-                        syskit_conf.process_server_config_for(d.process_server_name))
+                        syskit_conf.process_server_config_for(d.process_server_name)
+                    )
                     return if !type
 
                     tasks = d.each_orogen_deployed_task_context_model.map do |deployed_task|

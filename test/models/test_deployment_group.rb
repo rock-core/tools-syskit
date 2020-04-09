@@ -10,9 +10,11 @@ module Syskit
                 @loader = OroGen::Loaders::Base.new
                 @group = DeploymentGroup.new
                 conf.register_process_server(
-                    'ruby_tasks', Orocos::RubyTasks::ProcessManager.new(loader), '')
+                    'ruby_tasks', Orocos::RubyTasks::ProcessManager.new(loader), ''
+                )
                 conf.register_process_server(
-                    'test-mng', Orocos::RubyTasks::ProcessManager.new(loader), '')
+                    'test-mng', Orocos::RubyTasks::ProcessManager.new(loader), ''
+                )
             end
 
             describe "#empty?" do
@@ -23,7 +25,8 @@ module Syskit
                     deployment_m = Syskit::Deployment.new_submodel
                     group.register_configured_deployment(
                         ConfiguredDeployment.new('test', deployment_m,
-                                                 Hash['task' => 'task']))
+                                                 Hash['task' => 'task'])
+                    )
                     refute group.empty?
                 end
             end
@@ -40,10 +43,12 @@ module Syskit
                     @other_group = DeploymentGroup.new
                     @other_deployment = other_group.use_deployment(
                         Hash[deployment_m => 'other_'],
-                        on: 'test-mng', process_managers: conf, loader: loader).first
-                    @self_deployment  = group.use_deployment(
+                        on: 'test-mng', process_managers: conf, loader: loader
+                    ).first
+                    @self_deployment = group.use_deployment(
                         Hash[deployment_m => 'self_'],
-                        on: 'test-mng', process_managers: conf, loader: loader).first
+                        on: 'test-mng', process_managers: conf, loader: loader
+                    ).first
                 end
 
                 it "merges the argument's registered deployments with the local" do
@@ -224,23 +229,27 @@ module Syskit
                     "uses an existing name from another deployment" do
                     group.register_configured_deployment(
                         ConfiguredDeployment.new('test', deployment_m,
-                                                 Hash['task' => 'task']))
+                                                 Hash['task' => 'task'])
+                    )
                     assert_raises(TaskNameAlreadyInUse) do
                         group.register_configured_deployment(
                             ConfiguredDeployment.new('other', deployment_m,
-                                                     Hash['task' => 'task']))
+                                                     Hash['task' => 'task'])
+                        )
                     end
                 end
                 it "passes if trying to re-register the same deployment" do
                     configured_deployment = ConfiguredDeployment.new(
-                        'test', deployment_m, Hash['task' => 'task'])
+                        'test', deployment_m, Hash['task' => 'task']
+                    )
                     group.register_configured_deployment(configured_deployment)
                     group.register_configured_deployment(configured_deployment)
                 end
 
                 it "registers the deployment based on the mapped deployed task models" do
                     configured_deployment = ConfiguredDeployment.new(
-                        'test', deployment_m, Hash['task' => 'test'])
+                        'test', deployment_m, Hash['task' => 'test']
+                    )
                     group.register_configured_deployment(configured_deployment)
                     assert_same configured_deployment, group
                         .find_deployment_from_task_name('test')
@@ -249,7 +258,8 @@ module Syskit
 
                 it "registers the deployment on its process manager" do
                     configured_deployment = ConfiguredDeployment.new(
-                        'process_mng', deployment_m, Hash['task' => 'test'])
+                        'process_mng', deployment_m, Hash['task' => 'test']
+                    )
                     group.register_configured_deployment(configured_deployment)
                     assert_equal [configured_deployment], group
                         .find_all_deployments_from_process_manager('process_mng').to_a
@@ -258,7 +268,8 @@ module Syskit
                 it "invalidates the cache" do
                     flexmock(group).should_receive(:invalidate_caches).once
                     configured_deployment = ConfiguredDeployment.new(
-                        'process_mng', deployment_m, Hash['task' => 'test'])
+                        'process_mng', deployment_m, Hash['task' => 'test']
+                    )
                     group.register_configured_deployment(configured_deployment)
                 end
             end
@@ -275,11 +286,13 @@ module Syskit
                 it "registers a configured deployment using #deployment_model" do
                     expected = ConfiguredDeployment.new(
                         'test-mng', deployment_m, Hash['task' => 'test'],
-                        'test', Hash[task_context_class: Orocos::RubyTasks::TaskContext])
+                        'test', Hash[task_context_class: Orocos::RubyTasks::TaskContext]
+                    )
                     flexmock(group).should_receive(:register_configured_deployment)
                         .once
                     configured_deployment = group.use_ruby_tasks(
-                        Hash[task_m => 'test'], on: 'test-mng', process_managers: conf)
+                        Hash[task_m => 'test'], on: 'test-mng', process_managers: conf
+                    )
                     assert_equal [expected], configured_deployment
                 end
                 it "raises if the process manager does not exist" do
@@ -328,7 +341,8 @@ module Syskit
                     conf.register_process_server('unmanaged_tasks',
                                                  RobyApp::UnmanagedTasksManager.new, '')
                     @task_m = Syskit::TaskContext.new_submodel(
-                        name: 'Test', orogen_model_name: 'test::Task')
+                        name: 'Test', orogen_model_name: 'test::Task'
+                    )
                 end
 
                 it "creates a deployment model and registers it" do
@@ -349,7 +363,8 @@ module Syskit
                         .with(expected).once
                     configured_deployment = group.use_unmanaged_task(
                         Hash[task_m => 'test'],
-                        on: 'test-mng', process_managers: conf)
+                        on: 'test-mng', process_managers: conf
+                    )
                         .first
                     expected[configured_deployment]
 
@@ -413,9 +428,11 @@ module Syskit
                 attr_reader :task_m, :deployment_m
                 before do
                     @task_m = Syskit::TaskContext.new_submodel(
-                        orogen_model_name: 'test::Task')
+                        orogen_model_name: 'test::Task'
+                    )
                     @deployment_m = Syskit::Deployment.new_submodel(
-                        name: 'test_deployment')
+                        name: 'test_deployment'
+                    )
                     flexmock(loader).should_receive(:deployment_model_from_name)
                         .with('test_deployment')
                         .and_return(deployment_m.orogen_model)
@@ -424,10 +441,14 @@ module Syskit
                         .and_return(deployment_m.orogen_model)
                     conf.register_process_server(
                         'localhost', Orocos::RubyTasks::ProcessManager.new(
-                                         Roby.app.default_loader), "")
+                                         Roby.app.default_loader
+                                     ), ""
+                    )
                     conf.register_process_server(
                         'test', Orocos::RubyTasks::ProcessManager.new(
-                                    Roby.app.default_loader), "")
+                                    Roby.app.default_loader
+                                ), ""
+                    )
                 end
                 it "resolves the TaskModelClass => name syntax" do
                     expected = lambda do |configured_deployment|
@@ -584,9 +605,11 @@ module Syskit
                 attr_reader :task_m, :deployment_m
                 before do
                     @task_m = Syskit::TaskContext.new_submodel(
-                        orogen_model_name: 'test::Task')
+                        orogen_model_name: 'test::Task'
+                    )
                     @deployment_m = Syskit::Deployment.new_submodel(
-                        name: 'test_deployment')
+                        name: 'test_deployment'
+                    )
                     flexmock(loader).should_receive(:deployment_model_from_name)
                         .with('test_deployment')
                         .and_return(deployment_m.orogen_model)

@@ -16,7 +16,8 @@ describe Syskit::InstanceSelection do
             assert_equal Hash[simple_component_model => simple_component_model],
                          Syskit::InstanceSelection.compute_service_selection(
                              simple_component_model.to_instance_requirements,
-                             simple_component_model.to_instance_requirements, Hash.new)
+                             simple_component_model.to_instance_requirements, Hash.new
+                         )
         end
     end
 

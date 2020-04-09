@@ -368,7 +368,8 @@ module Syskit
                         selected_deployment = existing_deployment_tasks.first
                         new_merged_tasks = adapt_existing_deployment(
                             deployment_task,
-                            selected_deployment)
+                            selected_deployment
+                        )
                         reused_deployed_tasks.merge(new_merged_tasks)
                     end
                     if finishing = finishing_deployments[selected_deployment.process_name]
@@ -379,7 +380,8 @@ module Syskit
                 log_timepoint 'select_deployments'
 
                 reused_deployed_tasks = reconfigure_tasks_on_static_port_modification(
-                    reused_deployed_tasks)
+                    reused_deployed_tasks
+                )
                 log_timepoint 'reconfigure_tasks_on_static_port_modification'
 
                 debug do
@@ -530,12 +532,14 @@ module Syskit
                 requirement_tasks = requirement_tasks.to_a
                 instance_requirements = requirement_tasks.map(&:requirements)
                 system_network_generator = SystemNetworkGenerator.new(
-                    work_plan, event_logger: event_logger, merge_solver: merge_solver)
+                    work_plan, event_logger: event_logger, merge_solver: merge_solver
+                )
                 toplevel_tasks = system_network_generator.generate(
                     instance_requirements,
                     garbage_collect: garbage_collect,
                     validate_abstract_network: validate_abstract_network,
-                    validate_generated_network: validate_generated_network)
+                    validate_generated_network: validate_generated_network
+                )
 
                 Hash[requirement_tasks.zip(toplevel_tasks)]
             end
@@ -633,13 +637,15 @@ module Syskit
                     compute_deployments: compute_deployments,
                     default_deployment_group: default_deployment_group,
                     compute_policies: compute_policies,
-                    validate_deployed_network: validate_deployed_network)
+                    validate_deployed_network: validate_deployed_network
+                )
 
                 apply_system_network_to_plan(
                     required_instances,
                     compute_deployments: compute_deployments,
                     garbage_collect: garbage_collect,
-                    validate_final_network: validate_final_network)
+                    validate_final_network: validate_final_network
+                )
             rescue Exception => e
                 handle_resolution_exception(e, on_error: on_error)
                 raise

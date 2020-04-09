@@ -107,7 +107,8 @@ module Syskit
                 stream_name = "#{property.task_context.orocos_name}.#{property.name}"
                 if !configuration_log.has_stream?(stream_name)
                     configuration_log.create_stream(
-                        stream_name, property.type, property.log_metadata)
+                        stream_name, property.type, property.log_metadata
+                    )
                 else
                     configuration_log.stream(stream_name)
                 end

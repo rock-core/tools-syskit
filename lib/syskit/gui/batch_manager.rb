@@ -103,8 +103,9 @@ module Syskit
                 else
                     formatted_arguments = String.new
                     action_model.arguments.each do |arg|
-                        default_arg     = arguments.fetch(
-                            arg.name.to_sym, arg.default)
+                        default_arg = arguments.fetch(
+                            arg.name.to_sym, arg.default
+                        )
                         has_default_arg = arguments.has_key?(arg.name.to_sym) || !arg.required?
 
                         if !formatted_arguments.empty?

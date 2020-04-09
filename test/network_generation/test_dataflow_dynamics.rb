@@ -13,22 +13,26 @@ module Syskit
             end
             it 'defines hash-compatible equality' do
                 trigger1 = PortDynamics::Trigger.new(
-                    trigger_name, period, sample_count)
+                    trigger_name, period, sample_count
+                )
                 assert_equal Set[trigger], Set[trigger1]
             end
             it 'is inequal in the hash sense if the name differs' do
                 trigger1 = PortDynamics::Trigger.new(
-                    'other_name', period, sample_count)
+                    'other_name', period, sample_count
+                )
                 refute_equal Set[trigger], Set[trigger1]
             end
             it 'is inequal in the hash sense if the period differs' do
                 trigger1 = PortDynamics::Trigger.new(
-                    trigger_name, flexmock, sample_count)
+                    trigger_name, flexmock, sample_count
+                )
                 refute_equal Set[trigger], Set[trigger1]
             end
             it 'is inequal in the hash sense if the sample_count differs' do
                 trigger1 = PortDynamics::Trigger.new(
-                    trigger_name, period, flexmock)
+                    trigger_name, period, flexmock
+                )
                 refute_equal Set[trigger], Set[trigger1]
             end
         end

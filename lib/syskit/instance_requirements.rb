@@ -1057,7 +1057,8 @@ module Syskit
             resolved_di = resolved_dependency_injection
             model.each_child do |child_name, _|
                 selected_child, _ = model.find_child_model_and_task(
-                    child_name, resolved_di)
+                    child_name, resolved_di
+                )
                 yield(child_name, selected_child)
             end
         end
@@ -1067,7 +1068,8 @@ module Syskit
                 self, m,
                 '_srv'.freeze => :has_data_service?,
                 '_child'.freeze => :has_child?,
-                '_port'.freeze => :has_port?) || super
+                '_port'.freeze => :has_port?
+            ) || super
         end
 
         def find_through_method_missing(m, args)
@@ -1075,7 +1077,8 @@ module Syskit
                 self, m, args,
                 '_srv'.freeze => :find_data_service,
                 '_child'.freeze => :find_child,
-                '_port'.freeze => :find_port) || super
+                '_port'.freeze => :find_port
+            ) || super
         end
 
         include MetaRuby::DSLs::FindThroughMethodMissing

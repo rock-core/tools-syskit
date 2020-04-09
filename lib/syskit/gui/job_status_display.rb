@@ -183,7 +183,8 @@ module Syskit
                     ui_state.update_state(
                         "#{ui_state.current_state},
                             #{state.upcase}",
-                        color: ui_state.current_color)
+                        color: ui_state.current_color
+                    )
                 else
                     ui_state.update_state(state.upcase)
                 end

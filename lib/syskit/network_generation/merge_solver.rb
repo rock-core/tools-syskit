@@ -315,7 +315,8 @@ module Syskit
                 result = Hash.new
                 task_children_names = task.model.children_names.to_set
                 task.each_out_neighbour_merged(
-                    Roby::TaskStructure::Dependency, intrusive: true)
+                    Roby::TaskStructure::Dependency, intrusive: true
+                )
                     .map do |child_task|
                         dependency_graph.edge_info(task, child_task)[:roles].each do |r|
                             if task_children_names.include?(r)

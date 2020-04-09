@@ -546,7 +546,8 @@ describe Syskit::Models::Composition do
                 provides srv_m, as: 'test'
             end
             context = Syskit::DependencyInjectionContext.new(
-                Syskit::DependencyInjection.new(srv_m => cmp_m))
+                Syskit::DependencyInjection.new(srv_m => cmp_m)
+            )
             task = cmp_m.to_instance_requirements.instanciate(plan, context)
             assert_kind_of cmp_m, task.test_child
             refute_kind_of cmp_m, task.test_child.test_child
@@ -561,7 +562,8 @@ describe Syskit::Models::Composition do
             cmp_m.add srv_m, as: 'control'
 
             context = Syskit::DependencyInjectionContext.new(
-                Syskit::DependencyInjection.new('test' => Syskit::DependencyInjection.nothing, srv_m => task_m))
+                Syskit::DependencyInjection.new('test' => Syskit::DependencyInjection.nothing, srv_m => task_m)
+            )
             task = cmp_m.instanciate(plan, context)
             assert_kind_of srv_m.placeholder_model, task.test_child
             assert_kind_of task_m, task.control_child
@@ -1043,7 +1045,8 @@ describe Syskit::Models::Composition do
             y_spec    = cmp_m.specialize cmp_m.test_child => y_srv_m
             result = cmp_m.narrow(
                 Syskit::DependencyInjection.new('test' => task_m),
-                specialization_hints: ['test' => x_srv_m])
+                specialization_hints: ['test' => x_srv_m]
+            )
             assert_equal [x_spec].to_set, result.applied_specializations
         end
     end

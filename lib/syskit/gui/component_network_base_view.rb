@@ -196,7 +196,8 @@ module Syskit
                 task = requirements.instanciate(
                     main_plan,
                     Syskit::DependencyInjectionContext.new,
-                    options)
+                    options
+                )
                 main_plan.add(task)
                 task
             end

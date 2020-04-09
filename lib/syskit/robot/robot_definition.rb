@@ -185,7 +185,8 @@ module Syskit
                 driver_model = driver_model.to_instance_requirements
                 device_instance = options[:class].new(
                     self, name, device_model, device_options,
-                    driver_model, root_task_arguments)
+                    driver_model, root_task_arguments
+                )
                 invalidate_dependency_injection
                 device_model.apply_device_configuration_extensions(device_instance)
 
@@ -254,12 +255,14 @@ module Syskit
 
             def has_through_method_missing?(m)
                 MetaRuby::DSLs.has_through_method_missing?(
-                    self, m, '_dev'.freeze => :has_device?) || super
+                    self, m, '_dev'.freeze => :has_device?
+                ) || super
             end
 
             def find_through_method_missing(m, args)
                 MetaRuby::DSLs.find_through_method_missing(
-                    self, m, args, '_dev'.freeze => :find_device) || super
+                    self, m, args, '_dev'.freeze => :find_device
+                ) || super
             end
 
             include MetaRuby::DSLs::FindThroughMethodMissing

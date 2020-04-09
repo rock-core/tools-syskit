@@ -46,7 +46,8 @@ module Syskit
                     @conf.process_server_config_for('unmanaged_tasks')
                     new_deployments = @deployment_group.use_unmanaged_task(
                         { task_m => orogen_m.name },
-                        process_managers: @conf)
+                        process_managers: @conf
+                    )
                     # Update overrides at each iteration (instead of using a functional
                     # construct) so that the rescue clause can undo the overrides that
                     # have already been done when an exception is raised
@@ -199,7 +200,8 @@ module Syskit
                     working_directory: working_directory,
                     tracing: tracing,
                     name_service_ip: name_service_ip,
-                    loader: loader)
+                    loader: loader
+                )
             end
         end
     end

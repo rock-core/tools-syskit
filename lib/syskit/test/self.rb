@@ -72,7 +72,9 @@ module Syskit
                 Syskit.conf.register_process_server(
                     'stubs', Orocos::RubyTasks::ProcessManager.new(
                                  Roby.app.default_loader,
-                                 task_context_class: Orocos::RubyTasks::StubTaskContext), "", host_id: 'syskit')
+                                 task_context_class: Orocos::RubyTasks::StubTaskContext
+                             ), "", host_id: 'syskit'
+                )
                 Syskit.conf.logs.create_configuration_log(File.join(app.log_dir, 'properties'))
 
                 Orocos.forbid_blocking_calls

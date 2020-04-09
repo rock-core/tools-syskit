@@ -63,7 +63,8 @@ describe Syskit::DependencyInjection do
             task_m = Syskit::TaskContext.new_submodel
             task_m.provides srv_m, as: 'test'
             di = Syskit::DependencyInjection.new(
-                'child' => Syskit::DependencyInjection.nothing, srv_m => task_m)
+                'child' => Syskit::DependencyInjection.nothing, srv_m => task_m
+            )
             _, requirements, _ = di.selection_for('child', srv_m)
             assert_equal srv_m.placeholder_model, requirements.model
         end
@@ -72,7 +73,8 @@ describe Syskit::DependencyInjection do
             task_m = Syskit::TaskContext.new_submodel
             task_m.provides srv_m, as: 'test'
             di = Syskit::DependencyInjection.new(
-                'child' => Syskit::DependencyInjection.do_not_inherit, srv_m => task_m)
+                'child' => Syskit::DependencyInjection.do_not_inherit, srv_m => task_m
+            )
             _, requirements, _ = di.selection_for('child', srv_m)
             assert_equal task_m, requirements.model
         end
@@ -453,7 +455,8 @@ module Syskit
             c1.provides srv0, as: 'srv0'
             expected = Hash[srv0 => c1, c0 => c1, c1 => c1, Syskit::AbstractComponent => c1]
             assert_equal expected, DependencyInjection.resolve_default_selections(
-                Hash[c0 => c1], [c0])
+                Hash[c0 => c1], [c0]
+            )
         end
 
         def test_resolve_default_selections_ignores_services_provided_multiple_times

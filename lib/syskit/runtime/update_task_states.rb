@@ -42,7 +42,9 @@ module Syskit
                             t.failed_to_start!(
                                 Roby::CommandFailed.new(
                                     InternalError.exception("#{t} reports that it cannot be configured (FATAL_ERROR ?)"),
-                                    t.start_event))
+                                    t.start_event
+                                )
+                            )
                             next
                         end
                     elsif t.ready_for_setup?

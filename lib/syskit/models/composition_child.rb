@@ -125,7 +125,8 @@ module Syskit
             def try_resolve_and_bind_child(composition)
                 if bound = composition_model.try_bind(composition)
                     bound.find_required_composition_child_from_role(
-                        child_name, composition_model)
+                        child_name, composition_model
+                    )
                 end
             end
 

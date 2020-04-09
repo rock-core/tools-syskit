@@ -535,7 +535,8 @@ module Syskit
                     execute { plan.remove_task(deployed.planning_task) }
 
                     new_deployed = syskit_deploy(
-                        composition_model.use('child' => task_model.with_conf('non_default')))
+                        composition_model.use('child' => task_model.with_conf('non_default'))
+                    )
 
                     assert_equal(['non_default'], new_deployed.child_child.conf)
                     assert_equal [deployed.child_child.stop_event],

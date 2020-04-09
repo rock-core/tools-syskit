@@ -280,7 +280,8 @@ describe Syskit::Composition do
             end
             root_cmp = root_cmp_m.instanciate(plan)
             root_cmp.source_child.remove_child(
-                root_cmp.source_child.provider_child)
+                root_cmp.source_child.provider_child
+            )
         end
         it "registers both the child and its sources  when a grandchild is removed" do
             task.out_port.connect_to cmp.in_port

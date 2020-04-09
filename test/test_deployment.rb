@@ -60,7 +60,8 @@ module Syskit
             @process_server_config = Syskit.conf.register_process_server('fixture', process_server, log_dir)
             plan.add_permanent_task(
                 @deployment_task = deployment_m
-                .new(process_name: 'mapped_task_name', on: 'fixture', name_mappings: Hash['task' => 'mapped_task_name']))
+                .new(process_name: 'mapped_task_name', on: 'fixture', name_mappings: Hash['task' => 'mapped_task_name'])
+            )
 
             flexmock(process_server)
             flexmock(process)
@@ -226,7 +227,8 @@ module Syskit
                     scheduled_task = deployment_task.task('slave')
                     assert scheduler_task.start_event.child_object?(
                         scheduled_task.start_event,
-                        Roby::EventStructure::SyskitConfigurationPrecedence)
+                        Roby::EventStructure::SyskitConfigurationPrecedence
+                    )
                 end
 
                 it "reuses an existing agent" do
@@ -519,7 +521,8 @@ module Syskit
                         .and_return('mapped_task_name' => orocos_task)
                     plan.add_permanent_task(
                         @deployment_task = deployment_m
-                        .new(process_name: 'mapped_task_name', on: 'fixture', name_mappings: Hash['task' => 'mapped_task_name']))
+                        .new(process_name: 'mapped_task_name', on: 'fixture', name_mappings: Hash['task' => 'mapped_task_name'])
+                    )
                     expect_execution { deployment_task.start! }
                         .to { emit deployment_task.start_event }
                     plan.unmark_permanent_task(deployment_task)

@@ -159,7 +159,8 @@ module Syskit
                 it "returns false if the ports are not static" do
                     flexmock(ActualDataFlow, :static? => false)
                     assert !management.removed_connections_require_network_update?(
-                        Hash[[source_task, sink_task] => ['out', 'in']])
+                        Hash[[source_task, sink_task] => ['out', 'in']]
+                    )
                 end
 
                 describe "static source port" do
@@ -172,20 +173,23 @@ module Syskit
 
                     it "returns false if the modified task is not represented in the plan" do
                         assert !management.removed_connections_require_network_update?(
-                            Hash[[source_task.orocos_task, sink_task.orocos_task] => [['out', 'in']]])
+                            Hash[[source_task.orocos_task, sink_task.orocos_task] => [['out', 'in']]]
+                        )
                     end
                     it "returns false if the modified task is to be garbage-collected" do
                         flexmock(management).should_receive(:find_setup_syskit_task_context_from_orocos_task)
                             .and_return(source_task)
                         plan.unmark_mission_task(source_task)
                         assert !management.removed_connections_require_network_update?(
-                            Hash[[source_task.orocos_task, sink_task.orocos_task] => [['out', 'in']]])
+                            Hash[[source_task.orocos_task, sink_task.orocos_task] => [['out', 'in']]]
+                        )
                     end
                     it "returns true if the task is already configured" do
                         flexmock(management).should_receive(:find_setup_syskit_task_context_from_orocos_task)
                             .and_return(source_task)
                         assert management.removed_connections_require_network_update?(
-                            Hash[[source_task.orocos_task, sink_task.orocos_task] => [['out', 'in']]])
+                            Hash[[source_task.orocos_task, sink_task.orocos_task] => [['out', 'in']]]
+                        )
                     end
                 end
 
@@ -199,20 +203,23 @@ module Syskit
 
                     it "returns false if the modified task is not represented in the plan" do
                         assert !management.removed_connections_require_network_update?(
-                            Hash[[source_task.orocos_task, sink_task.orocos_task] => [['out', 'in']]])
+                            Hash[[source_task.orocos_task, sink_task.orocos_task] => [['out', 'in']]]
+                        )
                     end
                     it "returns false if the modified task is to be garbage-collected" do
                         flexmock(management).should_receive(:find_setup_syskit_task_context_from_orocos_task)
                             .and_return(sink_task)
                         plan.unmark_mission_task(sink_task)
                         assert !management.removed_connections_require_network_update?(
-                            Hash[[source_task.orocos_task, sink_task.orocos_task] => [['out', 'in']]])
+                            Hash[[source_task.orocos_task, sink_task.orocos_task] => [['out', 'in']]]
+                        )
                     end
                     it "returns true if the task is already configured" do
                         flexmock(management).should_receive(:find_setup_syskit_task_context_from_orocos_task)
                             .and_return(sink_task)
                         assert management.removed_connections_require_network_update?(
-                            Hash[[source_task.orocos_task, sink_task.orocos_task] => [['out', 'in']]])
+                            Hash[[source_task.orocos_task, sink_task.orocos_task] => [['out', 'in']]]
+                        )
                     end
                 end
             end
@@ -298,7 +305,8 @@ module Syskit
                                 ActualDataFlow.add_connections(
                                     source_task.orocos_task,
                                     sink_task.orocos_task,
-                                    ['out', 'in'] => [Hash.new, source_static, sink_static])
+                                    ['out', 'in'] => [Hash.new, source_static, sink_static]
+                                )
                             end
 
                             describe "orocos tasks with non-static half without syskit tasks" do
@@ -423,7 +431,8 @@ module Syskit
                                                                 type: :buffer
                                 ConnectionManagement.update(plan)
                                 edge_info = ActualDataFlow.edge_info(
-                                    source_task.orocos_task, sink_task.orocos_task)
+                                    source_task.orocos_task, sink_task.orocos_task
+                                )
                                 assert_equal Hash[['out', 'in'] => Hash[type: :buffer]],
                                              edge_info
                             end
@@ -438,7 +447,8 @@ module Syskit
                                 ConnectionManagement.update(plan)
                                 assert source_task.out_port.connected_to?(sink_task.in_port)
                                 edge_info = ActualDataFlow.edge_info(
-                                    new_source_task.orocos_task, sink_task.orocos_task)
+                                    new_source_task.orocos_task, sink_task.orocos_task
+                                )
                                 assert_equal Hash[['out', 'in'] => Hash[type: :data]],
                                              edge_info
                             end
@@ -452,7 +462,8 @@ module Syskit
                                     .execution_agent.task(source_task.orocos_name))
                                 new_source_task.conf = ['default']
                                 new_source_task.should_configure_after(
-                                    source_task.stop_event)
+                                    source_task.stop_event
+                                )
                                 new_source_task.out_port.connect_to \
                                     sink_task.in_port, type: :data
 
@@ -472,7 +483,8 @@ module Syskit
                                     .to { emit new_source_task.start_event }
 
                                 edge_info = ActualDataFlow.edge_info(
-                                    new_source_task.orocos_task, sink_task.orocos_task)
+                                    new_source_task.orocos_task, sink_task.orocos_task
+                                )
                                 assert_equal Hash[['out', 'in'] => Hash[type: :data]],
                                              edge_info
                             end
@@ -484,7 +496,8 @@ module Syskit
                                     .connect_to sink_task.in_port, type: :buffer
                                 ConnectionManagement.update(plan)
                                 edge_info = ActualDataFlow.edge_info(
-                                    source_task.orocos_task, sink_task.orocos_task)
+                                    source_task.orocos_task, sink_task.orocos_task
+                                )
                                 assert_equal Hash[['out', 'in'] => Hash[type: :buffer]],
                                              edge_info
                             end
@@ -811,41 +824,47 @@ module Syskit
                     # The return type of early is really #each, but for 'late'
                     # we need a map
                     _, late = manager.partition_early_late(
-                        connections, '', make_syskit_task_map(true, true))
+                        connections, '', make_syskit_task_map(true, true)
+                    )
                     assert_kind_of Hash, late
                 end
 
                 it "interprets the absence of a syskit task for the source as stopped" do
                     early, late = manager.partition_early_late(
-                        connections, '', make_syskit_task_map(nil, true))
+                        connections, '', make_syskit_task_map(nil, true)
+                    )
                     assert_equal connections.to_a, early
                     assert_equal Hash.new, late
                 end
 
                 it "interprets the absence of a syskit task for the sink as stopped" do
                     early, late = manager.partition_early_late(
-                        connections, '', make_syskit_task_map(true, nil))
+                        connections, '', make_syskit_task_map(true, nil)
+                    )
                     assert_equal connections.to_a, early
                     assert_equal Hash.new, late
                 end
 
                 it "places in early connections involving a non-running source" do
                     early, late = manager.partition_early_late(
-                        connections, '', make_syskit_task_map(false, true))
+                        connections, '', make_syskit_task_map(false, true)
+                    )
                     assert_equal connections.to_a, early
                     assert_equal Hash.new, late
                 end
 
                 it "places in early connections involving a non-running sink" do
                     early, late = manager.partition_early_late(
-                        connections, '', make_syskit_task_map(true, false))
+                        connections, '', make_syskit_task_map(true, false)
+                    )
                     assert_equal connections.to_a, early
                     assert_equal Hash.new, late
                 end
 
                 it "places in late connections involving running source and sink" do
                     early, late = manager.partition_early_late(
-                        connections, '', make_syskit_task_map(true, true))
+                        connections, '', make_syskit_task_map(true, true)
+                    )
                     assert_equal Array.new, early
                     assert_equal connections, late
                 end

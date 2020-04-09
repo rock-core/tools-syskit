@@ -155,7 +155,8 @@ module Syskit
                 RobyApp::UnmanagedProcess.new(process_server, 'test', nil)
                 log_dir = flexmock('log_dir')
                 process_server_config = Syskit.conf.register_process_server(
-                    name, process_server, log_dir, host_id: host_id)
+                    name, process_server, log_dir, host_id: host_id
+                )
                 @stub_process_servers << process_server_config
                 deployment = deployment_m.new(on: name)
                 plan.add(task = task_m.new)
@@ -632,7 +633,8 @@ module Syskit
                 task = syskit_stub_and_deploy "ConcurrentConfigurationTask"
                 syskit_start_execution_agents(task)
                 plan.add_permanent_task(
-                    other_task = task.execution_agent.task(task.orocos_name))
+                    other_task = task.execution_agent.task(task.orocos_name)
+                )
                 assert task.ready_for_setup?
                 other_task.setup.execute
                 refute task.ready_for_setup?
@@ -852,7 +854,8 @@ module Syskit
                     prepare_task_for_setup(:EXCEPTION)
                 end
                 assert messages.include?(
-                    "reconfiguring #{task}: the task was in exception state")
+                    "reconfiguring #{task}: the task was in exception state"
+                )
             end
             it "does nothing if the state is PRE_OPERATIONAL" do
                 orocos_task.should_receive(:cleanup).never

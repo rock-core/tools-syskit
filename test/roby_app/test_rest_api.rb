@@ -53,7 +53,8 @@ module Syskit
                     end
                     it "returns the list of available deployments" do
                         setup_deployed_task(OroGen::Loaders::PkgConfig::AvailableDeployedTask.new(
-                                                'test_task', 'test_deployment', 'test::Task', 'test'))
+                                                'test_task', 'test_deployment', 'test::Task', 'test'
+                                            ))
                         result = get_json '/deployments/available'
                         expected = Hash[
                             'name' => 'test_deployment',
@@ -68,25 +69,29 @@ module Syskit
                     end
                     it "identifies default deployments and reports them" do
                         setup_deployed_task(OroGen::Loaders::PkgConfig::AvailableDeployedTask.new(
-                                                'orogen_default_test__Task', 'orogen_default_test__Task', 'test::Task', 'test'))
+                                                'orogen_default_test__Task', 'orogen_default_test__Task', 'test::Task', 'test'
+                                            ))
                         result = get_json '/deployments/available'
                         assert_equal 'test::Task', result['deployments'][0]['default_deployment_for']
                     end
                     it "identifies default loggers and reports them" do
                         setup_deployed_task(OroGen::Loaders::PkgConfig::AvailableDeployedTask.new(
-                                                'test_deployment_Logger', 'test_deployment', 'logger::Logger', 'test'))
+                                                'test_deployment_Logger', 'test_deployment', 'logger::Logger', 'test'
+                                            ))
                         result = get_json '/deployments/available'
                         assert_equal 'test_deployment_Logger', result['deployments'][0]['default_logger']
                     end
                     it "uses the model name to identify default loggers" do
                         setup_deployed_task(OroGen::Loaders::PkgConfig::AvailableDeployedTask.new(
-                                                'test_deployment_Logger', 'test_deployment', 'something::Else', 'test'))
+                                                'test_deployment_Logger', 'test_deployment', 'something::Else', 'test'
+                                            ))
                         result = get_json '/deployments/available'
                         assert_nil result['deployments'][0]['default_logger']
                     end
                     it "uses the task name pattern to identify default loggers" do
                         setup_deployed_task(OroGen::Loaders::PkgConfig::AvailableDeployedTask.new(
-                                                'custom_logger', 'test_deployment', 'logger::Logger', 'test'))
+                                                'custom_logger', 'test_deployment', 'logger::Logger', 'test'
+                                            ))
                         result = get_json '/deployments/available'
                         assert_nil result['deployments'][0]['default_logger']
                     end
@@ -105,11 +110,14 @@ module Syskit
                                                             flexmock())
 
                         orogen_task_m = OroGen::Spec::TaskContext.new(
-                            Roby.app.default_orogen_project, 'test::Task')
+                            Roby.app.default_orogen_project, 'test::Task'
+                        )
                         @syskit_task_m = Syskit::TaskContext.define_from_orogen(
-                            orogen_task_m)
+                            orogen_task_m
+                        )
                         orogen_deployment_m = OroGen::Spec::Deployment.new(
-                            nil, 'test_deployment')
+                            nil, 'test_deployment'
+                        )
                         orogen_deployment_m.task 'test_task', orogen_task_m
                         @deployment_m = Syskit::Deployment.define_from_orogen(orogen_deployment_m)
                     end
@@ -126,7 +134,8 @@ module Syskit
                     it "returns the deployments as registered in Syskit" do
                         configured_deployment = Models::ConfiguredDeployment.new(
                             'localhost', @deployment_m,
-                            Hash['test_task' => 'mapped_test_task'], 'test_deployment', Hash.new)
+                            Hash['test_task' => 'mapped_test_task'], 'test_deployment', Hash.new
+                        )
                         @configured_deployments << configured_deployment
                         expected = Hash[
                             "id" => configured_deployment.object_id,
@@ -146,7 +155,8 @@ module Syskit
 
                     it "returns a deployment type of 'orocos' for an orocos remote process server" do
                         configured_deployment = Models::ConfiguredDeployment.new(
-                            'localhost', @deployment_m, Hash[], 'test_deployment', Hash.new)
+                            'localhost', @deployment_m, Hash[], 'test_deployment', Hash.new
+                        )
                         @configured_deployments << configured_deployment
                         assert_equal 'orocos',
                                      get_json('/deployments/registered')['registered_deployments'][0]['type']
@@ -154,7 +164,8 @@ module Syskit
 
                     it "returns a deployment type of 'unmanaged' for an unmanaged task" do
                         configured_deployment = Models::ConfiguredDeployment.new(
-                            'unmanaged_tasks', @deployment_m, Hash[], 'test_deployment', Hash.new)
+                            'unmanaged_tasks', @deployment_m, Hash[], 'test_deployment', Hash.new
+                        )
                         @configured_deployments << configured_deployment
                         assert_equal 'unmanaged',
                                      get_json('/deployments/registered')['registered_deployments'][0]['type']
@@ -162,14 +173,16 @@ module Syskit
 
                     it "ignores tasks whose process server type is not exported" do
                         configured_deployment = Models::ConfiguredDeployment.new(
-                            'something_else', @deployment_m, Hash[], 'test_deployment', Hash.new)
+                            'something_else', @deployment_m, Hash[], 'test_deployment', Hash.new
+                        )
                         @configured_deployments << configured_deployment
                         assert_equal [], get_json('/deployments/registered')['registered_deployments']
                     end
 
                     it "reports if a deployment has not been created by the REST API" do
                         configured_deployment = Models::ConfiguredDeployment.new(
-                            'localhost', @deployment_m, Hash[], 'test_deployment', Hash.new)
+                            'localhost', @deployment_m, Hash[], 'test_deployment', Hash.new
+                        )
                         @configured_deployments << configured_deployment
                         flexmock(RESTDeploymentManager).new_instances
                                                        .should_receive(:created_here?).with(configured_deployment)
@@ -180,7 +193,8 @@ module Syskit
 
                     it "reports if a deployment has been created by the REST API" do
                         configured_deployment = Models::ConfiguredDeployment.new(
-                            'localhost', @deployment_m, Hash[], 'test_deployment', Hash.new)
+                            'localhost', @deployment_m, Hash[], 'test_deployment', Hash.new
+                        )
                         @configured_deployments << configured_deployment
                         flexmock(RESTDeploymentManager).new_instances
                                                        .should_receive(:created_here?).with(configured_deployment)
@@ -191,9 +205,11 @@ module Syskit
 
                     it "reports overriden deployments but not the tasks they are replaced by" do
                         configured_deployment = Models::ConfiguredDeployment.new(
-                            'unmanaged_tasks', @deployment_m, Hash[], 'test_deployment', Hash.new)
+                            'unmanaged_tasks', @deployment_m, Hash[], 'test_deployment', Hash.new
+                        )
                         overriden = Models::ConfiguredDeployment.new(
-                            'localhost', @deployment_m, Hash[], 'test_deployment', Hash.new)
+                            'localhost', @deployment_m, Hash[], 'test_deployment', Hash.new
+                        )
                         @configured_deployments << configured_deployment
                         mock = flexmock(RESTDeploymentManager).new_instances
                         mock.should_receive(:each_overriden_deployment)

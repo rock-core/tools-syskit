@@ -441,7 +441,8 @@ module Syskit
                 # Do not use #filter_options here, it will transform the
                 # port names into symbols
                 port_mappings = DynamicDataService.update_component_model_interface(
-                    self, service_model, port_mappings)
+                    self, service_model, port_mappings
+                )
                 provides(service_model, port_mappings,
                          as: as,
                          slave_of: slave_of,
@@ -504,7 +505,8 @@ module Syskit
                 dynamic_services[as] = DynamicDataService.new(
                     self, as, model, block,
                     addition_requires_reconfiguration: addition_requires_reconfiguration,
-                    remove_when_unused: remove_when_unused)
+                    remove_when_unused: remove_when_unused
+                )
             end
 
             # Enumerates the services that have been created from a dynamic

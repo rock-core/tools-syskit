@@ -1109,7 +1109,8 @@ class TC_Component < Minitest::Test
             {
                 ['out', 'out'] => { type: :buffer, size: 20 },
                 ['out', 'other'] => { type: :buffer, size: 30 }
-            }, source_task[sink_task, Syskit::Flows::DataFlow])
+            }, source_task[sink_task, Syskit::Flows::DataFlow]
+        )
         assert(source_task.connected_to?('out', sink_task, 'out'))
         assert(source_task.connected_to?('out', sink_task, 'other'))
     end
@@ -1158,7 +1159,8 @@ class TC_Component < Minitest::Test
         assert_equal(
             {
                 ['out', 'out'] => { type: :buffer, size: 20 }
-            }, source_task[sink_task, Syskit::Flows::DataFlow])
+            }, source_task[sink_task, Syskit::Flows::DataFlow]
+        )
         assert(source_task.connected_to?('out', sink_task, 'out'))
         assert(!source_task.connected_to?('out', sink_task, 'other'))
     end
@@ -1178,19 +1180,22 @@ class TC_Component < Minitest::Test
             source_task.disconnect_ports(sink_task, [['out', 'does_not_exist']])
         end
         assert_equal(
-            { ['out', 'out'] => { type: :buffer, size: 20 } }, source_task[sink_task, Syskit::Flows::DataFlow])
+            { ['out', 'out'] => { type: :buffer, size: 20 } }, source_task[sink_task, Syskit::Flows::DataFlow]
+        )
 
         assert_raises(ArgumentError) do
             source_task.disconnect_ports(sink_task, [['does_not_exist', 'out']])
         end
         assert_equal(
-            { ['out', 'out'] => { type: :buffer, size: 20 } }, source_task[sink_task, Syskit::Flows::DataFlow])
+            { ['out', 'out'] => { type: :buffer, size: 20 } }, source_task[sink_task, Syskit::Flows::DataFlow]
+        )
 
         assert_raises(ArgumentError) do
             source_task.disconnect_ports(sink_task, [['does_not_exist', 'does_not_exist']])
         end
         assert_equal(
-            { ['out', 'out'] => { type: :buffer, size: 20 } }, source_task[sink_task, Syskit::Flows::DataFlow])
+            { ['out', 'out'] => { type: :buffer, size: 20 } }, source_task[sink_task, Syskit::Flows::DataFlow]
+        )
     end
 
     def test_disconnect_ports_non_existent_connection

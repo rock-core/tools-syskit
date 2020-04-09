@@ -592,7 +592,8 @@ module Syskit
         # you are doing
         def setup_successful!
             execution_agent.update_current_configuration(
-                orocos_name, model, self.conf.dup, self.each_required_dynamic_service.to_set)
+                orocos_name, model, self.conf.dup, self.each_required_dynamic_service.to_set
+            )
             execution_agent.finished_configuration(orocos_name)
 
             if all_inputs_connected?
@@ -713,7 +714,8 @@ module Syskit
 
                 needs_reconfiguration = needs_reconfiguration? ||
                     execution_agent.configuration_changed?(
-                        orocos_name, self.conf, each_required_dynamic_service.to_set) ||
+                        orocos_name, self.conf, each_required_dynamic_service.to_set
+                    ) ||
                     self.properties.each.any? { |p| p.needs_commit? }
 
                 if !needs_reconfiguration
@@ -1218,12 +1220,14 @@ module Syskit
 
         def has_through_method_missing?(m)
             MetaRuby::DSLs.has_through_method_missing?(
-                self, m, '_property' => :has_property?) || super
+                self, m, '_property' => :has_property?
+            ) || super
         end
 
         def find_through_method_missing(m, args)
             MetaRuby::DSLs.find_through_method_missing(
-                self, m, args, '_property' => :find_property) || super
+                self, m, args, '_property' => :find_property
+            ) || super
         end
     end
 end

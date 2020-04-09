@@ -100,7 +100,8 @@ begin
     w = Syskit::GUI::Instanciate.new(
         nil,
         required_actions.join(" "),
-        Roby.app.permanent_requirements)
+        Roby.app.permanent_requirements
+    )
     w.show
     if setup_error
         w.exception_view.push(setup_error)

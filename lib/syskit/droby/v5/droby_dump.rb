@@ -110,7 +110,8 @@ module Syskit
                         name,
                         peer.known_siblings_for(self),
                         Roby::DRoby::V5::DRobyModel.dump_supermodel(peer, self),
-                        Roby::DRoby::V5::DRobyModel.dump_provided_models_of(peer, self))
+                        Roby::DRoby::V5::DRobyModel.dump_provided_models_of(peer, self)
+                    )
                 end
             end
 
@@ -239,12 +240,14 @@ module Syskit
                         def create_new_proxy_model(peer)
                             @types.each do |type|
                                 peer.register_typelib_model(
-                                    peer.local_object(type))
+                                    peer.local_object(type)
+                                )
                             end
 
                             if @project_text && !peer.has_orogen_project?(@project_name)
                                 peer.add_orogen_project(
-                                    @project_name, @project_text)
+                                    @project_name, @project_text
+                                )
                             end
 
                             if @orogen_name
@@ -276,7 +279,8 @@ module Syskit
                         def unmarshal_dependent_models(peer)
                             @types.each do |type|
                                 peer.register_typelib_model(
-                                    peer.local_object(type))
+                                    peer.local_object(type)
+                                )
                             end
                             super
                         end
@@ -284,7 +288,8 @@ module Syskit
                         def update(peer, local_object, fresh_proxy: false)
                             @types.each do |type|
                                 peer.register_typelib_model(
-                                    peer.local_object(type))
+                                    peer.local_object(type)
+                                )
                             end
                             super
                         end
@@ -320,7 +325,8 @@ module Syskit
                             supermodel,
                             provided_models,
                             each_event.map { |_, ev| [ev.symbol, ev.controlable?, ev.terminal?] },
-                            orogen_name, orogen_superclass_name, project_name, project_text, types)
+                            orogen_name, orogen_superclass_name, project_name, project_text, types
+                        )
                     end
                 end
             end

@@ -64,7 +64,8 @@ Syskit::Scripts.run do
         robot_name: Roby.app.robot_name,
         runtime_only: runtime_only,
         runtime: runtime_mode, tests: test_mode,
-        host: options[:host], port: options[:port])
+        host: options[:host], port: options[:port]
+    )
     main.window_title = "Syskit #{Roby.app.app_name} #{Roby.app.robot_name} @#{options[:host]}"
 
     main.restore_from_settings

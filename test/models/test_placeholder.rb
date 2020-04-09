@@ -148,7 +148,8 @@ module Syskit
                             .with(service_models, component_model: task_m)
                             .and_return([task_m, service_models, nil])
                         assert_equal placeholder_m, Placeholder.for(
-                            service_models, component_model: task_m, as: placeholder_name)
+                            service_models, component_model: task_m, as: placeholder_name
+                        )
                     end
                     it "bounds a provided data service to the created placeholder model" do
                         task_m.provides srv0_m, as: 'test'
@@ -156,7 +157,8 @@ module Syskit
                             .with(service_models, component_model: task_m.test_srv)
                             .and_return([task_m, service_models, task_m.test_srv])
                         assert_equal placeholder_m.test_srv, Placeholder.for(
-                            service_models, component_model: task_m.test_srv, as: placeholder_name)
+                            service_models, component_model: task_m.test_srv, as: placeholder_name
+                        )
                     end
                 end
                 it "returns the same placeholder model if called more than once" do
