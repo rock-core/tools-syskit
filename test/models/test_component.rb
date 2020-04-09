@@ -61,7 +61,7 @@ describe Syskit::Models::Component do
                 input_port 'in', stub_t
                 output_port 'out', stub_t
             end
-            srv_m  = Syskit::DataService.new_submodel do
+            srv_m = Syskit::DataService.new_submodel do
                 input_port 'in', stub_t
                 output_port 'out', stub_t
             end
@@ -76,7 +76,7 @@ describe Syskit::Models::Component do
                 output_port 'out', stub_t
                 output_port 'other_out', stub_t
             end
-            srv_m  = Syskit::DataService.new_submodel do
+            srv_m = Syskit::DataService.new_submodel do
                 input_port 'in', stub_t
                 output_port 'out', stub_t
             end
@@ -91,7 +91,7 @@ describe Syskit::Models::Component do
                 output_port 'out', stub_t
                 output_port 'other_out', stub_t
             end
-            srv_m  = Syskit::DataService.new_submodel do
+            srv_m = Syskit::DataService.new_submodel do
                 input_port 'in', stub_t
                 output_port 'out', stub_t
             end
@@ -106,7 +106,7 @@ describe Syskit::Models::Component do
                 output_port 'out', stub_t
                 output_port 'other_out', stub_t
             end
-            srv_m  = Syskit::DataService.new_submodel do
+            srv_m = Syskit::DataService.new_submodel do
                 input_port 'in', stub_t
                 output_port 'out', stub_t
             end
@@ -119,7 +119,7 @@ describe Syskit::Models::Component do
                 input_port 'in', stub_t
                 output_port 'out', stub_t
             end
-            srv_m  = Syskit::DataService.new_submodel do
+            srv_m = Syskit::DataService.new_submodel do
                 input_port 'in', stub_t
                 output_port 'out', stub_t
             end
@@ -132,7 +132,7 @@ describe Syskit::Models::Component do
                 input_port 'in', other_stub_t
                 output_port 'out', other_stub_t
             end
-            srv_m  = Syskit::DataService.new_submodel do
+            srv_m = Syskit::DataService.new_submodel do
                 input_port 'in', stub_t
                 output_port 'out', stub_t
             end
@@ -964,7 +964,7 @@ describe Syskit::Models::Component do
         it "enumerates both its own slave services and its parent's" do
             service = Syskit::DataService.new_submodel
             component = Syskit::TaskContext.new_submodel
-            root  = component.provides service, as: 'root'
+            root = component.provides service, as: 'root'
             slave1 = component.provides service, as: 'srv1', slave_of: 'root'
             component = component.new_submodel
             slave2 = component.provides service, as: 'srv2', slave_of: 'root'

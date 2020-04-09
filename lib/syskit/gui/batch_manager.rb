@@ -7,8 +7,8 @@ module Syskit
                 super(parent)
                 @syskit = syskit
 
-                @actions         = Qt::Widget.new
-                actions_layout  = Qt::HBoxLayout.new(@actions)
+                @actions = Qt::Widget.new
+                actions_layout = Qt::HBoxLayout.new(@actions)
                 @process_btn = Qt::PushButton.new("Process")
                 @cancel_btn  = Qt::PushButton.new("Cancel")
 

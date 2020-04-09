@@ -293,7 +293,7 @@ describe Syskit::Models::BoundDataService do
             # obviously
             subtask_m = task_m.new_submodel
             srv.out_port
-            attached  = srv.attach(subtask_m)
+            attached = srv.attach(subtask_m)
             assert_equal subtask_m, attached.out_port.to_component_port.component_model
         end
     end
@@ -349,7 +349,7 @@ describe Syskit::Models::BoundDataService do
     describe "#demoted" do
         before do
             @task_m = Syskit::TaskContext.new_submodel
-            srv_m  = Syskit::DataService.new_submodel
+            srv_m = Syskit::DataService.new_submodel
             @bound_srv_m = @task_m.provides srv_m, as: 'test'
         end
 
@@ -373,7 +373,7 @@ describe Syskit::Models::BoundDataService do
         before do
             @task_m = Syskit::TaskContext.new_submodel
             @srv_m  = srv_m = Syskit::DataService.new_submodel
-            @bound_srv_m  = @task_m.provides @srv_m, as: 'test'
+            @bound_srv_m = @task_m.provides @srv_m, as: 'test'
         end
 
         it "returns true if it is the same service" do

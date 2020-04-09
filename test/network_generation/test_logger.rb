@@ -17,7 +17,7 @@ describe Syskit::NetworkGeneration::LoggerConfigurationSupport do
             add_default_logger
         end
         @deployment = syskit_stub_deployment('deployment', deployment_m)
-        @task   = deployment.task 'task'
+        @task = deployment.task 'task'
 
         dataflow = flexmock
         dataflow.should_receive(:policy_for).and_return(Hash.new).by_default

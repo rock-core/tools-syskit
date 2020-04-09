@@ -92,7 +92,7 @@ describe Syskit::NetworkGeneration::MergeSolver do
                 output_port 'out2', '/double'
                 provides srv_m, as: 'test2', 'out' => 'out2'
             end
-            cmp_m  = Syskit::Composition.new_submodel do
+            cmp_m = Syskit::Composition.new_submodel do
                 add srv_m, as: 'test'
                 export test_child.out_port
             end
@@ -114,7 +114,7 @@ describe Syskit::NetworkGeneration::MergeSolver do
                 input_port 'in2', '/double'
                 provides srv_m, as: 'test2', 'in' => 'in2'
             end
-            cmp_m  = Syskit::Composition.new_submodel do
+            cmp_m = Syskit::Composition.new_submodel do
                 add srv_m, as: 'test'
                 export test_child.in_port
             end

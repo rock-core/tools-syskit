@@ -23,5 +23,5 @@ Syskit is a Roby extension that handles component-based networks
 
     s.require_paths = ["lib"]
     s.extra_rdoc_files = ["README.md"]
-    s.files         = `git ls-files -z`.split("\x0").reject { |f| f.match(%r{^(test|spec|features)/}) }
+    s.files = `git ls-files -z`.split("\x0").reject { |f| f.match(%r{^(test|spec|features)/}) }
 end

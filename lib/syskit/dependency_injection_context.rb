@@ -58,7 +58,7 @@ module Syskit
         def initialize_copy(obj)
             @stack = obj.stack.dup
             @state = obj.state.dup
-            @savepoints  = obj.savepoints.dup
+            @savepoints = obj.savepoints.dup
         end
 
         def pretty_print(pp)

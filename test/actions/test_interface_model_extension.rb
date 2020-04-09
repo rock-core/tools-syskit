@@ -22,7 +22,7 @@ describe Syskit::Actions::InterfaceModelExtension do
             cmp_m = Syskit::Composition.new_submodel
             cmp_m.add srv_m, as: 'test'
 
-            parent  = Roby::Actions::Interface.new_submodel
+            parent = Roby::Actions::Interface.new_submodel
             parent_profile = parent.profile
             parent_tag = parent_profile.tag 'test', srv_m
             parent_profile.define 'cmp', cmp_m.use('test' => parent_tag)
@@ -49,7 +49,7 @@ describe Syskit::Actions::InterfaceModelExtension do
         it "creates a profile on-the-fly if given a block" do
             task_m = Syskit::TaskContext.new_submodel
             flexmock(@actions.profile).should_receive(:use_profile).once
-                                      .with(->(p) { p.name ==  "::<anonymous>" }, any, any)
+                                      .with(->(p) { p.name == "::<anonymous>" }, any, any)
                                       .pass_thru
 
             new_definitions = @actions.use_profile do

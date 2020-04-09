@@ -191,7 +191,7 @@ module Syskit
                     end
                 end
                 it "removes the override from the manager" do
-                    original  = stub_registered_deployment
+                    original = stub_registered_deployment
                     @manager.make_unmanaged(original.object_id)
                     @manager.deregister_override(original.object_id)
                     refute @manager.overriden?(original.object_id)

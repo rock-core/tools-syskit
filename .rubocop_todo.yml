@@ -16,32 +16,6 @@ Layout/BlockEndNewline:
   Exclude:
     - 'test/runtime/test_connection_management.rb'
 
-# Offense count: 38
-# Cop supports --auto-correct.
-# Configuration parameters: AllowForAlignment, AllowBeforeTrailingComments, ForceEqualSignAlignment.
-Layout/ExtraSpacing:
-  Exclude:
-    - 'lib/syskit/connection_graphs.rb'
-    - 'lib/syskit/dependency_injection_context.rb'
-    - 'lib/syskit/gui/batch_manager.rb'
-    - 'lib/syskit/gui/job_status_display.rb'
-    - 'lib/syskit/gui/runtime_state.rb'
-    - 'lib/syskit/gui/state_label.rb'
-    - 'lib/syskit/network_generation/merge_solver.rb'
-    - 'lib/syskit/scripts/connection_log.rb'
-    - 'lib/syskit/task_context.rb'
-    - 'syskit.gemspec'
-    - 'test/actions/test_interface_model_extension.rb'
-    - 'test/models/test_bound_data_service.rb'
-    - 'test/models/test_component.rb'
-    - 'test/models/test_composition.rb'
-    - 'test/network_generation/test_logger.rb'
-    - 'test/network_generation/test_merge_solver.rb'
-    - 'test/roby_app/test_plugin.rb'
-    - 'test/roby_app/test_rest_deployment_manager.rb'
-    - 'test/runtime/test_connection_management.rb'
-    - 'test/test_task_context.rb'
-
 # Offense count: 11
 # Cop supports --auto-correct.
 # Configuration parameters: EnforcedStyle, IndentationWidth.

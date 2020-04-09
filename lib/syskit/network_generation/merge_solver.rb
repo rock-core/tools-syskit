@@ -180,7 +180,7 @@ module Syskit
             end
 
             def self.trace_export(plan, phase: 1, highlights: [], **dataflow_options)
-                basename  = trace_next_file(phase)
+                basename = trace_next_file(phase)
                 dataflow = basename + ".dataflow.svg"
                 hierarchy = basename + ".hierarchy.svg"
                 Syskit::Graphviz.new(plan).to_file('dataflow', 'svg', dataflow, highlights: highlights, **dataflow_options)

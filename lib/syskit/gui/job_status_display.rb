@@ -48,7 +48,7 @@ module Syskit
                 end
 
                 @ui_job_actions = Qt::Widget.new(self)
-                hlayout    = Qt::HBoxLayout.new(ui_job_actions)
+                hlayout = Qt::HBoxLayout.new(ui_job_actions)
                 @actions_buttons = Hash[
                     'Drop' => Qt::PushButton.new("Drop", self),
                     'Restart' => Qt::PushButton.new("Restart", self),

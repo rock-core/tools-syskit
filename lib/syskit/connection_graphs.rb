@@ -1,6 +1,6 @@
 module Syskit
     # (see ConnectionGraph)
-    ActualDataFlow   = ActualDataFlowGraph.new
+    ActualDataFlow = ActualDataFlowGraph.new
     ActualDataFlow.name = "Syskit::ActualDataFlow"
     ActualDataFlow.extend Roby::DRoby::V5::DRobyConstant::Dump
 

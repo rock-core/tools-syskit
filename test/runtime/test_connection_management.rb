@@ -886,7 +886,7 @@ module Syskit
                         @source = syskit_stub_and_deploy(source_m)
                         syskit_start_execution_agents(source)
                         @source_task = source.orocos_task
-                        @sink   = syskit_stub_and_deploy(sink_m)
+                        @sink = syskit_stub_and_deploy(sink_m)
                         syskit_start_execution_agents(sink)
                         @sink_task = sink.orocos_task
                     end
@@ -912,7 +912,7 @@ module Syskit
                         @source = syskit_stub_and_deploy(cmp_m)
                         syskit_start_execution_agents(source)
                         @source_task = source.test_child.orocos_task
-                        @sink   = syskit_stub_and_deploy(sink_m)
+                        @sink = syskit_stub_and_deploy(sink_m)
                         syskit_start_execution_agents(sink)
                         @sink_task = sink.orocos_task
                     end
@@ -938,10 +938,10 @@ module Syskit
                         @source = syskit_stub_and_deploy(source_m)
                         syskit_start_execution_agents(source)
                         @source_task = source.orocos_task
-                        @sink   = syskit_stub_and_deploy(cmp_m)
+                        @sink = syskit_stub_and_deploy(cmp_m)
                         syskit_start_execution_agents(sink)
                         @sink_task = sink.test_child.orocos_task
-                        _                   end
+                        _ end
 
                     include ConnectionExecutionSharedTest
                 end
@@ -969,7 +969,7 @@ module Syskit
                         @source = syskit_stub_and_deploy(source_cmp_m)
                         syskit_start_execution_agents(source.test_child)
                         @source_task = source.test_child.orocos_task
-                        @sink   = syskit_stub_and_deploy(sink_cmp_m)
+                        @sink = syskit_stub_and_deploy(sink_cmp_m)
                         syskit_start_execution_agents(sink.test_child)
                         @sink_task = sink.test_child.orocos_task
                     end

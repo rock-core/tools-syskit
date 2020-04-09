@@ -9,7 +9,7 @@ module Syskit
 
             STYLE = "QLabel { padding: 3; background-color: %s; %s }"
             TEXT_WITH_NAME  = "<b>%s</b>: %s"
-            TEXT_WITHOUT_NAME  = "%s"
+            TEXT_WITHOUT_NAME = "%s"
 
             # The name that should be displayed in addition to the state
             #

@@ -99,7 +99,7 @@ module Syskit
         def initialize(orogen_model: nil, **arguments)
             super(**arguments)
 
-            @orogen_model   = orogen_model ||
+            @orogen_model = orogen_model ||
                 Orocos::Spec::TaskDeployment.new(nil, model.orogen_model)
 
             properties = Hash.new

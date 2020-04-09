@@ -719,7 +719,7 @@ module Syskit
         describe "#setup_successful!" do
             attr_reader :task
             before do
-                task  = syskit_stub_and_deploy(TaskContext.new_submodel)
+                task = syskit_stub_and_deploy(TaskContext.new_submodel)
                 syskit_start_execution_agents(task)
                 @task = flexmock(task)
                 assert !task.executable?

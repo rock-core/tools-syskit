@@ -137,7 +137,7 @@ module Syskit
                 create_ui
 
                 @global_actions = Hash.new
-                action = global_actions[:start]   = Qt::Action.new("Start", self)
+                action = global_actions[:start] = Qt::Action.new("Start", self)
                 @starting_monitor = Qt::Timer.new
                 connect @starting_monitor, SIGNAL('timeout()'),
                         self, SLOT('monitor_syskit_startup()')
@@ -148,7 +148,7 @@ module Syskit
                 connect action, SIGNAL('triggered()') do
                     app_restart
                 end
-                action = global_actions[:quit]    = Qt::Action.new("Quit", self)
+                action = global_actions[:quit] = Qt::Action.new("Quit", self)
                 connect action, SIGNAL('triggered()') do
                     app_quit
                 end
@@ -561,7 +561,7 @@ module Syskit
 
             def create_ui_new_job
                 new_job_layout = Qt::HBoxLayout.new
-                label   = Qt::Label.new("New Job", self)
+                label = Qt::Label.new("New Job", self)
                 label.set_size_policy(Qt::SizePolicy::Minimum, Qt::SizePolicy::Minimum)
                 @action_combo = Qt::ComboBox.new(self)
                 action_combo.enabled = false
