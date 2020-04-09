@@ -188,7 +188,7 @@ module Syskit
             def self.shutdown(app)
                 remaining = Orocos.each_process.to_a
                 unless remaining.empty?
-                    Syskit.warn "killing remaining Orocos processes: #{remaining.map(&:name).join(", ")}"
+                    Syskit.warn "killing remaining Orocos processes: #{remaining.map(&:name).join(', ')}"
                     Orocos::Process.kill(remaining)
                 end
 

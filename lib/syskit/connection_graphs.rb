@@ -65,7 +65,7 @@ module Syskit
     #   for a given output port
     def self.resolve_connections(output_ports, input_ports)
         Models.debug do
-            Models.debug "resolving connections from #{output_ports.map(&:name).sort.join(",")} to #{input_ports.map(&:name).sort.join(",")}"
+            Models.debug "resolving connections from #{output_ports.map(&:name).sort.join(',')} to #{input_ports.map(&:name).sort.join(',')}"
             break
         end
 
@@ -126,7 +126,7 @@ module Syskit
                 Models.debug "  #{out_port.name} => #{in_port.name}"
             end
             unless remaining_outputs.empty?
-                Models.debug "  no matches found for outputs #{remaining_outputs.map(&:name).sort.join(",")}"
+                Models.debug "  no matches found for outputs #{remaining_outputs.map(&:name).sort.join(',')}"
             end
             break
         end

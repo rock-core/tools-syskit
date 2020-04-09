@@ -92,11 +92,11 @@ module Syskit
             if with_output
                 autodetect_output_modes
                 self.output_type = default_output_mode
-                opt.on("-o TYPE[:file]", "--output=TYPE[:file]", String, "in what format to output the result (can be: #{output_modes.join(", ")}), defaults to #{default_output_mode}") do |output_arg|
+                opt.on("-o TYPE[:file]", "--output=TYPE[:file]", String, "in what format to output the result (can be: #{output_modes.join(', ')}), defaults to #{default_output_mode}") do |output_arg|
                     output_type, output_file = output_arg.split(":")
                     output_type = output_type.downcase
                     unless output_modes.include?(output_type)
-                        raise ArgumentError, "unknown or unavailable output mode #{output_type}, available output modes: #{output_modes.join(", ")}"
+                        raise ArgumentError, "unknown or unavailable output mode #{output_type}, available output modes: #{output_modes.join(', ')}"
                     end
 
                     Scripts.output_file = output_file

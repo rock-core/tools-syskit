@@ -406,7 +406,7 @@ describe Syskit::Models::Composition do
             flexmock(simple_component_model).should_receive(:new).once.and_return(child_task)
             task = simple_composition_model
                    .instanciate(plan, Syskit::DependencyInjectionContext.new("srv" => simple_component_model))
-            assert task.has_role?("srv"), "no child of task #{task} with role srv, existing roles: #{task.each_role.to_a.sort.join(", ")}"
+            assert task.has_role?("srv"), "no child of task #{task} with role srv, existing roles: #{task.each_role.to_a.sort.join(', ')}"
         end
 
         it "applies use selections from the child definition" do

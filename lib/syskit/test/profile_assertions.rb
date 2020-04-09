@@ -91,7 +91,7 @@ module Syskit
             def assert_is_self_contained(action_or_profile = subject_syskit_model, message: "%s is not self contained", exclude: [], **instanciate_options)
                 actions, skipped_actions = BulkAssertAtomicActions(action_or_profile, exclude: exclude)
                 unless skipped_actions.empty?
-                    flunk "could not validate #{skipped_actions.size} non-Syskit actions: #{skipped_actions.map(&:name).sort.join(", ")}, pass them to the 'exclude' argumet to #{__method__}"
+                    flunk "could not validate #{skipped_actions.size} non-Syskit actions: #{skipped_actions.map(&:name).sort.join(', ')}, pass them to the 'exclude' argumet to #{__method__}"
                 end
 
                 actions.each do |act|
@@ -111,7 +111,7 @@ module Syskit
                             raise Roby::Test::Assertion.new(TaskAllocationFailed.new(syskit_engine, other)), format(message, act.to_s)
                         elsif !tags_from_other.empty?
                             other_profiles = tags_from_other.map { |t| t.class.profile }.uniq
-                            raise Roby::Test::Assertion.new(TaskAllocationFailed.new(syskit_engine, tags)), "#{act} contains tags from another profile (found #{other_profiles.map(&:name).sort.join(", ")}, expected #{subject_syskit_model}"
+                            raise Roby::Test::Assertion.new(TaskAllocationFailed.new(syskit_engine, tags)), "#{act} contains tags from another profile (found #{other_profiles.map(&:name).sort.join(', ')}, expected #{subject_syskit_model}"
                         end
 
                         plan.unmark_mission_task(task)
@@ -144,7 +144,7 @@ module Syskit
             def assert_can_instanciate(action_or_profile = subject_syskit_model, exclude: [])
                 actions, skipped_actions = BulkAssertAtomicActions(action_or_profile, exclude: exclude)
                 unless skipped_actions.empty?
-                    flunk "could not validate #{skipped_actions.size} non-Syskit actions: #{skipped_actions.map(&:name).sort.join(", ")}, pass them to the 'exclude' argumet to #{__method__}"
+                    flunk "could not validate #{skipped_actions.size} non-Syskit actions: #{skipped_actions.map(&:name).sort.join(', ')}, pass them to the 'exclude' argumet to #{__method__}"
                 end
 
                 actions.each do |action|
@@ -221,7 +221,7 @@ module Syskit
             def assert_can_deploy(action_or_profile = subject_syskit_model, exclude: [])
                 actions, skipped_actions = BulkAssertAtomicActions(action_or_profile, exclude: exclude)
                 unless skipped_actions.empty?
-                    flunk "could not validate #{skipped_actions.size} non-Syskit actions: #{skipped_actions.map(&:name).sort.join(", ")}, pass them to the 'exclude' argument to #{__method__}"
+                    flunk "could not validate #{skipped_actions.size} non-Syskit actions: #{skipped_actions.map(&:name).sort.join(', ')}, pass them to the 'exclude' argument to #{__method__}"
                 end
 
                 actions.each do |action|

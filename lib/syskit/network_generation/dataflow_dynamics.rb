@@ -238,7 +238,7 @@ module Syskit
                 end
                 DataFlowDynamics.debug do
                     DataFlowDynamics.debug "initial port dynamics on #{task} (device)"
-                    DataFlowDynamics.debug "  attached devices: #{triggering_devices.map { |srv, dev| "#{dev.name} on #{srv.name}" }.join(", ")}"
+                    DataFlowDynamics.debug "  attached devices: #{triggering_devices.map { |srv, dev| "#{dev.name} on #{srv.name}" }.join(', ')}"
                     break
                 end
 
@@ -508,7 +508,7 @@ module Syskit
                 required = missing_ports[task].dup
                 DataFlowDynamics.debug do
                     DataFlowDynamics.debug "trying to compute dataflow dynamics for #{task}"
-                    DataFlowDynamics.debug "  requires information on: #{required.map(&:to_s).join(", ")}"
+                    DataFlowDynamics.debug "  requires information on: #{required.map(&:to_s).join(', ')}"
                     break
                 end
 

@@ -23,7 +23,7 @@ module Syskit
                     return super if root_model == self
 
                     specializations = self.specialized_children.map do |child_name, child_models|
-                        "#{child_name}.is_a?(#{child_models.map(&:short_name).join(",")})"
+                        "#{child_name}.is_a?(#{child_models.map(&:short_name).join(',')})"
                     end
 
                     "#{root_model.short_name}/#{specializations}"
@@ -119,7 +119,7 @@ module Syskit
 
             def to_s
                 root_name.to_s + "/" + specialized_children.map do |child_name, child_models|
-                    "#{child_name}.is_a?(#{child_models.map(&:short_name).join(",")})"
+                    "#{child_name}.is_a?(#{child_models.map(&:short_name).join(',')})"
                 end.join(",")
             end
 

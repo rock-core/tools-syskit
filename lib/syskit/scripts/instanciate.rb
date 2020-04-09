@@ -29,10 +29,10 @@ parser = OptionParser.new do |opt|
         Syskit::NetworkGeneration::MergeSolver.tracing_directory = trace_dir
     end
 
-    opt.on("--annotate=LIST", Array, "comma-separated list of annotations that should be added to the output (defaults to #{default_annotations.to_a.join(",")}). Available annotations: #{available_annotations.to_a.sort.join(", ")}") do |ann|
+    opt.on("--annotate=LIST", Array, "comma-separated list of annotations that should be added to the output (defaults to #{default_annotations.to_a.join(',')}). Available annotations: #{available_annotations.to_a.sort.join(', ')}") do |ann|
         ann.each do |name|
             unless available_annotations.include?(name)
-                STDERR.puts "#{name} is not a known annotation. Known annotations are: #{available_annotations.join(", ")}"
+                STDERR.puts "#{name} is not a known annotation. Known annotations are: #{available_annotations.join(', ')}"
                 exit 1
             end
         end

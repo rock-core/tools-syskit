@@ -370,7 +370,7 @@ module Syskit
                     if original.size > 1
                         not_explicit = original.find_all { |pname| !normalized_mappings.key?(pname) }
                         unless not_explicit.empty?
-                            raise InvalidPortMapping, "automatic port mapping would map ports #{original.sort.join(", ")} to the same port #{mapped}. I refuse to do this. If you actually mean to do it, provide the mapping #{original.map { |o| "\"#{o}\" => \"#{mapped}\"" }.join(", ")} explicitly"
+                            raise InvalidPortMapping, "automatic port mapping would map ports #{original.sort.join(', ')} to the same port #{mapped}. I refuse to do this. If you actually mean to do it, provide the mapping #{original.map { |o| "\"#{o}\" => \"#{mapped}\"" }.join(', ')} explicitly"
                         end
                     end
                 end
@@ -407,7 +407,7 @@ module Syskit
                     if !component_port
                         known_ports = send("each_#{direction}_port")
                                       .map { |p| "#{p.name}[#{p.type.name}]" }
-                        raise InvalidPortMapping, "the provided port mapping from #{port.name} to #{port_name} is invalid: #{port_name} is not a #{direction} port in #{short_name}. Known output ports are #{known_ports.sort.join(", ")}"
+                        raise InvalidPortMapping, "the provided port mapping from #{port.name} to #{port_name} is invalid: #{port_name} is not a #{direction} port in #{short_name}. Known output ports are #{known_ports.sort.join(', ')}"
                     else
                         raise InvalidPortMapping, "the provided port mapping from #{port.name} to #{port_name} is invalid: #{port_name} is of type #{component_port.type_name} in #{short_name} and I was expecting #{port.type}"
                     end
@@ -420,7 +420,7 @@ module Syskit
                 elsif candidates.size == 1
                     return candidates.first.name
                 else
-                    raise InvalidPortMapping, "there are multiple candidates to map #{port.name}[#{port.type_name}]: #{candidates.map(&:name).sort.join(", ")}"
+                    raise InvalidPortMapping, "there are multiple candidates to map #{port.name}[#{port.type_name}]: #{candidates.map(&:name).sort.join(', ')}"
                 end
             end
 
@@ -552,7 +552,7 @@ module Syskit
 
                 dyn = find_dynamic_service(dynamic_service_name)
                 unless dyn
-                    raise ArgumentError, "#{short_name} has no dynamic service called #{dynamic_service_name}, available dynamic services are: #{each_dynamic_service.map { |name, _| name }.sort.join(", ")}"
+                    raise ArgumentError, "#{short_name} has no dynamic service called #{dynamic_service_name}, available dynamic services are: #{each_dynamic_service.map { |name, _| name }.sort.join(', ')}"
                 end
 
                 if srv = find_data_service(service_name)

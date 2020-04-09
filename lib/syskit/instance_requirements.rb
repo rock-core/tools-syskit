@@ -425,7 +425,7 @@ module Syskit
         def port_by_name(name)
             if p = find_port(name)
                 p
-            else raise ArgumentError, "#{self} has no port called #{name}, known ports are: #{each_port.map(&:name).sort.join(", ")}"
+            else raise ArgumentError, "#{self} has no port called #{name}, known ports are: #{each_port.map(&:name).sort.join(', ')}"
             end
         end
 
@@ -574,7 +574,7 @@ module Syskit
                     end
                 end
                 unless defaults.empty?
-                    debug "  #{defaults.map(&:short_name).join(", ")}"
+                    debug "  #{defaults.map(&:short_name).join(', ')}"
                 end
                 break
             end
@@ -1021,7 +1021,7 @@ module Syskit
                 result << ".use#{use_suffix}(#{selections})"
             end
             unless arguments.empty?
-                result << ".with_arguments(#{arguments.map { |k, v| "#{k}: #{v}" }.join(", ")})"
+                result << ".with_arguments(#{arguments.map { |k, v| "#{k}: #{v}" }.join(', ')})"
             end
             result
         end
@@ -1044,7 +1044,7 @@ module Syskit
                 end
                 unless arguments.empty?
                     pp.breakable
-                    pp.text ".with_arguments(#{arguments.map { |k, v| "#{k} => #{v}" }.join(", ")})"
+                    pp.text ".with_arguments(#{arguments.map { |k, v| "#{k} => #{v}" }.join(', ')})"
                 end
             end
         end

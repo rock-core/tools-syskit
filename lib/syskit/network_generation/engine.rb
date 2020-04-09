@@ -441,7 +441,7 @@ module Syskit
                     t.reusable? && configuration_precedence_graph.leaf?(t.stop_event)
                 end
                 if tasks.size > 1
-                    raise InternalError, "could not find the current task in #{deployed_tasks.map(&:to_s).sort.join(", ")}"
+                    raise InternalError, "could not find the current task in #{deployed_tasks.map(&:to_s).sort.join(', ')}"
                 end
 
                 tasks.first

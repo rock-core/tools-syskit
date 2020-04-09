@@ -205,7 +205,7 @@ module Syskit
             def notify(key, text)
                 notifications[key] = text
                 ui_notifications.show
-                ui_notifications.text = "<small>#{notifications.values.join(", ")}</small>"
+                ui_notifications.text = "<small>#{notifications.values.join(', ')}</small>"
             end
 
             # Signal emitted when one exception got added at the end of

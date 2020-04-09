@@ -78,7 +78,7 @@ module Syskit
             end
 
             def to_s
-                "monitor(#{model.name}(#{data_streams.map(&:to_s).join(", ")})"
+                "monitor(#{model.name}(#{data_streams.map(&:to_s).join(', ')})"
             end
         end
     end

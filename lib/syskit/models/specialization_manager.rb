@@ -188,7 +188,7 @@ module Syskit
                                                                 .each_required_model.map(&:short_name).sort.join(",")
                                 "#{child_name}: #{child_models}"
                             end
-                            raise ArgumentError, "invalid specialization #{child.short_name} => #{child_model.short_name}: more than one child of #{composition_model.short_name} fullfills #{child.short_name} (#{children.sort.join("; ")}). You probably want to select one specifically by name"
+                            raise ArgumentError, "invalid specialization #{child.short_name} => #{child_model.short_name}: more than one child of #{composition_model.short_name} fullfills #{child.short_name} (#{children.sort.join('; ')}). You probably want to select one specifically by name"
                         end
 
                         child = children.first
@@ -228,7 +228,7 @@ module Syskit
 
                     merged = Placeholder.for(child_models).merge(child_m.model)
                     if merged == child_m.model
-                        raise ArgumentError, "#{child_models.map(&:short_name).sort.join(",")} does not specify a specialization of #{child_m.model}"
+                        raise ArgumentError, "#{child_models.map(&:short_name).sort.join(',')} does not specify a specialization of #{child_m.model}"
                     end
                 end
             end
@@ -358,7 +358,7 @@ module Syskit
             # separate.
             def specialized_model(composite_spec, applied_specializations = [composite_spec])
                 Models.debug do
-                    Models.debug "instanciating specializations: #{applied_specializations.map(&:to_s).sort.join(", ")}"
+                    Models.debug "instanciating specializations: #{applied_specializations.map(&:to_s).sort.join(', ')}"
                     Models.log_nest(2)
                     break
                 end

@@ -526,7 +526,7 @@ module Syskit
         def assert_ports_equal(component_model, names, result)
             result.each do |p|
                 assert_same component_model, p.component_model
-                assert names.include?(p.name), "#{p.name} was not expected to be in the port list #{names.to_a.sort.join(", ")}"
+                assert names.include?(p.name), "#{p.name} was not expected to be in the port list #{names.to_a.sort.join(', ')}"
             end
         end
 

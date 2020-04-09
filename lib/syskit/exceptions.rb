@@ -275,7 +275,7 @@ module Syskit
                 pp.seplist(compositions) do |parent|
                     parent_task, dependency_options = *parent
                     pp.breakable
-                    pp.text "child #{dependency_options[:roles].to_a.join(", ")} of #{parent_task}"
+                    pp.text "child #{dependency_options[:roles].to_a.join(', ')} of #{parent_task}"
                 end
             end
             pp.breakable
@@ -539,7 +539,7 @@ module Syskit
                     pp.text "#{task}: multiple possible deployments, choose one with #prefer_deployed_tasks(deployed_task_name)"
                     unless deployment_hints.empty?
                         deployment_hints.each do |hint|
-                            pp.text "  current hints: #{deployment_hints.map(&:to_s).join(", ")}"
+                            pp.text "  current hints: #{deployment_hints.map(&:to_s).join(', ')}"
                         end
                     end
                 elsif possible_deployments.empty?
@@ -567,7 +567,7 @@ module Syskit
                                     role, parent_task = *parent_task
                                     "child #{role} of #{parent_task}"
                                 end
-                                pp.text "already used by #{task}: #{msg.join(", ")}"
+                                pp.text "already used by #{task}: #{msg.join(', ')}"
                             end
                         end
                     end
@@ -670,7 +670,7 @@ module Syskit
         end
 
         def pretty_print(pp)
-            pp.text "cannot resolve the names #{missing_names.sort.join(", ")}"
+            pp.text "cannot resolve the names #{missing_names.sort.join(', ')}"
             unless instanciation_chain.empty?
                 pp.breakable
                 super
@@ -785,7 +785,7 @@ module Syskit
                             end
                         end
 
-                        pp.text "#{key} => #{value.join(",")}"
+                        pp.text "#{key} => #{value.join(',')}"
                     end
                 end
             end

@@ -138,7 +138,7 @@ module Syskit
 
                 def to_s
                     modes = %w{ALL ANY PARTIAL}
-                    "#<Trigger: mode=#{modes[mode]} ports=#{ports.map { |t, p| "#{t}.#{p}" }.sort.join(",")}>"
+                    "#<Trigger: mode=#{modes[mode]} ports=#{ports.map { |t, p| "#{t}.#{p}" }.sort.join(',')}>"
                 end
 
                 def pretty_print(pp)
@@ -231,7 +231,7 @@ module Syskit
                                     debug { "propagating information to #{task}.#{port_name}" }
                                     debug { "    complete: #{complete}" }
                                     to_propagate.each do |info|
-                                        debug "    #{info.compact.join(".")}"
+                                        debug "    #{info.compact.join('.')}"
                                     end
                                 end
                                 break
