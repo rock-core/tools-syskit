@@ -324,6 +324,8 @@ module Syskit
                             "cannot refine a resolver on which .transform has been called"
                         )
                     end
+
+                    nil
                 end
 
                 def __container_access(args)

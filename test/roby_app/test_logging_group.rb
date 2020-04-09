@@ -1,4 +1,6 @@
-require 'syskit/test/self'
+# frozen_string_literal: true
+
+require "syskit/test/self"
 
 module Syskit
     module RobyApp
@@ -6,11 +8,11 @@ module Syskit
             attr_reader :task_m, :deployment_m
 
             before do
-                task_m = @task_m = Syskit::TaskContext.new_submodel(name: 'TestTask') do
-                    output_port 'out', '/double'
+                task_m = @task_m = Syskit::TaskContext.new_submodel(name: "TestTask") do
+                    output_port "out", "/double"
                 end
-                @deployment_m = Syskit::Deployment.new_submodel(name: 'TestDeployment') do
-                    task 'task', task_m.orogen_model
+                @deployment_m = Syskit::Deployment.new_submodel(name: "TestDeployment") do
+                    task "task", task_m.orogen_model
                 end
             end
 
@@ -46,7 +48,11 @@ module Syskit
             end
 
             describe "#matches_deployment?" do
-                let(:deployment) { plan.add(deployment = deployment_m.new); deployment }
+                let(:deployment) do
+                    plan.add(deployment = deployment_m.new)
+                    deployment
+                end
+
                 it "does not match a deployment by default" do
                     assert !subject.matches_deployment?(deployment)
                 end
@@ -63,7 +69,7 @@ module Syskit
             describe "#matches_type?" do
                 let :type_m do
                     registry = Typelib::Registry.new
-                    registry.create_compound '/TestType'
+                    registry.create_compound "/TestType"
                 end
                 it "does not match by default" do
                     assert !subject.matches_type?(type_m)
@@ -81,7 +87,7 @@ module Syskit
 
             describe "#matches_task?" do
                 let(:task) do
-                    plan.add(task = task_m.new(orocos_name: 'test_task'))
+                    plan.add(task = task_m.new(orocos_name: "test_task"))
                     task.executed_by(deployment_m.new)
                     task
                 end
@@ -109,11 +115,11 @@ module Syskit
 
             describe "#matches_port?" do
                 let :port do
-                    plan.add(task = task_m.new(orocos_name: 'test_task'))
+                    plan.add(task = task_m.new(orocos_name: "test_task"))
                     task.executed_by(deployment_m.new)
                     task.out_port
                 end
-            
+
                 it "does not match by default" do
                     assert !subject.matches_port?(port)
                 end
@@ -128,26 +134,25 @@ module Syskit
                     assert subject.matches_port?(subclass.out_port)
                 end
                 it "matches a port by its name" do
-                    subject.add 'out'
+                    subject.add "out"
                     assert subject.matches_port?(port)
                 end
                 it "matches a port by its type" do
-                    flexmock(subject).should_receive(:matches_type?).
-                        with(port.type).and_return(true)
+                    flexmock(subject).should_receive(:matches_type?)
+                                     .with(port.type).and_return(true)
                     assert subject.matches_port?(port)
                 end
                 it "matches a port by its task" do
-                    flexmock(subject).should_receive(:matches_task?).
-                        with(port.component).and_return(true)
+                    flexmock(subject).should_receive(:matches_task?)
+                                     .with(port.component).and_return(true)
                     assert subject.matches_port?(port)
                 end
                 it "matches a port by its deployment" do
-                    flexmock(subject).should_receive(:matches_deployment?).
-                        with(port.component.execution_agent).and_return(true)
+                    flexmock(subject).should_receive(:matches_deployment?)
+                                     .with(port.component.execution_agent).and_return(true)
                     assert subject.matches_port?(port)
                 end
             end
         end
     end
 end
-

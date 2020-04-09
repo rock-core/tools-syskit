@@ -1,11 +1,12 @@
 #! /usr/bin/env ruby
+# frozen_string_literal: true
 
 # Reset the interrupt handler to the default. An ignored handler is inherited,
 # so this makes sure that the Roby app is based on the handler's expected state
-trap('INT', 'DEFAULT')
+trap("INT", "DEFAULT")
 
-if (ENV['SYSKIT_USE_ROCK_BUNDLES'] != '0')
-    require 'rock/bundle'
+if ENV["SYSKIT_USE_ROCK_BUNDLES"] != "0"
+    require "rock/bundle"
 
     # The logs are public by default in bundles, but are private by default in Roby
     # (the Roby-oriented scripts must set it to true when needed)
@@ -14,30 +15,30 @@ if (ENV['SYSKIT_USE_ROCK_BUNDLES'] != '0')
     Roby.app.public_logs = false
 end
 
-require 'syskit/cli/main'
+require "syskit/cli/main"
 
 # Transform 'syskit help <mode>' to 'syskit <mode> --help' if mode is not
 # handled by thor
-if ARGV[0] == 'help'
+if ARGV[0] == "help"
     if (command_name = ARGV[1])
-        if !Syskit::CLI::Main.all_commands.has_key?(command_name)
+        unless Syskit::CLI::Main.all_commands.key?(command_name)
             ARGV.shift
-            ARGV << '--help'
+            ARGV << "--help"
         end
     end
 # Transform 'syskit <mode> --help' to 'syskit help <mode>' if mode is handled
 # by thor
-elsif ['-h', '--help'].include?(ARGV[1])
+elsif ["-h", "--help"].include?(ARGV[1])
     STDERR.puts "WARN: syskit <mode> --help is deprecated, use syskit help <mode> instead"
-    if Syskit::CLI::Main.all_commands.has_key?(ARGV[0])
-        ARGV.unshift 'help'
+    if Syskit::CLI::Main.all_commands.key?(ARGV[0])
+        ARGV.unshift "help"
     end
 end
 
 if ARGV.first
-    command_name = ARGV.first.tr('-', '_')
-    global_help = (command_name == 'help') && (ARGV.size == 1)
-    if !global_help && Syskit::CLI::Main.all_commands.has_key?(command_name)
+    command_name = ARGV.first.tr("-", "_")
+    global_help = (command_name == "help") && (ARGV.size == 1)
+    if !global_help && Syskit::CLI::Main.all_commands.key?(command_name)
         begin
             Syskit::CLI::Main.start(ARGV)
             exit 0
@@ -53,7 +54,7 @@ mode = ARGV.shift
 
 SYSKIT_MODES = %w[doc ide process_server].freeze
 ROBY_MODES = %w[run shell test gen quit restart].freeze
-if [nil, '--help', '-h', 'help'].include?(mode)
+if [nil, "--help", "-h", "help"].include?(mode)
     thor_modes = Syskit::CLI::Main
                  .all_commands
                  .find_all { |_name, command| !command.hidden? }

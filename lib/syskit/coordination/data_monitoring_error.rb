@@ -1,3 +1,5 @@
+# frozen_string_literal: true
+
 module Syskit
     module Coordination
         # Exception issued by the data monitors in {DataMonitor#poll} when
@@ -13,7 +15,7 @@ module Syskit
                 @time = time
                 @samples = samples
             end
-            
+
             def pretty_print(pp)
                 pp.text "data monitor #{monitor} triggered at #{time}, with data samples "
                 pp.seplist(samples) do |s|
@@ -25,4 +27,3 @@ module Syskit
         end
     end
 end
-

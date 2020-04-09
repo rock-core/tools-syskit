@@ -1,3 +1,5 @@
+# frozen_string_literal: true
+
 module Syskit
     # Namespace for all objects used to describe a robot
     #
@@ -7,8 +9,8 @@ module Syskit
     end
 end
 
-require 'syskit/robot/device_instance'
-require 'syskit/robot/master_device_instance'
-require 'syskit/robot/slave_device_instance'
-require 'syskit/robot/communication_bus'
-require 'syskit/robot/robot_definition'
+require "syskit/robot/device_instance"
+require "syskit/robot/master_device_instance"
+require "syskit/robot/slave_device_instance"
+require "syskit/robot/communication_bus"
+require "syskit/robot/robot_definition"

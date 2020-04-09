@@ -1,3 +1,5 @@
+# frozen_string_literal: true
+
 module Syskit
     module Models
         module Deployment
@@ -10,20 +12,20 @@ module Syskit
             #
             # @key_name option_name
             # @return [Hash<String,String>]
-            inherited_attribute('default_run_option', 'default_run_options', map: true) { Hash.new }
+            inherited_attribute("default_run_option", "default_run_options", map: true) { {} }
 
             # The set of default name mappings for the instances of this
             # deployment model
             #
             # @key_name original_task_name
             # @return [Hash<String,String>]
-            inherited_attribute('default_name_mapping', 'default_name_mappings', map: true) { Hash.new }
+            inherited_attribute("default_name_mapping", "default_name_mappings", map: true) { {} }
 
             # [Models::Deployment] Returns the parent model for this class, or
             # nil if it is the root model
             def supermodel
                 if superclass.respond_to?(:register_submodel)
-                    return superclass
+                    superclass
                 end
             end
 
@@ -35,7 +37,7 @@ module Syskit
                 orogen_model.name
             end
 
-            def instanciate(plan, arguments = Hash.new)
+            def instanciate(plan, arguments = {})
                 plan.add(task = new(arguments))
                 task
             end
@@ -91,7 +93,8 @@ module Syskit
 
             # Enumerate the names of the tasks deployed by self
             def each_deployed_task_name
-                return enum_for(__method__) if !block_given?
+                return enum_for(__method__) unless block_given?
+
                 orogen_model.task_activities.each do |task|
                     yield(task.name)
                 end
@@ -102,7 +105,7 @@ module Syskit
             # @yieldparam [String] name the task name
             # @yieldparam [Models::TaskContext] model the deployed task model
             def each_deployed_task_model
-                return enum_for(__method__) if !block_given?
+                return enum_for(__method__) unless block_given?
 
                 each_orogen_deployed_task_context_model do |deployed_task|
                     task_model = Syskit::TaskContext.model_for(deployed_task.task_model)

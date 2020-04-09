@@ -1,3 +1,5 @@
+# frozen_string_literal: true
+
 module Syskit
     module Runtime
         # This method is called at the beginning of each execution cycle, and
@@ -5,7 +7,7 @@ module Syskit
         def self.update_task_states(plan) # :nodoc:
             query = plan.find_tasks(Syskit::TaskContext).not_finished
             schedule = plan.execution_engine.scheduler.enabled?
-            for t in query
+            query.each do |t|
                 execution_agent = t.execution_agent
                 # The task's deployment is not started yet
                 if !t.orocos_task
@@ -34,15 +36,17 @@ module Syskit
                 end
 
                 if schedule && t.pending? && !t.setup? && !t.setting_up?
-                    next if !t.meets_configurationg_precedence_constraints?
+                    next unless t.meets_configurationg_precedence_constraints?
 
                     t.freeze_delayed_arguments
                     if t.will_never_setup?
-                        if !t.kill_execution_agent_if_alone
+                        unless t.kill_execution_agent_if_alone
                             t.failed_to_start!(
                                 Roby::CommandFailed.new(
                                     InternalError.exception("#{t} reports that it cannot be configured (FATAL_ERROR ?)"),
-                                    t.start_event))
+                                    t.start_event
+                                )
+                            )
                             next
                         end
                     elsif t.ready_for_setup?
@@ -55,7 +59,7 @@ module Syskit
 
                 next if !t.running? && !t.starting? || t.aborted_event.pending?
 
-                handled_this_cycle = Array.new
+                handled_this_cycle = []
                 begin
                     state = nil
                     state_count = 0
@@ -71,11 +75,9 @@ module Syskit
                         end
                     end
 
-
                     if state_count >= Deployment::STATE_READER_BUFFER_SIZE
                         Runtime.warn "got #{state_count} state updates for #{t}, we might have lost some state updates in the process"
                     end
-
                 rescue Orocos::CORBA::ComError => e
                     t.aborted_event.emit e
                 end
@@ -83,4 +85,3 @@ module Syskit
         end
     end
 end
-

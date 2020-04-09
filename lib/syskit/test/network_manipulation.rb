@@ -69,7 +69,7 @@ module Syskit
                     end
                 elsif !writer.respond_to?(:write)
                     raise ArgumentError, "#{writer} does not seem to be a port "\
-                        'one can write on'
+                        "one can write on"
                 end
                 writer
             end
@@ -238,12 +238,12 @@ module Syskit
                 raise
             ensure
                 if Roby.app.public_logs?
-                    filename = name.tr('/', '_')
-                    dataflow_base = filename + '-dataflow'
-                    hierarchy_base = filename + '-hierarchy'
+                    filename = name.tr("/", "_")
+                    dataflow_base = filename + "-dataflow"
+                    hierarchy_base = filename + "-hierarchy"
                     if failed
-                        dataflow_base += '-FAILED'
-                        hierarchy_base += '-FAILED'
+                        dataflow_base += "-FAILED"
+                        hierarchy_base += "-FAILED"
                     end
                     dataflow = File.join(Roby.app.log_dir, "#{dataflow_base}.svg")
                     hierarchy = File.join(Roby.app.log_dir, "#{hierarchy_base}.svg")
@@ -256,8 +256,8 @@ module Syskit
                         i += 1
                     end
 
-                    Graphviz.new(plan).to_file('dataflow', 'svg', dataflow)
-                    Graphviz.new(plan).to_file('hierarchy', 'svg', hierarchy)
+                    Graphviz.new(plan).to_file("dataflow", "svg", dataflow)
+                    Graphviz.new(plan).to_file("hierarchy", "svg", hierarchy)
                 end
             end
 
@@ -282,7 +282,7 @@ module Syskit
                     task_model, task_name, &block
                 )
 
-                process_server = Syskit.conf.process_server_for('stubs')
+                process_server = Syskit.conf.process_server_for("stubs")
                 task_context_class =
                     if remote_task
                         Orocos::RubyTasks::RemoteTaskContext
@@ -291,7 +291,7 @@ module Syskit
                     end
 
                 deployment = Models::ConfiguredDeployment.new(
-                    'stubs', deployment_model, { task_name => task_name }, task_name,
+                    "stubs", deployment_model, { task_name => task_name }, task_name,
                     Hash[task_context_class: task_context_class]
                 )
                 if register
@@ -316,7 +316,7 @@ module Syskit
                 task_model = nil, name = nil, register: true, &block
             )
                 task_model = task_model&.to_component_model
-                process_server = Syskit.conf.process_server_for('stubs')
+                process_server = Syskit.conf.process_server_for("stubs")
 
                 name ||= syskit_default_stub_name(task_model)
                 deployment_model = Deployment.new_submodel(name: name) do
@@ -335,13 +335,13 @@ module Syskit
             # Create a new stub deployment instance, optionally stubbing the
             # model as well
             def syskit_stub_deployment(
-                name = 'deployment', deployment_model = nil,
+                name = "deployment", deployment_model = nil,
                 remote_task: syskit_stub_resolves_remote_tasks?, &block
             )
                 deployment_model ||= syskit_stub_configured_deployment(
                     nil, name, remote_task: remote_task, &block
                 )
-                task = deployment_model.new(process_name: name, on: 'stubs')
+                task = deployment_model.new(process_name: name, on: "stubs")
                 plan.add_permanent_task(task)
                 task
             end
@@ -529,8 +529,8 @@ module Syskit
                     elsif bus_to_client
                         bus_m::ClientInSrv
                     else
-                        raise ArgumentError, 'at least one of client_to_bus or '\
-                                             'bus_to_client need to be true'
+                        raise ArgumentError, "at least one of client_to_bus or "\
+                                             "bus_to_client need to be true"
                     end
 
                 dev_m = base_model.new_submodel(name: "#{bus}-stub") do
@@ -568,9 +568,9 @@ module Syskit
 
             # @deprecated use syskit_stub_requirements instead
             def syskit_stub(*args, **options, &block)
-                Roby.warn_deprecated 'syskit_stub has been renamed to '\
-                    'syskit_stub_requirements to make the difference with '\
-                    'syskit_stub_network more obvious'
+                Roby.warn_deprecated "syskit_stub has been renamed to "\
+                    "syskit_stub_requirements to make the difference with "\
+                    "syskit_stub_network more obvious"
                 syskit_stub_requirements(*args, **options, &block)
             end
 
@@ -608,16 +608,16 @@ module Syskit
                 end
 
                 def pretty_print(pp)
-                    pp.text 'cannot stub '
+                    pp.text "cannot stub "
                     @original.pretty_print(pp)
 
                     pp.breakable
                     if @semantic_merge_blockers.empty?
-                        pp.text 'The reason is unknown. Consider this a Syskit bug'
+                        pp.text "The reason is unknown. Consider this a Syskit bug"
                         return
                     end
 
-                    pp.text 'The following delayed arguments should be made available'
+                    pp.text "The following delayed arguments should be made available"
                     pp.nest(2) do
                         @semantic_merge_blockers.each do |name, (arg, _)|
                             pp.breakable
@@ -737,7 +737,7 @@ module Syskit
                     unless replacement.can_merge?(original)
                         raise CannotStub.new(original, replacement),
                               "cannot stub #{original} with #{replacement}, maybe "\
-                              'some delayed arguments are not set ?'
+                              "some delayed arguments are not set ?"
                     end
                     merge_solver.apply_merge_group(original => replacement)
                 end
@@ -761,7 +761,7 @@ module Syskit
                     unless original.can_merge?(replacement)
                         raise CannotStub.new(original, replacement),
                               "cannot stub #{original} with #{replacement}, maybe "\
-                              'some delayed arguments are not set ?'
+                              "some delayed arguments are not set ?"
                     end
                     # See big comment on apply_merge_group above
                     merge_solver.apply_merge_group(original => replacement)
@@ -957,18 +957,18 @@ module Syskit
                             pp.text "ready_for_setup? #{info.ready_for_setup}"
                             pp.breakable
                             if info.missing_arguments.empty?
-                                pp.text 'is fully instanciated'
+                                pp.text "is fully instanciated"
                             else
-                                pp.text 'missing_arguments: '\
+                                pp.text "missing_arguments: "\
                                         "#{info.missing_arguments.join(', ')}"
                             end
 
                             pp.breakable
                             if info.precedence.empty?
-                                pp.text 'has no should_configure_after constraint'
+                                pp.text "has no should_configure_after constraint"
                             else
                                 pp.text "is waiting for #{info.missing.size} events "\
-                                    'to happen before continuing, among '\
+                                    "to happen before continuing, among "\
                                     "#{info.precedence.size}"
                                 pp.nest(2) do
                                     info.missing.each do |ev|
@@ -1032,7 +1032,7 @@ module Syskit
                             raise t.failure_reason if t.failed_to_start?
 
                             assert t.setup?, "ran the setup for #{t}, but t.setup? "\
-                                'does not return true'
+                                "does not return true"
                             true
                         else
                             t.setup?
@@ -1173,7 +1173,7 @@ module Syskit
                     end
 
                     if current_pending == pending.size
-                        raise NoStartFixedPoint.new(pending), 'cannot start '\
+                        raise NoStartFixedPoint.new(pending), "cannot start "\
                             "#{pending.map(&:to_s).join(', ')}"
                     end
                 end
@@ -1342,24 +1342,24 @@ module Syskit
 
             # Export the dataflow and hierarchy to SVG
             def syskit_export_to_svg(
-                plan = self.plan, suffix: '',
+                plan = self.plan, suffix: "",
                 dataflow_options: {}, hierarchy_options: {}
             )
-                basename = 'syskit-export-%i%s.%s.svg'
+                basename = "syskit-export-%i%s.%s.svg"
 
                 counter = 0
-                Dir.glob('syskit-export-*') do |file|
+                Dir.glob("syskit-export-*") do |file|
                     if (m = /syskit-export-(\d+)/.match(file))
                         counter = [counter, Integer(m[1])].max
                     end
                 end
 
-                dataflow = format(basename, counter + 1, suffix, 'dataflow')
-                hierarchy = format(basename, counter + 1, suffix, 'hierarchy')
+                dataflow = format(basename, counter + 1, suffix, "dataflow")
+                hierarchy = format(basename, counter + 1, suffix, "hierarchy")
                 Syskit::Graphviz
-                    .new(plan).to_file('dataflow', 'svg', dataflow, **dataflow_options)
+                    .new(plan).to_file("dataflow", "svg", dataflow, **dataflow_options)
                 Syskit::Graphviz
-                    .new(plan).to_file('hierarchy', 'svg', hierarchy, **hierarchy_options)
+                    .new(plan).to_file("hierarchy", "svg", hierarchy, **hierarchy_options)
                 puts "exported plan to #{dataflow} and #{hierarchy}"
                 [dataflow, hierarchy]
             end

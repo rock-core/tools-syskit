@@ -1,4 +1,6 @@
-require 'syskit/test/self'
+# frozen_string_literal: true
+
+require "syskit/test/self"
 
 describe Syskit::Actions::Models::Action do
     describe "#rebind" do
@@ -6,29 +8,29 @@ describe Syskit::Actions::Models::Action do
         before do
             @task_m = Syskit::TaskContext.new_submodel
             @profile_m = Syskit::Actions::Profile.new
-            profile_m.define 'test', task_m
+            profile_m.define "test", task_m
             @interface_m = Roby::Actions::Interface.new_submodel
             interface_m.use_profile profile_m
         end
 
         it "maps a definition-based action overloaded into a method-based one" do
-            action = interface_m.find_action_by_name('test_def')
+            action = interface_m.find_action_by_name("test_def")
 
             subclass_m = interface_m.new_submodel
-            subclass_m.describe 'test_def'
-            subclass_m.send(:define_method, 'test_def') {}
-            assert_equal subclass_m.find_action_by_name('test_def'),
-                action.rebind(subclass_m)
+            subclass_m.describe "test_def"
+            subclass_m.send(:define_method, "test_def") {}
+            assert_equal subclass_m.find_action_by_name("test_def"),
+                         action.rebind(subclass_m)
         end
         it "maps a definition-based action that got overloaded by another" do
-            action = interface_m.find_action_by_name('test_def')
+            action = interface_m.find_action_by_name("test_def")
 
             subtask_m = task_m.new_submodel
             subprofile_m = Syskit::Actions::Profile.new
-            subprofile_m.define 'test', subtask_m
+            subprofile_m.define "test", subtask_m
             subinterface_m = Roby::Actions::Interface.new_submodel
             subinterface_m.use_profile subprofile_m
-            new_action = subinterface_m.find_action_by_name('test_def')
+            new_action = subinterface_m.find_action_by_name("test_def")
 
             assert_equal new_action, action.rebind(subinterface_m)
         end
@@ -38,7 +40,7 @@ describe Syskit::Actions::Models::Action do
         attr_reader :interface_m, :requirements, :action_m, :task_m
         before do
             @interface_m = Class.new(Roby::Actions::Interface)
-            @task_m = Syskit::TaskContext.new_submodel(name: 'DRobyMarshallingTest')
+            @task_m = Syskit::TaskContext.new_submodel(name: "DRobyMarshallingTest")
             @requirements = Syskit::InstanceRequirements.new([task_m])
             @action_m = Syskit::Actions::Models::Action.new(requirements)
         end
@@ -56,7 +58,7 @@ describe Syskit::Actions::Models::Action do
 
             remote_marshaller = Roby::DRoby::Marshal.new
             reloaded = assert_droby_compatible(action_m, remote_marshaller: remote_marshaller)
-            reloaded_task_m = remote_marshaller.object_manager.find_model_by_name('DRobyMarshallingTest')
+            reloaded_task_m = remote_marshaller.object_manager.find_model_by_name("DRobyMarshallingTest")
             assert_equal reloaded_task_m, reloaded.returned_type
             assert_equal reloaded_task_m, reloaded.requirements.model
             assert_equal "bla_def", reloaded.requirements.name
@@ -65,7 +67,7 @@ describe Syskit::Actions::Models::Action do
         it "passes along the returned type" do
             remote_marshaller = Roby::DRoby::Marshal.new
             reloaded = assert_droby_compatible(action_m, remote_marshaller: remote_marshaller)
-            assert_equal remote_marshaller.object_manager.find_model_by_name('DRobyMarshallingTest'), reloaded.returned_type
+            assert_equal remote_marshaller.object_manager.find_model_by_name("DRobyMarshallingTest"), reloaded.returned_type
         end
     end
 
@@ -134,4 +136,3 @@ describe Syskit::Actions::Models::Action do
         end
     end
 end
-

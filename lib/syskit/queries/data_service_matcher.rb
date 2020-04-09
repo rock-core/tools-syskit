@@ -115,7 +115,7 @@ module Syskit
                 end
             end
 
-            def method_missing(name, *args) # rubocop:disable Style/MethodMissingSuper
+            def method_missing(name, *args)
                 if name.to_s.end_with?("_port")
                     super
                 else

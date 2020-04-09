@@ -1,36 +1,12 @@
-require 'syskit/test/self'
+# frozen_string_literal: true
+
+require "syskit/test/self"
 
 module Syskit
     describe RemoteStateGetter do
         attr_reader :getter, :task, :task_m
         before do
-            @task_m = Class.new do
-                def initialize
-                    @state_queue = Queue.new
-                    @state = Concurrent::Atom.new(nil)
-                    @error = Concurrent::Atom.new(nil)
-                    push_state(0)
-                end
-                def push_state(value)
-                    @state_queue.push(value)
-                    @state.reset(value)
-                end
-                def rtt_state
-                    if error = @error.value
-                        raise error
-                    end
-
-                    begin
-                        @state_queue.pop(true)
-                    rescue ThreadError
-                        @state.value
-                    end
-                end
-                def raise_error=(error)
-                    @error.reset(error)
-                end
-            end
-            @task = task_m.new
+            @task = RemoteStateGetterStubTaskContext.new
             @getter = RemoteStateGetter.new(task)
             getter.resume
         end
@@ -117,8 +93,8 @@ module Syskit
             end
 
             def assert_interrupts_wait(error_class, error_message_match)
-                while true
-                    task = task_m.new
+                loop do
+                    task = RemoteStateGetterStubTaskContext.new
                     getter = RemoteStateGetter.new(task)
                     getter.resume
                     getter.wait
@@ -195,14 +171,14 @@ module Syskit
             it "pauses the polling thread" do
                 getter.wait
                 getter.pause
-                while getter.poll_thread.status != 'sleep'
+                while getter.poll_thread.status != "sleep"
                     Thread.pass
                 end
             end
             it "allows to resume polling" do
                 getter.pause
                 getter.resume
-                assert(getter.poll_thread.status != 'sleep')
+                assert(getter.poll_thread.status != "sleep")
             end
         end
 
@@ -228,6 +204,36 @@ module Syskit
                 getter.clear
                 assert_equal 1, getter.wait
             end
+        end
+    end
+
+    class RemoteStateGetterStubTaskContext
+        def initialize
+            @state_queue = Queue.new
+            @state = Concurrent::Atom.new(nil)
+            @error = Concurrent::Atom.new(nil)
+            push_state(0)
+        end
+
+        def push_state(value)
+            @state_queue.push(value)
+            @state.reset(value)
+        end
+
+        def rtt_state
+            if error = @error.value
+                raise error
+            end
+
+            begin
+                @state_queue.pop(true)
+            rescue ThreadError
+                @state.value
+            end
+        end
+
+        def raise_error=(error)
+            @error.reset(error)
         end
     end
 end

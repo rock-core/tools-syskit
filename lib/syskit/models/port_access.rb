@@ -1,3 +1,5 @@
+# frozen_string_literal: true
+
 module Syskit
     module Models
         # Mixin used to define common methods to enumerate ports on objects that
@@ -5,15 +7,18 @@ module Syskit
         module PortAccess
             # [Hash{String => Syskit::Models::Port}] a mapping from a port name
             # to the corresponding Models::Port instance
-            attribute(:ports) { Hash.new }
+            attribute(:ports) { {} }
 
             def has_through_method_missing?(m)
                 MetaRuby::DSLs.has_through_method_missing?(
-                    self, m, '_port' => :has_port?) || super
+                    self, m, "_port" => :has_port?
+                ) || super
             end
+
             def find_through_method_missing(m, args)
                 MetaRuby::DSLs.find_through_method_missing(
-                    self, m, args, '_port' => :find_port) || super
+                    self, m, args, "_port" => :find_port
+                ) || super
             end
 
             # Returns the port object that maps to the given name, or nil if it
@@ -26,7 +31,7 @@ module Syskit
             def port_by_name(name)
                 if p = find_port(name)
                     p
-                else raise ArgumentError, "#{self} has no port called #{name}, known ports are: #{each_port.map(&:name).sort.join(", ")}"
+                else raise ArgumentError, "#{self} has no port called #{name}, known ports are: #{each_port.map(&:name).sort.join(', ')}"
                 end
             end
 
@@ -50,14 +55,16 @@ module Syskit
 
             # Enumerates all of this component's ports
             def each_port(&block)
-                return enum_for(:each_port) if !block_given?
+                return enum_for(:each_port) unless block_given?
+
                 each_output_port(&block)
                 each_input_port(&block)
             end
 
             # Enumerates this component's output ports
             def each_output_port
-                return enum_for(:each_output_port) if !block_given?
+                return enum_for(:each_output_port) unless block_given?
+
                 orogen_model.each_output_port do |p|
                     yield(ports[p.name] ||= OutputPort.new(self, p))
                 end
@@ -65,7 +72,8 @@ module Syskit
 
             # Enumerates this component's input ports
             def each_input_port
-                return enum_for(:each_input_port) if !block_given?
+                return enum_for(:each_input_port) unless block_given?
+
                 orogen_model.each_input_port do |p|
                     yield(ports[p.name] ||= InputPort.new(self, p))
                 end
@@ -81,6 +89,7 @@ module Syskit
             # will be considered
             def has_output_port?(name, including_dynamic = true)
                 return true if find_output_port(name)
+
                 if including_dynamic
                     has_dynamic_output_port?(name)
                 end
@@ -91,6 +100,7 @@ module Syskit
             # will be considered
             def has_input_port?(name, including_dynamic = true)
                 return true if find_input_port(name)
+
                 if including_dynamic
                     has_dynamic_input_port?(name)
                 end
@@ -134,4 +144,3 @@ module Syskit
         end
     end
 end
-

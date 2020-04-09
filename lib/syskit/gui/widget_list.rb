@@ -1,3 +1,5 @@
+# frozen_string_literal: true
+
 module Syskit
     module GUI
         class WidgetList < Qt::Widget
@@ -19,16 +21,16 @@ module Syskit
                 super(parent)
 
                 @main_layout = Qt::VBoxLayout.new(self)
-                @widgets = Array.new
-                set_size_constraint()
+                @widgets = []
+                self.size_constraint = Qt::Layout::SetMinAndMaxSize
                 @auto_resize = auto_resize
                 if auto_resize
                     @main_layout.add_stretch(1)
                 end
-                @separators = Hash.new
+                @separators = {}
             end
 
-            def set_size_constraint(constraint = Qt::Layout::SetMinAndMaxSize)
+            def size_constraint=(constraint)
                 @main_layout.size_constraint = constraint
             end
 
@@ -72,7 +74,7 @@ module Syskit
             end
 
             def children_size_updated
-                s = self.size
+                s = size
                 new_height = @widgets.inject(0) do |h, w|
                     h + if w.widget.hidden? then 0
                         else w.widget.contents_height
@@ -84,7 +86,7 @@ module Syskit
             end
 
             def resizeEvent(event)
-                s = self.size
+                s = size
                 s.width = event.size.width
                 self.size = s
                 event.accept
@@ -92,7 +94,8 @@ module Syskit
 
             # Enumerate the widgets in the list
             def each_widget
-                return enum_for(__method__) if !block_given?
+                return enum_for(__method__) unless block_given?
+
                 @widgets.each do |item|
                     yield(item.widget)
                 end
@@ -107,8 +110,8 @@ module Syskit
                 filter ||= ->(w) { true }
                 separators = @separators.values
 
-                kept_widgets = Array.new
-                while !@widgets.empty?
+                kept_widgets = []
+                until @widgets.empty?
                     w = @widgets.last
                     if !separators.include?(w.widget) && !w.permanent? && filter[w.widget]
                         @main_layout.remove_widget(w.widget)

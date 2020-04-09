@@ -1,4 +1,6 @@
-require 'orocos/ruby_tasks/process'
+# frozen_string_literal: true
+
+require "orocos/ruby_tasks/process"
 
 module Syskit
     module RobyApp
@@ -15,13 +17,32 @@ module Syskit
                     @exit_code = exit_code
                     @signal = signal
                 end
-                def stopped?; false end
-                def exited?; !@exit_code.nil? end
-                def exitstatus; @exit_code end
-                def signaled?; !@signal.nil? end
-                def termsig; @signal end
+
+                def stopped?
+                    false
+                end
+
+                def exited?
+                    !@exit_code.nil?
+                end
+
+                def exitstatus
+                    @exit_code
+                end
+
+                def signaled?
+                    !@signal.nil?
+                end
+
+                def termsig
+                    @signal
+                end
+
                 def stopsig; end
-                def success?; exitstatus == 0 end
+
+                def success?
+                    exitstatus == 0
+                end
             end
 
             # The set of processes started so far
@@ -39,7 +60,7 @@ module Syskit
             attr_reader :loader
 
             def initialize(loader: Roby.app.default_loader,
-                           name_service: Orocos::CORBA.name_service)
+                name_service: Orocos::CORBA.name_service)
                 @loader = loader
                 @processes = {}
                 @name_service = name_service
@@ -72,7 +93,7 @@ module Syskit
             # @param [Hash] options additional spawn options. This is provided
             #   for compatibility with the process server API, but is ignored
             # @return [UnmanagedProcess]
-            def start(name, deployment_name = name, name_mappings = Hash.new, prefix: nil, **options)
+            def start(name, deployment_name = name, name_mappings = {}, prefix: nil, **options)
                 model = if deployment_name.respond_to?(:to_str)
                             loader.deployment_model_from_name(deployment_name)
                         else deployment_name
@@ -97,13 +118,11 @@ module Syskit
 
             # Requests that the process server moves the log directory at +log_dir+
             # to +results_dir+
-            def save_log_dir(log_dir, results_dir)
-            end
+            def save_log_dir(log_dir, results_dir); end
 
             # Creates a new log dir, and save the given time tag in it (used later
             # on by save_log_dir)
-            def create_log_dir(log_dir, time_tag, metadata = Hash.new)
-            end
+            def create_log_dir(log_dir, time_tag, metadata = {}); end
 
             # Waits for processes to terminate. +timeout+ is the number of
             # milliseconds we should wait. If set to nil, the call will block until
@@ -144,4 +163,3 @@ module Syskit
         end
     end
 end
-

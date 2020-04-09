@@ -1,3 +1,5 @@
+# frozen_string_literal: true
+
 module Syskit
     module RobyApp
         # Management of the deployments for the REST API
@@ -5,8 +7,8 @@ module Syskit
             def initialize(conf)
                 @conf = conf
                 @deployment_group = conf.deployment_group
-                @new_deployments = Array.new
-                @overrides = Hash.new
+                @new_deployments = []
+                @overrides = {}
             end
 
             class Forbidden      < ArgumentError; end
@@ -43,10 +45,11 @@ module Syskit
                 @deployment_group.deregister_configured_deployment(configured_deployment)
                 configured_deployment.each_orogen_deployed_task_context_model do |orogen_m|
                     task_m = Syskit::TaskContext.find_model_by_orogen(orogen_m.task_model)
-                    @conf.process_server_config_for('unmanaged_tasks')
+                    @conf.process_server_config_for("unmanaged_tasks")
                     new_deployments = @deployment_group.use_unmanaged_task(
-                        { task_m => orogen_m.name }, 
-                        process_managers: @conf)
+                        { task_m => orogen_m.name },
+                        process_managers: @conf
+                    )
                     # Update overrides at each iteration (instead of using a functional
                     # construct) so that the rescue clause can undo the overrides that
                     # have already been done when an exception is raised
@@ -54,7 +57,6 @@ module Syskit
                 end
                 @overrides[configured_deployment] = overrides
                 overrides.map(&:object_id)
-
             rescue Exception
                 overrides.each do |c|
                     @deployment_group.deregister_configured_deployment(c)
@@ -106,8 +108,8 @@ module Syskit
 
             # Finds a registered deployment by ID
             def find_registered_deployment_by_id(id)
-                @deployment_group.each_configured_deployment.
-                    find { |c| c.object_id == id }
+                @deployment_group.each_configured_deployment
+                                 .find { |c| c.object_id == id }
             end
 
             # Finds an overriden deployment by ID
@@ -134,7 +136,7 @@ module Syskit
             # @return [Boolean] true if the deployment ID was valid, false otherwise
             def deregister_deployment(id)
                 deployment = find_new_deployment_by_id(id)
-                if !deployment
+                unless deployment
                     if deployment = find_registered_deployment_by_id(id)
                         if used_in_override?(deployment)
                             raise UsedInOverride, "#{id} has been created for the purpose of an override, cannot deregister it"
@@ -155,7 +157,7 @@ module Syskit
             # @return [Boolean] true if the deployment ID was valid, false otherwise
             def deregister_override(id)
                 overriden_deployment = @overrides.keys.find { |c| c.object_id == id }
-                if !overriden_deployment
+                unless overriden_deployment
                     deployment = find_registered_deployment_by_id(id)
                     if !deployment
                         raise NotFound, "#{id} is not an existing deployment"
@@ -184,9 +186,9 @@ module Syskit
             # The returned command line assumes that the Syskit process runs on
             # the machine where it will be executed
             def command_line(id, tracing: false,
-                    name_service_ip: 'localhost',
-                    working_directory: @conf.app.log_dir,
-                    loader: @conf.app.default_pkgconfig_loader)
+                name_service_ip: "localhost",
+                working_directory: @conf.app.log_dir,
+                loader: @conf.app.default_pkgconfig_loader)
 
                 deployment = find_registered_deployment_by_id(id) ||
                     find_overriden_deployment_by_id(id)
@@ -200,7 +202,8 @@ module Syskit
                     working_directory: working_directory,
                     tracing: tracing,
                     name_service_ip: name_service_ip,
-                    loader: loader)
+                    loader: loader
+                )
             end
         end
     end

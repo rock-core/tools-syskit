@@ -1,3 +1,5 @@
+# frozen_string_literal: true
+
 module Syskit
     # @api private
     #
@@ -14,12 +16,11 @@ module Syskit
         end
 
         def proxied_data_service_models
-            self.model.proxied_data_service_models
+            model.proxied_data_service_models
         end
 
         def provided_models
-            [self.model.proxied_component_model, self.model.proxied_data_service_models]
+            [model.proxied_component_model, model.proxied_data_service_models]
         end
     end
 end
-

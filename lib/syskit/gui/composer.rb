@@ -1,3 +1,5 @@
+# frozen_string_literal: true
+
 module Syskit
     module GUI
         class Composer < Qt::Widget
@@ -7,4 +9,3 @@ module Syskit
         end
     end
 end
-

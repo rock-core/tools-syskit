@@ -1,3 +1,5 @@
+# frozen_string_literal: true
+
 module Syskit
     module Coordination
         # Port access code for instance-level task objects
@@ -25,21 +27,21 @@ module Syskit
                 if respond_to?(:parent)
                     component_model.resolve_and_bind_child(parent.resolve).self_port_to_component_port(port)
                 else
-                    component_model.bind(self.resolve).self_port_to_component_port(port)
+                    component_model.bind(resolve).self_port_to_component_port(port)
                 end
             end
 
             def has_through_method_missing?(m)
-                MetaRuby::DSLs.has_through_method_missing?(self, m, '_port' => :has_port?) || super
+                MetaRuby::DSLs.has_through_method_missing?(self, m, "_port" => :has_port?) || super
             end
 
             def find_through_method_missing(m, args)
-                MetaRuby::DSLs.find_through_method_missing(self, m, args, '_port' => :find_port) || super
+                MetaRuby::DSLs.find_through_method_missing(self, m, args, "_port" => :find_port) || super
             end
         end
 
         class OutputPort < Syskit::OutputPort
-            def reader(policy = Hash.new)
+            def reader(policy = {})
                 # The 'rescue' case is used only on first evaluation of the
                 # block, when Roby instanciates it to check syntax.
                 # The script blocks have to be re-instanciated for each
@@ -57,7 +59,7 @@ module Syskit
         end
 
         class InputPort < Syskit::InputPort
-            def writer(policy = Hash.new)
+            def writer(policy = {})
                 # The 'rescue' case is used only on first evaluation of the
                 # block, when Roby instanciates it to check syntax.
                 # The script blocks have to be re-instanciated for each
@@ -77,4 +79,3 @@ module Syskit
 end
 
 Roby::Coordination::TaskBase.include Syskit::Coordination::PortHandling
-

@@ -1,3 +1,5 @@
+# frozen_string_literal: true
+
 module Syskit
     module Models
         # Base functionality for model classes that deal with oroGen models
@@ -34,15 +36,13 @@ module Syskit
 
             # Returns the syskit model for the given oroGen model
             #
-            # @raise ArgumentError if no syskit model exists 
+            # @raise ArgumentError if no syskit model exists
             def model_for(orogen_model)
                 if m = find_model_by_orogen(orogen_model)
-                    return m
+                    m
                 else raise ArgumentError, "there is no syskit model for #{orogen_model.name}"
                 end
             end
         end
     end
-
 end
-

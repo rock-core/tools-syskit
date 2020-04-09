@@ -1,29 +1,31 @@
-require 'syskit/test/self'
+# frozen_string_literal: true
+
+require "syskit/test/self"
 
 describe Syskit::ROS::Node do
-    @pid = nil 
-    @ros_projects = Hash.new
+    @pid = nil
+    @ros_projects = {}
 
     before do
         # should start the node /rosout
         @pid = Orocos::ROS.roscore
         Orocos::ROS.spec_search_directories << File.join(File.dirname(__FILE__), "orogen")
-        while not Orocos::ROS.rosnode_running?("rosout")
+        until Orocos::ROS.rosnode_running?("rosout")
             sleep 1
         end
 
         Orocos::ROS.spec_search_directories.each do |dir|
-            specs = Dir.glob(File.join(dir,"*.orogen"))
+            specs = Dir.glob(File.join(dir, "*.orogen"))
             specs.each do |file|
                 puts "Loading file: #{file}"
                 p = Orocos::ROS::Generation::Project.load(file)
-                #@ros_projects[p.name] = p
+                # @ros_projects[p.name] = p
             end
         end
     end
 
     after do
-        ::Process.kill('INT', @pid)
+        ::Process.kill("INT", @pid)
     end
 
     describe "#initialize" do
@@ -43,13 +45,13 @@ describe Syskit::ROS::Node do
 
         it "setup the task object" do
             plan.add(task = Syskit::ROS::Node.new_submodel.new(orocos_name: "rosout", conf: []))
-            task.orocos_task = Orocos::ROS.rosnode_running? '/rosout'
- 
+            task.orocos_task = Orocos::ROS.rosnode_running? "/rosout"
+
             task.setup
         end
     end
 
-    #describe "#can_merge?" do
+    # describe "#can_merge?" do
     #    attr_reader :merging_task, :merged_task
     #    before do
     #        task_m = Syskit::ROS::Node.new_submodel
@@ -74,9 +76,9 @@ describe Syskit::ROS::Node do
     #        merged_task.required_host = 'other_host'
     #        assert !merging_task.can_merge?(merged_task)
     #    end
-    #end
+    # end
 
-    #describe "#distance_to" do
+    # describe "#distance_to" do
     #    attr_reader :task0, :task1
     #    attr_reader :deployment_m, :deployment0, :deployment1
     #    before do
@@ -108,9 +110,9 @@ describe Syskit::ROS::Node do
     #        assert !task.distance_to(task0)
     #        assert !task0.distance_to(task)
     #    end
-    #end
+    # end
 
-    #describe "#find_input_port" do
+    # describe "#find_input_port" do
     #    attr_reader :task
     #    before do
     #        @task = syskit_stub_deploy_and_configure 'Task' do
@@ -128,9 +130,9 @@ describe Syskit::ROS::Node do
     #    it "should return nil for a port that does not exist" do
     #        assert_equal nil, task.find_input_port("does_not_exist")
     #    end
-    #end
+    # end
 
-    #describe "#find_output_port" do
+    # describe "#find_output_port" do
     #    attr_reader :task
     #    before do
     #        @task = syskit_stub_deploy_and_configure 'Task' do
@@ -148,9 +150,9 @@ describe Syskit::ROS::Node do
     #    it "should return nil for a port that does not exist" do
     #        assert_equal nil, task.find_output_port("does_not_exist")
     #    end
-    #end
+    # end
 
-    #describe "start_event" do
+    # describe "start_event" do
     #    attr_reader :task, :task_m, :orocos_task
     #    before do
     #        @task_m = Syskit::ROS::Node.new_submodel do
@@ -207,9 +209,9 @@ describe Syskit::ROS::Node do
     #        task.start!
     #        assert !task.running?
     #    end
-    #end
+    # end
 
-    #describe "#state_event" do
+    # describe "#state_event" do
     #    it "should be able to resolve events from parent models" do
     #        parent_m = Syskit::ROS::Node.new_submodel do
     #            runtime_states :CUSTOM
@@ -218,9 +220,9 @@ describe Syskit::ROS::Node do
     #        child = child_m.new
     #        assert_equal :custom, child.state_event(:CUSTOM)
     #    end
-    #end
+    # end
 
-    #describe "stop_event" do
+    # describe "stop_event" do
     #    attr_reader :task, :orocos_task
     #    before do
     #        @task = stub_roby_task_context do
@@ -237,9 +239,9 @@ describe Syskit::ROS::Node do
     #        task.emit :start
     #        task.emit :stop
     #    end
-    #end
+    # end
 
-    #describe "#handle_state_change" do
+    # describe "#handle_state_change" do
     #    attr_reader :task, :task_m, :orocos_task
     #    before do
     #        @task_m = Syskit::ROS::Node.new_submodel do
@@ -295,9 +297,9 @@ describe Syskit::ROS::Node do
     #        flexmock(task).should_receive(:emit).with(:running).never
     #        task.handle_state_changes
     #    end
-    #end
+    # end
 
-    #describe "#update_orogen_state" do
+    # describe "#update_orogen_state" do
     #    attr_reader :task, :orocos_task
     #    before do
     #        task_m = Syskit::ROS::Node.new_submodel
@@ -396,8 +398,8 @@ describe Syskit::ROS::Node do
     #            assert_equal state, task.update_orogen_state
     #        end
     #    end
-    #end
-    #describe "#ready_for_setup?" do
+    # end
+    # describe "#ready_for_setup?" do
     #    attr_reader :task, :orocos_task
     #    before do
     #        @task = flexmock(syskit_stub_deploy_and_configure('Task') {})
@@ -439,8 +441,8 @@ describe Syskit::ROS::Node do
     #            with(state).and_return(true)
     #        assert task.ready_for_setup?
     #    end
-    #end
-    #describe "#is_setup!" do
+    # end
+    # describe "#is_setup!" do
     #    attr_reader :task
     #    before do
     #        plan.add(@task = Syskit::ROS::Node.new_submodel.new(orocos_name: "", conf: []))
@@ -456,8 +458,8 @@ describe Syskit::ROS::Node do
     #        task.is_setup!
     #        assert !task.executable?
     #    end
-    #end
-    #describe "#reusable?" do
+    # end
+    # describe "#reusable?" do
     #    it "is false if the task is setup and needs reconfiguration" do
     #        task = Syskit::ROS::Node.new_submodel.new
     #        assert task.reusable?
@@ -465,8 +467,8 @@ describe Syskit::ROS::Node do
     #        flexmock(task).should_receive(:needs_reconfiguration?).and_return(true)
     #        assert !task.reusable?
     #    end
-    #end
-    #describe "needs_reconfiguration" do
+    # end
+    # describe "needs_reconfiguration" do
     #    attr_reader :task_m
     #    before do
     #        @task_m = Syskit::ROS::Node.new_submodel
@@ -483,8 +485,8 @@ describe Syskit::ROS::Node do
     #        t0.needs_reconfiguration!
     #        assert !t1.needs_reconfiguration?
     #    end
-    #end
-    #describe "#prepare_for_setup" do
+    # end
+    # describe "#prepare_for_setup" do
     #    attr_reader :task, :orocos_task
     #    before do
     #        @task = syskit_stub_deploy_and_configure 'Task' do
@@ -530,8 +532,8 @@ describe Syskit::ROS::Node do
     #        orocos_task.should_receive(:cleanup).once.pass_thru
     #        assert task.prepare_for_setup(:STOPPED)
     #    end
-    #end
-    ##describe "#setup" do
+    # end
+    # #describe "#setup" do
     ##    attr_reader :task, :orocos_task
     ##    before do
     ##        @task = syskit_stub_deploy_and_configure 'Task' do
@@ -622,8 +624,8 @@ describe Syskit::ROS::Node do
     ##        #    task.setup
     ##        #end
     ##    end
-    ##end
-    #describe "#configure" do
+    # #end
+    # describe "#configure" do
     #    attr_reader :task, :orocos_task
     #    before do
     #        @task = syskit_stub_deploy_and_configure 'Task' do
@@ -638,9 +640,9 @@ describe Syskit::ROS::Node do
     #        flexmock(Orocos.conf).should_receive(:apply).with(orocos_task, ['my', 'conf'], model_name: 'test::Task', override: true).once
     #        task.configure
     #    end
-    #end
+    # end
 
-    #describe "interrupt_event" do
+    # describe "interrupt_event" do
     #    attr_reader :task, :orocos_task, :deployment
     #    before do
     #        task_m = Syskit::ROS::Node.new_submodel
@@ -663,6 +665,5 @@ describe Syskit::ROS::Node do
     #        task.interrupt!
     #        assert_event_emission task.stop_event
     #    end
-    #end
+    # end
 end
-

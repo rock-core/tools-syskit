@@ -1,3 +1,5 @@
+# frozen_string_literal: true
+
 module Syskit
     # @api private
     #
@@ -63,7 +65,7 @@ module Syskit
             # the synchronization section to ensure that {#wait} can check for
             # exit_condition being set and set the latch only if it is not
             last_state = nil
-            while !exit_condition.set?
+            until exit_condition.set?
                 if latch = sync_latch.value
                     latch.count_down
                 end
@@ -85,7 +87,6 @@ module Syskit
                 end
                 run_event.wait
             end
-
         rescue Exception => e
             poll_thread_error.reset(e)
         ensure
@@ -108,6 +109,7 @@ module Syskit
                 elsif exit_condition.set?
                     raise ThreadError, "#{self} is quitting, cannot call #wait"
                 end
+
                 sync_latch.reset(latch = Concurrent::CountDownLatch.new(2))
                 latch
             end
@@ -124,7 +126,7 @@ module Syskit
 
         # Whether the state reader has read at least one state
         def ready?
-            last_read_state || (state_queue.size > 0)
+            last_read_state || !state_queue.empty?
         end
 
         # Read either a new or the last read state
@@ -180,4 +182,3 @@ module Syskit
         end
     end
 end
-

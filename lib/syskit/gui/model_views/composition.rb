@@ -1,8 +1,10 @@
-require 'syskit/gui/component_network_view'
+# frozen_string_literal: true
+
+require "syskit/gui/component_network_view"
 module Syskit::GUI
     module ModelViews
-        Roby::TaskStructure.relation 'SpecializationCompatibilityGraph',
-            child_name: :compatible_specialization, dag: false
+        Roby::TaskStructure.relation "SpecializationCompatibilityGraph",
+                                     child_name: :compatible_specialization, dag: false
 
         # Visualization of a composition model
         #
@@ -14,29 +16,29 @@ module Syskit::GUI
 
             def initialize(page)
                 super(page)
-                @specializations = Hash.new
+                @specializations = {}
                 @task_model_view = Roby::GUI::ModelViews::Task.new(page)
             end
 
             def enable
-                connect(page, SIGNAL('linkClicked(const QUrl&)'), self, SLOT('linkClicked(const QUrl&)'))
+                connect(page, SIGNAL("linkClicked(const QUrl&)"), self, SLOT("linkClicked(const QUrl&)"))
                 super
             end
 
             def disable
-                disconnect(page, SIGNAL('linkClicked(const QUrl&)'), self, SLOT('linkClicked(const QUrl&)'))
+                disconnect(page, SIGNAL("linkClicked(const QUrl&)"), self, SLOT("linkClicked(const QUrl&)"))
                 super
             end
 
             def linkClicked(url)
-                if url.scheme == 'plan'
-                    id = Integer(url.path.gsub(/\//, ''))
+                if url.scheme == "plan"
+                    id = Integer(url.path.gsub(%r{/}, ""))
                     if task = specializations.values.find { |task| task.dot_id == id }
                         clickedSpecialization(task)
                     end
                 end
             end
-            slots 'linkClicked(const QUrl&)'
+            slots "linkClicked(const QUrl&)"
 
             def clickedSpecialization(task)
                 clicked  = task.model.applied_specializations.dup.to_set
@@ -78,20 +80,21 @@ module Syskit::GUI
 
             def create_specialization_graph(root_model)
                 plan = Roby::Plan.new
-                specializations = Hash.new
+                specializations = {}
                 root_model.specializations.each_specialization.map do |spec|
                     task_model = root_model.specializations.specialized_model(spec, [spec])
                     plan.add(task = task_model.new)
                     specializations[spec] = task
                 end
 
-                return plan, specializations
+                [plan, specializations]
             end
 
             def render_specializations(model)
                 plan, @specializations = create_specialization_graph(model.root_model)
 
-                current_specializations, incompatible_specializations = [], Hash.new
+                current_specializations = []
+                incompatible_specializations = {}
                 if model.root_model != model
                     current_specializations = model.applied_specializations.map { |s| specializations[s] }
 
@@ -103,16 +106,16 @@ module Syskit::GUI
 
                 display_options = Hash[
                     accessor: :each_compatible_specialization,
-                    dot_edge_mark: '--',
-                    dot_graph_type: 'graph',
-                    graphviz_tool: 'fdp',
+                    dot_edge_mark: "--",
+                    dot_graph_type: "graph",
+                    graphviz_tool: "fdp",
                     highlights: current_specializations,
                     toned_down: incompatible_specializations.values,
                     annotations: [],
-                    id: 'specializations'
+                    id: "specializations"
                 ]
-                page.push_plan('Specializations', 'relation_to_dot',
-                                         plan, display_options)
+                page.push_plan("Specializations", "relation_to_dot",
+                               plan, display_options)
             end
 
             def render(model, doc: true, **options)
@@ -130,4 +133,3 @@ module Syskit::GUI
         end
     end
 end
-

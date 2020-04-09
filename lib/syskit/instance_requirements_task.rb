@@ -1,3 +1,5 @@
+# frozen_string_literal: true
+
 module Syskit
     # These tasks represent the set of InstanceRequirements that should be
     # deployed by NetworkGeneration::Engine
@@ -35,11 +37,11 @@ module Syskit
         # @see InstanceRequirements#as_plan, Component#as_plan,
         #   DataService#as_plan
         def self.subplan(new_spec, **arguments)
-            if !new_spec.kind_of?(InstanceRequirements)
+            unless new_spec.kind_of?(InstanceRequirements)
                 new_spec = InstanceRequirements.new([new_spec])
             end
             root = new_spec.create_proxy_task
-            planner = self.new(**arguments)
+            planner = new(**arguments)
             planner.requirements = new_spec
             root.should_start_after(planner)
             planner.schedule_as(root)
@@ -48,4 +50,3 @@ module Syskit
         end
     end
 end
-

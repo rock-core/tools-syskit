@@ -1,3 +1,5 @@
+# frozen_string_literal: true
+
 module Syskit
     module Actions
         # Action representation for syskit-specific objects

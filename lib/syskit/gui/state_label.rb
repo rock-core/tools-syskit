@@ -1,3 +1,5 @@
+# frozen_string_literal: true
+
 module Syskit
     module GUI
         # Base class for the labels that represent an object and its states
@@ -8,8 +10,8 @@ module Syskit
                 red: "rgb(255, 68, 68)"]
 
             STYLE = "QLabel { padding: 3; background-color: %s; %s }"
-            TEXT_WITH_NAME  = "<b>%s</b>: %s"
-            TEXT_WITHOUT_NAME  = "%s"
+            TEXT_WITH_NAME = "<b>%s</b>: %s"
+            TEXT_WITHOUT_NAME = "%s"
 
             # The name that should be displayed in addition to the state
             #
@@ -69,12 +71,12 @@ module Syskit
                 @default_color = handle_color_argument(color)
             end
 
-            def initialize(name: nil, extra_style: '', parent: nil, rate_limited: false)
+            def initialize(name: nil, extra_style: "", parent: nil, rate_limited: false)
                 super(parent)
                 @rate_limited = rate_limited
                 @name = name
                 @extra_style = extra_style
-                @states = Hash.new
+                @states = {}
 
                 declare_state :INIT, :blue
                 update_state :INIT
@@ -140,8 +142,8 @@ module Syskit
             #   {#declare_default_color}
             def color_from_state(state)
                 state = state.to_s
-                if states.has_key?(state)
-                    return states[state]
+                if states.key?(state)
+                    states[state]
                 elsif color = default_color
                     color
                 else
@@ -156,7 +158,8 @@ module Syskit
             #   change
             # @param [String] color the color to use for this state
             def update_state(state, text: state.to_s, color: color_from_state(state))
-                return if !color
+                return unless color
+
                 update_style(color)
                 update_text(text)
                 @current_state = state.to_s
@@ -168,7 +171,7 @@ module Syskit
             def update_style(color = current_color)
                 @current_color = color
                 color = handle_color_argument(color)
-                self.style_sheet = STYLE % [color, extra_style]
+                self.style_sheet = format(STYLE, color, extra_style)
             end
 
             def rate_limited?
@@ -184,17 +187,18 @@ module Syskit
             # {#extra_style}
             def update_text(text = current_text)
                 return if rate_limited? && @last_update && (Time.now - @last_update) < 1
+
                 @last_update = Time.now
 
                 text = text.to_str
                 @current_text = text
                 self.text =
-                    if name then TEXT_WITH_NAME % [name, text]
-                    else TEXT_WITHOUT_NAME % [text]
+                    if name then format(TEXT_WITH_NAME, name, text)
+                    else format(TEXT_WITHOUT_NAME, text)
                     end
             end
 
-            slots 'update_state(QString)'
+            slots "update_state(QString)"
         end
     end
 end

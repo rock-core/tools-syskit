@@ -1,3 +1,5 @@
+# frozen_string_literal: true
+
 module Syskit
     module Coordination
         module PlanExtension
@@ -39,7 +41,7 @@ module Syskit
             #   data monitoring tables
             # @return [Object] an ID that can be used as an argument to
             #   {#remove_data_monitoring_table}
-            def use_data_monitoring_table(table_m, arguments = Hash.new)
+            def use_data_monitoring_table(table_m, arguments = {})
                 # Verify that all required arguments are set, and that all
                 # arguments are known
                 arguments = table_m.validate_arguments(arguments)
@@ -49,10 +51,10 @@ module Syskit
                     queries << table_m.task_model.query.not_abstract
                 end
 
-                table_record = AttachedDataMonitoringTable.new table_m, arguments, Set.new, Hash.new
+                table_record = AttachedDataMonitoringTable.new table_m, arguments, Set.new, {}
                 queries.each do |query|
                     trigger = add_trigger(query) do |task|
-                        if !table_record.instances.has_key?(task)
+                        unless table_record.instances.key?(task)
                             task.when_finalized do |t|
                                 table_record.instances.delete(task)
                             end

@@ -202,8 +202,8 @@ module Syskit
                         raise SpecError,
                               "port collision: #{self} and #{service_model} both "\
                               "have a port named #{p.name}. If you mean to tell "\
-                              'syskit that this is the same port, you must provide '\
-                              'the mapping explicitely by adding '\
+                              "syskit that this is the same port, you must provide "\
+                              "the mapping explicitely by adding "\
                               "'#{p.name}' => '#{p.name}' to the provides statement"
                     end
                 end
@@ -280,15 +280,15 @@ module Syskit
 
             # @deprecated use {#placeholder_model} instead
             def proxy_task_model
-                Roby.warn_deprecated 'DataService.proxy_task_model is deprecated, '\
-                                     'use .placeholder_model instead'
+                Roby.warn_deprecated "DataService.proxy_task_model is deprecated, "\
+                                     "use .placeholder_model instead"
                 placeholder_model
             end
 
             # @deprecated use {#create_placeholder_task} instead
             def create_proxy_task
-                Roby.warn_deprecated 'DataService.create_proxy_task is deprecated, '\
-                                     'use .create_placeholder_task instead'
+                Roby.warn_deprecated "DataService.create_proxy_task is deprecated, "\
+                                     "use .create_placeholder_task instead"
                 create_placeholder_task
             end
 
@@ -554,14 +554,14 @@ module Syskit
                 model.override_policy = override_policy
                 if !message_type && !model.message_type
                     raise ArgumentError,
-                          'com bus types must either have a message_type or provide '\
-                          'another com bus type that does'
+                          "com bus types must either have a message_type or provide "\
+                          "another com bus type that does"
                 elsif message_type && model.message_type
                     if message_type != model.message_type
                         raise ArgumentError,
-                              'cannot override message types. The current message type '\
+                              "cannot override message types. The current message type "\
                               "of #{model.name} is #{model.message_type}, which "\
-                              'might come from another provided com bus'
+                              "might come from another provided com bus"
                     end
                 elsif !model.message_type
                     model.message_type = message_type
@@ -578,7 +578,7 @@ module Syskit
 
             # The name of the bus_in_srv dynamic service defined on driver tasks
             def dynamic_service_name
-                name = 'com_bus'
+                name = "com_bus"
                 name = "#{name}_#{self.name}" if self.name
                 name
             end
@@ -594,7 +594,7 @@ module Syskit
                     in_srv = mod.find_data_service_from_type(combus_m.bus_in_srv)
                     in_name =
                         if in_srv
-                            in_srv.port_mappings_for_task['to_bus']
+                            in_srv.port_mappings_for_task["to_bus"]
                         else
                             combus_m.input_name_for(name)
                         end
@@ -602,7 +602,7 @@ module Syskit
                     out_srv = mod.find_data_service_from_type(combus_m.bus_out_srv)
                     out_name =
                         if out_srv
-                            out_srv.port_mappings_for_task['from_bus']
+                            out_srv.port_mappings_for_task["from_bus"]
                         else
                             combus_m.output_name_for(name)
                         end
@@ -611,27 +611,27 @@ module Syskit
                         client_to_bus = options.fetch(:client_to_bus)
                         bus_to_client = options.fetch(:bus_to_client)
                     rescue KeyError
-                        raise ArgumentError, 'you must provide both the client_to_bus '\
-                                             'and bus_to_client option when '\
-                                             'instanciating a com bus dynamic service'
+                        raise ArgumentError, "you must provide both the client_to_bus "\
+                                             "and bus_to_client option when "\
+                                             "instanciating a com bus dynamic service"
                     end
 
                     if client_to_bus && bus_to_client
-                        provides combus_m.bus_srv, 'from_bus' => out_name,
-                                                   'to_bus' => in_name
+                        provides combus_m.bus_srv, "from_bus" => out_name,
+                                                   "to_bus" => in_name
                         component_model.orogen_model
                                        .find_port(in_name)
                                        .needs_reliable_connection
                     elsif client_to_bus
-                        provides combus_m.bus_in_srv, 'to_bus' => in_name
+                        provides combus_m.bus_in_srv, "to_bus" => in_name
                         component_model.orogen_model
                                        .find_port(in_name)
                                        .needs_reliable_connection
                     elsif bus_to_client
-                        provides combus_m.bus_out_srv, 'from_bus' => out_name
+                        provides combus_m.bus_out_srv, "from_bus" => out_name
                     else
-                        raise ArgumentError, 'at least one of bus_to_client or '\
-                                             'client_to_bus must be true'
+                        raise ArgumentError, "at least one of bus_to_client or "\
+                                             "client_to_bus must be true"
                     end
                 end
             end
@@ -675,27 +675,27 @@ module Syskit
 
             def message_type=(message_type)
                 @message_type = message_type
-                @bus_base_srv = data_service_type 'BusBaseSrv'
-                @bus_in_srv = data_service_type('BusInSrv') do
-                    input_port 'to_bus', message_type
+                @bus_base_srv = data_service_type "BusBaseSrv"
+                @bus_in_srv = data_service_type("BusInSrv") do
+                    input_port "to_bus", message_type
                 end
-                @bus_out_srv = data_service_type('BusOutSrv') do
-                    output_port 'from_bus', message_type
+                @bus_out_srv = data_service_type("BusOutSrv") do
+                    output_port "from_bus", message_type
                 end
-                @bus_srv = data_service_type 'BusSrv'
+                @bus_srv = data_service_type "BusSrv"
 
                 bus_in_srv.provides bus_base_srv
                 bus_out_srv.provides bus_base_srv
                 bus_srv.provides bus_in_srv
                 bus_srv.provides bus_out_srv
 
-                @client_in_srv = data_service_type('ClientInSrv') do
-                    input_port 'from_bus', message_type
+                @client_in_srv = data_service_type("ClientInSrv") do
+                    input_port "from_bus", message_type
                 end
-                @client_out_srv = data_service_type('ClientOutSrv') do
-                    output_port 'to_bus', message_type
+                @client_out_srv = data_service_type("ClientOutSrv") do
+                    output_port "to_bus", message_type
                 end
-                @client_srv = data_service_type 'ClientSrv'
+                @client_srv = data_service_type "ClientSrv"
                 client_srv.provides client_in_srv
                 client_srv.provides client_out_srv
             end
@@ -757,7 +757,7 @@ module Syskit
                     self, name, parent, &block
                 )
                 model.doc(
-                    MetaRuby::DSLs.parse_documentation_block(/.*/, 'data_service_type')
+                    MetaRuby::DSLs.parse_documentation_block(/.*/, "data_service_type")
                 )
                 model
             end
@@ -772,7 +772,7 @@ module Syskit
                     self, name, parent, &block
                 )
                 model.doc(
-                    MetaRuby::DSLs.parse_documentation_block(/.*/, 'device_type')
+                    MetaRuby::DSLs.parse_documentation_block(/.*/, "device_type")
                 )
                 model
             end
@@ -791,7 +791,7 @@ module Syskit
                 model = MetaRuby::ModelAsModule.create_and_register_submodel(
                     self, name, parent, **options, &block
                 )
-                model.doc MetaRuby::DSLs.parse_documentation_block(/.*/, 'com_bus_type')
+                model.doc MetaRuby::DSLs.parse_documentation_block(/.*/, "com_bus_type")
                 model
             end
         end

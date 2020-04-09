@@ -1,4 +1,6 @@
-require 'syskit/gui/model_browser'
+# frozen_string_literal: true
+
+require "syskit/gui/model_browser"
 module Syskit
     module GUI
         # Main widget for model browsing
@@ -28,7 +30,7 @@ module Syskit
                 main_layout.add_widget btn_reload_models
                 main_layout.add_widget model_browser
 
-                btn_reload_models.connect(SIGNAL('clicked()')) do
+                btn_reload_models.connect(SIGNAL("clicked()")) do
                     model_browser.registered_exceptions.clear
                     Roby.app.clear_exceptions
                     Roby.app.reload_models
@@ -44,4 +46,3 @@ module Syskit
         end
     end
 end
-

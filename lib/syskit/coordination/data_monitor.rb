@@ -1,3 +1,5 @@
+# frozen_string_literal: true
+
 module Syskit
     module Coordination
         # A {Models::DataMonitor} instanciated for a data monitor table attached
@@ -23,8 +25,9 @@ module Syskit
             attr_predicate :raises?, true
 
             def initialize(model, data_streams)
-                @model, @data_streams = model, data_streams
-                @emitted_events = Array.new
+                @model = model
+                @data_streams = data_streams
+                @emitted_events = []
                 @raises = false
             end
 
@@ -68,15 +71,15 @@ module Syskit
                     end
                 end
                 if raises?
-                    samples = data_streams.map do |reader|
-                        reader.read
-                    end
+                    samples = data_streams.map(&:read)
                     error = DataMonitoringError.new(root_task, self, Time.now, samples)
                     root_task.plan.add_error(error)
                 end
             end
 
-            def to_s; "monitor(#{model.name}(#{data_streams.map(&:to_s).join(", ")})" end
+            def to_s
+                "monitor(#{model.name}(#{data_streams.map(&:to_s).join(', ')})"
+            end
         end
     end
 end

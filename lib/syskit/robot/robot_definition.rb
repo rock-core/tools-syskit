@@ -1,3 +1,5 @@
+# frozen_string_literal: true
+
 module Syskit
     module Robot
         # RobotDefinition objects describe a robot through the devices that are
@@ -48,7 +50,6 @@ module Syskit
                 end
                 invalidate_dependency_injection unless new_devices.empty?
                 new_devices
-
             rescue StandardError
                 invalidate_dependency_injection
                 raise
@@ -146,7 +147,7 @@ module Syskit
 
                 # Check for duplicates
                 unless options[:as]
-                    raise ArgumentError, 'no name given, please provide the :as option'
+                    raise ArgumentError, "no name given, please provide the :as option"
                 end
 
                 name = options[:as]
@@ -155,7 +156,7 @@ module Syskit
                 end
 
                 # Verify that the provided device model matches what we expect
-                unless (device_model < options[:expected_model])
+                unless device_model < options[:expected_model]
                     raise ArgumentError, "#{device_model} is not a "\
                                          "#{options[:expected_model].short_name}"
                 end
@@ -186,7 +187,8 @@ module Syskit
                 driver_model = driver_model.to_instance_requirements
                 device_instance = options[:class].new(
                     self, name, device_model, device_options,
-                    driver_model, root_task_arguments)
+                    driver_model, root_task_arguments
+                )
                 invalidate_dependency_injection
                 device_model.apply_device_configuration_extensions(device_instance)
 
@@ -240,9 +242,9 @@ module Syskit
                 return @di.dup if @di
 
                 result = DependencyInjection.new
-                device_model_to_instance = Hash.new
+                device_model_to_instance = {}
                 devices.each_value do |instance|
-                    if !device_model_to_instance.delete(instance.device_model)
+                    unless device_model_to_instance.delete(instance.device_model)
                         device_model_to_instance[instance.device_model] = instance
                     end
                 end
@@ -255,16 +257,17 @@ module Syskit
 
             def has_through_method_missing?(m)
                 MetaRuby::DSLs.has_through_method_missing?(
-                    self, m, '_dev'.freeze => :has_device?) || super
+                    self, m, "_dev" => :has_device?
+                ) || super
             end
 
             def find_through_method_missing(m, args)
                 MetaRuby::DSLs.find_through_method_missing(
-                    self, m, args, '_dev'.freeze => :find_device) || super
+                    self, m, args, "_dev" => :find_device
+                ) || super
             end
 
             include MetaRuby::DSLs::FindThroughMethodMissing
         end
     end
 end
-

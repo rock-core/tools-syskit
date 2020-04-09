@@ -105,7 +105,7 @@ module Syskit
                     elsif component == in_port.component
                         raise SelfConnection.new(self, in_port),
                               "cannot connect #{self} to #{in_port}: "\
-                              'they are both ports of the same component'
+                              "they are both ports of the same component"
                     elsif type != in_port.type
                         raise WrongPortConnectionTypes.new(self, in_port),
                               "cannot connect #{self} to #{in_port}: types mismatch"

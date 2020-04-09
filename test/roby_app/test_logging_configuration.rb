@@ -1,4 +1,6 @@
-require 'syskit/test/self'
+# frozen_string_literal: true
+
+require "syskit/test/self"
 
 module Syskit
     module RobyApp
@@ -36,36 +38,36 @@ module Syskit
             describe "group creation and update" do
                 it "creates a new group" do
                     group = subject.create_group "test"
-                    assert_same group, subject.group_by_name('test')
+                    assert_same group, subject.group_by_name("test")
                 end
                 it "yields the group for setup" do
                     recorder = flexmock
                     recorder.should_receive(:called).with(LoggingGroup).once
-                    subject.create_group 'test' do |g|
+                    subject.create_group "test" do |g|
                         recorder.called(g)
                     end
                 end
                 it "raises ArgumentError if trying to create group with an existing name" do
                     subject.create_group "test"
-                    assert_raises(ArgumentError) { subject.create_group('test') }
+                    assert_raises(ArgumentError) { subject.create_group("test") }
                 end
                 it "raises ArgumentError if trying to resolve a group that does not exist" do
-                    assert_raises(ArgumentError) { subject.group_by_name('test') }
+                    assert_raises(ArgumentError) { subject.group_by_name("test") }
                 end
                 it "allows to update an existing group" do
-                    group = subject.create_group 'test'
+                    group = subject.create_group "test"
                     recorder = flexmock
                     recorder.should_receive(:called).with(group).once
-                    subject.update_group 'test' do |g|
+                    subject.update_group "test" do |g|
                         recorder.called(g)
                     end
                 end
                 it "allows to enable a group at creation time" do
-                    group = subject.create_group 'test', enabled: true
+                    group = subject.create_group "test", enabled: true
                     assert group.enabled?
                 end
                 it "allows to disable a group at creation time" do
-                    group = subject.create_group 'test', enabled: false
+                    group = subject.create_group "test", enabled: false
                     assert !group.enabled?
                 end
             end
@@ -80,8 +82,8 @@ module Syskit
                 describe "a configuration with groups" do
                     attr_reader :group0, :group1
                     before do
-                        @group0 = flexmock(subject.create_group('group0', enabled: true))
-                        @group1 = flexmock(subject.create_group('group1', enabled: false))
+                        @group0 = flexmock(subject.create_group("group0", enabled: true))
+                        @group1 = flexmock(subject.create_group("group1", enabled: false))
                     end
 
                     let(:port) { flexmock }
@@ -114,15 +116,15 @@ module Syskit
 
             describe "enabling and disabling log groups" do
                 it "disables log groups" do
-                    group = subject.create_group 'test', enabled: true
+                    group = subject.create_group "test", enabled: true
                     assert group.enabled?
-                    subject.disable_log_group 'test'
+                    subject.disable_log_group "test"
                     assert !group.enabled?
                 end
                 it "enables log groups" do
-                    group = subject.create_group 'test', enabled: false
+                    group = subject.create_group "test", enabled: false
                     assert !group.enabled?
-                    subject.enable_log_group 'test'
+                    subject.enable_log_group "test"
                     assert group.enabled?
                 end
             end
@@ -132,4 +134,3 @@ module Syskit
         end
     end
 end
-

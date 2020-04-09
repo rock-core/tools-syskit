@@ -1,6 +1,8 @@
-require 'vizkit'
-require 'Qt4'
-require 'vizkit/vizkit_items'
+# frozen_string_literal: true
+
+require "vizkit"
+require "Qt4"
+require "vizkit/vizkit_items"
 
 module Syskit
     module GUI
@@ -11,11 +13,13 @@ module Syskit
                 setEditable false
             end
 
-            def setData(data,role = Qt::UserRole+1)
+            def setData(data, role = Qt::UserRole + 1)
                 return super if role != Qt::EditRole || data.isNull
+
                 val = from_variant data, @getter.call
                 return false if val.nil?
                 return false unless val != @getter.call
+
                 @setter.call val
                 modified!
             end
