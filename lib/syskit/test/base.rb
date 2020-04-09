@@ -35,9 +35,7 @@ module Syskit
                     teardown_failure = e
                 end
 
-                @task_stubs.each do |t|
-                    t.dispose
-                end
+                @task_stubs.each(&:dispose)
             ensure
                 Orocos.logger.level = @old_loglevel if @old_loglevel
                 if teardown_failure

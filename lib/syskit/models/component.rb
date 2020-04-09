@@ -104,7 +104,7 @@ module Syskit
 
                 if matching_services.size > 1
                     main_matching_services = matching_services
-                                             .find_all { |service| service.master? }
+                                             .find_all(&:master?)
 
                     if main_matching_services.size != 1
                         raise AmbiguousServiceSelection.new(self, target_model, main_matching_services), "there is more than one service of type #{target_model.name} in #{self.name}#{" matching name hint #{pattern}" if pattern}"

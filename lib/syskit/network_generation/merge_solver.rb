@@ -352,7 +352,7 @@ module Syskit
                     end
                 end
 
-                if merged_children.each_value.any? { |t| t.placeholder? }
+                if merged_children.each_value.any?(&:placeholder?)
                     info "rejected: compositions still have unresolved children"
                     return false
                 end

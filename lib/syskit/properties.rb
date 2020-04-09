@@ -26,7 +26,7 @@ module Syskit
 
         # Clear all written values
         def clear_values
-            @properties.each_value { |p| p.clear_value }
+            @properties.each_value(&:clear_value)
         end
 
         # Returns a property by name

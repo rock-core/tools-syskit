@@ -69,9 +69,7 @@ module Syskit
                     end
                 end
                 if raises?
-                    samples = data_streams.map do |reader|
-                        reader.read
-                    end
+                    samples = data_streams.map(&:read)
                     error = DataMonitoringError.new(root_task, self, Time.now, samples)
                     root_task.plan.add_error(error)
                 end

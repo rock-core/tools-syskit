@@ -643,7 +643,7 @@ module Syskit
             def syskit_start_all_deployments(on: nil, except_on: "unmanaged_tasks")
                 existing_deployments = plan.find_tasks(Syskit::Deployment)
                                            .not_finished
-                                           .find_all { |d| d.reusable? }
+                                           .find_all(&:reusable?)
                                            .map(&:process_name).to_set
 
                 Syskit.conf.each_configured_deployment(on: on, except_on: except_on) do |configured_deployment|

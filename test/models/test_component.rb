@@ -973,7 +973,7 @@ describe Syskit::Models::Component do
             slave1 = component.provides service, as: "srv1", slave_of: "root"
             component = component.new_submodel
             slave2 = component.provides service, as: "srv2", slave_of: "root"
-            assert_equal [slave1.attach(component), slave2].to_a, component.each_slave_data_service(root).sort_by { |srv| srv.full_name }
+            assert_equal [slave1.attach(component), slave2].to_a, component.each_slave_data_service(root).sort_by(&:full_name)
         end
     end
 

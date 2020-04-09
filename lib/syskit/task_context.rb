@@ -714,7 +714,7 @@ module Syskit
                     execution_agent.configuration_changed?(
                         orocos_name, self.conf, each_required_dynamic_service.to_set
                     ) ||
-                    self.properties.each.any? { |p| p.needs_commit? }
+                    self.properties.each.any?(&:needs_commit?)
 
                 unless needs_reconfiguration
                     info "not reconfiguring #{self}: the task is already configured as required"
@@ -753,7 +753,7 @@ module Syskit
                     end
                 end
                 properties_updated_in_configure =
-                    properties.each.any? { |p| p.needs_commit? }
+                    properties.each.any?(&:needs_commit?)
             end
             commit_properties(promise)
             promise.then(description: "#{self}#perform_setup#orocos_task.configure") do

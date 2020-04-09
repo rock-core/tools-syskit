@@ -617,7 +617,7 @@ module Syskit
 
         def test_map_bang
             req = DependencyInjection.new("value2", "test" => "value")
-            req.map! { |v| v.upcase }
+            req.map!(&:upcase)
             assert_equal Hash["test" => "VALUE"], req.explicit
             assert_equal Set["VALUE2"], req.defaults
         end

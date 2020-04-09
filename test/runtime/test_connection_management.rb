@@ -1074,7 +1074,7 @@ module Syskit
 
             def stop_and_collect_tasks(*tasks)
                 expect_execution do
-                    tasks.each { |t| t.stop! }
+                    tasks.each(&:stop!)
                 end.to do
                     tasks.each { |t| emit t.stop_event }
                 end

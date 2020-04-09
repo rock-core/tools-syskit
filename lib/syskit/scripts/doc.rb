@@ -126,7 +126,7 @@ index_page = Page.new(MetaRuby::GUI::HTML::HTMLPage.new)
 index_page.root_dir = []
 
 all_items = (task_contexts.to_a + compositions.to_a + data_services.to_a + profiles.to_a + Orocos.registry.each.to_a)
-            .sort_by { |m| m.name }
+            .sort_by(&:name)
             .map { |m| index_page.link_to(m) }
 index_page.render_list(nil, all_items, :filter => true, :id => "model-index")
 html = index_page.html(:ressource_dir => asset_dir)

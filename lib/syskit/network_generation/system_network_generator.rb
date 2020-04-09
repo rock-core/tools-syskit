@@ -130,9 +130,7 @@ module Syskit
             end
 
             def required_busses_for(device_task)
-                device_task.each_master_device.flat_map do |dev|
-                    dev.com_busses
-                end.uniq
+                device_task.each_master_device.flat_map(&:com_busses).uniq
             end
 
             # Creates communication busses and links the tasks to them

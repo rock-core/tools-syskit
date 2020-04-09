@@ -1716,25 +1716,6 @@ Style/SpecialGlobalVars:
   Exclude:
     - 'lib/syskit/scripts/common.rb'
 
-# Offense count: 13
-# Cop supports --auto-correct.
-# Configuration parameters: IgnoredMethods.
-# IgnoredMethods: respond_to, define_method
-Style/SymbolProc:
-  Exclude:
-    - 'lib/syskit/coordination/data_monitor.rb'
-    - 'lib/syskit/models/component.rb'
-    - 'lib/syskit/network_generation/merge_solver.rb'
-    - 'lib/syskit/network_generation/system_network_generator.rb'
-    - 'lib/syskit/properties.rb'
-    - 'lib/syskit/roby_app/plugin.rb'
-    - 'lib/syskit/scripts/doc.rb'
-    - 'lib/syskit/task_context.rb'
-    - 'lib/syskit/test/base.rb'
-    - 'test/models/test_component.rb'
-    - 'test/runtime/test_connection_management.rb'
-    - 'test/test_dependency_injection.rb'
-
 # Offense count: 15
 # Cop supports --auto-correct.
 # Configuration parameters: AllowNamedUnderscoreVariables.
