@@ -1537,15 +1537,6 @@ Style/InfiniteLoop:
   Exclude:
     - 'test/test_remote_state_getter.rb'
 
-# Offense count: 5
-# Cop supports --auto-correct.
-# Configuration parameters: InverseMethods, InverseBlocks.
-Style/InverseMethods:
-  Exclude:
-    - 'lib/syskit/models/base.rb'
-    - 'lib/syskit/models/component.rb'
-    - 'lib/syskit/scripts/autodetect_interfaces.rb'
-
 # Offense count: 3
 # Cop supports --auto-correct.
 # Configuration parameters: EnforcedStyle.

@@ -53,7 +53,7 @@ module Syskit
 
             if !name.respond_to?(:to_str)
                 raise ArgumentError, "expected a string as a model name, got #{name}"
-            elsif !(name.camelcase(:upper) == name)
+            elsif name.camelcase(:upper) != name
                 raise ArgumentError, "#{name} is not a valid model name. Model names must start with an uppercase letter, and are usually written in UpperCamelCase"
             end
 
@@ -126,8 +126,9 @@ module Syskit
             a_classes.concat(b_classes).each do |k|
                 if k < klass
                     klass = k
-                elsif !(klass <= k)
-                    raise IncompatibleComponentModels.new(k, klass), "models #{k.short_name} and #{klass.short_name} are not compatible"
+                elsif !(klass <= k) # rubocop:disable Style/InverseMethods
+                    raise IncompatibleComponentModels.new(k, klass),
+                          "models #{k.short_name} and #{klass.short_name} are not compatible"
                 end
             end
 
@@ -136,12 +137,10 @@ module Syskit
             a_modules.concat(b_modules).each do |m|
                 do_include = true
                 result.delete_if do |other_m|
-                    do_include &&= !(other_m <= m)
+                    do_include &&= !(other_m <= m) # rubocop:disable Style/InverseMethods
                     m < other_m
                 end
-                if do_include
-                    result << m
-                end
+                result << m if do_include
             end
             result
         end

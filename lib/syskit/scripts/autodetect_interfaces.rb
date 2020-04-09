@@ -21,7 +21,7 @@ until tasks.empty?
     result = []
 
     task = tasks.find do |t|
-        !tasks.any? { |m| t < m }
+        tasks.none? { |m| t < m }
     end
     tasks.delete(task)
 
