@@ -586,7 +586,7 @@ module Syskit
 
             def find_port(name); end
 
-            PROVIDES_ARGUMENTS = { as: nil, slave_of: nil }
+            PROVIDES_ARGUMENTS = { as: nil, slave_of: nil }.freeze
 
             # Declares that this component provides the given data service.
             # +model+ can either be the data service constant name (from

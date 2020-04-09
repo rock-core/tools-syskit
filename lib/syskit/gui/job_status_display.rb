@@ -34,7 +34,7 @@ module Syskit
                 Roby::Interface::JOB_DROPPED.upcase.to_s,
                 Roby::Interface::JOB_FAILED.upcase.to_s,
                 Roby::Interface::JOB_PLANNING_FAILED.upcase.to_s
-            ]
+            ].freeze
 
             def label
                 "##{job.job_id} #{job.action_name}"

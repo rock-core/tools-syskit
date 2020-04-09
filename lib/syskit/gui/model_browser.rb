@@ -75,7 +75,7 @@ module Syskit
                 View.new(Roby::Actions::Interface, Roby::GUI::ModelViews::ActionInterface, 'Action Interfaces', 0),
                 View.new(Roby::Task, Roby::GUI::ModelViews::Task, 'Roby Tasks', 0, RobyTaskModelResolver.new),
                 View.new(Typelib::Type, ModelViews::Type, 'Types', 0, TypelibResolver.new)
-            ]
+            ].freeze
 
             def initialize(parent = nil)
                 super(parent, exception_view: Roby::GUI::ExceptionView.new)

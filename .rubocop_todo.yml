@@ -1599,20 +1599,6 @@ Style/MultipleComparison:
   Exclude:
     - 'lib/syskit/models/task_context.rb'
 
-# Offense count: 9
-# Cop supports --auto-correct.
-# Configuration parameters: EnforcedStyle.
-# SupportedStyles: literals, strict
-Style/MutableConstant:
-  Exclude:
-    - 'lib/syskit/gui/app_start_dialog.rb'
-    - 'lib/syskit/gui/job_status_display.rb'
-    - 'lib/syskit/gui/model_browser.rb'
-    - 'lib/syskit/gui/state_label.rb'
-    - 'lib/syskit/models/component.rb'
-    - 'lib/syskit/scripts/common.rb'
-    - 'lib/syskit/version.rb'
-
 # Offense count: 2
 # Cop supports --auto-correct.
 # Configuration parameters: AllowedMethods.

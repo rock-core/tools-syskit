@@ -106,7 +106,7 @@ module Syskit
             Roby::Application.common_optparse_setup(opt)
         end
 
-        DOT_DIRECT_OUTPUT = %w{txt x11 qt}
+        DOT_DIRECT_OUTPUT = %w{txt x11 qt}.freeze
 
         # Autodetects which output modes are available, and which should be
         # used by default. It depends on the availability of an X11

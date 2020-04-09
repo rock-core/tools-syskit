@@ -14,7 +14,7 @@ module Syskit
             attr_reader :start_controller
 
             # Text used to allow the user to not load any robot configuration
-            NO_ROBOT = " -- None -- "
+            NO_ROBOT = " -- None -- ".freeze
 
             def initialize(names, parent = nil, default_robot_name: 'default')
                 super(parent)
