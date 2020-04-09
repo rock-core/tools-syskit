@@ -348,8 +348,8 @@ module Syskit
                     flexmock(group).should_receive(:register_configured_deployment)
                         .with(expected).once
                     configured_deployment = group.use_unmanaged_task(
-                            Hash[task_m => 'test'],
-                            on: 'test-mng', process_managers: conf)
+                        Hash[task_m => 'test'],
+                        on: 'test-mng', process_managers: conf)
                         .first
                     expected[configured_deployment]
 
@@ -424,10 +424,10 @@ module Syskit
                         .and_return(deployment_m.orogen_model)
                     conf.register_process_server(
                         'localhost', Orocos::RubyTasks::ProcessManager.new(
-                            Roby.app.default_loader), "")
+                                         Roby.app.default_loader), "")
                     conf.register_process_server(
                         'test', Orocos::RubyTasks::ProcessManager.new(
-                            Roby.app.default_loader), "")
+                                    Roby.app.default_loader), "")
                 end
                 it "resolves the TaskModelClass => name syntax" do
                     expected = lambda do |configured_deployment|

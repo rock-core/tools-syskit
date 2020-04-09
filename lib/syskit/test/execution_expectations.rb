@@ -51,7 +51,7 @@ module Syskit
             # @return [nil]
             def have_no_new_sample(reader, at_least_during: 0, backtrace: caller(1))
                 add_expectation(HaveNoNewSample.new(
-                    reader, at_least_during, backtrace))
+                                    reader, at_least_during, backtrace))
             end
 
             # Expect that one sample arrives on the reader, and return the sample

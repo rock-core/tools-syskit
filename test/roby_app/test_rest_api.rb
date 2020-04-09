@@ -53,7 +53,7 @@ module Syskit
                     end
                     it "returns the list of available deployments" do
                         setup_deployed_task(OroGen::Loaders::PkgConfig::AvailableDeployedTask.new(
-                            'test_task', 'test_deployment', 'test::Task', 'test'))
+                                                'test_task', 'test_deployment', 'test::Task', 'test'))
                         result = get_json '/deployments/available'
                         expected = Hash[
                             'name' => 'test_deployment',
@@ -68,25 +68,25 @@ module Syskit
                     end
                     it "identifies default deployments and reports them" do
                         setup_deployed_task(OroGen::Loaders::PkgConfig::AvailableDeployedTask.new(
-                            'orogen_default_test__Task', 'orogen_default_test__Task', 'test::Task', 'test'))
+                                                'orogen_default_test__Task', 'orogen_default_test__Task', 'test::Task', 'test'))
                         result = get_json '/deployments/available'
                         assert_equal 'test::Task', result['deployments'][0]['default_deployment_for']
                     end
                     it "identifies default loggers and reports them" do
                         setup_deployed_task(OroGen::Loaders::PkgConfig::AvailableDeployedTask.new(
-                            'test_deployment_Logger', 'test_deployment', 'logger::Logger', 'test'))
+                                                'test_deployment_Logger', 'test_deployment', 'logger::Logger', 'test'))
                         result = get_json '/deployments/available'
                         assert_equal 'test_deployment_Logger', result['deployments'][0]['default_logger']
                     end
                     it "uses the model name to identify default loggers" do
                         setup_deployed_task(OroGen::Loaders::PkgConfig::AvailableDeployedTask.new(
-                            'test_deployment_Logger', 'test_deployment', 'something::Else', 'test'))
+                                                'test_deployment_Logger', 'test_deployment', 'something::Else', 'test'))
                         result = get_json '/deployments/available'
                         assert_nil result['deployments'][0]['default_logger']
                     end
                     it "uses the task name pattern to identify default loggers" do
                         setup_deployed_task(OroGen::Loaders::PkgConfig::AvailableDeployedTask.new(
-                            'custom_logger', 'test_deployment', 'logger::Logger', 'test'))
+                                                'custom_logger', 'test_deployment', 'logger::Logger', 'test'))
                         result = get_json '/deployments/available'
                         assert_nil result['deployments'][0]['default_logger']
                     end

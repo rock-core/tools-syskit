@@ -10,18 +10,6 @@
 Lint/RedundantCopDisableDirective:
   Enabled: false
 
-# Offense count: 11
-# Cop supports --auto-correct.
-# Configuration parameters: EnforcedStyle, IndentationWidth.
-# SupportedStyles: consistent, consistent_relative_to_receiver, special_for_inner_method_call, special_for_inner_method_call_in_parentheses
-Layout/FirstArgumentIndentation:
-  Exclude:
-    - 'lib/syskit/network_generation/merge_solver.rb'
-    - 'lib/syskit/test/execution_expectations.rb'
-    - 'lib/syskit/test/self.rb'
-    - 'test/models/test_deployment_group.rb'
-    - 'test/roby_app/test_rest_api.rb'
-
 # Offense count: 1
 # Cop supports --auto-correct.
 # Configuration parameters: IndentationWidth.
