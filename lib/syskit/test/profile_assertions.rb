@@ -76,7 +76,7 @@ module Syskit
                 skipped_actions.delete_if do |skipped_action|
                     actions.any? { |action| action.model == skipped_action.model }
                 end
-                return actions, skipped_actions
+                [actions, skipped_actions]
             end
 
             # Tests that a definition or all definitions of a profile are

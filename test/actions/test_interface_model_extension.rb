@@ -216,7 +216,7 @@ describe Syskit::Actions::InterfaceModelExtension do
             actions.use_profile(profile)
             task = actions.new(plan).test_def(*arguments)
             plan.add(task = task.as_plan)
-            return task_m, task
+            [task_m, task]
         end
 
         it "should return a plan pattern whose requirements are the definition's" do

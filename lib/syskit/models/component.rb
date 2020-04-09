@@ -179,7 +179,7 @@ module Syskit
             # The model next in the ancestry chain, or nil if +self+ is root
             def supermodel
                 if superclass.respond_to?(:register_submodel)
-                    return superclass
+                    superclass
                 end
             end
 
@@ -247,7 +247,7 @@ module Syskit
                     raise ArgumentError, "no service of #{self} provides #{service_model}"
                 end
 
-                return srv.as(service_model)
+                srv.as(service_model)
             end
 
             # Defined to be compatible, in port mapping code, with the data services
@@ -287,7 +287,7 @@ module Syskit
                     raise AmbiguousServiceSelection.new(self, type, candidates),
                           "multiple services match #{type.short_name} on #{short_name}"
                 elsif candidates.size == 1
-                    return candidates.first
+                    candidates.first
                 end
             end
 
@@ -317,7 +317,7 @@ module Syskit
             # @return [Models::Port] a port in which {Port#component_model} is
             #   the "proper" component model that corresponds to self
             def self_port_to_component_port(port)
-                return port
+                port
             end
 
             # Compute the port mapping from the interface of 'service' onto the
@@ -416,9 +416,9 @@ module Syskit
                 candidates = send("each_#{direction}_port")
                              .find_all { |p| p.type == port.type }
                 if candidates.empty?
-                    return
+                    nil
                 elsif candidates.size == 1
-                    return candidates.first.name
+                    candidates.first.name
                 else
                     raise InvalidPortMapping, "there are multiple candidates to map #{port.name}[#{port.type_name}]: #{candidates.map(&:name).sort.join(', ')}"
                 end
@@ -707,7 +707,7 @@ module Syskit
                     break
                 end
 
-                return service
+                service
             end
 
             # Declares that this task context model can be used as a driver for
@@ -781,8 +781,8 @@ module Syskit
             #   Otherwise, returns self.
             def ensure_model_is_specialized
                 if private_specialization?
-                    return self
-                else return specialize
+                    self
+                else specialize
                 end
             end
 
@@ -792,10 +792,7 @@ module Syskit
             # If this model is specialized, returns the most derived model that
             # is non-specialized. Otherwise, returns self.
             def concrete_model
-                if @concrete_model
-                    return @concrete_model
-                else return self
-                end
+                @concrete_model || self
             end
 
             # Returns true if this model is a "true" concrete model or a
@@ -1008,7 +1005,7 @@ module Syskit
                         return false
                     end
                 end
-                return true
+                true
             end
 
             def can_merge?(target_model)
@@ -1048,7 +1045,7 @@ module Syskit
                         return false
                     end
                 end
-                return true
+                true
             end
 
             def apply_missing_dynamic_services_from(from, specialize_if_needed = true)
@@ -1090,13 +1087,13 @@ module Syskit
                 end
 
                 if self <= other_model
-                    return self
+                    self
                 elsif other_model <= self
-                    return other_model
+                    other_model
                 elsif other_model.private_specialization? || private_specialization?
                     base_model = result = concrete_model.merge(other_model.concrete_model)
                     result = base_model.apply_missing_dynamic_services_from(self, true)
-                    return result.apply_missing_dynamic_services_from(other_model, base_model == result)
+                    result.apply_missing_dynamic_services_from(other_model, base_model == result)
 
                 else
                     raise IncompatibleComponentModels.new(self, other_model), "models #{short_name} and #{other_model.short_name} are not compatible"

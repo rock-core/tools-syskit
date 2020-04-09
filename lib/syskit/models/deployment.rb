@@ -23,7 +23,7 @@ module Syskit
             # nil if it is the root model
             def supermodel
                 if superclass.respond_to?(:register_submodel)
-                    return superclass
+                    superclass
                 end
             end
 

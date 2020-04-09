@@ -33,7 +33,7 @@ module Syskit
                     provides srv, as: "srv"
                 end
 
-                return simple_service_model, simple_component_model, simple_task_model, simple_composition_model
+                [simple_service_model, simple_component_model, simple_task_model, simple_composition_model]
             end
         end
     end

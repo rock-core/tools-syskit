@@ -764,7 +764,7 @@ module Syskit
                 File.open(hierarchy_path, "w") do |io|
                     io.write Graphviz.new(plan).hierarchy(dot_options)
                 end
-                return dataflow_path, hierarchy_path
+                [dataflow_path, hierarchy_path]
             end
 
             # Generate a svg file representing the current state of the

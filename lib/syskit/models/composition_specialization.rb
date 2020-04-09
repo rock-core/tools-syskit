@@ -135,7 +135,7 @@ module Syskit
                 if selected_models = specialized_children[child_name]
                     if matches = selected_models.find_all { |m| m.fullfills?(model) }
                         unless matches.empty?
-                            return matches
+                            matches
                         end
                     end
                 end

@@ -36,7 +36,7 @@ module Syskit
                 end
 
                 appendRow([item1, item2])
-                return item1, item2
+                [item1, item2]
             end
 
             def data(role = Qt::UserRole + 1)

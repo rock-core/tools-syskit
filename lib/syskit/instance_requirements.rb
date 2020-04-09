@@ -234,8 +234,8 @@ module Syskit
         def component_model
             model = self.model.to_component_model
             if model.placeholder?
-                return model.proxied_component_model
-            else return model
+                model.proxied_component_model
+            else model
             end
         end
 
@@ -254,7 +254,7 @@ module Syskit
             elsif model.placeholder?
                 ds = model.proxied_data_service_models
                 if ds.size == 1
-                    return model.find_data_service_from_type(ds.first)
+                    model.find_data_service_from_type(ds.first)
                 end
             end
         end
@@ -395,8 +395,9 @@ module Syskit
             unless model.respond_to?(:find_child)
                 raise ArgumentError, "#{self} is not a composition"
             end
+
             if child = model.find_child(name)
-                return child.attach(self)
+                child.attach(self)
             end
         end
 
@@ -624,8 +625,8 @@ module Syskit
         # indeed plain, it returns the actual model class
         def simplest_model_representation
             if plain?
-                return model
-            else return self
+                model
+            else self
             end
         end
 
@@ -829,7 +830,7 @@ module Syskit
 
                 @model = model
             end
-            return model
+            model
         end
 
         attr_reader :required_host

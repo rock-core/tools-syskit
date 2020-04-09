@@ -267,11 +267,11 @@ module Syskit
 
             def state
                 if @state
-                    return @state
+                    @state
                 elsif component_model = models.find { |c| c <= Component }
                     @state = Roby::StateFieldModel.new(component_model.state)
                     @state.__object = self
-                    return @state
+                    @state
                 else
                     raise ArgumentError, "cannot create a state model on elements that are only data services"
                 end

@@ -9,7 +9,7 @@ describe Syskit::Models::Composition do
     include Syskit::Fixtures::SimpleCompositionModel
 
     def models
-        return simple_service_model, simple_component_model, simple_composition_model
+        [simple_service_model, simple_component_model, simple_composition_model]
     end
 
     def create_specialized_model(root_m)
@@ -17,7 +17,7 @@ describe Syskit::Models::Composition do
         block = proc { provides srv, as: "#{srv}" }
         root_m.specialize(root_m.srv_child => srv, &block)
         m = root_m.narrow(Syskit::DependencyInjection.new("srv" => srv))
-        return m, srv
+        [m, srv]
     end
 
     attr_reader :stub_t

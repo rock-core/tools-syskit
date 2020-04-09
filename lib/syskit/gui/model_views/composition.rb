@@ -85,7 +85,7 @@ module Syskit::GUI
                     specializations[spec] = task
                 end
 
-                return plan, specializations
+                [plan, specializations]
             end
 
             def render_specializations(model)

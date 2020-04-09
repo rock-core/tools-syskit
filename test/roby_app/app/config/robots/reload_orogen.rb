@@ -5,8 +5,8 @@ end
 
 class Interface < Roby::Interface::CommandLibrary
     def orogen_model_reloaded?
-        return !!OroGen.reload.Task.find_output_port("test"),
-            "reloaded model was expected to have a 'test' output port, but does not"
+        [!!OroGen.reload.Task.find_output_port("test"),
+         "reloaded model was expected to have a 'test' output port, but does not"]
     end
 
     def orogen_deployment_exists?
@@ -18,7 +18,7 @@ class Interface < Roby::Interface::CommandLibrary
                 end
         end
 
-        return result, "could not find the 'task' task of model #{reload_model}"
+        [result, "could not find the 'task' task of model #{reload_model}"]
     end
 end
 Roby::Interface::Interface.subcommand "unit_tests",

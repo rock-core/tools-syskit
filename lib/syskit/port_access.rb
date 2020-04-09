@@ -35,7 +35,7 @@ module Syskit
         # exist.
         def find_output_port(name)
             if m = model.find_output_port(name)
-                return m.bind(self)
+                m.bind(self)
             end
         end
 
@@ -43,7 +43,7 @@ module Syskit
         # exist.
         def find_input_port(name)
             if m = model.find_input_port(name)
-                return m.bind(self)
+                m.bind(self)
             end
         end
 
@@ -77,14 +77,14 @@ module Syskit
         # of +self+. If including_dynamic is set to false, only static ports
         # will be considered
         def has_output_port?(name, including_dynamic = true)
-            return !!find_output_port(name)
+            !!find_output_port(name)
         end
 
         # Returns true if +name+ is a valid input port name for instances of
         # +self+. If including_dynamic is set to false, only static ports
         # will be considered
         def has_input_port?(name, including_dynamic = true)
-            return !!find_input_port(name)
+            !!find_input_port(name)
         end
 
         def has_through_method_missing?(m)

@@ -442,7 +442,7 @@ describe Syskit::Models::SpecializationManager do
             root_m = Syskit::Composition.new_submodel do
                 add base_srv_m, as: "test"
             end
-            return root_m, task_m, srv_m
+            [root_m, task_m, srv_m]
         end
 
         it "should give a child that responds to #child_name" do

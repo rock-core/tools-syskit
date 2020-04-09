@@ -39,7 +39,7 @@ describe Syskit::Models::BoundDataService do
                                            "in_model" => "in_port",
                                            "out_model" => "out_port")
 
-        return base, parent, model, component_model, service
+        [base, parent, model, component_model, service]
     end
 
     describe "#self_port_to_component_port" do
@@ -420,7 +420,7 @@ module Syskit
             left_srv = component_model.provides service_model, as: "left", "image" => "left"
             right_srv = component_model.provides service_model, as: "right", "image" => "right"
             component_model.provides other_service_model, as: "other_srv"
-            return service_model, other_service_model, component_model, left_srv, right_srv
+            [service_model, other_service_model, component_model, left_srv, right_srv]
         end
 
         def setup_transitive_services
@@ -458,7 +458,7 @@ module Syskit
                                                "in_model" => "in_port",
                                                "out_model" => "out_port")
 
-            return base, parent, model, component_model, service
+            [base, parent, model, component_model, service]
         end
 
         def test_root_service

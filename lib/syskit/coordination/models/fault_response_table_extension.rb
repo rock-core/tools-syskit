@@ -95,7 +95,7 @@ module Syskit
 
                 def method_missing(m, *args, &block)
                     if arg = arguments[m]
-                        return Roby::Coordination::Models::Variable.new(m)
+                        Roby::Coordination::Models::Variable.new(m)
                     else
                         super
                     end

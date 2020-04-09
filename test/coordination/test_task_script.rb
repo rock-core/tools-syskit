@@ -36,7 +36,7 @@ describe Syskit::Coordination::TaskScriptExtension do
                 composition_m = self.composition_m.new_submodel
                 composition_m.overload "test", component_m
                 composition = syskit_stub_deploy_configure_and_start(composition_m.use("test" => component))
-                return composition, component
+                [composition, component]
             end
 
             it "gives writer access to input ports mapped from services" do
@@ -68,7 +68,7 @@ describe Syskit::Coordination::TaskScriptExtension do
             def start
                 component = syskit_stub_deploy_and_configure(component_m)
                 composition = syskit_stub_deploy_configure_and_start(composition_m.use("test" => component))
-                return composition, component
+                [composition, component]
             end
 
             it "gives writer access to input ports mapped from services" do

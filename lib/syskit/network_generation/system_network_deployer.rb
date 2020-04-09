@@ -117,13 +117,13 @@ module Syskit
                 end
                 if selected
                     debug { "  selected #{selected}" }
-                    return selected
+                    selected
                 else
                     debug do
                         "  deployment of #{task} (#{task.concrete_model}) "\
                         "is ambiguous"
                     end
-                    return
+                    nil
                 end
             end
 

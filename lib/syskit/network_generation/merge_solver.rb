@@ -71,7 +71,7 @@ module Syskit
                         return to
                     end
                 end
-                return task
+                task
             end
 
             # Registers a replacement in the plan
@@ -447,7 +447,7 @@ module Syskit
                     end
                 end
 
-                return true, mappings
+                [true, mappings]
             end
 
             def compatible_policies?(policy, other_policy)

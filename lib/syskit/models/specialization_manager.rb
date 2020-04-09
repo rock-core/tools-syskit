@@ -205,7 +205,7 @@ module Syskit
 
                     new_spec[child.to_str] = child_model.to_set
                 end
-                return new_spec
+                new_spec
             end
 
             # Verifies that the child selection in +new_spec+ is valid
@@ -345,8 +345,8 @@ module Syskit
             def instanciated_specializations
                 root = composition_model.root_model
                 if root == composition_model
-                    return (@instanciated_specializations ||= {})
-                else return root.specializations.instanciated_specializations
+                    (@instanciated_specializations ||= {})
+                else root.specializations.instanciated_specializations
                 end
             end
 
@@ -587,7 +587,7 @@ module Syskit
                     return [[CompositionSpecialization.new, []]]
                 end
 
-                return partition_specializations(matching_specializations)
+                partition_specializations(matching_specializations)
             end
 
             # Looks for a single composition model that matches the given

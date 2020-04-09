@@ -503,7 +503,7 @@ module Syskit
                     fatal "terminating #{self}, its state reader #{state_reader} is disconnected"
                     aborted!
                 end
-                return
+                nil
             elsif v
                 @last_orogen_state = @orogen_state
                 @orogen_state = v

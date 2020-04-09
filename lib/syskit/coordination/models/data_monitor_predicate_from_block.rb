@@ -85,7 +85,7 @@ module Syskit
 
                         return arguments[m]
                     end
-                    return super
+                    super
                 end
             end
         end

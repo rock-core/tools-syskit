@@ -130,9 +130,9 @@ module Syskit
                             return []
                         end
 
-                        return ports, true
+                        [ports, true]
                     else
-                        return candidates, complete
+                        [candidates, complete]
                     end
                 end
 

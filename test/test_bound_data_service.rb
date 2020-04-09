@@ -94,7 +94,7 @@ class TC_BoundDataService < Minitest::Test
                                            "in_model" => "in_port",
                                            "out_model" => "out_port")
 
-        return base, parent, model, component_model, service
+        [base, parent, model, component_model, service]
     end
 
     def test_find_input_port_gives_access_to_unmapped_ports

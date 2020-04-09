@@ -72,7 +72,7 @@ module Syskit
             def self.exec(names, parent = nil, default_robot_name: "default")
                 dialog = new(names, parent, default_robot_name: default_robot_name)
                 if Qt::Dialog::Accepted == dialog.exec
-                    return dialog.selected_name, dialog.start_controller?
+                    [dialog.selected_name, dialog.start_controller?]
                 end
             end
         end

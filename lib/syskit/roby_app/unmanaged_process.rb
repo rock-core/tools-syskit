@@ -117,7 +117,7 @@ module Syskit
                 @monitor_thread = Thread.new do
                     monitor
                 end
-                return @deployed_tasks
+                @deployed_tasks
             rescue Orocos::NotFound, Orocos::ComError => e
                 if Time.now - @last_warning > 5
                     Syskit.warn "waiting for unmanaged task: #{e}"
@@ -189,7 +189,7 @@ module Syskit
             # Returns true if the process died
             def dead?
                 if monitor_thread
-                    return !monitor_thread.alive?
+                    !monitor_thread.alive?
                 else quitting?
                 end
             end

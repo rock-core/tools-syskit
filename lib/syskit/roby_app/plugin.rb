@@ -446,7 +446,7 @@ module Syskit
                     end
                     pending_reconfigurations.concat(pending)
                 end
-                return pending_reconfigurations, pending_running_reconfigurations
+                [pending_reconfigurations, pending_running_reconfigurations]
             end
 
             # Called by the main Roby application to clear all before redoing a
@@ -828,7 +828,7 @@ module Syskit
 
                 port = port.to_component_port
                 if ignore.include?(port.type)
-                    return
+                    nil
                 elsif size = port.max_marshalling_size
                     size
                 else

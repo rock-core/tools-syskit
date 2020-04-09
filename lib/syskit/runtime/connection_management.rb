@@ -167,7 +167,7 @@ module Syskit
                     end
                 end
 
-                return new, removed
+                [new, removed]
             end
 
             # Returns the Syskit::TaskContext in the plan that manages an orocos task
@@ -265,7 +265,7 @@ module Syskit
                 # The "blocking calls should not affect Syskit" tests should
                 # catch this
                 promises.each { |p| p.promise.value! }
-                return success, failure
+                [success, failure]
             end
 
             def post_disconnect_success(disconnections)
@@ -432,7 +432,7 @@ module Syskit
                 # The "blocking calls should not affect Syskit" tests should
                 # catch this
                 promises.each { |p| p.promise.value! }
-                return success, failure
+                [success, failure]
             end
 
             def post_connect_success(connections)
@@ -524,7 +524,7 @@ module Syskit
                     end
                     early
                 end
-                return early, Hash[late]
+                [early, Hash[late]]
             end
 
             # Partition new connections between
@@ -578,7 +578,7 @@ module Syskit
                         additions_ready[[from_task, to_task]] = Hash[ready]
                     end
                 end
-                return additions_held, additions_ready
+                [additions_held, additions_ready]
             end
 
             # Apply the connection changes that can be applied
@@ -611,7 +611,7 @@ module Syskit
                     modified_tasks.merge apply_connection_additions(late_additions)
                 end
                 mark_connected_pending_tasks_as_executable(modified_tasks)
-                return {}, {}
+                [{}, {}]
             end
 
             # @api private

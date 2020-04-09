@@ -141,7 +141,7 @@ module Syskit
             def color_from_state(state)
                 state = state.to_s
                 if states.key?(state)
-                    return states[state]
+                    states[state]
                 elsif color = default_color
                     color
                 else

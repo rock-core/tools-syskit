@@ -217,7 +217,7 @@ module Syskit
                     end
 
                     def __result
-                        return @method_name, @method_options
+                        [@method_name, @method_options]
                     end
                 end
 

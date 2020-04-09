@@ -183,7 +183,7 @@ module Syskit
                     raise InvalidPortMapping, "there are no dynamic #{direction} ports declared in #{component_model.short_name} that match #{expected_name}:#{port.type_name}"
                 end
 
-                return expected_name
+                expected_name
             end
         end
     end

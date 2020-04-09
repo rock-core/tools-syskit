@@ -195,7 +195,7 @@ module Syskit
                         has_one_match = true
                     end
                 end
-                return has_one_match
+                has_one_match
             end
 
             # Returns true if the given port is excluded from logging

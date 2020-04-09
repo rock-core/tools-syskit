@@ -311,11 +311,11 @@ module Syskit
                     end
                     task_models, service_models = models.partition { |t| t <= Syskit::Component }
                     if task_models.empty?
-                        return Syskit::Component, service_models, service
+                        [Syskit::Component, service_models, service]
                     elsif task_models.size == 1
                         task_model = task_models.first
                         service_models.delete_if { |srv| task_model.fullfills?(srv) }
-                        return task_model, service_models, service
+                        [task_model, service_models, service]
                     else
                         raise ArgumentError, "cannot create a proxy for multiple component models at the same time"
                     end
