@@ -10,14 +10,6 @@
 Lint/RedundantCopDisableDirective:
   Enabled: false
 
-# Offense count: 4
-# Cop supports --auto-correct.
-Layout/ArrayAlignment:
-  Exclude:
-    - 'test/models/test_composition.rb'
-    - 'test/runtime/test_connection_management.rb'
-    - 'test/test_instance_requirements.rb'
-
 # Offense count: 1
 # Cop supports --auto-correct.
 # Configuration parameters: IndentationWidth.

@@ -256,7 +256,7 @@ module Syskit
                             "#removed_connections_require_network_update? returns true" do
                             expected = dataflow_graph.pending_changes =
                                 [Set.new, flexmock(:base, Hash.new, empty?: false),
-                                    flexmock(:base, Hash.new, empty?: false)]
+                                 flexmock(:base, Hash.new, empty?: false)]
 
                             flexmock(manager = ConnectionManagement.new(plan))
                             manager.should_receive(:removed_connections_require_network_update?).

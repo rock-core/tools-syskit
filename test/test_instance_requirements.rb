@@ -345,7 +345,7 @@ describe Syskit::InstanceRequirements do
             end
             ir = Syskit::InstanceRequirements.new([component_model])
             assert_equal [srv1, srv2, Syskit::DataService,
-                Syskit::AbstractComponent].to_set,
+                          Syskit::AbstractComponent].to_set,
                          ir.fullfilled_model[1].to_set
         end
         it "should return the required arguments as third element" do
