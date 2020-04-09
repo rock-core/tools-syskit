@@ -265,7 +265,7 @@ module Syskit
                         .to_run
                 end
                 it "passes the model-level run command line options to the process server start command" do
-                    cmdline_options = {valgrind: true}
+                    cmdline_options = { valgrind: true }
                     deployment_m.default_run_options.merge!(cmdline_options)
                     process_server.should_receive(:start)
                         .with(any, any, any, hsh(cmdline_args: cmdline_options))

@@ -356,7 +356,7 @@ describe Syskit::Models::TaskContext do
         end
 
         it "passes the :task_arguments option as arguments to the newly created task" do
-            task = task_model.instanciate(plan, Syskit::DependencyInjectionContext.new, task_arguments: {conf: ['default']})
+            task = task_model.instanciate(plan, Syskit::DependencyInjectionContext.new, task_arguments: { conf: ['default'] })
             assert_equal Hash[conf: ['default']], task.arguments
         end
         it "sets the fullfilled model properly" do

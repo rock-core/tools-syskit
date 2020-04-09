@@ -110,8 +110,8 @@ module Syskit
             assert(model.find_output_port("out"))
             assert(model.fullfills?(parent_model))
 
-            assert_equal({"out" => "out"}, model.port_mappings_for(parent_model))
-            assert_equal({"out" => "out"},
+            assert_equal({ "out" => "out" }, model.port_mappings_for(parent_model))
+            assert_equal({ "out" => "out" },
                          model.port_mappings_for(model))
         end
 
@@ -130,11 +130,11 @@ module Syskit
             end
             model.provides parent, 'parent' => 'model'
 
-            assert_equal({'parent' => 'model',
-                          'base_unmapped' => 'base_unmapped',
-                          'parent_unmapped' => 'parent_unmapped'}, model.port_mappings_for(parent))
-            assert_equal({'base' => 'model',
-                          'base_unmapped' => 'base_unmapped'}, model.port_mappings_for(base))
+            assert_equal({ 'parent' => 'model',
+                           'base_unmapped' => 'base_unmapped',
+                           'parent_unmapped' => 'parent_unmapped' }, model.port_mappings_for(parent))
+            assert_equal({ 'base' => 'model',
+                           'base_unmapped' => 'base_unmapped' }, model.port_mappings_for(base))
         end
 
         def test_provides_detects_port_collisions_even_if_they_have_the_same_type
@@ -181,8 +181,8 @@ module Syskit
             assert(model.find_output_port("new_out"))
             assert(model.fullfills?(parent_model))
 
-            assert_equal({"out" => "new_out"}, model.port_mappings_for(parent_model))
-            assert_equal({"new_out" => "new_out"},
+            assert_equal({ "out" => "new_out" }, model.port_mappings_for(parent_model))
+            assert_equal({ "new_out" => "new_out" },
                          model.port_mappings_for(model))
         end
 
@@ -223,8 +223,8 @@ module Syskit
             assert_equal("/double", model.find_output_port('out').type_name)
             assert_equal("/int32_t", model.find_output_port('new_out').type_name)
 
-            assert_equal({"out" => "new_out"}, model.port_mappings_for(parent_model))
-            assert_equal({"out" => "out", "new_out" => "new_out"},
+            assert_equal({ "out" => "new_out" }, model.port_mappings_for(parent_model))
+            assert_equal({ "out" => "out", "new_out" => "new_out" },
                          model.port_mappings_for(model))
         end
 

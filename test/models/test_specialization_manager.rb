@@ -320,7 +320,7 @@ describe Syskit::Models::SpecializationManager do
         end
 
         it "should return the partitioned specializations that match the selection weakly" do
-            selection = {'test' => task_m}
+            selection = { 'test' => task_m }
             flexmock(spec0).should_receive(:weak_match?).with(selection).and_return(true)
             flexmock(spec1).should_receive(:weak_match?).with(selection).and_return(true)
             flexmock(spec2).should_receive(:weak_match?).with(selection).and_return(false)

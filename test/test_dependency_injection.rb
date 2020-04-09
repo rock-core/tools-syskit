@@ -232,7 +232,7 @@ module Syskit
         def test_new_object_with_initial_selection
             component_model = Component.new_submodel
             dep = DependencyInjection.new(component_model, 'name' => 'value')
-            assert_equal({"name" => "value"}, dep.explicit)
+            assert_equal({ "name" => "value" }, dep.explicit)
             assert_equal [component_model], dep.defaults.to_a
         end
 
@@ -583,7 +583,7 @@ module Syskit
             srv = DataService.new_submodel
             c0 = Component.new_submodel { provides srv, as: 'srv' }
             di = DependencyInjection.new(srv => c0)
-            assert_equal [nil, InstanceRequirements.new([c0]), {srv => c0.srv_srv}, [srv].to_set],
+            assert_equal [nil, InstanceRequirements.new([c0]), { srv => c0.srv_srv }, [srv].to_set],
                          di.selection_for(nil, InstanceRequirements.new([srv]))
         end
 

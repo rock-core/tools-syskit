@@ -126,7 +126,7 @@ describe Syskit::Models::Composition do
             composition.add simple_component_model, as: 'source'
             composition.add simple_component_model, as: 'sink'
             composition.connect composition.source_child.out_port => composition.sink_child.in_port
-            assert_equal({['source', 'sink'] => {['out', 'in'] => {}}}.to_set, composition.each_explicit_connection.to_set)
+            assert_equal({ ['source', 'sink'] => { ['out', 'in'] => {} } }.to_set, composition.each_explicit_connection.to_set)
         end
     end
 
@@ -151,15 +151,15 @@ describe Syskit::Models::Composition do
             base.add(service, as: 'srv_in')
             base.connect(base.srv_child => base.srv_in_child)
 
-            assert_equal([[['srv', 'srv_in'], {['specialized_out', 'srv_in'] => {}}]], composition.each_explicit_connection.to_a)
+            assert_equal([[['srv', 'srv_in'], { ['specialized_out', 'srv_in'] => {} }]], composition.each_explicit_connection.to_a)
             composition.overload('srv_in', service1)
-            assert_equal([[['srv', 'srv_in'], {['specialized_out', 'specialized_in'] => {}}]], composition.each_explicit_connection.to_a)
+            assert_equal([[['srv', 'srv_in'], { ['specialized_out', 'specialized_in'] => {} }]], composition.each_explicit_connection.to_a)
 
             composition = composition.new_submodel
             composition.overload('srv', component)
-            assert_equal([[['srv', 'srv_in'], {['out', 'specialized_in'] => {}}]], composition.each_explicit_connection.to_a)
+            assert_equal([[['srv', 'srv_in'], { ['out', 'specialized_in'] => {} }]], composition.each_explicit_connection.to_a)
             composition.overload('srv_in', component)
-            assert_equal([[['srv', 'srv_in'], {['out', 'in'] => {}}]], composition.each_explicit_connection.to_a)
+            assert_equal([[['srv', 'srv_in'], { ['out', 'in'] => {} }]], composition.each_explicit_connection.to_a)
         end
     end
 
@@ -357,7 +357,7 @@ describe Syskit::Models::Composition do
             service, component, composition = models
             context = Syskit::DependencyInjectionContext.new('srv' => component)
             explicit, _ = composition.find_children_models_and_tasks(context)
-            assert_equal({'srv_in' => 'in', 'srv_out' => 'out'}, explicit['srv'].port_mappings)
+            assert_equal({ 'srv_in' => 'in', 'srv_out' => 'out' }, explicit['srv'].port_mappings)
         end
     end
 

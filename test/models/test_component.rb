@@ -770,7 +770,7 @@ describe Syskit::Models::Component do
                     output_port 'other', stub_t
                 end
                 bound_service = component.provides service, as: 'srv'
-                assert_equal({'out' => 'other'}, bound_service.port_mappings_for_task)
+                assert_equal({ 'out' => 'other' }, bound_service.port_mappings_for_task)
             end
 
             it "raises if the component does not provide equivalents to the service's ports" do
@@ -810,7 +810,7 @@ describe Syskit::Models::Component do
                     output_port 'other2', stub_t
                 end
                 bound_service = component.provides(service, as: 'srv')
-                assert_equal({'out' => 'other2'}, bound_service.port_mappings_for_task)
+                assert_equal({ 'out' => 'other2' }, bound_service.port_mappings_for_task)
             end
 
             it "disambiguates on the port name" do
@@ -821,7 +821,7 @@ describe Syskit::Models::Component do
                     output_port 'other2', stub_t
                 end
                 bound_service = component.provides(service, as: 'srv')
-                assert_equal({'out' => 'out'}, bound_service.port_mappings_for_task)
+                assert_equal({ 'out' => 'out' }, bound_service.port_mappings_for_task)
             end
 
             it "disambiguates on explicitely given port mappings" do
@@ -831,7 +831,7 @@ describe Syskit::Models::Component do
                     output_port 'other2', stub_t
                 end
                 bound_service = component.provides(service, as: 'srv', 'out' => 'other1')
-                assert_equal({'out' => 'other1'}, bound_service.port_mappings_for_task)
+                assert_equal({ 'out' => 'other1' }, bound_service.port_mappings_for_task)
             end
 
             it "raises if given an explicit port mapping with an invalid service port" do
