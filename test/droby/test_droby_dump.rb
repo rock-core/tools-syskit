@@ -88,7 +88,7 @@ module Syskit
                 end
 
                 it "uses the existing type if xml is nil" do
-                    marshalled   = V5::TypelibTypeModelDumper::DRoby.new('/Test', nil)
+                    marshalled = V5::TypelibTypeModelDumper::DRoby.new('/Test', nil)
                     test_t = target_registry.create_opaque '/Test', 10
                     unmarshalled = marshal.local_object(marshalled)
                     assert_same test_t, unmarshalled

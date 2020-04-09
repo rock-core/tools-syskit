@@ -157,7 +157,7 @@ module Syskit
                 # added information
                 @changed = false
                 @done_ports = Hash.new { |h, k| h[k] = Set.new }
-                @triggering_connections  = Hash.new { |h, k| h[k] = Hash.new }
+                @triggering_connections = Hash.new { |h, k| h[k] = Hash.new }
                 @triggering_dependencies = Hash.new { |h, k| h[k] = Set.new }
                 @missing_ports = Hash.new
             end

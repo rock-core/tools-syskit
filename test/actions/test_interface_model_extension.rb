@@ -10,7 +10,7 @@ describe Syskit::Actions::InterfaceModelExtension do
         end
 
         it "imports the interface's supermodel profile" do
-            parent  = Roby::Actions::Interface.new_submodel
+            parent = Roby::Actions::Interface.new_submodel
             parent_profile = parent.profile
             actions = parent.new_submodel
             action_profile = actions.profile

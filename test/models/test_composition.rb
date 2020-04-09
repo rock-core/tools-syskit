@@ -384,10 +384,10 @@ describe Syskit::Models::Composition do
             # Make sure the forwarding is set up with the relevant port mapping
             # applied
             component.new_instances.should_receive(:forward_output_ports)
-                .with(composition, ['out', 'srv_out']=>{})
+                .with(composition, ['out', 'srv_out'] => {})
                 .once
             composition.new_instances.should_receive(:forward_input_ports)
-                .with(component, ['srv_in', 'in']=>{})
+                .with(component, ['srv_in', 'in'] => {})
                 .once
 
             context = Syskit::DependencyInjectionContext.new('srv' => component)
@@ -519,7 +519,7 @@ describe Syskit::Models::Composition do
             # name-to-InstanceSelection mapping
             srv = flexmock(selected: flexmock(component_model: task_m))
             srv2 = flexmock(selected: flexmock(component_model: task_m))
-            explicit   = Hash['srv' => srv]
+            explicit = Hash['srv' => srv]
             selections = Hash['srv2' => srv2]
             cmp_m = simple_composition_model
             subcmp_m = cmp_m.new_submodel(name: 'Sub')

@@ -141,7 +141,7 @@ describe Syskit::Actions::Profile do
 
         it "applies selections on the requirement's use flags" do
             parent_srv_m = Syskit::DataService.new_submodel(name: 'ParentSrv')
-            srv_m  = Syskit::DataService.new_submodel(name: 'Srv') { provides parent_srv_m }
+            srv_m = Syskit::DataService.new_submodel(name: 'Srv') { provides parent_srv_m }
             task_m = Syskit::TaskContext.new_submodel(name: 'Task') { provides srv_m, as: 'srv' }
             cmp_m  = Syskit::Composition.new_submodel(name: 'Cmp') do
                 add parent_srv_m, as: 'c'
@@ -316,7 +316,7 @@ describe Syskit::Actions::Profile do
             profile = Syskit::Actions::Profile.new
             profile.tag 'test', srv_m
             profile.tag 'other', srv_m
-            test_task  = profile.test_tag.instanciate(plan)
+            test_task = profile.test_tag.instanciate(plan)
             other_task = profile.other_tag.instanciate(plan)
             refute test_task.can_merge?(other_task)
         end
@@ -324,8 +324,8 @@ describe Syskit::Actions::Profile do
             srv_m = Syskit::DataService.new_submodel
             profile = Syskit::Actions::Profile.new
             profile.tag 'test', srv_m
-            test_task_1  = profile.test_tag.instanciate(plan)
-            test_task_2  = profile.test_tag.instanciate(plan)
+            test_task_1 = profile.test_tag.instanciate(plan)
+            test_task_2 = profile.test_tag.instanciate(plan)
             assert test_task_1.can_merge?(test_task_2)
         end
     end

@@ -154,7 +154,7 @@ describe Syskit::Models::BoundDataService do
             before do
                 @srv_m = Syskit::DataService.new_submodel
                 @other_srv_m = Syskit::DataService.new_submodel
-                @component_m   = Syskit::TaskContext.new_submodel
+                @component_m = Syskit::TaskContext.new_submodel
                 component_m.provides srv_m, as: 'test'
                 @placeholder_m = Syskit::Models::Placeholder.for([other_srv_m], component_model: component_m)
                 @task_m = component_m.new_submodel
@@ -417,7 +417,7 @@ module Syskit
                 output_port 'left', '/int'
                 output_port 'right', '/int'
             end
-            left_srv  = component_model.provides service_model, as: 'left', 'image' => 'left'
+            left_srv = component_model.provides service_model, as: 'left', 'image' => 'left'
             right_srv = component_model.provides service_model, as: 'right', 'image' => 'right'
             component_model.provides other_service_model, as: 'other_srv'
             return service_model, other_service_model, component_model, left_srv, right_srv

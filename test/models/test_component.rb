@@ -947,7 +947,7 @@ describe Syskit::Models::Component do
         it "enumerates the slaves of a given service" do
             service = Syskit::DataService.new_submodel
             component = Syskit::TaskContext.new_submodel
-            root  = component.provides service, as: 'root'
+            root = component.provides service, as: 'root'
             slave = component.provides service, as: 'srv', slave_of: 'root'
             assert_equal [slave].to_set, component.each_slave_data_service(root).to_set
         end
@@ -955,7 +955,7 @@ describe Syskit::Models::Component do
         it "promotes the bound services to a submodel's" do
             service = Syskit::DataService.new_submodel
             component = Syskit::TaskContext.new_submodel
-            root  = component.provides service, as: 'root'
+            root = component.provides service, as: 'root'
             slave = component.provides service, as: 'srv', slave_of: 'root'
             component = component.new_submodel
             assert_equal [slave.attach(component)], component.each_slave_data_service(root).to_a

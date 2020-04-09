@@ -129,7 +129,7 @@ module Syskit
             # @deprecated access {#logs} for logging configuration
             def default_logging_buffer_size=(size)
                 Roby.warn_deprecated "logging configuration has been moved to Syskit.conf.logs (of type LoggingConfiguration)"
-                logs.default_logging_buffer_size=size
+                logs.default_logging_buffer_size = size
             end
 
             # @deprecated access {#logs} for logging configuration

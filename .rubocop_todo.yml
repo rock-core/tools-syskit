@@ -429,43 +429,6 @@ Layout/ParameterAlignment:
     - 'lib/syskit/roby_app/unmanaged_tasks_manager.rb'
     - 'lib/syskit/runtime/apply_requirement_modifications.rb'
 
-# Offense count: 55
-# Cop supports --auto-correct.
-# Configuration parameters: AllowForAlignment, EnforcedStyleForExponentOperator.
-# SupportedStylesForExponentOperator: space, no_space
-Layout/SpaceAroundOperators:
-  Exclude:
-    - 'lib/syskit/connection_graphs.rb'
-    - 'lib/syskit/dependency_injection_context.rb'
-    - 'lib/syskit/gui/batch_manager.rb'
-    - 'lib/syskit/gui/job_status_display.rb'
-    - 'lib/syskit/gui/logging_configuration_item_base.rb'
-    - 'lib/syskit/gui/ruby_item.rb'
-    - 'lib/syskit/gui/runtime_state.rb'
-    - 'lib/syskit/gui/state_label.rb'
-    - 'lib/syskit/models/composition.rb'
-    - 'lib/syskit/models/port.rb'
-    - 'lib/syskit/network_generation/dataflow_computation.rb'
-    - 'lib/syskit/network_generation/dataflow_dynamics.rb'
-    - 'lib/syskit/network_generation/merge_solver.rb'
-    - 'lib/syskit/roby_app/configuration.rb'
-    - 'lib/syskit/scripts/autodetect_interfaces.rb'
-    - 'lib/syskit/scripts/connection_log.rb'
-    - 'lib/syskit/task_context.rb'
-    - 'syskit.gemspec'
-    - 'test/actions/test_interface_model_extension.rb'
-    - 'test/actions/test_profile.rb'
-    - 'test/droby/test_droby_dump.rb'
-    - 'test/models/test_bound_data_service.rb'
-    - 'test/models/test_component.rb'
-    - 'test/models/test_composition.rb'
-    - 'test/models/test_placeholder.rb'
-    - 'test/network_generation/test_logger.rb'
-    - 'test/roby_app/test_plugin.rb'
-    - 'test/roby_app/test_rest_deployment_manager.rb'
-    - 'test/runtime/test_connection_management.rb'
-    - 'test/test_composition.rb'
-
 # Offense count: 1
 # Cop supports --auto-correct.
 Layout/SpaceBeforeComma:

@@ -55,7 +55,7 @@ module Syskit
                     "Start Again" => Qt::PushButton.new("Start Again", self),
                     "Clear" => Qt::PushButton.new("Clear", self)
                 ]
-                hlayout.add_widget(@ui_drop    = @actions_buttons['Drop'])
+                hlayout.add_widget(@ui_drop = @actions_buttons['Drop'])
                 hlayout.add_widget(@ui_restart = @actions_buttons['Restart'])
                 hlayout.add_widget(@ui_start   = @actions_buttons['Start Again'])
                 hlayout.add_widget(@ui_clear   = @actions_buttons['Clear'])

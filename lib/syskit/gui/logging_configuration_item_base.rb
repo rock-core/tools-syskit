@@ -39,7 +39,7 @@ module Syskit
                 return item1, item2
             end
 
-            def data(role = Qt::UserRole+1)
+            def data(role = Qt::UserRole + 1)
                 if role == Qt::EditRole 
                     Qt::Variant.from_ruby self
                 else

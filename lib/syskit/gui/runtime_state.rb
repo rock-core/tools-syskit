@@ -401,7 +401,7 @@ module Syskit
             def create_ui
                 job_summary = Qt::Widget.new
                 job_summary_layout = Qt::VBoxLayout.new(job_summary)
-                job_summary_layout.add_layout(@new_job_layout  = create_ui_new_job)
+                job_summary_layout.add_layout(@new_job_layout = create_ui_new_job)
 
                 @connection_state = GlobalStateLabel.new(name: remote_name)
                 on_progress do |message|

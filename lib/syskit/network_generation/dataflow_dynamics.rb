@@ -131,7 +131,7 @@ module Syskit
                     if trigger.period == 0
                         trigger.sample_count
                     else
-                        (duration/trigger.period).floor * trigger.sample_count
+                        (duration / trigger.period).floor * trigger.sample_count
                     end
                 end.inject(&:+)
             end

@@ -137,7 +137,7 @@ module Syskit
             def can_connect_to?(sink_port)
                 source_port = self.try_to_component_port
                 if source_port == self
-                    sink_port  = sink_port.try_to_component_port
+                    sink_port = sink_port.try_to_component_port
                     output? && sink_port.input? && type == sink_port.type
                 else
                     source_port.can_connect_to?(sink_port)

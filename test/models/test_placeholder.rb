@@ -299,7 +299,7 @@ module Syskit
                 it "dispatches to a bound data service if it is given one" do
                     srv2_m = Syskit::DataService.new_submodel
                     task_m.provides srv2_m, as: 'test'
-                    self_m  = Placeholder.for([srv0_m], component_model: task_m)
+                    self_m = Placeholder.for([srv0_m], component_model: task_m)
                     other_m = Placeholder.for([srv1_m], component_model: task_m)
                     result_m = self_m.merge(other_m.test_srv)
                     assert_equal Set[srv0_m, srv1_m], result_m.component_model.proxied_data_service_models.to_set
@@ -309,13 +309,13 @@ module Syskit
                 it "returns self if it provides everything" do
                     subtask_m = task_m.new_submodel
                     srv0_m.provides srv1_m
-                    self_m  = Placeholder.for([srv0_m], component_model: subtask_m)
+                    self_m = Placeholder.for([srv0_m], component_model: subtask_m)
                     other_m = Placeholder.for([srv1_m], component_model: task_m)
                     assert_equal self_m, self_m.merge(other_m)
                 end
                 it "returns its argument if it provides everything" do
                     subtask_m = task_m.new_submodel
-                    self_m  = Placeholder.for([srv0_m], component_model: task_m)
+                    self_m = Placeholder.for([srv0_m], component_model: task_m)
                     other_m = Placeholder.for([srv0_m, srv1_m], component_model: subtask_m)
                     assert_equal other_m, self_m.merge(other_m)
                 end
@@ -328,7 +328,7 @@ module Syskit
                 end
                 it "merges the placeholder's base task models together" do
                     other_task_m = Syskit::Component.new_submodel
-                    self_m  = Placeholder.for([srv0_m], component_model: task_m)
+                    self_m = Placeholder.for([srv0_m], component_model: task_m)
                     other_m = Placeholder.for([srv1_m], component_model: other_task_m)
                     flexmock(task_m).should_receive(:merge).with(other_task_m)
                         .and_return(merged_task_m = task_m.new_submodel)

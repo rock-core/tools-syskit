@@ -83,7 +83,7 @@ describe Syskit::Composition do
                 cmp_m.add task_m, as: 'test'
                 cmp_m.export cmp_m.test_child.out_port, as: 'exported_out'
                 cmp_m.export cmp_m.test_child.in_port, as: 'exported_in'
-                @cmp   = syskit_stub_deploy_and_configure(cmp_m)
+                @cmp = syskit_stub_deploy_and_configure(cmp_m)
                 @child = cmp.test_child
             end
             it "resolves an exported input" do
@@ -106,7 +106,7 @@ describe Syskit::Composition do
                 cmp_m.add srv_m, as: 'test'
                 cmp_m.export cmp_m.test_child.srv_out_port, as: 'exported_out'
                 cmp_m.export cmp_m.test_child.srv_in_port, as: 'exported_in'
-                @cmp   = syskit_stub_deploy_and_configure(cmp_m.use('test' => task_m))
+                @cmp = syskit_stub_deploy_and_configure(cmp_m.use('test' => task_m))
                 @child = cmp.test_child
             end
             it "resolves an exported input port to the actual task port" do
@@ -132,7 +132,7 @@ describe Syskit::Composition do
                 cmp_m.provides srv_m, as: 'test',
                         'srv_out' => 'exported_out',
                         'srv_in' => 'exported_in'
-                @cmp   = syskit_stub_deploy_and_configure(cmp_m)
+                @cmp = syskit_stub_deploy_and_configure(cmp_m)
                 @child = cmp.test_child
             end
 

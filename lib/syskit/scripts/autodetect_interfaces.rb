@@ -44,7 +44,7 @@ while !tasks.empty?
     if !result.empty?
         result.each do |source_model, interface_name|
             task_name = task.name.gsub(/^Syskit::/, '')
-            mod_name, task_name  = task_name.split '::'
+            mod_name, task_name = task_name.split '::'
             if interface_name == ''
                 task.provides source_model
                 layout[mod_name] << "#{task_name}.interface #{source_model.name}"

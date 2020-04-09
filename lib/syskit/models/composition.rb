@@ -929,7 +929,7 @@ module Syskit
             # @return [Hash]
             def compute_child_dependency_options(child_name, child_task)
                 child_m = find_child(child_name)
-                dependent_models    = child_m.each_required_model.to_a
+                dependent_models = child_m.each_required_model.to_a
                 dependent_arguments = dependent_models.inject({}) do |result, m|
                     result.merge(m.meaningful_arguments(child_task.arguments))
                 end
