@@ -111,24 +111,6 @@ Layout/EmptyLineAfterMagicComment:
   Exclude:
     - 'syskit.gemspec'
 
-# Offense count: 12
-# Cop supports --auto-correct.
-# Configuration parameters: EnforcedStyle.
-# SupportedStyles: empty_lines, no_empty_lines
-Layout/EmptyLinesAroundBlockBody:
-  Exclude:
-    - 'lib/syskit/roby_app/plugin.rb'
-    - 'lib/syskit/runtime/connection_management.rb'
-    - 'lib/syskit/scripts/autodetect_interfaces.rb'
-    - 'lib/syskit/scripts/doc.rb'
-    - 'test/cli/test_main.rb'
-    - 'test/coordination/test_task_script.rb'
-    - 'test/models/test_placeholder.rb'
-    - 'test/robot/test_device.rb'
-    - 'test/runtime/test_connection_management.rb'
-    - 'test/test_deployment.rb'
-    - 'test/test_dynamic_data_source.rb'
-
 # Offense count: 2
 # Cop supports --auto-correct.
 # Configuration parameters: EnforcedStyle.

@@ -356,7 +356,6 @@ module Syskit
                 output_port 'out_p', '/double'
             end
         end
-
     end
 
     describe "#can_merge?" do

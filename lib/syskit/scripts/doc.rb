@@ -106,7 +106,6 @@ Hash[Syskit::TaskContext => task_contexts,
      Syskit::DataService => data_services,
      Syskit::Actions::Profile => profiles,
      Typelib::Type => Orocos.registry.each.to_a].each do |root_model, model_set|
-
     model_set.each do |sub|
         path = Page.make_file_path(sub, [root_dir])
         relative_to_root = Pathname.new(root_dir).relative_path_from(Pathname.new(path).dirname).to_path

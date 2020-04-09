@@ -58,7 +58,6 @@ module Roby
                     assert_command_stops run_cmd
                 end
             end
-
         end
     end
 end

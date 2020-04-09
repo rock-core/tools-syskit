@@ -308,7 +308,6 @@ module Syskit
 
             def post_disconnect_failure(disconnections)
                 disconnections.find_all do |syskit_from_task, from_task, from_port, syskit_to_task, to_task, to_port, error|
-
                     case error
                     when Orocos::ComError, Orocos::NotFound
                         terminating_deployments =

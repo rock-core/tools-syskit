@@ -502,7 +502,6 @@ module Syskit
                         to { emit deployment_task.failed_event }
                 end
             end
-
         end
 
         describe "#dead!" do

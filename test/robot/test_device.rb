@@ -174,5 +174,4 @@ describe Syskit::Robot::SlaveDeviceInstance do
             assert_equal [slave_m, srv_m, Syskit::DataService], slave_device.each_fullfilled_model.to_a
         end
     end
-
 end

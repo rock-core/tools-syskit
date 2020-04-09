@@ -39,7 +39,6 @@ while !tasks.empty?
 
             result << [source_model, interface_name]
         end
-
     end
 
     if !result.empty?

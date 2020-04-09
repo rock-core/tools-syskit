@@ -1028,7 +1028,6 @@ _                   end
                 end
 
                 describe "connection add/remove hooks" do
-
                     it "calls them on the remaining sinks" do
                         stop_and_collect_tasks source_task
                         assert Syskit::ActualDataFlow.has_edge?(source_orocos, sink_orocos)

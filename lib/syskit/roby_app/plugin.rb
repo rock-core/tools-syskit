@@ -404,7 +404,6 @@ module Syskit
                     plan.find_tasks(Deployment).each do |deployment_task|
                         deployment_task.mark_changed_configuration_as_not_reusable(
                             model => changed_sections).each do |orocos_name|
-
                             needs_reconfiguration << orocos_name
                             deployment_task.each_executed_task do |t|
                                 if t.orocos_name == orocos_name

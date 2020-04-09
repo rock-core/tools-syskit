@@ -236,7 +236,6 @@ describe Syskit::Coordination::TaskScriptExtension do
                     to { have_framework_error_matching error }
             end
         end
-
     end
 
     describe "output port access" do
@@ -339,6 +338,5 @@ describe Syskit::Coordination::TaskScriptExtension do
             end
         end
     end
-
 end
 
