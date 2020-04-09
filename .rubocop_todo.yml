@@ -189,20 +189,6 @@ Layout/HeredocIndentation:
     - 'lib/syskit/scripts/ide.rb'
     - 'syskit.gemspec'
 
-# Offense count: 21
-# Cop supports --auto-correct.
-# Configuration parameters: EnforcedStyle.
-# SupportedStyles: normal, indented_internal_methods
-Layout/IndentationConsistency:
-  Exclude:
-    - 'lib/syskit/coordination/task_script_extension.rb'
-    - 'lib/syskit/scripts/common.rb'
-    - 'lib/syskit/test/base.rb'
-    - 'test/models/test_data_services.rb'
-    - 'test/models/test_placeholder.rb'
-    - 'test/runtime/test_connection_management.rb'
-    - 'test/test_dependency_injection.rb'
-
 # Offense count: 83
 # Cop supports --auto-correct.
 # Configuration parameters: Width, IgnoredPatterns.

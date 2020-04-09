@@ -941,7 +941,7 @@ module Syskit
                         @sink   = syskit_stub_and_deploy(cmp_m)
                         syskit_start_execution_agents(sink)
                         @sink_task = sink.test_child.orocos_task
-_                   end
+                        _                   end
 
                     include ConnectionExecutionSharedTest
                 end
