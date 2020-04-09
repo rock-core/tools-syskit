@@ -35,7 +35,7 @@ module Syskit::GUI
                 type_rendering.render(type)
 
                 producers, consumers = Set.new, Set.new
-                [Syskit::Component,Syskit::DataService].each do |base_model|
+                [Syskit::Component, Syskit::DataService].each do |base_model|
                     base_model.each_submodel do |submodel|
                         next if submodel.placeholder?
 

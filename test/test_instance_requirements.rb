@@ -74,7 +74,7 @@ describe Syskit::InstanceRequirements do
         it "returns the proxied component model if its required model is one" do
             task_m = Syskit::Component.new_submodel
             srv_m = Syskit::DataService.new_submodel
-            req = Syskit::InstanceRequirements.new([task_m,srv_m])
+            req = Syskit::InstanceRequirements.new([task_m, srv_m])
             assert_same task_m, req.component_model
         end
     end

@@ -13,7 +13,7 @@ describe Syskit::ROS::Node do
         end
 
         Orocos::ROS.spec_search_directories.each do |dir|
-            specs = Dir.glob(File.join(dir,"*.orogen"))
+            specs = Dir.glob(File.join(dir, "*.orogen"))
             specs.each do |file|
                 puts "Loading file: #{file}"
                 p = Orocos::ROS::Generation::Project.load(file)

@@ -250,7 +250,7 @@ module Syskit
 
             # Defined to be compatible, in port mapping code, with the data services
             def port_mappings_for_task
-                Hash.new { |h,k| k }
+                Hash.new { |h, k| k }
             end
 
             # Defined to be compatible, in port mapping code, with the data services

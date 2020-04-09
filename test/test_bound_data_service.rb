@@ -245,7 +245,7 @@ class TC_BoundDataService < Minitest::Test
         other_service = DataService.new_submodel
         component_model.provides other_service, as: 'unrelated_service'
 
-        assert_equal [base,parent,model,DataService].to_set,
+        assert_equal [base, parent, model, DataService].to_set,
                      service.each_fullfilled_model.to_set
     end
 end

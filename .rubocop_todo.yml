@@ -429,22 +429,6 @@ Layout/ParameterAlignment:
     - 'lib/syskit/roby_app/unmanaged_tasks_manager.rb'
     - 'lib/syskit/runtime/apply_requirement_modifications.rb'
 
-# Offense count: 29
-# Cop supports --auto-correct.
-Layout/SpaceAfterComma:
-  Exclude:
-    - 'lib/syskit/deployment.rb'
-    - 'lib/syskit/gui/logging_configuration_item_base.rb'
-    - 'lib/syskit/gui/model_views/type.rb'
-    - 'lib/syskit/gui/ruby_item.rb'
-    - 'lib/syskit/models/component.rb'
-    - 'lib/syskit/models/composition_child.rb'
-    - 'test/models/test_bound_data_service.rb'
-    - 'test/models/test_composition.rb'
-    - 'test/ros/test_task_context.rb'
-    - 'test/test_bound_data_service.rb'
-    - 'test/test_instance_requirements.rb'
-
 # Offense count: 55
 # Cop supports --auto-correct.
 # Configuration parameters: AllowForAlignment, EnforcedStyleForExponentOperator.

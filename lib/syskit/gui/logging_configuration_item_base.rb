@@ -49,14 +49,14 @@ module Syskit
 
             # Updates view's sibling modified? state possibly rejecting changes
             # made to the model
-            def modified!(value = true, items = [],update_parent = false)
+            def modified!(value = true, items = [], update_parent = false)
                 super
                 reject_changes unless value
                 if column == 0
-                    i = index.sibling(row,1)
+                    i = index.sibling(row, 1)
                     if i.isValid
                         item = i.model.itemFromIndex i
-                        item.modified!(value,items)
+                        item.modified!(value, items)
                     end
                 end
             end

@@ -274,8 +274,8 @@ describe Syskit::Models::Composition do
             child_cmp_task = cmp_task.cmp_child
             test_srv_task  = child_cmp_task.child_cmp_child
 
-            assert_equal Hash[['test','child_cmp'] => Hash.new], test_srv_task[child_cmp_task, Syskit::Flows::DataFlow]
-            assert_equal Hash[['child_cmp','cmp'] => Hash.new], child_cmp_task[cmp_task, Syskit::Flows::DataFlow]
+            assert_equal Hash[['test', 'child_cmp'] => Hash.new], test_srv_task[child_cmp_task, Syskit::Flows::DataFlow]
+            assert_equal Hash[['child_cmp', 'cmp'] => Hash.new], child_cmp_task[cmp_task, Syskit::Flows::DataFlow]
         end
 
         it "allows to export the port from a composition child's service" do
@@ -297,8 +297,8 @@ describe Syskit::Models::Composition do
             child_cmp_task = cmp_task.cmp_child
             test_srv_task  = child_cmp_task.child_cmp_child
 
-            assert_equal Hash[['test','child_cmp'] => Hash.new], test_srv_task[child_cmp_task, Syskit::Flows::DataFlow]
-            assert_equal Hash[['child_cmp','cmp'] => Hash.new], child_cmp_task[cmp_task, Syskit::Flows::DataFlow]
+            assert_equal Hash[['test', 'child_cmp'] => Hash.new], test_srv_task[child_cmp_task, Syskit::Flows::DataFlow]
+            assert_equal Hash[['child_cmp', 'cmp'] => Hash.new], child_cmp_task[cmp_task, Syskit::Flows::DataFlow]
         end
 
         it "updates the exported ports on overload" do
@@ -700,7 +700,7 @@ describe Syskit::Models::Composition do
             task_m.provides srv0_m, as: 'test0'
             task_m.provides srv1_m, as: 'test1'
             cmp_m = Syskit::Composition.new_submodel
-            cmp_m.add [srv0_m,srv1_m], as: 'test'
+            cmp_m.add [srv0_m, srv1_m], as: 'test'
 
             cmp = Syskit::InstanceRequirements.new([cmp_m]).use(task_m).instanciate(plan)
             assert_equal cmp.test_child, cmp.required_composition_child_from_role('test')
@@ -904,8 +904,8 @@ describe Syskit::Models::Composition do
                 end
                 specialized_m = cmp_m.narrow(Syskit::DependencyInjectionContext.new('c' => task_m))
 
-                assert_equal [specialized_m,cmp_m,srv_m,Syskit::DataService,
-                              Syskit::Composition,Syskit::Component,Syskit::AbstractComponent,
+                assert_equal [specialized_m, cmp_m, srv_m, Syskit::DataService,
+                              Syskit::Composition, Syskit::Component, Syskit::AbstractComponent,
                               Roby::Task].to_set,
                              specialized_m.each_fullfilled_model.to_set
             end
@@ -1021,7 +1021,7 @@ describe Syskit::Models::Composition do
 
         it "should be able to disambiguate specializations by selecting a service for the child" do
             y_srv_m.provides base_srv_m
-            cmp_m.add_specialization_constraint { |_,_| false }
+            cmp_m.add_specialization_constraint { |_, _| false }
             x_spec = cmp_m.specialize cmp_m.test_child => x_srv_m
             y_spec = cmp_m.specialize cmp_m.test_child => y_srv_m
             result = cmp_m.narrow(Syskit::DependencyInjection.new('test' => task_m.x_srv))
@@ -1030,7 +1030,7 @@ describe Syskit::Models::Composition do
 
         it "should be able to disambiguate specializations by selecting a service for the child's model" do
             y_srv_m.provides base_srv_m
-            cmp_m.add_specialization_constraint { |_,_| false }
+            cmp_m.add_specialization_constraint { |_, _| false }
             x_spec    = cmp_m.specialize cmp_m.test_child => x_srv_m
             y_spec    = cmp_m.specialize cmp_m.test_child => y_srv_m
             result = cmp_m.narrow(Syskit::DependencyInjection.new('test' => task_m, base_srv_m => task_m.x_srv))
@@ -1038,7 +1038,7 @@ describe Syskit::Models::Composition do
         end
 
         it "should be able to disambiguate specializations using explicit hints" do
-            cmp_m.add_specialization_constraint { |_,_| false }
+            cmp_m.add_specialization_constraint { |_, _| false }
             x_spec    = cmp_m.specialize cmp_m.test_child => x_srv_m
             y_spec    = cmp_m.specialize cmp_m.test_child => y_srv_m
             result = cmp_m.narrow(

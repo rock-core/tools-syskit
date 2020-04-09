@@ -142,7 +142,7 @@ module Syskit
                             .map { |act| name_mappings[act.name] }
                             .sort.join(', ')
                 mappings = name_mappings
-                           .map { |k,v| "#{k} => #{v}" }.join(', ')
+                           .map { |k, v| "#{k} => #{v}" }.join(', ')
                 raise ArgumentError,
                       "no task called #{name} in "\
                       "#{self.class.deployment_name}, available tasks are "\
