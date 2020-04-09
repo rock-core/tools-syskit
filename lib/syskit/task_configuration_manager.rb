@@ -1,3 +1,5 @@
+# frozen_string_literal: true
+
 module Syskit
     # Adapter for {Orocos::TaskConfigurations} to take into account the
     # conventions inside Syskit apps

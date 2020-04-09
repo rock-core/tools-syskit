@@ -1,3 +1,5 @@
+# frozen_string_literal: true
+
 require "syskit/test/base"
 require "roby/test/self"
 require "syskit/test/network_manipulation"

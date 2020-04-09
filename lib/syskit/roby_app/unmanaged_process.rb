@@ -1,3 +1,5 @@
+# frozen_string_literal: true
+
 module Syskit
     module RobyApp
         # A class API-compatible with Orocos::Process that represents tasks that

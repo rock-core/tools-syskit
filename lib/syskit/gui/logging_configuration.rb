@@ -1,3 +1,5 @@
+# frozen_string_literal: true
+
 require "vizkit"
 require "vizkit/vizkit_items"
 require "vizkit/tree_view"

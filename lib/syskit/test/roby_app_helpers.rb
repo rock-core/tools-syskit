@@ -1,3 +1,5 @@
+# frozen_string_literal: true
+
 require "roby/test/roby_app_helpers"
 
 module Syskit

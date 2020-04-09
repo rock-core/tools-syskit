@@ -1,3 +1,5 @@
+# frozen_string_literal: true
+
 import_types_from "std"
 
 module SyskitUnitTests

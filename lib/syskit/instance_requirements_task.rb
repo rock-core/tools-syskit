@@ -1,3 +1,5 @@
+# frozen_string_literal: true
+
 module Syskit
     # These tasks represent the set of InstanceRequirements that should be
     # deployed by NetworkGeneration::Engine

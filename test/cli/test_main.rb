@@ -1,3 +1,5 @@
+# frozen_string_literal: true
+
 require "roby/test/self"
 require "roby/cli/main"
 require "roby/interface/rest"

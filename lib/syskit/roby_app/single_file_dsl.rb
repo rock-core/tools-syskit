@@ -1,3 +1,5 @@
+# frozen_string_literal: true
+
 module Syskit
     module RobyApp
         # Module mixed-in the global context to provide toplevel functionality,

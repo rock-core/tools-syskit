@@ -1,3 +1,5 @@
+# frozen_string_literal: true
+
 Robot.requires do
     using_task_library "reload"
     Syskit.conf.use_deployment OroGen.reload.Task => "task"

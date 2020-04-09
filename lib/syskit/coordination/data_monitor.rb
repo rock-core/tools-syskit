@@ -1,3 +1,5 @@
+# frozen_string_literal: true
+
 module Syskit
     module Coordination
         # A {Models::DataMonitor} instanciated for a data monitor table attached

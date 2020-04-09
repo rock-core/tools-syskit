@@ -1,3 +1,5 @@
+# frozen_string_literal: true
+
 require "roby"
 require "syskit/gui/ide"
 require "syskit/scripts/common"

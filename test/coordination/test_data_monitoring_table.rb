@@ -1,3 +1,5 @@
+# frozen_string_literal: true
+
 require "syskit/test/self"
 
 describe Syskit::Coordination::DataMonitoringTable do

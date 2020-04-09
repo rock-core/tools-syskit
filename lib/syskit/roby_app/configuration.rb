@@ -1,3 +1,5 @@
+# frozen_string_literal: true
+
 require "orocos/ruby_process_server"
 require "orocos/remote_processes/client"
 module Syskit

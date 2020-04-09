@@ -1,3 +1,5 @@
+# frozen_string_literal: true
+
 Robot.requires do
     require "models/compositions/reload_ruby_task"
     Syskit.conf.use_ruby_tasks SyskitUnitTests::Compositions::ReloadRubyTask => "task"

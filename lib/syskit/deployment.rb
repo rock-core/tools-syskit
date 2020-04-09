@@ -1,3 +1,5 @@
+# frozen_string_literal: true
+
 # The module in which all deployment models are defined
 module Deployments
 end

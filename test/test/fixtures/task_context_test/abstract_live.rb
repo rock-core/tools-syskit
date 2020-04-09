@@ -1,3 +1,5 @@
+# frozen_string_literal: true
+
 task_m = Syskit::TaskContext.new_submodel(name: "some::Task") do
     abstract
 end

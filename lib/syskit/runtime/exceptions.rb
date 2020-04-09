@@ -1,3 +1,5 @@
+# frozen_string_literal: true
+
 module Syskit
     class PortNotFound < Roby::LocalizedError
         attr_reader :port_name

@@ -1,3 +1,5 @@
+# frozen_string_literal: true
+
 require "syskit/test/self"
 
 require "./test/runtime/test_apply_requirement_modifications"

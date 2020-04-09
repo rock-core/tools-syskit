@@ -1,3 +1,5 @@
+# frozen_string_literal: true
+
 module Syskit
     module Runtime
         # This method is called once at the beginning of each execution cycle to

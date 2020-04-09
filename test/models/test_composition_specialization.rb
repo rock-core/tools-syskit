@@ -1,3 +1,5 @@
+# frozen_string_literal: true
+
 require "syskit/test/self"
 require "./test/fixtures/simple_composition_model"
 require "minitest/spec"

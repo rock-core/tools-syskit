@@ -1,3 +1,5 @@
+# frozen_string_literal: true
+
 # Module where all the OroGen task context models get registered
 module OroGen
     extend Syskit::OroGenNamespace

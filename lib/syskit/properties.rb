@@ -1,3 +1,5 @@
+# frozen_string_literal: true
+
 module Syskit
     # A hash wrapper that gives access to properties in a more manageable way
     # than using a hash or using {TaskContext#property} and

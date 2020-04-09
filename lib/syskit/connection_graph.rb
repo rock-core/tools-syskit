@@ -1,3 +1,5 @@
+# frozen_string_literal: true
+
 module Syskit
     # Represents the actual connection graph between task context proxies.
     # Its vertices are instances of Orocos::TaskContext, and edges are

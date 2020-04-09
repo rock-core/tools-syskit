@@ -1,3 +1,5 @@
+# frozen_string_literal: true
+
 module Syskit
     module Coordination
         class DataMonitoringErrorMatcher < Roby::Queries::LocalizedErrorMatcher

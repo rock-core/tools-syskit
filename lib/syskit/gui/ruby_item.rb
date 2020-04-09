@@ -1,3 +1,5 @@
+# frozen_string_literal: true
+
 require "vizkit"
 require "Qt4"
 require "vizkit/vizkit_items"

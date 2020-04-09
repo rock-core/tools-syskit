@@ -1,3 +1,5 @@
+# frozen_string_literal: true
+
 module Syskit
     module GUI
         # A dialog that allows to get the parameters to start an app
@@ -14,7 +16,7 @@ module Syskit
             attr_reader :start_controller
 
             # Text used to allow the user to not load any robot configuration
-            NO_ROBOT = " -- None -- ".freeze
+            NO_ROBOT = " -- None -- "
 
             def initialize(names, parent = nil, default_robot_name: "default")
                 super(parent)

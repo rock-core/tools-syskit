@@ -1,3 +1,5 @@
+# frozen_string_literal: true
+
 module Syskit
     # Implementation of extensions to Roby action interface
     module Actions

@@ -1,3 +1,5 @@
+# frozen_string_literal: true
+
 module Syskit
     module Coordination
         module Models
@@ -98,13 +100,13 @@ module Syskit
 
                 def has_through_method_missing?(m)
                     MetaRuby::DSLs.has_through_method_missing?(
-                        root, m, "_port".freeze => :has_port?
+                        root, m, "_port" => :has_port?
                     ) || super
                 end
 
                 def find_through_method_missing(m, args)
                     MetaRuby::DSLs.find_through_method_missing(
-                        root, m, args, "_port".freeze => :find_port
+                        root, m, args, "_port" => :find_port
                     ) || super
                 end
 

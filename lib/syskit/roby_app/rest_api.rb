@@ -1,3 +1,5 @@
+# frozen_string_literal: true
+
 require "grape"
 require "syskit/roby_app/rest_deployment_manager"
 

@@ -1,3 +1,5 @@
+# frozen_string_literal: true
+
 require "syskit/gui/model_browser"
 module Syskit
     module GUI

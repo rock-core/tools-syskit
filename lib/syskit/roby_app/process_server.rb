@@ -1,3 +1,5 @@
+# frozen_string_literal: true
+
 require "orocos"
 require "orocos/remote_processes"
 require "orocos/remote_processes/server"

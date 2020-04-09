@@ -1,3 +1,5 @@
+# frozen_string_literal: true
+
 module Syskit
     module NetworkGeneration
         # This class embeds the basic handling of computations that need to

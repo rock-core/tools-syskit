@@ -1,3 +1,5 @@
+# frozen_string_literal: true
+
 module Syskit
     # Namespace for all the functionality that allows to generate a complete
     # network from a set of requirements

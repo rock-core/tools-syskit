@@ -1,3 +1,5 @@
+# frozen_string_literal: true
+
 module Syskit
     module Coordination
         # Exception issued by the data monitors in {DataMonitor#poll} when

@@ -1,3 +1,5 @@
+# frozen_string_literal: true
+
 require "Qt"
 require "open3"
 require "syskit/gui/model_browser"

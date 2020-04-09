@@ -1,3 +1,5 @@
+# frozen_string_literal: true
+
 require "syskit/test/self"
 require "syskit/roby_app/rest_deployment_manager"
 module Syskit

@@ -1,4 +1,5 @@
 #! /usr/bin/env ruby
+# frozen_string_literal: true
 
 # Reset the interrupt handler to the default. An ignored handler is inherited,
 # so this makes sure that the Roby app is based on the handler's expected state

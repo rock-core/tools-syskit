@@ -1,3 +1,5 @@
+# frozen_string_literal: true
+
 module Syskit
     # Representation of a selection context, as a stack of
     # DependencyInjection objects

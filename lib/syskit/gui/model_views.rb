@@ -1,3 +1,5 @@
+# frozen_string_literal: true
+
 require "syskit/graphviz"
 require "roby/gui/model_views/task"
 require "syskit/gui/model_views/component"

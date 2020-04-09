@@ -1,3 +1,5 @@
+# frozen_string_literal: true
+
 module Syskit::GUI
     module ModelViews
         class TaskContext < TaskContextBase

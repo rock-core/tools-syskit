@@ -1,3 +1,5 @@
+# frozen_string_literal: true
+
 require "syskit/test/self"
 require "syskit/test/roby_app_helpers"
 require "syskit/roby_app/process_server"

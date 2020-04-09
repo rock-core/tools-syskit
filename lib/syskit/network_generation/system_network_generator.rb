@@ -1,3 +1,5 @@
+# frozen_string_literal: true
+
 module Syskit
     module NetworkGeneration
         # Generate a plan from a set of {InstanceRequirement} objects

@@ -1,3 +1,5 @@
+# frozen_string_literal: true
+
 module Syskit
     module Robot
         # A DeviceInstance object is used to represent an actual device on the

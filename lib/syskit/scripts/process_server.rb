@@ -1,3 +1,5 @@
+# frozen_string_literal: true
+
 require "roby"
 require "syskit/roby_app/process_server"
 

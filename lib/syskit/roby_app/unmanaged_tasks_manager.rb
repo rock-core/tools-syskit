@@ -1,3 +1,5 @@
+# frozen_string_literal: true
+
 require "orocos/ruby_tasks/process"
 
 module Syskit

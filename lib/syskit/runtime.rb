@@ -1,3 +1,5 @@
+# frozen_string_literal: true
+
 module Syskit
     # Namespace containing all the system management at runtime (propagation of
     # states, triggering of connection updates, ...)

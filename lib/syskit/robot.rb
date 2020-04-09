@@ -1,3 +1,5 @@
+# frozen_string_literal: true
+
 module Syskit
     # Namespace for all objects used to describe a robot
     #

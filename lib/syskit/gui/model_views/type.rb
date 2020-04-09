@@ -1,3 +1,5 @@
+# frozen_string_literal: true
+
 require "orogen/html"
 module Syskit::GUI
     module ModelViews

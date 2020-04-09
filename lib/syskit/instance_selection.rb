@@ -1,3 +1,5 @@
+# frozen_string_literal: true
+
 module Syskit
     # A representation of a selection matching a given requirement
     class InstanceSelection

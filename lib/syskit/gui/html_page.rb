@@ -1,3 +1,5 @@
+# frozen_string_literal: true
+
 require "metaruby/gui/html/page"
 require "syskit/gui/page_extension"
 module Syskit

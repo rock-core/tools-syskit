@@ -1,3 +1,5 @@
+# frozen_string_literal: true
+
 require "syskit/gui/model_browser"
 require "syskit/gui/page"
 require "syskit/gui/html_page"

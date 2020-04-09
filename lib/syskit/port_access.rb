@@ -1,3 +1,5 @@
+# frozen_string_literal: true
+
 module Syskit
     # Mixin used to define common methods to enumerate ports on objects that
     # have a model that includes Syskit::Models::PortAccess

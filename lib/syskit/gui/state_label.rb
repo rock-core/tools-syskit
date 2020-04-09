@@ -1,3 +1,5 @@
+# frozen_string_literal: true
+
 module Syskit
     module GUI
         # Base class for the labels that represent an object and its states
@@ -7,9 +9,9 @@ module Syskit
                 green: "rgb(153, 204, 0)",
                 red: "rgb(255, 68, 68)"]
 
-            STYLE = "QLabel { padding: 3; background-color: %s; %s }".freeze
-            TEXT_WITH_NAME = "<b>%s</b>: %s".freeze
-            TEXT_WITHOUT_NAME = "%s".freeze
+            STYLE = "QLabel { padding: 3; background-color: %s; %s }"
+            TEXT_WITH_NAME = "<b>%s</b>: %s"
+            TEXT_WITHOUT_NAME = "%s"
 
             # The name that should be displayed in addition to the state
             #

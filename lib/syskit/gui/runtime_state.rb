@@ -1,3 +1,5 @@
+# frozen_string_literal: true
+
 require "syskit"
 require "roby/interface/async"
 require "roby/interface/async/log"

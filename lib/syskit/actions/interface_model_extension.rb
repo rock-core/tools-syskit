@@ -1,3 +1,5 @@
+# frozen_string_literal: true
+
 module Syskit
     module Actions
         # Extension to the models of Roby::Actions::Interface
@@ -118,13 +120,13 @@ module Syskit
 
             def has_through_method_missing?(m)
                 MetaRuby::DSLs.has_through_method_missing?(
-                    profile, m, "_tag".freeze => :has_tag?
+                    profile, m, "_tag" => :has_tag?
                 ) || super
             end
 
             def find_through_method_missing(m, args)
                 MetaRuby::DSLs.find_through_method_missing(
-                    profile, m, args, "_tag".freeze => :find_tag
+                    profile, m, args, "_tag" => :find_tag
                 ) || super
             end
         end
@@ -150,13 +152,13 @@ module Syskit
 
             def has_through_method_missing?(m)
                 MetaRuby::DSLs.has_through_method_missing?(
-                    profile, m, "_tag".freeze => :has_tag?
+                    profile, m, "_tag" => :has_tag?
                 ) || super
             end
 
             def find_through_method_missing(m, args)
                 MetaRuby::DSLs.find_through_method_missing(
-                    profile, m, args, "_tag".freeze => :find_tag
+                    profile, m, args, "_tag" => :find_tag
                 ) || super
             end
 

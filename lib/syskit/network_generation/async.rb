@@ -1,3 +1,5 @@
+# frozen_string_literal: true
+
 module Syskit
     module NetworkGeneration
         # A partially asynchronous requirement resolver built on top of {Engine}

@@ -1,3 +1,5 @@
+# frozen_string_literal: true
+
 require "syskit"
 require "metaruby/gui"
 require "syskit/gui/model_views"

@@ -1,3 +1,5 @@
+# frozen_string_literal: true
+
 module Syskit
     # In the orocos/rtt, a task context is what is usually called a
     # component.

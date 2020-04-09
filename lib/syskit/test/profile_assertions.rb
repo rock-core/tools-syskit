@@ -1,3 +1,5 @@
+# frozen_string_literal: true
+
 module Syskit
     module Test
         # Defines assertions for definitions (Syskit::Actions::Profile) or

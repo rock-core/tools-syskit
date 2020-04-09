@@ -1,3 +1,5 @@
+# frozen_string_literal: true
+
 require "syskit/gui/component_network_base_view"
 module Syskit::GUI
     module ModelViews

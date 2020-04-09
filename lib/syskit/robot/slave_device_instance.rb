@@ -1,3 +1,5 @@
+# frozen_string_literal: true
+
 module Syskit
     module Robot
         # A SlaveDeviceInstance represents slave devices, i.e. data services

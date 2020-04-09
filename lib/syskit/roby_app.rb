@@ -1,3 +1,5 @@
+# frozen_string_literal: true
+
 module Syskit
     # Namespace containing all the functionality required to integrate syskit in
     # a Roby application

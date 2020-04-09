@@ -1,3 +1,5 @@
+# frozen_string_literal: true
+
 module Syskit
     # Generic representation of a configured component instance
     class InstanceRequirements
@@ -1068,18 +1070,18 @@ module Syskit
         def has_through_method_missing?(m)
             MetaRuby::DSLs.has_through_method_missing?(
                 self, m,
-                "_srv".freeze => :has_data_service?,
-                "_child".freeze => :has_child?,
-                "_port".freeze => :has_port?
+                "_srv" => :has_data_service?,
+                "_child" => :has_child?,
+                "_port" => :has_port?
             ) || super
         end
 
         def find_through_method_missing(m, args)
             MetaRuby::DSLs.find_through_method_missing(
                 self, m, args,
-                "_srv".freeze => :find_data_service,
-                "_child".freeze => :find_child,
-                "_port".freeze => :find_port
+                "_srv" => :find_data_service,
+                "_child" => :find_child,
+                "_port" => :find_port
             ) || super
         end
 

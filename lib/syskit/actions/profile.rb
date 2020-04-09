@@ -1,3 +1,5 @@
+# frozen_string_literal: true
+
 module Syskit
     module Actions
         # A representation of a set of dependency injections and definition of
@@ -689,20 +691,20 @@ module Syskit
             def has_through_method_missing?(m)
                 MetaRuby::DSLs.has_through_method_missing?(
                     self, m,
-                    "_tag".freeze => :has_tag?,
-                    "_def".freeze => :has_definition?,
-                    "_dev".freeze => :has_device?,
-                    "_task".freeze => :has_deployed_task?,
-                    "_deployment_group".freeze => :has_deployment_group?
+                    "_tag" => :has_tag?,
+                    "_def" => :has_definition?,
+                    "_dev" => :has_device?,
+                    "_task" => :has_deployed_task?,
+                    "_deployment_group" => :has_deployment_group?
                 ) || super
             end
 
             def find_through_method_missing(m, args)
                 MetaRuby::DSLs.find_through_method_missing(
                     self, m, args,
-                    "_tag".freeze => :find_tag,
-                    "_def".freeze => :find_definition_by_name,
-                    "_dev".freeze => :find_device_requirements_by_name,
+                    "_tag" => :find_tag,
+                    "_def" => :find_definition_by_name,
+                    "_dev" => :find_device_requirements_by_name,
                     "_task" => :find_deployed_task_by_name,
                     "_deployment_group" => :find_deployment_group_by_name
                 ) || super

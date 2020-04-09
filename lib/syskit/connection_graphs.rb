@@ -1,3 +1,5 @@
+# frozen_string_literal: true
+
 module Syskit
     # (see ConnectionGraph)
     ActualDataFlow = ActualDataFlowGraph.new

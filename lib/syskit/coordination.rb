@@ -1,3 +1,5 @@
+# frozen_string_literal: true
+
 require "syskit/coordination/models/port_handling"
 require "syskit/coordination/models/data_monitor"
 require "syskit/coordination/models/data_monitor_predicate_from_block"

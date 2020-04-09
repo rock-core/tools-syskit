@@ -1,3 +1,5 @@
+# frozen_string_literal: true
+
 require "syskit/gui/widget_list"
 
 module Syskit
@@ -101,7 +103,7 @@ module Syskit
                     start_job(action_name, {})
                     true
                 else
-                    formatted_arguments = ""
+                    formatted_arguments = String.new
                     action_model.arguments.each do |arg|
                         default_arg = arguments.fetch(
                             arg.name.to_sym, arg.default

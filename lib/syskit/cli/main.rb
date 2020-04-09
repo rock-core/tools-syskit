@@ -1,3 +1,5 @@
+# frozen_string_literal: true
+
 require "roby/cli/main"
 require "syskit/cli/gen_main"
 
