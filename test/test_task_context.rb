@@ -786,7 +786,7 @@ module Syskit
                 task.require_dynamic_service 'test', as: 'test'
                 source_task = syskit_stub_deploy_and_configure 'SourceTask',
                                                                as: 'source_task' do
-                        input_port "dynamic", "/double"
+                    input_port "dynamic", "/double"
                 end
                 orocos_tasks = [source_task.orocos_task, task.orocos_task]
 
