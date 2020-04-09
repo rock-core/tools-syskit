@@ -1,4 +1,4 @@
-require 'roby/test/roby_app_helpers'
+require "roby/test/roby_app_helpers"
 
 module Syskit
     module Test
@@ -7,16 +7,16 @@ module Syskit
             include Roby::Test::RobyAppHelpers
 
             def gen_app
-                require 'syskit/cli/gen_main'
-                Dir.chdir(app_dir) { CLI::GenMain.start(['app', '--quiet']) }
+                require "syskit/cli/gen_main"
+                Dir.chdir(app_dir) { CLI::GenMain.start(["app", "--quiet"]) }
             end
 
             def roby_app_setup_single_script(*scripts)
                 dir = super
 
-                FileUtils.cp File.join(__dir__, '..', 'cli', 'gen', 'syskit_app',
-                                       'config', 'init.rb'),
-                             File.join(dir, 'config', 'init.rb')
+                FileUtils.cp File.join(__dir__, "..", "cli", "gen", "syskit_app",
+                                       "config", "init.rb"),
+                             File.join(dir, "config", "init.rb")
                 dir
             end
         end

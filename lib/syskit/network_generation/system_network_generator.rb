@@ -37,7 +37,7 @@ module Syskit
 
                 # We first generate a non-deployed network that fits all
                 # requirements.
-                log_timepoint_group 'compute_system_network' do
+                log_timepoint_group "compute_system_network" do
                     compute_system_network(instance_requirements,
                                            garbage_collect: garbage_collect,
                                            validate_abstract_network: validate_abstract_network,
@@ -121,7 +121,7 @@ module Syskit
                         allocate_devices(task)
                     end
                 end
-                log_timepoint 'device_allocation'
+                log_timepoint "device_allocation"
                 Engine.instanciation_postprocessing.each do |block|
                     block.call(self, plan)
                     log_timepoint "postprocessing:#{block}"
@@ -192,28 +192,28 @@ module Syskit
             def compute_system_network(instance_requirements, garbage_collect: true,
                 validate_abstract_network: true,
                 validate_generated_network: true)
-                toplevel_tasks = log_timepoint_group 'instanciate' do
+                toplevel_tasks = log_timepoint_group "instanciate" do
                     instanciate(instance_requirements)
                 end
 
                 merge_solver.merge_identical_tasks
-                log_timepoint 'merge'
+                log_timepoint "merge"
                 Engine.instanciated_network_postprocessing.each do |block|
                     block.call(self, plan)
                     log_timepoint "postprocessing:#{block}"
                 end
                 link_to_busses
-                log_timepoint 'link_to_busses'
+                log_timepoint "link_to_busses"
                 merge_solver.merge_identical_tasks
-                log_timepoint 'merge'
+                log_timepoint "merge"
 
                 self.class.remove_abstract_composition_optional_children(plan)
-                log_timepoint 'remove-optional'
+                log_timepoint "remove-optional"
 
                 # Finally, select 'default' as configuration for all
                 # remaining tasks that do not have a 'conf' argument set
                 plan.find_local_tasks(Component).each(&:freeze_delayed_arguments)
-                log_timepoint 'default_conf'
+                log_timepoint "default_conf"
 
                 # Cleanup the remainder of the tasks that are of no use right
                 # now (mostly devices)
@@ -224,7 +224,7 @@ module Syskit
                         # useful anymore
                         plan.remove_task(obj)
                     end
-                    log_timepoint 'static_garbage_collect'
+                    log_timepoint "static_garbage_collect"
                 end
 
                 # And get rid of the 'permanent' marking we use to be able to
@@ -236,15 +236,15 @@ module Syskit
                 Engine.system_network_postprocessing.each do |block|
                     block.call(self)
                 end
-                log_timepoint 'postprocessing'
+                log_timepoint "postprocessing"
 
                 if validate_abstract_network
                     self.validate_abstract_network
-                    log_timepoint 'validate_abstract_network'
+                    log_timepoint "validate_abstract_network"
                 end
                 if validate_generated_network
                     self.validate_generated_network
-                    log_timepoint 'validate_generated_network'
+                    log_timepoint "validate_generated_network"
                 end
 
                 toplevel_tasks
@@ -262,7 +262,7 @@ module Syskit
                 return if still_abstract.empty?
 
                 raise TaskAllocationFailed.new(self, still_abstract),
-                      'could not find implementation for the following abstract '\
+                      "could not find implementation for the following abstract "\
                       "tasks: #{still_abstract}"
             end
 
@@ -284,7 +284,7 @@ module Syskit
                             seen_task, seen_port = seen[sink_port]
                             if [source_task, source_port] != [seen_task, seen_port]
                                 raise SpecError, "#{task}.#{sink_port} is connected "\
-                                                 'multiple times, at least to '\
+                                                 "multiple times, at least to "\
                                                  "#{source_task}.#{source_port} and "\
                                                  "#{seen_task}.#{seen_port}"
                             end
@@ -313,7 +313,7 @@ module Syskit
                 end
                 unless missing_devices.empty?
                     raise DeviceAllocationFailed.new(plan, missing_devices),
-                          'could not allocate devices for the following tasks: '\
+                          "could not allocate devices for the following tasks: "\
                           "#{missing_devices}"
                 end
 

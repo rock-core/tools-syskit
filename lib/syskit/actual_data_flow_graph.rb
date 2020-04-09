@@ -46,9 +46,9 @@ module Syskit
             mappings.each do |(source_port, sink_port), info|
                 if info.size != 3
                     raise ArgumentError,
-                          'ActualDataFlowGraph#add_connections expects '\
-                          'the mappings to be of the form (source_port,sink_port) '\
-                          '=> [policy, source_static, sink_static]'
+                          "ActualDataFlowGraph#add_connections expects "\
+                          "the mappings to be of the form (source_port,sink_port) "\
+                          "=> [policy, source_static, sink_static]"
                 end
 
                 policy, source_static, sink_static = *info

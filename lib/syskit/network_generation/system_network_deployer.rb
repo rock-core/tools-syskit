@@ -55,19 +55,19 @@ module Syskit
             # @return [Set] the set of tasks for which the deployer could
             #   not find a deployment
             def deploy(validate: true)
-                debug 'Deploying the system network'
+                debug "Deploying the system network"
 
                 all_tasks = plan.find_local_tasks(TaskContext).to_a
                 selected_deployments, missing_deployments =
                     select_deployments(all_tasks)
-                log_timepoint 'select_deployments'
+                log_timepoint "select_deployments"
 
                 apply_selected_deployments(selected_deployments)
-                log_timepoint 'apply_selected_deployments'
+                log_timepoint "apply_selected_deployments"
 
                 if validate
                     validate_deployed_network
-                    log_timepoint 'validate_deployed_network'
+                    log_timepoint "validate_deployed_network"
                 end
 
                 missing_deployments
@@ -121,7 +121,7 @@ module Syskit
                 else
                     debug do
                         "  deployment of #{task} (#{task.concrete_model}) "\
-                        'is ambiguous'
+                        "is ambiguous"
                     end
                     return
                 end
@@ -226,7 +226,7 @@ module Syskit
                     tasks_with_candidates[task] = candidates
                 end
                 raise MissingDeployments.new(tasks_with_candidates),
-                      'there are tasks for which it exists no deployed equivalent: '\
+                      "there are tasks for which it exists no deployed equivalent: "\
                       "#{not_deployed.map { |m| "#{m}(#{m.orogen_model.name})" }}"
             end
 

@@ -1,33 +1,33 @@
 # frozen_string_literal: true
 
-require 'syskit/test/self'
+require "syskit/test/self"
 
 module Syskit
     describe RubyTaskContext do
         attr_reader :task_m
         before do
             @task_m = RubyTaskContext.new_submodel do
-                input_port 'in', '/double'
-                output_port 'out', '/double'
+                input_port "in", "/double"
+                output_port "out", "/double"
             end
             Syskit.conf.register_process_server(
-                'ruby_tasks',
+                "ruby_tasks",
                 Orocos::RubyTasks::ProcessManager.new(Roby.app.default_loader)
             )
         end
 
         after do
             teardown_registered_plans
-            Syskit.conf.remove_process_server('ruby_tasks')
+            Syskit.conf.remove_process_server("ruby_tasks")
         end
 
-        it 'allows to specify a component interface and have it deployed' do
-            use_ruby_tasks task_m => 'test'
+        it "allows to specify a component interface and have it deployed" do
+            use_ruby_tasks task_m => "test"
             task = syskit_deploy_configure_and_start(task_m)
             assert_kind_of RubyTaskContext, task
-            assert_equal 'test', task.orocos_name
+            assert_equal "test", task.orocos_name
 
-            remote_task = Orocos.allow_blocking_calls { Orocos.name_service.get('test') }
+            remote_task = Orocos.allow_blocking_calls { Orocos.name_service.get("test") }
             assert_equal remote_task, task.orocos_task
             Orocos.allow_blocking_calls do
                 assert_equal remote_task.in, task.orocos_task.in
@@ -41,7 +41,7 @@ module Syskit
                     orocos_task.out.write(sample * 2)
                 end
             end
-            use_ruby_tasks task_m => 'test'
+            use_ruby_tasks task_m => "test"
             task = syskit_deploy_configure_and_start(task_m)
 
             reader = Orocos.allow_blocking_calls do
@@ -63,8 +63,8 @@ module Syskit
             assert_equal [2, 4], samples
         end
 
-        it 'allows to optionally resolve the created task as a remote task' do
-            use_ruby_tasks({ task_m => 'test' }, remote_task: true)
+        it "allows to optionally resolve the created task as a remote task" do
+            use_ruby_tasks({ task_m => "test" }, remote_task: true)
             task = syskit_deploy_configure_and_start(task_m)
             assert_kind_of Orocos::RubyTasks::RemoteTaskContext, task.orocos_task
         end

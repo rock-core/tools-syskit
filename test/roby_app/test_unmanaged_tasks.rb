@@ -1,4 +1,4 @@
-require 'syskit/test/self'
+require "syskit/test/self"
 
 module Syskit
     module RobyApp
@@ -8,10 +8,10 @@ module Syskit
             before do
                 @task_model = Syskit::TaskContext.new_submodel
                 Syskit.conf.register_process_server(
-                    'unmanaged_tasks', UnmanagedTasksManager.new
+                    "unmanaged_tasks", UnmanagedTasksManager.new
                 )
-                @process_manager = Syskit.conf.process_server_for('unmanaged_tasks')
-                use_unmanaged_task task_model => 'unmanaged_deployment_test'
+                @process_manager = Syskit.conf.process_server_for("unmanaged_tasks")
+                use_unmanaged_task task_model => "unmanaged_deployment_test"
                 @task = syskit_deploy(task_model)
                 @deployment_task = @task.execution_agent
                 plan.unmark_mission_task(@task)
@@ -25,7 +25,7 @@ module Syskit
 
                 unmanaged_task&.dispose
 
-                Syskit.conf.remove_process_server('unmanaged_tasks')
+                Syskit.conf.remove_process_server("unmanaged_tasks")
             end
 
             def create_unmanaged_task
@@ -35,7 +35,7 @@ module Syskit
 
                 @unmanaged_task = Orocos.allow_blocking_calls do
                     Orocos::RubyTasks::TaskContext.from_orogen_model(
-                        'unmanaged_deployment_test', task_model.orogen_model
+                        "unmanaged_deployment_test", task_model.orogen_model
                     )
                 end
             end
@@ -66,7 +66,7 @@ module Syskit
 
                 create_unmanaged_task
                 expect_execution.to { emit deployment_task.ready_event }
-                task = deployment_task.task('unmanaged_deployment_test')
+                task = deployment_task.task("unmanaged_deployment_test")
                 assert_equal unmanaged_task, task.orocos_task
             end
 
@@ -120,7 +120,7 @@ module Syskit
                         assert_equal [process], process_manager.wait_termination(0).to_a
                         assert_equal Set[], process_manager.wait_termination(0)
                     end
-                ensure process_manager.processes['unmanaged_deployment_test'] = process
+                ensure process_manager.processes["unmanaged_deployment_test"] = process
                 end
             end
 

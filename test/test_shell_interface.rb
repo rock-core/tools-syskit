@@ -1,5 +1,5 @@
-require 'syskit/test/self'
-require 'syskit/shell_interface'
+require "syskit/test/self"
+require "syskit/shell_interface"
 
 module Syskit
     describe ShellInterface do
@@ -28,7 +28,7 @@ module Syskit
             before do
                 @task_m = TaskContext.new_submodel
                 @task = syskit_stub_deploy_configure_and_start(
-                    syskit_stub_requirements(task_m).with_conf('default')
+                    syskit_stub_requirements(task_m).with_conf("default")
                 )
                 plan.add_mission_task(task)
             end
@@ -78,7 +78,7 @@ module Syskit
             attr_reader :task_m, :task
             before do
                 @task_m = TaskContext.new_submodel
-                @task = syskit_stub_deploy_configure_and_start(task_m.with_conf('default'))
+                @task = syskit_stub_deploy_configure_and_start(task_m.with_conf("default"))
                 plan.add_mission_task(task)
             end
 
@@ -92,7 +92,7 @@ module Syskit
             end
 
             it "restricts the deployments to the given models" do
-                other = syskit_stub_deploy_configure_and_start(task_m.with_conf('other'))
+                other = syskit_stub_deploy_configure_and_start(task_m.with_conf("other"))
                 subject.plan.add_mission_task(other)
                 expect_execution { subject.stop_deployments(task.execution_agent.model) }
                     .to do
@@ -118,10 +118,10 @@ module Syskit
         end
 
         describe "the log configuration management" do
-            before { Syskit.conf.logs.create_group 'test' }
-            after { Syskit.conf.logs.remove_group('test') }
+            before { Syskit.conf.logs.create_group "test" }
+            after { Syskit.conf.logs.remove_group("test") }
 
-            it 'creates a marshallable instance of the configuration' do
+            it "creates a marshallable instance of the configuration" do
                 conf = subject.logging_conf
                 assert_equal conf.port_logs_enabled, Syskit.conf.logs.port_logs_enabled?
                 assert_equal conf.conf_logs_enabled, Syskit.conf.logs.conf_logs_enabled?
@@ -131,7 +131,7 @@ module Syskit
                 Marshal.dump(conf)
             end
 
-            it 'changes status of conf and port logging and redeploys' do
+            it "changes status of conf and port logging and redeploys" do
                 conf = subject.logging_conf
                 previous_port_status = Syskit.conf.logs.port_logs_enabled?
                 previous_conf_status = Syskit.conf.logs.conf_logs_enabled?
@@ -146,13 +146,13 @@ module Syskit
                 subject.update_logging_conf(conf)
             end
 
-            it 'changes status of an existing log group and redeploys' do
+            it "changes status of an existing log group and redeploys" do
                 conf = subject.logging_conf
-                previous_status = Syskit.conf.logs.group_by_name('test').enabled?
-                conf.groups['test'].enabled = !previous_status
+                previous_status = Syskit.conf.logs.group_by_name("test").enabled?
+                conf.groups["test"].enabled = !previous_status
 
                 flexmock(subject).should_receive(:redeploy).once.pass_thru do
-                    assert_equal Syskit.conf.logs.group_by_name('test').enabled?, !previous_status
+                    assert_equal Syskit.conf.logs.group_by_name("test").enabled?, !previous_status
                 end
                 subject.update_logging_conf(conf)
             end
@@ -161,38 +161,38 @@ module Syskit
         describe "the log group management" do
             attr_reader :group
             before do
-                @group = Syskit.conf.logs.create_group 'test' do |g|
+                @group = Syskit.conf.logs.create_group "test" do |g|
                     g.add /base.samples.frame.Frame/
                 end
             end
 
             after do
-                Syskit.conf.logs.remove_group('test')
+                Syskit.conf.logs.remove_group("test")
             end
 
             it "enable_log_group enables the log group and redeploys" do
                 group.enabled = false
                 flexmock(subject).should_receive(:redeploy).once.ordered
-                subject.enable_log_group 'test'
+                subject.enable_log_group "test"
                 assert group.enabled?
             end
 
             it "disable_log_group enables the log group and redeploys" do
                 group.enabled = true
                 flexmock(subject).should_receive(:redeploy).once.ordered
-                subject.disable_log_group 'test'
+                subject.disable_log_group "test"
                 assert !group.enabled?
             end
 
             it "enable_log_group raises ArgumentError if the log group does not exist" do
                 assert_raises(ArgumentError) do
-                    subject.enable_log_group 'does_not_exist'
+                    subject.enable_log_group "does_not_exist"
                 end
             end
 
             it "disable_log_group raises ArgumentError if the log group does not exist" do
                 assert_raises(ArgumentError) do
-                    subject.disable_log_group 'does_not_exist'
+                    subject.disable_log_group "does_not_exist"
                 end
             end
         end

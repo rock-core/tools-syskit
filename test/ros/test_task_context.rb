@@ -1,4 +1,4 @@
-require 'syskit/test/self'
+require "syskit/test/self"
 
 describe Syskit::ROS::Node do
     @pid = nil
@@ -23,7 +23,7 @@ describe Syskit::ROS::Node do
     end
 
     after do
-        ::Process.kill('INT', @pid)
+        ::Process.kill("INT", @pid)
     end
 
     describe "#initialize" do
@@ -43,7 +43,7 @@ describe Syskit::ROS::Node do
 
         it "setup the task object" do
             plan.add(task = Syskit::ROS::Node.new_submodel.new(orocos_name: "rosout", conf: []))
-            task.orocos_task = Orocos::ROS.rosnode_running? '/rosout'
+            task.orocos_task = Orocos::ROS.rosnode_running? "/rosout"
 
             task.setup
         end

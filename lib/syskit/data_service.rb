@@ -70,7 +70,7 @@ module Syskit
         def find_device_attached_to(service = nil)
             if service&.respond_to?(:to_str)
                 unless (service = find_data_service(service))
-                    known_services = each_data_service.map(&:name).sort.join(', ')
+                    known_services = each_data_service.map(&:name).sort.join(", ")
                     raise ArgumentError,
                           "#{service} is not a known service of #{self}, "\
                           "known services are: #{known_services}"
@@ -85,7 +85,7 @@ module Syskit
                 end
 
                 if driver_services.size > 1
-                    driver_service_names = driver_services.map(&:name).sort.join(', ')
+                    driver_service_names = driver_services.map(&:name).sort.join(", ")
                     raise ArgumentError,
                           "#{self} handles more than one device, you must "\
                           "specify one of #{driver_service_names} explicitely"
@@ -196,7 +196,7 @@ module Syskit
                             raise ArgumentError,
                                   "combus task #{self} was expected to have "\
                                   "a service named #{dev.name} to connect "\
-                                  'to the device of the same name, but has none'
+                                  "to the device of the same name, but has none"
                         end
                     else
                         bus_srv = combus.require_dynamic_service_for_device(self, dev)

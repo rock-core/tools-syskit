@@ -1,7 +1,7 @@
-require 'roby/test/self'
-require 'roby/cli/main'
-require 'roby/interface/rest'
-require 'roby/test/aruba_minitest'
+require "roby/test/self"
+require "roby/cli/main"
+require "roby/interface/rest"
+require "roby/test/aruba_minitest"
 
 module Roby
     module CLI
@@ -30,17 +30,17 @@ module Roby
                                  cmd.stdout
                 end
                 it "provides a simple help message with 'syskit'" do
-                    cmd = run_command_and_stop 'syskit'
+                    cmd = run_command_and_stop "syskit"
                     assert_match /Run 'syskit help <mode>' for more information/,
                                  cmd.stdout
                 end
                 it "provides a simple help message with 'syskit --help'" do
-                    cmd = run_command_and_stop 'syskit --help'
+                    cmd = run_command_and_stop "syskit --help"
                     assert_match /Run 'syskit help <mode>' for more information/,
                                  cmd.stdout
                 end
                 it "provides a simple help message with 'syskit help'" do
-                    cmd = run_command_and_stop 'syskit help'
+                    cmd = run_command_and_stop "syskit help"
                     assert_match /Run 'syskit help <mode>' for more information/,
                                  cmd.stdout
                 end

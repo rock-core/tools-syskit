@@ -1,6 +1,6 @@
-require 'syskit/test/base'
-require 'roby/test/self'
-require 'syskit/test/network_manipulation'
+require "syskit/test/base"
+require "roby/test/self"
+require "syskit/test/network_manipulation"
 
 module Syskit
     module Test
@@ -22,8 +22,8 @@ module Syskit
             def setup
                 Syskit.conf.define_default_process_managers = false
 
-                if ENV['TEST_ENABLE_COVERAGE'] == '1'
-                    null_io = File.open('/dev/null', 'w')
+                if ENV["TEST_ENABLE_COVERAGE"] == "1"
+                    null_io = File.open("/dev/null", "w")
                     current_formatter = Syskit.logger.formatter
                     Syskit.warn "running tests with logger in DEBUG mode"
                     Syskit.logger = Logger.new(null_io)
@@ -34,12 +34,12 @@ module Syskit
                     Syskit.logger.level = Logger::FATAL + 1
                 end
 
-                @old_pkg_config = ENV['PKG_CONFIG_PATH'].dup
+                @old_pkg_config = ENV["PKG_CONFIG_PATH"].dup
                 Roby.app.app_dir = nil
                 Roby.app.search_path.clear
                 Roby.app.filter_backtraces = false
-                ENV['ROBY_PLUGIN_PATH'] = File.expand_path(File.join(File.dirname(__FILE__), '..', 'roby_app', 'register_plugin.rb'))
-                Roby.app.using 'syskit', force: true
+                ENV["ROBY_PLUGIN_PATH"] = File.expand_path(File.join(File.dirname(__FILE__), "..", "roby_app", "register_plugin.rb"))
+                Roby.app.using "syskit", force: true
                 Syskit.conf.export_types = false
                 Syskit.conf.disables_local_process_server = true
                 Syskit.conf.only_load_models = true
@@ -70,12 +70,12 @@ module Syskit
                 end
 
                 Syskit.conf.register_process_server(
-                    'stubs', Orocos::RubyTasks::ProcessManager.new(
+                    "stubs", Orocos::RubyTasks::ProcessManager.new(
                                  Roby.app.default_loader,
                                  task_context_class: Orocos::RubyTasks::StubTaskContext
-                             ), "", host_id: 'syskit'
+                             ), "", host_id: "syskit"
                 )
-                Syskit.conf.logs.create_configuration_log(File.join(app.log_dir, 'properties'))
+                Syskit.conf.logs.create_configuration_log(File.join(app.log_dir, "properties"))
 
                 Orocos.forbid_blocking_calls
             end
@@ -104,7 +104,7 @@ module Syskit
                 Orocos.allow_blocking_calls
 
                 plug_connection_management
-                ENV['PKG_CONFIG_PATH'] = @old_pkg_config
+                ENV["PKG_CONFIG_PATH"] = @old_pkg_config
                 super
             ensure
                 if @syskit_handler_ids && execution_engine

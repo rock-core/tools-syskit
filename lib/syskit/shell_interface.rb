@@ -1,5 +1,5 @@
-require 'roby/interface'
-require 'roby/robot'
+require "roby/interface"
+require "roby/robot"
 module Syskit
     # Definition of the syskit-specific interface commands
     class ShellInterface < Roby::Interface::CommandLibrary
@@ -17,10 +17,10 @@ module Syskit
                 end
             nil
         end
-        command :dump_task_config, 'saves configuration from running tasks into yaml files',
-                :model => 'the model of the tasks that should be saved',
-                :path => 'the directory in which the configuration files should be saved',
-                :name => '(optional) if given, the name of the section for the new configuration. Defaults to the orocos task names'
+        command :dump_task_config, "saves configuration from running tasks into yaml files",
+                :model => "the model of the tasks that should be saved",
+                :path => "the directory in which the configuration files should be saved",
+                :name => "(optional) if given, the name of the section for the new configuration. Defaults to the orocos task names"
 
         # Saves the configuration of all running tasks to disk
         #
@@ -31,9 +31,9 @@ module Syskit
             dump_task_config(Syskit::TaskContext, path, name)
             nil
         end
-        command :dump_all_config, 'saves the configuration of all running tasks into yaml files',
-                :path => 'the directory in which the configuration files should be saved',
-                :name => '(optional) if given, the name of the section for the new configuration. Defaults to the orocos task names'
+        command :dump_all_config, "saves the configuration of all running tasks into yaml files",
+                :path => "the directory in which the configuration files should be saved",
+                :name => "(optional) if given, the name of the section for the new configuration. Defaults to the orocos task names"
 
         class ShellDeploymentRestart < Roby::Task
             event :start, :controlable => true
@@ -71,8 +71,8 @@ module Syskit
                     end
             end
         end
-        command :stop_deployments, 'stops deployment processes',
-                :models => '(optional) if given, a list of task or deployment models pointing to what should be stopped. If not given, all deployments are stopped'
+        command :stop_deployments, "stops deployment processes",
+                :models => "(optional) if given, a list of task or deployment models pointing to what should be stopped. If not given, all deployments are stopped"
 
         # Restarts deployment processes
         #
@@ -111,22 +111,22 @@ module Syskit
             end
             nil
         end
-        command :restart_deployments, 'restarts deployment processes',
-                :models => '(optional) if given, a list of task or deployment models pointing to what should be restarted. If not given, all deployments are restarted'
+        command :restart_deployments, "restarts deployment processes",
+                :models => "(optional) if given, a list of task or deployment models pointing to what should be restarted. If not given, all deployments are restarted"
 
         # (see Application#syskit_reload_config)
         def reload_config
             app.syskit_reload_config
         end
-        command :reload_config, 'reloads YAML configuration files from disk',
-                'You need to call the redeploy command to apply the new configuration'
+        command :reload_config, "reloads YAML configuration files from disk",
+                "You need to call the redeploy command to apply the new configuration"
 
         # (see Application#syskit_pending_reloaded_configurations)
         def pending_reloaded_configurations
             app.syskit_pending_reloaded_configurations
         end
-        command :pending_reloaded_configurations, 'returns the list of TaskContext names that are marked as needing reconfiguration',
-                'They will be reconfigured on the next redeploy or system transition'
+        command :pending_reloaded_configurations, "returns the list of TaskContext names that are marked as needing reconfiguration",
+                "They will be reconfigured on the next redeploy or system transition"
 
         # Require the engine to redeploy the current network
         #
@@ -136,15 +136,15 @@ module Syskit
             Runtime.apply_requirement_modifications(plan, force: true)
             nil
         end
-        command :redeploy, 'redeploys the current network',
-                'It is mostly used to apply the configuration loaded with reload_config'
+        command :redeploy, "redeploys the current network",
+                "It is mostly used to apply the configuration loaded with reload_config"
 
         def enable_log_group(string)
             Syskit.conf.logs.enable_log_group(string)
             redeploy
             nil
         end
-        command :enable_logging_of, 'enables a log group',
+        command :enable_logging_of, "enables a log group",
                 name: "the log group name"
 
         # @deprecated use enable_log_group instead
@@ -157,7 +157,7 @@ module Syskit
             redeploy
             nil
         end
-        command :disable_log_group, 'disables a log group',
+        command :disable_log_group, "disables a log group",
                 name: "the log group name"
 
         # @deprecated use disable_log_group instead
@@ -176,7 +176,7 @@ module Syskit
             end
             conf
         end
-        command :logging_conf, 'gets the current logging configuration'
+        command :logging_conf, "gets the current logging configuration"
 
         def update_logging_conf(conf)
             conf.port_logs_enabled ? Syskit.conf.logs.enable_port_logging :
@@ -194,7 +194,7 @@ module Syskit
             end
             redeploy
         end
-        command :update_logging_conf, 'updates the current logging configuration',
+        command :update_logging_conf, "updates the current logging configuration",
                 conf: "the new logging settings"
     end
 end
@@ -205,4 +205,4 @@ module Robot
     end
 end
 
-Roby::Interface::Interface.subcommand 'syskit', Syskit::ShellInterface, 'Commands specific to Syskit'
+Roby::Interface::Interface.subcommand "syskit", Syskit::ShellInterface, "Commands specific to Syskit"

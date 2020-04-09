@@ -119,7 +119,7 @@ module Syskit
                     unless args.empty? && kw.empty?
                         raise ArgumentError,
                               "wrong number of arguments, given #{args.size} and #{kw.size} "\
-                              'keyword arguments, expected 0'
+                              "keyword arguments, expected 0"
                     end
 
                     return m
@@ -127,7 +127,7 @@ module Syskit
 
                 super
             rescue NoMethodError
-                deployments_s = @deployments.keys.join(', ')
+                deployments_s = @deployments.keys.join(", ")
                 raise NoMethodError.new(name),
                       "no deployment registered with the name '#{name}', "\
                       "available deployments are: #{deployments_s}"
@@ -194,9 +194,9 @@ module Syskit
                 register_syskit_model_as_constant(model)
             end
 
-            project_name = model.orogen_model.name.split('::').first
+            project_name = model.orogen_model.name.split("::").first
             unless project_name
-                raise ArgumentError, 'cannot register a project with no name'
+                raise ArgumentError, "cannot register a project with no name"
             end
 
             unless (project_ns = @project_namespaces[project_name.to_sym])
@@ -206,7 +206,7 @@ module Syskit
 
             project_ns.register_syskit_model(model)
             @registered_models[model.orogen_model.name] = model
-            registered_model_name_prefix + model.orogen_model.name.split('::').join('.')
+            registered_model_name_prefix + model.orogen_model.name.split("::").join(".")
         end
 
         # @api private
@@ -216,7 +216,7 @@ module Syskit
         #
         # @return [(String,String)] the namespace and class names
         def syskit_names_from_orogen_name(orogen_name)
-            namespace, basename = orogen_name.split '::'
+            namespace, basename = orogen_name.split "::"
             [namespace.camelcase(:upper), basename.camelcase(:upper)]
         end
 
@@ -258,7 +258,7 @@ module Syskit
 
             if namespace.const_defined_here?(basename)
                 Syskit::TaskContext.warn(
-                    'there is already a constant with the name' \
+                    "there is already a constant with the name" \
                     "#{namespace.name}::#{basename}, I am not registering the model" \
                     "for #{model.orogen_model.name} there"
                 )

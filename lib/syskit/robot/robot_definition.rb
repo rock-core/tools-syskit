@@ -145,7 +145,7 @@ module Syskit
 
                 # Check for duplicates
                 unless options[:as]
-                    raise ArgumentError, 'no name given, please provide the :as option'
+                    raise ArgumentError, "no name given, please provide the :as option"
                 end
 
                 name = options[:as]
@@ -255,13 +255,13 @@ module Syskit
 
             def has_through_method_missing?(m)
                 MetaRuby::DSLs.has_through_method_missing?(
-                    self, m, '_dev'.freeze => :has_device?
+                    self, m, "_dev".freeze => :has_device?
                 ) || super
             end
 
             def find_through_method_missing(m, args)
                 MetaRuby::DSLs.find_through_method_missing(
-                    self, m, args, '_dev'.freeze => :find_device
+                    self, m, args, "_dev".freeze => :find_device
                 ) || super
             end
 

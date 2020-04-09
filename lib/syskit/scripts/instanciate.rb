@@ -1,6 +1,6 @@
-require 'roby/standalone'
-require 'syskit/scripts/common'
-require 'syskit/gui/instanciate'
+require "roby/standalone"
+require "syskit/scripts/common"
+require "syskit/gui/instanciate"
 Scripts = Syskit::Scripts
 
 available_annotations = Syskit::Graphviz.available_annotations
@@ -23,13 +23,13 @@ parser = OptionParser.new do |opt|
     models and/or add things to the plan
     "
 
-    opt.on('--trace=DIR', String, 'generate a dot graph for each step of the generation') do |trace_dir|
+    opt.on("--trace=DIR", String, "generate a dot graph for each step of the generation") do |trace_dir|
         trace_dir = File.expand_path(trace_dir)
         FileUtils.mkdir_p trace_dir
         Syskit::NetworkGeneration::MergeSolver.tracing_directory = trace_dir
     end
 
-    opt.on('--annotate=LIST', Array, "comma-separated list of annotations that should be added to the output (defaults to #{default_annotations.to_a.join(",")}). Available annotations: #{available_annotations.to_a.sort.join(", ")}") do |ann|
+    opt.on("--annotate=LIST", Array, "comma-separated list of annotations that should be added to the output (defaults to #{default_annotations.to_a.join(",")}). Available annotations: #{available_annotations.to_a.sort.join(", ")}") do |ann|
         ann.each do |name|
             unless available_annotations.include?(name)
                 STDERR.puts "#{name} is not a known annotation. Known annotations are: #{available_annotations.join(", ")}"
@@ -40,10 +40,10 @@ parser = OptionParser.new do |opt|
         annotations |= ann.to_set
     end
 
-    opt.on('--no-policies', "don't compute the connection policies") do
+    opt.on("--no-policies", "don't compute the connection policies") do
         compute_policies = false
     end
-    opt.on('--no-deployments', "don't deploy") do
+    opt.on("--no-deployments", "don't deploy") do
         compute_deployments = false
     end
     opt.on("--[no-]loggers", "remove all loggers from the generated data flow graph") do |value|
@@ -86,7 +86,7 @@ if annotations.empty?
     annotations = default_annotations
 end
 
-Roby.app.using 'syskit'
+Roby.app.using "syskit"
 Syskit.conf.only_load_models = true
 Syskit.conf.disables_local_process_server = true
 Roby.app.ignore_all_load_errors = true

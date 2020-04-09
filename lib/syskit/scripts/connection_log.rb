@@ -1,9 +1,9 @@
 #! /usr/bin/env ruby
 
-require 'roby/standalone'
-require 'roby/log/event_stream'
-require 'roby/log/plan_rebuilder'
-require 'syskit'
+require "roby/standalone"
+require "roby/log/event_stream"
+require "roby/log/plan_rebuilder"
+require "syskit"
 
 class Decoder < Roby::LogReplay::PlanRebuilder
     def added_task_child(time, parent, rel, child, info)

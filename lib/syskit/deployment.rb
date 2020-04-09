@@ -25,7 +25,7 @@ module Syskit
 
         argument :process_name, default: from(:model).deployment_name
         argument :log, default: true
-        argument :on, default: 'localhost'
+        argument :on, default: "localhost"
         argument :name_mappings, default: nil
         argument :spawn_options, default: nil
         argument :ready_polling_period, default: 0.1
@@ -142,9 +142,9 @@ module Syskit
             unless orogen_task_deployment
                 available = each_orogen_deployed_task_context_model
                             .map { |act| name_mappings[act.name] }
-                            .sort.join(', ')
+                            .sort.join(", ")
                 mappings = name_mappings
-                           .map { |k, v| "#{k} => #{v}" }.join(', ')
+                           .map { |k, v| "#{k} => #{v}" }.join(", ")
                 raise ArgumentError,
                       "no task called #{name} in "\
                       "#{self.class.deployment_name}, available tasks are "\
@@ -188,7 +188,7 @@ module Syskit
             if syskit_task_model
                 unless syskit_task_model <= base_syskit_task_model
                     raise ArgumentError,
-                          'incompatible explicit selection of task model '\
+                          "incompatible explicit selection of task model "\
                           "#{syskit_task_model} for the model of #{mapped_name} "\
                           " in #{self}"
                 end
@@ -199,7 +199,7 @@ module Syskit
             plan.add(task = syskit_task_model.new(orocos_name: mapped_name))
             task.executed_by self
             if scheduler_task
-                task.depends_on scheduler_task, role: 'scheduler'
+                task.depends_on scheduler_task, role: "scheduler"
                 task.should_configure_after scheduler_task.start_event
             end
 
@@ -230,7 +230,7 @@ module Syskit
             if finishing? || finished?
                 raise InvalidState,
                       "#{self} is either finishing or already "\
-                      'finished, you cannot call #task'
+                      "finished, you cannot call #task"
             end
 
             orogen_task_deployment_model = deployed_orogen_model_by_name(name)
@@ -256,9 +256,9 @@ module Syskit
             manager = task.model.configuration_manager
             task.conf =
                 if manager.has_section?(task.orocos_name)
-                    ['default', task.orocos_name]
+                    ["default", task.orocos_name]
                 else
-                    ['default']
+                    ["default"]
                 end
         end
 
@@ -269,7 +269,7 @@ module Syskit
         # :ready event will be emitted when the deployment is up and
         # running.
         event :start do |_context|
-            raise ArgumentError, 'must set process_name' unless process_name
+            raise ArgumentError, "must set process_name" unless process_name
 
             spawn_options = self.spawn_options
             options = (spawn_options[:cmdline_args] || {}).dup
@@ -278,7 +278,7 @@ module Syskit
             end
 
             spawn_options = spawn_options.merge(
-                output: '%m-%p.txt',
+                output: "%m-%p.txt",
                 wait: false,
                 cmdline_args: options
             )
@@ -315,7 +315,7 @@ module Syskit
             tracing: false,
             gdb: nil,
             valgrind: nil,
-            name_service_ip: 'localhost',
+            name_service_ip: "localhost",
             loader: Roby.app.default_pkgconfig_loader
         )
 
@@ -414,7 +414,7 @@ module Syskit
             if other_deployment == self
                 TaskContext::D_SAME_PROCESS
             elsif other_deployment.host_id == host_id
-                if host_id == 'syskit'
+                if host_id == "syskit"
                     TaskContext::D_SAME_PROCESS
                 else
                     TaskContext::D_SAME_HOST
@@ -633,7 +633,7 @@ module Syskit
                     raise InternalError,
                           "expected #{orocos_process}'s reported tasks to "\
                           "include '#{name}' (mapped from '#{act.name}'), "\
-                          'but got handles only for '\
+                          "but got handles only for "\
                           "#{remote_tasks.keys.sort.join(' ')}"
                 end
             end
@@ -649,7 +649,7 @@ module Syskit
                     root_exception = InternalError.exception(
                         "#{task} is supported by #{self} but there does "\
                         "not seem to be any task called #{task.orocos_name} "\
-                        'on this deployment'
+                        "on this deployment"
                     )
                     task.failed_to_start!(
                         Roby::CommandFailed.new(root_exception, task.start_event)
@@ -669,7 +669,7 @@ module Syskit
             )
 
             if remote_task.model.extended_state_support?
-                state_port = remote_task.raw_port('state')
+                state_port = remote_task.raw_port("state")
                 state_reader = state_port.reader(
                     type: :buffer, size: STATE_READER_BUFFER_SIZE, init: true,
                     distance: distance

@@ -447,7 +447,9 @@ module Syskit
         attr_reader :tasks
         attr_reader :inputs
 
-        def can_merge?; !!@can_merge end
+        def can_merge?
+            !!@can_merge
+        end
 
         def initialize(device, task0, task1)
             @device = device

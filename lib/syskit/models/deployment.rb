@@ -10,14 +10,14 @@ module Syskit
             #
             # @key_name option_name
             # @return [Hash<String,String>]
-            inherited_attribute('default_run_option', 'default_run_options', map: true) { {} }
+            inherited_attribute("default_run_option", "default_run_options", map: true) { {} }
 
             # The set of default name mappings for the instances of this
             # deployment model
             #
             # @key_name original_task_name
             # @return [Hash<String,String>]
-            inherited_attribute('default_name_mapping', 'default_name_mappings', map: true) { {} }
+            inherited_attribute("default_name_mapping", "default_name_mappings", map: true) { {} }
 
             # [Models::Deployment] Returns the parent model for this class, or
             # nil if it is the root model

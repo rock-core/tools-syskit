@@ -401,7 +401,9 @@ module Syskit
 
                 # Representation of a composition child within the block context
                 class Child < Models::FacetedAccess
-                    def child_name; object.child_name end
+                    def child_name
+                        object.child_name
+                    end
                 end
 
                 def initialize(model, reference_model)

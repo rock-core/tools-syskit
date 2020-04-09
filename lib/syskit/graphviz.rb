@@ -1,7 +1,7 @@
 # frozen_string_literal: true
 
-require 'roby/gui/dot_id'
-require 'English'
+require "roby/gui/dot_id"
+require "English"
 
 module Syskit
     # Used by the to_dot* methods for color allocation
@@ -72,8 +72,8 @@ module Syskit
                 return test if text
 
                 obj.name
-                   .gsub('<', '&lt;')
-                   .gsub('>', '&gt;')
+                   .gsub("<", "&lt;")
+                   .gsub(">", "&gt;")
             end
         end
 
@@ -99,17 +99,17 @@ module Syskit
         def uri_for(type)
             return unless @typelib_resolver
 
-            uri = escape_dot_uri(@typelib_resolver.split_name(type).join('/'))
+            uri = escape_dot_uri(@typelib_resolver.split_name(type).join("/"))
             "link://metaruby/#{uri}"
         end
 
         def escape_dot_uri(string)
-            string.gsub(/</, '&lt;')
-                  .gsub(/>/, '&gt;')
+            string.gsub(/</, "&lt;")
+                  .gsub(/>/, "&gt;")
         end
 
         def escape_dot(string)
-            escape_dot_uri(string).gsub(/[^\[\]&;:\w\. ]/, '_')
+            escape_dot_uri(string).gsub(/[^\[\]&;:\w\. ]/, "_")
         end
 
         def annotate_tasks(annotations)
@@ -190,7 +190,7 @@ module Syskit
 
         def run_dot_with_retries(retry_count, command)
             retry_count.times do |i|
-                Tempfile.open('roby_orocos_graphviz') do |io|
+                Tempfile.open("roby_orocos_graphviz") do |io|
                     dot_graph = yield
                     io.write dot_graph
                     io.flush
@@ -206,7 +206,7 @@ module Syskit
 
         # Generate a svg file representing the current state of the
         # deployment
-        def to_file(kind, format, output_io, graphviz_tool: 'dot', **display_options)
+        def to_file(kind, format, output_io, graphviz_tool: "dot", **display_options)
             graph = run_dot_with_retries(20, "#{graphviz_tool} -T#{format} %s") do
                 send(kind, display_options)
             end
@@ -217,17 +217,17 @@ module Syskit
             unless graph
                 Syskit.debug do
                     i = 0
-                    pattern = 'syskit_graphviz_%i.dot'
+                    pattern = "syskit_graphviz_%i.dot"
                     i += 1 while File.file?(format(pattern, i))
                     path = format(pattern, i)
-                    File.open(path, 'w') { |io| io.write send(kind, display_options) }
+                    File.open(path, "w") { |io| io.write send(kind, display_options) }
                     "saved graphviz input in #{path}"
                 end
-                raise DotFailedError, 'dot reported an error generating the graph'
+                raise DotFailedError, "dot reported an error generating the graph"
             end
 
             if output_io.respond_to?(:to_str)
-                File.open(output_io, 'w') do |io|
+                File.open(output_io, "w") do |io|
                     io.puts(graph)
                 end
             else
@@ -238,15 +238,15 @@ module Syskit
 
         Colors = Struct.new :normal, :abstract, :composition
         COLORS = {
-            normal: Colors.new('#000000', 'red', '#55aaff'),
-            toned_down: Colors.new('#D3D7CF', '#D3D7CF', '#c2cbd7')
+            normal: Colors.new("#000000", "red", "#55aaff"),
+            toned_down: Colors.new("#D3D7CF", "#D3D7CF", "#c2cbd7")
         }.freeze
 
         def format_edge_info(value)
             if value.respond_to?(:to_str)
                 value.to_str
             elsif value.respond_to?(:each)
-                value.map { |v| format_edge_info(v) }.join(',')
+                value.map { |v| format_edge_info(v) }.join(",")
             else
                 value.to_s
             end
@@ -254,10 +254,10 @@ module Syskit
 
         # Generates a dot graph that represents the task hierarchy in this
         # deployment
-        def relation_to_dot(accessor:, dot_edge_mark: '->',
-            dot_graph_type: 'digraph', highlights: [],
+        def relation_to_dot(accessor:, dot_edge_mark: "->",
+            dot_graph_type: "digraph", highlights: [],
             toned_down: [], displayed_options: [],
-            annotations: ['task_info'])
+            annotations: ["task_info"])
 
             port_annotations.clear
             task_annotations.clear
@@ -287,7 +287,7 @@ module Syskit
                 task_label = format_task_label(task)
                 label = format('  <TABLE ALIGN="LEFT" COLOR="white" BORDER="1" '\
                                'CELLBORDER="0" CELLSPACING="0">'\
-                               '%<task_label>s</TABLE>', task_label: task_label)
+                               "%<task_label>s</TABLE>", task_label: task_label)
                 attributes << "label=<#{label}>"
                 attributes << "href=\"plan://syskit/#{task.dot_id}\"" if make_links?
                 color_set =
@@ -305,7 +305,7 @@ module Syskit
                         color_set.normal
                     end
                 attributes << "color=\"#{color}\""
-                attributes << 'penwidth=3' if highlights.include?(task)
+                attributes << "penwidth=3" if highlights.include?(task)
 
                 result << "  #{task.dot_id} [#{attributes.join(' ')}];"
             end
@@ -315,11 +315,11 @@ module Syskit
             return "#{dot_graph_type} { }" if result.empty?
 
             ["#{dot_graph_type} {",
-             '  mindist=0',
-             '  rankdir=TB',
+             "  mindist=0",
+             "  rankdir=TB",
              '  node [shape=record,height=.1,fontname="Arial"];']
                 .concat(result)
-                .concat(['}'])
+                .concat(["}"])
                 .join("\n")
         end
 
@@ -344,11 +344,11 @@ module Syskit
             plan.find_local_tasks(AbstractComponent).each do |task|
                 task.model.each_port do |p|
                     port_type = Roby.app.default_loader.opaque_type_for(p.type)
-                    add_port_annotation(task, p.name, 'Type', port_type.name)
+                    add_port_annotation(task, p.name, "Type", port_type.name)
                 end
             end
         end
-        available_task_annotations << 'port_details'
+        available_task_annotations << "port_details"
 
         def add_task_info_annotations
             plan.find_local_tasks(AbstractComponent).each do |task|
@@ -358,12 +358,12 @@ module Syskit
                         arguments << "#{arg_name}: (unset)"
                     end
                 end
-                add_task_annotation(task, 'Arguments', arguments.sort)
-                add_task_annotation(task, 'Roles',
-                                    task.roles.to_a.sort.join(', '))
+                add_task_annotation(task, "Arguments", arguments.sort)
+                add_task_annotation(task, "Roles",
+                                    task.roles.to_a.sort.join(", "))
             end
         end
-        available_task_annotations << 'task_info'
+        available_task_annotations << "task_info"
 
         def add_connection_policy_annotations
             dataflow_graph = plan.task_relation_graph_for(Syskit::DataFlow)
@@ -388,14 +388,14 @@ module Syskit
                 conn_annotations[key] << policy
             end
         end
-        available_graph_annotations << 'connection_policy'
+        available_graph_annotations << "connection_policy"
 
         def policy_to_string(policy)
             puts "to_s: #{policy}"
             if policy.empty?
-                '(no policy)'
+                "(no policy)"
             elsif policy[:type] == :data
-                'data'
+                "data"
             elsif policy[:type] == :buffer
                 "buffer:#{policy[:size]}"
             else
@@ -410,18 +410,18 @@ module Syskit
                         ann = dyn.triggers.map do |tr|
                             "#{tr.name}[p=#{tr.period},s=#{tr.sample_count}]"
                         end
-                        port_annotations[[task, p.name]]['Triggers'].concat(ann)
+                        port_annotations[[task, p.name]]["Triggers"].concat(ann)
                     end
                 end
                 if (dyn = task.dynamics)
                     ann = dyn.triggers.map do |tr|
                         "#{tr.name}[p=#{tr.period},s=#{tr.sample_count}]"
                     end
-                    task_annotations[task]['Triggers'].concat(ann)
+                    task_annotations[task]["Triggers"].concat(ann)
                 end
             end
         end
-        available_graph_annotations << 'trigger'
+        available_graph_annotations << "trigger"
 
         # Generates a dot graph that represents the task dataflow in this
         # deployment
@@ -516,7 +516,7 @@ module Syskit
                 source_port_id = dot_id(source_port, source_task)
                 sink_port_id   = dot_id(sink_port, sink_task)
 
-                label = conn_annotations[[source_task, source_port.name, sink_task, sink_port.name]].join(',')
+                label = conn_annotations[[source_task, source_port.name, sink_task, sink_port.name]].join(",")
                 result << "  #{source_port_id} -> #{sink_port_id} [#{style}label=\"#{label}\"];"
             end
 
@@ -548,7 +548,7 @@ module Syskit
                 task_contexts.each do |task|
                     raise "#{task} #{deployment} #{task_contexts.inspect}" unless task
 
-                    style = 'penwidth=3;' if highlights.include?(task)
+                    style = "penwidth=3;" if highlights.include?(task)
                     inputs = input_ports[task]
                     outputs = output_ports[task]
                     unless show_all_ports
@@ -560,7 +560,7 @@ module Syskit
                     result << render_task(task, inputs, outputs, style)
                 end
 
-                result << '  };' if deployment
+                result << "  };" if deployment
             end
 
             additional_edges.each do |from, to, label|
@@ -571,18 +571,18 @@ module Syskit
 
             # This workarounds a dot bug in which some degenerate graphs
             # (only one node) crash it
-            return 'digraph { }' if result.empty?
+            return "digraph { }" if result.empty?
 
-            ['digraph {',
-             '  rankdir=LR;',
+            ["digraph {",
+             "  rankdir=LR;",
              '  node [shape=none,margin=0,height=.1,fontname="Arial"];']
                 .concat(result)
-                .concat(['}'])
+                .concat(["}"])
                 .join("\n")
         end
 
         def dot_symbol_quote(string)
-            string.gsub(/[^\w]/, '_')
+            string.gsub(/[^\w]/, "_")
         end
 
         def dot_id(object, context = nil)
@@ -608,8 +608,8 @@ module Syskit
         end
 
         HTML_CHAR_CLASSES = Hash[
-            '<' => '&lt;',
-            '>' => '&gt;'
+            "<" => "&lt;",
+            ">" => "&gt;"
         ]
 
         def render_task(task, input_ports, output_ports, style = nil)
@@ -643,7 +643,7 @@ module Syskit
                     port_type = Roby.app.default_loader.opaque_type_for(p.type)
                     port_id = dot_id(p.name)
                     ann = format_annotations(port_annotations, [task, p.name])
-                    doc = escape_dot(p.model.doc || '<no documentation for this port>')
+                    doc = escape_dot(p.model.doc || "<no documentation for this port>")
                     input_port_label += "<TR><TD HREF=\"#{uri_for(port_type)}\" TITLE=\"#{doc}\"><TABLE BORDER=\"0\" CELLBORDER=\"0\"><TR><TD PORT=\"#{port_id}\" COLSPAN=\"2\">#{p.name}</TD></TR>#{ann}</TABLE></TD></TR>"
                 end
                 input_port_label << "\n</TABLE>"
@@ -658,7 +658,7 @@ module Syskit
                     port_type = Roby.app.default_loader.opaque_type_for(p.type)
                     port_id = dot_id(p.name)
                     ann = format_annotations(port_annotations, [task, p.name])
-                    doc = escape_dot(p.model.doc || '<no documentation for this port>')
+                    doc = escape_dot(p.model.doc || "<no documentation for this port>")
                     output_port_label += "<TR><TD HREF=\"#{uri_for(port_type)}\" TITLE=\"#{doc}\"><TABLE BORDER=\"0\" CELLBORDER=\"0\"><TR><TD PORT=\"#{port_id}\" COLSPAN=\"2\">#{p.name}</TD></TR>#{ann}</TABLE></TD></TR>"
                 end
                 output_port_label << "\n</TABLE>"
@@ -666,7 +666,7 @@ module Syskit
                 result << "    label#{task.dot_id} -> outputs#{task.dot_id} [style=invis];"
             end
 
-            result << '    }'
+            result << "    }"
             result.join("\n")
         end
 
@@ -685,8 +685,8 @@ module Syskit
                 values = [*values]
                 next if values.empty? && !include_empty
 
-                values = values.map { |v| v.tr('<>', '[]') }
-                values = values.map { |v| v.tr('{}', '[]') }
+                values = values.map { |v| v.tr("<>", "[]") }
+                values = values.map { |v| v.tr("{}", "[]") }
 
                 "<TR><TD ROWSPAN=\"#{values.size}\" VALIGN=\"TOP\" "\
                 "ALIGN=\"RIGHT\">#{category}</TD><TD ALIGN=\"LEFT\">"\
@@ -709,7 +709,7 @@ module Syskit
                 unless COMPONENT_ROOT_CLASSES.include?(task.model.superclass)
                     name = [task.model.superclass.name] + name
                 end
-                name = escape_dot(name.join(','))
+                name = escape_dot(name.join(","))
                 if task.model.respond_to?(:tag_name)
                     name = "#{task.model.tag_name}_tag(#{name})"
                 end
@@ -718,18 +718,18 @@ module Syskit
             else
                 annotations = []
                 if task.model.respond_to?(:is_specialization?) && task.model.is_specialization?
-                    annotations = [['Specialized On', ['']]]
-                    name = task.model.root_model.name || ''
+                    annotations = [["Specialized On", [""]]]
+                    name = task.model.root_model.name || ""
                     task.model.specialized_children.each do |child_name, child_models|
                         child_models = child_models.map(&:short_name)
                         annotations << [child_name, child_models.shift]
                         child_models.each do |m|
-                            annotations << ['', m]
+                            annotations << ["", m]
                         end
                     end
 
                 else
-                    name = task.concrete_model.name || ''
+                    name = task.concrete_model.name || ""
                 end
 
                 name = name.dup
@@ -746,26 +746,26 @@ module Syskit
                 label << ann
             end
 
-            '    ' + label.join("\n    ")
+            "    " + label.join("\n    ")
         end
 
         def self.dot_iolabel(name, inputs, outputs)
-            label = '{{'
+            label = "{{"
             unless inputs.empty?
                 label << inputs.sort.map do |port_name|
                     "<#{port_name}> #{port_name}"
-                end.join('|')
-                label << '|'
+                end.join("|")
+                label << "|"
             end
             label << "<main> #{name}"
 
             unless outputs.empty?
-                label << '|'
+                label << "|"
                 label << outputs.sort.map do |port_name|
                     "<#{port_name}> #{port_name}"
-                end.join('|')
+                end.join("|")
             end
-            label << '}}'
+            label << "}}"
         end
     end
 end

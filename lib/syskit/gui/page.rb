@@ -1,5 +1,5 @@
-require 'metaruby/gui/model_browser'
-require 'syskit/gui/page_extension'
+require "metaruby/gui/model_browser"
+require "syskit/gui/page_extension"
 module Syskit
     module GUI
         class Page < MetaRuby::GUI::ModelBrowser::Page

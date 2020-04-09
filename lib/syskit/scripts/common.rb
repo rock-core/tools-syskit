@@ -1,7 +1,7 @@
-require 'optparse'
-require 'orocos'
-require 'syskit'
-require 'syskit/roby_app'
+require "optparse"
+require "orocos"
+require "syskit"
+require "syskit/roby_app"
 
 module Syskit
     module Scripts
@@ -38,12 +38,12 @@ module Syskit
         end
 
         def self.use_rprof(file_path)
-            require 'ruby-prof'
+            require "ruby-prof"
             @rprof_file_path = file_path
         end
 
         def self.use_pprof(file_path)
-            require 'perftools'
+            require "perftools"
             @pprof_file_path = file_path
         end
 
@@ -70,7 +70,7 @@ module Syskit
             if rprof_file_path
                 result = RubyProf.stop
                 printer = RubyProf::CallTreePrinter.new(result)
-                printer.print(File.open(rprof_file_path, 'w'), 0)
+                printer.print(File.open(rprof_file_path, "w"), 0)
             end
             if pprof_file_path
                 PerfTools::CpuProfiler.stop
@@ -85,15 +85,15 @@ module Syskit
         end
 
         def self.common_options(opt, with_output = false)
-            opt.on('--debug', "turn debugging output on") do
+            opt.on("--debug", "turn debugging output on") do
                 Scripts.debug = true
                 Roby.app.public_logs = true
             end
             if with_output
                 autodetect_output_modes
                 self.output_type = default_output_mode
-                opt.on('-o TYPE[:file]', '--output=TYPE[:file]', String, "in what format to output the result (can be: #{output_modes.join(", ")}), defaults to #{default_output_mode}") do |output_arg|
-                    output_type, output_file = output_arg.split(':')
+                opt.on("-o TYPE[:file]", "--output=TYPE[:file]", String, "in what format to output the result (can be: #{output_modes.join(", ")}), defaults to #{default_output_mode}") do |output_arg|
+                    output_type, output_file = output_arg.split(":")
                     output_type = output_type.downcase
                     unless output_modes.include?(output_type)
                         raise ArgumentError, "unknown or unavailable output mode #{output_type}, available output modes: #{output_modes.join(", ")}"
@@ -120,25 +120,25 @@ module Syskit
         def self.autodetect_output_modes
             @output_modes = %w{txt svg png dot}
 
-            has_x11_display = ENV['DISPLAY']
+            has_x11_display = ENV["DISPLAY"]
             unless has_x11_display
-                @default_output_mode = 'txt'
+                @default_output_mode = "txt"
             end
 
             `dot -Tx11 does_not_exist 2>&1`
             if has_dot_x11 = ($?.exitstatus != 1)
-                @output_modes << 'x11'
-                @default_output_mode = 'x11'
+                @output_modes << "x11"
+                @default_output_mode = "x11"
             end
 
             has_qt =
                 begin
-                    require 'Qt4'
+                    require "Qt4"
                 rescue LoadError
                 end
             if has_qt
-                @output_modes << 'qt'
-                @default_output_mode = 'qt'
+                @output_modes << "qt"
+                @default_output_mode = "qt"
             end
         end
 
@@ -179,7 +179,7 @@ module Syskit
             when "txt"
                 pp @output_object
             when "dot"
-                File.open(output_file, 'w') do |output_io|
+                File.open(output_file, "w") do |output_io|
                     output_io.puts @dot_generation.call
                 end
             when "png", "svg", "x11"
@@ -192,14 +192,14 @@ module Syskit
                 io.flush
                 io.close
             when "qt"
-                require 'syskit/gui/instanciated_network_display'
+                require "syskit/gui/instanciated_network_display"
                 unless $qApp
                     app = Qt::Application.new(ARGV)
                 end
                 display = Ui::InstanciatedNetworkDisplay.new
-                display.plan_display.push_plan('Task Dependency Hierarchy', 'hierarchy',
+                display.plan_display.push_plan("Task Dependency Hierarchy", "hierarchy",
                                                Roby.plan, Roby.syskit_engine, display_options)
-                display.plan_display.push_plan('Dataflow', 'dataflow',
+                display.plan_display.push_plan("Dataflow", "dataflow",
                                                Roby.plan, Roby.syskit_engine, display_options)
                 if @last_error
                     display.add_error(@last_error)
@@ -215,7 +215,7 @@ module Syskit
 
         def self.setup
             tic = Time.now
-            Roby.app.using 'syskit'
+            Roby.app.using "syskit"
             if debug
                 Roby.app.filter_backtraces = false
             end

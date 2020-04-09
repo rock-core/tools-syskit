@@ -34,15 +34,15 @@ module Syskit
                 return if logged_ports.include?([sink_port_name, logged_port_type])
 
                 metadata = Hash[
-                    'rock_task_model' => logged_task.concrete_model.orogen_model.name,
-                    'rock_task_name' => logged_task.orocos_name,
-                    'rock_task_object_name' => logged_port.name,
-                    'rock_stream_type' => 'port']
+                    "rock_task_model" => logged_task.concrete_model.orogen_model.name,
+                    "rock_task_name" => logged_task.orocos_name,
+                    "rock_task_object_name" => logged_port.name,
+                    "rock_stream_type" => "port"]
                 metadata = metadata.map do |k, v|
-                    Hash['key' => k, 'value' => v]
+                    Hash["key" => k, "value" => v]
                 end
 
-                @create_port ||= operation('createLoggingPort')
+                @create_port ||= operation("createLoggingPort")
                 unless @create_port.callop(sink_port_name, logged_port_type, metadata)
                     # Look whether a port with that name and type already
                     # exists. If it is the case, it means somebody else already
@@ -96,7 +96,7 @@ module Syskit
             end
 
             def self.find_logger_model
-                TaskContext.find_model_from_orogen_name 'logger::Logger'
+                TaskContext.find_model_from_orogen_name "logger::Logger"
             end
 
             def self.setup_logger_model(logger_model)
@@ -225,7 +225,7 @@ module Syskit
                 work_plan.find_local_tasks(logger_model)
                          .each do |task|
                     unless task.arguments[:conf]
-                        task.arguments[:conf] = ['default']
+                        task.arguments[:conf] = ["default"]
                     end
                 end
 

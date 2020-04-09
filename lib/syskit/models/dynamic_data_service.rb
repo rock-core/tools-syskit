@@ -143,10 +143,10 @@ module Syskit
                 user_port_mappings = user_port_mappings.dup
                 port_mappings = {}
                 service_model.each_output_port do |service_port|
-                    port_mappings[service_port.name] = directional_port_mapping(component_model, 'output', service_port, user_port_mappings.delete(service_port.name))
+                    port_mappings[service_port.name] = directional_port_mapping(component_model, "output", service_port, user_port_mappings.delete(service_port.name))
                 end
                 service_model.each_input_port do |service_port|
-                    port_mappings[service_port.name] = directional_port_mapping(component_model, 'input', service_port, user_port_mappings.delete(service_port.name))
+                    port_mappings[service_port.name] = directional_port_mapping(component_model, "input", service_port, user_port_mappings.delete(service_port.name))
                 end
 
                 unless user_port_mappings.empty?

@@ -1,6 +1,6 @@
-require 'vizkit'
-require 'Qt4'
-require 'vizkit/vizkit_items'
+require "vizkit"
+require "Qt4"
+require "vizkit/vizkit_items"
 
 module Syskit
     module GUI

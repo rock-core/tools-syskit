@@ -1,4 +1,4 @@
-require 'syskit/test/self'
+require "syskit/test/self"
 
 describe Syskit::Coordination::DataMonitor do
     describe "#poll" do

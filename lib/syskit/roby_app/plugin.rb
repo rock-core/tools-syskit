@@ -14,7 +14,7 @@ end
 
 module Syskit
     def self.warn_about_new_naming_convention
-        Syskit.warn 'We have finally adopted a systematic naming convention in Syskit, this led to files and classes to be renamed'
+        Syskit.warn "We have finally adopted a systematic naming convention in Syskit, this led to files and classes to be renamed"
     end
 end
 
@@ -35,15 +35,15 @@ module Syskit
             def self.load_base_config(app)
                 options = app.options
                 conf = Syskit.conf
-                if options = options['syskit']
-                    conf.prefix = options['prefix']
-                    conf.exclude_from_prefixing.concat(options['exclude_from_prefixing'] || [])
-                    conf.sd_domain = options['sd_domain']
-                    conf.publish_on_sd.concat(options['publish_on_sd'] || [])
+                if options = options["syskit"]
+                    conf.prefix = options["prefix"]
+                    conf.exclude_from_prefixing.concat(options["exclude_from_prefixing"] || [])
+                    conf.sd_domain = options["sd_domain"]
+                    conf.publish_on_sd.concat(options["publish_on_sd"] || [])
                 end
 
                 if app.testing?
-                    require 'syskit/test'
+                    require "syskit/test"
                 end
 
                 Orocos.disable_sigchld_handler = true
@@ -63,10 +63,10 @@ module Syskit
                     app.auto_load_all_task_libraries = true
                 end
 
-                require 'orocos/async' if Conf.ui?
+                require "orocos/async" if Conf.ui?
 
                 if app.development_mode?
-                    require 'listen'
+                    require "listen"
                     app.syskit_listen_to_configuration_changes
                 end
 
@@ -77,37 +77,37 @@ module Syskit
 
                 unless Syskit.conf.only_load_models?
                     Syskit.conf.logs.create_configuration_log(
-                        File.join(app.log_dir, 'properties')
+                        File.join(app.log_dir, "properties")
                     )
                 end
 
                 if Syskit.conf.define_default_process_managers? && Syskit.conf.only_load_models?
                     fake_client = Configuration::ModelOnlyServer.new(app.default_loader)
                     Syskit.conf.register_process_server(
-                        'ruby_tasks', fake_client, app.log_dir, host_id: 'syskit'
+                        "ruby_tasks", fake_client, app.log_dir, host_id: "syskit"
                     )
                     Syskit.conf.register_process_server(
-                        'unmanaged_tasks', fake_client, app.log_dir, host_id: 'syskit'
+                        "unmanaged_tasks", fake_client, app.log_dir, host_id: "syskit"
                     )
                     Syskit.conf.register_process_server(
-                        'ros', fake_client, app.log_dir, host_id: 'syskit'
+                        "ros", fake_client, app.log_dir, host_id: "syskit"
                     )
                 elsif Syskit.conf.define_default_process_managers?
-                    Syskit.conf.register_process_server('ruby_tasks',
+                    Syskit.conf.register_process_server("ruby_tasks",
                                                         Orocos::RubyTasks::ProcessManager.new(app.default_loader),
-                                                        app.log_dir, host_id: 'syskit')
+                                                        app.log_dir, host_id: "syskit")
 
                     Syskit.conf.register_process_server(
-                        'unmanaged_tasks', UnmanagedTasksManager.new, app.log_dir
+                        "unmanaged_tasks", UnmanagedTasksManager.new, app.log_dir
                     )
 
                     Syskit.conf.register_process_server(
-                        'ros', Orocos::ROS::ProcessManager.new(app.ros_loader),
+                        "ros", Orocos::ROS::ProcessManager.new(app.ros_loader),
                         app.log_dir
                     )
                 end
 
-                ENV['ORO_LOGFILE'] =
+                ENV["ORO_LOGFILE"] =
                     Orocos.orocos_logfile ||
                     File.join(app.log_dir, "orocos.orocosrb-#{::Process.pid}.txt")
 
@@ -139,7 +139,7 @@ module Syskit
                     connect_to_local_process_server(app)
                 else
                     fake_client = Configuration::ModelOnlyServer.new(app.default_loader)
-                    Syskit.conf.register_process_server('localhost', fake_client, app.log_dir, host_id: 'syskit')
+                    Syskit.conf.register_process_server("localhost", fake_client, app.log_dir, host_id: "syskit")
                 end
 
                 rtt_core_model = app.default_loader.task_model_from_name("RTT::TaskContext")
@@ -259,7 +259,9 @@ module Syskit
 
             # Returns true if the given orogen project has already been loaded
             # by #load_orogen_project
-            def loaded_orogen_project?(name); loaded_orogen_projects.key?(name) end
+            def loaded_orogen_project?(name)
+                loaded_orogen_projects.key?(name)
+            end
 
             OroGenLocation = Struct.new :absolute_path, :lineno, :label
 
@@ -314,9 +316,9 @@ module Syskit
                 # project
                 return unless Syskit.conf.load_component_extensions?
 
-                file = find_file('models', 'orogen', "#{name}.rb", order: :specific_first) ||
-                    find_file('tasks', 'orogen', "#{name}.rb", order: :specific_first) ||
-                    find_file('tasks', 'components', "#{name}.rb", order: :specific_first)
+                file = find_file("models", "orogen", "#{name}.rb", order: :specific_first) ||
+                    find_file("tasks", "orogen", "#{name}.rb", order: :specific_first) ||
+                    find_file("tasks", "components", "#{name}.rb", order: :specific_first)
                 return unless file
 
                 Roby::Application.info "loading task extension #{file}"
@@ -355,19 +357,19 @@ module Syskit
                 end
 
                 app.ros_loader.search_path
-                   .concat(Roby.app.find_dirs('models', 'ROBOT', 'orogen', 'ros', :all => app.auto_load_all?, :order => :specific_first))
+                   .concat(Roby.app.find_dirs("models", "ROBOT", "orogen", "ros", :all => app.auto_load_all?, :order => :specific_first))
                 app.ros_loader.packs
-                   .concat(Roby.app.find_dirs('models', 'ROBOT', 'pack', 'ros', :all => true, :order => :specific_last))
+                   .concat(Roby.app.find_dirs("models", "ROBOT", "pack", "ros", :all => true, :order => :specific_last))
             end
 
             def syskit_listen_to_configuration_changes
-                dirs = find_dirs('config', 'orogen', 'ROBOT', all: true, order: :specific_last)
+                dirs = find_dirs("config", "orogen", "ROBOT", all: true, order: :specific_last)
                 return if dirs.empty?
 
                 @conf_listener = Listen.to(*dirs) do |modified, added, removed|
                     if syskit_has_pending_configuration_changes?
-                        notify 'syskit', 'INFO', 'oroGen configuration files changed on disk. In the shell, reload with #reload_config and reconfigure affected running components with #redeploy'
-                        ui_event 'syskit_orogen_config_changed'
+                        notify "syskit", "INFO", "oroGen configuration files changed on disk. In the shell, reload with #reload_config and reconfigure affected running components with #redeploy"
+                        ui_event "syskit_orogen_config_changed"
                     end
                 end
                 @conf_listener.start
@@ -413,15 +415,15 @@ module Syskit
                                     running_needs_reconfiguration << orocos_name
                                 end
                             end
-                            notify 'syskit', 'INFO', "task #{orocos_name} needs reconfiguration"
+                            notify "syskit", "INFO", "task #{orocos_name} needs reconfiguration"
                         end
                     end
                 end
 
                 unless running_needs_reconfiguration.empty?
-                    notify 'syskit', 'INFO', "#{running_needs_reconfiguration.size} running tasks configuration changed. In the shell, use 'redeploy' to trigger reconfiguration."
+                    notify "syskit", "INFO", "#{running_needs_reconfiguration.size} running tasks configuration changed. In the shell, use 'redeploy' to trigger reconfiguration."
                 end
-                ui_event 'syskit_orogen_config_reloaded', needs_reconfiguration,
+                ui_event "syskit_orogen_config_reloaded", needs_reconfiguration,
                          running_needs_reconfiguration
                 needs_reconfiguration
             end
@@ -455,9 +457,9 @@ module Syskit
 
             def self.auto_require_models(app)
                 # Load the data services and task models
-                prefixes = ['services', 'devices', 'compositions', 'profiles']
+                prefixes = ["services", "devices", "compositions", "profiles"]
                 if Roby.app.backward_compatible_naming?
-                    prefixes << 'blueprints'
+                    prefixes << "blueprints"
                 end
 
                 if Syskit.conf.ignore_missing_orogen_projects_during_load?
@@ -480,8 +482,8 @@ module Syskit
             end
 
             def self.load_default_models(app)
-                ['services.rb', 'devices.rb', 'compositions.rb', 'profiles.rb'].each do |root_file|
-                    if path = app.find_file('models', root_file, path: [app.app_dir], order: :specific_first)
+                ["services.rb", "devices.rb", "compositions.rb", "profiles.rb"].each do |root_file|
+                    if path = app.find_file("models", root_file, path: [app.app_dir], order: :specific_first)
                         require path
                     end
                 end
@@ -513,9 +515,9 @@ module Syskit
             end
 
             def autodiscover_tests_in?(path)
-                if File.basename(path) == 'orogen'
+                if File.basename(path) == "orogen"
                     search_path.each do |base_path|
-                        if File.join(base_path, 'test', 'orogen') == path
+                        if File.join(base_path, "test", "orogen") == path
                             return false
                         end
                     end
@@ -530,7 +532,7 @@ module Syskit
             # Start a process server on the local machine, and register it in
             # Syskit.process_servers under the 'localhost' name
             def self.start_local_process_server(port = 0, redirect: true)
-                if Syskit.conf.process_servers['localhost']
+                if Syskit.conf.process_servers["localhost"]
                     raise ArgumentError, "there is already a process server called 'localhost' running"
                 end
 
@@ -538,15 +540,15 @@ module Syskit
                     FileUtils.mkdir_p(Roby.app.log_dir)
                 end
 
-                tcp_server = TCPServer.new('127.0.0.1', 0)
+                tcp_server = TCPServer.new("127.0.0.1", 0)
                 spawn_options = Hash[tcp_server => tcp_server, chdir: Roby.app.log_dir, pgroup: true]
                 if redirect
                     spawn_options[:err] = :out
-                    spawn_options[:out] = File.join(Roby.app.log_dir, 'local_process_server.txt')
+                    spawn_options[:out] = File.join(Roby.app.log_dir, "local_process_server.txt")
                 end
 
                 @server_pid  = Kernel.spawn \
-                    'syskit', 'process_server', "--fd=#{tcp_server.fileno}", "--log-dir=#{Roby.app.log_dir}", "--debug",
+                    "syskit", "process_server", "--fd=#{tcp_server.fileno}", "--log-dir=#{Roby.app.log_dir}", "--debug",
                     spawn_options
                 @server_port = tcp_server.local_address.ip_port
                 tcp_server.close
@@ -566,7 +568,7 @@ module Syskit
                 client = nil
                 until client
                     client =
-                        begin Orocos::RemoteProcesses::Client.new('localhost', @server_port)
+                        begin Orocos::RemoteProcesses::Client.new("localhost", @server_port)
                         rescue Errno::ECONNREFUSED
                             sleep 0.1
                             is_running =
@@ -591,7 +593,7 @@ module Syskit
                 end
 
                 # Do *not* manage the log directory for that one ...
-                Syskit.conf.register_process_server('localhost', client, app.log_dir)
+                Syskit.conf.register_process_server("localhost", client, app.log_dir)
                 client
             end
 
@@ -600,7 +602,7 @@ module Syskit
             def self.stop_local_process_server
                 return unless has_local_process_server?
 
-                ::Process.kill('INT', @server_pid)
+                ::Process.kill("INT", @server_pid)
                 begin
                     ::Process.waitpid(@server_pid)
                     @server_pid = nil
@@ -676,16 +678,16 @@ module Syskit
             def self.roby_engine_propagation_handlers
                 handlers = {}
                 handlers[:update_deployment_states] = [
-                    Runtime.method(:update_deployment_states), type: :external_events, description: 'syskit:update_deployment_states'
+                    Runtime.method(:update_deployment_states), type: :external_events, description: "syskit:update_deployment_states"
                 ]
                 handlers[:update_task_states] = [
-                    Runtime.method(:update_task_states), type: :external_events, description: 'syskit:update_task_states'
+                    Runtime.method(:update_task_states), type: :external_events, description: "syskit:update_task_states"
                 ]
                 handlers[:connection_management] = [
-                    Runtime::ConnectionManagement.method(:update), type: :propagation, late: true, description: 'syskit:connection_management_update'
+                    Runtime::ConnectionManagement.method(:update), type: :propagation, late: true, description: "syskit:connection_management_update"
                 ]
                 handlers[:apply_requirement_modifications] = [
-                    Runtime.method(:apply_requirement_modifications), type: :propagation, late: true, description: 'syskit:apply_requirement_modifications'
+                    Runtime.method(:apply_requirement_modifications), type: :propagation, late: true, description: "syskit:apply_requirement_modifications"
                 ]
                 handlers
             end
@@ -806,7 +808,7 @@ module Syskit
                 ::Robot.include Syskit::RobyApp::RobotExtension
                 ::Roby.conf.syskit = Syskit.conf
 
-                OroGen.load_orogen_plugins('syskit')
+                OroGen.load_orogen_plugins("syskit")
                 Roby.app.filter_out_patterns << Regexp.new(Regexp.quote(OroGen::OROGEN_LIB_DIR))
                 Roby.app.filter_out_patterns << Regexp.new(Regexp.quote(Orocos::OROCOSRB_LIB_DIR))
                 Roby.app.filter_out_patterns << Regexp.new(Regexp.quote(Typelib::TYPELIB_LIB_DIR))
@@ -863,8 +865,8 @@ module Syskit
             end
 
             def self.setup_rest_interface(app, rest_api)
-                require 'syskit/roby_app/rest_api'
-                rest_api.mount REST_API => '/syskit'
+                require "syskit/roby_app/rest_api"
+                rest_api.mount REST_API => "/syskit"
             end
         end
     end

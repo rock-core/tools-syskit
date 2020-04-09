@@ -1,4 +1,4 @@
-require 'syskit/test/self'
+require "syskit/test/self"
 
 module Syskit
     module Models
@@ -21,13 +21,13 @@ module Syskit
                                      Placeholder.resolve_models_argument([srv_m])
                     end
                     it "uses a bound data service task model as component model" do
-                        task_m.provides srv_m, as: 'test'
+                        task_m.provides srv_m, as: "test"
                         other_srv_m = Syskit::DataService.new_submodel
                         assert_equal [task_m, [other_srv_m], task_m.test_srv],
                                      Placeholder.resolve_models_argument([task_m.test_srv, other_srv_m])
                     end
                     it "removes already fullfilled models from the service list" do
-                        task_m.provides srv_m, as: 'test'
+                        task_m.provides srv_m, as: "test"
                         assert_equal [task_m, [], nil],
                                      Placeholder.resolve_models_argument([task_m, srv_m])
                     end
@@ -39,15 +39,15 @@ module Syskit
                         end
                     end
                     it "raises ArgumentError if a task model and a bound data service were given" do
-                        task_m.provides srv_m, as: 'test'
+                        task_m.provides srv_m, as: "test"
                         other_task_m = Syskit::Component.new_submodel
                         assert_raises(ArgumentError) do
                             Placeholder.resolve_models_argument([other_task_m, task_m.test_srv])
                         end
                     end
                     it "raises ArgumentError if more than one bound data service were given" do
-                        task_m.provides srv_m, as: 'test'
-                        task_m.provides srv_m, as: 'other'
+                        task_m.provides srv_m, as: "test"
+                        task_m.provides srv_m, as: "other"
                         assert_raises(ArgumentError) do
                             Placeholder.resolve_models_argument([task_m.other_srv, task_m.test_srv])
                         end
@@ -56,12 +56,12 @@ module Syskit
                 describe "called with an explicit component model" do
                     it "handles a bound data service as component model" do
                         other_srv_m = Syskit::DataService.new_submodel
-                        task_m.provides other_srv_m, as: 'test'
+                        task_m.provides other_srv_m, as: "test"
                         assert_equal [task_m, [srv_m], task_m.test_srv],
                                      Placeholder.resolve_models_argument([srv_m], component_model: task_m.test_srv)
                     end
                     it "filters out already provided services" do
-                        task_m.provides srv_m, as: 'test'
+                        task_m.provides srv_m, as: "test"
                         assert_equal [task_m, [], nil],
                                      Placeholder.resolve_models_argument([srv_m], component_model: task_m)
                     end
@@ -121,7 +121,7 @@ module Syskit
                 end
                 it "uses the 'as' argument as the created service name if provided" do
                     placeholder_m = Placeholder.create_for(service_models,
-                                                           component_model: component_model, as: 'Name')
+                                                           component_model: component_model, as: "Name")
                     assert_equal "Name", placeholder_m.name
                 end
             end
@@ -152,7 +152,7 @@ module Syskit
                         )
                     end
                     it "bounds a provided data service to the created placeholder model" do
-                        task_m.provides srv0_m, as: 'test'
+                        task_m.provides srv0_m, as: "test"
                         flexmock(Placeholder).should_receive(:resolve_models_argument)
                                              .with(service_models, component_model: task_m.test_srv)
                                              .and_return([task_m, service_models, task_m.test_srv])
@@ -174,7 +174,7 @@ module Syskit
                     assert_same task_m, Placeholder.for([task_m])
                 end
                 it "returns the bound data service if no extra data services were specified" do
-                    task_m.provides srv0_m, as: 'test'
+                    task_m.provides srv0_m, as: "test"
                     assert_equal task_m.test_srv, Placeholder.for([task_m.test_srv])
                 end
             end
@@ -198,14 +198,18 @@ module Syskit
                 end
                 it "allows to extend the model API" do
                     placeholder_type = Placeholder.new_specialized_placeholder do
-                        def specialized_placeholder?; true end
+                        def specialized_placeholder?
+                            true
+                        end
                     end
                     placeholder_m = placeholder_type.create_for([srv0_m, task_m])
                     assert placeholder_m.specialized_placeholder?
                 end
                 it "allows to extend the task API" do
                     task_extension = Module.new do
-                        def specialized_placeholder?; true end
+                        def specialized_placeholder?
+                            true
+                        end
                     end
                     placeholder_type = Placeholder.new_specialized_placeholder(task_extension: task_extension)
                     placeholder_m = placeholder_type.create_for([srv0_m, task_m])
@@ -218,7 +222,7 @@ module Syskit
             describe "pure proxies of data services" do
                 before do
                     @srv_m = Syskit::DataService.new_submodel do
-                        output_port 'out_p', '/int32_t'
+                        output_port "out_p", "/int32_t"
                     end
                 end
 
@@ -261,7 +265,7 @@ module Syskit
                 before do
                     @task_m = Syskit::TaskContext.new_submodel
                     @srv_m = Syskit::DataService.new_submodel do
-                        output_port 'out_p', '/int32_t'
+                        output_port "out_p", "/int32_t"
                     end
                 end
 
@@ -300,7 +304,7 @@ module Syskit
                 end
                 it "dispatches to a bound data service if it is given one" do
                     srv2_m = Syskit::DataService.new_submodel
-                    task_m.provides srv2_m, as: 'test'
+                    task_m.provides srv2_m, as: "test"
                     self_m = Placeholder.for([srv0_m], component_model: task_m)
                     other_m = Placeholder.for([srv1_m], component_model: task_m)
                     result_m = self_m.merge(other_m.test_srv)
@@ -355,7 +359,7 @@ module Syskit
         describe "#create_proxy_task_model_for" do
             before do
                 @srv_m = Syskit::DataService.new_submodel do
-                    output_port 'out_p', '/double'
+                    output_port "out_p", "/double"
                 end
             end
         end
@@ -368,7 +372,7 @@ module Syskit
                     @srv0 = base_srv.new_submodel
                     @srv1 = base_srv.new_submodel
                     @task_m = Syskit::TaskContext.new_submodel do
-                        dynamic_service base_srv, as: 'test' do
+                        dynamic_service base_srv, as: "test" do
                             provides options[:srv]
                         end
                     end
@@ -376,30 +380,30 @@ module Syskit
 
                 it "returns false if there are mismatching dynamic services" do
                     task0_m = task_m.specialize
-                    task0_m.require_dynamic_service 'test', srv: srv0, as: 'srv'
+                    task0_m.require_dynamic_service "test", srv: srv0, as: "srv"
                     task1_m = task_m.specialize
-                    task1_m.require_dynamic_service 'test', srv: srv1, as: 'srv'
+                    task1_m.require_dynamic_service "test", srv: srv1, as: "srv"
                     refute task0_m.can_merge?(task1_m)
                 end
                 it "handles multiple levels of specialization" do
                     task0_m = task_m.specialize
-                    task0_m.require_dynamic_service 'test', srv: srv0, as: 'srv'
+                    task0_m.require_dynamic_service "test", srv: srv0, as: "srv"
                     task1_m = task_m.specialize
-                    task1_m.require_dynamic_service 'test', srv: srv1, as: 'srv'
+                    task1_m.require_dynamic_service "test", srv: srv1, as: "srv"
                     refute task0_m.specialize.can_merge?(task1_m)
                 end
 
                 it "returns false if two dynamic services have the same type but different options" do
                     task0_m = task_m.specialize
-                    task0_m.require_dynamic_service 'test', srv: srv0, as: 'srv', port_name: 'test'
+                    task0_m.require_dynamic_service "test", srv: srv0, as: "srv", port_name: "test"
                     task1_m = task_m.specialize
-                    task1_m.require_dynamic_service 'test', srv: srv0, as: 'srv', port_name: 'test2'
+                    task1_m.require_dynamic_service "test", srv: srv0, as: "srv", port_name: "test2"
                     refute task0_m.can_merge?(task1_m)
                 end
             end
         end
 
-        describe 'PlaceholderTask' do
+        describe "PlaceholderTask" do
             it "autoloads and emits a deprecation warning" do
                 deprecated_feature do
                     assert_same Placeholder, PlaceholderTask

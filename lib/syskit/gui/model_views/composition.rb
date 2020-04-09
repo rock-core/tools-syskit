@@ -1,7 +1,7 @@
-require 'syskit/gui/component_network_view'
+require "syskit/gui/component_network_view"
 module Syskit::GUI
     module ModelViews
-        Roby::TaskStructure.relation 'SpecializationCompatibilityGraph',
+        Roby::TaskStructure.relation "SpecializationCompatibilityGraph",
                                      child_name: :compatible_specialization, dag: false
 
         # Visualization of a composition model
@@ -19,24 +19,24 @@ module Syskit::GUI
             end
 
             def enable
-                connect(page, SIGNAL('linkClicked(const QUrl&)'), self, SLOT('linkClicked(const QUrl&)'))
+                connect(page, SIGNAL("linkClicked(const QUrl&)"), self, SLOT("linkClicked(const QUrl&)"))
                 super
             end
 
             def disable
-                disconnect(page, SIGNAL('linkClicked(const QUrl&)'), self, SLOT('linkClicked(const QUrl&)'))
+                disconnect(page, SIGNAL("linkClicked(const QUrl&)"), self, SLOT("linkClicked(const QUrl&)"))
                 super
             end
 
             def linkClicked(url)
-                if url.scheme == 'plan'
-                    id = Integer(url.path.gsub(/\//, ''))
+                if url.scheme == "plan"
+                    id = Integer(url.path.gsub(/\//, ""))
                     if task = specializations.values.find { |task| task.dot_id == id }
                         clickedSpecialization(task)
                     end
                 end
             end
-            slots 'linkClicked(const QUrl&)'
+            slots "linkClicked(const QUrl&)"
 
             def clickedSpecialization(task)
                 clicked  = task.model.applied_specializations.dup.to_set
@@ -104,15 +104,15 @@ module Syskit::GUI
 
                 display_options = Hash[
                     accessor: :each_compatible_specialization,
-                    dot_edge_mark: '--',
-                    dot_graph_type: 'graph',
-                    graphviz_tool: 'fdp',
+                    dot_edge_mark: "--",
+                    dot_graph_type: "graph",
+                    graphviz_tool: "fdp",
                     highlights: current_specializations,
                     toned_down: incompatible_specializations.values,
                     annotations: [],
-                    id: 'specializations'
+                    id: "specializations"
                 ]
-                page.push_plan('Specializations', 'relation_to_dot',
+                page.push_plan("Specializations", "relation_to_dot",
                                plan, display_options)
             end
 

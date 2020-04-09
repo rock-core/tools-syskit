@@ -6,7 +6,7 @@ module Syskit
             #
             # @return the ROS::Nodes in use
             def use_ros_launchers_from(project_name, options = {})
-                use_deployments_from(project_name, Hash[:on => 'ros'].merge(options))
+                use_deployments_from(project_name, Hash[:on => "ros"].merge(options))
             end
 
             # Add the given launcher (referred to by its process name, that is
@@ -19,7 +19,7 @@ module Syskit
                 unless names.last.kind_of?(Hash)
                     names << ({})
                 end
-                names[-1] = Hash[:on => 'ros'].merge(names[-1])
+                names[-1] = Hash[:on => "ros"].merge(names[-1])
                 use_deployment(*names)
             end
         end

@@ -58,14 +58,14 @@ module Syskit
                     .sort_by(&:first)
                     .map { |k, v| "#{k} => #{v}" }
             defaults = self.defaults.map(&:to_s)
-            defaults.concat(explicit).join(', ')
+            defaults.concat(explicit).join(", ")
         end
 
         def pretty_print(pp)
-            pp.text 'DependencyInjection'
+            pp.text "DependencyInjection"
 
             pp.breakable
-            pp.text 'Explicit:'
+            pp.text "Explicit:"
             unless explicit.empty?
                 pp.nest(2) do
                     pp.breakable
@@ -81,7 +81,7 @@ module Syskit
             end
 
             pp.breakable
-            pp.text 'Defaults:'
+            pp.text "Defaults:"
             unless defaults.empty?
                 pp.nest(2) do
                     pp.breakable
@@ -191,7 +191,7 @@ module Syskit
 
                     raise ArgumentError,
                           'found #{value} as a selection key, but only names, '\
-                          'component models and data service models are allowed'
+                          "component models and data service models are allowed"
                 end
 
                 # 'value' must be one of String,Model<Component>,
@@ -227,7 +227,7 @@ module Syskit
                     normalized[key] = value
                 else
                     raise NotImplementedError,
-                          'should not have get there, but did'
+                          "should not have get there, but did"
                 end
             end
             normalized
@@ -340,7 +340,7 @@ module Syskit
                         raise ArgumentError,
                               "task instances #{selected_instance} and #{sel_m} "\
                               "are both selected for #{required_m || requirements}, "\
-                              'but they are not compatible'
+                              "but they are not compatible"
                     end
                 end
 
@@ -538,11 +538,11 @@ module Syskit
         end
 
         def self.do_not_inherit
-            @do_not_inherit ||= SpecialDIValue.new('do_not_inherit')
+            @do_not_inherit ||= SpecialDIValue.new("do_not_inherit")
         end
 
         def self.nothing
-            @nothing ||= SpecialDIValue.new('nothing')
+            @nothing ||= SpecialDIValue.new("nothing")
         end
 
         # Helper method that resolves recursive selections in a dependency
@@ -588,7 +588,7 @@ module Syskit
             unless value
                 raise ArgumentError,
                       "found nil as selection for #{key}, "\
-                      'but it is not an acceptable selection value anymore'
+                      "but it is not an acceptable selection value anymore"
             end
 
             value = value.component || value.selected if value.kind_of?(InstanceSelection)
@@ -609,14 +609,14 @@ module Syskit
                     raise ArgumentError,
                           "found #{value}(of class #{value.class}) as a selection "\
                           "for #{key}, but only names, component models, "\
-                          'components, data service models and bound data services '\
-                          'are allowed'
+                          "components, data service models and bound data services "\
+                          "are allowed"
                 else
                     raise ArgumentError,
                           "found #{value}(of class #{value.class}) as a selection, "\
                           "for #{key}, but only names, component models, "\
-                          'components, data service models and bound data services '\
-                          'are allowed'
+                          "components, data service models and bound data services "\
+                          "are allowed"
                 end
             end
             value
@@ -632,11 +632,11 @@ module Syskit
             return using_spec if !default_selections || default_selections.empty?
 
             debug do
-                debug 'Resolving default selections'
+                debug "Resolving default selections"
                 default_selections.map(&:to_s).sort.each do |sel|
                     debug "    #{sel}"
                 end
-                debug '  into'
+                debug "  into"
                 using_spec.map { |k, v| [k.to_s, v.to_s] }.sort.each do |k, v|
                     debug "    #{k} => #{v}"
                 end
@@ -665,7 +665,7 @@ module Syskit
                         debug do
                             debug "  rejected #{selection.short_name}"
                             debug "    for #{m.short_name}"
-                            debug '    reason: already explicitely selected'
+                            debug "    reason: already explicitely selected"
                             break
                         end
                     elsif ambiguous_default_selections.key?(m)
@@ -673,7 +673,7 @@ module Syskit
                         debug do
                             debug "  rejected #{selection.short_name}"
                             debug "    for #{m.short_name}"
-                            debug '    reason: ambiguity with'
+                            debug "    reason: ambiguity with"
                             ambiguity.each do |model|
                                 debug "      #{model.short_name}"
                             end
@@ -687,7 +687,7 @@ module Syskit
                         debug do
                             debug "  removing #{removed.short_name}"
                             debug "    for #{m.short_name}"
-                            debug '    reason: ambiguity with'
+                            debug "    reason: ambiguity with"
                             debug "      #{selection.short_name}"
                             break
                         end
@@ -702,7 +702,7 @@ module Syskit
                 end
             end
             debug do
-                debug '  selected defaults:'
+                debug "  selected defaults:"
                 resolved_default_selections.each do |key, sel|
                     key_name = key.respond_to?(:name) ? key.name : key
                     debug "    #{key_name}: #{sel}"

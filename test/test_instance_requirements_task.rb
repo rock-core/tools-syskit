@@ -1,5 +1,5 @@
-require 'syskit/test/self'
-require './test/fixtures/simple_composition_model'
+require "syskit/test/self"
+require "./test/fixtures/simple_composition_model"
 
 describe Syskit::InstanceRequirementsTask do
     include Syskit::Fixtures::SimpleCompositionModel
@@ -8,7 +8,7 @@ describe Syskit::InstanceRequirementsTask do
 
     attr_reader :stub_t
     before do
-        @stub_t = stub_type '/test_t'
+        @stub_t = stub_type "/test_t"
         create_simple_composition_model
         plan.execution_engine.scheduler.enabled = false
         @handler_ids = Syskit::RobyApp::Plugin.plug_engine_in_roby(plan.execution_engine)

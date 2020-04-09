@@ -39,9 +39,9 @@ module Syskit
             #   is prefixed before the button ID. The final button ID are
             #   #{namespace}/#{button_name} (e.g. #{namespace}/zoom)
             def self.common_graph_buttons(namespace)
-                [Button.new("#{namespace}/zoom", text: 'Zoom +'),
-                 Button.new("#{namespace}/unzoom", text: 'Zoom -'),
-                 Button.new("#{namespace}/save", text: 'Save SVG')]
+                [Button.new("#{namespace}/zoom", text: "Zoom +"),
+                 Button.new("#{namespace}/unzoom", text: "Zoom -"),
+                 Button.new("#{namespace}/save", text: "Save SVG")]
             end
 
             # Generate the list of buttons that allows to display or hide
@@ -85,8 +85,8 @@ module Syskit
             # This is usually not called directly, it is used by
             # {MetaRuby::GUI::ModelBrowser}
             def enable
-                connect(page, SIGNAL('buttonClicked(const QString&,bool)'),
-                        self, SLOT('buttonClicked(const QString&,bool)'))
+                connect(page, SIGNAL("buttonClicked(const QString&,bool)"),
+                        self, SLOT("buttonClicked(const QString&,bool)"))
             end
 
             # Disable this HTML renderer
@@ -94,8 +94,8 @@ module Syskit
             # This is usually not called directly, it is used by
             # {MetaRuby::GUI::ModelBrowser}
             def disable
-                disconnect(page, SIGNAL('buttonClicked(const QString&,bool)'),
-                           self, SLOT('buttonClicked(const QString&,bool)'))
+                disconnect(page, SIGNAL("buttonClicked(const QString&,bool)"),
+                           self, SLOT("buttonClicked(const QString&,bool)"))
             end
 
             # Template used in {#render_data_services} if the with_names argument is false
@@ -240,14 +240,14 @@ module Syskit
                 services = list_services(task)
                 html =
                     if services.empty?
-                        ''
+                        ""
                     elsif with_names
                         ERB.new(DATA_SERVICE_WITH_NAMES_TEMPLATE).result(binding)
                     else
                         ERB.new(DATA_SERVICE_WITHOUT_NAMES_TEMPLATE).result(binding)
                     end
 
-                page.push('Provided Services', html, id: 'provided_services')
+                page.push("Provided Services", html, id: "provided_services")
             end
 
             DEFINITION_PLACE_LABELS = %w[require using_task_library].freeze
@@ -278,7 +278,7 @@ module Syskit
             #   used to render the definition place in HTML
             def self.html_defined_in(page, model,
                 with_require: true, definition_location: nil,
-                format: '<b>Defined in</b> %s')
+                format: "<b>Defined in</b> %s")
                 path, lineno = *definition_location || find_definition_place(model)
                 return unless path
 
@@ -287,7 +287,7 @@ module Syskit
                 page.push(nil, "<p>#{format(format, path_link)}</p>")
                 return unless with_require
 
-                req_base = $LOAD_PATH.find { |p| path.fnmatch?(File.join(p, '*')) }
+                req_base = $LOAD_PATH.find { |p| path.fnmatch?(File.join(p, "*")) }
                 return unless req_base
 
                 req = path.relative_path_from(Pathname.new(req_base))
@@ -318,11 +318,11 @@ module Syskit
 
                     file_name = Qt::FileDialog.getSaveFileName(
                         @parent,
-                        "Save #{id} as SVG", '.', 'SVG (*.svg)'
+                        "Save #{id} as SVG", ".", "SVG (*.svg)"
                     )
                     next unless file_name
 
-                    File.open(file_name, 'w') do |file|
+                    File.open(file_name, "w") do |file|
                         file.write f.html
                     end
                 end
@@ -367,9 +367,9 @@ module Syskit
                 push_plan(namespace, plan)
                 emit updated
             end
-            slots 'buttonClicked(const QString&,bool)'
+            slots "buttonClicked(const QString&,bool)"
 
-            signals 'updated()'
+            signals "updated()"
 
             # Adds or updates a plan representation on the HTML page
             #

@@ -1,6 +1,6 @@
-require 'vizkit'
-require 'Qt4'
-require 'syskit/gui/ruby_item'
+require "vizkit"
+require "Qt4"
+require "syskit/gui/ruby_item"
 
 module Syskit
     module GUI

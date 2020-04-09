@@ -1,4 +1,4 @@
-require 'orogen/html'
+require "orogen/html"
 module Syskit::GUI
     module ModelViews
         class Type < Qt::Object
@@ -51,12 +51,12 @@ module Syskit::GUI
                 end
 
                 fragment = render_port_list(producers.to_a.sort)
-                page.push('Producers', fragment)
+                page.push("Producers", fragment)
                 fragment = render_port_list(consumers.to_a.sort)
-                page.push('Consumers', fragment)
+                page.push("Consumers", fragment)
             end
 
-            signals 'updated()'
+            signals "updated()"
         end
     end
 end

@@ -124,8 +124,8 @@ module Syskit
 
                 options = options.transform_keys do |key|
                     if key.respond_to?(:to_str) || key.respond_to?(:to_sym)
-                        Roby.warn_deprecated 'calling #specialize with child names '\
-                                             'is deprecated, use _child accessors '\
+                        Roby.warn_deprecated "calling #specialize with child names "\
+                                             "is deprecated, use _child accessors "\
                                              "instead (i.e. #{key}_child here)", 5
                         key
                     elsif key.respond_to?(:child_name)
@@ -199,7 +199,7 @@ module Syskit
                         Models.debug "  updated from #{parent_model.model}"
                     end
                     unless child_model.port_mappings.empty?
-                        Models.debug '  port mappings'
+                        Models.debug "  port mappings"
                         Models.log_nest(4) do
                             child_model.port_mappings.each_value do |mappings|
                                 Models.log_pp(:debug, mappings)
@@ -306,8 +306,8 @@ module Syskit
                     end
 
                 unless as
-                    raise ArgumentError, 'you must provide an explicit name with '\
-                                         'the :as option'
+                    raise ArgumentError, "you must provide an explicit name with "\
+                                         "the :as option"
                 end
 
                 add_child(as, models, dependency_options)
@@ -346,7 +346,7 @@ module Syskit
             # successfully when this child terminates successfully
             def add_main(models, **options)
                 if main_task
-                    raise ArgumentError, 'this composition already has a main task child'
+                    raise ArgumentError, "this composition already has a main task child"
                 end
 
                 @main_task = add(models, **options)
@@ -363,7 +363,7 @@ module Syskit
 
                 specializations = specialized_children.to_a
                 unless specializations.empty?
-                    pp.text 'Specialized on:'
+                    pp.text "Specialized on:"
                     pp.nest(2) do
                         specializations.each do |key, selected_models|
                             pp.breakable
@@ -382,7 +382,7 @@ module Syskit
 
                 pp.nest(2) do
                     pp.breakable
-                    pp.text 'Data services:'
+                    pp.text "Data services:"
                     pp.nest(2) do
                         data_services.sort_by(&:first)
                                      .each do |name, ds|
@@ -708,7 +708,7 @@ module Syskit
                 Models.debug do
                     Models.debug "selecting #{child_name}:"
                     Models.log_nest(2) do
-                        Models.debug 'on the basis of'
+                        Models.debug "on the basis of"
                         Models.log_nest(2) do
                             Models.log_pp(:debug, context)
                         end
@@ -719,7 +719,7 @@ module Syskit
                 selected_child, used_keys =
                     context.instance_selection_for(child_name, child_requirements)
                 Models.debug do
-                    Models.debug 'selected'
+                    Models.debug "selected"
                     Models.log_nest(2) do
                         Models.log_pp(:debug, selected_child)
                     end
@@ -1085,8 +1085,8 @@ module Syskit
                     end
                     if remaining_children_models.size == current_size
                         remaining_children_names = remaining_children_models
-                                                   .map(&:first).sort.join(', ')
-                        raise InternalError, 'cannot resolve children '\
+                                                   .map(&:first).sort.join(", ")
+                        raise InternalError, "cannot resolve children "\
                                              "#{remaining_children_names}"
                     end
                 end
@@ -1126,35 +1126,35 @@ module Syskit
                 end
 
                 io << "subgraph cluster_#{id} {"
-                io << '  fontsize=18;'
+                io << "  fontsize=18;"
                 io << "  C#{id} [style=invisible];"
 
                 if !exported_inputs.empty? || !exported_outputs.empty?
                     inputs = exported_inputs.keys
                     outputs = exported_outputs.keys
-                    label = Graphviz.dot_iolabel('Composition Interface', inputs, outputs)
+                    label = Graphviz.dot_iolabel("Composition Interface", inputs, outputs)
                     io << "  Cinterface#{id} [label=\"#{label}\",color=blue,fontsize=15];"
 
                     exported_outputs.each do |exported_name, port|
                         io << "C#{id}#{port.component_model.child_name}:"\
                               "#{port.port.name} -> "\
                               "Cinterface#{id}:#{exported_name} "\
-                              '[style=dashed];'
+                              "[style=dashed];"
                     end
                     exported_inputs.each do |exported_name, port|
                         io << "Cinterface#{id}:#{exported_name} -> "\
                               "C#{id}#{port.component_model.child_name}:"\
                               "#{port.port.name} "\
-                              '[style=dashed];'
+                              "[style=dashed];"
                     end
                 end
                 label = [short_name.dup]
                 provides = each_data_service.map do |name, type|
                     "#{name}:#{type.model.short_name}"
                 end
-                label << 'Abstract' if abstract?
+                label << "Abstract" if abstract?
                 unless provides.empty?
-                    label << 'Provides:'
+                    label << "Provides:"
                     label.concat(provides)
                 end
                 io << "  label=\"#{label.join('\\n')}\";"
@@ -1163,7 +1163,7 @@ module Syskit
                 each_child do |child_name, child_definition|
                     child_model = child_definition.each_required_model
 
-                    task_label = child_model.map(&:short_name).join(',')
+                    task_label = child_model.map(&:short_name).join(",")
                     task_label = "#{child_name}[#{task_label}]"
                     inputs = child_model.map { |m| m.each_input_port.map(&:name) }
                                         .inject(&:concat).to_a
@@ -1177,7 +1177,7 @@ module Syskit
                     io << "  C#{id}#{child_name} "\
                           "[label=\"#{label}\"#{color},fontsize=15];"
                 end
-                io << '}'
+                io << "}"
             end
 
             # Create a new submodel of this composition model that will be used
@@ -1220,13 +1220,13 @@ module Syskit
 
             def has_through_method_missing?(m)
                 MetaRuby::DSLs.has_through_method_missing?(
-                    self, m, '_child' => :find_child
+                    self, m, "_child" => :find_child
                 ) || super
             end
 
             def find_through_method_missing(m, args)
                 MetaRuby::DSLs.find_through_method_missing(
-                    self, m, args, '_child' => :find_child
+                    self, m, args, "_child" => :find_child
                 ) || super
             end
 
@@ -1310,8 +1310,8 @@ module Syskit
                 mappings = mappings.transform_keys do |child|
                     if child.respond_to?(:to_str)
                         conf = mappings[child]
-                        Roby.warn_deprecated 'providing the child as string in #conf '\
-                            'is deprecated, use the _child accessors '\
+                        Roby.warn_deprecated "providing the child as string in #conf "\
+                            "is deprecated, use the _child accessors "\
                             "instead (here #{child}_child => [#{conf.join(', ')}])"
                         child
                     else

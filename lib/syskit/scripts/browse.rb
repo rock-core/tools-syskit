@@ -1,7 +1,7 @@
-require 'roby/standalone'
-require 'syskit/scripts/common'
-require 'Qt'
-require 'syskit/gui/browse'
+require "roby/standalone"
+require "syskit/scripts/common"
+require "Qt"
+require "syskit/gui/browse"
 
 Scripts = Syskit::Scripts
 
@@ -12,7 +12,7 @@ parser = OptionParser.new do |opt|
         Loads the models from this bundle and allows to browse them. If a file is given, only this file is loaded.
     BANNER_TEXT
 
-    opt.on '--all', '-a', "Load all models from all active bundles instead of only the ones from the current" do
+    opt.on "--all", "-a", "Load all models from all active bundles instead of only the ones from the current" do
         load_all = true
     end
 end
@@ -20,7 +20,7 @@ Scripts.common_options(parser, true)
 remaining = parser.parse(ARGV)
 
 # We don't need the process server, win some startup time
-Roby.app.using 'syskit'
+Roby.app.using "syskit"
 Syskit.conf.only_load_models = true
 Syskit.conf.disables_local_process_server = true
 Roby.app.ignore_all_load_errors = true
@@ -34,7 +34,7 @@ Roby.app.auto_load_models = direct_files.empty?
 Roby.app.additional_model_files.concat(direct_files)
 
 app = Qt::Application.new(ARGV)
-settings = Qt::Settings.new('syskit', '')
+settings = Qt::Settings.new("syskit", "")
 
 Scripts.run do
     main = Syskit::GUI::Browse.new
@@ -55,6 +55,6 @@ Scripts.run do
     main.resize(size)
     main.show
     $qApp.exec
-    settings.setValue('MainWindow/size', Qt::Variant.new(main.size))
+    settings.setValue("MainWindow/size", Qt::Variant.new(main.size))
     settings.sync
 end

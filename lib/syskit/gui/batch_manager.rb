@@ -1,4 +1,4 @@
-require 'syskit/gui/widget_list'
+require "syskit/gui/widget_list"
 
 module Syskit
     module GUI
@@ -44,9 +44,9 @@ module Syskit
                     Roby.display_exception(STDOUT, e)
 
                     Qt::MessageBox.critical(
-                        self, 'Syskit Process Batch',
+                        self, "Syskit Process Batch",
                         "failed to process batch: #{e.message}, "\
-                        'see console output for more details'
+                        "see console output for more details"
                     )
                 end
                 clear
@@ -77,7 +77,7 @@ module Syskit
                 @cancel_btn.enabled = true
             end
 
-            signals 'active(bool)'
+            signals "active(bool)"
 
             def drop_job(job_widget)
                 @drop_job << job_widget.job
@@ -166,7 +166,7 @@ module Syskit
             class NewJobDialog < Qt::Dialog
                 attr_reader :editor
 
-                def initialize(parent = nil, text = '')
+                def initialize(parent = nil, text = "")
                     super(parent)
                     resize(800, 600)
 
@@ -182,7 +182,7 @@ module Syskit
                     layout.add_widget editor
 
                     buttons = Qt::DialogButtonBox.new(Qt::DialogButtonBox::Ok | Qt::DialogButtonBox::Cancel)
-                    buttons.connect(SIGNAL('accepted()')) do
+                    buttons.connect(SIGNAL("accepted()")) do
                         begin
                             @error_message.hide
                             @result = Parser.parse(self.text)
@@ -192,7 +192,7 @@ module Syskit
                             @error_message.show
                         end
                     end
-                    buttons.connect(SIGNAL('rejected()')) { reject }
+                    buttons.connect(SIGNAL("rejected()")) { reject }
                     layout.add_widget buttons
                 end
 

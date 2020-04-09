@@ -69,7 +69,7 @@ module Syskit
                 @default_color = handle_color_argument(color)
             end
 
-            def initialize(name: nil, extra_style: '', parent: nil, rate_limited: false)
+            def initialize(name: nil, extra_style: "", parent: nil, rate_limited: false)
                 super(parent)
                 @rate_limited = rate_limited
                 @name = name
@@ -196,7 +196,7 @@ module Syskit
                     end
             end
 
-            slots 'update_state(QString)'
+            slots "update_state(QString)"
         end
     end
 end

@@ -149,14 +149,14 @@ module Syskit
             def has_through_method_missing?(m)
                 MetaRuby::DSLs.has_through_method_missing?(
                     self, m,
-                    '_port'.freeze => :has_port?
+                    "_port".freeze => :has_port?
                 ) || super
             end
 
             def find_through_method_missing(m, args)
                 MetaRuby::DSLs.find_through_method_missing(
                     self, m, args,
-                    '_port'.freeze => :find_port
+                    "_port".freeze => :find_port
                 ) || super
             end
 
@@ -213,7 +213,7 @@ module Syskit
                     task_model, service_models, =
                         resolve_models_argument(models, component_model: component_model)
 
-                    name_models = service_models.map(&:to_s).sort.join(',')
+                    name_models = service_models.map(&:to_s).sort.join(",")
                     if task_model != Syskit::Component
                         name_models = "#{task_model},#{name_models}"
                     end
@@ -346,5 +346,5 @@ module Syskit
     end
 
     # @deprecated has been renamed into Placeholder
-    autoload :PlaceholderTask, 'syskit/models/placeholder_task'
+    autoload :PlaceholderTask, "syskit/models/placeholder_task"
 end

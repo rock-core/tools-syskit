@@ -337,7 +337,7 @@ module Syskit
                               "#{component_model} is fullfilled by #{task}, "\
                               "but is not inherited by its model #{task.model}. "\
                               "I didn't manage to resolve this, either as a "\
-                              'task-to-placeholder mapping, or as a dynamic service'
+                              "task-to-placeholder mapping, or as a dynamic service"
                     end
 
                     resolved
@@ -348,7 +348,7 @@ module Syskit
             def resolve(task)
                 Roby.warn_deprecated(
                     "#{__method__} is deprecated, use "\
-                    'BoundDataService#bind instead'
+                    "BoundDataService#bind instead"
                 )
                 bind(task)
             end
@@ -395,14 +395,14 @@ module Syskit
 
             def has_through_method_missing?(m) # rubocop:disable Naming/PredicateName
                 MetaRuby::DSLs.has_through_method_missing?(
-                    self, m, '_srv' => :has_data_service?
+                    self, m, "_srv" => :has_data_service?
                 ) || super
             end
 
             def find_through_method_missing(m, args)
                 MetaRuby::DSLs.find_through_method_missing(
                     self, m, args,
-                    '_srv' => :find_data_service
+                    "_srv" => :find_data_service
                 ) || super
             end
 

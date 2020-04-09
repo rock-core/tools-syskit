@@ -20,7 +20,7 @@ module Syskit
             def buffer_size_margin=(value)
                 value = Float(value)
                 if value < 0
-                    raise ArgumentError, 'only positive values can be used as '\
+                    raise ArgumentError, "only positive values can be used as "\
                                          "buffer_size_margin, got #{value}"
                 end
                 @buffer_size_margin = Float(value)
@@ -244,7 +244,7 @@ module Syskit
 
                 activity_type = task.orogen_model.activity_type.name
                 case activity_type
-                when 'Periodic'
+                when "Periodic"
                     initial_device_information_periodic_triggering(
                         task, triggering_devices.to_a, task.orogen_model.period
                     )
@@ -268,7 +268,7 @@ module Syskit
                     if device.period
                         device_dynamics.add_trigger(device.name, device.period, 1)
                     end
-                    device_dynamics.add_trigger(device.name + '-burst', 0, device.burst)
+                    device_dynamics.add_trigger(device.name + "-burst", 0, device.burst)
 
                     yield(service, device, device_dynamics) unless device_dynamics.empty?
                 end
@@ -277,7 +277,7 @@ module Syskit
             # Computes the initial port dynamics due to devices when the task
             # gets triggered by the devices it is attached to
             def initial_device_information_internal_triggering(task, triggering_devices)
-                DataFlowDynamics.debug '  is triggered internally'
+                DataFlowDynamics.debug "  is triggered internally"
 
                 initial_device_information_common(task, triggering_devices) do |service, device, device_dynamics|
                     add_task_info(task, device_dynamics)
@@ -315,7 +315,7 @@ module Syskit
             def initial_combus_information(task)
                 handled_ports = Set.new
                 DataFlowDynamics.debug do
-                    'adding information from attached combus devices'
+                    "adding information from attached combus devices"
                 end
 
                 task.each_attached_device do |dev|
@@ -393,12 +393,12 @@ module Syskit
                 initial_combus_information(task) if task.kind_of?(ComBus)
 
                 activity_type = task.orogen_model.activity_type.name
-                if activity_type == 'Periodic'
+                if activity_type == "Periodic"
                     DataFlowDynamics.debug { "  adding periodic trigger #{task.orogen_model.period} 1" }
                     add_task_trigger(task, "#{task.orocos_name}.main-period", task.orogen_model.period, 1)
                     done_task_info(task)
 
-                elsif activity_type == 'SlaveActivity'
+                elsif activity_type == "SlaveActivity"
                     # The master's main trigger is propagated in #done_task_info
 
                 elsif !task.model.each_event_port.find { true }
@@ -538,12 +538,12 @@ module Syskit
                 propagate(deployed_tasks)
 
                 DataFlowDynamics.debug do
-                    DataFlowDynamics.debug 'computing connections'
+                    DataFlowDynamics.debug "computing connections"
                     deployed_tasks.each do |t|
                         DataFlowDynamics.debug "  #{t}"
                     end
 
-                    DataFlowDynamics.debug 'available information for'
+                    DataFlowDynamics.debug "available information for"
                     result.each do |task, ports|
                         DataFlowDynamics.debug "  #{task}: #{ports.keys.join(', ')}"
                     end
@@ -623,7 +623,7 @@ module Syskit
                     policy
                 else
                     raise UnsupportedConnectionType,
-                          'unknown required connection type '\
+                          "unknown required connection type "\
                           "#{sink_port_m.required_connection_type} "\
                           "on #{sink_port}"
                 end
@@ -659,13 +659,13 @@ module Syskit
                     warn do
                         if has_source_dynamics
                             warn "#{sink_task} has no minimal period"
-                            warn 'This is needed to compute the reading latency on '\
+                            warn "This is needed to compute the reading latency on "\
                                     "#{sink_port.name}"
                             warn "Specified fallback policy #{fallback_policy} will be used"
                         else
-                            warn 'Cannot compute the period information for output port'
+                            warn "Cannot compute the period information for output port"
                             warn "   #{source_task}:#{source_port.name}"
-                            warn '   This is needed to compute the policy to connect to'
+                            warn "   This is needed to compute the policy to connect to"
                             warn "   #{sink_task}:#{sink_port.name}"
                             warn "   The fallback policy #{fallback_policy} will be used"
                         end
@@ -677,7 +677,7 @@ module Syskit
                     raise SpecError,
                           "period information for output port #{source_task}:"\
                           "#{source_port.name} cannot be computed. This is needed "\
-                          'to compute the policy to connect to '\
+                          "to compute the policy to connect to "\
                           "#{sink_task}:#{sink_port.name}"
                 else
                     raise SpecError,

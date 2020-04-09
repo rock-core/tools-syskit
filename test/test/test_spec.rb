@@ -1,27 +1,27 @@
-require 'syskit/test/self'
-require 'syskit/test'
+require "syskit/test/self"
+require "syskit/test"
 
 module Syskit
     module Test
         describe InstanceRequirementPlanningHandler do
             before do
-                @task_m = Syskit::TaskContext.new_submodel(name: 'Task')
-                @srv_m = Syskit::DataService.new_submodel(name: 'Srv')
-                @cmp_m = Syskit::Composition.new_submodel(name: 'Cmp')
-                @cmp_m.add @srv_m, as: 'srv'
+                @task_m = Syskit::TaskContext.new_submodel(name: "Task")
+                @srv_m = Syskit::DataService.new_submodel(name: "Srv")
+                @cmp_m = Syskit::Composition.new_submodel(name: "Cmp")
+                @cmp_m.add @srv_m, as: "srv"
             end
 
             after do
                 @event_loop_monitor&.dispose
             end
 
-            it 'stubs a network mingled with non-Syskit tasks' do
+            it "stubs a network mingled with non-Syskit tasks" do
                 plan.add(t0 = Roby::Tasks::Simple.new)
                 plan.add(t1 = Roby::Tasks::Simple.new)
-                task = t0.depends_on(@task_m, role: 'task')
-                cmp = t0.depends_on(@cmp_m, role: 'cmp')
-                t0.depends_on(t1, role: 'plain_task')
-                t1.depends_on(task, role: 'task')
+                task = t0.depends_on(@task_m, role: "task")
+                cmp = t0.depends_on(@cmp_m, role: "cmp")
+                t0.depends_on(t1, role: "plain_task")
+                t1.depends_on(task, role: "task")
 
                 t0 = run_planners(t0)
                 refute_same t0.cmp_child, cmp
@@ -39,7 +39,7 @@ module Syskit
                 end
             end
 
-            it 'triggers resolution immediately if the planning tasks are running' do
+            it "triggers resolution immediately if the planning tasks are running" do
                 plan.add(cmp = @cmp_m.as_plan)
                 planning_task = cmp.planning_task
                 execute { planning_task.start! }
@@ -52,7 +52,7 @@ module Syskit
                 assert cycles[0].has_async_resolution
             end
 
-            it 'waits for the planning tasks to be started before it triggers the async resolution' do
+            it "waits for the planning tasks to be started before it triggers the async resolution" do
                 plan.add(cmp = @cmp_m.as_plan)
                 cycles = gather_planning_state(cmp, 2)
                 run_planners(cmp)
@@ -66,7 +66,7 @@ module Syskit
                 assert cycles[1].has_async_resolution
             end
 
-            it 'considers only the provided tasks' do
+            it "considers only the provided tasks" do
                 plan.add(task = @task_m.as_plan)
                 plan.add(cmp = @cmp_m.as_plan)
 

@@ -11,13 +11,13 @@ module Syskit
             # @param [Array<Qt::Action>] the list of actions that can be
             #   performed on the remote Roby instance
             def initialize(actions: [], **options)
-                super(extra_style: 'margin-left: 2px; margin-top: 2px; font-size: 10pt;',
+                super(extra_style: "margin-left: 2px; margin-top: 2px; font-size: 10pt;",
                       rate_limited: true, **options)
                 @actions = actions
-                declare_state 'STARTING', :blue
-                declare_state 'RESTARTING', :blue
-                declare_state 'CONNECTED', :green
-                declare_state 'UNREACHABLE', :red
+                declare_state "STARTING", :blue
+                declare_state "RESTARTING", :blue
+                declare_state "CONNECTED", :green
+                declare_state "UNREACHABLE", :red
             end
 
             # @api private
@@ -56,7 +56,7 @@ module Syskit
                 emit clicked(event.global_pos)
                 event.accept
             end
-            signals 'clicked(QPoint)'
+            signals "clicked(QPoint)"
         end
     end
 end

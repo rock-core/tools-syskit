@@ -7,7 +7,9 @@ module Syskit
             include MetaRuby::ModelAsClass
             include Syskit::DataService
 
-            def to_component_model; self end
+            def to_component_model
+                self
+            end
 
             # Method that maps data services from this component's parent models
             # to this composition's own
@@ -346,7 +348,7 @@ module Syskit
 
                 result = {}
                 service_model.each_output_port do |port|
-                    if mapped_name = find_directional_port_mapping('output', port, normalized_mappings[port.name])
+                    if mapped_name = find_directional_port_mapping("output", port, normalized_mappings[port.name])
                         result[port.name] = mapped_name
                         mapped_to_original[mapped_name] << port.name
                     else
@@ -354,7 +356,7 @@ module Syskit
                     end
                 end
                 service_model.each_input_port do |port|
-                    if mapped_name = find_directional_port_mapping('input', port, normalized_mappings[port.name])
+                    if mapped_name = find_directional_port_mapping("input", port, normalized_mappings[port.name])
                         result[port.name] = mapped_name
                         mapped_to_original[mapped_name] << port.name
                     else
@@ -460,7 +462,7 @@ module Syskit
             #
             # @key_name dynamic_service_name
             # @return [Hash<String,DynamicDataService>]
-            inherited_attribute('dynamic_service', 'dynamic_services', map: true) { {} }
+            inherited_attribute("dynamic_service", "dynamic_services", map: true) { {} }
 
             # Declares that this component model can dynamically extend its
             # interface by adding services of the given type
@@ -1226,7 +1228,7 @@ module Syskit
             def method_missing(m, *args, &block) # rubocop:disable Style/MissingRespondToMissing
                 if m == :orogen_model
                     raise NoMethodError,
-                          'tried to use a method to access an oroGen model, '\
+                          "tried to use a method to access an oroGen model, "\
                           "but none exists on #{self}"
                 end
 

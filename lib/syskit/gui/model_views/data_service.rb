@@ -4,7 +4,7 @@ module Syskit::GUI
             def initialize(page)
                 super(page)
                 buttons = []
-                buttons.concat(self.class.common_graph_buttons('interface'))
+                buttons.concat(self.class.common_graph_buttons("interface"))
                 interface_options[:buttons] = buttons
             end
 

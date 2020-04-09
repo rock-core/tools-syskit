@@ -1,4 +1,4 @@
-require 'orocos/ruby_tasks/process'
+require "orocos/ruby_tasks/process"
 
 module Syskit
     module RobyApp
@@ -16,19 +16,31 @@ module Syskit
                     @signal = signal
                 end
 
-                def stopped?; false end
+                def stopped?
+                    false
+                end
 
-                def exited?; !@exit_code.nil? end
+                def exited?
+                    !@exit_code.nil?
+                end
 
-                def exitstatus; @exit_code end
+                def exitstatus
+                    @exit_code
+                end
 
-                def signaled?; !@signal.nil? end
+                def signaled?
+                    !@signal.nil?
+                end
 
-                def termsig; @signal end
+                def termsig
+                    @signal
+                end
 
                 def stopsig; end
 
-                def success?; exitstatus == 0 end
+                def success?
+                    exitstatus == 0
+                end
             end
 
             # The set of processes started so far

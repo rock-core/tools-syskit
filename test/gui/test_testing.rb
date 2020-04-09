@@ -1,9 +1,9 @@
 # frozen_string_literal: true
 
-require 'syskit/test/self'
-require 'vizkit'
-require 'syskit/gui/testing'
-require 'syskit/gui/state_label'
+require "syskit/test/self"
+require "vizkit"
+require "syskit/gui/testing"
+require "syskit/gui/state_label"
 
 module Syskit
     module GUI
@@ -13,8 +13,8 @@ module Syskit
                 @testing = Testing.new(app: app)
             end
 
-            describe '#discover_exceptions_from_failure' do
-                it 'resolves an Minitest::UnexpectedError\'s original error' do
+            describe "#discover_exceptions_from_failure" do
+                it "resolves an Minitest::UnexpectedError's original error" do
                     original_error = ArgumentError.new
                     unexpected_error = Minitest::UnexpectedError.new(original_error)
 

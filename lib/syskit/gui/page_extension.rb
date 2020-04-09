@@ -38,11 +38,11 @@ module Syskit
                 svg_io = Tempfile.open(kind)
                 begin
                     Syskit::Graphviz.new(plan, self, typelib_resolver: GUI::ModelBrowser::TypelibResolver.new)
-                                    .to_file(kind, 'svg', svg_io, options)
+                                    .to_file(kind, "svg", svg_io, options)
                     svg_io.flush
                     svg_io.rewind
                     svg = svg_io.read
-                    svg = svg.encode 'utf-8', invalid: :replace
+                    svg = svg.encode "utf-8", invalid: :replace
                 rescue DotCrashError, DotFailedError => e
                     svg = e.message
                 end
@@ -61,7 +61,7 @@ module Syskit
 
                 if pattern = external_objects
                     file = pattern % kind + ".svg"
-                    File.open(file, 'w') do |io|
+                    File.open(file, "w") do |io|
                         io.write(svg)
                     end
                     push(title, "<object data=\"#{file}\" type=\"image/svg+xml\"></object>",

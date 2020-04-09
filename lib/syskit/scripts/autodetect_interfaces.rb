@@ -1,9 +1,9 @@
-require 'roby/standalone'
-require 'orocos'
-require 'syskit'
-require 'syskit/roby_app'
+require "roby/standalone"
+require "orocos"
+require "syskit"
+require "syskit/roby_app"
 
-Roby.app.using 'syskit'
+Roby.app.using "syskit"
 
 if ARGV[0] == "--all"
     Roby.app.orocos_load_component_extensions = false
@@ -43,9 +43,9 @@ until tasks.empty?
 
     unless result.empty?
         result.each do |source_model, interface_name|
-            task_name = task.name.gsub(/^Syskit::/, '')
-            mod_name, task_name = task_name.split '::'
-            if interface_name == ''
+            task_name = task.name.gsub(/^Syskit::/, "")
+            mod_name, task_name = task_name.split "::"
+            if interface_name == ""
                 task.provides source_model
                 layout[mod_name] << "#{task_name}.interface #{source_model.name}"
             else

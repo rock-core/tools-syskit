@@ -5,7 +5,9 @@ module Syskit
         attr_reader :app
         attr_reader :syskit_model
 
-        def orogen_model; syskit_model.orogen_model end
+        def orogen_model
+            syskit_model.orogen_model
+        end
 
         def initialize(app, syskit_model)
             @app = app
@@ -47,7 +49,7 @@ module Syskit
             if local_only
                 local_option[:path] = [app.app_dir]
             end
-            app.find_file('config', 'orogen', 'ROBOT', "#{orogen_model.name}.yml",
+            app.find_file("config", "orogen", "ROBOT", "#{orogen_model.name}.yml",
                           order: :specific_first, all: false, **local_option)
         end
 
@@ -73,7 +75,7 @@ module Syskit
         def save(section_name, file: nil, replace: false)
             path = file ||
                 existing_configuration_file(local_only: true) ||
-                File.join(Roby.app_dir, 'config', 'orogen', "#{orogen_model.name}.yml")
+                File.join(Roby.app_dir, "config", "orogen", "#{orogen_model.name}.yml")
             super(section_name, path, replace: replace)
         end
 
@@ -105,7 +107,7 @@ module Syskit
 
         # The cache directory used by the Syskit app to speed up configuration loading
         def cache_dir
-            File.join(app.app_dir, 'config', 'orogen', '.cache')
+            File.join(app.app_dir, "config", "orogen", ".cache")
         end
 
         def load_from_yaml(path, cache_dir: self.cache_dir)

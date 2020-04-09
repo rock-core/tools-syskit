@@ -1,5 +1,5 @@
-require 'syskit/test/self'
-require 'syskit/test/execution_expectations'
+require "syskit/test/self"
+require "syskit/test/execution_expectations"
 
 module Syskit
     module Test
@@ -8,8 +8,8 @@ module Syskit
 
             before do
                 task_m = Syskit::RubyTaskContext.new_submodel do
-                    input_port 'in', '/int'
-                    output_port 'out', '/int'
+                    input_port "in", "/int"
+                    output_port "out", "/int"
 
                     poll do
                         Orocos.allow_blocking_calls do
@@ -19,7 +19,7 @@ module Syskit
                         end
                     end
                 end
-                use_ruby_tasks task_m => 'test', on: 'stubs'
+                use_ruby_tasks task_m => "test", on: "stubs"
                 @task = syskit_deploy_configure_and_start(task_m)
             end
 
@@ -59,10 +59,10 @@ module Syskit
                             .timeout(0.01)
                             .to do
                                 expectation = have_one_new_sample task.out_port,
-                                                                  backtrace: ['bla']
+                                                                  backtrace: ["bla"]
                             end
                     end
-                    assert_equal ['bla'], expectation.backtrace
+                    assert_equal ["bla"], expectation.backtrace
                 end
             end
 
@@ -102,10 +102,10 @@ module Syskit
                             .timeout(0.01)
                             .to do
                                 expectation = have_no_new_sample task.out_port,
-                                                                 backtrace: ['bla']
+                                                                 backtrace: ["bla"]
                             end
                     end
-                    assert_equal ['bla'], expectation.backtrace
+                    assert_equal ["bla"], expectation.backtrace
                 end
             end
         end

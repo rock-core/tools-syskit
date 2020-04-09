@@ -43,7 +43,7 @@ module Syskit
                 @deployment_group.deregister_configured_deployment(configured_deployment)
                 configured_deployment.each_orogen_deployed_task_context_model do |orogen_m|
                     task_m = Syskit::TaskContext.find_model_by_orogen(orogen_m.task_model)
-                    @conf.process_server_config_for('unmanaged_tasks')
+                    @conf.process_server_config_for("unmanaged_tasks")
                     new_deployments = @deployment_group.use_unmanaged_task(
                         { task_m => orogen_m.name },
                         process_managers: @conf
@@ -184,7 +184,7 @@ module Syskit
             # The returned command line assumes that the Syskit process runs on
             # the machine where it will be executed
             def command_line(id, tracing: false,
-                name_service_ip: 'localhost',
+                name_service_ip: "localhost",
                 working_directory: @conf.app.log_dir,
                 loader: @conf.app.default_pkgconfig_loader)
 

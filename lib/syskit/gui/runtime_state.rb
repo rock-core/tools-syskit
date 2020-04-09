@@ -1,13 +1,13 @@
-require 'syskit'
-require 'roby/interface/async'
-require 'roby/interface/async/log'
-require 'syskit/gui/logging_configuration'
-require 'syskit/gui/job_status_display'
-require 'syskit/gui/widget_list'
-require 'syskit/gui/expanded_job_status'
-require 'syskit/gui/global_state_label'
-require 'syskit/gui/app_start_dialog'
-require 'syskit/gui/batch_manager'
+require "syskit"
+require "roby/interface/async"
+require "roby/interface/async/log"
+require "syskit/gui/logging_configuration"
+require "syskit/gui/job_status_display"
+require "syskit/gui/widget_list"
+require "syskit/gui/expanded_job_status"
+require "syskit/gui/global_state_label"
+require "syskit/gui/app_start_dialog"
+require "syskit/gui/batch_manager"
 
 module Syskit
     module GUI
@@ -77,7 +77,7 @@ module Syskit
                 def sizeHint(option, index)
                     fm = option.font_metrics
                     main = index.data.toString
-                    doc = index.data(Qt::UserRole).to_string || ''
+                    doc = index.data(Qt::UserRole).to_string || ""
                     Qt::Size.new(
                         [fm.width(main), fm.width(doc)].max + 2 * OUTER_MARGIN,
                         fm.height * 2 + OUTER_MARGIN * 2 + INTERLINE
@@ -93,7 +93,7 @@ module Syskit
                     end
 
                     main = index.data.toString
-                    doc = index.data(Qt::UserRole).to_string || ''
+                    doc = index.data(Qt::UserRole).to_string || ""
                     text_bounds = Qt::Rect.new
 
                     fm = option.font_metrics
@@ -119,7 +119,7 @@ module Syskit
             # @param [Integer] poll_period how often should the syskit interface
             #   be polled (milliseconds). Set to nil if the polling is already
             #   done externally
-            def initialize(parent: nil, robot_name: 'default',
+            def initialize(parent: nil, robot_name: "default",
                 syskit: Roby::Interface::Async::Interface.new, poll_period: 50)
 
                 super(parent)
@@ -130,8 +130,8 @@ module Syskit
 
                 @syskit_poll = Qt::Timer.new
                 @syskit_poll_period = poll_period
-                connect syskit_poll, SIGNAL('timeout()'),
-                        self, SLOT('poll_syskit_interface()')
+                connect syskit_poll, SIGNAL("timeout()"),
+                        self, SLOT("poll_syskit_interface()")
 
                 if poll_period
                     @syskit_poll.start(poll_period)
@@ -142,17 +142,17 @@ module Syskit
                 @global_actions = {}
                 action = global_actions[:start] = Qt::Action.new("Start", self)
                 @starting_monitor = Qt::Timer.new
-                connect @starting_monitor, SIGNAL('timeout()'),
-                        self, SLOT('monitor_syskit_startup()')
-                connect action, SIGNAL('triggered()') do
+                connect @starting_monitor, SIGNAL("timeout()"),
+                        self, SLOT("monitor_syskit_startup()")
+                connect action, SIGNAL("triggered()") do
                     app_start(robot_name: @robot_name)
                 end
                 action = global_actions[:restart] = Qt::Action.new("Restart", self)
-                connect action, SIGNAL('triggered()') do
+                connect action, SIGNAL("triggered()") do
                     app_restart
                 end
                 action = global_actions[:quit] = Qt::Action.new("Quit", self)
-                connect action, SIGNAL('triggered()') do
+                connect action, SIGNAL("triggered()") do
                     app_quit
                 end
 
@@ -191,7 +191,7 @@ module Syskit
                     global_actions[:restart].visible = true
                     global_actions[:quit].visible = true
                     @starting_monitor.stop
-                    run_hook :on_connection_state_changed, 'CONNECTED'
+                    run_hook :on_connection_state_changed, "CONNECTED"
                 end
                 syskit.on_unreachable do
                     @syskit_commands = nil
@@ -201,14 +201,14 @@ module Syskit
                     @ui_event_widgets.each_value(&:hide)
                     action_combo.enabled = false
                     @batch_manager.cancel
-                    if remote_name == 'localhost'
+                    if remote_name == "localhost"
                         global_actions[:start].visible = true
                     end
                     ui_logging_configuration.refresh
                     global_actions[:restart].visible = false
                     global_actions[:quit].visible = false
-                    if @current_state != 'RESTARTING'
-                        run_hook :on_connection_state_changed, 'UNREACHABLE'
+                    if @current_state != "RESTARTING"
+                        run_hook :on_connection_state_changed, "UNREACHABLE"
                     end
                 end
                 syskit.on_job do |job|
@@ -230,11 +230,11 @@ module Syskit
 
                 if has_quit
                     @syskit_pid = nil
-                    run_hook :on_connection_state_changed, 'UNREACHABLE'
+                    run_hook :on_connection_state_changed, "UNREACHABLE"
                     @starting_monitor.stop
                 end
             end
-            slots 'monitor_syskit_startup()'
+            slots "monitor_syskit_startup()"
 
             def reset
                 Orocos.initialize
@@ -284,7 +284,7 @@ module Syskit
                 syskit.remote_name
             end
 
-            def app_start(robot_name: 'default')
+            def app_start(robot_name: "default")
                 robot_name, start_controller = AppStartDialog.exec(Roby.app.robots.names, self, default_robot_name: robot_name)
                 return unless robot_name
 
@@ -296,14 +296,14 @@ module Syskit
                     extra_args << "-c"
                 end
                 extra_args.concat(
-                    Roby.app.argv_set.flat_map { |arg| ['--set', arg] }
+                    Roby.app.argv_set.flat_map { |arg| ["--set", arg] }
                 )
                 @syskit_pid =
-                    Kernel.spawn Gem.ruby, '-S', 'syskit', 'run', "--wait-shell-connection",
+                    Kernel.spawn Gem.ruby, "-S", "syskit", "run", "--wait-shell-connection",
                                  *extra_args,
                                  pgroup: true
                 @starting_monitor.start(100)
-                run_hook :on_connection_state_changed, 'STARTING'
+                run_hook :on_connection_state_changed, "STARTING"
             end
 
             def app_quit
@@ -311,7 +311,7 @@ module Syskit
             end
 
             def app_restart
-                run_hook :on_connection_state_changed, 'RESTARTING'
+                run_hook :on_connection_state_changed, "RESTARTING"
                 if @syskit_pid
                     @starting_monitor.start(100)
                 end
@@ -322,7 +322,7 @@ module Syskit
                 return if @logger_m == false
 
                 @logger_m ||= Syskit::TaskContext
-                              .find_model_from_orogen_name('logger::Logger') || false
+                              .find_model_from_orogen_name("logger::Logger") || false
                 t.kind_of?(@logger_m)
             end
 
@@ -428,13 +428,13 @@ module Syskit
 
                 @batch_manager = BatchManager.new(@syskit, self)
                 job_summary_layout.add_widget(@batch_manager)
-                @batch_manager.connect(SIGNAL('active(bool)')) do |active|
+                @batch_manager.connect(SIGNAL("active(bool)")) do |active|
                     if active then @batch_manager.show
                     else @batch_manager.hide
                     end
                 end
                 @batch_manager.hide
-                connection_state.connect(SIGNAL('clicked(QPoint)')) do
+                connection_state.connect(SIGNAL("clicked(QPoint)")) do
                     deselect_job
                 end
 
@@ -453,8 +453,8 @@ module Syskit
                 splitter = Qt::Splitter.new
                 splitter.add_widget job_summary
                 splitter.add_widget(@job_expanded_status = ExpandedJobStatus.new)
-                connect(@job_expanded_status, SIGNAL('fileOpenClicked(const QUrl&)'),
-                        self, SIGNAL('fileOpenClicked(const QUrl&)'))
+                connect(@job_expanded_status, SIGNAL("fileOpenClicked(const QUrl&)"),
+                        self, SIGNAL("fileOpenClicked(const QUrl&)"))
 
                 task_inspector_widget = Qt::Widget.new
                 task_inspector_layout = Qt::VBoxLayout.new(task_inspector_widget)
@@ -471,7 +471,7 @@ module Syskit
                     @ui_task_inspector = Vizkit.default_loader.TaskInspector
                 )
                 @ui_hide_loggers.checked = false
-                @ui_hide_loggers.connect SIGNAL('toggled(bool)') do |checked|
+                @ui_hide_loggers.connect SIGNAL("toggled(bool)") do |checked|
                     @known_loggers = nil
                     update_tasks_info
                 end
@@ -513,15 +513,15 @@ module Syskit
                 layout.add_widget(Qt::Label.new("oroGen configuration files changes on disk"), 1)
                 layout.add_widget(reload = create_ui_event_button("Reload"))
                 layout.add_widget(close  = create_ui_event_button("Close"))
-                reload.connect(SIGNAL('clicked()')) do
+                reload.connect(SIGNAL("clicked()")) do
                     @syskit_commands.async_reload_config do
                         syskit_orogen_config_changed.hide
                     end
                 end
-                close.connect(SIGNAL('clicked()')) do
+                close.connect(SIGNAL("clicked()")) do
                     syskit_orogen_config_changed.hide
                 end
-                EventWidget.new('syskit_orogen_config_changed', syskit_orogen_config_changed, lambda {})
+                EventWidget.new("syskit_orogen_config_changed", syskit_orogen_config_changed, lambda {})
             end
 
             def create_ui_event_orogen_config_reloaded
@@ -530,12 +530,12 @@ module Syskit
                 layout.add_widget(label = Qt::Label.new(), 1)
                 layout.add_widget(apply = create_ui_event_button("Reconfigure"))
                 layout.add_widget(close = create_ui_event_button("Close"))
-                apply.connect(SIGNAL('clicked()')) do
+                apply.connect(SIGNAL("clicked()")) do
                     @syskit_commands.async_redeploy do
                         syskit_orogen_config_reloaded.hide
                     end
                 end
-                close.connect(SIGNAL('clicked()')) do
+                close.connect(SIGNAL("clicked()")) do
                     syskit_orogen_config_reloaded.hide
                 end
                 syskit_orogen_config_reloaded_hook = lambda do |changed_tasks, changed_tasks_running|
@@ -550,7 +550,7 @@ module Syskit
                         apply.show
                     end
                 end
-                EventWidget.new('syskit_orogen_config_reloaded',
+                EventWidget.new("syskit_orogen_config_reloaded",
                                 syskit_orogen_config_reloaded,
                                 syskit_orogen_config_reloaded_hook)
             end
@@ -577,7 +577,7 @@ module Syskit
                 action_combo.item_delegate = ActionListDelegate.new(self)
                 new_job_layout.add_widget label
                 new_job_layout.add_widget action_combo, 1
-                action_combo.connect(SIGNAL('activated(QString)')) do |action_name|
+                action_combo.connect(SIGNAL("activated(QString)")) do |action_name|
                     @batch_manager.create_new_job(action_name)
                 end
                 new_job_layout
@@ -598,7 +598,7 @@ module Syskit
                     end
                 end
             end
-            slots 'poll_syskit_interface()'
+            slots "poll_syskit_interface()"
 
             # @api private
             #
@@ -608,10 +608,10 @@ module Syskit
             def monitor_job(job)
                 job_status = JobStatusDisplay.new(job, @batch_manager)
                 job_status_list.add_widget job_status
-                job_status.connect(SIGNAL('clicked()')) do
+                job_status.connect(SIGNAL("clicked()")) do
                     select_job(job_status)
                 end
-                job_status.connect(SIGNAL('clearJob()')) do
+                job_status.connect(SIGNAL("clearJob()")) do
                     job_status_list.clear_widgets do |job|
                         job == job_status
                     end
@@ -653,7 +653,7 @@ module Syskit
                 end
             end
 
-            signals 'fileOpenClicked(const QUrl&)'
+            signals "fileOpenClicked(const QUrl&)"
         end
     end
 end

@@ -6,8 +6,8 @@ module Syskit
     end
 end
 
-require 'syskit/runtime/apply_requirement_modifications'
-require 'syskit/runtime/exceptions'
-require 'syskit/runtime/connection_management'
-require 'syskit/runtime/update_deployment_states'
-require 'syskit/runtime/update_task_states'
+require "syskit/runtime/apply_requirement_modifications"
+require "syskit/runtime/exceptions"
+require "syskit/runtime/connection_management"
+require "syskit/runtime/update_deployment_states"
+require "syskit/runtime/update_task_states"

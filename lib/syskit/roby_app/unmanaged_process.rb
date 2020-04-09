@@ -46,7 +46,9 @@ module Syskit
             # process
             #
             # @return [Boolean]
-            def on_localhost?; host_id == 'localhost' end
+            def on_localhost?
+                host_id == "localhost"
+            end
 
             # The PID of the process in which the tasks run
             #
@@ -75,7 +77,7 @@ module Syskit
             # @param [OroGen::Spec::Deployment] model the deployment model
             # @param [String] host_id a string identifying the place where the
             #   process is expected to be running
-            def initialize(process_manager, name, model, host_id: 'unmanaged_process')
+            def initialize(process_manager, name, model, host_id: "unmanaged_process")
                 @process_manager = process_manager
                 @deployed_tasks = nil
                 @name_service = process_manager.name_service
@@ -193,13 +195,19 @@ module Syskit
             end
 
             # Returns true if the tasks have been successfully discovered
-            def ready?; !!deployed_tasks end
+            def ready?
+                !!deployed_tasks
+            end
 
             # True if the process is running. This is an alias for running?
-            def alive?; !dead? end
+            def alive?
+                !dead?
+            end
 
             # True if the process is running. This is an alias for alive?
-            def running?; alive? end
+            def running?
+                alive?
+            end
 
             def join
                 raise NotImplementedError, "UnmanagedProcess#join is not implemented"

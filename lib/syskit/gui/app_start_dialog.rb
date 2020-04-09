@@ -16,7 +16,7 @@ module Syskit
             # Text used to allow the user to not load any robot configuration
             NO_ROBOT = " -- None -- ".freeze
 
-            def initialize(names, parent = nil, default_robot_name: 'default')
+            def initialize(names, parent = nil, default_robot_name: "default")
                 super(parent)
 
                 self.window_title = "Start App"
@@ -38,8 +38,8 @@ module Syskit
                 button_box = Qt::DialogButtonBox.new(
                     Qt::DialogButtonBox::Ok | Qt::DialogButtonBox::Cancel
                 )
-                connect(button_box, SIGNAL('accepted()'), self, SLOT('accept()'));
-                connect(button_box, SIGNAL('rejected()'), self, SLOT('reject()'));
+                connect(button_box, SIGNAL("accepted()"), self, SLOT("accept()"));
+                connect(button_box, SIGNAL("rejected()"), self, SLOT("reject()"));
                 layout.add_widget(button_box)
             end
 
@@ -69,7 +69,7 @@ module Syskit
             #   controller blocks should be executed. The robot name can be
             #   empty to indicate that the dialog was accepted but no robot
             #   configuration should be loaded
-            def self.exec(names, parent = nil, default_robot_name: 'default')
+            def self.exec(names, parent = nil, default_robot_name: "default")
                 dialog = new(names, parent, default_robot_name: default_robot_name)
                 if Qt::Dialog::Accepted == dialog.exec
                     return dialog.selected_name, dialog.start_controller?

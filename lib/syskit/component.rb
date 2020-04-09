@@ -1,7 +1,7 @@
 # frozen_string_literal: true
 
 module Syskit
-    Roby::EventStructure.relation 'SyskitConfigurationPrecedence'
+    Roby::EventStructure.relation "SyskitConfigurationPrecedence"
 
     # Base class for models that represent components (TaskContext,
     # Composition)
@@ -196,7 +196,7 @@ module Syskit
             if garbage?
                 debug do
                     "#{self} not ready for setup: "\
-                    'garbage collected but not yet finalized'
+                    "garbage collected but not yet finalized"
                 end
                 return false
             elsif !fully_instanciated?
@@ -271,7 +271,7 @@ module Syskit
             else
                 Roby.execution_engine.add_framework_error(
                     e, "#{self} got finalized before the setting_up! "\
-                       'error handler was called'
+                       "error handler was called"
                 )
             end
             @setting_up = nil
@@ -309,7 +309,7 @@ module Syskit
         def can_merge?(task)
             unless super
                 NetworkGeneration::MergeSolver.info(
-                    'rejected: Component#can_merge? super returned false'
+                    "rejected: Component#can_merge? super returned false"
                 )
                 return
             end
@@ -317,7 +317,7 @@ module Syskit
             # Cannot merge if we are not reusable
             unless reusable?
                 NetworkGeneration::MergeSolver.info(
-                    'rejected: receiver is not reusable'
+                    "rejected: receiver is not reusable"
                 )
                 return
             end
@@ -325,7 +325,7 @@ module Syskit
             # abstract one
             if !task.abstract? && abstract?
                 NetworkGeneration::MergeSolver.info(
-                    'rejected: cannot merge a non-abstract task into an abstract one'
+                    "rejected: cannot merge a non-abstract task into an abstract one"
                 )
                 return
             end
@@ -389,7 +389,7 @@ module Syskit
             missing_services.each do |_, srv|
                 unless srv.respond_to?(:dynamic_service)
                     raise InternalError,
-                          'attempting to duplicate static service '\
+                          "attempting to duplicate static service "\
                           "#{srv.name} from #{task} to #{self}"
                 end
 

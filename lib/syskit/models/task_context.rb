@@ -47,10 +47,10 @@ module Syskit
                 if name = self.name
                     return if name !~ /^OroGen::/
 
-                    name = name.gsub(/^OroGen::/, '')
+                    name = name.gsub(/^OroGen::/, "")
                     begin
                         if constant("::#{name}") == self
-                            spacename = self.spacename.gsub(/^OroGen::/, '')
+                            spacename = self.spacename.gsub(/^OroGen::/, "")
                             constant("::#{spacename}").send(:remove_const, basename)
                         end
                     rescue NameError
@@ -68,7 +68,7 @@ module Syskit
                 orogen_model.each_state(with_superclass: with_superclass) do |name, type|
                     event_name = name.snakecase.downcase.to_sym
                     if type == :toplevel
-                        event event_name, terminal: (name == 'EXCEPTION' || name == 'FATAL_ERROR')
+                        event event_name, terminal: (name == "EXCEPTION" || name == "FATAL_ERROR")
                     else
                         event event_name, terminal: (type == :exception || type == :fatal_error)
                         if type == :fatal

@@ -277,7 +277,9 @@ module Syskit
                 end
             end
 
-            def to_s; "#{composition_model}.#{child_name}_child[#{super}]" end
+            def to_s
+                "#{composition_model}.#{child_name}_child[#{super}]"
+            end
 
             def pretty_print(pp)
                 pp.text "child #{child_name} of type "

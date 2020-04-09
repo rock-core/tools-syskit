@@ -1,4 +1,4 @@
-require 'facets/string/camelcase'
+require "facets/string/camelcase"
 module Syskit
     module YARD
         include ::YARD
@@ -24,7 +24,7 @@ module Syskit
                         p.each do |item|
                             if item.respond_to?(:type) && item.type == :assoc
                                 key = item[0].jump(:ident).source
-                                if key == 'parent:'
+                                if key == "parent:"
                                     case obj = Proxy.new(namespace, item[1].source)
                                     when ConstantObject # If a constant is included, use its value as the real object
                                         obj = Proxy.new(namespace, obj.value, :module)
@@ -65,7 +65,7 @@ module Syskit
             handles method_call(:using_task_library)
 
             def process
-                orogen_m = ModuleObject.new(namespace, '::OroGen')
+                orogen_m = ModuleObject.new(namespace, "::OroGen")
                 project_m = ModuleObject.new(orogen_m, call_params[0].camelcase(:upper))
                 register project_m
                 project_m.docstring.replace("Created by Syskit to represent the #{call_params[0]} oroGen project")
@@ -83,8 +83,8 @@ module Syskit
             end
 
             def process
-                path = statement.class_name.source.split('::')
-                orogen_m = ModuleObject.new(namespace, '::OroGen')
+                path = statement.class_name.source.split("::")
+                orogen_m = ModuleObject.new(namespace, "::OroGen")
                 ModuleObject.new(orogen_m, path[1])
                 super
             end

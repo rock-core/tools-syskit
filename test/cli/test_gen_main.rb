@@ -1,9 +1,9 @@
-require 'syskit/test/self'
-require 'roby/test/aruba_minitest'
+require "syskit/test/self"
+require "roby/test/aruba_minitest"
 
 module Syskit
     module CLI
-        describe 'syskit gen' do
+        describe "syskit gen" do
             include Roby::Test::ArubaMinitest
 
             def assert_app_valid(*args)
@@ -25,7 +25,7 @@ module Syskit
                 end
                 it "creates the config/orogen directory and adds a file to ensure it's saved in git" do
                     run_command_and_stop "syskit gen app"
-                    assert exist?('config/orogen/.gitkeep')
+                    assert exist?("config/orogen/.gitkeep")
                 end
             end
 
@@ -83,7 +83,7 @@ module Syskit
 
                 describe "gen orogen" do
                     it "generates extension points for an orogen project" do
-                        write_file 'models/pack/orogen/bla.orogen', <<-OROGEN_FILE
+                        write_file "models/pack/orogen/bla.orogen", <<-OROGEN_FILE
                         name 'bla'
                         task_context 'Task' do
                         end

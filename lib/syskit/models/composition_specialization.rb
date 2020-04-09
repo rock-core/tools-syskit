@@ -5,7 +5,9 @@ module Syskit
             # Additional methods that are mixed in composition specialization
             # models. I.e. composition models created by CompositionModel#specialize
             module Extension
-                def is_specialization?; true end
+                def is_specialization?
+                    true
+                end
 
                 # The root composition model in the specialization chain
                 attr_accessor :root_model

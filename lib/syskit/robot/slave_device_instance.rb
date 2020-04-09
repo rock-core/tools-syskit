@@ -45,7 +45,9 @@ module Syskit
                 @service = service
             end
 
-            def task; master_device.task end
+            def task
+                master_device.task
+            end
 
             def period(*args)
                 if args.empty?

@@ -107,10 +107,14 @@ module Syskit
             # @return [String]
             attr_reader :name
             # The profile's basename
-            def basename; name.gsub(/.*::/, '') end
+            def basename
+                name.gsub(/.*::/, "")
+            end
 
             # The profile's namespace
-            def spacename; name.gsub(/::[^:]*$/, '') end
+            def spacename
+                name.gsub(/::[^:]*$/, "")
+            end
             # The definitions
             # @return [Hash<String,InstanceRequirements>]
             attr_reader :definitions
@@ -471,17 +475,17 @@ module Syskit
             end
 
             # (see Models::DeploymentGroup#use_ruby_tasks)
-            def use_ruby_tasks(mappings, on: 'ruby_tasks')
+            def use_ruby_tasks(mappings, on: "ruby_tasks")
                 deployment_group.use_ruby_tasks(mappings, on: on)
             end
 
             # (see Models::DeploymentGroup#use_unmanaged_task)
-            def use_unmanaged_task(mappings, on: 'ruby_tasks')
+            def use_unmanaged_task(mappings, on: "ruby_tasks")
                 deployment_group.use_unmanaged_task(mappings, on: on)
             end
 
             # (see Models::DeploymentGroup#use_deployment)
-            def use_deployment(*names, on: 'localhost', loader: deployment_group.loader, **run_options)
+            def use_deployment(*names, on: "localhost", loader: deployment_group.loader, **run_options)
                 deployment_group.use_deployment(*names, on: on, loader: loader, **run_options)
             end
 
@@ -685,22 +689,22 @@ module Syskit
             def has_through_method_missing?(m)
                 MetaRuby::DSLs.has_through_method_missing?(
                     self, m,
-                    '_tag'.freeze => :has_tag?,
-                    '_def'.freeze => :has_definition?,
-                    '_dev'.freeze => :has_device?,
-                    '_task'.freeze => :has_deployed_task?,
-                    '_deployment_group'.freeze => :has_deployment_group?
+                    "_tag".freeze => :has_tag?,
+                    "_def".freeze => :has_definition?,
+                    "_dev".freeze => :has_device?,
+                    "_task".freeze => :has_deployed_task?,
+                    "_deployment_group".freeze => :has_deployment_group?
                 ) || super
             end
 
             def find_through_method_missing(m, args)
                 MetaRuby::DSLs.find_through_method_missing(
                     self, m, args,
-                    '_tag'.freeze => :find_tag,
-                    '_def'.freeze => :find_definition_by_name,
-                    '_dev'.freeze => :find_device_requirements_by_name,
-                    '_task' => :find_deployed_task_by_name,
-                    '_deployment_group' => :find_deployment_group_by_name
+                    "_tag".freeze => :find_tag,
+                    "_def".freeze => :find_definition_by_name,
+                    "_dev".freeze => :find_device_requirements_by_name,
+                    "_task" => :find_deployed_task_by_name,
+                    "_deployment_group" => :find_deployment_group_by_name
                 ) || super
             end
 

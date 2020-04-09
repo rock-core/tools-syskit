@@ -1,8 +1,8 @@
-require 'roby/test/common'
+require "roby/test/common"
 
-require 'syskit'
-require 'roby/schedulers/temporal'
-require 'orocos/ruby_process_server'
+require "syskit"
+require "roby/schedulers/temporal"
+require "orocos/ruby_process_server"
 
 module Syskit
     module Test

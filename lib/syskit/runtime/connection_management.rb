@@ -254,7 +254,7 @@ module Syskit
                         end
                     end
                 end
-                log_timepoint_group 'apply_remote_disconnections' do
+                log_timepoint_group "apply_remote_disconnections" do
                     promises.each(&:execute)
                 end
                 # This is cheating around the "do not allow blocking calls in
@@ -421,7 +421,7 @@ module Syskit
                         end
                     end
                 end
-                log_timepoint_group 'apply_remote_connections' do
+                log_timepoint_group "apply_remote_connections" do
                     promises.each(&:execute)
                 end
                 # This is cheating around the "do not allow blocking calls in
@@ -586,15 +586,15 @@ module Syskit
                 additions_held, additions_ready = new_connections_partition_held_ready(new)
 
                 early_removal, late_removal     =
-                    partition_early_late(removed, 'removed', method(:find_setup_syskit_task_context_from_orocos_task))
+                    partition_early_late(removed, "removed", method(:find_setup_syskit_task_context_from_orocos_task))
                 early_additions, late_additions =
-                    partition_early_late(additions_ready, 'added', proc { |v| v })
+                    partition_early_late(additions_ready, "added", proc { |v| v })
 
                 modified_tasks = Set.new
-                log_timepoint_group 'early_disconnections' do
+                log_timepoint_group "early_disconnections" do
                     modified_tasks.merge apply_connection_removal(early_removal)
                 end
-                log_timepoint_group 'early_connections' do
+                log_timepoint_group "early_connections" do
                     modified_tasks.merge apply_connection_additions(early_additions)
                 end
 
@@ -604,10 +604,10 @@ module Syskit
                     return additions, late_removal
                 end
 
-                log_timepoint_group 'late_disconnections' do
+                log_timepoint_group "late_disconnections" do
                     modified_tasks.merge apply_connection_removal(late_removal)
                 end
-                log_timepoint_group 'late_connections' do
+                log_timepoint_group "late_connections" do
                     modified_tasks.merge apply_connection_additions(late_additions)
                 end
                 mark_connected_pending_tasks_as_executable(modified_tasks)

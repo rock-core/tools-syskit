@@ -1,5 +1,5 @@
-require 'syskit/test/self'
-require 'stringio'
+require "syskit/test/self"
+require "stringio"
 
 describe Syskit::Coordination::DataMonitor do
     describe "#pretty_print" do

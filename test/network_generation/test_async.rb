@@ -1,4 +1,4 @@
-require 'syskit/test/self'
+require "syskit/test/self"
 
 module Syskit
     module NetworkGeneration
@@ -14,8 +14,8 @@ module Syskit
                 result
             end
 
-            describe '#prepare' do
-                it 'computes the system network in a separate plan' do
+            describe "#prepare" do
+                it "computes the system network in a separate plan" do
                     requirements = Set[flexmock]
                     resolution = subject.prepare(requirements)
                     flexmock(resolution.engine).should_receive(:resolve_system_network)

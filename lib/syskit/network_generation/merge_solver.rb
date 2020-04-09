@@ -183,8 +183,8 @@ module Syskit
                 basename = trace_next_file(phase)
                 dataflow = basename + ".dataflow.svg"
                 hierarchy = basename + ".hierarchy.svg"
-                Syskit::Graphviz.new(plan).to_file('dataflow', 'svg', dataflow, highlights: highlights, **dataflow_options)
-                Syskit::Graphviz.new(plan).to_file('hierarchy', 'svg', hierarchy, highlights: highlights)
+                Syskit::Graphviz.new(plan).to_file("dataflow", "svg", dataflow, highlights: highlights, **dataflow_options)
+                Syskit::Graphviz.new(plan).to_file("hierarchy", "svg", hierarchy, highlights: highlights)
                 ::Robot.info "#{self} exported trace plan to #{dataflow} and #{hierarchy}"
             end
 
@@ -542,17 +542,17 @@ module Syskit
             end
 
             def merge_identical_tasks
-                log_timepoint_group_start 'syskit-merge-solver'
+                log_timepoint_group_start "syskit-merge-solver"
                 dataflow_graph.enable_concrete_connection_graph
-                log_timepoint_group 'merge_task_contexts' do
+                log_timepoint_group "merge_task_contexts" do
                     merge_task_contexts
                 end
-                log_timepoint_group 'merge_compositions' do
+                log_timepoint_group "merge_compositions" do
                     merge_compositions
                 end
             ensure
                 dataflow_graph.disable_concrete_connection_graph
-                log_timepoint_group_end 'syskit-merge-solver'
+                log_timepoint_group_end "syskit-merge-solver"
             end
 
             def display_merge_graph(title, merge_graph)

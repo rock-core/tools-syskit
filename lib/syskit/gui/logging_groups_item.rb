@@ -1,6 +1,6 @@
-require 'vizkit'
-require 'Qt4'
-require 'syskit/gui/logging_configuration_item_base'
+require "vizkit"
+require "Qt4"
+require "syskit/gui/logging_configuration_item_base"
 
 module Syskit
     module GUI
@@ -8,7 +8,7 @@ module Syskit
         # in a tree view
         class LoggingGroupsItem < LoggingConfigurationItemBase
             attr_reader :items_name, :items_value
-            def initialize(logging_groups, label = '')
+            def initialize(logging_groups, label = "")
                 super(logging_groups)
 
                 @items_name = {}

@@ -89,13 +89,13 @@ module Syskit
 
         def has_through_method_missing?(m)
             MetaRuby::DSLs.has_through_method_missing?(
-                self, m, '_port' => :has_port?
+                self, m, "_port" => :has_port?
             ) || super
         end
 
         def find_through_method_missing(m, args)
             MetaRuby::DSLs.find_through_method_missing(
-                self, m, args, '_port' => :find_port
+                self, m, args, "_port" => :find_port
             ) || super
         end
     end

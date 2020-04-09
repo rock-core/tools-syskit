@@ -34,7 +34,7 @@ module Syskit
         # For instance ['default', 'left_camera'] will apply the 'default'
         # section of config/orogen/orogen_project::TaskClassName.yml and
         # then override with the 'left_camera' section of the same file
-        argument :conf, :default => ['default']
+        argument :conf, :default => ["default"]
         # The name of the remote task context, i.e. the name under which it
         # can be resolved by Orocos.name_service
         argument :orocos_name
@@ -354,8 +354,8 @@ module Syskit
         def queue_property_update_if_needed
             unless would_use_property_update?
                 raise InvalidState,
-                      'attempting to queue a property update on a finished '\
-                      'or finishing task'
+                      "attempting to queue a property update on a finished "\
+                      "or finishing task"
             end
 
             return if @has_pending_property_updates
@@ -759,7 +759,7 @@ module Syskit
             promise.then(description: "#{self}#perform_setup#orocos_task.configure") do
                 state = orocos_task.rtt_state
                 if properties_updated_in_configure && state != :PRE_OPERATIONAL
-                    info 'properties have been changed within #configure, '\
+                    info "properties have been changed within #configure, "\
                          "cleaning up #{self}"
                     orocos_task.cleanup(false)
                     state = :PRE_OPERATIONAL
@@ -844,7 +844,7 @@ module Syskit
                 elsif @last_terminal_state
                     fatal "#{self} reports state #{orogen_state} after having "\
                           "reported a terminal state (#{@last_terminal_state}). "\
-                          'Syskit will try to go on, but this should not happen.'
+                          "Syskit will try to go on, but this should not happen."
                 end
             end
 
@@ -1095,7 +1095,7 @@ module Syskit
             if !name && !orocos_name
                 raise ArgumentError,
                       "orocos_task is not set on #{self}, you must "\
-                      'provide an explicit name in #stub!'
+                      "provide an explicit name in #stub!"
             end
             self.orocos_name = name if name
             self.orocos_task = Orocos::RubyTaskContext
@@ -1218,13 +1218,13 @@ module Syskit
 
         def has_through_method_missing?(m)
             MetaRuby::DSLs.has_through_method_missing?(
-                self, m, '_property' => :has_property?
+                self, m, "_property" => :has_property?
             ) || super
         end
 
         def find_through_method_missing(m, args)
             MetaRuby::DSLs.find_through_method_missing(
-                self, m, args, '_property' => :find_property
+                self, m, args, "_property" => :find_property
             ) || super
         end
     end

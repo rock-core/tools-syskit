@@ -1,5 +1,5 @@
-require 'metaruby/gui/html/page'
-require 'syskit/gui/page_extension'
+require "metaruby/gui/html/page"
+require "syskit/gui/page_extension"
 module Syskit
     module GUI
         class HTMLPage < MetaRuby::GUI::HTML::Page

@@ -63,12 +63,12 @@ module Syskit
         attr_predicate :can_use_template?, true
 
         Dynamics = Struct.new :task, :ports do
-            dsl_attribute 'period' do |value|
+            dsl_attribute "period" do |value|
                 add_period_info(value, 1)
             end
 
             def add_period_info(period, sample_size = 1)
-                task.add_trigger('period', Float(period), sample_size)
+                task.add_trigger("period", Float(period), sample_size)
             end
 
             def add_port_info(port_name, info)
@@ -79,7 +79,7 @@ module Syskit
             # (see InstanceRequirements#add_port_period)
             def add_port_period(port_name, period, sample_count = 1)
                 (ports[port_name.to_str] ||= NetworkGeneration::PortDynamics.new(port_name.to_str))
-                    .add_trigger('period', period, sample_count)
+                    .add_trigger("period", period, sample_count)
             end
 
             # (see InstanceRequirements#find_port_dynamics)
@@ -109,7 +109,7 @@ module Syskit
             @context_selections = DependencyInjection.new
             @deployment_hints = Set.new
             @specialization_hints = Set.new
-            @dynamics = Dynamics.new(NetworkGeneration::PortDynamics.new('Requirements'), {})
+            @dynamics = Dynamics.new(NetworkGeneration::PortDynamics.new("Requirements"), {})
             @can_use_template = true
             @deployment_group = Models::DeploymentGroup.new
         end
@@ -499,7 +499,9 @@ module Syskit
             self
         end
 
-        def hash; model.hash end
+        def hash
+            model.hash
+        end
 
         def eql?(other)
             other.kind_of?(InstanceRequirements) &&
@@ -603,7 +605,7 @@ module Syskit
                 if obj.respond_to?(:to_str)
                     # Two choices: either a child of the composition model,
                     # or a child of a child that is a composition itself
-                    parts = obj.split('.')
+                    parts = obj.split(".")
                     first_part = parts.first
                     unless composition_model.has_child?(first_part)
                         children = {}
@@ -1065,18 +1067,18 @@ module Syskit
         def has_through_method_missing?(m)
             MetaRuby::DSLs.has_through_method_missing?(
                 self, m,
-                '_srv'.freeze => :has_data_service?,
-                '_child'.freeze => :has_child?,
-                '_port'.freeze => :has_port?
+                "_srv".freeze => :has_data_service?,
+                "_child".freeze => :has_child?,
+                "_port".freeze => :has_port?
             ) || super
         end
 
         def find_through_method_missing(m, args)
             MetaRuby::DSLs.find_through_method_missing(
                 self, m, args,
-                '_srv'.freeze => :find_data_service,
-                '_child'.freeze => :find_child,
-                '_port'.freeze => :find_port
+                "_srv".freeze => :find_data_service,
+                "_child".freeze => :find_child,
+                "_port".freeze => :find_port
             ) || super
         end
 

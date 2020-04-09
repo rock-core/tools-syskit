@@ -1,8 +1,8 @@
-require 'roby/standalone'
-require 'syskit/scripts/common'
-require 'Qt'
-require 'syskit/gui/model_browser'
-require 'kramdown'
+require "roby/standalone"
+require "syskit/scripts/common"
+require "Qt"
+require "syskit/gui/model_browser"
+require "kramdown"
 
 Scripts = Syskit::Scripts
 
@@ -13,7 +13,7 @@ parser = OptionParser.new do |opt|
         Generate HTML documentation for all the models present in this bundle
     BANNER_TEXT
 
-    opt.on '--all', '-a', "Load all models from all active bundles instead of only the ones from the current" do
+    opt.on "--all", "-a", "Load all models from all active bundles instead of only the ones from the current" do
         load_all = true
     end
 end
@@ -21,7 +21,7 @@ Scripts.common_options(parser, true)
 remaining = parser.parse(ARGV)
 
 # We don't need the process server, win some startup time
-Roby.app.using 'syskit'
+Roby.app.using "syskit"
 Syskit.conf.only_load_models = true
 Syskit.conf.disables_local_process_server = true
 Roby.app.ignore_all_load_errors = true
@@ -62,7 +62,7 @@ class Page < MetaRuby::GUI::HTML::Page
     def self.make_type_file_path(type, root_dir)
         name_elements = type.split_typename
         path = filter_file_path(name_elements)
-        File.join(*(root_dir + ['types', *path])) + ".html"
+        File.join(*(root_dir + ["types", *path])) + ".html"
     end
 
     def self.make_object_file_path(object, root_dir)
@@ -97,8 +97,8 @@ class Page < MetaRuby::GUI::HTML::Page
     end
 end
 
-root_dir = File.join(Roby.app.app_dir, 'doc')
-asset_dir = 'assets'
+root_dir = File.join(Roby.app.app_dir, "doc")
+asset_dir = "assets"
 MetaRuby::GUI::HTML::Page.copy_assets_to(File.join(root_dir, asset_dir))
 
 Hash[Syskit::TaskContext => task_contexts,
@@ -112,7 +112,7 @@ Hash[Syskit::TaskContext => task_contexts,
 
         view = Syskit::GUI::ModelBrowser::AVAILABLE_VIEWS.find { |v| v.root_model == root_model }
         FileUtils.mkdir_p File.dirname(path)
-        File.open(path, 'w') do |io|
+        File.open(path, "w") do |io|
             io.write Page.to_html(sub, view.renderer, :interactive => false,
                                                       :external_objects => path + "-%s",
                                                       :root_dir => [relative_to_root],
@@ -128,7 +128,7 @@ index_page.root_dir = []
 all_items = (task_contexts.to_a + compositions.to_a + data_services.to_a + profiles.to_a + Orocos.registry.each.to_a)
             .sort_by { |m| m.name }
             .map { |m| index_page.link_to(m) }
-index_page.render_list(nil, all_items, :filter => true, :id => 'model-index')
+index_page.render_list(nil, all_items, :filter => true, :id => "model-index")
 html = index_page.html(:ressource_dir => asset_dir)
 File.open(File.join("doc", "index.html"), "w") do |io|
     io.write(html)

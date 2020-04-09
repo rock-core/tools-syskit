@@ -1,4 +1,4 @@
-require 'syskit/gui/job_state_label'
+require "syskit/gui/job_state_label"
 module Syskit
     module GUI
         class JobStatusDisplay < Qt::Widget
@@ -50,15 +50,15 @@ module Syskit
                 @ui_job_actions = Qt::Widget.new(self)
                 hlayout = Qt::HBoxLayout.new(ui_job_actions)
                 @actions_buttons = Hash[
-                    'Drop' => Qt::PushButton.new("Drop", self),
-                    'Restart' => Qt::PushButton.new("Restart", self),
+                    "Drop" => Qt::PushButton.new("Drop", self),
+                    "Restart" => Qt::PushButton.new("Restart", self),
                     "Start Again" => Qt::PushButton.new("Start Again", self),
                     "Clear" => Qt::PushButton.new("Clear", self)
                 ]
-                hlayout.add_widget(@ui_drop = @actions_buttons['Drop'])
-                hlayout.add_widget(@ui_restart = @actions_buttons['Restart'])
-                hlayout.add_widget(@ui_start   = @actions_buttons['Start Again'])
-                hlayout.add_widget(@ui_clear   = @actions_buttons['Clear'])
+                hlayout.add_widget(@ui_drop = @actions_buttons["Drop"])
+                hlayout.add_widget(@ui_restart = @actions_buttons["Restart"])
+                hlayout.add_widget(@ui_start   = @actions_buttons["Start Again"])
+                hlayout.add_widget(@ui_clear   = @actions_buttons["Clear"])
 
                 ui_start.hide
                 ui_clear.hide
@@ -133,16 +133,16 @@ module Syskit
             def mouseReleaseEvent(event)
                 event.accept
             end
-            signals 'clicked()'
+            signals "clicked()"
 
             def connect_to_hooks
-                ui_drop.connect(SIGNAL('clicked()')) do
+                ui_drop.connect(SIGNAL("clicked()")) do
                     @batch_manager.drop_job(self)
                     if @actions_immediate
                         @batch_manager.process
                     end
                 end
-                ui_restart.connect(SIGNAL('clicked()')) do
+                ui_restart.connect(SIGNAL("clicked()")) do
                     arguments = job.action_arguments.dup
                     arguments.delete(:job_id)
                     if @batch_manager.create_new_job(job.action_name, arguments)
@@ -152,7 +152,7 @@ module Syskit
                         end
                     end
                 end
-                ui_start.connect(SIGNAL('clicked()')) do
+                ui_start.connect(SIGNAL("clicked()")) do
                     arguments = job.action_arguments.dup
                     arguments.delete(:job_id)
                     if @batch_manager.create_new_job(job.action_name, arguments)
@@ -161,7 +161,7 @@ module Syskit
                         end
                     end
                 end
-                ui_clear.connect(SIGNAL('clicked()')) do
+                ui_clear.connect(SIGNAL("clicked()")) do
                     unless job.active?
                         job.stop
                         emit clearJob
@@ -173,7 +173,7 @@ module Syskit
                 end
                 job.on_exception do |kind, exception|
                     exceptions << exception.exception
-                    notify('exceptions', "#{exceptions.size} exceptions")
+                    notify("exceptions", "#{exceptions.size} exceptions")
                     emit exceptionEvent
                 end
             end
@@ -210,8 +210,8 @@ module Syskit
 
             # Signal emitted when one exception got added at the end of
             # {#exceptions}
-            signals 'exceptionEvent()'
-            signals 'clearJob()'
+            signals "exceptionEvent()"
+            signals "clearJob()"
         end
     end
 end

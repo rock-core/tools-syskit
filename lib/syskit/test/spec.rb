@@ -1,6 +1,6 @@
 # frozen_string_literal: true
 
-require 'roby/test/spec'
+require "roby/test/spec"
 
 module Syskit
     module Test
@@ -85,7 +85,7 @@ module Syskit
                     loader, task_context_class: Orocos::RubyTasks::StubTaskContext
                 )
                 Syskit.conf.register_process_server(
-                    'stubs', stub_manager, '', host_id: 'syskit'
+                    "stubs", stub_manager, "", host_id: "syskit"
                 )
 
                 super
@@ -95,22 +95,22 @@ module Syskit
 
             def teardown
                 if !passed? && app.public_logs?
-                    dataflow = __full_name__ + '-partial-dataflow.svg'
-                    hierarchy = __full_name__ + '-partial-hierarchy.svg'
+                    dataflow = __full_name__ + "-partial-dataflow.svg"
+                    hierarchy = __full_name__ + "-partial-hierarchy.svg"
                     dataflow, hierarchy = [dataflow, hierarchy].map do |filename|
-                        filename.gsub('/', '_')
+                        filename.gsub("/", "_")
                     end
                     Graphviz.new(plan).to_file(
-                        'dataflow', 'svg', File.join(app.log_dir, dataflow)
+                        "dataflow", "svg", File.join(app.log_dir, dataflow)
                     )
                     Graphviz.new(plan).to_file(
-                        'hierarchy', 'svg', File.join(app.log_dir, hierarchy)
+                        "hierarchy", "svg", File.join(app.log_dir, hierarchy)
                     )
                 end
 
                 super
             ensure
-                Syskit.conf.remove_process_server('stubs')
+                Syskit.conf.remove_process_server("stubs")
             end
 
             def teardown_registered_plans
@@ -139,7 +139,7 @@ module Syskit
 
                 parent = superclass
                 unless parent.respond_to?(:subject_syskit_model)
-                    raise ArgumentError, 'no subject syskit model found'
+                    raise ArgumentError, "no subject syskit model found"
                 end
 
                 parent.subject_syskit_model
@@ -167,18 +167,18 @@ module Syskit
             #
             # @param [String] dev_name the name of the created device
             # @return [Syskit::Component] the device driver task
-            def syskit_stub_attached_device_model(bus_m, dev_name = 'dev')
+            def syskit_stub_attached_device_model(bus_m, dev_name = "dev")
                 robot = Syskit::Robot::RobotDefinition.new
-                dev_m = Syskit::Device.new_submodel(name: 'StubDevice')
-                driver_m = Syskit::TaskContext.new_submodel(name: 'StubDriver') do
-                    input_port 'bus_in', bus_m.message_type
-                    output_port 'bus_out', bus_m.message_type
-                    provides bus_m.client_srv, as: 'can'
-                    driver_for dev_m, as: 'dev'
+                dev_m = Syskit::Device.new_submodel(name: "StubDevice")
+                driver_m = Syskit::TaskContext.new_submodel(name: "StubDriver") do
+                    input_port "bus_in", bus_m.message_type
+                    output_port "bus_out", bus_m.message_type
+                    provides bus_m.client_srv, as: "can"
+                    driver_for dev_m, as: "dev"
                 end
-                stub_syskit_deployment_model(driver_m, 'driver_task')
-                bus = robot.com_bus bus_m, as: 'bus'
-                stub_syskit_deployment_model(bus.driver_model, 'bus_task')
+                stub_syskit_deployment_model(driver_m, "driver_task")
+                bus = robot.com_bus bus_m, as: "bus"
+                stub_syskit_deployment_model(bus.driver_model, "bus_task")
                 robot.device(dev_m, as: dev_name)
                      .attach_to(bus)
             end

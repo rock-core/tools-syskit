@@ -1,10 +1,10 @@
-require 'vizkit'
-require 'vizkit/vizkit_items'
-require 'vizkit/tree_view'
-require 'Qt4'
-require 'syskit/shell_interface'
-require 'syskit/gui/logging_configuration_item'
-require 'roby/interface/exceptions'
+require "vizkit"
+require "vizkit/vizkit_items"
+require "vizkit/tree_view"
+require "Qt4"
+require "syskit/shell_interface"
+require "syskit/gui/logging_configuration_item"
+require "roby/interface/exceptions"
 
 module Syskit
     module GUI
@@ -33,7 +33,7 @@ module Syskit
 
                 @syskit = syskit
                 @timer = Qt::Timer.new
-                @timer.connect(SIGNAL('timeout()')) { refresh }
+                @timer.connect(SIGNAL("timeout()")) { refresh }
                 @timer.start 1500
 
                 refresh
@@ -51,7 +51,7 @@ module Syskit
                     begin
                         return if refreshing?
 
-                        @pending_call = syskit.async_call ['syskit'], :logging_conf do |error, result|
+                        @pending_call = syskit.async_call ["syskit"], :logging_conf do |error, result|
                             if error.nil?
                                 enabled true
                                 update_model(result)
@@ -93,7 +93,7 @@ module Syskit
 
                     @item_name.on_accept_changes do |new_conf|
                         begin
-                            syskit.async_call ['syskit'], :update_logging_conf, new_conf do |error, result|
+                            syskit.async_call ["syskit"], :update_logging_conf, new_conf do |error, result|
                                 enabled false unless error.nil?
                             end
                         rescue Roby::Interface::ComError

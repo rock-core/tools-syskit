@@ -1,4 +1,4 @@
-require 'syskit/test/self'
+require "syskit/test/self"
 
 module Syskit
     describe RemoteStateGetter do
@@ -198,14 +198,14 @@ module Syskit
             it "pauses the polling thread" do
                 getter.wait
                 getter.pause
-                while getter.poll_thread.status != 'sleep'
+                while getter.poll_thread.status != "sleep"
                     Thread.pass
                 end
             end
             it "allows to resume polling" do
                 getter.pause
                 getter.resume
-                assert(getter.poll_thread.status != 'sleep')
+                assert(getter.poll_thread.status != "sleep")
             end
         end
 

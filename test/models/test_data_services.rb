@@ -1,4 +1,4 @@
-require 'syskit/test/self'
+require "syskit/test/self"
 
 module Syskit
     module Test_DataServiceModel
@@ -24,17 +24,17 @@ module Syskit
         end
 
         def test_new_submodel_can_give_name_to_anonymous_models
-            assert_equal 'Srv', new_submodel(name: 'Srv').name
+            assert_equal "Srv", new_submodel(name: "Srv").name
         end
 
         def test_short_name_returns_name_if_there_is_one
-            assert_equal 'Srv', new_submodel(name: 'Srv').short_name
+            assert_equal "Srv", new_submodel(name: "Srv").short_name
         end
 
         def test_short_name_returns_to_s_if_there_are_no_name
             m = new_submodel
             flexmock(m).should_receive(:to_s).and_return("my_name").once
-            assert_equal 'my_name', m.short_name
+            assert_equal "my_name", m.short_name
         end
 
         def test_new_submodel_without_name
@@ -55,8 +55,8 @@ module Syskit
         end
 
         def test_module_dsl_service_type_definition_requires_valid_name
-            assert_raises(ArgumentError) { DataServiceDefinitionTest.send(dsl_service_type_name, 'Srv::Image') }
-            assert_raises(ArgumentError) { DataServiceDefinitionTest.send(dsl_service_type_name, 'image') }
+            assert_raises(ArgumentError) { DataServiceDefinitionTest.send(dsl_service_type_name, "Srv::Image") }
+            assert_raises(ArgumentError) { DataServiceDefinitionTest.send(dsl_service_type_name, "image") }
         end
 
         def test_placeholder_model
@@ -75,22 +75,22 @@ module Syskit
 
         def test_model_output_port
             model = new_submodel do
-                input_port 'in', 'double'
-                output_port 'out', 'int32_t'
+                input_port "in", "double"
+                output_port "out", "int32_t"
             end
-            assert_equal('/int32_t', model.find_output_port('out').type.name)
-            assert_nil model.find_output_port('does_not_exist')
-            assert_nil model.find_output_port('in')
+            assert_equal("/int32_t", model.find_output_port("out").type.name)
+            assert_nil model.find_output_port("does_not_exist")
+            assert_nil model.find_output_port("in")
         end
 
         def test_model_input_port
             model = new_submodel do
-                input_port 'in', 'double'
-                output_port 'out', 'int32_t'
+                input_port "in", "double"
+                output_port "out", "int32_t"
             end
-            assert_equal('/double', model.find_input_port('in').type.name)
-            assert_nil model.find_input_port('out')
-            assert_nil model.find_input_port('does_not_exist')
+            assert_equal("/double", model.find_input_port("in").type.name)
+            assert_nil model.find_input_port("out")
+            assert_nil model.find_input_port("does_not_exist")
         end
 
         def test_provides
@@ -118,31 +118,31 @@ module Syskit
         def test_provides_port_mappings_for_is_transitive
             base = new_submodel do
                 output_port "base", "/int"
-                output_port 'base_unmapped', '/double'
+                output_port "base_unmapped", "/double"
             end
             parent = new_submodel do
                 output_port "parent", "/int"
-                output_port 'parent_unmapped', '/double'
+                output_port "parent_unmapped", "/double"
             end
-            parent.provides base, 'base' => 'parent'
+            parent.provides base, "base" => "parent"
             model = new_submodel do
                 output_port "model", "/int"
             end
-            model.provides parent, 'parent' => 'model'
+            model.provides parent, "parent" => "model"
 
-            assert_equal({ 'parent' => 'model',
-                           'base_unmapped' => 'base_unmapped',
-                           'parent_unmapped' => 'parent_unmapped' }, model.port_mappings_for(parent))
-            assert_equal({ 'base' => 'model',
-                           'base_unmapped' => 'base_unmapped' }, model.port_mappings_for(base))
+            assert_equal({ "parent" => "model",
+                           "base_unmapped" => "base_unmapped",
+                           "parent_unmapped" => "parent_unmapped" }, model.port_mappings_for(parent))
+            assert_equal({ "base" => "model",
+                           "base_unmapped" => "base_unmapped" }, model.port_mappings_for(base))
         end
 
         def test_provides_detects_port_collisions_even_if_they_have_the_same_type
             base_m = new_submodel do
-                output_port 'out', '/double'
+                output_port "out", "/double"
             end
             provided_m = new_submodel do
-                output_port 'out', '/double'
+                output_port "out", "/double"
             end
 
             assert_raises(Syskit::SpecError) { base_m.provides provided_m }
@@ -176,7 +176,7 @@ module Syskit
             model = new_submodel do
                 output_port "new_out", "/int"
             end
-            model.provides parent_model, 'out' => 'new_out'
+            model.provides parent_model, "out" => "new_out"
             assert(!model.find_output_port("out"))
             assert(model.find_output_port("new_out"))
             assert(model.fullfills?(parent_model))
@@ -194,19 +194,19 @@ module Syskit
             model = new_submodel do
                 output_port "new_out", "/double"
             end
-            assert_raises(Syskit::SpecError) { model.provides(parent_model, 'out' => 'new_out') }
-            assert_raises(Syskit::SpecError) { model.provides(parent_model, 'out' => 'really_new_out') }
-            assert_raises(Syskit::SpecError) { model.provides(parent_model, 'old_out' => 'new_out') }
+            assert_raises(Syskit::SpecError) { model.provides(parent_model, "out" => "new_out") }
+            assert_raises(Syskit::SpecError) { model.provides(parent_model, "out" => "really_new_out") }
+            assert_raises(Syskit::SpecError) { model.provides(parent_model, "old_out" => "new_out") }
 
             model = new_submodel do
                 output_port "new_out", "/double"
             end
-            assert_raises(Syskit::SpecError) { model.provides(parent_model, 'out' => 'new_out') }
+            assert_raises(Syskit::SpecError) { model.provides(parent_model, "out" => "new_out") }
 
             model = new_submodel do
                 input_port "new_out", "/int"
             end
-            assert_raises(Syskit::SpecError) { model.provides(parent_model, 'out' => 'new_out') }
+            assert_raises(Syskit::SpecError) { model.provides(parent_model, "out" => "new_out") }
         end
 
         def test_provides_can_override_port_using_port_mappings
@@ -218,10 +218,10 @@ module Syskit
                 output_port "out", "/double"
                 output_port "new_out", "/int32_t"
             end
-            model.provides(parent_model, 'out' => 'new_out')
+            model.provides(parent_model, "out" => "new_out")
 
-            assert_equal("/double", model.find_output_port('out').type_name)
-            assert_equal("/int32_t", model.find_output_port('new_out').type_name)
+            assert_equal("/double", model.find_output_port("out").type_name)
+            assert_equal("/int32_t", model.find_output_port("new_out").type_name)
 
             assert_equal({ "out" => "new_out" }, model.port_mappings_for(parent_model))
             assert_equal({ "out" => "out", "new_out" => "new_out" },
@@ -273,7 +273,7 @@ module Syskit
         describe "#provides" do
             it "refuses to provide a ComBus" do
                 srv = DataService.new_submodel
-                combus = ComBus.new_submodel message_type: '/int'
+                combus = ComBus.new_submodel message_type: "/int"
                 assert_raises(ArgumentError) { srv.provides combus }
             end
             it "refuses to provide a Device" do
@@ -303,13 +303,13 @@ module Syskit
                 @task_m = Component.new_submodel
             end
             it "returns a non-ambiguous bound service if there is one" do
-                @task_m.provides @srv_m, as: 'test'
+                @task_m.provides @srv_m, as: "test"
                 plan.add(task = @task_m.new)
                 assert_equal task.test_srv, @srv_m.try_bind(task)
             end
             it "returns nil on ambiguities" do
-                @task_m.provides @srv_m, as: 'test1'
-                @task_m.provides @srv_m, as: 'test2'
+                @task_m.provides @srv_m, as: "test1"
+                @task_m.provides @srv_m, as: "test2"
                 plan.add(task = @task_m.new)
                 assert_nil @srv_m.try_bind(task)
             end
@@ -319,7 +319,7 @@ module Syskit
             end
             it "is available as #try_resolve for backward compatibility" do
                 flexmock(Roby).should_receive(:warn_deprecated).with(/try_resolve/).once
-                @task_m.provides @srv_m, as: 'test'
+                @task_m.provides @srv_m, as: "test"
                 plan.add(task = @task_m.new)
                 assert_equal task.test_srv, @srv_m.try_resolve(task)
             end
@@ -353,10 +353,10 @@ module Syskit
         describe "Port#connected?" do
             it "returns false" do
                 m0 = DataService.new_submodel do
-                    output_port 'out', 'int'
+                    output_port "out", "int"
                 end
                 m1 = DataService.new_submodel do
-                    input_port 'in', 'int'
+                    input_port "in", "int"
                 end
                 assert !m0.out_port.connected_to?(m1.in_port)
             end
@@ -393,7 +393,7 @@ module Syskit
 
             it "refuses to provide a ComBus" do
                 srv = Device.new_submodel
-                combus = ComBus.new_submodel message_type: '/int'
+                combus = ComBus.new_submodel message_type: "/int"
                 assert_raises(ArgumentError) { srv.provides combus }
             end
         end
@@ -415,8 +415,8 @@ module Syskit
         describe "#find_all_drivers" do
             it "returns the list of task contexts declared as drivers for self" do
                 device = Device.new_submodel
-                task0 = TaskContext.new_submodel { driver_for device, as: 'driver' }
-                task1 = TaskContext.new_submodel { driver_for device, as: 'driver' }
+                task0 = TaskContext.new_submodel { driver_for device, as: "driver" }
+                task1 = TaskContext.new_submodel { driver_for device, as: "driver" }
                 assert_equal [task0, task1].to_set, device.find_all_drivers.to_set
             end
         end
@@ -444,7 +444,7 @@ module Syskit
 
         def new_submodel(options = {}, &block)
             options = Kernel.validate_options options,
-                                              name: nil, message_type: '/int'
+                                              name: nil, message_type: "/int"
             ComBus.new_submodel(options, &block)
         end
 
@@ -463,134 +463,134 @@ module Syskit
         end
 
         it "is registered as a submodel of Roby::TaskService" do
-            combus = ComBus.new_submodel message_type: '/int'
+            combus = ComBus.new_submodel message_type: "/int"
             assert Roby::TaskService.each_submodel.to_a.include?(combus)
         end
 
         it "declares the necesary dynamic service when provided on its driver" do
-            combus = ComBus.new_submodel message_type: '/int'
+            combus = ComBus.new_submodel message_type: "/int"
             driver_m = TaskContext.new_submodel
-            flexmock(combus).should_receive(:dynamic_service_name).and_return('dyn_srv')
-            flexmock(driver_m).should_receive(:dynamic_service).with(combus.bus_base_srv, Hash[as: 'dyn_srv'], Proc).once
-            driver_m.provides combus, as: 'name'
+            flexmock(combus).should_receive(:dynamic_service_name).and_return("dyn_srv")
+            flexmock(driver_m).should_receive(:dynamic_service).with(combus.bus_base_srv, Hash[as: "dyn_srv"], Proc).once
+            driver_m.provides combus, as: "name"
         end
 
-        describe 'the dynamic service definition' do
+        describe "the dynamic service definition" do
             attr_reader :combus_m, :driver_m
             before do
-                @combus_m = ComBus.new_submodel message_type: '/double'
+                @combus_m = ComBus.new_submodel message_type: "/double"
                 @driver_m = TaskContext.new_submodel do
-                    dynamic_input_port(/\w+/, '/double')
-                    dynamic_output_port(/\w+/, '/double')
+                    dynamic_input_port(/\w+/, "/double")
+                    dynamic_output_port(/\w+/, "/double")
                 end
-                flexmock(combus_m).should_receive(:dynamic_service_name).and_return('dyn_srv')
-                driver_m.driver_for combus_m, as: 'combus_driver'
+                flexmock(combus_m).should_receive(:dynamic_service_name).and_return("dyn_srv")
+                driver_m.driver_for combus_m, as: "combus_driver"
             end
-            it 'instanciates an input bus service if requested one' do
+            it "instanciates an input bus service if requested one" do
                 srv = driver_m.new.require_dynamic_service(
-                    'dyn_srv', as: 'dev', bus_to_client: false, client_to_bus: true
+                    "dyn_srv", as: "dev", bus_to_client: false, client_to_bus: true
                 )
                 assert_same combus_m.bus_in_srv, srv.model.model
             end
-            it 'uses a static input service if one is available' do
+            it "uses a static input service if one is available" do
                 combus_m = @combus_m
                 driver_m = TaskContext.new_submodel do
-                    input_port 'driver_in', '/double'
-                    provides combus_m::BusInSrv, as: 'bus_in'
+                    input_port "driver_in", "/double"
+                    provides combus_m::BusInSrv, as: "bus_in"
                 end
-                driver_m.driver_for combus_m, as: 'combus_driver'
+                driver_m.driver_for combus_m, as: "combus_driver"
 
                 srv = driver_m.new.require_dynamic_service(
-                    'dyn_srv', as: 'dev', bus_to_client: false, client_to_bus: true
+                    "dyn_srv", as: "dev", bus_to_client: false, client_to_bus: true
                 )
 
                 in_port_m = srv.to_bus_port.to_component_port.model
 
                 assert_equal driver_m, in_port_m.component_model.superclass
-                assert_equal 'driver_in', in_port_m.name
+                assert_equal "driver_in", in_port_m.name
             end
-            it 'provides the mapping of from_bus to input_name_for if requested an input service' do
+            it "provides the mapping of from_bus to input_name_for if requested an input service" do
                 flexmock(combus_m).should_receive(:input_name_for)
-                                  .with('dev').and_return('in_DEV')
+                                  .with("dev").and_return("in_DEV")
                 srv = driver_m.new.require_dynamic_service(
-                    'dyn_srv', as: 'dev', bus_to_client: false, client_to_bus: true
+                    "dyn_srv", as: "dev", bus_to_client: false, client_to_bus: true
                 )
-                assert_equal Hash['to_bus' => 'in_DEV'], srv.model.port_mappings_for_task
+                assert_equal Hash["to_bus" => "in_DEV"], srv.model.port_mappings_for_task
             end
-            it 'instanciates an output bus service if requested one' do
+            it "instanciates an output bus service if requested one" do
                 srv = driver_m.new.require_dynamic_service(
-                    'dyn_srv', as: 'dev', bus_to_client: true, client_to_bus: false
+                    "dyn_srv", as: "dev", bus_to_client: true, client_to_bus: false
                 )
                 assert_same combus_m.bus_out_srv, srv.model.model
             end
-            it 'provides the mapping of from_bus to output_name_for if requested an output service' do
-                flexmock(combus_m).should_receive(:output_name_for).with('dev')
-                                  .and_return('out_DEV')
+            it "provides the mapping of from_bus to output_name_for if requested an output service" do
+                flexmock(combus_m).should_receive(:output_name_for).with("dev")
+                                  .and_return("out_DEV")
                 srv = driver_m.new.require_dynamic_service(
-                    'dyn_srv', as: 'dev', bus_to_client: true, client_to_bus: false
+                    "dyn_srv", as: "dev", bus_to_client: true, client_to_bus: false
                 )
-                assert_equal Hash['from_bus' => 'out_DEV'], srv.model.port_mappings_for_task
+                assert_equal Hash["from_bus" => "out_DEV"], srv.model.port_mappings_for_task
             end
-            it 'instanciates bidirectional service if requested one' do
+            it "instanciates bidirectional service if requested one" do
                 srv = driver_m.new.require_dynamic_service(
-                    'dyn_srv', as: 'dev', bus_to_client: true, client_to_bus: true
+                    "dyn_srv", as: "dev", bus_to_client: true, client_to_bus: true
                 )
                 assert_same combus_m.bus_srv, srv.model.model
             end
-            it 'provides the proper mappings if requested a bidirectional service' do
+            it "provides the proper mappings if requested a bidirectional service" do
                 flexmock(combus_m).should_receive(:output_name_for)
-                                  .with('dev').and_return('out_DEV')
+                                  .with("dev").and_return("out_DEV")
                 flexmock(combus_m).should_receive(:input_name_for)
-                                  .with('dev').and_return('in_DEV')
+                                  .with("dev").and_return("in_DEV")
                 srv = driver_m.new.require_dynamic_service(
-                    'dyn_srv', as: 'dev', bus_to_client: true, client_to_bus: true
+                    "dyn_srv", as: "dev", bus_to_client: true, client_to_bus: true
                 )
-                assert_equal Hash['from_bus' => 'out_DEV', 'to_bus' => 'in_DEV'],
+                assert_equal Hash["from_bus" => "out_DEV", "to_bus" => "in_DEV"],
                              srv.model.port_mappings_for_task
             end
-            it 'uses a static output service if one is available' do
+            it "uses a static output service if one is available" do
                 combus_m = @combus_m
                 driver_m = TaskContext.new_submodel do
-                    output_port 'driver_out', '/double'
-                    provides combus_m::BusOutSrv, as: 'bus_out'
+                    output_port "driver_out", "/double"
+                    provides combus_m::BusOutSrv, as: "bus_out"
                 end
-                driver_m.driver_for combus_m, as: 'combus_driver'
+                driver_m.driver_for combus_m, as: "combus_driver"
 
                 srv = driver_m.new.require_dynamic_service(
-                    'dyn_srv', as: 'dev', bus_to_client: true, client_to_bus: false
+                    "dyn_srv", as: "dev", bus_to_client: true, client_to_bus: false
                 )
 
                 out_port_m = srv.from_bus_port.to_component_port.model
 
                 assert_equal driver_m, out_port_m.component_model.superclass
-                assert_equal 'driver_out', out_port_m.name
+                assert_equal "driver_out", out_port_m.name
             end
-            it 'raises if the bus_to_client option is not provided' do
+            it "raises if the bus_to_client option is not provided" do
                 assert_raises(ArgumentError) do
                     driver_m.new.require_dynamic_service(
-                        'dyn_srv', as: 'dev', client_to_bus: true
+                        "dyn_srv", as: "dev", client_to_bus: true
                     )
                 end
             end
-            it 'raises if the client_to_bus option is not provided' do
+            it "raises if the client_to_bus option is not provided" do
                 assert_raises(ArgumentError) do
                     driver_m.new.require_dynamic_service(
-                        'dyn_srv', as: 'dev', bus_to_client: true
+                        "dyn_srv", as: "dev", bus_to_client: true
                     )
                 end
             end
-            it 'raises if both bus_to_client and client_to_bus options are false' do
+            it "raises if both bus_to_client and client_to_bus options are false" do
                 assert_raises(ArgumentError) do
                     driver_m.new.require_dynamic_service(
-                        'dyn_srv', as: 'dev', bus_to_client: false, client_to_bus: false
+                        "dyn_srv", as: "dev", bus_to_client: false, client_to_bus: false
                     )
                 end
             end
         end
 
-        describe '#extend_attached_device_configuration' do
-            it 'can be called from within the definition block' do
-                com_bus = ComBus.new_submodel message_type: '/double' do
+        describe "#extend_attached_device_configuration" do
+            it "can be called from within the definition block" do
+                com_bus = ComBus.new_submodel message_type: "/double" do
                     extend_attached_device_configuration do
                         def m; end
                     end
@@ -602,12 +602,12 @@ module Syskit
 
         describe "#each_fullfilled_model" do
             it "includes the model itself, the service type and the root models" do
-                parent_model = ComBus.new_submodel message_type: '/int'
+                parent_model = ComBus.new_submodel message_type: "/int"
                 assert_equal [parent_model, ComBus, Device, DataService],
                              parent_model.each_fullfilled_model.to_a
             end
             it "includes other service models it provides" do
-                parent_model = ComBus.new_submodel message_type: '/int'
+                parent_model = ComBus.new_submodel message_type: "/int"
                 child_model  = ComBus.new_submodel { provides parent_model }
                 assert_equal [child_model, parent_model, ComBus, Device, DataService],
                              child_model.each_fullfilled_model.to_a
@@ -616,14 +616,14 @@ module Syskit
 
         describe "#provides" do
             it "does not change #supermodel when given a data service" do
-                srv = ComBus.new_submodel message_type: '/int'
+                srv = ComBus.new_submodel message_type: "/int"
                 assert_equal ComBus, srv.supermodel
                 srv.provides DataService.new_submodel
                 assert_equal ComBus, srv.supermodel
             end
 
             it "does not change #supermodel when given a device" do
-                srv = ComBus.new_submodel message_type: '/int'
+                srv = ComBus.new_submodel message_type: "/int"
                 assert_equal ComBus, srv.supermodel
                 srv.provides Device.new_submodel
                 assert_equal ComBus, srv.supermodel
@@ -633,13 +633,13 @@ module Syskit
         describe "#new_submodel" do
             attr_reader :combus
             before do
-                @test_t  = stub_type '/test_t'
-                @other_t = stub_type '/other_t'
-                @combus = ComBus.new_submodel message_type: '/test_t'
+                @test_t  = stub_type "/test_t"
+                @other_t = stub_type "/other_t"
+                @combus = ComBus.new_submodel message_type: "/test_t"
             end
 
             it "can set the message type directly" do
-                combus = ComBus.new_submodel message_type: '/test_t'
+                combus = ComBus.new_submodel message_type: "/test_t"
                 assert_equal @test_t, combus.message_type
             end
 
@@ -650,18 +650,18 @@ module Syskit
             end
 
             it "does not allow to override the message type in submodels through the argument" do
-                assert_raises(ArgumentError) { combus.new_submodel message_type: '/double' }
+                assert_raises(ArgumentError) { combus.new_submodel message_type: "/double" }
             end
 
             it "does not allow to override the mesage type in submodels through #provides" do
                 parent_combus = self.combus
                 combus = ComBus.new_submodel { provides parent_combus }
-                other_combus = ComBus.new_submodel message_type: '/double'
+                other_combus = ComBus.new_submodel message_type: "/double"
                 assert_raises(ArgumentError) { combus.provides other_combus }
             end
 
             it "cannot provide a ComBus that does not have the same message type" do
-                other_combus = ComBus.new_submodel message_type: '/double'
+                other_combus = ComBus.new_submodel message_type: "/double"
                 assert_raises(ArgumentError) { combus.provides other_combus }
             end
 
@@ -692,7 +692,7 @@ module Syskit
             end
 
             it "registers the services as constant on the receiver" do
-                srv = mod.com_bus_type "Image", message_type: '/double'
+                srv = mod.com_bus_type "Image", message_type: "/double"
                 assert_same srv, mod::Image
             end
         end

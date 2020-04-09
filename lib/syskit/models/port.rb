@@ -210,11 +210,15 @@ module Syskit
 
             # @return [Boolean] true if this is an output port, false otherwise.
             #   The default implementation returns false
-            def output?; false end
+            def output?
+                false
+            end
 
             # @return [Boolean] true if this is an input port, false otherwise.
             #   The default implementation returns false
-            def input?; false end
+            def input?
+                false
+            end
         end
 
         class OutputPort < Port
@@ -234,7 +238,9 @@ module Syskit
                 Syskit::OutputPort.new(self, component_model.bind(component))
             end
 
-            def output?; true end
+            def output?
+                true
+            end
 
             def reader(policy = {})
                 OutputReader.new(self, policy)
@@ -257,7 +263,9 @@ module Syskit
                 InputWriter.new(self, policy)
             end
 
-            def input?; true end
+            def input?
+                true
+            end
         end
 
         class OutputReader
@@ -269,9 +277,13 @@ module Syskit
                 @policy = policy
             end
 
-            def hash; [port, policy].hash end
+            def hash
+                [port, policy].hash
+            end
 
-            def eql?(other); self == other end
+            def eql?(other)
+                self == other
+            end
 
             def bind(port_or_task)
                 if port_or_task.respond_to?(:reader)
@@ -301,9 +313,13 @@ module Syskit
                 @policy = policy
             end
 
-            def hash; [port, policy].hash end
+            def hash
+                [port, policy].hash
+            end
 
-            def eql?(other); self == other end
+            def eql?(other)
+                self == other
+            end
 
             def bind(port_or_task)
                 if port_or_task.respond_to?(:writer)

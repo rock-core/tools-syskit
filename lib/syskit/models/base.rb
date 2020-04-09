@@ -14,7 +14,9 @@ module Syskit
         module Base
             # List of names that are valid for this model in the context of
             # DependencyInjection
-            def dependency_injection_names; [] end
+            def dependency_injection_names
+                []
+            end
 
             # The model name that should be used in messages that are displayed
             # to the user. Note that Syskit defines Class#short_name as an

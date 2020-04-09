@@ -1,4 +1,4 @@
-require 'syskit/test/self'
+require "syskit/test/self"
 
 describe Syskit::Component do
     describe "#specialize" do
@@ -30,7 +30,7 @@ describe Syskit::Component do
         it "should be possible to declare that the specialized model provides a service without touching the source model" do
             task.specialize
             srv_m = Syskit::DataService.new_submodel
-            task.model.provides srv_m, as: 'srv'
+            task.model.provides srv_m, as: "srv"
             assert task.fullfills?(srv_m)
             assert !task_m.fullfills?(srv_m)
         end
@@ -57,7 +57,7 @@ describe Syskit::Component do
         describe "once specialized" do
             it "yields ports from the specialized model" do
                 task_m = Syskit::TaskContext.new_submodel do
-                    output_port 'out', '/double'
+                    output_port "out", "/double"
                 end
                 task = task_m.new
                 task.out_port
@@ -66,12 +66,12 @@ describe Syskit::Component do
             end
             it "yields services from the specialized model" do
                 srv_m = Syskit::DataService.new_submodel do
-                    output_port 'out', '/double'
+                    output_port "out", "/double"
                 end
 
                 task_m = Syskit::TaskContext.new_submodel do
-                    output_port 'out', '/double'
-                    provides srv_m, as: 'test'
+                    output_port "out", "/double"
+                    provides srv_m, as: "test"
                 end
                 task = task_m.new
                 task.specialize
@@ -126,38 +126,38 @@ describe Syskit::Component do
 
         it "replaces the task with a specialized version of it" do
             flexmock(task).should_receive(:specialize).once.pass_thru
-            task.require_dynamic_service 'dyn', as: 'service_name'
+            task.require_dynamic_service "dyn", as: "service_name"
         end
         it "creates a new dynamic service on the specialized model" do
-            bound_service = task.require_dynamic_service 'dyn', as: 'service_name'
-            assert_equal bound_service, task.find_data_service('service_name')
-            assert !task_m.find_data_service('service_name')
+            bound_service = task.require_dynamic_service "dyn", as: "service_name"
+            assert_equal bound_service, task.find_data_service("service_name")
+            assert !task_m.find_data_service("service_name")
             assert_same bound_service.model.component_model, task.model
         end
         it "does nothing if requested to create a service that already exists" do
-            bound_service = task.require_dynamic_service 'dyn', as: 'service_name'
-            assert_equal bound_service, task.require_dynamic_service('dyn', as: 'service_name')
+            bound_service = task.require_dynamic_service "dyn", as: "service_name"
+            assert_equal bound_service, task.require_dynamic_service("dyn", as: "service_name")
         end
         it "raises if requested to instantiate a service without giving it a name" do
-            assert_raises(ArgumentError) { task.require_dynamic_service 'dyn' }
+            assert_raises(ArgumentError) { task.require_dynamic_service "dyn" }
         end
         it "raises if requested to instantiate a dynamic service that is not declared" do
-            assert_raises(ArgumentError) { task.require_dynamic_service 'nonexistent', as: 'name' }
+            assert_raises(ArgumentError) { task.require_dynamic_service "nonexistent", as: "name" }
         end
         it "raises if requested to instantiate a service that already exists but is not compatible with the dynamic service model" do
-            task_m.provides Syskit::DataService.new_submodel, as: 'srv'
-            assert_raises(ArgumentError) { task.require_dynamic_service 'dyn', as: 'srv' }
+            task_m.provides Syskit::DataService.new_submodel, as: "srv"
+            assert_raises(ArgumentError) { task.require_dynamic_service "dyn", as: "srv" }
         end
         it "supports declaring services as slave devices" do
             master_m = Syskit::Device.new_submodel
             slave_m = Syskit::Device.new_submodel
 
-            task_m.driver_for master_m, as: 'driver'
-            dyn = task_m.dynamic_service slave_m, as: 'device_dyn' do
-                provides slave_m, as: name, slave_of: 'driver'
+            task_m.driver_for master_m, as: "driver"
+            dyn = task_m.dynamic_service slave_m, as: "device_dyn" do
+                provides slave_m, as: name, slave_of: "driver"
             end
             task = task_m.new
-            task.require_dynamic_service 'device_dyn', as: 'slave'
+            task.require_dynamic_service "device_dyn", as: "slave"
             assert_equal [task.model.driver_srv], task.model.each_master_driver_service.to_a
         end
 
@@ -165,24 +165,24 @@ describe Syskit::Component do
             before do
                 srv_m = Syskit::DataService.new_submodel
                 task_m = Syskit::TaskContext.new_submodel
-                task_m.dynamic_service srv_m, as: 'test' do
+                task_m.dynamic_service srv_m, as: "test" do
                     provides srv_m
                 end
                 plan.add(@task = task_m.new)
             end
 
             it "exposes services that are registered on the underlying task's specialized model" do
-                task.require_dynamic_service 'test', as: 'test'
+                task.require_dynamic_service "test", as: "test"
                 transaction = create_transaction
                 task_p = transaction[task]
                 task_p.specialize
-                assert task_p.find_data_service('test')
+                assert task_p.find_data_service("test")
             end
             it "adds new dynamic services only at the transaction level" do
                 transaction = create_transaction
                 task_p = transaction[task]
-                task_p.require_dynamic_service 'test', as: 'test'
-                assert !task.find_data_service('test')
+                task_p.require_dynamic_service "test", as: "test"
+                assert !task.find_data_service("test")
             end
         end
     end
@@ -193,7 +193,7 @@ describe Syskit::Component do
             srv_m = Syskit::DataService.new_submodel
             @task_m = Syskit::TaskContext.new_submodel do
                 argument :arg
-                dynamic_service srv_m, as: 'dyn' do
+                dynamic_service srv_m, as: "dyn" do
                     provides srv_m.new_submodel, as: name
                 end
             end
@@ -205,21 +205,21 @@ describe Syskit::Component do
             assert testing_task.can_merge?(tested_task)
         end
         it "returns true if the tested task has dynamic services" do
-            tested_task.require_dynamic_service 'dyn', as: 'srv'
+            tested_task.require_dynamic_service "dyn", as: "srv"
             assert testing_task.can_merge?(tested_task)
         end
         it "returns true if the testing task has dynamic services" do
-            testing_task.require_dynamic_service 'dyn', as: 'srv'
+            testing_task.require_dynamic_service "dyn", as: "srv"
             assert testing_task.can_merge?(tested_task)
         end
         it "returns true if testing and tested tasks have different dynamic services" do
-            tested_task.require_dynamic_service 'dyn', as: 'srv_1'
-            testing_task.require_dynamic_service 'dyn', as: 'srv_2'
+            tested_task.require_dynamic_service "dyn", as: "srv_1"
+            testing_task.require_dynamic_service "dyn", as: "srv_2"
             assert testing_task.can_merge?(tested_task)
         end
         it "returns false if testing and tested tasks have dynamic services with the same name but different models" do
-            tested_task.require_dynamic_service 'dyn', as: 'srv'
-            testing_task.require_dynamic_service 'dyn', as: 'srv'
+            tested_task.require_dynamic_service "dyn", as: "srv"
+            testing_task.require_dynamic_service "dyn", as: "srv"
             assert !testing_task.can_merge?(tested_task)
         end
         it "returns false if the testing task is abstract and the tested task is not" do
@@ -235,7 +235,7 @@ describe Syskit::Component do
             before do
                 @cmp_m = Syskit::Composition.new_submodel
                 @cmp_m.argument :arg
-                @cmp_m.add(@task_m, as: 'test')
+                @cmp_m.add(@task_m, as: "test")
                       .with_arguments(arg: Roby::Task.from(:parent_task).arg)
             end
 
@@ -261,7 +261,7 @@ describe Syskit::Component do
         before do
             srv_m = @srv_m = Syskit::DataService.new_submodel
             @task_m = Syskit::TaskContext.new_submodel do
-                dynamic_service srv_m, as: 'dyn' do
+                dynamic_service srv_m, as: "dyn" do
                     provides (options[:model] || srv_m.new_submodel), as: name, slave_of: options[:master]
                 end
             end
@@ -277,40 +277,40 @@ describe Syskit::Component do
         end
         it "does not instantiate dynamic services that already exist on the receiver" do
             merged_task.specialize
-            merged_task.require_dynamic_service 'dyn', as: 'srv'
+            merged_task.require_dynamic_service "dyn", as: "srv"
             task.specialize
-            flexmock(task.model).should_receive(:find_data_service).with('srv').and_return(true)
+            flexmock(task.model).should_receive(:find_data_service).with("srv").and_return(true)
             flexmock(task.model).should_receive(:provides_dynamic).never
             task.merge(merged_task)
         end
         it "specializes the receiver if the merged task has dynamic services" do
             merged_task.specialize
-            merged_task.require_dynamic_service 'dyn', as: 'srv'
+            merged_task.require_dynamic_service "dyn", as: "srv"
             flexmock(task).should_receive(:specialize).once.pass_thru
             task.merge(merged_task)
         end
         it "adds dynamic services from the merged task" do
             merged_task.specialize
-            merged_task.require_dynamic_service 'dyn', as: 'srv', model: (actual_m = srv_m.new_submodel)
+            merged_task.require_dynamic_service "dyn", as: "srv", model: (actual_m = srv_m.new_submodel)
             task.specialize
-            flexmock(task.model).should_receive(:provides_dynamic).with(actual_m, {}, as: 'srv', slave_of: nil, bound_service_class: Syskit::Models::BoundDynamicDataService).once.pass_thru
+            flexmock(task.model).should_receive(:provides_dynamic).with(actual_m, {}, as: "srv", slave_of: nil, bound_service_class: Syskit::Models::BoundDynamicDataService).once.pass_thru
             task.merge(merged_task)
         end
         it "adds slave dynamic services as slaves" do
-            task_m.provides srv_m, as: 'master'
+            task_m.provides srv_m, as: "master"
             merged_task.specialize
-            merged_task.require_dynamic_service 'dyn', as: 'srv', model: (actual_m = srv_m.new_submodel), master: 'master'
+            merged_task.require_dynamic_service "dyn", as: "srv", model: (actual_m = srv_m.new_submodel), master: "master"
             task.specialize
-            flexmock(task.model).should_receive(:provides_dynamic).with(actual_m, {}, as: 'srv', slave_of: 'master', bound_service_class: Syskit::Models::BoundDynamicDataService).once.pass_thru
+            flexmock(task.model).should_receive(:provides_dynamic).with(actual_m, {}, as: "srv", slave_of: "master", bound_service_class: Syskit::Models::BoundDynamicDataService).once.pass_thru
             task.merge(merged_task)
         end
         it "specializes the target task regardless of whether the target model was already specialized" do
             task_m = self.task_m.new_submodel
-            task_m.provides srv_m, as: 'master'
+            task_m.provides srv_m, as: "master"
             task_m = task_m.specialize
             merged_task_m = task_m.specialize
-            merged_task_m.require_dynamic_service 'dyn', as: 'srv',
-                                                         model: srv_m.new_submodel, master: 'master'
+            merged_task_m.require_dynamic_service "dyn", as: "srv",
+                                                         model: srv_m.new_submodel, master: "master"
             plan.add(merged_task = merged_task_m.new)
             plan.add(task = task_m.new)
             flexmock(task).should_receive(:specialize).once
@@ -318,17 +318,17 @@ describe Syskit::Component do
         end
         it "does not modify its current model unless it is its singleton class" do
             task_m = self.task_m.new_submodel
-            task_m.provides srv_m, as: 'master'
+            task_m.provides srv_m, as: "master"
             merged_task_m = task_m.specialize
-            merged_task_m.require_dynamic_service 'dyn', as: 'srv',
-                                                         model: srv_m.new_submodel, master: 'master'
+            merged_task_m.require_dynamic_service "dyn", as: "srv",
+                                                         model: srv_m.new_submodel, master: "master"
             plan.add(task = task_m.new)
             plan.add(merged_task = merged_task_m.new)
             task.merge(merged_task)
             assert task_m.each_required_dynamic_service.empty?
         end
         it "can merge a task built from a specialized model into one that is not specialized" do
-            task_m.provides srv_m, as: 'master'
+            task_m.provides srv_m, as: "master"
             merged_task_m = task_m.specialize
             plan.add(merged_task = merged_task_m.new)
             task.merge(merged_task)
@@ -337,10 +337,10 @@ describe Syskit::Component do
         # arguments or events on the task model.
         it "uses #require_dynamic_service to create the new services in order to re-evaluate the block" do
             merged_task.specialize
-            merged_task.require_dynamic_service 'dyn', as: 'srv', argument: 10
+            merged_task.require_dynamic_service "dyn", as: "srv", argument: 10
             task.specialize
             flexmock(task.model).should_receive(:require_dynamic_service).once
-                                .with('dyn', as: 'srv', argument: 10)
+                                .with("dyn", as: "srv", argument: 10)
                                 .pass_thru
             task.merge(merged_task)
         end
@@ -385,19 +385,19 @@ describe Syskit::Component do
         it "should yield nothing for plain models" do
             task_m = Syskit::Component.new_submodel
             srv_m = Syskit::DataService.new_submodel
-            task_m.provides srv_m, as: 'test'
+            task_m.provides srv_m, as: "test"
             assert task_m.new.each_required_dynamic_service.empty?
         end
 
         it "should yield services instanciated through the dynamic service mechanism" do
             srv_m = Syskit::DataService.new_submodel
             task_m = Syskit::TaskContext.new_submodel
-            task_m.dynamic_service srv_m, as: 'dyn' do
+            task_m.dynamic_service srv_m, as: "dyn" do
                 provides srv_m, as: name
             end
 
             model_m = task_m.new_submodel
-            srv = model_m.require_dynamic_service 'dyn', as: 'test'
+            srv = model_m.require_dynamic_service "dyn", as: "test"
             task = model_m.new
             assert_equal [srv.bind(task)], task.each_required_dynamic_service.to_a
         end
@@ -425,22 +425,22 @@ describe Syskit::Component do
     describe "#method_missing" do
         it "returns a matching service if called with the #srv_name_srv handler" do
             task = Syskit::Component.new
-            flexmock(task).should_receive(:find_data_service).with('a_service_name').and_return(srv = Object.new)
+            flexmock(task).should_receive(:find_data_service).with("a_service_name").and_return(srv = Object.new)
             assert_same srv, task.a_service_name_srv
         end
         it "raises NoMethodError if called with the #srv_name_srv handler for a service that does not exist" do
             task = Syskit::Component.new
-            flexmock(task).should_receive(:find_data_service).with('a_service_name')
+            flexmock(task).should_receive(:find_data_service).with("a_service_name")
             assert_raises(NoMethodError) { task.a_service_name_srv }
         end
         it "returns a matching port if called with the #port_name_port handler" do
             task = Syskit::Component.new
-            flexmock(task).should_receive(:find_port).with('a_port_name').and_return(obj = Object.new)
+            flexmock(task).should_receive(:find_port).with("a_port_name").and_return(obj = Object.new)
             assert_same obj, task.a_port_name_port
         end
         it "raises NoMethodError if called with the #port_name_port handler for a port that does not exist" do
             task = Syskit::Component.new
-            flexmock(task).should_receive(:find_port).with('a_port_name')
+            flexmock(task).should_receive(:find_port).with("a_port_name")
             assert_raises(NoMethodError) { task.a_port_name_port }
         end
     end
@@ -516,28 +516,28 @@ describe Syskit::Component do
             plan.add(task = task_m.new)
             plan.in_transaction do |trsc|
                 proxy = trsc[task]
-                proxy.instanciate_dynamic_output_port('name', '/double', dynport)
+                proxy.instanciate_dynamic_output_port("name", "/double", dynport)
                 trsc.commit_transaction
             end
-            assert task.model.find_output_port('name')
+            assert task.model.find_output_port("name")
         end
 
         it "creates dynamic services" do
             srv_m  = Syskit::DataService.new_submodel
             task_m = Syskit::TaskContext.new_submodel
-            dyn_m  = task_m.dynamic_service srv_m, as: 'test' do
-                provides srv_m, as: 'test'
+            dyn_m  = task_m.dynamic_service srv_m, as: "test" do
+                provides srv_m, as: "test"
             end
 
             plan.add(task = task_m.new)
             plan.in_transaction do |trsc|
                 proxy = trsc[task]
-                proxy.require_dynamic_service 'test', as: 'test'
+                proxy.require_dynamic_service "test", as: "test"
                 trsc.commit_transaction
             end
             services = task.each_required_dynamic_service.to_a
             assert_equal 1, services.size
-            expected_dyn_srv = task.model.find_dynamic_service('test')
+            expected_dyn_srv = task.model.find_dynamic_service("test")
             assert_equal expected_dyn_srv, services.first.model.dynamic_service
         end
     end
@@ -1087,54 +1087,54 @@ class TC_Component < Minitest::Test
     def test_get_bound_data_service_using_servicename_srv_syntax
         service_model = DataService.new_submodel
         component_model = TaskContext.new_submodel
-        bound_service_model = component_model.provides(service_model, as: 'test')
+        bound_service_model = component_model.provides(service_model, as: "test")
         plan.add(component = component_model.new)
-        assert_equal(component.find_data_service('test'), component.test_srv)
+        assert_equal(component.find_data_service("test"), component.test_srv)
     end
 
     def test_connect_ports
         source_model = Syskit::TaskContext.new_submodel do
-            output_port 'out', '/double'
+            output_port "out", "/double"
         end
         sink_model = Syskit::TaskContext.new_submodel do
-            input_port 'out', '/double'
-            input_port 'other', '/double'
+            input_port "out", "/double"
+            input_port "other", "/double"
         end
         plan.add(source_task = source_model.new)
         plan.add(sink_task = sink_model.new)
-        source_task.connect_ports(sink_task, ['out', 'out'] => { type: :buffer, size: 20 })
-        assert_equal({ ['out', 'out'] => { type: :buffer, size: 20 } },
+        source_task.connect_ports(sink_task, ["out", "out"] => { type: :buffer, size: 20 })
+        assert_equal({ ["out", "out"] => { type: :buffer, size: 20 } },
                      source_task[sink_task, Syskit::Flows::DataFlow])
-        assert(source_task.connected_to?('out', sink_task, 'out'))
-        source_task.connect_ports(sink_task, ['out', 'other'] => { type: :buffer, size: 30 })
+        assert(source_task.connected_to?("out", sink_task, "out"))
+        source_task.connect_ports(sink_task, ["out", "other"] => { type: :buffer, size: 30 })
         assert_equal(
             {
-                ['out', 'out'] => { type: :buffer, size: 20 },
-                ['out', 'other'] => { type: :buffer, size: 30 }
+                ["out", "out"] => { type: :buffer, size: 20 },
+                ["out", "other"] => { type: :buffer, size: 30 }
             }, source_task[sink_task, Syskit::Flows::DataFlow]
         )
-        assert(source_task.connected_to?('out', sink_task, 'out'))
-        assert(source_task.connected_to?('out', sink_task, 'other'))
+        assert(source_task.connected_to?("out", sink_task, "out"))
+        assert(source_task.connected_to?("out", sink_task, "other"))
     end
 
     def test_connect_ports_non_existent_ports
         source_model = Syskit::TaskContext.new_submodel do
-            output_port 'out', '/double'
+            output_port "out", "/double"
         end
         sink_model = Syskit::TaskContext.new_submodel do
-            input_port 'out', '/double'
+            input_port "out", "/double"
         end
         plan.add(source_task = source_model.new)
         plan.add(sink_task = sink_model.new)
 
         assert_raises(ArgumentError) do
-            source_task.connect_ports(sink_task, ['out', 'does_not_exist'] => { type: :buffer, size: 20 })
+            source_task.connect_ports(sink_task, ["out", "does_not_exist"] => { type: :buffer, size: 20 })
         end
         assert(!dataflow_graph.has_vertex?(source_task))
         assert(!dataflow_graph.has_vertex?(sink_task))
 
         assert_raises(ArgumentError) do
-            source_task.connect_ports(sink_task, ['does_not_exist', 'out'] => { type: :buffer, size: 20 })
+            source_task.connect_ports(sink_task, ["does_not_exist", "out"] => { type: :buffer, size: 20 })
         end
         assert(!dataflow_graph.has_vertex?(source_task))
         assert(!dataflow_graph.has_vertex?(sink_task))
@@ -1144,73 +1144,73 @@ class TC_Component < Minitest::Test
 
     def test_disconnect_ports
         source_model = Syskit::TaskContext.new_submodel do
-            output_port 'out', '/double'
+            output_port "out", "/double"
         end
         sink_model = Syskit::TaskContext.new_submodel do
-            input_port 'out', '/double'
-            input_port 'other', '/double'
+            input_port "out", "/double"
+            input_port "other", "/double"
         end
         plan.add(source_task = source_model.new)
         plan.add(sink_task = sink_model.new)
-        source_task.connect_ports(sink_task, ['out', 'out'] => { type: :buffer, size: 20 })
-        source_task.connect_ports(sink_task, ['out', 'other'] => { type: :buffer, size: 30 })
-        assert(source_task.connected_to?('out', sink_task, 'out'))
-        assert(source_task.connected_to?('out', sink_task, 'other'))
+        source_task.connect_ports(sink_task, ["out", "out"] => { type: :buffer, size: 20 })
+        source_task.connect_ports(sink_task, ["out", "other"] => { type: :buffer, size: 30 })
+        assert(source_task.connected_to?("out", sink_task, "out"))
+        assert(source_task.connected_to?("out", sink_task, "other"))
 
         source_task.disconnect_ports(sink_task, [%w{out other}])
         assert_equal(
             {
-                ['out', 'out'] => { type: :buffer, size: 20 }
+                ["out", "out"] => { type: :buffer, size: 20 }
             }, source_task[sink_task, Syskit::Flows::DataFlow]
         )
-        assert(source_task.connected_to?('out', sink_task, 'out'))
-        assert(!source_task.connected_to?('out', sink_task, 'other'))
+        assert(source_task.connected_to?("out", sink_task, "out"))
+        assert(!source_task.connected_to?("out", sink_task, "other"))
     end
 
     def test_disconnect_ports_non_existent_ports
         source_model = Syskit::TaskContext.new_submodel do
-            output_port 'out', '/double'
+            output_port "out", "/double"
         end
         sink_model = Syskit::TaskContext.new_submodel do
-            input_port 'out', '/double'
+            input_port "out", "/double"
         end
         plan.add(source_task = source_model.new)
         plan.add(sink_task = sink_model.new)
-        source_task.connect_ports(sink_task, ['out', 'out'] => { type: :buffer, size: 20 })
+        source_task.connect_ports(sink_task, ["out", "out"] => { type: :buffer, size: 20 })
 
         assert_raises(ArgumentError) do
-            source_task.disconnect_ports(sink_task, [['out', 'does_not_exist']])
+            source_task.disconnect_ports(sink_task, [["out", "does_not_exist"]])
         end
         assert_equal(
-            { ['out', 'out'] => { type: :buffer, size: 20 } }, source_task[sink_task, Syskit::Flows::DataFlow]
+            { ["out", "out"] => { type: :buffer, size: 20 } }, source_task[sink_task, Syskit::Flows::DataFlow]
         )
 
         assert_raises(ArgumentError) do
-            source_task.disconnect_ports(sink_task, [['does_not_exist', 'out']])
+            source_task.disconnect_ports(sink_task, [["does_not_exist", "out"]])
         end
         assert_equal(
-            { ['out', 'out'] => { type: :buffer, size: 20 } }, source_task[sink_task, Syskit::Flows::DataFlow]
+            { ["out", "out"] => { type: :buffer, size: 20 } }, source_task[sink_task, Syskit::Flows::DataFlow]
         )
 
         assert_raises(ArgumentError) do
-            source_task.disconnect_ports(sink_task, [['does_not_exist', 'does_not_exist']])
+            source_task.disconnect_ports(sink_task, [["does_not_exist", "does_not_exist"]])
         end
         assert_equal(
-            { ['out', 'out'] => { type: :buffer, size: 20 } }, source_task[sink_task, Syskit::Flows::DataFlow]
+            { ["out", "out"] => { type: :buffer, size: 20 } }, source_task[sink_task, Syskit::Flows::DataFlow]
         )
     end
 
     def test_disconnect_ports_non_existent_connection
         source_model = Syskit::TaskContext.new_submodel do
-            output_port 'out', '/double'
+            output_port "out", "/double"
         end
         sink_model = Syskit::TaskContext.new_submodel do
-            input_port 'out', '/double'
+            input_port "out", "/double"
         end
         plan.add(source_task = source_model.new)
         plan.add(sink_task = sink_model.new)
         assert_raises(ArgumentError) do
-            source_task.disconnect_ports(sink_task, [['out', 'out']])
+            source_task.disconnect_ports(sink_task, [["out", "out"]])
         end
     end
 
@@ -1221,21 +1221,21 @@ class TC_Component < Minitest::Test
         model = Syskit::TaskContext.new_submodel name: "Model"
         submodel = model.new_submodel name: "Submodel"
 
-        plan.add(merged_task = model.new(id: 'test'))
-        merged_task.fullfilled_model = [Syskit::Component, [], { id: 'test' }]
+        plan.add(merged_task = model.new(id: "test"))
+        merged_task.fullfilled_model = [Syskit::Component, [], { id: "test" }]
         plan.add(merging_task = submodel.new)
 
         merging_task.merge(merged_task)
-        assert_equal([[Syskit::Component], { id: 'test' }],
+        assert_equal([[Syskit::Component], { id: "test" }],
                      merging_task.fullfilled_model)
 
         plan.add(merged_task = model.new)
-        merged_task.fullfilled_model = [Syskit::Component, [], { id: 'test' }]
-        plan.add(merging_task = submodel.new(id: 'test'))
+        merged_task.fullfilled_model = [Syskit::Component, [], { id: "test" }]
+        plan.add(merging_task = submodel.new(id: "test"))
         merging_task.fullfilled_model = [model, [], {}]
 
         merging_task.merge(merged_task)
-        assert_equal([[model], { id: 'test' }],
+        assert_equal([[model], { id: "test" }],
                      merging_task.fullfilled_model)
     end
 end

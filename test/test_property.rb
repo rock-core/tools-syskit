@@ -1,13 +1,13 @@
-require 'syskit/test/self'
+require "syskit/test/self"
 
 module Syskit
     describe Property do
         attr_reader :property
         before do
             task_m = Syskit::TaskContext.new_submodel do
-                property 'test', '/double'
+                property "test", "/double"
             end
-            @property = task_m.new.property('test')
+            @property = task_m.new.property("test")
         end
 
         describe "#update_remote_value" do

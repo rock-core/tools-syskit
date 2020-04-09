@@ -1,7 +1,7 @@
-require 'syskit/test/self'
-require 'roby/interface/rest'
-require 'rack/test'
-require 'syskit/roby_app/rest_api'
+require "syskit/test/self"
+require "roby/interface/rest"
+require "rack/test"
+require "syskit/roby_app/rest_api"
 
 module Syskit
     module RobyApp
@@ -47,52 +47,52 @@ module Syskit
                     end
 
                     it "returns an empty list if there are no deployments" do
-                        result = get_json '/deployments/available'
-                        assert_equal Hash['deployments' => []], result
+                        result = get_json "/deployments/available"
+                        assert_equal Hash["deployments" => []], result
                     end
                     it "returns the list of available deployments" do
                         setup_deployed_task(OroGen::Loaders::PkgConfig::AvailableDeployedTask.new(
-                                                'test_task', 'test_deployment', 'test::Task', 'test'
+                                                "test_task", "test_deployment", "test::Task", "test"
                                             ))
-                        result = get_json '/deployments/available'
+                        result = get_json "/deployments/available"
                         expected = Hash[
-                            'name' => 'test_deployment',
-                            'project_name' => 'test',
-                            'tasks' => Array[
-                                Hash['task_name' => 'test_task', 'task_model_name' => 'test::Task']
+                            "name" => "test_deployment",
+                            "project_name" => "test",
+                            "tasks" => Array[
+                                Hash["task_name" => "test_task", "task_model_name" => "test::Task"]
                             ],
-                            'default_deployment_for' => nil,
-                            'default_logger' => nil
+                            "default_deployment_for" => nil,
+                            "default_logger" => nil
                         ]
-                        assert_equal [expected], result['deployments']
+                        assert_equal [expected], result["deployments"]
                     end
                     it "identifies default deployments and reports them" do
                         setup_deployed_task(OroGen::Loaders::PkgConfig::AvailableDeployedTask.new(
-                                                'orogen_default_test__Task', 'orogen_default_test__Task', 'test::Task', 'test'
+                                                "orogen_default_test__Task", "orogen_default_test__Task", "test::Task", "test"
                                             ))
-                        result = get_json '/deployments/available'
-                        assert_equal 'test::Task', result['deployments'][0]['default_deployment_for']
+                        result = get_json "/deployments/available"
+                        assert_equal "test::Task", result["deployments"][0]["default_deployment_for"]
                     end
                     it "identifies default loggers and reports them" do
                         setup_deployed_task(OroGen::Loaders::PkgConfig::AvailableDeployedTask.new(
-                                                'test_deployment_Logger', 'test_deployment', 'logger::Logger', 'test'
+                                                "test_deployment_Logger", "test_deployment", "logger::Logger", "test"
                                             ))
-                        result = get_json '/deployments/available'
-                        assert_equal 'test_deployment_Logger', result['deployments'][0]['default_logger']
+                        result = get_json "/deployments/available"
+                        assert_equal "test_deployment_Logger", result["deployments"][0]["default_logger"]
                     end
                     it "uses the model name to identify default loggers" do
                         setup_deployed_task(OroGen::Loaders::PkgConfig::AvailableDeployedTask.new(
-                                                'test_deployment_Logger', 'test_deployment', 'something::Else', 'test'
+                                                "test_deployment_Logger", "test_deployment", "something::Else", "test"
                                             ))
-                        result = get_json '/deployments/available'
-                        assert_nil result['deployments'][0]['default_logger']
+                        result = get_json "/deployments/available"
+                        assert_nil result["deployments"][0]["default_logger"]
                     end
                     it "uses the task name pattern to identify default loggers" do
                         setup_deployed_task(OroGen::Loaders::PkgConfig::AvailableDeployedTask.new(
-                                                'custom_logger', 'test_deployment', 'logger::Logger', 'test'
+                                                "custom_logger", "test_deployment", "logger::Logger", "test"
                                             ))
-                        result = get_json '/deployments/available'
-                        assert_nil result['deployments'][0]['default_logger']
+                        result = get_json "/deployments/available"
+                        assert_nil result["deployments"][0]["default_logger"]
                     end
                 end
 
@@ -101,113 +101,113 @@ module Syskit
                         @configured_deployments = []
                         flexmock(Syskit.conf.deployment_group).should_receive(:each_configured_deployment)
                                                               .and_return { @configured_deployments }
-                        Syskit.conf.register_process_server('localhost',
+                        Syskit.conf.register_process_server("localhost",
                                                             flexmock(:on, Orocos::RemoteProcesses::Client))
-                        Syskit.conf.register_process_server('unmanaged_tasks',
+                        Syskit.conf.register_process_server("unmanaged_tasks",
                                                             flexmock(:on, UnmanagedTasksManager))
-                        Syskit.conf.register_process_server('something_else',
+                        Syskit.conf.register_process_server("something_else",
                                                             flexmock())
 
                         orogen_task_m = OroGen::Spec::TaskContext.new(
-                            Roby.app.default_orogen_project, 'test::Task'
+                            Roby.app.default_orogen_project, "test::Task"
                         )
                         @syskit_task_m = Syskit::TaskContext.define_from_orogen(
                             orogen_task_m
                         )
                         orogen_deployment_m = OroGen::Spec::Deployment.new(
-                            nil, 'test_deployment'
+                            nil, "test_deployment"
                         )
-                        orogen_deployment_m.task 'test_task', orogen_task_m
+                        orogen_deployment_m.task "test_task", orogen_task_m
                         @deployment_m = Syskit::Deployment.define_from_orogen(orogen_deployment_m)
                     end
                     after do
                         @syskit_task_m.clear_model
-                        Syskit.conf.remove_process_server('unmanaged_tasks')
-                        Syskit.conf.remove_process_server('localhost')
-                        Syskit.conf.remove_process_server('something_else')
+                        Syskit.conf.remove_process_server("unmanaged_tasks")
+                        Syskit.conf.remove_process_server("localhost")
+                        Syskit.conf.remove_process_server("something_else")
                     end
                     it "returns empty if there are no deployments registered" do
-                        assert_equal Hash['registered_deployments' => []],
-                                     get_json('/deployments/registered')
+                        assert_equal Hash["registered_deployments" => []],
+                                     get_json("/deployments/registered")
                     end
                     it "returns the deployments as registered in Syskit" do
                         configured_deployment = Models::ConfiguredDeployment.new(
-                            'localhost', @deployment_m,
-                            Hash['test_task' => 'mapped_test_task'], 'test_deployment', {}
+                            "localhost", @deployment_m,
+                            Hash["test_task" => "mapped_test_task"], "test_deployment", {}
                         )
                         @configured_deployments << configured_deployment
                         expected = Hash[
                             "id" => configured_deployment.object_id,
-                            "deployment_name" => 'test_deployment',
-                            "on" => 'localhost',
-                            "mappings" => Hash['test_task' => 'mapped_test_task'],
+                            "deployment_name" => "test_deployment",
+                            "on" => "localhost",
+                            "mappings" => Hash["test_task" => "mapped_test_task"],
                             "tasks" => [
-                                Hash['task_name' => 'mapped_test_task',
-                                     'task_model_name' => 'test::Task']
+                                Hash["task_name" => "mapped_test_task",
+                                     "task_model_name" => "test::Task"]
                             ],
                             "type" => "orocos",
                             "created" => false
                         ]
-                        assert_equal Hash['registered_deployments' => [expected]],
-                                     get_json('/deployments/registered')
+                        assert_equal Hash["registered_deployments" => [expected]],
+                                     get_json("/deployments/registered")
                     end
 
                     it "returns a deployment type of 'orocos' for an orocos remote process server" do
                         configured_deployment = Models::ConfiguredDeployment.new(
-                            'localhost', @deployment_m, Hash[], 'test_deployment', {}
+                            "localhost", @deployment_m, Hash[], "test_deployment", {}
                         )
                         @configured_deployments << configured_deployment
-                        assert_equal 'orocos',
-                                     get_json('/deployments/registered')['registered_deployments'][0]['type']
+                        assert_equal "orocos",
+                                     get_json("/deployments/registered")["registered_deployments"][0]["type"]
                     end
 
                     it "returns a deployment type of 'unmanaged' for an unmanaged task" do
                         configured_deployment = Models::ConfiguredDeployment.new(
-                            'unmanaged_tasks', @deployment_m, Hash[], 'test_deployment', {}
+                            "unmanaged_tasks", @deployment_m, Hash[], "test_deployment", {}
                         )
                         @configured_deployments << configured_deployment
-                        assert_equal 'unmanaged',
-                                     get_json('/deployments/registered')['registered_deployments'][0]['type']
+                        assert_equal "unmanaged",
+                                     get_json("/deployments/registered")["registered_deployments"][0]["type"]
                     end
 
                     it "ignores tasks whose process server type is not exported" do
                         configured_deployment = Models::ConfiguredDeployment.new(
-                            'something_else', @deployment_m, Hash[], 'test_deployment', {}
+                            "something_else", @deployment_m, Hash[], "test_deployment", {}
                         )
                         @configured_deployments << configured_deployment
-                        assert_equal [], get_json('/deployments/registered')['registered_deployments']
+                        assert_equal [], get_json("/deployments/registered")["registered_deployments"]
                     end
 
                     it "reports if a deployment has not been created by the REST API" do
                         configured_deployment = Models::ConfiguredDeployment.new(
-                            'localhost', @deployment_m, Hash[], 'test_deployment', {}
+                            "localhost", @deployment_m, Hash[], "test_deployment", {}
                         )
                         @configured_deployments << configured_deployment
                         flexmock(RESTDeploymentManager).new_instances
                                                        .should_receive(:created_here?).with(configured_deployment)
                                                        .once.and_return(false)
-                        result = get_json '/deployments/registered'
-                        refute result['registered_deployments'][0]['created']
+                        result = get_json "/deployments/registered"
+                        refute result["registered_deployments"][0]["created"]
                     end
 
                     it "reports if a deployment has been created by the REST API" do
                         configured_deployment = Models::ConfiguredDeployment.new(
-                            'localhost', @deployment_m, Hash[], 'test_deployment', {}
+                            "localhost", @deployment_m, Hash[], "test_deployment", {}
                         )
                         @configured_deployments << configured_deployment
                         flexmock(RESTDeploymentManager).new_instances
                                                        .should_receive(:created_here?).with(configured_deployment)
                                                        .once.and_return(true)
-                        result = get_json '/deployments/registered'
-                        assert result['registered_deployments'][0]['created']
+                        result = get_json "/deployments/registered"
+                        assert result["registered_deployments"][0]["created"]
                     end
 
                     it "reports overriden deployments but not the tasks they are replaced by" do
                         configured_deployment = Models::ConfiguredDeployment.new(
-                            'unmanaged_tasks', @deployment_m, Hash[], 'test_deployment', {}
+                            "unmanaged_tasks", @deployment_m, Hash[], "test_deployment", {}
                         )
                         overriden = Models::ConfiguredDeployment.new(
-                            'localhost', @deployment_m, Hash[], 'test_deployment', {}
+                            "localhost", @deployment_m, Hash[], "test_deployment", {}
                         )
                         @configured_deployments << configured_deployment
                         mock = flexmock(RESTDeploymentManager).new_instances
@@ -219,48 +219,48 @@ module Syskit
                         mock.should_receive(:used_in_override?)
                             .with(overriden)
                             .and_return(false)
-                        result = get_json '/deployments/registered'
+                        result = get_json "/deployments/registered"
 
                         expected = Hash[
                             "id" => overriden.object_id,
-                            "deployment_name" => 'test_deployment',
-                            "on" => 'localhost',
-                            "mappings" => Hash['test_task' => 'test_task'],
+                            "deployment_name" => "test_deployment",
+                            "on" => "localhost",
+                            "mappings" => Hash["test_task" => "test_task"],
                             "tasks" => [
-                                Hash['task_name' => 'test_task',
-                                     'task_model_name' => 'test::Task']
+                                Hash["task_name" => "test_task",
+                                     "task_model_name" => "test::Task"]
                             ],
                             "type" => "orocos",
                             "created" => false
                         ]
-                        assert_equal [expected], result['registered_deployments']
+                        assert_equal [expected], result["registered_deployments"]
                     end
                 end
 
                 describe "POST /deployments" do
                     it "registers a plain deployment if 'as' is not given and returns the ID" do
                         flexmock(RESTDeploymentManager).new_instances
-                                                       .should_receive(:use_deployment).with('test_deployment')
+                                                       .should_receive(:use_deployment).with("test_deployment")
                                                        .once.and_return(123)
                         result = post_json "/deployments?name=test_deployment"
-                        assert_equal Hash['registered_deployment' => 123], result
+                        assert_equal Hash["registered_deployment" => 123], result
                     end
 
                     it "registers a mapped deployment if 'as' is given and returns the ID" do
                         flexmock(RESTDeploymentManager).new_instances
-                                                       .should_receive(:use_deployment).with('test_deployment' => 'prefix')
+                                                       .should_receive(:use_deployment).with("test_deployment" => "prefix")
                                                        .once.and_return(123)
                         result = post_json "/deployments?name=test_deployment&as=prefix"
-                        assert_equal Hash['registered_deployment' => 123], result
+                        assert_equal Hash["registered_deployment" => 123], result
                     end
 
                     it "returns 403 if a task model is given without an explicit 'as'" do
                         flexmock(RESTDeploymentManager).new_instances
-                                                       .should_receive(:use_deployment).with('test_deployment')
+                                                       .should_receive(:use_deployment).with("test_deployment")
                                                        .once.and_raise(Syskit::TaskNameRequired)
                         result = post "/deployments?name=test_deployment"
                         assert_equal 403, result.status
-                        assert_equal "TaskNameRequired", result.headers['x-roby-error']
+                        assert_equal "TaskNameRequired", result.headers["x-roby-error"]
                     end
 
                     it "returns 404 if the required deployment does not exist" do
@@ -268,7 +268,7 @@ module Syskit
                                                        .should_receive(:use_deployment).and_raise(OroGen::NotFound)
                         result = post "/deployments?name=does_not_exist"
                         assert_equal 404, result.status
-                        assert_equal "NotFound", result.headers['x-roby-error']
+                        assert_equal "NotFound", result.headers["x-roby-error"]
                     end
 
                     it "returns 409 if attempting to register a task that is already in use" do
@@ -276,7 +276,7 @@ module Syskit
                                                        .should_receive(:use_deployment).and_raise(TaskNameAlreadyInUse.new("bla", nil, nil))
                         result = post "/deployments?name=test_deployment"
                         assert_equal 409, result.status
-                        assert_equal "TaskNameAlreadyInUse", result.headers['x-roby-error']
+                        assert_equal "TaskNameAlreadyInUse", result.headers["x-roby-error"]
                     end
                 end
 
@@ -294,7 +294,7 @@ module Syskit
                                                        .and_raise(RESTDeploymentManager::NotFound)
                         result = delete "/deployments/123"
                         assert_equal 404, result.status
-                        assert_equal "NotFound", result.headers['x-roby-error']
+                        assert_equal "NotFound", result.headers["x-roby-error"]
                     end
                     it "returns 403 if the ID matches a deployment that was not created by a corresponding register call" do
                         flexmock(RESTDeploymentManager).new_instances
@@ -302,7 +302,7 @@ module Syskit
                                                        .and_raise(RESTDeploymentManager::NotCreatedHere)
                         result = delete "/deployments/123"
                         assert_equal 403, result.status
-                        assert_equal "NotCreatedHere", result.headers['x-roby-error']
+                        assert_equal "NotCreatedHere", result.headers["x-roby-error"]
                     end
                 end
 
@@ -331,7 +331,7 @@ module Syskit
                                                        .and_raise(RESTDeploymentManager::NotFound)
                         result = patch "/deployments/123/unmanage"
                         assert_equal 404, result.status
-                        assert_equal "NotFound", result.headers['x-roby-error']
+                        assert_equal "NotFound", result.headers["x-roby-error"]
                     end
                     it "returns 403 if the ID matches a deployment that was not created by a corresponding register call" do
                         flexmock(RESTDeploymentManager).new_instances
@@ -339,7 +339,7 @@ module Syskit
                                                        .and_raise(RESTDeploymentManager::UsedInOverride)
                         result = patch "/deployments/123/unmanage"
                         assert_equal 403, result.status
-                        assert_equal "UsedInOverride", result.headers['x-roby-error']
+                        assert_equal "UsedInOverride", result.headers["x-roby-error"]
                     end
                 end
 
@@ -357,7 +357,7 @@ module Syskit
                                                        .and_raise(RESTDeploymentManager::NotFound)
                         result = patch "/deployments/123/manage"
                         assert_equal 404, result.status
-                        assert_equal "NotFound", result.headers['x-roby-error']
+                        assert_equal "NotFound", result.headers["x-roby-error"]
                     end
                     it "returns 403 if the deployment is not suitable" do
                         flexmock(RESTDeploymentManager).new_instances
@@ -365,7 +365,7 @@ module Syskit
                                                        .and_raise(RESTDeploymentManager::NotOverriden)
                         result = patch "/deployments/123/manage"
                         assert_equal 403, result.status
-                        assert_equal "NotOverriden", result.headers['x-roby-error']
+                        assert_equal "NotOverriden", result.headers["x-roby-error"]
                     end
                 end
 
@@ -375,7 +375,7 @@ module Syskit
                     end
                     it "returns the command line as a hash" do
                         command_line = Orocos::Process::CommandLine.new(
-                            Hash['ENV' => 'VAR'],
+                            Hash["ENV" => "VAR"],
                             "/path/to/command",
                             ["--some", "args"],
                             "/some/log/dir"
@@ -385,10 +385,10 @@ module Syskit
                                                        .and_return(command_line)
                         result = get_json "/deployments/123/command_line"
                         expected = Hash[
-                            'env' => command_line.env,
-                            'command' => command_line.command,
-                            'args' => command_line.args,
-                            'working_directory' => "/some/log/dir"
+                            "env" => command_line.env,
+                            "command" => command_line.command,
+                            "args" => command_line.args,
+                            "working_directory" => "/some/log/dir"
                         ]
                         assert_equal expected, result
                     end
@@ -396,7 +396,7 @@ module Syskit
                     it "passes sane default configuration" do
                         flexmock(RESTDeploymentManager).new_instances
                                                        .should_receive(:command_line)
-                                                       .with(123, tracing: false, name_service_ip: 'localhost')
+                                                       .with(123, tracing: false, name_service_ip: "localhost")
                                                        .and_return(Orocos::Process::CommandLine.new)
                         get_json "/deployments/123/command_line"
                     end
@@ -404,7 +404,7 @@ module Syskit
                     it "allows to override the defaults" do
                         flexmock(RESTDeploymentManager).new_instances
                                                        .should_receive(:command_line)
-                                                       .with(123, tracing: true, name_service_ip: 'some_ip')
+                                                       .with(123, tracing: true, name_service_ip: "some_ip")
                                                        .and_return(Orocos::Process::CommandLine.new)
                         get_json "/deployments/123/command_line?tracing=true&name_service_ip=some_ip"
                     end
@@ -415,7 +415,7 @@ module Syskit
                                                        .and_raise(RESTDeploymentManager::NotFound)
                         result = get "/deployments/123/command_line"
                         assert_equal 404, result.status
-                        assert_equal "NotFound", result.headers['x-roby-error']
+                        assert_equal "NotFound", result.headers["x-roby-error"]
                     end
 
                     it "returns 403 if the deployment is not suitable for command line generation" do
@@ -424,7 +424,7 @@ module Syskit
                                                        .and_raise(RESTDeploymentManager::NotOrogen)
                         result = get "/deployments/123/command_line"
                         assert_equal 403, result.status
-                        assert_equal "NotOrogen", result.headers['x-roby-error']
+                        assert_equal "NotOrogen", result.headers["x-roby-error"]
                     end
                 end
             end

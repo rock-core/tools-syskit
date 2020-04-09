@@ -1,10 +1,10 @@
-require 'Qt'
-require 'open3'
-require 'syskit/gui/model_browser'
-require 'syskit/gui/state_label'
-require 'syskit/gui/testing'
-require 'syskit/gui/runtime_state'
-require 'shellwords'
+require "Qt"
+require "open3"
+require "syskit/gui/model_browser"
+require "syskit/gui/state_label"
+require "syskit/gui/testing"
+require "syskit/gui/runtime_state"
+require "shellwords"
 
 module Syskit
     module GUI
@@ -20,7 +20,7 @@ module Syskit
 
             def initialize(parent = nil,
                 runtime_only: false,
-                host: 'localhost', port: Roby::Interface::DEFAULT_PORT, runtime: nil, tests: false, robot_name: 'default')
+                host: "localhost", port: Roby::Interface::DEFAULT_PORT, runtime: nil, tests: false, robot_name: "default")
                 super(parent)
 
                 @layout = Qt::VBoxLayout.new(self)
@@ -34,10 +34,10 @@ module Syskit
                     @btn_reload_models = Qt::PushButton.new("Reload Models", self)
                     @btn_add = Qt::PushButton.new("Add", self)
                     btn_add_menu = Qt::Menu.new
-                    btn_add_menu.add_action 'OroGen Project'
-                    btn_add_menu.add_action 'OroGen Type'
-                    btn_add_menu.add_action 'Model File'
-                    btn_add_menu.connect(SIGNAL('triggered(QAction*)')) do |action|
+                    btn_add_menu.add_action "OroGen Project"
+                    btn_add_menu.add_action "OroGen Type"
+                    btn_add_menu.add_action "Model File"
+                    btn_add_menu.connect(SIGNAL("triggered(QAction*)")) do |action|
                         case action.text
                         when "OroGen Project"
                             add_orogen_project
@@ -49,10 +49,10 @@ module Syskit
                     end
                     @btn_add.menu = btn_add_menu
 
-                    connect(model_browser, SIGNAL('fileOpenClicked(const QUrl&)'),
-                            self, SLOT('fileOpenClicked(const QUrl&)'))
-                    connect(testing, SIGNAL('fileOpenClicked(const QUrl&)'),
-                            self, SLOT('fileOpenClicked(const QUrl&)'))
+                    connect(model_browser, SIGNAL("fileOpenClicked(const QUrl&)"),
+                            self, SLOT("fileOpenClicked(const QUrl&)"))
+                    connect(testing, SIGNAL("fileOpenClicked(const QUrl&)"),
+                            self, SLOT("fileOpenClicked(const QUrl&)"))
 
                     browse_container = Qt::Widget.new
                     browse_container_layout = Qt::VBoxLayout.new(browse_container)
@@ -64,7 +64,7 @@ module Syskit
                     tab_widget.add_tab browse_container, "Browse"
                     tab_widget.add_tab testing, "Testing"
 
-                    btn_reload_models.connect(SIGNAL('clicked()')) do
+                    btn_reload_models.connect(SIGNAL("clicked()")) do
                         reload_models
                     end
                     model_browser.model_selector.filter_box.set_focus(Qt::OtherFocusReason)
@@ -74,8 +74,8 @@ module Syskit
                     syskit = Roby::Interface::Async::Interface.new(host, port: port)
                     create_runtime_state_ui(syskit)
                     runtime_idx = tab_widget.add_tab runtime_state, "Runtime"
-                    connect(@runtime_state, SIGNAL('fileOpenClicked(const QUrl&)'),
-                            self, SLOT('fileOpenClicked(const QUrl&)'))
+                    connect(@runtime_state, SIGNAL("fileOpenClicked(const QUrl&)"),
+                            self, SLOT("fileOpenClicked(const QUrl&)"))
                 end
 
                 if runtime
@@ -88,7 +88,7 @@ module Syskit
             end
 
             def reload_models
-                if @runtime_state && @runtime_state.current_state != 'UNREACHABLE'
+                if @runtime_state && @runtime_state.current_state != "UNREACHABLE"
                     Qt::MessageBox.warning(
                         self, "Cannot Reload while running",
                         "Cannot reload while an app is running, quit the app first"
@@ -127,13 +127,13 @@ module Syskit
                     @filter.source_model = model
 
                     @filter_text = Qt::LineEdit.new(self)
-                    @filter_text.connect(SIGNAL('textChanged(QString)')) do |text|
+                    @filter_text.connect(SIGNAL("textChanged(QString)")) do |text|
                         @filter.filterRegExp = Qt::RegExp.new(text)
                     end
                     @list = Qt::ListView.new(self)
                     @list.edit_triggers = Qt::AbstractItemView::NoEditTriggers
                     @list.model = @filter
-                    @list.connect(SIGNAL('doubleClicked(const QModelIndex&)')) do |index|
+                    @list.connect(SIGNAL("doubleClicked(const QModelIndex&)")) do |index|
                         accept
                     end
                     @list.current_index = @filter.index(0, 0)
@@ -147,8 +147,8 @@ module Syskit
                     buttons = Qt::DialogButtonBox.new(
                         Qt::DialogButtonBox::Ok | Qt::DialogButtonBox::Cancel
                     )
-                    connect(buttons, SIGNAL('accepted()'), self, SLOT('accept()'))
-                    connect(buttons, SIGNAL('rejected()'), self, SLOT('reject()'))
+                    connect(buttons, SIGNAL("accepted()"), self, SLOT("accept()"))
+                    connect(buttons, SIGNAL("rejected()"), self, SLOT("reject()"))
                     layout.add_widget(buttons)
                 end
 
@@ -176,7 +176,7 @@ module Syskit
                 syskit2orogen = model_names
                                 .each_with_object({}) do |(orogen_name, project_name), result|
                     unless loader.has_loaded_project?(project_name)
-                        syskit_path = ['OroGen', *orogen_name.split('::')]
+                        syskit_path = ["OroGen", *orogen_name.split("::")]
                         syskit_name = syskit_path.join(".")
                         result[syskit_name] = [syskit_path, project_name]
                     end
@@ -215,7 +215,7 @@ module Syskit
             end
 
             def add_model_file
-                models_dir = File.join(Roby.app.app_dir, 'models')
+                models_dir = File.join(Roby.app.app_dir, "models")
                 initial_dir =
                     if File.directory?(models_dir)
                         models_dir
@@ -256,13 +256,13 @@ module Syskit
 
             def create_runtime_state_ui(syskit)
                 @runtime_state = RuntimeState.new(syskit: syskit, robot_name: @robot_name)
-                connect(runtime_state, SIGNAL('fileOpenClicked(const QUrl&)'),
-                        self, SLOT('fileOpenClicked(const QUrl&)'))
+                connect(runtime_state, SIGNAL("fileOpenClicked(const QUrl&)"),
+                        self, SLOT("fileOpenClicked(const QUrl&)"))
                 @connection_state = GlobalStateLabel.new(
                     actions: runtime_state.global_actions.values,
                     name: runtime_state.remote_name
                 )
-                @connection_state.connect(SIGNAL('clicked(QPoint)')) do |global_pos|
+                @connection_state.connect(SIGNAL("clicked(QPoint)")) do |global_pos|
                     @connection_state.app_state_menu(global_pos)
                 end
 
@@ -277,11 +277,11 @@ module Syskit
             end
 
             def global_settings
-                @global_settings ||= Qt::Settings.new('syskit')
+                @global_settings ||= Qt::Settings.new("syskit")
             end
 
             def settings
-                @settings ||= Qt::Settings.new('syskit', 'ide')
+                @settings ||= Qt::Settings.new("syskit", "ide")
             end
 
             def restore_from_settings(settings = self.settings)
@@ -313,13 +313,13 @@ module Syskit
             end
 
             def fileOpenClicked(url)
-                edit_cmd = global_settings.value('Main/cmdline', Qt::Variant.new)
+                edit_cmd = global_settings.value("Main/cmdline", Qt::Variant.new)
                 if edit_cmd.null?
                     Qt::MessageBox.warning(self, "Edit File", "No editor configured to open file #{url.to_string}. Edit #{global_settings.file_name} and add a cmdline= line in the [Main] section there. The %PATH and %LINENO placeholders will be replaced (if present) by the path and line number that should be edited")
                 else
                     edit_cmd = edit_cmd.to_string
                                        .gsub("%FILEPATH", url.to_local_file)
-                                       .gsub("%LINENO", url.query_item_value('lineno') || '0')
+                                       .gsub("%LINENO", url.query_item_value("lineno") || "0")
 
                     edit_cmd = Shellwords.shellsplit(edit_cmd)
                     stdin, stdout, stderr, wait_thr = Open3.popen3(*edit_cmd)
@@ -329,7 +329,7 @@ module Syskit
                     end
                 end
             end
-            slots 'fileOpenClicked(const QUrl&)'
+            slots "fileOpenClicked(const QUrl&)"
         end
     end
 end

@@ -93,7 +93,7 @@ module Syskit
                 compute_policies: true,
                 validate_deployed_network: true
             )
-                log_timepoint_group 'deploy_system_network' do
+                log_timepoint_group "deploy_system_network" do
                     deployer = SystemNetworkDeployer.new(
                         work_plan,
                         event_logger: event_logger,
@@ -109,7 +109,7 @@ module Syskit
                 if compute_policies
                     @dataflow_dynamics = DataFlowDynamics.new(work_plan)
                     @port_dynamics = dataflow_dynamics.compute_connection_policies
-                    log_timepoint 'compute_connection_policies'
+                    log_timepoint "compute_connection_policies"
                 end
             end
 
@@ -121,13 +121,13 @@ module Syskit
                 # Finally, we map the deployed network to the currently
                 # running tasks
                 @deployment_tasks, @deployed_tasks =
-                    log_timepoint_group 'finalize_deployed_tasks' do
+                    log_timepoint_group "finalize_deployed_tasks" do
                         finalize_deployed_tasks
                     end
 
                 if @dataflow_dynamics
                     @dataflow_dynamics.apply_merges(merge_solver)
-                    log_timepoint 'apply_merged_to_dataflow_dynamics'
+                    log_timepoint "apply_merged_to_dataflow_dynamics"
                 end
                 Engine.deployment_postprocessing.each do |block|
                     block.call(self, work_plan)
@@ -270,14 +270,14 @@ module Syskit
             # Given the network with deployed tasks, this method looks at how we
             # could adapt the running network to the new one
             def finalize_deployed_tasks
-                debug 'finalizing deployed tasks'
+                debug "finalizing deployed tasks"
 
                 used_deployments = work_plan.find_local_tasks(Deployment).to_set
                 used_tasks       = work_plan.find_local_tasks(Component).to_set
-                log_timepoint 'used_tasks'
+                log_timepoint "used_tasks"
 
                 all_tasks = work_plan.find_tasks(Component).to_set
-                log_timepoint 'import_all_tasks_from_plan'
+                log_timepoint "import_all_tasks_from_plan"
                 all_tasks.delete_if do |t|
                     if !t.reusable?
                         debug { "  clearing the relations of the finished task #{t}" }
@@ -289,7 +289,7 @@ module Syskit
                         true
                     end
                 end
-                log_timepoint 'all_tasks_cleanup'
+                log_timepoint "all_tasks_cleanup"
 
                 # Remove connections that are not forwarding connections (e.g.
                 # composition exports)
@@ -310,7 +310,7 @@ module Syskit
                         end
                     end
                 end
-                log_timepoint 'dataflow_graph_cleanup'
+                log_timepoint "dataflow_graph_cleanup"
 
                 deployments = work_plan.find_tasks(Syskit::Deployment).not_finished
                 finishing_deployments = {}
@@ -322,7 +322,7 @@ module Syskit
                         existing_deployments << task
                     end
                 end
-                log_timepoint 'existing_and_finished_deployments'
+                log_timepoint "existing_and_finished_deployments"
 
                 debug do
                     debug "  Mapping deployments in the network to the existing ones"
@@ -376,12 +376,12 @@ module Syskit
                     end
                     selected_deployment_tasks << selected_deployment
                 end
-                log_timepoint 'select_deployments'
+                log_timepoint "select_deployments"
 
                 reused_deployed_tasks = reconfigure_tasks_on_static_port_modification(
                     reused_deployed_tasks
                 )
-                log_timepoint 'reconfigure_tasks_on_static_port_modification'
+                log_timepoint "reconfigure_tasks_on_static_port_modification"
 
                 debug do
                     debug "#{reused_deployed_tasks.size} tasks reused during deployment"
@@ -394,7 +394,7 @@ module Syskit
                 # This is required to merge the already existing compositions
                 # with the ones in the plan
                 merge_solver.merge_identical_tasks
-                log_timepoint 'merge'
+                log_timepoint "merge"
 
                 [selected_deployment_tasks, reused_deployed_tasks | newly_deployed_tasks]
             end
@@ -583,7 +583,7 @@ module Syskit
                 )
 
                 if compute_deployments
-                    log_timepoint_group 'compute_deployed_network' do
+                    log_timepoint_group "compute_deployed_network" do
                         compute_deployed_network(
                             default_deployment_group: default_deployment_group,
                             compute_policies: compute_policies,
@@ -662,7 +662,7 @@ module Syskit
                 # The mapping from this deployed network to the running
                 # tasks is done in #finalize_deployed_tasks
                 if compute_deployments
-                    log_timepoint_group 'apply_deployed_network_to_plan' do
+                    log_timepoint_group "apply_deployed_network_to_plan" do
                         apply_deployed_network_to_plan
                     end
                 end
@@ -671,9 +671,9 @@ module Syskit
                 required_instances = required_instances.transform_values do |task|
                     merge_solver.replacement_for(task)
                 end
-                log_timepoint 'apply_merge_to_stored_instances'
+                log_timepoint "apply_merge_to_stored_instances"
                 fix_toplevel_tasks(required_instances)
-                log_timepoint 'fix_toplevel_tasks'
+                log_timepoint "fix_toplevel_tasks"
 
                 Engine.final_network_postprocessing.each do |block|
                     block.call(self, work_plan)
@@ -685,7 +685,7 @@ module Syskit
                 if garbage_collect && validate_final_network
                     validate_final_network(required_instances, work_plan,
                                            compute_deployments: compute_deployments)
-                    log_timepoint 'validate_final_network'
+                    log_timepoint "validate_final_network"
                 end
 
                 commit_work_plan
@@ -693,7 +693,7 @@ module Syskit
 
             def commit_work_plan
                 work_plan.commit_transaction
-                log_timepoint 'commit_transaction'
+                log_timepoint "commit_transaction"
 
                 # Update the work plan's expected policies
                 if @dataflow_dynamics
@@ -756,12 +756,12 @@ module Syskit
             @@dot_index = 0
             def self.autosave_plan_to_dot(plan, dir = Roby.app.log_dir, prefix: nil, suffix: nil, **dot_options)
                 dot_index = (@@dot_index += 1)
-                dataflow_path = File.join(dir, format("syskit-plan-#{prefix}%04i#{suffix}.%s.dot", dot_index, 'dataflow'))
-                hierarchy_path = File.join(dir, format("syskit-plan-#{prefix}%04i#{suffix}.%s.dot", dot_index, 'hierarchy'))
-                File.open(dataflow_path, 'w') do |io|
+                dataflow_path = File.join(dir, format("syskit-plan-#{prefix}%04i#{suffix}.%s.dot", dot_index, "dataflow"))
+                hierarchy_path = File.join(dir, format("syskit-plan-#{prefix}%04i#{suffix}.%s.dot", dot_index, "hierarchy"))
+                File.open(dataflow_path, "w") do |io|
                     io.write Graphviz.new(plan).dataflow(dot_options)
                 end
-                File.open(hierarchy_path, 'w') do |io|
+                File.open(hierarchy_path, "w") do |io|
                     io.write Graphviz.new(plan).hierarchy(dot_options)
                 end
                 return dataflow_path, hierarchy_path
@@ -770,7 +770,7 @@ module Syskit
             # Generate a svg file representing the current state of the
             # deployment
             def to_svg(kind, filename = nil, *additional_args)
-                Graphviz.new(work_plan).to_file(kind, 'svg', filename, *additional_args)
+                Graphviz.new(work_plan).to_file(kind, "svg", filename, *additional_args)
             end
 
             def to_dot_dataflow(remove_compositions = false, excluded_models = Set.new, annotations = ["connection_policy"])
@@ -778,7 +778,9 @@ module Syskit
                 gen.dataflow(remove_compositions, excluded_models, annotations)
             end
 
-            def to_dot(options); to_dot_dataflow(options) end
+            def to_dot(options)
+                to_dot_dataflow(options)
+            end
 
             def pretty_print(pp) # :nodoc:
                 pp.text "-- Tasks"

@@ -1,4 +1,4 @@
-require 'syskit/test/self'
+require "syskit/test/self"
 
 describe Syskit::Coordination::Models::FaultResponseTableExtension do
     it "attaches the associated data monitoring tables to the plan it is attached to" do
@@ -40,9 +40,9 @@ describe Syskit::Coordination::Models::FaultResponseTableExtension do
         response_task_m = Roby::Task.new_submodel do
             terminates
         end
-        component_m = Syskit::TaskContext.new_submodel(name: 'Test') do
-            output_port 'out1', '/int'
-            output_port 'out2', '/int'
+        component_m = Syskit::TaskContext.new_submodel(name: "Test") do
+            output_port "out1", "/int"
+            output_port "out2", "/int"
         end
         table_model = Roby::Coordination::FaultResponseTable.new_submodel do
             data_monitoring_table do

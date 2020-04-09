@@ -1,5 +1,5 @@
-require 'orocos/ruby_process_server'
-require 'orocos/remote_processes/client'
+require "orocos/ruby_process_server"
+require "orocos/remote_processes/client"
 module Syskit
     module RobyApp
         # Syskit engine configuration interface
@@ -254,7 +254,9 @@ module Syskit
             attr_accessor :prefix
 
             # True if deployments are going to be started with a prefix
-            def prefixing?; !!prefix end
+            def prefixing?
+                !!prefix
+            end
 
             # A set of regular expressions that should match the names of the
             # deployments that should not be prefixed even if {#prefix} is set
@@ -469,32 +471,32 @@ module Syskit
 
                 if log_dir || result_dir
                     Syskit.warn(
-                        'specifying log and/or result dir for remote process servers '\
-                        'is deprecated. Use \'syskit process_server\' instead of '\
-                        '\'orocos_process_server\' which will take the log dir '\
-                        'information from the environment/configuration'
+                        "specifying log and/or result dir for remote process servers "\
+                        "is deprecated. Use 'syskit process_server' instead of "\
+                        "'orocos_process_server' which will take the log dir "\
+                        "information from the environment/configuration"
                     )
                 end
 
                 if only_load_models? || (app.simulation? && app.single?)
                     client = ModelOnlyServer.new(app.default_loader)
                     register_process_server(
-                        name, client, app.log_dir, host_id: host_id || 'syskit'
+                        name, client, app.log_dir, host_id: host_id || "syskit"
                     )
                     return client
                 elsif app.single?
                     client = Orocos::RemoteProcesses::Client.new(
-                        'localhost', port, root_loader: app.default_loader
+                        "localhost", port, root_loader: app.default_loader
                     )
                     register_process_server(
-                        name, client, app.log_dir, host_id: host_id || 'localhost'
+                        name, client, app.log_dir, host_id: host_id || "localhost"
                     )
                     return client
                 end
 
-                if local_only? && host != 'localhost'
+                if local_only? && host != "localhost"
                     raise LocalOnlyConfiguration,
-                          'in local only mode, one can only connect to process '\
+                          "in local only mode, one can only connect to process "\
                           "servers on 'localhost' (got #{host})"
                 elsif process_servers[name]
                     raise AlreadyConnected,
@@ -506,7 +508,7 @@ module Syskit
                     port = Integer(m[2])
                 end
 
-                self.disables_local_process_server = (host == 'localhost')
+                self.disables_local_process_server = (host == "localhost")
 
                 client = Orocos::RemoteProcesses::Client.new(
                     host, port,
@@ -515,7 +517,7 @@ module Syskit
                 )
                 client.create_log_dir(
                     log_dir, Roby.app.time_tag,
-                    { 'parent' => Roby.app.app_metadata }
+                    { "parent" => Roby.app.app_metadata }
                 )
                 register_process_server(name, client, log_dir, host_id: host_id || name)
                 client
@@ -523,11 +525,11 @@ module Syskit
 
             ProcessServerConfig = Struct.new :name, :client, :log_dir, :host_id do
                 def on_localhost?
-                    host_id == 'localhost' || host_id == 'syskit'
+                    host_id == "localhost" || host_id == "syskit"
                 end
 
                 def in_process?
-                    host_id == 'syskit'
+                    host_id == "syskit"
                 end
 
                 def loader
@@ -575,23 +577,23 @@ module Syskit
                 @deployment_group = Models::DeploymentGroup.new
             end
 
-            def use_ruby_tasks(mappings, on: 'ruby_tasks', remote_task: false)
+            def use_ruby_tasks(mappings, on: "ruby_tasks", remote_task: false)
                 deployment_group.use_ruby_tasks(mappings, on: on,
                                                           remote_task: remote_task, process_managers: self)
             end
 
-            def use_unmanaged_task(mappings, on: 'unmanaged_tasks')
+            def use_unmanaged_task(mappings, on: "unmanaged_tasks")
                 deployment_group.use_unmanaged_task(mappings, on: on,
                                                               process_managers: self)
             end
 
-            def use_deployment(*names, on: 'localhost', **run_options)
+            def use_deployment(*names, on: "localhost", **run_options)
                 deployment_group.use_deployment(*names, on: on,
                                                         process_managers: self, loader: app.default_loader,
                                                         **run_options)
             end
 
-            def use_deployments_from(*names, on: 'localhost', **run_options)
+            def use_deployments_from(*names, on: "localhost", **run_options)
                 deployment_group.use_deployment(*names, on: on,
                                                         process_managers: self, loader: app.default_loader, **run_options)
             end

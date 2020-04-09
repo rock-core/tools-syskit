@@ -1,4 +1,4 @@
-require 'syskit/test/self'
+require "syskit/test/self"
 
 describe Syskit::Coordination::PlanExtension do
     it "will attach a data monitoring table to the instances of objects it applies to" do
