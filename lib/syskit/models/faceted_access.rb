@@ -133,7 +133,7 @@ module Syskit
             end
 
             def to_s
-                "#{object.to_s}.as(#{required.each_required_model.map(&:to_s).sort.join(",")})"
+                "#{object}.as(#{required.each_required_model.map(&:to_s).sort.join(",")})"
             end
 
             def has_through_method_missing?(m)

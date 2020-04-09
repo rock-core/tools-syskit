@@ -719,11 +719,10 @@ module Syskit
 
                     debug "applying pending changes from the data flow graph"
                     new, removed = apply_connection_changes(new, removed)
-                    if new.empty? && removed.empty?
-                        dataflow_graph.pending_changes = nil
-                    else
-                        dataflow_graph.pending_changes = [main_tasks, new, removed]
-                    end
+                    dataflow_graph.pending_changes =
+                        unless new.empty? && removed.empty?
+                            [main_tasks, new, removed]
+                        end
 
                     if !dataflow_graph.pending_changes
                         debug "successfully applied pending changes"

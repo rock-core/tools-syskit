@@ -439,7 +439,7 @@ module Syskit
                 end
 
                 @job_status_list = WidgetList.new(self)
-                @job_status_list.set_size_constraint(Qt::Layout::SetFixedSize)
+                @job_status_list.size_constraint = Qt::Layout::SetFixedSize
                 job_status_scroll = Qt::ScrollArea.new
                 job_status_scroll.widget = @job_status_list
                 job_summary_layout.add_widget(job_status_scroll, 1)
@@ -491,6 +491,7 @@ module Syskit
                 @main_layout.add_widget splitter, 1
                 w = splitter.size.width
                 splitter.sizes = [Integer(w * 0.25), Integer(w * 0.50), Integer(w * 0.25)]
+                nil
             end
 
             def create_ui_event_frame

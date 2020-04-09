@@ -142,112 +142,149 @@ describe Syskit::NetworkGeneration::MergeSolver do
     describe "#resolve_input_matching" do
         attr_reader :task_model, :port_model
         before do
-            @port_model = flexmock
-                          .should_receive(:multiplexes?).and_return(false).by_default
-                          .mock
-            @task_model = flexmock
-                          .should_receive(:find_input_port).and_return(port_model).by_default
-                          .mock
+            @port_model =
+                flexmock
+                .should_receive(:multiplexes?).and_return(false).by_default
+                .mock
+            @task_model =
+                flexmock
+                .should_receive(:find_input_port)
+                .and_return(port_model).by_default
+                .mock
         end
 
         it "should return an empty array if given the same task" do
-            task = flexmock(model: task_model)
-                   .should_receive(:each_concrete_input_connection).and_yield(src = Object.new, 'src_port', 'sink_port', Hash.new)
-                   .mock
-            assert_equal [], solver.resolve_input_matching(task, task)
+            merged_task = mock_merged_task_with_concrete_input_connections(
+                [src = Object.new, 'src_port', 'sink_port', {}]
+            )
+            assert_equal [], solver.resolve_input_matching(merged_task, merged_task)
         end
         it "should not check for multiplexing ports for ports that do match" do
-            task = flexmock(model: task_model)
-                   .should_receive(:each_concrete_input_connection).and_yield(src = Object.new, 'src_port', 'sink_port', Hash.new)
-                   .mock
+            merged_task = mock_merged_task_with_concrete_input_connections(
+                [src = Object.new, 'src_port', 'sink_port', {}]
+            )
             task_model.should_receive(:find_input_port).never
-            solver.resolve_input_matching(task, task)
+            solver.resolve_input_matching(merged_task, merged_task)
         end
         it "should return nil if the source port name is different" do
-            task = flexmock(model: task_model)
-                   .should_receive(:each_concrete_input_connection).and_yield(src = Object.new, 'src_port', 'sink_port', Hash.new)
-                   .mock
-            target_task = flexmock(model: task_model)
-                          .should_receive(:each_concrete_input_connection).and_yield(src, 'other_src_port', 'sink_port', Hash.new)
-                          .mock
-            assert !solver.resolve_input_matching(task, target_task)
+            merged_task = mock_merged_task_with_concrete_input_connections(
+                [src = Object.new, 'src_port', 'sink_port', Hash.new]
+            )
+            task = mock_task_with_concrete_input_connections(
+                [src, 'other_src_port', 'sink_port', Hash.new]
+            )
+            assert !solver.resolve_input_matching(merged_task, task)
         end
         it "should return nil if the policies are different" do
-            task = flexmock(model: task_model)
-                   .should_receive(:each_concrete_input_connection).and_yield(src = Object.new, 'src_port', 'sink_port', policy = flexmock(:empty? => false))
-                   .mock
-            target_task = flexmock(model: task_model)
-                          .should_receive(:each_concrete_input_connection).and_yield(src, 'src_port', 'sink_port', target_policy = flexmock(:empty? => false))
-                          .mock
-            flexmock(Syskit).should_receive(:update_connection_policy).with(policy, target_policy).and_return(nil).once
-            assert !solver.resolve_input_matching(task, target_task)
+            src_port = flexmock
+            merged_task = mock_merged_task_with_concrete_input_connections(
+                [src_port, 'src_port', 'sink_port',
+                 merged_task_policy = flexmock(empty?: false)]
+            )
+            task = mock_task_with_concrete_input_connections(
+                [src_port, 'src_port', 'sink_port',
+                 policy = flexmock(empty?: false)]
+            )
+            flexmock(Syskit).should_receive(:update_connection_policy)
+                            .with(merged_task_policy, policy).and_return(nil).once
+            refute solver.resolve_input_matching(merged_task, task)
         end
         it "should call the task model with the input port name to get the port model if connections mismatch" do
-            task_model.should_receive(:find_input_port).with('sink_port').once.and_return(port_model)
-            task = flexmock(model: task_model)
-                   .should_receive(:each_concrete_input_connection).and_yield(src = Object.new, 'src_port', 'sink_port', policy = flexmock(:empty? => false))
-                   .mock
-            target_task = flexmock(model: task_model)
-                          .should_receive(:each_concrete_input_connection).and_yield(target_src = Object.new, 'src_port', 'sink_port', target_policy = flexmock(:empty? => false))
-                          .mock
-            flexmock(Syskit).should_receive(:update_connection_policy).with(policy, target_policy).and_return(nil).once
-            assert !solver.resolve_input_matching(task, target_task)
+            task_model.should_receive(:find_input_port)
+                      .with('sink_port').once.and_return(port_model)
+            merged_task = mock_merged_task_with_concrete_input_connections(
+                [flexmock, 'src_port', 'sink_port',
+                 merged_task_policy = flexmock(empty?: false)]
+            )
+            task = mock_task_with_concrete_input_connections(
+                [flexmock, 'src_port', 'sink_port',
+                 policy = flexmock(empty?: false)]
+            )
+            flexmock(Syskit).should_receive(:update_connection_policy)
+                            .with(merged_task_policy, policy)
+                            .and_return(nil).once
+            refute solver.resolve_input_matching(merged_task, task)
         end
-        it "should return the mismatching connection if the source port task is different" do
-            task = flexmock(model: task_model)
-                   .should_receive(:each_concrete_input_connection).and_yield(src = Object.new, 'src_port', 'sink_port', Hash.new)
-                   .mock
-            target_task = flexmock(model: task_model)
-                          .should_receive(:each_concrete_input_connection).and_yield(target_src = Object.new, 'src_port', 'sink_port', Hash.new)
-                          .mock
-            assert_equal [["sink_port", src, target_src]],
-                         solver.resolve_input_matching(task, target_task)
+        it "returns the mismatching connection if the source port task is different" do
+            merged_task = mock_merged_task_with_concrete_input_connections(
+                [merged_task_src = flexmock, 'src_port', 'sink_port', {}]
+            )
+            task = mock_task_with_concrete_input_connections(
+                [src = flexmock, 'src_port', 'sink_port', {}]
+            )
+            assert_equal [["sink_port", merged_task_src, src]],
+                         solver.resolve_input_matching(merged_task, task)
         end
-        it "should return nil if the source port tasks are different and the policies are not compatible" do
-            task = flexmock(model: task_model)
-                   .should_receive(:each_concrete_input_connection).and_yield(src = Object.new, 'src_port', 'sink_port', policy = flexmock(:empty? => false))
-                   .mock
-            target_task = flexmock(model: task_model)
-                          .should_receive(:each_concrete_input_connection).and_yield(target_src = Object.new, 'src_port', 'sink_port', target_policy = flexmock(:empty? => false))
-                          .mock
-            flexmock(Syskit).should_receive(:update_connection_policy).with(policy, target_policy).and_return(nil).once
-            assert !solver.resolve_input_matching(task, target_task)
+        it "returns nil if the source port tasks are different and the policies are not compatible" do
+            merged_task = mock_merged_task_with_concrete_input_connections(
+                [flexmock, 'src_port', 'sink_port',
+                 merged_task_policy = flexmock(empty?: false)]
+            )
+            task = mock_task_with_concrete_input_connections(
+                [flexmock, 'src_port', 'sink_port',
+                 policy = flexmock(empty?: false)]
+            )
+            flexmock(Syskit).should_receive(:update_connection_policy)
+                            .with(merged_task_policy, policy).and_return(nil).once
+            refute solver.resolve_input_matching(merged_task, task)
         end
         describe "connections to multiplexing inputs" do
-            attr_reader :policy, :target_policy
+            attr_reader :merged_task_policy, :policy
             before do
                 port_model.should_receive(:multiplexes?).and_return(true)
-                @policy = flexmock(:empty? => false)
-                @target_policy = flexmock(:empty? => false)
-                flexmock(Syskit).should_receive(:update_connection_policy).with(policy, target_policy).and_return(nil)
+                @merged_task_policy = flexmock(empty?: false)
+                @policy = flexmock(empty?: false)
+                flexmock(Syskit).should_receive(:update_connection_policy)
+                                .with(merged_task_policy, policy).and_return(nil)
             end
-            it "should return nil if connections from the same port are connected with different policies" do
-                task = flexmock(model: task_model)
-                       .should_receive(:each_concrete_input_connection).and_yield(src = Object.new, 'src_port', 'sink_port', policy)
-                       .mock
-                target_task = flexmock(model: task_model)
-                              .should_receive(:each_concrete_input_connection).and_yield(src, 'src_port', 'sink_port', target_policy)
-                              .mock
-                assert !solver.resolve_input_matching(task, target_task)
+            it "returns nil if connections from the same port are connected with "\
+               "incompatible policies" do
+                src_port = flexmock
+                merged_task = mock_merged_task_with_concrete_input_connections(
+                    [src_port, 'src_port', 'sink_port', merged_task_policy]
+                )
+                task = mock_task_with_concrete_input_connections(
+                    [src_port, 'src_port', 'sink_port', policy]
+                )
+                refute solver.resolve_input_matching(merged_task, task)
             end
-            it "should return an empty array for connections from different ports regardless of the connection policy" do
-                task = flexmock(model: task_model)
-                       .should_receive(:each_concrete_input_connection).and_yield(src = Object.new, 'src_port', 'sink_port', policy)
-                       .mock
-                target_task = flexmock(model: task_model)
-                              .should_receive(:each_concrete_input_connection).and_yield(src, 'other_src_port', 'sink_port', target_policy)
-                              .mock
-                assert_equal [], solver.resolve_input_matching(task, target_task)
+            it "returns an empty array for connections from different ports regardless of the connection policy" do
+                src_port = flexmock
+                merged_task = mock_merged_task_with_concrete_input_connections(
+                    [src_port, 'src_port', 'sink_port', merged_task_policy]
+                )
+                task = mock_task_with_concrete_input_connections(
+                    [src_port, 'other_src_port', 'sink_port', policy]
+                )
+                assert_equal [], solver.resolve_input_matching(merged_task, task)
             end
             it "should return an empty array for connections from different tasks regardless of the connection policy" do
-                task = flexmock(model: task_model)
-                       .should_receive(:each_concrete_input_connection).and_yield(src = Object.new, 'src_port', 'sink_port', policy)
-                       .mock
-                target_task = flexmock(model: task_model)
-                              .should_receive(:each_concrete_input_connection).and_yield(src, 'other_src_port', 'sink_port', target_policy)
-                              .mock
-                assert_equal [], solver.resolve_input_matching(task, target_task)
+                src_port = flexmock
+                merged_task = mock_merged_task_with_concrete_input_connections(
+                    [src_port, 'src_port', 'sink_port', merged_task_policy]
+                )
+                task = mock_task_with_concrete_input_connections(
+                    [src_port, 'other_src_port', 'sink_port', policy]
+                )
+                assert_equal [], solver.resolve_input_matching(merged_task, task)
             end
+        end
+
+        def mock_task_with_concrete_input_connections(*connections)
+            flexmock(model: task_model)
+                .should_receive(:each_concrete_input_connection)
+                .and_return(connections)
+                .mock
+        end
+
+        def mock_merged_task_with_concrete_input_connections(*connections)
+            mock = flexmock(model: task_model)
+                   .should_receive(:each_concrete_input_connection)
+                   .and_return(connections)
+
+            connections
+                .inject(mock) { |m, c| m.and_yield(c) }
+                .mock
         end
     end
 

@@ -100,17 +100,22 @@ module Syskit
                     # #static_garbage_collect to cleanup #plan.
                     plan.add_permanent_task(task)
 
-                    fullfilled_task_m, fullfilled_modules, fullfilled_args = requirements.fullfilled_model
-                    fullfilled_args = fullfilled_args.each_key.inject(Hash.new) do |h, arg_name|
-                        if task.arguments.set?(arg_name)
-                            h[arg_name] = task.arguments[arg_name]
+                    fullfilled_task_m, fullfilled_modules, fullfilled_args =
+                        requirements.fullfilled_model
+                    fullfilled_args =
+                        fullfilled_args.each_key.each_with_object({}) do |arg_name, h|
+                            if task.arguments.set?(arg_name)
+                                h[arg_name] = task.arguments[arg_name]
+                            end
                         end
-                        h
-                    end
-                    task.fullfilled_model = [fullfilled_task_m, fullfilled_modules, fullfilled_args]
+
+                    task.fullfilled_model = [
+                        fullfilled_task_m, fullfilled_modules, fullfilled_args
+                    ]
                     log_timepoint "task-#{i}"
                     task
                 end
+
                 plan.each_task do |task|
                     if task.respond_to?(:each_master_driver_service)
                         allocate_devices(task)

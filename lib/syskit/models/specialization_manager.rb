@@ -110,11 +110,13 @@ module Syskit
                 validate_specialization_mappings(mappings)
 
                 # register it
-                if specialization = specializations[mappings]
-                    new_specialization = specialization.dup
-                else
-                    new_specialization = CompositionSpecialization.new
-                end
+                new_specialization =
+                    if (specialization = specializations[mappings])
+                        specialization.dup
+                    else
+                        CompositionSpecialization.new
+                    end
+
                 # validate the block
                 new_specialization.add(mappings, block)
                 specialized_composition_model =
@@ -308,15 +310,8 @@ module Syskit
             #
             #   add 'ManualDriving',
             #       'Control' => controller_model.as(FourWheelController)
-            def default_specialization(child, child_model)
+            def default_specialization(_child, _child_model)
                 raise NotImplementedError
-
-                child = if child.respond_to?(:to_str)
-                            child.to_str
-                        else child.name.gsub(/.*::/, '')
-                        end
-
-                default_specializations[child] = child_model
             end
 
             def instanciate_all_possible_specializations

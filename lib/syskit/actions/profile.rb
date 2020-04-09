@@ -426,11 +426,6 @@ module Syskit
                 end
             end
 
-            # Tests whether self has a definition with a given name
-            def has_definition?(name)
-                definitions.has_key?(name)
-            end
-
             # Returns the instance requirement object that represents the given
             # definition, with all the dependency injection information
             # contained in this profile applied
@@ -447,20 +442,6 @@ module Syskit
                           "profile #{self.name} has no definition called #{name}"
                 end
                 req.resolve
-            end
-
-            # Enumerate all definitions available on this profile
-            #
-            # @yieldparam [Definition] definition the definition object as given
-            #   to {#define}
-            #
-            # @see each_resolved_definition
-            def each_definition(&block)
-                return enum_for(__method__) if !block_given?
-
-                definitions.each_value do |req|
-                    yield(req.dup)
-                end
             end
 
             # Enumerate all definitions on this profile and resolve them
@@ -496,7 +477,7 @@ module Syskit
             end
 
             # (see Models::DeploymentGroup#use_unmanaged_task)
-            def use_ruby_tasks(mappings, on: 'ruby_tasks')
+            def use_unmanaged_task(mappings, on: 'ruby_tasks')
                 deployment_group.use_unmanaged_task(mappings, on: on)
             end
 
@@ -535,11 +516,6 @@ module Syskit
             # Returns a deployment group defined with {#create_deployment_group}
             def find_deployment_group_by_name(name)
                 deployment_groups[name]
-            end
-
-            # Returns a device from the profile's robot definition
-            def find_device_requirements_by_name(device_name)
-                robot.devices[device_name].to_instance_requirements.dup
             end
 
             # Returns the tag object for a given name
@@ -703,7 +679,7 @@ module Syskit
             # @param [String] name
             # @return [InstanceRequirements,nil]
             def find_device_requirements_by_name(name)
-                if dev = robot.devices[name]
+                if (dev = robot.devices[name])
                     dev.to_instance_requirements.dup
                 end
             end

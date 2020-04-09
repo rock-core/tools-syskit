@@ -11,21 +11,25 @@ module Syskit
         # A widget containing an editable TreeView to allow the user to
         # manage basic Syskit's logging configuration
         class LoggingConfiguration < Qt::Widget
-            attr_reader :model, :treeView, :syskit, :item_name, :item_value, :pending_call
+            attr_reader :model, :tree_view, :syskit, :item_name, :item_value, :pending_call
             def initialize(parent = nil, syskit)
                 super(parent)
                 main_layout = Qt::VBoxLayout.new(self)
-                @treeView = Qt::TreeView.new
+                @tree_view = Qt::TreeView.new
 
-                Vizkit.setup_tree_view treeView
+                Vizkit.setup_tree_view tree_view
                 @model = Vizkit::VizkitItemModel.new
-                treeView.setModel @model
-                main_layout.add_widget(treeView)
-                treeView.setColumnWidth(0, 200)
-                treeView.style_sheet = "QTreeView { background-color: rgb(255, 255, 219);
-                                                    alternate-background-color: rgb(255, 255, 174);
-                                                    color: rgb(0, 0, 0); }
-                                        QTreeView:disabled { color: rgb(159, 158, 158); }"
+                tree_view.setModel @model
+                main_layout.add_widget(tree_view)
+                tree_view.setColumnWidth(0, 200)
+                tree_view.style_sheet = <<~STYLESHEET
+                    QTreeView {
+                        background-color: rgb(255, 255, 219);
+                        alternate-background-color: rgb(255, 255, 174);
+                        color: rgb(0, 0, 0);
+                    }
+                    QTreeView:disabled { color: rgb(159, 158, 158); }
+                STYLESHEET
 
                 @syskit = syskit
                 @timer = Qt::Timer.new
@@ -65,7 +69,7 @@ module Syskit
 
             # Expands the entire tree
             def recursive_expand(item)
-                treeView.expand(item.index)
+                tree_view.expand(item.index)
                 (0...item.rowCount).each do |i|
                     recursive_expand(item.child(i))
                 end

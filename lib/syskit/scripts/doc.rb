@@ -8,10 +8,10 @@ Scripts = Syskit::Scripts
 
 load_all = false
 parser = OptionParser.new do |opt|
-    opt.banner = <<~EOD
+    opt.banner = <<~BANNER_TEXT
         Usage: syskit doc [options]
         Generate HTML documentation for all the models present in this bundle
-    EOD
+    BANNER_TEXT
 
     opt.on '--all', '-a', "Load all models from all active bundles instead of only the ones from the current" do
         load_all = true

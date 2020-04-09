@@ -50,8 +50,11 @@ module Syskit
             when DependencyInjection
                 push(base)
             when NilClass
+                nil
             else
-                raise ArgumentError, "expected either a selection hash or a DependencyInjection object as base selection, got #{base}"
+                raise ArgumentError,
+                      "expected either a selection hash or a DependencyInjection "\
+                      "object as base selection, got #{base}"
             end
         end
 

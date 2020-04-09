@@ -12,11 +12,12 @@ module Syskit
             end
 
             def open(fd: nil)
-                if fd
-                    server = TCPServer.for_fd(fd)
-                else
-                    server = TCPServer.new(nil, required_port)
-                end
+                server =
+                    if fd
+                        TCPServer.for_fd(fd)
+                    else
+                        TCPServer.new(nil, required_port)
+                    end
 
                 server.fcntl(Fcntl::FD_CLOEXEC, 1)
                 @port = server.addr[1]

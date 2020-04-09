@@ -1,5 +1,7 @@
 # frozen_string_literal: true
 
+require 'backports/2.7.0/enumerable/filter_map'
+
 require 'orocos'
 require 'metaruby'
 require 'metaruby/dsls/find_through_method_missing'

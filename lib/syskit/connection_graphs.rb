@@ -20,11 +20,12 @@ module Syskit
 
         old_fallback = old.delete(:fallback_policy)
         new_fallback = new.delete(:fallback_policy)
-        if old_fallback && new_fallback
-            fallback = update_connection_policy(old_fallback, new_fallback)
-        else
-            fallback = old_fallback || new_fallback
-        end
+        fallback =
+            if old_fallback && new_fallback
+                update_connection_policy(old_fallback, new_fallback)
+            else
+                old_fallback || new_fallback
+            end
 
         old = Orocos::Port.validate_policy(old)
         new = Orocos::Port.validate_policy(new)

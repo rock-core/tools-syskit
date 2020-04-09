@@ -406,9 +406,9 @@ module Syskit
                 it "creates a new deployment if it is added to the plan" do
                     deployment_m = create_deployment_model(task_count: 1)
                     add_deployment_and_tasks(plan, deployment_m, %w[task0])
-                    deployment_m_2 = create_deployment_model(task_count: 2)
+                    deployment_m2 = create_deployment_model(task_count: 2)
                     required_deployment, =
-                        add_deployment_and_tasks(work_plan, deployment_m_2, %w[task0 task1])
+                        add_deployment_and_tasks(work_plan, deployment_m2, %w[task0 task1])
 
                     selected_deployments, selected_deployed_tasks =
                         syskit_engine.finalize_deployed_tasks

@@ -325,9 +325,9 @@ describe Syskit::Actions::Profile do
             srv_m = Syskit::DataService.new_submodel
             profile = Syskit::Actions::Profile.new
             profile.tag 'test', srv_m
-            test_task_1 = profile.test_tag.instanciate(plan)
-            test_task_2 = profile.test_tag.instanciate(plan)
-            assert test_task_1.can_merge?(test_task_2)
+            test_task1 = profile.test_tag.instanciate(plan)
+            test_task2 = profile.test_tag.instanciate(plan)
+            assert test_task1.can_merge?(test_task2)
         end
     end
 

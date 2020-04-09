@@ -10,10 +10,10 @@ runtime_mode = nil
 runtime_only = false
 test_mode = false
 parser = OptionParser.new do |opt|
-    opt.banner = <<~EOD
+    opt.banner = <<~BANNER_TEXT
         Usage: ide [file] [options]
         Loads the models from this bundle and allows to browse them. If a file is given, only this file is loaded.
-    EOD
+    BANNER_TEXT
 
     opt.on '--all', '-a', "Load all models from all active bundles instead of only the ones from the current" do
         load_all = true

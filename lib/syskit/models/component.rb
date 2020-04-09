@@ -749,11 +749,8 @@ module Syskit
             # Creates a private specialization of the current model
             def specialize(name = nil)
                 klass = create_private_specialization
-                if name
-                    klass.name = name
-                else
-                    klass.name = "#{self.name}{#{self.specialization_counter}}"
-                end
+                klass.name = name ||
+                             "#{self.name}{#{self.specialization_counter}}"
                 klass.private_specialization = true
                 klass.private_model
                 klass.concrete_model = concrete_model

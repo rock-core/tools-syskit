@@ -120,7 +120,7 @@ module Syskit
             end
 
             def assert_interrupts_wait(error_class, error_message_match)
-                while true
+                loop do
                     task = task_m.new
                     getter = RemoteStateGetter.new(task)
                     getter.resume

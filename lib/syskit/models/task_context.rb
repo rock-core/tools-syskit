@@ -93,12 +93,13 @@ module Syskit
                 end
 
                 superclass = orogen_model.superclass
-                if !superclass # we are defining a root model
-                    supermodel = self
-                else
-                    supermodel = find_model_by_orogen(superclass) ||
-                        define_from_orogen(superclass, register: register)
-                end
+                supermodel =
+                    if superclass # we are defining a root model
+                        find_model_by_orogen(superclass) ||
+                            define_from_orogen(superclass, register: register)
+                    else
+                        self
+                    end
                 klass = supermodel.new_submodel(orogen_model: orogen_model)
 
                 klass.register_model if register && orogen_model.name

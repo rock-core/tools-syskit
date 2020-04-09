@@ -285,55 +285,6 @@ Lint/AssignmentInCondition:
     - 'test/test/test_execution_expectations.rb'
     - 'test/test_remote_state_getter.rb'
 
-# Offense count: 1
-# Cop supports --auto-correct.
-Lint/DeprecatedClassMethods:
-  Exclude:
-    - 'lib/syskit/roby_app/plugin.rb'
-
-# Offense count: 7
-Lint/DuplicateMethods:
-  Exclude:
-    - 'lib/syskit/actions/profile.rb'
-    - 'lib/syskit/models/port.rb'
-    - 'test/test_dependency_injection.rb'
-
-# Offense count: 1
-# Cop supports --auto-correct.
-# Configuration parameters: AutoCorrect.
-Lint/EmptyEnsure:
-  Exclude:
-    - 'lib/syskit/instance_requirements.rb'
-
-# Offense count: 1
-Lint/EmptyWhen:
-  Exclude:
-    - 'lib/syskit/dependency_injection_context.rb'
-
-# Offense count: 1
-Lint/LiteralAsCondition:
-  Exclude:
-    - 'test/test_remote_state_getter.rb'
-
-# Offense count: 2
-Lint/NestedMethodDefinition:
-  Exclude:
-    - 'lib/syskit/network_generation/logger.rb'
-    - 'test/test_task_context.rb'
-
-# Offense count: 5
-Lint/NonLocalExitFromIterator:
-  Exclude:
-    - 'lib/syskit/models/composition.rb'
-    - 'lib/syskit/network_generation/merge_solver.rb'
-    - 'lib/syskit/roby_app/unmanaged_process.rb'
-
-# Offense count: 1
-# Cop supports --auto-correct.
-Lint/RedundantStringCoercion:
-  Exclude:
-    - 'lib/syskit/models/faceted_access.rb'
-
 # Offense count: 23
 Lint/RescueException:
   Exclude:
@@ -353,12 +304,6 @@ Lint/RescueException:
     - 'lib/syskit/test/base.rb'
     - 'lib/syskit/test/profile_assertions.rb'
     - 'lib/syskit/test/self.rb'
-
-# Offense count: 1
-# Cop supports --auto-correct.
-Lint/ScriptPermission:
-  Exclude:
-    - 'lib/syskit/scripts/connection_log.rb'
 
 # Offense count: 11
 Lint/ShadowingOuterLocalVariable:
@@ -391,11 +336,6 @@ Lint/SuppressedException:
     - 'test/models/test_composition.rb'
     - 'test/models/test_data_services.rb'
     - 'test/models/test_deployment.rb'
-
-# Offense count: 1
-Lint/UnreachableCode:
-  Exclude:
-    - 'lib/syskit/models/specialization_manager.rb'
 
 # Offense count: 60
 # Cop supports --auto-correct.
@@ -505,16 +445,6 @@ Lint/UselessAssignment:
     - 'test/test_dependency_injection.rb'
     - 'test/test_dependency_injection_context.rb'
     - 'test/test_properties.rb'
-
-# Offense count: 1
-Lint/UselessComparison:
-  Exclude:
-    - 'test/models/test_composition.rb'
-
-# Offense count: 1
-Lint/UselessSetterCall:
-  Exclude:
-    - 'lib/syskit/gui/runtime_state.rb'
 
 # Offense count: 380
 # Configuration parameters: Max.
@@ -909,16 +839,6 @@ Metrics/PerceivedComplexity:
     - 'lib/syskit/test/network_manipulation.rb'
     - 'lib/yard-syskit.rb'
 
-# Offense count: 1
-Naming/AccessorMethodName:
-  Exclude:
-    - 'lib/syskit/gui/widget_list.rb'
-
-# Offense count: 2
-Naming/BinaryOperatorParameterName:
-  Exclude:
-    - 'lib/syskit/instance_requirements.rb'
-
 # Offense count: 7
 Naming/ClassAndModuleCamelCase:
   Exclude:
@@ -929,17 +849,6 @@ Naming/ClassAndModuleCamelCase:
     - 'test/test_bound_data_service.rb'
     - 'test/test_component.rb'
     - 'test/test_dependency_injection.rb'
-
-# Offense count: 5
-# Configuration parameters: ForbiddenDelimiters.
-# ForbiddenDelimiters: (?-mix:(^|\s)(EO[A-Z]{1}|END)(\s|$))
-Naming/HeredocDelimiterNaming:
-  Exclude:
-    - 'lib/syskit/scripts/browse.rb'
-    - 'lib/syskit/scripts/doc.rb'
-    - 'lib/syskit/scripts/ide.rb'
-    - 'syskit.gemspec'
-    - 'test/cli/test_gen_main.rb'
 
 # Offense count: 2
 # Configuration parameters: EnforcedStyleForLeadingUnderscores.
@@ -1020,26 +929,6 @@ Naming/MethodParameterName:
     - 'test/models/test_task_context.rb'
     - 'test/test_dynamic_data_source.rb'
 
-# Offense count: 1
-# Configuration parameters: EnforcedStyle.
-# SupportedStyles: snake_case, camelCase
-Naming/VariableName:
-  Exclude:
-    - 'lib/syskit/gui/logging_configuration.rb'
-
-# Offense count: 3
-# Configuration parameters: EnforcedStyle.
-# SupportedStyles: snake_case, normalcase, non_integer
-Naming/VariableNumber:
-  Exclude:
-    - 'test/actions/test_profile.rb'
-    - 'test/network_generation/test_engine.rb'
-
-# Offense count: 1
-Security/Eval:
-  Exclude:
-    - 'lib/syskit/gui/instanciate.rb'
-
 # Offense count: 6
 # Configuration parameters: .
 # SupportedStyles: inline, group
@@ -1067,22 +956,6 @@ Style/ClassVars:
     - 'lib/syskit/network_generation/engine.rb'
     - 'lib/syskit/network_generation/merge_solver.rb'
     - 'lib/syskit/test/network_manipulation.rb'
-
-# Offense count: 9
-# Cop supports --auto-correct.
-# Configuration parameters: EnforcedStyle, SingleLineConditionsOnly, IncludeTernaryExpressions.
-# SupportedStyles: assign_to_condition, assign_inside_condition
-Style/ConditionalAssignment:
-  Exclude:
-    - 'lib/syskit/connection_graphs.rb'
-    - 'lib/syskit/models/component.rb'
-    - 'lib/syskit/models/port.rb'
-    - 'lib/syskit/models/specialization_manager.rb'
-    - 'lib/syskit/models/task_context.rb'
-    - 'lib/syskit/roby_app/plugin.rb'
-    - 'lib/syskit/roby_app/process_server.rb'
-    - 'lib/syskit/runtime/connection_management.rb'
-    - 'lib/syskit/shell_interface.rb'
 
 # Offense count: 135
 Style/Documentation:
@@ -1199,12 +1072,6 @@ Style/DoubleNegation:
     - 'test/roby_app/app/config/robots/reload_orogen.rb'
     - 'test/roby_app/app/config/robots/reload_ruby_task.rb'
     - 'test/roby_app/app/config/robots/reload_unmanaged_task.rb'
-
-# Offense count: 1
-# Cop supports --auto-correct.
-Style/EachWithObject:
-  Exclude:
-    - 'lib/syskit/network_generation/system_network_generator.rb'
 
 # Offense count: 445
 # Cop supports --auto-correct.

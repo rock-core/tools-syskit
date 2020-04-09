@@ -604,17 +604,7 @@ module Syskit
             assert_equal [srv].to_set, used_keys
         end
 
-        def test_selection_for_data_services_to_composite_model_with_proxy
-            srv = DataService.new_submodel name: 'Srv'
-            c0 = TaskContext.new_submodel(name: 'C0')
-            c1 = c0.new_submodel(name: 'C1')
-            di = DependencyInjection.new(c0 => c1)
-
-            assert_equal [nil, InstanceRequirements.new([srv]), Hash.new],
-                         di.selection_for(nil, InstanceRequirements.new([c0, srv]))
-        end
-
-        def test_selection_for_data_services_to_composite_model_with_proxy
+        def test_selection_for_data_services_fails_with_incompatible_composite_model_with_proxy
             srv = DataService.new_submodel name: 'Srv'
             c0 = TaskContext.new_submodel(name: 'C0')
             c1 = TaskContext.new_submodel(name: 'C1') { provides srv, as: 'srv' }

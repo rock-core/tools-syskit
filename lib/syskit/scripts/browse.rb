@@ -7,10 +7,10 @@ Scripts = Syskit::Scripts
 
 load_all = false
 parser = OptionParser.new do |opt|
-    opt.banner = <<~EOD
+    opt.banner = <<~BANNER_TEXT
         Usage: browse [file] [options]
         Loads the models from this bundle and allows to browse them. If a file is given, only this file is loaded.
-    EOD
+    BANNER_TEXT
 
     opt.on '--all', '-a', "Load all models from all active bundles instead of only the ones from the current" do
         load_all = true

@@ -450,6 +450,11 @@ module Syskit
                 return true, mappings
             end
 
+            def compatible_policies?(policy, other_policy)
+                policy.empty? || other_policy.empty? ||
+                    (Syskit.update_connection_policy(other_policy, policy) == policy)
+            end
+
             # Returns the set of inputs that differ in two given components,
             # possibly using merge cycle information
             #
@@ -462,47 +467,78 @@ module Syskit
             #   Otherwise, the set of mismatching inputs is returned, in which
             #   each mismatch is a tuple (port_name,source_port,task_source,target_source).
             def resolve_input_matching(merged_task, task)
+                return [] if merged_task.equal?(task)
+
                 m_inputs = Hash.new { |h, k| h[k] = Hash.new }
                 merged_task.each_concrete_input_connection do |m_source_task, m_source_port, sink_port, m_policy|
                     m_inputs[sink_port][[m_source_task, m_source_port]] = m_policy
                 end
 
-                mismatched_inputs = []
-                task.each_concrete_input_connection do |source_task, source_port, sink_port, policy|
-                    # If +self+ has no connection on +sink_port+, it is valid
-                    if !m_inputs.has_key?(sink_port)
-                        next
-                    end
+                task.each_concrete_input_connection
+                    .filter_map do |source_task, source_port, sink_port, policy|
+                        # If merged_task has no connection on sink_port, the merge
+                        # is always valid
+                        next unless m_inputs.key?(sink_port)
 
-                    if m_policy = m_inputs[sink_port][[source_task, source_port]]
-                        if !m_policy.empty? && !policy.empty? && (Syskit.update_connection_policy(m_policy, policy) != policy)
-                            debug { "rejected: incompatible policies on #{sink_port}" }
-                            return
-                        end
-                        next
-                    end
+                        port_model = merged_task.model.find_input_port(sink_port)
+                        resolved =
+                            if port_model&.multiplexes?
+                                resolve_multiplexing_input(
+                                    sink_port, source_task, source_port, policy,
+                                    m_inputs[sink_port]
+                                )
+                            else
+                                resolve_input(
+                                    sink_port, source_task, source_port, policy,
+                                    m_inputs[sink_port]
+                                )
+                            end
 
-                    # Different connections, check whether we could multiplex
-                    # them
-                    if (port_model = merged_task.model.find_input_port(sink_port)) && port_model.multiplexes?
-                        next
-                    end
+                        break unless resolved
 
-                    # If we are not multiplexing, there can be only one source
-                    # for merged_task
-                    (m_source_task, m_source_port), m_policy = m_inputs[sink_port].first
-                    if m_source_port != source_port
-                        debug { "rejected: sink #{sink_port} is connected to a port named #{m_source_port} resp. #{source_port}" }
-                        return
+                        resolved unless resolved.empty?
                     end
-                    if !m_policy.empty? && !policy.empty? && (Syskit.update_connection_policy(m_policy, policy) != policy)
-                        debug { "rejected: incompatible policies on #{sink_port}" }
-                        return
-                    end
+            end
 
-                    mismatched_inputs << [sink_port, m_source_task, source_task]
+            def resolve_multiplexing_input(
+                sink_port, source_task, source_port, policy, m_inputs
+            )
+                return [] unless (m_policy = m_inputs[[source_task, source_port]])
+
+                # Already connected to the same task and port, we
+                # just need to check whether the connections are
+                # compatible
+                return [] if compatible_policies?(policy, m_policy)
+
+                debug do
+                    "rejected: incompatible policies on #{sink_port}"
                 end
-                mismatched_inputs
+                nil
+            end
+
+            def resolve_input(
+                sink_port, source_task, source_port, policy, m_inputs
+            )
+                # If we are not multiplexing, there can be only one source
+                # for merged_task
+                (m_source_task, m_source_port), m_policy = m_inputs.first
+
+                if m_source_port != source_port
+                    debug do
+                        "rejected: sink #{sink_port} is connected to a port "\
+                        "named #{m_source_port}, expected #{source_port}"
+                    end
+                    return
+                end
+
+                unless compatible_policies?(policy, m_policy)
+                    debug do
+                        "rejected: incompatible policies on #{sink_port}"
+                    end
+                    return
+                end
+
+                [sink_port, m_source_task, source_task]
             end
 
             def merge_identical_tasks

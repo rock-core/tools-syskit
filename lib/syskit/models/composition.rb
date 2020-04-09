@@ -893,7 +893,7 @@ module Syskit
                 selected_child.map_use_selections! do |sel|
                     if sel.kind_of?(CompositionChild)
                         task = sel.try_resolve_and_bind_child_recursive(self_task)
-                        return unless task
+                        return unless task # rubocop:disable Lint/NonLocalExitFromIterator
 
                         task
                     else sel

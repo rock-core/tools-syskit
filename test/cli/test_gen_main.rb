@@ -83,11 +83,11 @@ module Syskit
 
                 describe "gen orogen" do
                     it "generates extension points for an orogen project" do
-                        write_file 'models/pack/orogen/bla.orogen', <<-EOD
+                        write_file 'models/pack/orogen/bla.orogen', <<-OROGEN_FILE
                         name 'bla'
                         task_context 'Task' do
                         end
-                        EOD
+                        OROGEN_FILE
                         run_command_and_stop "syskit gen orogen bla"
                         run_syskit_test "test/orogen/test_bla.rb"
                     end

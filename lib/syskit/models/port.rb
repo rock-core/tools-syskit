@@ -26,11 +26,13 @@ module Syskit
                 @component_model, @name, @orogen_model =
                     component_model, name, orogen_model
 
-                if orogen_model.type.contains_opaques?
-                    @type = Orocos.default_loader.intermediate_type_for(orogen_model.type)
-                else
-                    @type = orogen_model.type
-                end
+                @type =
+                    if orogen_model.type.contains_opaques?
+                        Orocos.default_loader.intermediate_type_for(orogen_model.type)
+                    else
+                        orogen_model.type
+                    end
+
                 @max_sizes = orogen_model.max_sizes
                                          .merge(Orocos.max_sizes_for(type))
             end
@@ -270,10 +272,6 @@ module Syskit
 
             def eql?(other); self == other end
 
-            def ==(other)
-                other.port == port && other.policy == policy
-            end
-
             def bind(port_or_task)
                 if port_or_task.respond_to?(:reader)
                     port_or_task.reader(policy)
@@ -305,10 +303,6 @@ module Syskit
             def hash; [port, policy].hash end
 
             def eql?(other); self == other end
-
-            def ==(other)
-                other.port == port && other.policy == policy
-            end
 
             def bind(port_or_task)
                 if port_or_task.respond_to?(:writer)

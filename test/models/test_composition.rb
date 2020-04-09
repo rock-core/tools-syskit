@@ -201,11 +201,8 @@ describe Syskit::Models::Composition do
                 stub_t = self.stub_t
                 srv_m = Syskit::DataService.new_submodel { input_port 'in', stub_t }
                 cmp_m = Syskit::Composition.new_submodel { add srv_m, as: 'srv' }
-                assert cmp_m.srv_child.in_port == cmp_m.srv_child.in_port
-                export = cmp_m.export cmp_m.srv_child.in_port,
-                                      as: 'srv_in'
-                cmp_m.export cmp_m.srv_child.in_port,
-                             as: 'srv_in'
+                cmp_m.export cmp_m.srv_child.in_port, as: 'srv_in'
+                cmp_m.export cmp_m.srv_child.in_port, as: 'srv_in'
             end
             it "raises if trying to override an existing port export" do
                 stub_t = self.stub_t

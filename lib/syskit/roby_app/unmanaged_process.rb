@@ -172,7 +172,7 @@ module Syskit
                     deployed_tasks.each_value do |task|
                         begin task.ping
                         rescue Orocos::ComError
-                            return
+                            return # rubocop:disable Lint/NonLocalExitFromIterator
                         end
                     end
                     sleep period

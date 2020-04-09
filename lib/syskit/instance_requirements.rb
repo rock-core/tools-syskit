@@ -501,16 +501,16 @@ module Syskit
 
         def hash; model.hash end
 
-        def eql?(obj)
-            obj.kind_of?(InstanceRequirements) &&
-                obj.base_model == base_model &&
-                obj.selections == selections &&
-                obj.pushed_selections == pushed_selections &&
-                obj.arguments == arguments
+        def eql?(other)
+            other.kind_of?(InstanceRequirements) &&
+                other.base_model == base_model &&
+                other.selections == selections &&
+                other.pushed_selections == pushed_selections &&
+                other.arguments == arguments
         end
 
-        def ==(obj)
-            eql?(obj)
+        def ==(other)
+            eql?(other)
         end
 
         ##
@@ -957,7 +957,6 @@ module Syskit
         rescue InstanciationError => e
             e.instanciation_chain << self
             raise
-        ensure
         end
 
         def post_instanciation_setup(task)

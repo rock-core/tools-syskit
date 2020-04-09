@@ -107,11 +107,9 @@ module Syskit
                     )
                 end
 
-                if Orocos.orocos_logfile
-                    ENV['ORO_LOGFILE'] = Orocos.orocos_logfile
-                else
-                    ENV['ORO_LOGFILE'] = File.join(app.log_dir, "orocos.orocosrb-#{::Process.pid}.txt")
-                end
+                ENV['ORO_LOGFILE'] =
+                    Orocos.orocos_logfile ||
+                    File.join(app.log_dir, "orocos.orocosrb-#{::Process.pid}.txt")
 
                 if Syskit.conf.only_load_models?
                     Orocos.load
@@ -538,7 +536,7 @@ module Syskit
                     raise ArgumentError, "there is already a process server called 'localhost' running"
                 end
 
-                if !File.exists?(Roby.app.log_dir)
+                if !File.exist?(Roby.app.log_dir)
                     FileUtils.mkdir_p(Roby.app.log_dir)
                 end
 
