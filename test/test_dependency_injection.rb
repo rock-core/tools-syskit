@@ -283,7 +283,7 @@ module Syskit
             assert_equal(Hash[key => srv], DependencyInjection.normalize_selection(key => srv))
             assert_equal(Hash[key => component], DependencyInjection.normalize_selection(key => component))
             assert_equal(Hash[key => component.srv_srv], DependencyInjection.normalize_selection(key => component.srv_srv))
-    	       component = component.new
+            component = component.new
             assert_equal(Hash[key => component], DependencyInjection.normalize_selection(key => component))
             assert_equal(Hash[key => component.srv_srv], DependencyInjection.normalize_selection(key => component.srv_srv))
             req = InstanceRequirements.new
@@ -319,7 +319,7 @@ module Syskit
             subcomponent.provides srv, as: 'srv'
 
             assert_equal(Hash[key => subcomponent], DependencyInjection.normalize_selection(key => subcomponent))
-    	       subcomponent = subcomponent.new
+            subcomponent = subcomponent.new
             assert_equal(Hash[key => subcomponent], DependencyInjection.normalize_selection(key => subcomponent))
         end
 
@@ -336,7 +336,7 @@ module Syskit
 
             assert_raises(ArgumentError) { DependencyInjection.normalize_selection(key => component) }
             assert_raises(ArgumentError) { DependencyInjection.normalize_selection(key => component.srv_srv) }
-    	       component = component.new
+            component = component.new
             assert_raises(ArgumentError) { DependencyInjection.normalize_selection(key => component) }
             assert_raises(ArgumentError) { DependencyInjection.normalize_selection(key => component.srv_srv) }
         end
@@ -369,11 +369,11 @@ module Syskit
 
         def test_normalize_selection_accepts_data_service_to_instance_requirements_that_fullfill_the_key_and_selects_the_corresponding_service
             key = DataService.new_submodel
-    	       c = Component.new_submodel { provides key, as: 'srv' }
+            c = Component.new_submodel { provides key, as: 'srv' }
             req = InstanceRequirements.new([c])
-    	       normalized = DependencyInjection.normalize_selection(key => req)
-    	       req_srv = req.dup
-    	       req_srv.select_service(c.srv_srv)
+            normalized = DependencyInjection.normalize_selection(key => req)
+            req_srv = req.dup
+            req_srv.select_service(c.srv_srv)
             assert_equal(Hash[key => req_srv], normalized)
         end
 
@@ -381,7 +381,7 @@ module Syskit
             srv0 = DataService.new_submodel
             c = Component.new_submodel { provides srv0, as: 'srv' }
             assert_equal(Hash[srv0 => c.srv_srv], DependencyInjection.normalize_selection(srv0 => c))
-    	       c = c.new
+            c = c.new
             assert_equal(Hash[srv0 => c.srv_srv], DependencyInjection.normalize_selection(srv0 => c))
         end
 

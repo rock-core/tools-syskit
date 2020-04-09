@@ -429,15 +429,6 @@ Layout/ParameterAlignment:
     - 'lib/syskit/roby_app/unmanaged_tasks_manager.rb'
     - 'lib/syskit/runtime/apply_requirement_modifications.rb'
 
-# Offense count: 28
-# Cop supports --auto-correct.
-# Configuration parameters: IndentationWidth.
-Layout/Tab:
-  Exclude:
-    - 'lib/syskit/coordination/task_script_extension.rb'
-    - 'test/models/test_data_services.rb'
-    - 'test/test_dependency_injection.rb'
-
 # Offense count: 108
 # Cop supports --auto-correct.
 # Configuration parameters: EnforcedStyle.
