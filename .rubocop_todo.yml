@@ -429,35 +429,6 @@ Layout/ParameterAlignment:
     - 'lib/syskit/roby_app/unmanaged_tasks_manager.rb'
     - 'lib/syskit/runtime/apply_requirement_modifications.rb'
 
-# Offense count: 10
-# Cop supports --auto-correct.
-# Configuration parameters: EnforcedStyle, EnforcedStyleForEmptyBraces, SpaceBeforeBlockParameters.
-# SupportedStyles: space, no_space
-# SupportedStylesForEmptyBraces: space, no_space
-Layout/SpaceInsideBlockBraces:
-  Exclude:
-    - 'lib/syskit/gui/runtime_state.rb'
-    - 'test/models/test_composition.rb'
-    - 'test/models/test_specialization_manager.rb'
-
-# Offense count: 84
-# Cop supports --auto-correct.
-# Configuration parameters: EnforcedStyle, EnforcedStyleForEmptyBraces.
-# SupportedStyles: space, no_space, compact
-# SupportedStylesForEmptyBraces: space, no_space
-Layout/SpaceInsideHashLiteralBraces:
-  Exclude:
-    - 'test/models/test_component.rb'
-    - 'test/models/test_composition.rb'
-    - 'test/models/test_composition_child.rb'
-    - 'test/models/test_data_services.rb'
-    - 'test/models/test_specialization_manager.rb'
-    - 'test/models/test_task_context.rb'
-    - 'test/test_bound_data_service.rb'
-    - 'test/test_component.rb'
-    - 'test/test_dependency_injection.rb'
-    - 'test/test_deployment.rb'
-
 # Offense count: 6
 # Cop supports --auto-correct.
 # Configuration parameters: EnforcedStyle.

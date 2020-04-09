@@ -512,7 +512,7 @@ module Syskit
                 close.connect(SIGNAL('clicked()')) do
                     syskit_orogen_config_changed.hide
                 end
-                EventWidget.new('syskit_orogen_config_changed', syskit_orogen_config_changed, lambda { })
+                EventWidget.new('syskit_orogen_config_changed', syskit_orogen_config_changed, lambda {})
             end
 
             def create_ui_event_orogen_config_reloaded

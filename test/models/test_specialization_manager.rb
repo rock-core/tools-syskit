@@ -21,7 +21,7 @@ describe Syskit::Models::SpecializationManager do
         it "should create an enumerator if called without a block" do
             enum = mng.each_specialization
             flexmock(mng).should_receive(:each_specialization).with(Proc).once
-            enum.each { }
+            enum.each {}
         end
 
         it "should list the defined specialization objects" do
@@ -162,7 +162,7 @@ describe Syskit::Models::SpecializationManager do
             spec = mng.specialize 'test' => task_m
             new_spec = Syskit::Models::CompositionSpecialization.new
             flexmock(spec).should_receive(:dup).and_return(new_spec)
-            my_proc = proc { }
+            my_proc = proc {}
             flexmock(new_spec).should_receive(:add).with(Hash['test' => [task_m].to_set], my_proc).once
             assert_same new_spec, mng.specialize('test' => task_m, &my_proc)
         end
