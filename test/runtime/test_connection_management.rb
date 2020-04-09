@@ -168,7 +168,7 @@ module Syskit
                             with(source_task.orocos_task, 'out').and_return(true)
                         flexmock(ActualDataFlow).should_receive(:static?).
                             with(sink_task.orocos_task, 'in').and_return(false)
-                     end
+                    end
 
                     it "returns false if the modified task is not represented in the plan" do
                         assert !management.removed_connections_require_network_update?(
@@ -195,7 +195,7 @@ module Syskit
                             with(source_task.orocos_task, 'out').and_return(false)
                         flexmock(ActualDataFlow).should_receive(:static?).
                             with(sink_task.orocos_task, 'in').and_return(true)
-                     end
+                    end
 
                     it "returns false if the modified task is not represented in the plan" do
                         assert !management.removed_connections_require_network_update?(

@@ -786,7 +786,7 @@ module Syskit
                 source_task = syskit_stub_deploy_and_configure 'SourceTask',
                                                                as: 'source_task' do
                         input_port "dynamic", "/double"
-                    end
+                end
                 orocos_tasks = [source_task.orocos_task, task.orocos_task]
 
                 ActualDataFlow.add_connections(*orocos_tasks,
