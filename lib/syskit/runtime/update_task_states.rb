@@ -5,7 +5,7 @@ module Syskit
         def self.update_task_states(plan) # :nodoc:
             query = plan.find_tasks(Syskit::TaskContext).not_finished
             schedule = plan.execution_engine.scheduler.enabled?
-            for t in query
+            query.each do |t|
                 execution_agent = t.execution_agent
                 # The task's deployment is not started yet
                 if !t.orocos_task

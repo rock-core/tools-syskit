@@ -255,12 +255,12 @@ module Syskit
                     deselect_job
                 end
                 syskit_log_stream.on_init_progress do |rx, expected|
-                    run_hook :on_progress, ("loading %02i" % [Float(rx) / expected * 100])
+                    run_hook :on_progress, format("loading %02i", Float(rx) / expected * 100)
                 end
                 syskit_log_stream.on_update do |cycle_index, cycle_time|
                     if syskit_log_stream.init_done?
                         time_s = "#{cycle_time.strftime('%H:%M:%S.%3N')}"
-                        run_hook :on_progress, ("@%i %s" % [cycle_index, time_s])
+                        run_hook :on_progress, format("@%i %s", cycle_index, time_s)
 
                         job_expanded_status.update_time(cycle_index, cycle_time)
                         update_tasks_info
@@ -411,7 +411,7 @@ module Syskit
                 @connection_state = GlobalStateLabel.new(name: remote_name)
                 on_progress do |message|
                     state = connection_state.current_state.to_s
-                    connection_state.update_text("%s - %s" % [state, message])
+                    connection_state.update_text(format("%s - %s", state, message))
                 end
                 job_summary_layout.add_widget(connection_state, 0)
 

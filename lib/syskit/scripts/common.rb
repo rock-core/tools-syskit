@@ -27,7 +27,7 @@ module Syskit
 
         def self.toc(string = nil)
             if string
-                ::Robot.info string % [Time.now - @tic]
+                ::Robot.info format(string, Time.now - @tic)
             else ::Robot.info yield(Time.now - @tic)
             end
         end
@@ -231,7 +231,7 @@ module Syskit
                 Roby.app.setup
                 yield if block_given?
                 toc = Time.now
-                ::Robot.info "loaded Roby application in %.3f seconds" % [toc - tic]
+                ::Robot.info format("loaded Roby application in %.3f seconds", toc - tic)
             end
         end
 

@@ -272,7 +272,7 @@ module Syskit
                 end
                 runtime_state.on_progress do |message|
                     state = connection_state.current_state.to_s
-                    connection_state.update_text("%s - %s" % [state, message])
+                    connection_state.update_text(format("%s - %s", state, message))
                 end
             end
 

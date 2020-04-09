@@ -216,7 +216,7 @@ module Syskit
                     if task_model != Syskit::Component
                         name_models = "#{task_model},#{name_models}"
                     end
-                    model = task_model.specialize(as || ("#{self}<%s>" % [name_models]))
+                    model = task_model.specialize(as || format("#{self}<%s>", name_models))
                     model.abstract
                     model.concrete_model = nil
                     model.include task_extension

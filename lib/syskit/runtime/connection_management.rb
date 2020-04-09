@@ -680,7 +680,7 @@ module Syskit
 
                     debug do
                         debug "computing data flow update from modified tasks"
-                        for t in tasks
+                        tasks.each do |t|
                             debug "  #{t}"
                         end
                         break

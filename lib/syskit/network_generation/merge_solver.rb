@@ -176,7 +176,7 @@ module Syskit
                     @@trace_count += 1
                 end
                 @@trace_last_phase = phase
-                trace_file_pattern % [@@trace_count, phase]
+                format(trace_file_pattern, @@trace_count, phase)
             end
 
             def self.trace_export(plan, phase: 1, highlights: [], **dataflow_options)

@@ -108,7 +108,7 @@ module Syskit
                         tags, other = still_abstract.partition { |task| task.class <= Actions::Profile::Tag }
                         tags_from_other = tags.find_all { |task| task.class.profile != subject_syskit_model }
                         if !other.empty?
-                            raise Roby::Test::Assertion.new(TaskAllocationFailed.new(syskit_engine, other)), message % [act.to_s]
+                            raise Roby::Test::Assertion.new(TaskAllocationFailed.new(syskit_engine, other)), format(message, act.to_s)
                         elsif !tags_from_other.empty?
                             other_profiles = tags_from_other.map { |t| t.class.profile }.uniq
                             raise Roby::Test::Assertion.new(TaskAllocationFailed.new(syskit_engine, tags)), "#{act} contains tags from another profile (found #{other_profiles.map(&:name).sort.join(", ")}, expected #{subject_syskit_model}"

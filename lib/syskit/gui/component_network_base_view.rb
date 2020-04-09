@@ -284,7 +284,7 @@ module Syskit
 
                 path = Pathname.new(path)
                 path_link = page.link_to(path, "#{path}:#{lineno}", lineno: lineno)
-                page.push(nil, "<p>#{format % [path_link]}</p>")
+                page.push(nil, "<p>#{format(format, path_link)}</p>")
                 return unless with_require
 
                 req_base = $LOAD_PATH.find { |p| path.fnmatch?(File.join(p, '*')) }

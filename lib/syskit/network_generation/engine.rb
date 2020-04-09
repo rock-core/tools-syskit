@@ -757,10 +757,8 @@ module Syskit
             @@dot_index = 0
             def self.autosave_plan_to_dot(plan, dir = Roby.app.log_dir, prefix: nil, suffix: nil, **dot_options)
                 dot_index = (@@dot_index += 1)
-                dataflow_path = File.join(dir, "syskit-plan-#{prefix}%04i#{suffix}.%s.dot" %
-                                          [dot_index, 'dataflow'])
-                hierarchy_path = File.join(dir, "syskit-plan-#{prefix}%04i#{suffix}.%s.dot" %
-                                           [dot_index, 'hierarchy'])
+                dataflow_path = File.join(dir, format("syskit-plan-#{prefix}%04i#{suffix}.%s.dot", dot_index, 'dataflow'))
+                hierarchy_path = File.join(dir, format("syskit-plan-#{prefix}%04i#{suffix}.%s.dot", dot_index, 'hierarchy'))
                 File.open(dataflow_path, 'w') do |io|
                     io.write Graphviz.new(plan).dataflow(dot_options)
                 end

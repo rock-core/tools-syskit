@@ -169,7 +169,7 @@ module Syskit
             def update_style(color = current_color)
                 @current_color = color
                 color = handle_color_argument(color)
-                self.style_sheet = STYLE % [color, extra_style]
+                self.style_sheet = format(STYLE, color, extra_style)
             end
 
             def rate_limited?
@@ -191,8 +191,8 @@ module Syskit
                 text = text.to_str
                 @current_text = text
                 self.text =
-                    if name then TEXT_WITH_NAME % [name, text]
-                    else TEXT_WITHOUT_NAME % [text]
+                    if name then format(TEXT_WITH_NAME, name, text)
+                    else format(TEXT_WITHOUT_NAME, text)
                     end
             end
 
