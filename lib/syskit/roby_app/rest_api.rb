@@ -110,10 +110,10 @@ module Syskit
             #       }
             #
             get '/deployments/available' do
-                by_deployment = Hash.new
+                by_deployment = {}
                 roby_app.default_pkgconfig_loader.each_available_deployed_task do |info|
                     key = [info.deployment_name, info.project_name]
-                    deployment_info = (by_deployment[key] ||= Hash.new)
+                    deployment_info = (by_deployment[key] ||= {})
                     deployment_info[info.task_name] = info.task_model_name
                 end
                 info = by_deployment.map do |(deployment_name, project_name), tasks|

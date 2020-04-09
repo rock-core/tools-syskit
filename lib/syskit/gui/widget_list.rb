@@ -19,13 +19,13 @@ module Syskit
                 super(parent)
 
                 @main_layout = Qt::VBoxLayout.new(self)
-                @widgets = Array.new
+                @widgets = []
                 self.size_constraint = Qt::Layout::SetMinAndMaxSize
                 @auto_resize = auto_resize
                 if auto_resize
                     @main_layout.add_stretch(1)
                 end
-                @separators = Hash.new
+                @separators = {}
             end
 
             def size_constraint=(constraint)
@@ -108,7 +108,7 @@ module Syskit
                 filter ||= ->(w) { true }
                 separators = @separators.values
 
-                kept_widgets = Array.new
+                kept_widgets = []
                 while !@widgets.empty?
                     w = @widgets.last
                     if !separators.include?(w.widget) && !w.permanent? && filter[w.widget]

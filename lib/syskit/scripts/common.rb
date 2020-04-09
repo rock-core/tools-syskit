@@ -163,7 +163,7 @@ module Syskit
             end
         end
 
-        def self.generate_output(display_options = Hash.new)
+        def self.generate_output(display_options = {})
             default_exclude = []
             if defined? OroGen::Logger::Logger
                 default_exclude << OroGen::Logger::Logger

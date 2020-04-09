@@ -10,7 +10,7 @@ module Syskit
 
             # @param [Array<Qt::Action>] the list of actions that can be
             #   performed on the remote Roby instance
-            def initialize(actions: Array.new, **options)
+            def initialize(actions: [], **options)
                 super(extra_style: 'margin-left: 2px; margin-top: 2px; font-size: 10pt;',
                       rate_limited: true, **options)
                 @actions = actions

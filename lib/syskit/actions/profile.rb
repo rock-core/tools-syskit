@@ -193,14 +193,14 @@ module Syskit
             def initialize(name = nil, register: false)
                 @name = name
                 @permanent_model = false
-                @definitions = Hash.new
-                @tags = Hash.new
-                @used_profiles = Array.new
+                @definitions = {}
+                @tags = {}
+                @used_profiles = []
                 @dependency_injection = DependencyInjection.new
                 @robot = RobotDefinition.new(self)
                 @definition_location = caller_locations
                 @deployment_group = Syskit::Models::DeploymentGroup.new
-                @deployment_groups = Hash.new
+                @deployment_groups = {}
                 super()
 
                 if register
@@ -272,7 +272,7 @@ module Syskit
             # @return [InstanceRequirements] the promoted requirement object. It
             #   might be the same than the req parameter (i.e. it is not
             #   guaranteed to be a copy)
-            def promote_requirements(profile, req, tags = Hash.new)
+            def promote_requirements(profile, req, tags = {})
                 if req.composition_model?
                     req = req.dup
                     tags = resolve_tag_selection(profile, tags)
@@ -318,7 +318,7 @@ module Syskit
             #
             # @param [Profile] profile
             # @return [void]
-            def use_profile(profile, tags = Hash.new, transform_names: ->(k) { k })
+            def use_profile(profile, tags = {}, transform_names: ->(k) { k })
                 invalidate_dependency_injection
                 tags = resolve_tag_selection(profile, tags)
                 used_profiles.push([profile, tags])
@@ -326,7 +326,7 @@ module Syskit
 
                 # Register the definitions, but let the user override
                 # definitions of the given profile locally
-                new_definitions = Array.new
+                new_definitions = []
                 profile.definitions.each do |name, req|
                     name = transform_names.call(name)
                     req = promote_requirements(profile, req, tags)
@@ -338,7 +338,7 @@ module Syskit
                 # Now, map possible IR objects or IR-derived Action objects that
                 # are present within the arguments
                 new_definitions.each do |req|
-                    rebound_arguments = Hash.new
+                    rebound_arguments = {}
                     req.arguments.each do |name, value|
                         if value.respond_to?(:rebind_requirements)
                             rebound_arguments[name] = value.rebind_requirements(self)
@@ -524,7 +524,7 @@ module Syskit
 
             # Returns all profiles that are used by self
             def all_used_profiles
-                resolve_used_profiles(Array.new, Set.new)
+                resolve_used_profiles([], Set.new)
             end
 
             # @api private
@@ -582,7 +582,7 @@ module Syskit
                 @robot = Robot::RobotDefinition.new
                 definitions.clear
                 @dependency_injection = DependencyInjection.new
-                @deployment_groups = Hash.new
+                @deployment_groups = {}
                 @deployment_group = Syskit::Models::DeploymentGroup.new
                 used_profiles.clear
                 super if defined? super

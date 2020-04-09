@@ -28,11 +28,11 @@ module Syskit
                 #   block
                 # @param [#call] predicate_block the predicate object. See the
                 #   documentation of {#block}
-                def initialize(data_streams, predicate_block, arguments = Hash.new)
+                def initialize(data_streams, predicate_block, arguments = {})
                     check_arity(predicate_block, data_streams.size)
 
                     @arguments = arguments
-                    @stream_to_index = Hash.new
+                    @stream_to_index = {}
                     data_streams.each_with_index do |s, idx|
                         stream_to_index[s] = idx
                     end

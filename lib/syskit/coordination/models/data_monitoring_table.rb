@@ -17,11 +17,11 @@ module Syskit
                 #   obviously match the table's root task model
                 #
                 # @see {attach_to}
-                inherited_attribute(:attachment_point, :attachment_points) { Array.new }
+                inherited_attribute(:attachment_point, :attachment_points) { [] }
 
                 # @return [Array<DataMonitor>] the set of data monitoring
                 #   objects that are defined on this table
-                inherited_attribute(:monitor, :monitors) { Array.new }
+                inherited_attribute(:monitor, :monitors) { [] }
 
                 # Define a new data monitor
                 #

@@ -19,8 +19,8 @@ module Syskit
 
         attr_reader :tasks, :cmp
         before do
-            @cmp   = Array.new
-            @tasks = Array.new
+            @cmp   = []
+            @tasks = []
             4.times do |i|
                 cmp[i] = cmp_m.instanciate(plan)
                 tasks[i] = cmp[i].test_child
@@ -43,28 +43,28 @@ module Syskit
                 cmp.depends_on task, role: 'test'
             end
             it "creates connections between a composition's input port and a task" do
-                cmp.forward_input_ports(task, ['in', 'in'] => Hash.new)
-                assert_equal Hash[['in', 'in'] => Hash.new],
+                cmp.forward_input_ports(task, ['in', 'in'] => {})
+                assert_equal Hash[['in', 'in'] => {}],
                              dataflow_graph.edge_info(cmp, task)
             end
             it "raises if the ports are not input ports" do
                 assert_raises(DataFlow::Extension::NotInputPort) do
-                    cmp.forward_input_ports(task, ['out', 'in'] => Hash.new)
+                    cmp.forward_input_ports(task, ['out', 'in'] => {})
                 end
                 assert_raises(DataFlow::Extension::NotInputPort) do
-                    cmp.forward_input_ports(task, ['in', 'out'] => Hash.new)
+                    cmp.forward_input_ports(task, ['in', 'out'] => {})
                 end
             end
             it "raises if the ports do not exist" do
                 assert_raises(DataFlow::Extension::NotInputPort) do
-                    cmp.forward_input_ports(task, ['does_not_exist', 'in'] => Hash.new)
+                    cmp.forward_input_ports(task, ['does_not_exist', 'in'] => {})
                 end
                 assert_raises(DataFlow::Extension::NotInputPort) do
-                    cmp.forward_input_ports(task, ['in', 'does_not_exist'] => Hash.new)
+                    cmp.forward_input_ports(task, ['in', 'does_not_exist'] => {})
                 end
             end
             it "does not create an edge in the connection graph if the mappings are empty" do
-                cmp.forward_input_ports(task, Hash.new)
+                cmp.forward_input_ports(task, {})
                 refute dataflow_graph.has_edge?(cmp, task)
             end
         end
@@ -79,28 +79,28 @@ module Syskit
                 cmp.depends_on task, role: 'test'
             end
             it "creates connections between a composition's output port and a task" do
-                task.forward_output_ports(cmp, ['out', 'out'] => Hash.new)
-                assert_equal Hash[['out', 'out'] => Hash.new],
+                task.forward_output_ports(cmp, ['out', 'out'] => {})
+                assert_equal Hash[['out', 'out'] => {}],
                              dataflow_graph.edge_info(task, cmp)
             end
             it "raises if the ports are not output ports" do
                 assert_raises(DataFlow::Extension::NotOutputPort) do
-                    task.forward_output_ports(cmp, ['out', 'in'] => Hash.new)
+                    task.forward_output_ports(cmp, ['out', 'in'] => {})
                 end
                 assert_raises(DataFlow::Extension::NotOutputPort) do
-                    task.forward_output_ports(cmp, ['in', 'out'] => Hash.new)
+                    task.forward_output_ports(cmp, ['in', 'out'] => {})
                 end
             end
             it "raises if the ports do not exist" do
                 assert_raises(DataFlow::Extension::NotOutputPort) do
-                    task.forward_output_ports(cmp, ['does_not_exist', 'out'] => Hash.new)
+                    task.forward_output_ports(cmp, ['does_not_exist', 'out'] => {})
                 end
                 assert_raises(DataFlow::Extension::NotOutputPort) do
-                    task.forward_output_ports(cmp, ['out', 'does_not_exist'] => Hash.new)
+                    task.forward_output_ports(cmp, ['out', 'does_not_exist'] => {})
                 end
             end
             it "does not create an edge in the connection graph if the mappings are empty" do
-                task.forward_output_ports(cmp, Hash.new)
+                task.forward_output_ports(cmp, {})
                 refute dataflow_graph.has_edge?(task, cmp)
             end
         end
@@ -114,28 +114,28 @@ module Syskit
                 plan.add(@sink = task_m.new)
             end
             it "registers the connection between the ports" do
-                source.connect_ports sink, ['out', 'in'] => Hash.new
-                assert_equal Hash[['out', 'in'] => Hash.new],
+                source.connect_ports sink, ['out', 'in'] => {}
+                assert_equal Hash[['out', 'in'] => {}],
                              dataflow_graph.edge_info(source, sink)
             end
             it "raises if the ports have an invalid direction" do
                 assert_raises(DataFlow::Extension::NotOutputPort) do
-                    source.connect_ports sink, ['in', 'in'] => Hash.new
+                    source.connect_ports sink, ['in', 'in'] => {}
                 end
                 assert_raises(DataFlow::Extension::NotInputPort) do
-                    source.connect_ports sink, ['out', 'out'] => Hash.new
+                    source.connect_ports sink, ['out', 'out'] => {}
                 end
             end
             it "raises if one of the ports do not exist" do
                 assert_raises(DataFlow::Extension::NotOutputPort) do
-                    source.connect_ports sink, ['does_not_exist', 'in'] => Hash.new
+                    source.connect_ports sink, ['does_not_exist', 'in'] => {}
                 end
                 assert_raises(DataFlow::Extension::NotInputPort) do
-                    source.connect_ports sink, ['out', 'does_not_exist'] => Hash.new
+                    source.connect_ports sink, ['out', 'does_not_exist'] => {}
                 end
             end
             it "does not add an edge in the graph if the mappings are empty" do
-                source.connect_ports sink, Hash.new
+                source.connect_ports sink, {}
                 refute dataflow_graph.has_edge?(source, sink)
             end
         end
@@ -148,9 +148,9 @@ module Syskit
                 cmp[1].out_port.connect_to   tasks[0].in_port
                 tasks[2].out_port.connect_to tasks[0].in_port
                 cmp[3].out_port.connect_to   cmp[0].in_port
-                assert_equal Set[[tasks[1], 'out', 'in', Hash.new],
-                                 [tasks[2], 'out', 'in', Hash.new],
-                                 [tasks[3], 'out', 'in', Hash.new]],
+                assert_equal Set[[tasks[1], 'out', 'in', {}],
+                                 [tasks[2], 'out', 'in', {}],
+                                 [tasks[3], 'out', 'in', {}]],
                              subject.each_concrete_in_connection(tasks[0]).to_set
             end
             it "ignores a connection to a composition whose port is not forwarded" do
@@ -166,8 +166,8 @@ module Syskit
                 # Remove one actual concrete connection from the graph, and make
                 # sure that #each_concrete_in_connection misses that connection
                 subject.concrete_connection_graph.remove_edge(tasks[1], tasks[0])
-                assert_equal Set[[tasks[2], 'out', 'in', Hash.new],
-                                 [tasks[3], 'out', 'in', Hash.new]],
+                assert_equal Set[[tasks[2], 'out', 'in', {}],
+                                 [tasks[3], 'out', 'in', {}]],
                              subject.each_concrete_in_connection(tasks[0]).to_set
             end
         end
@@ -180,9 +180,9 @@ module Syskit
                 tasks[0].out_port.connect_to tasks[1].in_port
                 tasks[0].out_port.connect_to cmp[2].in_port
                 cmp[0].out_port.connect_to   cmp[3].in_port
-                assert_equal Set[['out', 'in', tasks[1], Hash.new],
-                                 ['out', 'in', tasks[2], Hash.new],
-                                 ['out', 'in', tasks[3], Hash.new]],
+                assert_equal Set[['out', 'in', tasks[1], {}],
+                                 ['out', 'in', tasks[2], {}],
+                                 ['out', 'in', tasks[3], {}]],
                              subject.each_concrete_out_connection(tasks[0]).to_set
             end
             it "ignores a connection to a composition whose port is not forwarded" do
@@ -198,8 +198,8 @@ module Syskit
                 # Remove one actual concrete connection from the graph, and make
                 # sure that #each_concrete_in_connection misses that connection
                 subject.concrete_connection_graph.remove_edge(tasks[0], tasks[1])
-                assert_equal Set[['out', 'in', tasks[2], Hash.new],
-                                 ['out', 'in', tasks[3], Hash.new]],
+                assert_equal Set[['out', 'in', tasks[2], {}],
+                                 ['out', 'in', tasks[3], {}]],
                              subject.each_concrete_out_connection(tasks[0]).to_set
             end
         end
@@ -209,11 +209,11 @@ module Syskit
                 dataflow = Flows::DataFlow.new
                 dataflow.add_vertex(task = Syskit::TaskContext.new)
                 flexmock(dataflow).should_receive(:each_concrete_in_connection)
-                                  .and_iterates([source1 = Object.new, 'out', 'in', Hash.new],
-                                                [source2 = Object.new, 'out', 'in', Hash.new])
+                                  .and_iterates([source1 = Object.new, 'out', 'in', {}],
+                                                [source2 = Object.new, 'out', 'in', {}])
                 expected = [
-                    [source1, task, ['out', 'in'] => Hash.new],
-                    [source2, task, ['out', 'in'] => Hash.new]
+                    [source1, task, ['out', 'in'] => {}],
+                    [source2, task, ['out', 'in'] => {}]
                 ]
 
                 graph = dataflow.compute_concrete_connection_graph
@@ -223,8 +223,8 @@ module Syskit
                 dataflow = Flows::DataFlow.new
                 dataflow.add_vertex(task = Syskit::Composition.new)
                 flexmock(dataflow).should_receive(:each_concrete_in_connection)
-                                  .and_iterates([source1 = Object.new, 'out', 'in', Hash.new],
-                                                [source2 = Object.new, 'out', 'in', Hash.new])
+                                  .and_iterates([source1 = Object.new, 'out', 'in', {}],
+                                                [source2 = Object.new, 'out', 'in', {}])
                 graph = dataflow.compute_concrete_connection_graph
                 assert graph.each_edge.empty?
             end
@@ -234,10 +234,10 @@ module Syskit
             it "updates the policy when replacing vertices" do
                 concrete_graph = DataFlow::ConcreteConnectionGraph.new
                 old_source, new_source, sink = Object.new, Object.new, Object.new
-                concrete_graph.add_edge(old_source, sink, ['out', 'in'] => Hash.new, ['other_out', 'in'] => Hash.new)
+                concrete_graph.add_edge(old_source, sink, ['out', 'in'] => {}, ['other_out', 'in'] => {})
                 concrete_graph.add_edge(new_source, sink, ['out', 'in'] => Hash[type: :data])
                 concrete_graph.replace_vertex(old_source, new_source)
-                assert_equal Hash[['out', 'in'] => Hash[type: :data], ['other_out', 'in'] => Hash.new],
+                assert_equal Hash[['out', 'in'] => Hash[type: :data], ['other_out', 'in'] => {}],
                              concrete_graph.edge_info(new_source, sink)
             end
         end

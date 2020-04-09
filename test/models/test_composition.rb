@@ -271,8 +271,8 @@ describe Syskit::Models::Composition do
             child_cmp_task = cmp_task.cmp_child
             test_srv_task  = child_cmp_task.child_cmp_child
 
-            assert_equal Hash[['test', 'child_cmp'] => Hash.new], test_srv_task[child_cmp_task, Syskit::Flows::DataFlow]
-            assert_equal Hash[['child_cmp', 'cmp'] => Hash.new], child_cmp_task[cmp_task, Syskit::Flows::DataFlow]
+            assert_equal Hash[['test', 'child_cmp'] => {}], test_srv_task[child_cmp_task, Syskit::Flows::DataFlow]
+            assert_equal Hash[['child_cmp', 'cmp'] => {}], child_cmp_task[cmp_task, Syskit::Flows::DataFlow]
         end
 
         it "allows to export the port from a composition child's service" do
@@ -294,8 +294,8 @@ describe Syskit::Models::Composition do
             child_cmp_task = cmp_task.cmp_child
             test_srv_task  = child_cmp_task.child_cmp_child
 
-            assert_equal Hash[['test', 'child_cmp'] => Hash.new], test_srv_task[child_cmp_task, Syskit::Flows::DataFlow]
-            assert_equal Hash[['child_cmp', 'cmp'] => Hash.new], child_cmp_task[cmp_task, Syskit::Flows::DataFlow]
+            assert_equal Hash[['test', 'child_cmp'] => {}], test_srv_task[child_cmp_task, Syskit::Flows::DataFlow]
+            assert_equal Hash[['child_cmp', 'cmp'] => {}], child_cmp_task[cmp_task, Syskit::Flows::DataFlow]
         end
 
         it "updates the exported ports on overload" do
@@ -522,13 +522,13 @@ describe Syskit::Models::Composition do
             subcmp_m = cmp_m.new_submodel(name: 'Sub')
             final_cmp_m = subcmp_m.new_submodel(name: 'Final')
             flexmock(cmp_m).should_receive(:find_children_models_and_tasks).and_return([explicit, selections])
-            flexmock(cmp_m.specializations, "mng").should_receive(:matching_specialized_model).with(Hash['srv' => srv], hsh(Hash.new)).once.ordered.and_return(subcmp_m)
+            flexmock(cmp_m.specializations, "mng").should_receive(:matching_specialized_model).with(Hash['srv' => srv], hsh({})).once.ordered.and_return(subcmp_m)
             flexmock(subcmp_m).should_receive(:find_children_models_and_tasks).and_return([explicit, selections])
-            flexmock(subcmp_m.specializations, 'sub_mng').should_receive(:matching_specialized_model).with(Hash['srv' => srv], hsh(Hash.new)).once.ordered.and_return(subcmp_m)
-            flexmock(subcmp_m.specializations, 'sub_mng').should_receive(:matching_specialized_model).with(Hash['srv2' => srv2], hsh(Hash.new)).once.ordered.and_return(final_cmp_m)
+            flexmock(subcmp_m.specializations, 'sub_mng').should_receive(:matching_specialized_model).with(Hash['srv' => srv], hsh({})).once.ordered.and_return(subcmp_m)
+            flexmock(subcmp_m.specializations, 'sub_mng').should_receive(:matching_specialized_model).with(Hash['srv2' => srv2], hsh({})).once.ordered.and_return(final_cmp_m)
             flexmock(final_cmp_m).should_receive(:find_children_models_and_tasks).and_return([explicit, selections])
-            flexmock(final_cmp_m.specializations, 'final_mng').should_receive(:matching_specialized_model).with(Hash['srv' => srv], hsh(Hash.new)).once.ordered.and_return(final_cmp_m)
-            flexmock(final_cmp_m.specializations, 'final_mng').should_receive(:matching_specialized_model).with(Hash['srv2' => srv2], hsh(Hash.new)).once.ordered.and_return(final_cmp_m)
+            flexmock(final_cmp_m.specializations, 'final_mng').should_receive(:matching_specialized_model).with(Hash['srv' => srv], hsh({})).once.ordered.and_return(final_cmp_m)
+            flexmock(final_cmp_m.specializations, 'final_mng').should_receive(:matching_specialized_model).with(Hash['srv2' => srv2], hsh({})).once.ordered.and_return(final_cmp_m)
 
             flexmock(final_cmp_m).should_receive(:new).and_throw(:pass)
             catch(:pass) do
@@ -684,7 +684,7 @@ describe Syskit::Models::Composition do
                 assert_dependency_contains consider_in_pending: true
             end
             it "uses failure: [:stop] as default dependency option" do
-                composition_model(Hash.new)
+                composition_model({})
                 task = instanciate
                 assert_dependency_contains failure: :start.never.or(:stop.to_unbound_task_predicate)
             end
@@ -983,10 +983,10 @@ describe Syskit::Models::Composition do
         specialized_m = vision_m.specialize vision_m.task_child => special_srv_m do
             shared_child.connect_to task_child
         end
-        expected = Hash.new
-        expected[['task', 'shared']] = Hash[['output', 'input'] => Hash.new]
+        expected = {}
+        expected[['task', 'shared']] = Hash[['output', 'input'] => {}]
         assert_equal expected, vision_m.connections
-        expected[['shared', 'task']] = Hash[['output', 'input'] => Hash.new]
+        expected[['shared', 'task']] = Hash[['output', 'input'] => {}]
         assert_equal expected, specialized_m.composition_model.connections
     end
 

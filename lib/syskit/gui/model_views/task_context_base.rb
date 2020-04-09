@@ -8,7 +8,7 @@ module Syskit::GUI
                 super(page)
                 @task_model_view = Roby::GUI::ModelViews::Task.new(page)
                 @orogen_rendering = OroGen::HTML::TaskContext.new(page)
-                buttons = Array.new
+                buttons = []
                 buttons.concat(self.class.common_graph_buttons('interface'))
 
                 all_annotations = Syskit::Graphviz.available_task_annotations.sort

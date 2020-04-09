@@ -62,7 +62,7 @@ module Syskit
             #   model (arguments do not count)
             def BulkAssertAtomicActions(arg, exclude: [], &block)
                 exclude = Actions(exclude).map(&:model)
-                skipped_actions = Array.new
+                skipped_actions = []
                 actions = AtomicActions(arg).find_all do |action|
                     if exclude.include?(action.model)
                         false
@@ -128,7 +128,7 @@ module Syskit
             #   describe MyBundle::Profiles::MyProfile do
             #     it { is_self_contained }
             #   end
-            def is_self_contained(action_or_profile = subject_syskit_model, options = Hash.new)
+            def is_self_contained(action_or_profile = subject_syskit_model, options = {})
                 assert_is_self_contained(action_or_profile, options)
             end
 

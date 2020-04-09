@@ -66,7 +66,7 @@ module Syskit
                 end
 
                 def plan_pattern(**arguments)
-                    job_id = Hash.new
+                    job_id = {}
                     if arguments.has_key?(:job_id)
                         job_id[:job_id] = arguments.delete(:job_id)
                     end

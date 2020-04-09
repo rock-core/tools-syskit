@@ -88,7 +88,7 @@ class Page < MetaRuby::GUI::HTML::Page
         end
     end
 
-    def self.to_html_page(model, renderer, options = Hash.new)
+    def self.to_html_page(model, renderer, options = {})
         options, page_options = Kernel.filter_options options, :root_dir => nil
         page = new(MetaRuby::GUI::HTML::HTMLPage.new)
         page.root_dir = options[:root_dir]

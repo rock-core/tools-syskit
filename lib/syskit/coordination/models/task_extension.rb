@@ -10,7 +10,7 @@ module Syskit
 
                 # Mapping from data monitoring arguments to coordination context variables
                 def data_monitoring_arguments
-                    @data_monitoring_arguments ||= Hash.new
+                    @data_monitoring_arguments ||= {}
                 end
 
                 # Add a data monitor on this particular coordination task
@@ -30,8 +30,8 @@ module Syskit
                     data_monitoring_table.monitor(name, *data_streams)
                 end
 
-                def setup_instanciated_task(coordination_context, task, arguments = Hash.new)
-                    table_arguments = Hash.new
+                def setup_instanciated_task(coordination_context, task, arguments = {})
+                    table_arguments = {}
                     arguments.each do |key, value|
                         if var = data_monitoring_arguments[key]
                             table_arguments[var] = value

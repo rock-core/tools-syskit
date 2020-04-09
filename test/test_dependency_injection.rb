@@ -6,23 +6,23 @@ describe Syskit::DependencyInjection do
             task = Syskit::Component.new_submodel.new
             di = Syskit::DependencyInjection.new('child' => task)
             result = di.selection_for('child', Syskit::InstanceRequirements.new)
-            assert_equal [task, Syskit::InstanceRequirements.new([task.model]), Hash.new, ['child'].to_set], result
+            assert_equal [task, Syskit::InstanceRequirements.new([task.model]), {}, ['child'].to_set], result
         end
         it "validates the instance with the provided requirements and pass if it fullfills" do
             task = Syskit::Component.new_submodel.new
             di = Syskit::DependencyInjection.new('child' => task)
 
             requirements = task.model.to_instance_requirements
-            flexmock(task).should_receive(:fullfills?).with(requirements, Hash.new).and_return(true)
+            flexmock(task).should_receive(:fullfills?).with(requirements, {}).and_return(true)
             result = di.selection_for('child', requirements)
-            assert_equal [task, Syskit::InstanceRequirements.new([task.model]), Hash.new, ['child'].to_set], result
+            assert_equal [task, Syskit::InstanceRequirements.new([task.model]), {}, ['child'].to_set], result
         end
         it "validates the instance with the provided requirements and raises if it does not match" do
             task = Syskit::Component.new_submodel.new
             di = Syskit::DependencyInjection.new('child' => task)
 
             requirements = task.model.to_instance_requirements
-            flexmock(task).should_receive(:fullfills?).with(requirements, Hash.new).and_return(false)
+            flexmock(task).should_receive(:fullfills?).with(requirements, {}).and_return(false)
             assert_raises(ArgumentError) do
                 di.selection_for('child', requirements)
             end
@@ -116,7 +116,7 @@ describe Syskit::DependencyInjection do
             b_m = Syskit::TaskContext.new_submodel
             di = Syskit::DependencyInjection.new
             flexmock(di).should_receive(:add_defaults).with([a_m, b_m].to_set).once
-            flexmock(di).should_receive(:add_explicit).with(Hash.new).once
+            flexmock(di).should_receive(:add_explicit).with({}).once
             di.add(a_m, b_m)
         end
         it "adds both explicit selections and defaults from given DI objects" do
@@ -423,7 +423,7 @@ module Syskit
             c.provides srv0, as: 'srv0'
             c.provides srv1, as: 'srv1'
             assert_equal(Hash[srv0 => c, srv1 => c, c => c, Syskit::AbstractComponent => c],
-                         DependencyInjection.resolve_default_selections(Hash.new, [c]))
+                         DependencyInjection.resolve_default_selections({}, [c]))
         end
 
         def test_resolve_default_selections_does_not_select_conflicting_defaults
@@ -437,7 +437,7 @@ module Syskit
             c2 = Component.new_submodel
             c2.provides srv0, as: 'srv0'
             assert_equal(Hash[srv1 => c0, c0 => c0, c1 => c1, c2 => c2],
-                         DependencyInjection.resolve_default_selections(Hash.new, [c0, c1, c2]))
+                         DependencyInjection.resolve_default_selections({}, [c0, c1, c2]))
         end
 
         def test_resolve_default_selections_does_not_override_explicit_selections
@@ -466,7 +466,7 @@ module Syskit
             c_m.provides srv_m, as: 's1'
 
             assert_equal Hash[c_m => c_m, Syskit::AbstractComponent => c_m],
-                         DependencyInjection.resolve_default_selections(Hash.new, [c_m])
+                         DependencyInjection.resolve_default_selections({}, [c_m])
         end
 
         def test_find_name_resolution_plain_name
@@ -480,7 +480,7 @@ module Syskit
         end
 
         def test_find_name_resolution_name_does_not_exist
-            assert !DependencyInjection.find_name_resolution('name', Hash.new)
+            assert !DependencyInjection.find_name_resolution('name', {})
         end
 
         def test_find_name_resolution_name_resolves_to_nil
@@ -578,7 +578,7 @@ module Syskit
             c0 = Component.new_submodel
             c1 = c0.new_submodel
             di = DependencyInjection.new(c0 => c1)
-            assert_equal [nil, InstanceRequirements.new([c1]), Hash.new, [c0].to_set],
+            assert_equal [nil, InstanceRequirements.new([c1]), {}, [c0].to_set],
                          di.selection_for(nil, InstanceRequirements.new([c0]))
         end
 

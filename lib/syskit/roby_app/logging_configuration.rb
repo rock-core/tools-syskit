@@ -61,7 +61,7 @@ module Syskit
         #
         class LoggingConfiguration
             def initialize
-                @groups = Hash.new
+                @groups = {}
                 @port_logs_enabled = true
                 @conf_logs_enabled = true
                 @default_logging_buffer_size = 25

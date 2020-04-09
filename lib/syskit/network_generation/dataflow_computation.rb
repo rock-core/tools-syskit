@@ -151,15 +151,15 @@ module Syskit
                 end
             end
 
-            def reset(tasks = Array.new)
-                @result = Hash.new { |h, k| h[k] = Hash.new }
+            def reset(tasks = [])
+                @result = Hash.new { |h, k| h[k] = {} }
                 # Internal variable that is used to detect whether an iteration
                 # added information
                 @changed = false
                 @done_ports = Hash.new { |h, k| h[k] = Set.new }
-                @triggering_connections = Hash.new { |h, k| h[k] = Hash.new }
+                @triggering_connections = Hash.new { |h, k| h[k] = {} }
                 @triggering_dependencies = Hash.new { |h, k| h[k] = Set.new }
-                @missing_ports = Hash.new
+                @missing_ports = {}
             end
 
             def propagate(tasks)
@@ -364,7 +364,7 @@ module Syskit
                             debug "no stored information"
                         end
                     end
-                    @done_at ||= Hash.new
+                    @done_at ||= {}
                     @done_at[[task, port_name]] = caller
                     break
                 end
@@ -397,7 +397,7 @@ module Syskit
             # simply returns a list of ports in +task+ whose connections are
             # triggering.
             def triggering_port_connections(task)
-                result = Hash.new
+                result = {}
                 connections = Set.new
 
                 triggering_inputs(task).each do |port|

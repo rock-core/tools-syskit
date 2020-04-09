@@ -24,8 +24,8 @@ module Syskit
                 end
                 disable_actions
 
-                @start_job = Array.new
-                @drop_job = Array.new
+                @start_job = []
+                @drop_job = []
             end
 
             def process
@@ -91,17 +91,17 @@ module Syskit
                 enable_actions
             end
 
-            def create_new_job(action_name, arguments = Hash.new)
+            def create_new_job(action_name, arguments = {})
                 action_model = @syskit.actions.find { |m| m.name == action_name }
                 if !action_model
                     raise ArgumentError, "no action named #{action_name} found"
                 end
 
                 if action_model.arguments.empty?
-                    start_job(action_name, Hash.new)
+                    start_job(action_name, {})
                     true
                 else
-                    formatted_arguments = String.new
+                    formatted_arguments = ""
                     action_model.arguments.each do |arg|
                         default_arg = arguments.fetch(
                             arg.name.to_sym, arg.default

@@ -103,13 +103,13 @@ module Syskit
         def initialize(models = [])
             @base_model = Models::Placeholder.for(models)
             @model = base_model
-            @arguments = Hash.new
+            @arguments = {}
             @selections = DependencyInjection.new
             @pushed_selections = DependencyInjection.new
             @context_selections = DependencyInjection.new
             @deployment_hints = Set.new
             @specialization_hints = Set.new
-            @dynamics = Dynamics.new(NetworkGeneration::PortDynamics.new('Requirements'), Hash.new)
+            @dynamics = Dynamics.new(NetworkGeneration::PortDynamics.new('Requirements'), {})
             @can_use_template = true
             @deployment_group = Models::DeploymentGroup.new
         end
@@ -606,7 +606,7 @@ module Syskit
                     parts = obj.split('.')
                     first_part = parts.first
                     if !composition_model.has_child?(first_part)
-                        children = Hash.new
+                        children = {}
                         composition_model.each_child do |name, child|
                             children[name] = child
                         end

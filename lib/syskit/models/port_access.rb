@@ -5,7 +5,7 @@ module Syskit
         module PortAccess
             # [Hash{String => Syskit::Models::Port}] a mapping from a port name
             # to the corresponding Models::Port instance
-            attribute(:ports) { Hash.new }
+            attribute(:ports) { {} }
 
             def has_through_method_missing?(m)
                 MetaRuby::DSLs.has_through_method_missing?(

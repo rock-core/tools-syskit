@@ -76,7 +76,7 @@ module Syskit
                 @work_plan = work_plan
                 @merge_solver = NetworkGeneration::MergeSolver.new(work_plan)
                 @event_logger = event_logger
-                @required_instances = Hash.new
+                @required_instances = {}
             end
 
             # Returns the set of deployments that are available for this network
@@ -156,11 +156,11 @@ module Syskit
                 # register_final_network_postprocessing
                 attr_reader :final_network_postprocessing
             end
-            @instanciation_postprocessing = Array.new
-            @instanciated_network_postprocessing = Array.new
-            @system_network_postprocessing = Array.new
-            @deployment_postprocessing = Array.new
-            @final_network_postprocessing = Array.new
+            @instanciation_postprocessing = []
+            @instanciated_network_postprocessing = []
+            @system_network_postprocessing = []
+            @deployment_postprocessing = []
+            @final_network_postprocessing = []
 
             # Registers a system-wide post-processing stage for the instanciation
             # stage. This post-processing block is meant to add new tasks and
@@ -315,7 +315,7 @@ module Syskit
                 log_timepoint 'dataflow_graph_cleanup'
 
                 deployments = work_plan.find_tasks(Syskit::Deployment).not_finished
-                finishing_deployments, existing_deployments = Hash.new, Set.new
+                finishing_deployments, existing_deployments = {}, Set.new
                 deployments.each do |task|
                     if task.finishing?
                         finishing_deployments[task.process_name] = task
@@ -458,18 +458,18 @@ module Syskit
             #   existing_deployment_task, and some of them might be transaction
             #   proxies.
             def adapt_existing_deployment(deployment_task, existing_deployment_task)
-                orocos_name_to_existing = Hash.new
+                orocos_name_to_existing = {}
                 existing_deployment_task.each_executed_task do |t|
                     next if t.finished?
 
-                    (orocos_name_to_existing[t.orocos_name] ||= Array.new) << t
+                    (orocos_name_to_existing[t.orocos_name] ||= []) << t
                 end
 
                 applied_merges = Set.new
                 deployed_tasks = deployment_task.each_executed_task.to_a
                 deployed_tasks.each do |task|
                     existing_tasks = orocos_name_to_existing[task.orocos_name] ||
-                        Array.new
+                        []
                     if !existing_tasks.empty?
                         existing_task = find_current_deployed_task(existing_tasks)
                     end

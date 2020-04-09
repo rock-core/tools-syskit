@@ -25,7 +25,7 @@ module Syskit
             # no selection exists for it
             attr_predicate :optional?
 
-            def initialize(composition_model, child_name, models = Set.new, dependency_options = Hash.new,
+            def initialize(composition_model, child_name, models = Set.new, dependency_options = {},
                 parent_model = nil)
                 @composition_model, @child_name = composition_model, child_name
                 super(models)
@@ -215,7 +215,7 @@ module Syskit
             #   a Port is given, it has to be a port on a CompositionChild of
             #   the same composition than self
             # @return [Array<Port>] the set of created connections
-            def connect_to(sink, policy = Hash.new)
+            def connect_to(sink, policy = {})
                 Syskit.connect(self, sink, policy)
             end
 

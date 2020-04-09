@@ -174,7 +174,7 @@ module Syskit
                 loader = Roby.app.default_pkgconfig_loader
                 model_names = loader.each_available_task_model_name.to_a
                 syskit2orogen = model_names
-                                .each_with_object(Hash.new) do |(orogen_name, project_name), result|
+                                .each_with_object({}) do |(orogen_name, project_name), result|
                     unless loader.has_loaded_project?(project_name)
                         syskit_path = ['OroGen', *orogen_name.split('::')]
                         syskit_name = syskit_path.join(".")
@@ -194,7 +194,7 @@ module Syskit
             def add_orogen_type
                 loader = Roby.app.default_pkgconfig_loader
                 syskit2orogen = loader.each_available_type_name
-                                      .each_with_object(Hash.new) do |(type_name, typekit_name, _), result|
+                                      .each_with_object({}) do |(type_name, typekit_name, _), result|
                     next if type_name.end_with?("_m")
                     next if type_name =~ /\[/
 

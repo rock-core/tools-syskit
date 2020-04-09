@@ -5,7 +5,7 @@ module Syskit
             # and associated oroGen projects
             #
             # @return the ROS::Nodes in use
-            def use_ros_launchers_from(project_name, options = Hash.new)
+            def use_ros_launchers_from(project_name, options = {})
                 use_deployments_from(project_name, Hash[:on => 'ros'].merge(options))
             end
 
@@ -17,7 +17,7 @@ module Syskit
             #   server on which this deployment should be started
             def use_ros_launcher(*names)
                 if !names.last.kind_of?(Hash)
-                    names << Hash.new
+                    names << ({})
                 end
                 names[-1] = Hash[:on => 'ros'].merge(names[-1])
                 use_deployment(*names)

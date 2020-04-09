@@ -5,8 +5,8 @@ module Syskit
             def initialize(conf)
                 @conf = conf
                 @deployment_group = conf.deployment_group
-                @new_deployments = Array.new
-                @overrides = Hash.new
+                @new_deployments = []
+                @overrides = {}
             end
 
             class Forbidden      < ArgumentError; end

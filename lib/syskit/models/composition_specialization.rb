@@ -11,7 +11,7 @@ module Syskit
                 attr_accessor :root_model
                 # The set of definition blocks that have been applied on +self+ in
                 # the process of specializing +root_model+
-                attribute(:definition_blocks) { Array.new }
+                attribute(:definition_blocks) { [] }
 
                 # Returns the model name
                 #
@@ -27,7 +27,7 @@ module Syskit
                     "#{root_model.short_name}/#{specializations}"
                 end
 
-                def setup_submodel(submodel, options = Hash.new)
+                def setup_submodel(submodel, options = {})
                     submodel.root_model = submodel
                     super
                 end
@@ -95,9 +95,9 @@ module Syskit
             # this specialization specializes.
             attr_accessor :composition_model
 
-            def initialize(spec = Hash.new, block = nil)
+            def initialize(spec = {}, block = nil)
                 @specialized_children = spec
-                @specialization_blocks = Array.new
+                @specialization_blocks = []
                 if block
                     @specialization_blocks << block
                 end

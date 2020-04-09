@@ -79,7 +79,7 @@ module Syskit
             # @param [Hash] options additional spawn options. This is provided
             #   for compatibility with the process server API, but is ignored
             # @return [UnmanagedProcess]
-            def start(name, deployment_name = name, name_mappings = Hash.new, prefix: nil, **options)
+            def start(name, deployment_name = name, name_mappings = {}, prefix: nil, **options)
                 model = if deployment_name.respond_to?(:to_str)
                             loader.deployment_model_from_name(deployment_name)
                         else deployment_name
@@ -108,7 +108,7 @@ module Syskit
 
             # Creates a new log dir, and save the given time tag in it (used later
             # on by save_log_dir)
-            def create_log_dir(log_dir, time_tag, metadata = Hash.new); end
+            def create_log_dir(log_dir, time_tag, metadata = {}); end
 
             # Waits for processes to terminate. +timeout+ is the number of
             # milliseconds we should wait. If set to nil, the call will block until

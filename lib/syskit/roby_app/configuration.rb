@@ -69,7 +69,7 @@ module Syskit
                 super()
 
                 @app = app
-                @process_servers = Hash.new
+                @process_servers = {}
                 @load_component_extensions = true
                 @redirect_local_process_server = true
                 @reject_ambiguous_deployments = true
@@ -326,7 +326,7 @@ module Syskit
             # @return {String=>String} the set of default options that should be
             #   used when starting the given deployment
             def default_run_options(deployment_model)
-                result = Hash.new
+                result = {}
                 if prefix = default_prefix(deployment_model)
                     result["prefix"] = prefix
                 end

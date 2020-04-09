@@ -69,7 +69,7 @@ module Syskit
             break
         end
 
-        result = Array.new
+        result = []
         matched_input_ports = Set.new
 
         # First resolve the exact matches
@@ -109,7 +109,7 @@ module Syskit
 
         # Finally, verify that we autoconnect multiple outputs to a single
         # input only if it is a multiplexing port
-        outputs_per_input = Hash.new
+        outputs_per_input = {}
         result.each do |out_port, in_port|
             if outputs_per_input[in_port]
                 if !in_port.multiplexes?

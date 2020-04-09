@@ -214,7 +214,7 @@ describe Syskit::Models::CompositionChild do
             c0_m = Syskit::Composition.new_submodel { add srv_m, as: 'test' }
             c1_m = Syskit::Composition.new_submodel { add srv_m, as: 'test' }
             assert_raises(ArgumentError) do
-                c0_m.test_child.connect_ports c1_m.test_child, Hash.new
+                c0_m.test_child.connect_ports c1_m.test_child, {}
             end
         end
         it "gives a proper error if the connected-to object is not a composition child" do
@@ -222,7 +222,7 @@ describe Syskit::Models::CompositionChild do
             c0_m = Syskit::Composition.new_submodel { add srv_m, as: 'test' }
             other = flexmock
             assert_raises(ArgumentError) do
-                c0_m.test_child.connect_ports other, Hash.new
+                c0_m.test_child.connect_ports other, {}
             end
         end
     end
@@ -246,7 +246,7 @@ describe Syskit::Models::CompositionChild do
             cmp_m.out_child.connect_to cmp_m.in_child.test_srv
 
             expected = Hash[
-                ['out', 'in'] => { ['out', 'in0'] => Hash.new }
+                ['out', 'in'] => { ['out', 'in0'] => {} }
             ]
             assert_equal expected, cmp_m.connections
         end
@@ -269,7 +269,7 @@ describe Syskit::Models::CompositionChild do
             end
 
             expected = Hash[
-                ['out', 'in'] => { ['out0', 'in'] => Hash.new }
+                ['out', 'in'] => { ['out0', 'in'] => {} }
             ]
             assert_equal expected, cmp_m.connections
         end

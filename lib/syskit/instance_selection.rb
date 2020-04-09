@@ -17,7 +17,7 @@ module Syskit
         # the services in {#required} to the services of {#component_model}.
         attr_reader :service_selection
 
-        def initialize(component = nil, selected = InstanceRequirements.new([Component]), required = InstanceRequirements.new, mappings = Hash.new)
+        def initialize(component = nil, selected = InstanceRequirements.new([Component]), required = InstanceRequirements.new, mappings = {})
             @component = component
 
             selected = @selected = autoselect_service_if_needed(selected, required, mappings)
@@ -141,7 +141,7 @@ module Syskit
         def port_mappings
             if @port_mappings then return @port_mappings end
 
-            mappings = Hash.new
+            mappings = {}
             service_selection.each do |req_m, sel_m|
                 mappings.merge!(sel_m.port_mappings_for(req_m)) do |req_name, sel_name1, sel_name2|
                     if sel_name1 != sel_name2
@@ -160,7 +160,7 @@ module Syskit
 
         # If this selection does not yet have an associated task,
         # instanciate one
-        def instanciate(plan, context = Syskit::DependencyInjectionContext.new, options = Hash.new)
+        def instanciate(plan, context = Syskit::DependencyInjectionContext.new, options = {})
             if component
                 # We have an explicitly selected component. We just need to
                 # bind the bound data service if there is one

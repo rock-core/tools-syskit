@@ -372,7 +372,7 @@ describe Syskit::Models::TaskContext do
             typekit = OroGen::Spec::Typekit.new(app.default_orogen_project, 'test')
             opaque_t = typekit.create_interface_opaque '/opaque', 0
             intermediate_t = typekit.create_null '/intermediate'
-            typekit.opaques << OroGen::Spec::OpaqueDefinition.new(opaque_t, intermediate_t.name, Hash.new, nil)
+            typekit.opaques << OroGen::Spec::OpaqueDefinition.new(opaque_t, intermediate_t.name, {}, nil)
             app.default_loader.register_typekit_model(typekit)
             @opaque_t = app.default_loader.resolve_type '/opaque'
             @intermediate_t = app.default_loader.resolve_type '/intermediate'
@@ -394,7 +394,7 @@ describe Syskit::Models::TaskContext do
             typekit = OroGen::Spec::Typekit.new(app.default_orogen_project, 'test')
             opaque_t = typekit.create_interface_opaque '/opaque', 0
             intermediate_t = typekit.create_null '/intermediate'
-            typekit.opaques << OroGen::Spec::OpaqueDefinition.new(opaque_t, intermediate_t.name, Hash.new, nil)
+            typekit.opaques << OroGen::Spec::OpaqueDefinition.new(opaque_t, intermediate_t.name, {}, nil)
             app.default_loader.register_typekit_model(typekit)
             @opaque_t = app.default_loader.resolve_type '/opaque'
             @intermediate_t = app.default_loader.resolve_type '/intermediate'

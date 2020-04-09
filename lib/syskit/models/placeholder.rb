@@ -129,14 +129,14 @@ module Syskit
             end
 
             def update_proxy_mappings
-                @output_port_models = Hash.new
-                @input_port_models = Hash.new
+                @output_port_models = {}
+                @input_port_models = {}
                 each_required_model do |m|
                     m.each_output_port do |port|
-                        (@output_port_models[port.name] ||= Array.new) << port.attach(self)
+                        (@output_port_models[port.name] ||= []) << port.attach(self)
                     end
                     m.each_input_port  do |port|
-                        (@input_port_models[port.name] ||= Array.new) << port.attach(self)
+                        (@input_port_models[port.name] ||= []) << port.attach(self)
                     end
                 end
             end

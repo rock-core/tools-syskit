@@ -190,7 +190,7 @@ module Syskit
             #   {Syskit::InstanceRequirements#instanciate}
             # @return [Roby::Task] the toplevel task that represents the
             #   deployed model
-            def instanciate_model(model, main_plan = nil, options = Hash.new)
+            def instanciate_model(model, main_plan = nil, options = {})
                 main_plan ||= Roby::Plan.new
                 requirements = model.to_instance_requirements
                 task = requirements.instanciate(

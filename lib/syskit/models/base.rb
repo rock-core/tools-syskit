@@ -86,17 +86,17 @@ module Syskit
         # fields in +old_mappings+, saving the resulting mappins in +result+
         def self.update_port_mappings(result, new_mappings, old_mappings)
             old_mappings.each do |service, mappings|
-                updated_mappings = Hash.new
+                updated_mappings = {}
                 mappings.each do |from, to|
                     updated_mappings[from] = new_mappings[to] || to
                 end
                 result[service] =
-                    Models.merge_port_mappings(result[service] || Hash.new, updated_mappings)
+                    Models.merge_port_mappings(result[service] || {}, updated_mappings)
             end
         end
 
         # Merge the given orogen interfaces into one subclass
-        def self.merge_orogen_task_context_models(target, interfaces, port_mappings = Hash.new)
+        def self.merge_orogen_task_context_models(target, interfaces, port_mappings = {})
             interfaces.each do |i|
                 if i.name
                     target.implements i.name

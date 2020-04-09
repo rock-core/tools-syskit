@@ -292,7 +292,7 @@ module Syskit
         #    t => [model0, model1, ...]
         #
         def initialize(engine, still_abstract)
-            @abstract_tasks = Hash.new
+            @abstract_tasks = {}
 
             still_abstract.each do |task|
                 if task.placeholder?
@@ -364,8 +364,8 @@ module Syskit
 
         def initialize(plan, tasks)
             @failed_tasks = tasks.dup
-            @candidates = Hash.new
-            @task_parents = Hash.new
+            @candidates = {}
+            @task_parents = {}
 
             tasks.each do |abstract_task|
                 resolve_device_task(plan, abstract_task)
@@ -376,7 +376,7 @@ module Syskit
             all_tasks = [abstract_task].to_set
 
             # List the possible candidates for the missing devices
-            candidates = Hash.new
+            candidates = {}
             abstract_task.model.each_master_driver_service do |srv|
                 if !abstract_task.arguments[:"#{srv.name}_dev"]
                     candidates[srv] = plan.find_local_tasks(srv.model).to_set
@@ -449,7 +449,7 @@ module Syskit
             @can_merge = task0.can_merge?(task1) || task1.can_merge?(task0)
             if can_merge?
                 # Mismatching inputs ... gather more info
-                @inputs = Array.new
+                @inputs = []
                 @inputs[0] = task0.each_concrete_input_connection.to_a
                 @inputs[1] = task1.each_concrete_input_connection.to_a
             end

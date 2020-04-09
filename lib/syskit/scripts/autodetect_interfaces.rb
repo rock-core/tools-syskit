@@ -14,11 +14,11 @@ Roby.filter_backtrace do
     Roby.app.orogen_load_all
 end
 
-layout = Hash.new { |h, k| h[k] = Array.new }
+layout = Hash.new { |h, k| h[k] = [] }
 
 tasks = TaskContext.each_submodel.to_a
 while !tasks.empty?
-    result = Array.new
+    result = []
 
     task = tasks.find do |t|
         !tasks.any? { |m| t < m }

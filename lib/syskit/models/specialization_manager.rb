@@ -9,7 +9,7 @@ module Syskit
             # @return [Model<Composition>]
             attr_reader :composition_model
 
-            inherited_attribute(:default_specialization, :default_specializations, :map => true) { Hash.new }
+            inherited_attribute(:default_specialization, :default_specializations, :map => true) { {} }
 
             def initialize(composition_model)
                 @composition_model = composition_model
@@ -18,7 +18,7 @@ module Syskit
             # The set of specializations defined on {#composition_model}
             #
             # @return [{{String => Array<Model<DataService>,Model<Component>>}=>CompositionSpecialization}]
-            attribute(:specializations) { Hash.new }
+            attribute(:specializations) { {} }
 
             # Registers the given specialization on this manager
             #
@@ -86,7 +86,7 @@ module Syskit
             #     specialize 'Control', FourWheelController, :not => SimpleController do
             #     end
             #
-            def specialize(options = Hash.new, &block)
+            def specialize(options = {}, &block)
                 Models.debug do
                     Models.debug "trying to specialize #{composition_model.short_name}"
                     Models.log_nest 2
@@ -173,7 +173,7 @@ module Syskit
             #   specification, but more than one child matches this service
             def normalize_specialization_mappings(mappings)
                 # Normalize the user-provided specialization mapping
-                new_spec = Hash.new
+                new_spec = {}
                 mappings.each do |child, child_model|
                     if Models.is_model?(child)
                         children = composition_model.each_child
@@ -238,7 +238,7 @@ module Syskit
             #
             # The block should take as input two Specialization instances and
             # return true if it is compatible and false otherwise
-            attribute(:specialization_constraints) { Array.new }
+            attribute(:specialization_constraints) { [] }
 
             # Registers a block that will be able to tell the system that two
             # specializations are not compatible (i.e. should never be applied
@@ -345,7 +345,7 @@ module Syskit
             def instanciated_specializations
                 root = composition_model.root_model
                 if root == composition_model
-                    return (@instanciated_specializations ||= Hash.new)
+                    return (@instanciated_specializations ||= {})
                 else return root.specializations.instanciated_specializations
                 end
             end
@@ -497,7 +497,7 @@ module Syskit
                 result = []
                 specialization_set = specialization_set.to_set
 
-                compatibilities = Hash.new
+                compatibilities = {}
                 specialization_set.each do |s0|
                     compatibilities[s0] = (s0.compatibilities.to_set & specialization_set) << s0
                 end

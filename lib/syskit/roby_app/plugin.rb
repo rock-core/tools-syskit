@@ -231,25 +231,25 @@ module Syskit
             #
             # This is used in the UIs to load and inspect task libraries even
             # if they are not part of the app's configuration
-            attribute(:extra_required_task_libraries) { Array.new }
+            attribute(:extra_required_task_libraries) { [] }
 
             # A set of typekits that should be imported when the application
             # gets reloaded
             #
             # This is used in the UIs to load and inspect types even
             # if they are not part of the app's configuration
-            attribute(:extra_required_typekits) { Array.new }
+            attribute(:extra_required_typekits) { [] }
 
             # @return [Hash<String,OroGen::Spec::Project>] the set of projects
             #   loaded so far
-            attribute(:loaded_orogen_projects) { Hash.new }
+            attribute(:loaded_orogen_projects) { {} }
 
             # Set of requirements that should be added to the running system.
             # This is meant to be used only by "syskit scripts" through
             # SingleFileDSL
             #
             # @return [Array<InstanceRequirements>]
-            attribute(:permanent_requirements) { Array.new }
+            attribute(:permanent_requirements) { [] }
 
             def self.finalize_model_loading(app)
                 if toplevel_object.respond_to?(:global_profile)
@@ -435,8 +435,8 @@ module Syskit
             #   configuration has changed, and the subset of these tasks that are
             #   currently running
             def syskit_pending_reloaded_configurations
-                pending_reconfigurations = Array.new
-                pending_running_reconfigurations = Array.new
+                pending_reconfigurations = []
+                pending_running_reconfigurations = []
                 plan.find_tasks(Deployment).each do |deployment_task|
                     pending = deployment_task.pending_reconfigurations
                     deployment_task.each_executed_task do |t|
@@ -498,19 +498,19 @@ module Syskit
             # and deployments they contain.
             #
             # @return [OroGen::Spec::Project]
-            def using_task_library(name, options = Hash.new)
+            def using_task_library(name, options = {})
                 options = Kernel.validate_options options, :loader => default_loader
                 options[:loader].project_model_from_name(name)
             end
 
             # Loads the required ROS package
-            def using_ros_package(name, options = Hash.new)
+            def using_ros_package(name, options = {})
                 options = Kernel.validate_options options, :loader => ros_loader
                 using_task_library(name, options)
             end
 
             # @deprecated use {using_task_library} instead
-            def load_orogen_project(name, options = Hash.new)
+            def load_orogen_project(name, options = {})
                 using_task_library(name, options)
             end
 
@@ -631,7 +631,7 @@ module Syskit
             end
 
             # Loads the oroGen deployment model based on a ROS launcher file
-            def using_ros_launcher(name, options = Hash.new)
+            def using_ros_launcher(name, options = {})
                 options = Kernel.validate_options options, :loader => ros_loader
                 using_deployment(name, options)
             end
@@ -676,7 +676,7 @@ module Syskit
             attr_predicate :local_only?, true
 
             def self.roby_engine_propagation_handlers
-                handlers = Hash.new
+                handlers = {}
                 handlers[:update_deployment_states] = [
                     Runtime.method(:update_deployment_states), type: :external_events, description: 'syskit:update_deployment_states'
                 ]
@@ -693,7 +693,7 @@ module Syskit
             end
 
             def self.plug_engine_in_roby(roby_engine)
-                handler_ids = Hash.new
+                handler_ids = {}
                 roby_engine_propagation_handlers.each do |name, (m, options)|
                     handler_ids[name] = roby_engine.add_propagation_handler(options, &m)
                 end

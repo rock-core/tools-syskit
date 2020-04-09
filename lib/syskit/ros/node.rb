@@ -4,7 +4,7 @@ module Syskit
             extend Logger::Hierarchy
             include Logger::Hierarchy
 
-            def initialize(arguments = Hash.new)
+            def initialize(arguments = {})
                 super
             end
 

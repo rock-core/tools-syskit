@@ -9,7 +9,7 @@ module Syskit
             attr_reader :client
             attr_reader :conf
             before do
-                @conf = Syskit::ShellInterface::LoggingConfiguration.new true, true, Hash.new
+                @conf = Syskit::ShellInterface::LoggingConfiguration.new true, true, {}
                 @conf.groups['images'] = Syskit::ShellInterface::LoggingGroup.new 'images', true
                 @conf.groups['messages'] = Syskit::ShellInterface::LoggingGroup.new 'messages', true
 

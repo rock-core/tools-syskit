@@ -15,7 +15,7 @@ module Syskit
             # configuration
             attr_predicate :default_logger?, true
 
-            def initialize(arguments = Hash.new)
+            def initialize(arguments = {})
                 super
                 @logged_ports = Set.new
             end
@@ -132,8 +132,8 @@ module Syskit
                 engine.deployment_tasks.each do |deployment|
                     next if !deployment.plan
 
-                    required_logging_ports = Array.new
-                    required_connections   = Array.new
+                    required_logging_ports = []
+                    required_connections   = []
                     deployment.each_executed_task do |t|
                         if t.finishing? || t.finished?
                             next
@@ -143,7 +143,7 @@ module Syskit
                             next
                         end
 
-                        connections = Hash.new
+                        connections = {}
                         t.each_output_port do |p|
                             next if !deployment.log_port?(p)
 

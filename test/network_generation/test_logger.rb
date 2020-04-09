@@ -20,7 +20,7 @@ describe Syskit::NetworkGeneration::LoggerConfigurationSupport do
         @task = deployment.task 'task'
 
         dataflow = flexmock
-        dataflow.should_receive(:policy_for).and_return(Hash.new).by_default
+        dataflow.should_receive(:policy_for).and_return({}).by_default
 
         @syskit_engine = Syskit::NetworkGeneration::Engine.new(plan)
         flexmock(syskit_engine)
@@ -42,9 +42,9 @@ describe Syskit::NetworkGeneration::LoggerConfigurationSupport do
                 .add_logging_to_network(syskit_engine, plan)
             logger = plan.find_tasks(@logger_m).first
 
-            assert_equal Hash[['state', 'task.state'] => Hash.new,
-                              ['out1', 'task.out1'] => Hash.new,
-                              ['out2', 'task.out2'] => Hash.new], @dataflow_graph.edge_info(task, logger)
+            assert_equal Hash[['state', 'task.state'] => {},
+                              ['out1', 'task.out1'] => {},
+                              ['out2', 'task.out2'] => {}], @dataflow_graph.edge_info(task, logger)
         end
 
         it "reuses an existing logger task if there is one" do
@@ -52,9 +52,9 @@ describe Syskit::NetworkGeneration::LoggerConfigurationSupport do
             Syskit::NetworkGeneration::LoggerConfigurationSupport
                 .add_logging_to_network(syskit_engine, plan)
 
-            assert_equal Hash[['state', 'task.state'] => Hash.new,
-                              ['out1', 'task.out1'] => Hash.new,
-                              ['out2', 'task.out2'] => Hash.new], @dataflow_graph.edge_info(task, logger)
+            assert_equal Hash[['state', 'task.state'] => {},
+                              ['out1', 'task.out1'] => {},
+                              ['out2', 'task.out2'] => {}], @dataflow_graph.edge_info(task, logger)
         end
 
         it "sets default_logger?" do
@@ -97,8 +97,8 @@ describe Syskit::NetworkGeneration::LoggerConfigurationSupport do
             flexmock(deployment).should_receive(:log_port?).and_return(true)
             Syskit::NetworkGeneration::LoggerConfigurationSupport
                 .add_logging_to_network(syskit_engine, plan)
-            assert_equal Hash[['state', 'task.state'] => Hash.new,
-                              ['out2', 'task.out2'] => Hash.new],
+            assert_equal Hash[['state', 'task.state'] => {},
+                              ['out2', 'task.out2'] => {}],
                          @dataflow_graph.edge_info(task, logger)
         end
 
@@ -124,13 +124,13 @@ describe Syskit::NetworkGeneration::LoggerConfigurationSupport do
 
             Syskit::NetworkGeneration::LoggerConfigurationSupport
                 .add_logging_to_network(syskit_engine, plan)
-            assert_equal Hash[['state', 'task.state'] => Hash.new,
-                              ['out1', 'task.out1'] => Hash.new,
-                              ['out2', 'task.out2'] => Hash.new],
+            assert_equal Hash[['state', 'task.state'] => {},
+                              ['out1', 'task.out1'] => {},
+                              ['out2', 'task.out2'] => {}],
                          @dataflow_graph.edge_info(new_task, logger)
-            assert_equal Hash[['state', 'task.state'] => Hash.new,
-                              ['out1', 'task.out1'] => Hash.new,
-                              ['out2', 'task.out2'] => Hash.new],
+            assert_equal Hash[['state', 'task.state'] => {},
+                              ['out1', 'task.out1'] => {},
+                              ['out2', 'task.out2'] => {}],
                          @dataflow_graph.edge_info(task, logger)
         end
 

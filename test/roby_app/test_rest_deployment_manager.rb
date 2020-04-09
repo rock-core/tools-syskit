@@ -25,7 +25,7 @@ module Syskit
             end
 
             def stub_configured_deployment(on: 'localhost', model: @deployment_m, process_name: 'test_deployment')
-                Models::ConfiguredDeployment.new(on, model, Hash.new, process_name, Hash.new)
+                Models::ConfiguredDeployment.new(on, model, {}, process_name, {})
             end
 
             def stub_registered_deployment(on: 'localhost', model: @deployment_m, process_name: 'test_deployment')

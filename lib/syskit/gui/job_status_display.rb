@@ -20,8 +20,8 @@ module Syskit
                 super(nil)
                 @batch_manager = batch_manager
                 @job = job
-                @exceptions = Array.new
-                @notifications = Hash.new
+                @exceptions = []
+                @notifications = {}
                 @show_actions = true
 
                 create_ui

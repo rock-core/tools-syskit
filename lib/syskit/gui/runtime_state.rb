@@ -139,7 +139,7 @@ module Syskit
 
                 create_ui
 
-                @global_actions = Hash.new
+                @global_actions = {}
                 action = global_actions[:start] = Qt::Action.new("Start", self)
                 @starting_monitor = Qt::Timer.new
                 connect @starting_monitor, SIGNAL('timeout()'),
@@ -160,7 +160,7 @@ module Syskit
                 @current_orocos_tasks = Set.new
                 @all_tasks = Set.new
                 @known_loggers = nil
-                @all_job_info = Hash.new
+                @all_job_info = {}
                 syskit.on_ui_event do |event_name, *args|
                     if w = @ui_event_widgets[event_name]
                         w.show
@@ -288,7 +288,7 @@ module Syskit
                 robot_name, start_controller = AppStartDialog.exec(Roby.app.robots.names, self, default_robot_name: robot_name)
                 return unless robot_name
 
-                extra_args = Array.new
+                extra_args = []
                 if !robot_name.empty?
                     extra_args << "-r" << robot_name
                 end
@@ -560,7 +560,7 @@ module Syskit
                     create_ui_event_orogen_config_reloaded,
                     create_ui_event_orogen_config_changed
                 ]
-                ui_event_widgets = Hash.new
+                ui_event_widgets = {}
                 widgets.each do |w|
                     w.hide
                     ui_event_widgets[w.name] = w

@@ -57,7 +57,7 @@ module Syskit
 
                 next if !t.running? && !t.starting? || t.aborted_event.pending?
 
-                handled_this_cycle = Array.new
+                handled_this_cycle = []
                 begin
                     state = nil
                     state_count = 0

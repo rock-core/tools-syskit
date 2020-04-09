@@ -14,7 +14,7 @@ module Syskit::GUI
 
             def initialize(page)
                 super(page)
-                @specializations = Hash.new
+                @specializations = {}
                 @task_model_view = Roby::GUI::ModelViews::Task.new(page)
             end
 
@@ -78,7 +78,7 @@ module Syskit::GUI
 
             def create_specialization_graph(root_model)
                 plan = Roby::Plan.new
-                specializations = Hash.new
+                specializations = {}
                 root_model.specializations.each_specialization.map do |spec|
                     task_model = root_model.specializations.specialized_model(spec, [spec])
                     plan.add(task = task_model.new)
@@ -91,7 +91,7 @@ module Syskit::GUI
             def render_specializations(model)
                 plan, @specializations = create_specialization_graph(model.root_model)
 
-                current_specializations, incompatible_specializations = [], Hash.new
+                current_specializations, incompatible_specializations = [], {}
                 if model.root_model != model
                     current_specializations = model.applied_specializations.map { |s| specializations[s] }
 

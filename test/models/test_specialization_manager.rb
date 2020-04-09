@@ -106,8 +106,8 @@ describe Syskit::Models::SpecializationManager do
 
     describe "#specialize" do
         it "should register a CompositionSpecialization object with normalized and validated mappings" do
-            mappings = Hash.new
-            normalized_mappings = Hash.new
+            mappings = {}
+            normalized_mappings = {}
             flexmock(mng).should_receive(:normalize_specialization_mappings).with(mappings).once.and_return(normalized_mappings)
             flexmock(mng).should_receive(:validate_specialization_mappings).with(normalized_mappings).once.and_return(nil)
             spec = mng.specialize(mappings)
@@ -116,8 +116,8 @@ describe Syskit::Models::SpecializationManager do
         end
 
         it "should register the block on the CompositionSpecialization object" do
-            mappings = Hash.new
-            normalized_mappings = Hash.new
+            mappings = {}
+            normalized_mappings = {}
             flexmock(mng).should_receive(:normalize_specialization_mappings).with(mappings).once.and_return(normalized_mappings)
             flexmock(mng).should_receive(:validate_specialization_mappings).with(normalized_mappings).once.and_return(nil)
             block = proc { add Syskit::TaskContext, as: 'child' }
@@ -225,7 +225,7 @@ describe Syskit::Models::SpecializationManager do
             blocks = (1..2).map do
                 proc { recorder.called(object_id) }
             end
-            spec.add(Hash.new, blocks)
+            spec.add({}, blocks)
 
             recorder.should_receive(:called).with(specialized_model.object_id).twice
             mng.specialized_model(spec)
@@ -307,7 +307,7 @@ describe Syskit::Models::SpecializationManager do
             assert_equal [], result[0][1]
         end
         it "should return the non-specialized model if it is given an empty selection" do
-            result = mng.find_matching_specializations(Hash.new)
+            result = mng.find_matching_specializations({})
             assert_equal 1, result.size
             assert result[0][0].specialized_children.empty?
             assert_equal [], result[0][1]
@@ -331,12 +331,12 @@ describe Syskit::Models::SpecializationManager do
 
     describe "#matching_specialized_model" do
         it "returns the composition model if no specialization matches" do
-            selection = Hash.new
+            selection = {}
             flexmock(mng).should_receive(:find_matching_specializations).with(selection).and_return([])
             assert_equal cmp_m, mng.matching_specialized_model(selection)
         end
         it "returns the composition model for a single match" do
-            selection = Hash.new
+            selection = {}
             match = [flexmock, [flexmock]]
             flexmock(mng).should_receive(:find_matching_specializations).with(selection).and_return([match])
             flexmock(mng).should_receive(:specialized_model).once
@@ -353,7 +353,7 @@ describe Syskit::Models::SpecializationManager do
             end
         end
         it "uses the common subset if more than one specialization matches and strict is not set" do
-            selection = Hash.new
+            selection = {}
             matches = [[flexmock(:weak_match? => true), [flexmock]], [flexmock(:weak_match? => true), [flexmock]]]
             flexmock(mng).should_receive(:find_matching_specializations).with(selection).and_return(matches)
             flexmock(mng).should_receive(:find_common_specialization_subset).once

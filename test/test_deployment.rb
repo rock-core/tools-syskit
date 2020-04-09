@@ -7,12 +7,12 @@ module Syskit
         attr_reader :killed_processes
         def initialize
             @killed_processes = []
-            @tasks = Hash.new
+            @tasks = {}
             @loader = FlexMock.undefined
         end
 
         def wait_termination(*)
-            @killed_processes, dead_processes = Array.new, @killed_processes
+            @killed_processes, dead_processes = [], @killed_processes
             dead_processes
         end
 
@@ -211,7 +211,7 @@ module Syskit
                 end
 
                 it "auto-selects the configuration of the master task" do
-                    @task_m.configuration_manager.add 'master', Hash.new
+                    @task_m.configuration_manager.add 'master', {}
 
                     plan.add(deployment_task = @deployment_m.new)
                     task = deployment_task.task('slave')

@@ -154,7 +154,7 @@ module Syskit
                     syskit_engine.work_plan.commit_transaction
                     flow_graph = plan.task_relation_graph_for(Flows::DataFlow)
                     info = flow_graph.edge_info(new, input)
-                    assert_equal Hash[['b', 'in'] => Hash.new], info
+                    assert_equal Hash[['b', 'in'] => {}], info
                 end
             end
 
@@ -262,10 +262,10 @@ module Syskit
                         attr_reader :tasks
                         attr_reader :created_tasks
 
-                        def initialize(arguments = Hash.new)
+                        def initialize(arguments = {})
                             super
-                            @created_tasks = Array.new
-                            @tasks = Hash.new
+                            @created_tasks = []
+                            @tasks = {}
                         end
 
                         event :ready
@@ -280,7 +280,7 @@ module Syskit
                         end
                     end
 
-                    @applied_merge_mappings = Hash.new
+                    @applied_merge_mappings = {}
                     plan.add(existing_deployment_task = deployment_m.new)
                     @existing_deployment_task = work_plan[existing_deployment_task]
                     flexmock(syskit_engine.merge_solver)

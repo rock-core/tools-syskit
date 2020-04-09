@@ -15,7 +15,7 @@ module Syskit
             attr_reader :port_logs_item_value
             attr_reader :groups_item_name
             attr_reader :groups_item_value
-            def initialize(logging_configuration, options = Hash.new)
+            def initialize(logging_configuration, options = {})
                 super(logging_configuration)
                 @options = options
                 setText 'Logging Configuration'

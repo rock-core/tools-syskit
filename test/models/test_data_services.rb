@@ -442,7 +442,7 @@ module Syskit
     describe ComBus do
         include Test_DataServiceModel
 
-        def new_submodel(options = Hash.new, &block)
+        def new_submodel(options = {}, &block)
             options = Kernel.validate_options options,
                                               name: nil, message_type: '/int'
             ComBus.new_submodel(options, &block)

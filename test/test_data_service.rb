@@ -5,7 +5,7 @@ describe Syskit::Device do
     before do
         @task_m = Syskit::TaskContext.new_submodel
         @device_m = Syskit::Device.new_submodel
-        @devices = Hash.new
+        @devices = {}
         robot = flexmock(devices: devices)
         flexmock(task_m).new_instances.should_receive(:robot).explicitly.and_return(robot)
     end

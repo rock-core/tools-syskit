@@ -261,8 +261,8 @@ module Syskit
                         it "triggers a redeployment if "\
                             "#removed_connections_require_network_update? returns true" do
                             expected = dataflow_graph.pending_changes =
-                                [Set.new, flexmock(:base, Hash.new, empty?: false),
-                                 flexmock(:base, Hash.new, empty?: false)]
+                                [Set.new, flexmock(:base, {}, empty?: false),
+                                 flexmock(:base, {}, empty?: false)]
 
                             flexmock(manager = ConnectionManagement.new(plan))
                             manager.should_receive(:removed_connections_require_network_update?)
@@ -305,7 +305,7 @@ module Syskit
                                 ActualDataFlow.add_connections(
                                     source_task.orocos_task,
                                     sink_task.orocos_task,
-                                    ['out', 'in'] => [Hash.new, source_static, sink_static]
+                                    ['out', 'in'] => [{}, source_static, sink_static]
                                 )
                             end
 
@@ -593,14 +593,14 @@ module Syskit
                     manager = ConnectionManagement.new(plan)
                     flexmock(manager).should_receive(:compute_connection_changes)
                                      .with(Set[source_task]).once.ordered
-                                     .and_return([Hash.new, Hash.new])
+                                     .and_return([{}, {}])
                     flexmock(manager).should_receive(:compute_connection_changes)
                                      .with(Set[source_task, sink_task]).once.ordered
-                                     .and_return([Hash.new, Hash.new])
+                                     .and_return([{}, {}])
                     flexmock(manager).should_receive(:apply_connection_changes)
                                      .and_return([
-                                                     flexmock(:base, Hash.new, empty?: false),
-                                                     flexmock(:base, Hash.new, empty?: false)
+                                                     flexmock(:base, {}, empty?: false),
+                                                     flexmock(:base, {}, empty?: false)
                                                  ])
                     dataflow_graph = plan.task_relation_graph_for(Syskit::Flows::DataFlow)
                     dataflow_graph.modified_tasks << source_task
@@ -804,7 +804,7 @@ module Syskit
                     @manager = ConnectionManagement.new(plan)
                     @source = flexmock
                     @sink = flexmock
-                    @connections = Hash[[source, sink] => Hash.new]
+                    @connections = Hash[[source, sink] => {}]
                 end
 
                 def make_syskit_task_map(source_state, sink_state)
@@ -834,7 +834,7 @@ module Syskit
                         connections, '', make_syskit_task_map(nil, true)
                     )
                     assert_equal connections.to_a, early
-                    assert_equal Hash.new, late
+                    assert_equal({}, late)
                 end
 
                 it "interprets the absence of a syskit task for the sink as stopped" do
@@ -842,7 +842,7 @@ module Syskit
                         connections, '', make_syskit_task_map(true, nil)
                     )
                     assert_equal connections.to_a, early
-                    assert_equal Hash.new, late
+                    assert_equal({}, late)
                 end
 
                 it "places in early connections involving a non-running source" do
@@ -850,7 +850,7 @@ module Syskit
                         connections, '', make_syskit_task_map(false, true)
                     )
                     assert_equal connections.to_a, early
-                    assert_equal Hash.new, late
+                    assert_equal({}, late)
                 end
 
                 it "places in early connections involving a non-running sink" do
@@ -858,14 +858,14 @@ module Syskit
                         connections, '', make_syskit_task_map(true, false)
                     )
                     assert_equal connections.to_a, early
-                    assert_equal Hash.new, late
+                    assert_equal({}, late)
                 end
 
                 it "places in late connections involving running source and sink" do
                     early, late = manager.partition_early_late(
                         connections, '', make_syskit_task_map(true, true)
                     )
-                    assert_equal Array.new, early
+                    assert_equal [], early
                     assert_equal connections, late
                 end
             end

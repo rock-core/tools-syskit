@@ -173,10 +173,10 @@ module Syskit
                 engine.result
             end
 
-            def reset(tasks = Array.new)
+            def reset(tasks = [])
                 super
                 @triggers = Hash.new { |h, k| h[k] = Set.new }
-                @task_from_name = Hash.new
+                @task_from_name = {}
                 tasks.each do |t|
                     task_from_name[t.orocos_name] = t
                 end
@@ -447,7 +447,7 @@ module Syskit
             # Where +ports+ is the set of port names that are required on
             # +task+. +nil+ can be used to denote the task itself.
             def required_information(tasks)
-                result = Hash.new
+                result = {}
                 tasks.each do |t|
                     ports = t.model.each_output_port.to_a
                     if !ports.empty?

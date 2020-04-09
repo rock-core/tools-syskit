@@ -124,7 +124,7 @@ module Syskit
             # A state_name => event_name mapping that maps the component's
             # state names to the event names that should be emitted when it
             # enters a new state.
-            inherited_attribute(:state_event, :state_events, map: true) { Hash.new }
+            inherited_attribute(:state_event, :state_events, map: true) { {} }
 
             # Create a new TaskContext model
             #
@@ -134,7 +134,7 @@ module Syskit
             # @option options [Orocos::Spec::TaskContext, Orocos::ROS::Spec::Node] orogen_model (nil) the
             #   oroGen model that should be used. If not given, an empty model
             #   is created, possibly with the name given to the method as well.
-            def new_submodel(options = Hash.new, &block)
+            def new_submodel(options = {}, &block)
                 super
             end
 

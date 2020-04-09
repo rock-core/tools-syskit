@@ -24,7 +24,7 @@ module Syskit
 
             # Define on self tags that match the profile's tags
             def use_profile_tags(profile)
-                tag_map = Hash.new
+                tag_map = {}
                 profile.each_tag do |tag|
                     tagged_models = [*tag.proxied_data_service_models]
                     tag_map[tag.tag_name] = @profile.tag(tag.tag_name, *tagged_models)
@@ -74,12 +74,12 @@ module Syskit
                         action_model.to_instance_requirements(arguments)
                     end
                 elsif !args.empty?
-                    profile_library.send(:define_method, action_name) do |arguments = Hash.new|
+                    profile_library.send(:define_method, action_name) do |arguments = {}|
                         action_model.to_instance_requirements(arguments)
                     end
                 else
                     profile_library.send(:define_method, action_name) do
-                        action_model.to_instance_requirements(Hash.new)
+                        action_model.to_instance_requirements({})
                     end
                 end
             end
@@ -91,7 +91,7 @@ module Syskit
             # @param [Hash] tag_selection selection for the profile tags, see
             #   {Profile#use_profile}
             # @return [void]
-            def use_profile(used_profile = nil, tag_selection = Hash.new, transform_names: ->(name) { name })
+            def use_profile(used_profile = nil, tag_selection = {}, transform_names: ->(name) { name })
                 if block_given?
                     if !tag_selection.empty?
                         raise ArgumentError, "cannot provide a tag selection when defining a new anonymous profile"

@@ -168,10 +168,10 @@ describe Syskit::NetworkGeneration::MergeSolver do
         end
         it "should return nil if the source port name is different" do
             merged_task = mock_merged_task_with_concrete_input_connections(
-                [src = Object.new, 'src_port', 'sink_port', Hash.new]
+                [src = Object.new, 'src_port', 'sink_port', {}]
             )
             task = mock_task_with_concrete_input_connections(
-                [src, 'other_src_port', 'sink_port', Hash.new]
+                [src, 'other_src_port', 'sink_port', {}]
             )
             assert !solver.resolve_input_matching(merged_task, task)
         end

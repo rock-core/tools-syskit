@@ -31,7 +31,7 @@ module Syskit
                 end
             end
 
-            def create_log_dir(log_dir, time_tag, metadata = Hash.new)
+            def create_log_dir(log_dir, time_tag, metadata = {})
                 if log_dir
                     app.log_base_dir = log_dir
                 end

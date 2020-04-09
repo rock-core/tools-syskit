@@ -18,11 +18,11 @@ module Syskit
             #   {object}
             attr_reader :port_mappings
 
-            def initialize(object, required, mappings = Hash.new)
+            def initialize(object, required, mappings = {})
                 super(nil, object.to_instance_requirements, required.to_instance_requirements, mappings)
                 @object = object
-                @ports_on_required = Hash.new
-                @port_mappings = Hash.new
+                @ports_on_required = {}
+                @port_mappings = {}
             end
 
             def find_ports_on_required(name)
@@ -128,7 +128,7 @@ module Syskit
                 each_output_port(&proc)
             end
 
-            def connect_to(sink, policy = Hash.new)
+            def connect_to(sink, policy = {})
                 Syskit.connect(self, sink, policy)
             end
 

@@ -37,9 +37,9 @@ module Syskit
                 @event_logger = event_logger
                 @dataflow_graph = plan.task_relation_graph_for(Flows::DataFlow)
                 @dependency_graph = plan.task_relation_graph_for(Roby::TaskStructure::Dependency)
-                @merging_candidates_queries = Hash.new
+                @merging_candidates_queries = {}
                 @task_replacement_graph = Roby::Relations::BidirectionalDirectedAdjacencyGraph.new
-                @resolved_replacements = Hash.new
+                @resolved_replacements = {}
                 @invalid_merges = Set.new
             end
 
@@ -312,7 +312,7 @@ module Syskit
             end
 
             def composition_children_by_role(task)
-                result = Hash.new
+                result = {}
                 task_children_names = task.model.children_names.to_set
                 task.each_out_neighbour_merged(
                     Roby::TaskStructure::Dependency, intrusive: true
@@ -381,9 +381,9 @@ module Syskit
             def merge_compositions
                 debug "merging compositions"
 
-                queue   = Array.new
-                topsort = Array.new
-                degrees = Hash.new
+                queue   = []
+                topsort = []
+                degrees = {}
                 dependency_graph.each_vertex do |task|
                     d = dependency_graph.out_degree(task)
                     queue << task if d == 0
@@ -469,7 +469,7 @@ module Syskit
             def resolve_input_matching(merged_task, task)
                 return [] if merged_task.equal?(task)
 
-                m_inputs = Hash.new { |h, k| h[k] = Hash.new }
+                m_inputs = Hash.new { |h, k| h[k] = {} }
                 merged_task.each_concrete_input_connection do |m_source_task, m_source_port, sink_port, m_policy|
                     m_inputs[sink_port][[m_source_task, m_source_port]] = m_policy
                 end

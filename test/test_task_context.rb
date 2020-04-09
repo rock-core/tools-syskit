@@ -793,7 +793,7 @@ module Syskit
                 orocos_tasks = [source_task.orocos_task, task.orocos_task]
 
                 ActualDataFlow.add_connections(*orocos_tasks,
-                                               Hash[['dynamic', 'dynamic'] => [Hash.new, false, false]])
+                                               Hash[['dynamic', 'dynamic'] => [{}, false, false]])
                 assert ActualDataFlow.has_edge?(*orocos_tasks)
                 task.clean_dynamic_port_connections([])
                 assert !ActualDataFlow.has_edge?(*orocos_tasks)
@@ -816,7 +816,7 @@ module Syskit
                 orocos_tasks = [task.orocos_task, sink_task.orocos_task]
 
                 ActualDataFlow.add_connections(*orocos_tasks,
-                                               Hash[['dynamic', 'dynamic'] => [Hash.new, false, false]])
+                                               Hash[['dynamic', 'dynamic'] => [{}, false, false]])
                 assert ActualDataFlow.has_edge?(*orocos_tasks)
                 task.clean_dynamic_port_connections([])
                 refute ActualDataFlow.has_edge?(*orocos_tasks)
@@ -1675,7 +1675,7 @@ module Syskit
                 end
 
                 it "serializes the executions" do
-                    finished = Array.new
+                    finished = []
                     promises = (0...100).map do |i|
                         promise = task.commit_properties
                         promise.on_success { finished << i }
@@ -1693,7 +1693,7 @@ module Syskit
                         task.commit_properties
                     ]
 
-                    finished = Array.new
+                    finished = []
                     promises.each_with_index do |p, i|
                         p.before do
                             sleep(0.1 / (i + 1))

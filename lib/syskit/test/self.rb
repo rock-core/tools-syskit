@@ -55,7 +55,7 @@ module Syskit
 
                 @robot = Syskit::Robot::RobotDefinition.new
 
-                @syskit_handler_ids = Hash.new
+                @syskit_handler_ids = {}
                 @syskit_handler_ids[:deployment_states] = execution_engine
                                                           .add_propagation_handler(type: :external_events,
                                                                                    &Runtime.method(:update_deployment_states))

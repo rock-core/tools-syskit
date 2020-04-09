@@ -89,7 +89,7 @@ module Syskit
             # It spawns a thread that returns once the task got resolved
             #
             # @return [void]
-            def spawn(options = Hash.new)
+            def spawn(options = {})
                 @spawn_start = Time.now
                 @last_warning = Time.now
                 @deployed_tasks = nil
@@ -107,7 +107,7 @@ module Syskit
                 end
             end
 
-            def resolve_all_tasks(cache = Hash.new)
+            def resolve_all_tasks(cache = {})
                 resolved = model.task_activities.map do |t|
                     [t.name, (cache[t.name] ||= name_service.get(t.name))]
                 end

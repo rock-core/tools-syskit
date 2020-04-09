@@ -28,7 +28,7 @@ module Syskit::GUI
                 ERB.new(template).result(binding)
             end
 
-            def render(type, options = Hash.new)
+            def render(type, options = {})
                 type_rendering.render(type)
 
                 producers, consumers = Set.new, Set.new

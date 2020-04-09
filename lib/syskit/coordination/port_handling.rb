@@ -39,7 +39,7 @@ module Syskit
         end
 
         class OutputPort < Syskit::OutputPort
-            def reader(policy = Hash.new)
+            def reader(policy = {})
                 # The 'rescue' case is used only on first evaluation of the
                 # block, when Roby instanciates it to check syntax.
                 # The script blocks have to be re-instanciated for each
@@ -57,7 +57,7 @@ module Syskit
         end
 
         class InputPort < Syskit::InputPort
-            def writer(policy = Hash.new)
+            def writer(policy = {})
                 # The 'rescue' case is used only on first evaluation of the
                 # block, when Roby instanciates it to check syntax.
                 # The script blocks have to be re-instanciated for each

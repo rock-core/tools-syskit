@@ -77,9 +77,9 @@ module Syskit
             each_vertex do |task|
                 next if !task.kind_of?(Syskit::TaskContext)
 
-                task_to_task = Hash.new
+                task_to_task = {}
                 each_concrete_in_connection(task) do |source_task, source_port, sink_port, policy|
-                    port_to_port = (task_to_task[source_task] ||= Hash.new)
+                    port_to_port = (task_to_task[source_task] ||= {})
                     port_to_port[[source_port, sink_port]] = policy
                 end
 

@@ -98,7 +98,7 @@ module Syskit
             # @raise [WrongPortConnectionTypes]
             # @raise [WrongPortConnectionDirection]
             # @raise [SelfConnection]
-            def connect_to(in_port, policy = Hash.new)
+            def connect_to(in_port, policy = {})
                 out_port = self.to_component_port
                 if out_port == self
                     if in_port.respond_to?(:to_component_port)
@@ -235,7 +235,7 @@ module Syskit
 
             def output?; true end
 
-            def reader(policy = Hash.new)
+            def reader(policy = {})
                 OutputReader.new(self, policy)
             end
         end
@@ -252,7 +252,7 @@ module Syskit
                 Syskit::InputPort.new(self, component_model.bind(component))
             end
 
-            def writer(policy = Hash.new)
+            def writer(policy = {})
                 InputWriter.new(self, policy)
             end
 
@@ -263,7 +263,7 @@ module Syskit
             attr_reader :port
             attr_reader :policy
 
-            def initialize(port, policy = Hash.new)
+            def initialize(port, policy = {})
                 @port = port
                 @policy = policy
             end
@@ -295,7 +295,7 @@ module Syskit
             attr_reader :port
             attr_reader :policy
 
-            def initialize(port, policy = Hash.new)
+            def initialize(port, policy = {})
                 @port = port
                 @policy = policy
             end

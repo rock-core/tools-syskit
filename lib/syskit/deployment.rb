@@ -42,7 +42,7 @@ module Syskit
                 Syskit.conf.process_server_config_for(process_server_name)
         end
 
-        def initialize(options = Hash.new)
+        def initialize(options = {})
             super
 
             @quit_ready_event_monitor = Concurrent::Event.new

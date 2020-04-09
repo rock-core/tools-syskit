@@ -43,7 +43,7 @@ module Syskit
         def existing_configuration_file(local_only: false)
             return if !orogen_model.name
 
-            local_option = Hash.new
+            local_option = {}
             if local_only
                 local_option[:path] = [app.app_dir]
             end
@@ -99,7 +99,7 @@ module Syskit
                     load_from_yaml(conf_file)
                 end
             else
-                Array.new
+                []
             end
         end
 

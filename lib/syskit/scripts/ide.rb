@@ -36,7 +36,7 @@ parser = OptionParser.new do |opt|
         runtime_only = true
     end
 end
-options = Hash.new
+options = {}
 Roby::Application.host_options(parser, options)
 Roby.app.guess_app_dir unless runtime_only
 Syskit::Scripts.common_options(parser, true)

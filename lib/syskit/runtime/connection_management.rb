@@ -20,8 +20,8 @@ module Syskit
             def initialize(plan)
                 @plan = plan
                 @dataflow_graph = plan.task_relation_graph_for(Flows::DataFlow)
-                @orocos_task_to_syskit_tasks = Hash.new
-                @orocos_task_to_setup_syskit_task = Hash.new
+                @orocos_task_to_syskit_tasks = {}
+                @orocos_task_to_setup_syskit_task = {}
                 plan.find_tasks(Syskit::TaskContext).each do |t|
                     (@orocos_task_to_syskit_tasks[t.orocos_task] ||= []) << t
                     if t.setup?
@@ -118,12 +118,12 @@ module Syskit
                 new_edges, removed_edges, updated_edges =
                     RequiredDataFlow.difference(ActualDataFlow, tasks, &:orocos_task)
 
-                new = Hash.new
+                new = {}
                 new_edges.each do |source_task, sink_task|
                     new[[source_task, sink_task]] = RequiredDataFlow.edge_info(source_task, sink_task)
                 end
 
-                removed = Hash.new
+                removed = {}
                 removed_edges.each do |source_task, sink_task|
                     removed[[source_task, sink_task]] = ActualDataFlow.edge_info(source_task, sink_task).keys.to_set
                 end
@@ -141,7 +141,7 @@ module Syskit
                     new_mapping = RequiredDataFlow.edge_info(source_task, sink_task)
                     old_mapping = ActualDataFlow.edge_info(source_task.orocos_task, sink_task.orocos_task)
 
-                    new_connections     = Hash.new
+                    new_connections     = {}
                     removed_connections = Set.new
                     new_mapping.each do |ports, new_policy|
                         if old_policy = old_mapping[ports]
@@ -531,12 +531,12 @@ module Syskit
 
             # Partition new connections between
             def new_connections_partition_held_ready(new)
-                additions_held, additions_ready = Hash.new, Hash.new
+                additions_held, additions_ready = {}, {}
                 new.each do |(from_task, to_task), mappings|
                     if !from_task.execution_agent.ready? || !to_task.execution_agent.ready?
-                        hold, ready = mappings, Hash.new
+                        hold, ready = mappings, {}
                     elsif from_task.setup? && to_task.setup?
-                        hold, ready = Hash.new, mappings
+                        hold, ready = {}, mappings
                     else
                         hold, ready = mappings.partition do |(from_port, to_port), policy|
                             (!from_task.setup? && !from_task.concrete_model.find_output_port(from_port)) ||
@@ -610,7 +610,7 @@ module Syskit
                     modified_tasks.merge apply_connection_additions(late_additions)
                 end
                 mark_connected_pending_tasks_as_executable(modified_tasks)
-                return Hash.new, Hash.new
+                return {}, {}
             end
 
             # @api private
@@ -629,7 +629,7 @@ module Syskit
             #
             # @return [Hash]
             def dangling_task_cleanup
-                removed = Hash.new
+                removed = {}
                 ActualDataFlow.each_vertex do |parent_t|
                     unless @orocos_task_to_syskit_tasks.has_key?(parent_t)
                         ActualDataFlow.each_out_neighbour(parent_t) do |child_t|
@@ -697,7 +697,7 @@ module Syskit
 
                 dangling = dangling_task_cleanup
                 if !dangling.empty?
-                    dataflow_graph.pending_changes ||= [[], Hash.new, Hash.new]
+                    dataflow_graph.pending_changes ||= [[], {}, {}]
                     dataflow_graph.pending_changes[2].merge!(dangling) do |k, m0, m1|
                         m0.merge(m1)
                     end

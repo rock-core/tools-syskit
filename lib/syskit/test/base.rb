@@ -12,7 +12,7 @@ module Syskit
         # Base functionality for all testing cases
         module Base
             def setup
-                @task_stubs = Array.new
+                @task_stubs = []
                 @old_loglevel = Orocos.logger.level
 
                 super

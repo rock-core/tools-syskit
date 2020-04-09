@@ -74,7 +74,7 @@ module Syskit
                 @rate_limited = rate_limited
                 @name = name
                 @extra_style = extra_style
-                @states = Hash.new
+                @states = {}
 
                 declare_state :INIT, :blue
                 update_state :INIT

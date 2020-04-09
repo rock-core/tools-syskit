@@ -2,7 +2,7 @@ require 'syskit/test/self'
 
 describe Syskit::ROS::Node do
     @pid = nil
-    @ros_projects = Hash.new
+    @ros_projects = {}
 
     before do
         # should start the node /rosout

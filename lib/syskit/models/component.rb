@@ -22,7 +22,7 @@ module Syskit
             #
             # @key_name full_name
             # @return [Hash<String,BoundDataService>]
-            inherited_attribute(:data_service, :data_services, map: true) { Hash.new }
+            inherited_attribute(:data_service, :data_services, map: true) { {} }
 
             # List of modules that should be applied on the underlying
             # {Orocos::RubyTasks::StubTaskContext} when running tests in
@@ -169,7 +169,7 @@ module Syskit
             #
             # It creates a new task from the component model using
             # Component.new, adds it to the plan and returns it.
-            def instanciate(plan, context = DependencyInjectionContext.new, task_arguments: Hash.new, **arguments)
+            def instanciate(plan, context = DependencyInjectionContext.new, task_arguments: {}, **arguments)
                 plan.add(task = new(task_arguments))
                 task
             end
@@ -257,7 +257,7 @@ module Syskit
             def port_mappings_for(model)
                 if model.kind_of?(Class)
                     if fullfills?(model)
-                        mappings = Hash.new
+                        mappings = {}
                         model.each_port do |port|
                             mappings[port.name] = port.name
                         end
@@ -325,8 +325,8 @@ module Syskit
             #
             #   service_interface_port_name => task_model_port_name
             #
-            def compute_port_mappings(service_model, explicit_mappings = Hash.new)
-                normalized_mappings = Hash.new
+            def compute_port_mappings(service_model, explicit_mappings = {})
+                normalized_mappings = {}
                 explicit_mappings.each do |from, to|
                     from = from.to_s if from.kind_of?(Symbol)
                     to   = to.to_s   if to.kind_of?(Symbol)
@@ -342,9 +342,9 @@ module Syskit
                 # This is used later to verify that we don't automatically map
                 # two different ports to the same port. It can be done
                 # explicitly, though
-                mapped_to_original = Hash.new { |h, k| h[k] = Array.new }
+                mapped_to_original = Hash.new { |h, k| h[k] = [] }
 
-                result = Hash.new
+                result = {}
                 service_model.each_output_port do |port|
                     if mapped_name = find_directional_port_mapping('output', port, normalized_mappings[port.name])
                         result[port.name] = mapped_name
@@ -437,7 +437,7 @@ module Syskit
             # @param [BoundDataService,String,nil] slave_of if this service is slave of another,
             #   the master service
             # @return [BoundDynamicDataService]
-            def provides_dynamic(service_model, port_mappings = Hash.new, as: nil, slave_of: nil, bound_service_class: BoundDataService)
+            def provides_dynamic(service_model, port_mappings = {}, as: nil, slave_of: nil, bound_service_class: BoundDataService)
                 # Do not use #filter_options here, it will transform the
                 # port names into symbols
                 port_mappings = DynamicDataService.update_component_model_interface(
@@ -460,7 +460,7 @@ module Syskit
             #
             # @key_name dynamic_service_name
             # @return [Hash<String,DynamicDataService>]
-            inherited_attribute('dynamic_service', 'dynamic_services', map: true) { Hash.new }
+            inherited_attribute('dynamic_service', 'dynamic_services', map: true) { {} }
 
             # Declares that this component model can dynamically extend its
             # interface by adding services of the given type
@@ -527,7 +527,7 @@ module Syskit
             # dynamic service
             #
             # @see require_dynamic_service
-            def with_dynamic_service(dynamic_service_name, options = Hash.new)
+            def with_dynamic_service(dynamic_service_name, options = {})
                 model = ensure_model_is_specialized
                 model.require_dynamic_service(dynamic_service_name, options)
                 model
@@ -621,7 +621,7 @@ module Syskit
             #     provides Service2, as: 'service2'
             #   end
             #
-            def provides(model, port_mappings = Hash.new, as: nil, slave_of: nil, bound_service_class: BoundDataService)
+            def provides(model, port_mappings = {}, as: nil, slave_of: nil, bound_service_class: BoundDataService)
                 unless model.kind_of?(DataServiceModel)
                     if model.kind_of?(Roby::Models::TaskServiceModel)
                         return super(model)
@@ -673,7 +673,7 @@ module Syskit
                     raise InvalidProvides.new(self, model, e), "#{short_name} does not provide the '#{model.name}' service's interface. #{e.message}", e.backtrace
                 end
 
-                service = bound_service_class.new(name, self, master, model, Hash.new)
+                service = bound_service_class.new(name, self, master, model, {})
                 service.port_mappings[model] = new_port_mappings
 
                 # Now, adapt the port mappings from +model+ itself and map
@@ -714,7 +714,7 @@ module Syskit
             # It will create the corresponding device model if it does not
             # already exist, and return it. See the documentation of
             # Component.data_service for the description of +arguments+
-            def driver_for(model, arguments = Hash.new, &block)
+            def driver_for(model, arguments = {}, &block)
                 dserv = provides(model, arguments)
                 argument "#{dserv.name}_dev"
                 dserv
@@ -863,7 +863,7 @@ module Syskit
             # @api private
             #
             # Cache of models created by {Placeholder}
-            attribute(:placeholder_models) { Hash.new }
+            attribute(:placeholder_models) { {} }
 
             # @api private
             #
@@ -880,7 +880,7 @@ module Syskit
             # Register a new placeholder model for the given service models and
             # placeholder type
             def register_placeholder_model(placeholder_m, service_models, placeholder_type = Placeholder)
-                by_type = (placeholder_models[service_models] ||= Hash.new)
+                by_type = (placeholder_models[service_models] ||= {})
                 by_type[placeholder_type] = placeholder_m
             end
 

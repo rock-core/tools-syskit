@@ -11,8 +11,8 @@ module Syskit
             def initialize(logging_groups, label = '')
                 super(logging_groups)
 
-                @items_name = Hash.new
-                @items_value = Hash.new
+                @items_name = {}
+                @items_value = {}
 
                 setText label
                 update_groups(logging_groups)

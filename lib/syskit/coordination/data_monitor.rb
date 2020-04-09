@@ -24,7 +24,7 @@ module Syskit
 
             def initialize(model, data_streams)
                 @model, @data_streams = model, data_streams
-                @emitted_events = Array.new
+                @emitted_events = []
                 @raises = false
             end
 

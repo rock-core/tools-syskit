@@ -102,8 +102,8 @@ module Syskit
             @orogen_model = orogen_model ||
                 Orocos::Spec::TaskDeployment.new(nil, model.orogen_model)
 
-            properties = Hash.new
-            property_overrides = Hash.new
+            properties = {}
+            property_overrides = {}
             self.model.orogen_model.each_property do |p|
                 type = Roby.app.default_loader.intermediate_type_for(p.type)
                 properties[p.name] = LiveProperty.new(self, p.name, type)
@@ -634,7 +634,7 @@ module Syskit
         # is supposed to delete all dynamic ports (and therefore disconnect
         # them)
         def clean_dynamic_port_connections(port_names)
-            to_remove = Hash.new
+            to_remove = {}
             to_remove.merge!(dynamic_input_port_connections(port_names))
             to_remove.merge!(dynamic_output_port_connections(port_names))
             relation_graph_for(Flows::DataFlow).modified_tasks << self
@@ -648,7 +648,7 @@ module Syskit
         # Helper for {#prepare_for_setup} that enumerates the inbound
         # connections originating from a dynamic output port
         def dynamic_input_port_connections(existing_port_names)
-            to_remove = Hash.new
+            to_remove = {}
             real_model = self.model.concrete_model
             dynamic_ports = self.model.each_input_port.find_all do |p|
                 !real_model.find_input_port(p.name)
@@ -675,7 +675,7 @@ module Syskit
         # Helper for {#prepare_for_setup} that enumerates the outbound
         # connections originating from a dynamic output port
         def dynamic_output_port_connections(existing_port_names)
-            to_remove = Hash.new
+            to_remove = {}
             real_model = self.model.concrete_model
             dynamic_ports = self.model.each_output_port.find_all do |p|
                 !real_model.find_output_port(p.name)
@@ -1158,7 +1158,7 @@ module Syskit
             end
 
             def transaction_modifies_static_ports?
-                new_connections_to_static = Hash.new
+                new_connections_to_static = {}
                 each_concrete_input_connection do |source_task, source_port, sink_port, policy|
                     if find_input_port(sink_port).static?
                         sources = (new_connections_to_static[sink_port] ||= Set.new)

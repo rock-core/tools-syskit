@@ -3,7 +3,7 @@ module Syskit::GUI
         class DataService < Component
             def initialize(page)
                 super(page)
-                buttons = Array.new
+                buttons = []
                 buttons.concat(self.class.common_graph_buttons('interface'))
                 interface_options[:buttons] = buttons
             end
@@ -12,16 +12,16 @@ module Syskit::GUI
                 services = super
                 services.first.last.shift
                 if services.first.last.empty?
-                    Array.new
+                    []
                 else
                     services
                 end
             end
 
-            def render(model, options = Hash.new)
+            def render(model, options = {})
                 super
 
-                providers = Array.new
+                providers = []
                 Syskit::TaskContext.each_submodel do |component_m|
                     next if component_m.placeholder?
 
