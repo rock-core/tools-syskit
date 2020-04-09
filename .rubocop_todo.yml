@@ -111,14 +111,6 @@ Layout/EmptyLineAfterMagicComment:
   Exclude:
     - 'syskit.gemspec'
 
-# Offense count: 1
-# Cop supports --auto-correct.
-# Configuration parameters: EnforcedStyleAlignWith, AutoCorrect, Severity.
-# SupportedStylesAlignWith: keyword, variable, start_of_line
-Layout/EndAlignment:
-  Exclude:
-    - 'lib/syskit/scripts/common.rb'
-
 # Offense count: 38
 # Cop supports --auto-correct.
 # Configuration parameters: AllowForAlignment, AllowBeforeTrailingComments, ForceEqualSignAlignment.
