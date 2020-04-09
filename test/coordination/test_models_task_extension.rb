@@ -33,11 +33,11 @@ describe Syskit::Coordination::Models::TaskExtension do
         action_m.describe ''
         action_m.action_state_machine :test_machine do
             task = state test_task
-            task.monitor('thresholding', task.out_port).
-                trigger_on do |value|
+            task.monitor('thresholding', task.out_port)
+                .trigger_on do |value|
                     value > 10
-                end.
-                emit task.monitor_failed_event
+                end
+                .emit task.monitor_failed_event
             start task
         end
         syskit_stub_configured_deployment(component_m)
@@ -58,8 +58,8 @@ describe Syskit::Coordination::Models::TaskExtension do
         action_m.describe('').required_arg('arg')
         action_m.action_state_machine :test_machine do
             task = state component_m
-            task.monitor('thresholding', task.out_port, test_arg: arg).
-                trigger_on do |value|
+            task.monitor('thresholding', task.out_port, test_arg: arg)
+                .trigger_on do |value|
                     recorder.called(test_arg)
                     false
                 end.raise_exception

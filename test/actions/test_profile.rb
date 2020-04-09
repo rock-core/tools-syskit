@@ -74,8 +74,8 @@ describe Syskit::Actions::Profile do
             src.define 'test', task_m
 
             dst = Syskit::Actions::Profile.new
-            flexmock(dst).should_receive(:register_definition).with('test', src.test_def, doc: nil).once.
-                and_return(definition_mock)
+            flexmock(dst).should_receive(:register_definition).with('test', src.test_def, doc: nil).once
+                .and_return(definition_mock)
             dst.use_profile src
         end
 
@@ -98,8 +98,8 @@ describe Syskit::Actions::Profile do
             req.doc "test documentation"
 
             dst = Syskit::Actions::Profile.new
-            flexmock(dst).should_receive(:register_definition).with('test', src.test_def, doc: "test documentation").once.
-                and_return(definition_mock)
+            flexmock(dst).should_receive(:register_definition).with('test', src.test_def, doc: "test documentation").once
+                .and_return(definition_mock)
             dst.use_profile src
         end
 
@@ -120,12 +120,12 @@ describe Syskit::Actions::Profile do
             src.define 'test', cmp_m
 
             define = flexmock(src.definitions['test'])
-            define.should_receive(:dup).once.
-                and_return(duped = definition_mock)
+            define.should_receive(:dup).once
+                .and_return(duped = definition_mock)
             duped.should_receive(:push_selections).once
             dst = Syskit::Actions::Profile.new
-            flexmock(dst).should_receive(:register_definition).with('test', duped, doc: nil).once.
-                and_return(duped)
+            flexmock(dst).should_receive(:register_definition).with('test', duped, doc: nil).once
+                .and_return(duped)
             dst.use_profile src
         end
 
@@ -187,8 +187,8 @@ describe Syskit::Actions::Profile do
             srv_task_m.provides srv_m, as: 'test'
             child_profile = Syskit::Actions::Profile.new
             child_profile.use_profile parent_profile, 'test' => srv_task_m
-            task = child_profile.test_def.arguments[:action].
-                requirements.instanciate(plan)
+            task = child_profile.test_def.arguments[:action]
+                .requirements.instanciate(plan)
             assert_kind_of srv_task_m, task.test_child
         end
     end
@@ -293,9 +293,9 @@ describe Syskit::Actions::Profile do
         # different 'remote' object than a local. This checks object ID
         # registration logic
         droby_remote_marshaller.register_object(remote_profile)
-        flexmock(droby_remote_marshaller).should_receive(:find_model_by_name).
-            with('SyskitProfileTest::Test').
-            and_return(remote_profile)
+        flexmock(droby_remote_marshaller).should_receive(:find_model_by_name)
+            .with('SyskitProfileTest::Test')
+            .and_return(remote_profile)
         remote, local = assert_droby_compatible(SyskitProfileTest::Test, bidirectional: true)
         refute_same remote, test_profile
         assert_same local, test_profile
@@ -427,8 +427,8 @@ describe Syskit::Actions::Profile do
 
         it "injects the DI context" do
             expected_req = nil
-            flexmock(profile).should_receive(:inject_di_context).
-                with(->(req) { expected_req = req }).once
+            flexmock(profile).should_receive(:inject_di_context)
+                .with(->(req) { expected_req = req }).once
             resolved_req = profile.resolved_definition('test')
             assert_same expected_req, resolved_req
         end
@@ -444,8 +444,8 @@ describe Syskit::Actions::Profile do
 
             m = Module.new
             m.profile 'Test' do
-                define 'foo', cmp_m.
-                    use(
+                define 'foo', cmp_m
+                    .use(
                         'test' => task_m.with_arguments(
                             arg: from(:parent_task).arg
                         )
@@ -468,8 +468,8 @@ describe Syskit::Actions::Profile do
 
             m = Module.new
             m.profile 'Test' do
-                define 'foo', cmp_m.
-                    use(
+                define 'foo', cmp_m
+                    .use(
                         'test' => task_m.with_arguments(
                             arg: from_state(state_obj).arg
                         )

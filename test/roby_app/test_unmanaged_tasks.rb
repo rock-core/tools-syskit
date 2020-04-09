@@ -18,8 +18,8 @@ module Syskit
 
             after do
                 if deployment_task.running?
-                    expect_execution { deployment_task.stop! }.
-                        to { emit deployment_task.stop_event }
+                    expect_execution { deployment_task.stop! }
+                        .to { emit deployment_task.stop_event }
                 end
 
                 if unmanaged_task
@@ -57,9 +57,9 @@ module Syskit
             end
 
             it "readies the execution agent when the task becomes available" do
-                expect_execution { deployment_task.start! }.
-                    join_all_waiting_work(false).
-                    to do
+                expect_execution { deployment_task.start! }
+                    .join_all_waiting_work(false)
+                    .to do
                         emit deployment_task.start_event
                         not_emit deployment_task.ready_event
                     end
@@ -73,26 +73,26 @@ module Syskit
             it "stopping the process causes the monitor thread to quit" do
                 make_deployment_ready
                 monitor_thread = deployment_task.orocos_process.monitor_thread
-                expect_execution { deployment_task.stop! }.
-                    to { emit deployment_task.stop_event }
+                expect_execution { deployment_task.stop! }
+                    .to { emit deployment_task.stop_event }
                 refute deployment_task.orocos_process.monitor_thread.alive?
                 assert deployment_task.orocos_process.dead?
                 refute monitor_thread.alive?
             end
 
             it "allows to kill a started deployment that was not ready" do
-                expect_execution { deployment_task.start! }.
-                    join_all_waiting_work(false).
-                    to { emit deployment_task.start_event }
-                expect_execution { deployment_task.stop! }.
-                    join_all_waiting_work(false).
-                    to { emit deployment_task.stop_event }
+                expect_execution { deployment_task.start! }
+                    .join_all_waiting_work(false)
+                    .to { emit deployment_task.start_event }
+                expect_execution { deployment_task.stop! }
+                    .join_all_waiting_work(false)
+                    .to { emit deployment_task.stop_event }
             end
 
             it "allows to kill a deployment that is ready" do
                 make_deployment_ready
-                expect_execution { deployment_task.stop! }.
-                    to { emit deployment_task.stop_event }
+                expect_execution { deployment_task.stop! }
+                    .to { emit deployment_task.stop_event }
             end
 
             it "aborts the execution agent if the monitor thread fails in unexpected ways" do
@@ -100,8 +100,8 @@ module Syskit
 
                 process_died = capture_log(deployment_task, :warn) do
                     background_thread_died = capture_log(deployment_task.orocos_process, :fatal) do
-                        expect_execution { deployment_task.orocos_process.monitor_thread.raise RuntimeError }.
-                            to { emit deployment_task.failed_event }
+                        expect_execution { deployment_task.orocos_process.monitor_thread.raise RuntimeError }
+                            .to { emit deployment_task.failed_event }
                     end
                     assert_equal ["assuming #{deployment_task.orocos_process} died because the background thread died with",
                                   "RuntimeError (RuntimeError)"], background_thread_died

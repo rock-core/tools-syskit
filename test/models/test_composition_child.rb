@@ -76,12 +76,12 @@ describe Syskit::Models::CompositionChild do
             plan.add(cmp = @cmp_m.instanciate(plan))
             task = cmp.first_child.second_child
             cmp.remove_child(cmp.first_child)
-            assert_nil @cmp_m.first_child.second_child.
-                try_resolve_and_bind_child_recursive(cmp)
+            assert_nil @cmp_m.first_child.second_child
+                             .try_resolve_and_bind_child_recursive(cmp)
         end
         it "is available as try_resolve_child_recursive for backward-compatibility" do
-            flexmock(Roby).should_receive(:warn_deprecated).
-                with(/try_resolve_child_recursive/).once
+            flexmock(Roby).should_receive(:warn_deprecated)
+                          .with(/try_resolve_child_recursive/).once
             child_cmp_m = Syskit::Composition.new_submodel
             @cmp_m.add child_cmp_m, as: 'first'
             child_cmp_m.add @srv_m, as: 'second'
@@ -99,19 +99,19 @@ describe Syskit::Models::CompositionChild do
         end
 
         it "resolves the task with try_resolve_and_bind_child" do
-            flexmock(child_m).should_receive(:try_resolve_and_bind_child).
-                with(root = flexmock).and_return(result = flexmock)
+            flexmock(child_m).should_receive(:try_resolve_and_bind_child)
+                             .with(root = flexmock).and_return(result = flexmock)
             assert_equal result, child_m.resolve_and_bind_child(root)
         end
         it "raises ArgumentError if the task cannot be resolved" do
-            flexmock(child_m).should_receive(:try_resolve_and_bind_child).
-                with(root = flexmock).and_return(nil)
+            flexmock(child_m).should_receive(:try_resolve_and_bind_child)
+                             .with(root = flexmock).and_return(nil)
             assert_raises(ArgumentError) { child_m.resolve_and_bind_child(root) }
         end
         it "is available as resolve_child" do
             flexmock(Roby).should_receive(:warn_deprecated).with(/resolve_child/).once
-            flexmock(child_m).should_receive(:resolve_and_bind_child).
-                with(root = flexmock).and_return(result = flexmock)
+            flexmock(child_m).should_receive(:resolve_and_bind_child)
+                             .with(root = flexmock).and_return(result = flexmock)
             assert_equal result, child_m.resolve_child(root)
         end
     end
@@ -124,13 +124,13 @@ describe Syskit::Models::CompositionChild do
         end
 
         it "resolves the task with try_resolve_and_bind_child_recursive" do
-            flexmock(child_m).should_receive(:try_resolve_and_bind_child_recursive).
-                with(root = flexmock).and_return(result = flexmock)
+            flexmock(child_m).should_receive(:try_resolve_and_bind_child_recursive)
+                             .with(root = flexmock).and_return(result = flexmock)
             assert_equal result, child_m.resolve_and_bind_child_recursive(root)
         end
         it "raises ArgumentError if the task cannot be resolved" do
-            flexmock(child_m).should_receive(:try_resolve_and_bind_child_recursive).
-                with(root = flexmock).and_return(nil)
+            flexmock(child_m).should_receive(:try_resolve_and_bind_child_recursive)
+                             .with(root = flexmock).and_return(nil)
             assert_raises(ArgumentError) { child_m.resolve_and_bind_child_recursive(root) }
         end
     end

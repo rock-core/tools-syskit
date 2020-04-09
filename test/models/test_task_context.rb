@@ -255,8 +255,8 @@ describe Syskit::Models::TaskContext do
         it "calls new_submodel to create the new model" do
             model = Syskit::TaskContext.new_submodel
             orogen = OroGen::Spec::TaskContext.new(app.default_orogen_project)
-            flexmock(OroGen::RTT::TaskContext).should_receive(:new_submodel).
-                with(orogen_model: orogen).once.and_return(model)
+            flexmock(OroGen::RTT::TaskContext).should_receive(:new_submodel)
+                                              .with(orogen_model: orogen).once.and_return(model)
             assert_same model, Syskit::TaskContext.define_from_orogen(orogen)
         end
 
@@ -301,12 +301,12 @@ describe Syskit::Models::TaskContext do
             orogen = OroGen::Spec::TaskContext.new(app.default_orogen_project,
                                                    subclasses: orogen_parent)
             parent_model = Syskit::TaskContext.new_submodel
-            flexmock(Syskit::TaskContext).
-                should_receive(:define_from_orogen).with(orogen, register: false).
-                pass_thru
-            flexmock(Syskit::TaskContext).
-                should_receive(:define_from_orogen).with(orogen_parent, register: false).
-                and_return(parent_model)
+            flexmock(Syskit::TaskContext)
+                .should_receive(:define_from_orogen).with(orogen, register: false)
+                .pass_thru
+            flexmock(Syskit::TaskContext)
+                .should_receive(:define_from_orogen).with(orogen_parent, register: false)
+                .and_return(parent_model)
             model = Syskit::TaskContext.define_from_orogen(orogen, register: false)
             assert_same parent_model, model.superclass
         end
@@ -317,12 +317,12 @@ describe Syskit::Models::TaskContext do
 
             orogen = OroGen::Spec::TaskContext.new(app.default_orogen_project,
                                                    subclasses: orogen_parent)
-            flexmock(Syskit::TaskContext).
-                should_receive(:define_from_orogen).with(orogen).
-                pass_thru
-            flexmock(Syskit::TaskContext).
-                should_receive(:define_from_orogen).with(orogen_parent).
-                never.and_return(parent_model)
+            flexmock(Syskit::TaskContext)
+                .should_receive(:define_from_orogen).with(orogen)
+                .pass_thru
+            flexmock(Syskit::TaskContext)
+                .should_receive(:define_from_orogen).with(orogen_parent)
+                .never.and_return(parent_model)
             model = Syskit::TaskContext.define_from_orogen(orogen)
             assert_same parent_model, model.superclass
         end
@@ -382,8 +382,8 @@ describe Syskit::Models::TaskContext do
             end
         end
         it "should convert the given type into the orocos type name before checking for existence" do
-            flexmock(task_m.orogen_model).should_receive(:has_dynamic_input_port?).once.
-                with('test', opaque_t).pass_thru
+            flexmock(task_m.orogen_model).should_receive(:has_dynamic_input_port?).once
+                                         .with('test', opaque_t).pass_thru
             assert task_m.has_dynamic_input_port?('test', intermediate_t)
         end
     end
@@ -404,8 +404,8 @@ describe Syskit::Models::TaskContext do
             end
         end
         it "should convert the given type into the orocos type name before checking for existence" do
-            flexmock(task_m.orogen_model).should_receive(:has_dynamic_output_port?).once.
-                with('test', opaque_t).pass_thru
+            flexmock(task_m.orogen_model).should_receive(:has_dynamic_output_port?).once
+                                         .with('test', opaque_t).pass_thru
             assert task_m.has_dynamic_output_port?('test', intermediate_t)
         end
     end

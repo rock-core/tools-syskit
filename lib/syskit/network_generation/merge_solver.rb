@@ -230,8 +230,8 @@ module Syskit
             def each_component_merge_candidate(task)
                 # Get the set of candidates. We are checking if the tasks in
                 # this set can be replaced by +task+
-                candidates = plan.find_local_tasks(task.model.concrete_model).
-                    to_a
+                candidates = plan.find_local_tasks(task.model.concrete_model)
+                    .to_a
                 debug do
                     debug "#{candidates.to_a.size - 1} candidates for #{task}, matching model"
                     debug "  #{task.model.concrete_model}"
@@ -315,8 +315,8 @@ module Syskit
                 result = Hash.new
                 task_children_names = task.model.children_names.to_set
                 task.each_out_neighbour_merged(
-                        Roby::TaskStructure::Dependency, intrusive: true).
-                    map do |child_task|
+                        Roby::TaskStructure::Dependency, intrusive: true)
+                    .map do |child_task|
                         dependency_graph.edge_info(task, child_task)[:roles].each do |r|
                             if task_children_names.include?(r)
                                 result[r] = child_task

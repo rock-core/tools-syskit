@@ -59,8 +59,8 @@ module Syskit
             @log_dir = flexmock('log_dir')
             @process_server_config = Syskit.conf.register_process_server('fixture', process_server, log_dir)
             plan.add_permanent_task(
-                @deployment_task = deployment_m.
-                new(process_name: 'mapped_task_name', on: 'fixture', name_mappings: Hash['task' => 'mapped_task_name']))
+                @deployment_task = deployment_m
+                .new(process_name: 'mapped_task_name', on: 'fixture', name_mappings: Hash['task' => 'mapped_task_name']))
 
             flexmock(process_server)
             flexmock(process)
@@ -175,15 +175,15 @@ module Syskit
             it "does runtime initialization if it is already ready" do
                 task = flexmock(task_m.new)
                 flexmock(task_m).should_receive(:new).and_return(task)
-                deployment_task.should_receive(:remote_task_handles).
-                    and_return('mapped_task_name' => (remote_handles = Object.new))
+                deployment_task.should_receive(:remote_task_handles)
+                    .and_return('mapped_task_name' => (remote_handles = Object.new))
                 task.should_receive(:initialize_remote_handles).with(remote_handles).once
                 deployment_task.should_receive(:ready?).and_return(true)
                 deployment_task.task("mapped_task_name")
             end
             it "raises InternalError if the name provided as argument matches the model, but task_handles does not contain it" do
-                deployment_task.should_receive(:remote_task_handles).
-                    and_return('invalid_name' => flexmock)
+                deployment_task.should_receive(:remote_task_handles)
+                    .and_return('invalid_name' => flexmock)
                 deployment_task.should_receive(:ready?).and_return(true)
                 assert_raises(InternalError) do
                     deployment_task.task("mapped_task_name")
@@ -243,51 +243,51 @@ module Syskit
                 it "raises if the process name is set to nil" do
                     plan.add(task = deployment_task.model.new(process_name: nil))
                     failure_reason = expect_execution { task.start! }.to do
-                        fail_to_start task, reason: Roby::CommandFailed.match.
-                            with_original_exception(ArgumentError)
+                        fail_to_start task, reason: Roby::CommandFailed.match
+                            .with_original_exception(ArgumentError)
                     end
                     assert_equal "must set process_name", failure_reason.original_exceptions.first.message
                 end
                 it "finds the process server from Syskit.process_servers and its on: option" do
-                    process_server.should_receive(:start).once.
-                        with('mapped_task_name', deployment_m.orogen_model, any, any).
-                        and_return(process)
-                    expect_execution { deployment_task.start! }.
-                        join_all_waiting_work(false).
-                        to_run
+                    process_server.should_receive(:start).once
+                        .with('mapped_task_name', deployment_m.orogen_model, any, any)
+                        .and_return(process)
+                    expect_execution { deployment_task.start! }
+                        .join_all_waiting_work(false)
+                        .to_run
                 end
                 it "passes the process server's log dir as working directory" do
-                    process_server.should_receive(:start).once.
-                        with(any, any, any, hsh(working_directory: log_dir)).
-                        and_return(process)
-                    expect_execution { deployment_task.start! }.
-                        join_all_waiting_work(false).
-                        to_run
+                    process_server.should_receive(:start).once
+                        .with(any, any, any, hsh(working_directory: log_dir))
+                        .and_return(process)
+                    expect_execution { deployment_task.start! }
+                        .join_all_waiting_work(false)
+                        .to_run
                 end
                 it "passes the model-level run command line options to the process server start command" do
                     cmdline_options = {valgrind: true}
                     deployment_m.default_run_options.merge!(cmdline_options)
-                    process_server.should_receive(:start).
-                        with(any, any, any, hsh(cmdline_args: cmdline_options)).
-                        and_return(process)
-                    expect_execution { deployment_task.start! }.
-                        join_all_waiting_work(false).
-                        to_run
+                    process_server.should_receive(:start)
+                        .with(any, any, any, hsh(cmdline_args: cmdline_options))
+                        .and_return(process)
+                    expect_execution { deployment_task.start! }
+                        .join_all_waiting_work(false)
+                        .to_run
                 end
                 it "raises if the on option refers to a non-existing process server" do
                     plan.add(task = deployment_m.new(on: 'does_not_exist'))
                     exception = expect_execution { task.start! }.to do
-                        fail_to_start task, reason: Roby::CommandFailed.match.
-                            with_original_exception(ArgumentError)
+                        fail_to_start task, reason: Roby::CommandFailed.match
+                            .with_original_exception(ArgumentError)
                     end
                     assert_equal "there is no registered process server called does_not_exist",
                                  exception.error.message
                 end
                 it "does not emit ready" do
                     process_server.should_receive(:start).and_return(process)
-                    expect_execution { deployment_task.start! }.
-                        join_all_waiting_work(false).
-                        to { not_emit deployment_task.ready_event }
+                    expect_execution { deployment_task.start! }
+                        .join_all_waiting_work(false)
+                        .to { not_emit deployment_task.ready_event }
                 end
             end
 
@@ -304,15 +304,15 @@ module Syskit
                 end
 
                 it "does not emit ready if the process is not ready yet" do
-                    expect_execution { deployment_task.start! }.
-                        join_all_waiting_work(false).to_run
+                    expect_execution { deployment_task.start! }
+                        .join_all_waiting_work(false).to_run
                     sync = Concurrent::Event.new
-                    process.should_receive(:resolve_all_tasks).
-                        and_return { sync.set; nil }
+                    process.should_receive(:resolve_all_tasks)
+                        .and_return { sync.set; nil }
                     sync.wait
-                    expect_execution { sync.wait }.
-                        join_all_waiting_work(false).
-                        to { not_emit deployment_task.ready_event }
+                    expect_execution { sync.wait }
+                        .join_all_waiting_work(false)
+                        .to { not_emit deployment_task.ready_event }
                 end
 
                 it "is interrupted by the stop command" do
@@ -350,8 +350,8 @@ module Syskit
 
                 it 'polls for process readiness' do
                     sync = Concurrent::Event.new
-                    process.should_receive(:resolve_all_tasks).
-                        and_return do
+                    process.should_receive(:resolve_all_tasks)
+                        .and_return do
                             if !sync.set?
                                 sync.set
                                 nil
@@ -359,11 +359,11 @@ module Syskit
                             end
                         end
 
-                    expect_execution { deployment_task.start! }.
-                        join_all_waiting_work(false).to_run
+                    expect_execution { deployment_task.start! }
+                        .join_all_waiting_work(false).to_run
                     sync.wait
-                    expect_execution { sync.wait }.
-                        to { emit deployment_task.ready_event }
+                    expect_execution { sync.wait }
+                        .to { emit deployment_task.ready_event }
                 end
                 it 'fails the ready event if the ready event monitor raises' do
                     expect_execution do
@@ -386,9 +386,9 @@ module Syskit
                     assert_equal orocos_task, deployment_task.remote_task_handles['mapped_task_name'].handle
                 end
                 it 'creates state readers for each supported tasks' do
-                    deployment_task.should_receive(:create_state_access).once.
-                        with(orocos_task, Hash).
-                        and_return([state_reader = flexmock, state_getter = flexmock])
+                    deployment_task.should_receive(:create_state_access).once
+                        .with(orocos_task, Hash)
+                        .and_return([state_reader = flexmock, state_getter = flexmock])
                     make_deployment_ready
                     assert_equal(state_reader,
                                  deployment_task.remote_task_handles['mapped_task_name']
@@ -410,32 +410,32 @@ module Syskit
                 end
                 it "initializes supported task contexts" do
                     task = add_deployed_task
-                    task.should_receive(:initialize_remote_handles).once.
-                        with(->(remote) { remote.handle == orocos_task })
+                    task.should_receive(:initialize_remote_handles).once
+                        .with(->(remote) { remote.handle == orocos_task })
                     make_deployment_ready
                 end
                 it "passes handles already assigned to existing TaskContext to resolve_all_tasks" do
                     task = add_deployed_task
                     task.orocos_task = orocos_task
-                    process.should_receive(:resolve_all_tasks).once.
-                        with('mapped_task_name' => orocos_task).
-                        and_return('mapped_task_name' => orocos_task)
+                    process.should_receive(:resolve_all_tasks).once
+                        .with('mapped_task_name' => orocos_task)
+                        .and_return('mapped_task_name' => orocos_task)
 
                     make_deployment_ready
                 end
                 it "fails if the returned task handle does not match the expectation" do
                     task = add_deployed_task
                     task.orocos_task = orocos_task
-                    process.should_receive(:resolve_all_tasks).once.
-                        and_return('invalid_name' => orocos_task)
+                    process.should_receive(:resolve_all_tasks).once
+                        .and_return('invalid_name' => orocos_task)
 
-                    exception = expect_execution { make_deployment_ready }.
-                        to do
-                            have_handled_error_matching Roby::EventHandlerError.match.
-                                with_origin(deployment_task.ready_event).
-                                with_original_exception(InternalError)
-                        end.
-                        exception
+                    exception = expect_execution { make_deployment_ready }
+                        .to do
+                            have_handled_error_matching Roby::EventHandlerError.match
+                                .with_origin(deployment_task.ready_event)
+                                .with_original_exception(InternalError)
+                        end
+                        .exception
 
                     assert_equal "expected #{process}'s reported tasks to include "\
                                  "'mapped_task_name' (mapped from 'task'), but got "\
@@ -445,14 +445,14 @@ module Syskit
                 it "fails an attached TaskContext if its orocos_name does not match the deployment's" do
                     task = add_deployed_task(name: 'invalid_task_name')
                     task.orocos_task = orocos_task
-                    process.should_receive(:resolve_all_tasks).once.
-                        and_return('mapped_task_name' => orocos_task)
+                    process.should_receive(:resolve_all_tasks).once
+                        .and_return('mapped_task_name' => orocos_task)
 
                     plan.unmark_permanent_task(task)
                     plan.unmark_permanent_task(task.execution_agent)
                     exception = expect_execution { make_deployment_ready }.to do
-                        fail_to_start task, reason: Roby::CommandFailed.match.
-                            with_original_exception(InternalError)
+                        fail_to_start task, reason: Roby::CommandFailed.match
+                            .with_original_exception(InternalError)
                     end
 
                     assert_equal "#{task} is supported by #{deployment_task} but there does not seem to be any task called invalid_task_name on this deployment",
@@ -468,10 +468,10 @@ module Syskit
                         Orocos::RubyTasks::TaskContext.new 'test'
                     end
                     flexmock(@orocos_task)
-                    process.should_receive(:resolve_all_tasks).
-                        and_return('mapped_task_name' => orocos_task)
-                    expect_execution { deployment_task.start! }.
-                        to { emit deployment_task.ready_event }
+                    process.should_receive(:resolve_all_tasks)
+                        .and_return('mapped_task_name' => orocos_task)
+                    expect_execution { deployment_task.start! }
+                        .to { emit deployment_task.ready_event }
                     plan.unmark_permanent_task(deployment_task)
                 end
                 after do
@@ -488,18 +488,18 @@ module Syskit
                 end
                 it "kills the process" do
                     process.should_receive(:kill).once.pass_thru
-                    expect_execution { deployment_task.stop! }.
-                        to { emit deployment_task.stop_event }
+                    expect_execution { deployment_task.stop! }
+                        .to { emit deployment_task.stop_event }
                 end
                 it "ignores com errors with the tasks" do
                     orocos_task.should_receive(:cleanup).and_raise(Orocos::ComError)
-                    expect_execution { deployment_task.stop! }.
-                        to { emit deployment_task.stop_event }
+                    expect_execution { deployment_task.stop! }
+                        .to { emit deployment_task.stop_event }
                 end
                 it "emits stop if kill fails with a communication error" do
                     process.should_receive(:kill).and_raise(Orocos::ComError)
-                    expect_execution { deployment_task.stop! }.
-                        to { emit deployment_task.failed_event }
+                    expect_execution { deployment_task.stop! }
+                        .to { emit deployment_task.failed_event }
                 end
             end
         end
@@ -515,13 +515,13 @@ module Syskit
                     @orocos_task = Orocos.allow_blocking_calls do
                         Orocos::RubyTasks::TaskContext.new 'test'
                     end
-                    process.should_receive(:resolve_all_tasks).
-                        and_return('mapped_task_name' => orocos_task)
+                    process.should_receive(:resolve_all_tasks)
+                        .and_return('mapped_task_name' => orocos_task)
                     plan.add_permanent_task(
-                        @deployment_task = deployment_m.
-                        new(process_name: 'mapped_task_name', on: 'fixture', name_mappings: Hash['task' => 'mapped_task_name']))
-                    expect_execution { deployment_task.start! }.
-                        to { emit deployment_task.start_event }
+                        @deployment_task = deployment_m
+                        .new(process_name: 'mapped_task_name', on: 'fixture', name_mappings: Hash['task' => 'mapped_task_name']))
+                    expect_execution { deployment_task.start! }
+                        .to { emit deployment_task.start_event }
                     plan.unmark_permanent_task(deployment_task)
                 end
                 after do
@@ -579,11 +579,11 @@ module Syskit
                 @deployment_m = Deployment.new_submodel(name: 'deployment') do
                     task 'task', task_m.orogen_model
                 end
-                Syskit.conf.process_server_for('test').
-                    register_deployment_model(deployment_m.orogen_model)
+                Syskit.conf.process_server_for('test')
+                    .register_deployment_model(deployment_m.orogen_model)
                 plan.add(@deployment = deployment_m.new(on: 'test'))
-                expect_execution { deployment.start! }.
-                    to { emit deployment.ready_event }
+                expect_execution { deployment.start! }
+                    .to { emit deployment.ready_event }
             end
             it "can start tasks defined on a ruby process server" do
                 task = deployment.task('task')
@@ -595,8 +595,8 @@ module Syskit
             end
             it "makes sure that the Ruby tasks are disposed when the deployment is stopped" do
                 flexmock(deployment.task('task').orocos_task).should_receive(:dispose).once.pass_thru
-                expect_execution { deployment.stop! }.
-                    to { emit deployment.stop_event }
+                expect_execution { deployment.stop! }
+                    .to { emit deployment.stop_event }
             end
         end
 
@@ -702,10 +702,10 @@ module Syskit
                 @orocos_task = Orocos.allow_blocking_calls do
                     Orocos::RubyTasks::TaskContext.new "#{Process.pid}-test"
                 end
-                process.should_receive(:resolve_all_tasks).
-                    and_return('mapped_task_name' => orocos_task)
-                expect_execution { deployment_task.start! }.
-                    to { emit deployment_task.ready_event }
+                process.should_receive(:resolve_all_tasks)
+                    .and_return('mapped_task_name' => orocos_task)
+                expect_execution { deployment_task.start! }
+                    .to { emit deployment_task.ready_event }
             end
             after do
                 orocos_task.dispose
@@ -735,21 +735,21 @@ module Syskit
 
             it "returns the orocos name of the deployed tasks that have a configuration section changed" do
                 task = syskit_stub_deploy_configure_and_start(task_m.with_conf('test'))
-                assert_equal Set[task.orocos_name], task.execution_agent.
-                    mark_changed_configuration_as_not_reusable(task.model => ['test'])
+                assert_equal Set[task.orocos_name], task.execution_agent
+                    .mark_changed_configuration_as_not_reusable(task.model => ['test'])
             end
             it "does not return the orocos name of the deployed tasks that do not have any configuration section changed" do
                 configured_deployment = syskit_stub_configured_deployment(task_m)
                 plan.add(deployment_task = configured_deployment.new)
-                expect_execution { deployment_task.start! }.
-                    to { emit deployment_task.ready_event }
-                assert_equal Set[], deployment_task.
-                    mark_changed_configuration_as_not_reusable(task_m => ['test'])
+                expect_execution { deployment_task.start! }
+                    .to { emit deployment_task.ready_event }
+                assert_equal Set[], deployment_task
+                    .mark_changed_configuration_as_not_reusable(task_m => ['test'])
             end
             it "ignores never-configured tasks" do
                 task = syskit_stub_and_deploy(task_m.with_conf('test'))
-                assert_equal Set[], task.execution_agent.
-                    mark_changed_configuration_as_not_reusable(task.model => ['test'])
+                assert_equal Set[], task.execution_agent
+                    .mark_changed_configuration_as_not_reusable(task.model => ['test'])
             end
         end
     end

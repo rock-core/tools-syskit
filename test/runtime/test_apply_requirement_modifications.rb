@@ -74,8 +74,8 @@ module Syskit
                 execute { Runtime.apply_requirement_modifications(plan) }
 
                 flexmock(plan.syskit_current_resolution).should_receive(:cancel).once
-                expect_execution { requirement_task.planning_task.stop! }.
-                    to { have_error_matching Roby::PlanningFailedError }
+                expect_execution { requirement_task.planning_task.stop! }
+                    .to { have_error_matching Roby::PlanningFailedError }
                 execute { Runtime.apply_requirement_modifications(plan) }
 
                 assert !plan.syskit_current_resolution
@@ -99,8 +99,8 @@ module Syskit
                 execute { requirement_task.start! }
                 execute { Runtime.apply_requirement_modifications(plan) }
                 plan.syskit_current_resolution.future.value
-                expect_execution { Runtime.apply_requirement_modifications(plan) }.
-                    to { have_error_matching Roby::PlanningFailedError }
+                expect_execution { Runtime.apply_requirement_modifications(plan) }
+                    .to { have_error_matching Roby::PlanningFailedError }
                 assert requirement_task.failed?
                 assert_kind_of Syskit::MissingDeployments, requirement_task.failed_event.last.context.first
                 assert_exception_can_be_pretty_printed(requirement_task.failed_event.last.context.first)

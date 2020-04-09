@@ -132,18 +132,18 @@ module Syskit
                     assert subject.matches_port?(port)
                 end
                 it "matches a port by its type" do
-                    flexmock(subject).should_receive(:matches_type?).
-                        with(port.type).and_return(true)
+                    flexmock(subject).should_receive(:matches_type?)
+                                     .with(port.type).and_return(true)
                     assert subject.matches_port?(port)
                 end
                 it "matches a port by its task" do
-                    flexmock(subject).should_receive(:matches_task?).
-                        with(port.component).and_return(true)
+                    flexmock(subject).should_receive(:matches_task?)
+                                     .with(port.component).and_return(true)
                     assert subject.matches_port?(port)
                 end
                 it "matches a port by its deployment" do
-                    flexmock(subject).should_receive(:matches_deployment?).
-                        with(port.component.execution_agent).and_return(true)
+                    flexmock(subject).should_receive(:matches_deployment?)
+                                     .with(port.component.execution_agent).and_return(true)
                     assert subject.matches_port?(port)
                 end
             end

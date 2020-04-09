@@ -56,12 +56,12 @@ module Syskit
                 @robot = Syskit::Robot::RobotDefinition.new
 
                 @syskit_handler_ids = Hash.new
-                @syskit_handler_ids[:deployment_states] = execution_engine.
-                    add_propagation_handler(type: :external_events,
-                                            &Runtime.method(:update_deployment_states))
-                @syskit_handler_ids[:task_states] = execution_engine.
-                    add_propagation_handler(type: :external_events,
-                                            &Runtime.method(:update_task_states))
+                @syskit_handler_ids[:deployment_states] = execution_engine
+                    .add_propagation_handler(type: :external_events,
+                                             &Runtime.method(:update_deployment_states))
+                @syskit_handler_ids[:task_states] = execution_engine
+                    .add_propagation_handler(type: :external_events,
+                                             &Runtime.method(:update_task_states))
                 plug_connection_management
                 unplug_apply_requirement_modifications
 
@@ -79,9 +79,9 @@ module Syskit
             end
 
             def plug_apply_requirement_modifications
-                @syskit_handler_ids[:apply_requirement_modifications] ||= execution_engine.
-                    add_propagation_handler(type: :propagation, late: true,
-                                            &Runtime.method(:apply_requirement_modifications))
+                @syskit_handler_ids[:apply_requirement_modifications] ||= execution_engine
+                    .add_propagation_handler(type: :propagation, late: true,
+                                             &Runtime.method(:apply_requirement_modifications))
             end
 
             def unplug_apply_requirement_modifications
@@ -89,9 +89,9 @@ module Syskit
             end
 
             def plug_connection_management
-                @syskit_handler_ids[:connection_management] ||= execution_engine.
-                    add_propagation_handler(type: :propagation, late: true,
-                                            &Runtime::ConnectionManagement.method(:update))
+                @syskit_handler_ids[:connection_management] ||= execution_engine
+                    .add_propagation_handler(type: :propagation, late: true,
+                                             &Runtime::ConnectionManagement.method(:update))
             end
 
             def unplug_connection_management

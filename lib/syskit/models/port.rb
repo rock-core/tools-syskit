@@ -31,8 +31,8 @@ module Syskit
                 else
                     @type = orogen_model.type
                 end
-                @max_sizes = orogen_model.max_sizes.
-                    merge(Orocos.max_sizes_for(type))
+                @max_sizes = orogen_model.max_sizes
+                    .merge(Orocos.max_sizes_for(type))
             end
 
             def max_marshalling_size

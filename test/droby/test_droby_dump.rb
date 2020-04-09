@@ -147,8 +147,8 @@ module Syskit
                 it "returns the constant" do
                     droby = droby_local_marshaller.dump(Actions::Profile.new("AProfile"))
                     droby = Marshal.load(Marshal.dump(droby))
-                    flexmock(droby).should_receive(:constant).with('AProfile').
-                        and_return(profile = Actions::Profile.new)
+                    flexmock(droby).should_receive(:constant).with('AProfile')
+                                   .and_return(profile = Actions::Profile.new)
                     unmarshalled = droby_remote_marshaller.local_object(droby)
                     assert_same profile, unmarshalled
                 end
@@ -170,8 +170,8 @@ module Syskit
                 end
                 EOPROJECT
                 loader.project_model_from_text(project_text)
-                flexmock(loader).should_receive(:project_model_text_from_name).
-                    with('test').and_return(project_text)
+                flexmock(loader).should_receive(:project_model_text_from_name)
+                                .with('test').and_return(project_text)
 
                 orogen_model = loader.task_model_from_name('test::Task')
                 task_m = Syskit::TaskContext.define_from_orogen(orogen_model, register: false)

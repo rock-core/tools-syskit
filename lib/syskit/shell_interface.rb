@@ -11,8 +11,8 @@ module Syskit
         # @return [nil]
         def dump_task_config(task_model, path, name = nil)
             FileUtils.mkdir_p(path)
-            plan.find_tasks(task_model).
-                each do |t|
+            plan.find_tasks(task_model)
+                .each do |t|
                     Orocos.conf.save(t.orocos_task, path, name || t.orocos_task.name)
                 end
             nil
@@ -61,8 +61,8 @@ module Syskit
                 models << Syskit::Deployment
             end
             models.each do |m|
-                plan.find_tasks(m).
-                    each do |task|
+                plan.find_tasks(m)
+                    .each do |task|
                         if task.kind_of?(Syskit::TaskContext)
                             task.execution_agent.stop!
                         else

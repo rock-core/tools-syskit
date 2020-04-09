@@ -412,9 +412,9 @@ describe Syskit::InstanceRequirements do
             model_m = Syskit::Composition.new_submodel
             flexmock(model_m).should_receive(:dependency_injection_names).and_return(%w{child})
             context = Syskit::DependencyInjectionContext.new(Syskit::DependencyInjection.new('child' => model_m))
-            flexmock(model_m).should_receive(:instanciate).
-                with(any, lambda { |c| !c.current_state.direct_selection_for('child') }, any).
-                once.pass_thru
+            flexmock(model_m).should_receive(:instanciate)
+                .with(any, lambda { |c| !c.current_state.direct_selection_for('child') }, any)
+                .once.pass_thru
             model_m.to_instance_requirements.instanciate(plan, context)
         end
 
@@ -423,9 +423,9 @@ describe Syskit::InstanceRequirements do
             model_m.provides Syskit::DataService, as: 'test'
             flexmock(model_m).should_receive(:dependency_injection_names).and_return(%w{child})
             context = Syskit::DependencyInjectionContext.new(Syskit::DependencyInjection.new('child' => model_m))
-            flexmock(model_m).should_receive(:instanciate).
-                with(any, lambda { |c| !c.current_state.direct_selection_for('child') }, any).
-                once.pass_thru
+            flexmock(model_m).should_receive(:instanciate)
+                .with(any, lambda { |c| !c.current_state.direct_selection_for('child') }, any)
+                .once.pass_thru
             model_m.test_srv.to_instance_requirements.instanciate(plan, context)
         end
 
@@ -682,19 +682,19 @@ describe Syskit::InstanceRequirements do
             @ir = Syskit::InstanceRequirements.new([@task_m])
         end
         it "annotates the instanciated task with the deployment group" do
-            deployment = @ir.deployment_group.
-                use_ruby_tasks(Hash[@task_m => 'test'], on: 'stubs')
+            deployment = @ir.deployment_group
+                .use_ruby_tasks(Hash[@task_m => 'test'], on: 'stubs')
             task = @ir.instanciate(plan)
-            assert_equal deployment, task.requirements.deployment_group.
-                find_all_suitable_deployments_for(task).map(&:first)
+            assert_equal deployment, task.requirements.deployment_group
+                .find_all_suitable_deployments_for(task).map(&:first)
         end
         it "applies the group post-template" do
             @ir.instanciate(plan)
-            deployment = @ir.deployment_group.
-                use_ruby_tasks(Hash[@task_m => 'test'], on: 'stubs')
+            deployment = @ir.deployment_group
+                .use_ruby_tasks(Hash[@task_m => 'test'], on: 'stubs')
             task = @ir.instanciate(plan)
-            assert_equal deployment, task.requirements.deployment_group.
-                find_all_suitable_deployments_for(task).map(&:first)
+            assert_equal deployment, task.requirements.deployment_group
+                .find_all_suitable_deployments_for(task).map(&:first)
         end
     end
 
@@ -731,8 +731,8 @@ describe Syskit::InstanceRequirements do
             end
         end
         it "is available as resolve for backward-compatibility" do
-            flexmock(Roby).should_receive(:warn_deprecated).
-                with(/resolve.*bind/).once
+            flexmock(Roby).should_receive(:warn_deprecated)
+                .with(/resolve.*bind/).once
             task = @task_m.new
             assert_equal task, @ir.resolve(task)
         end
@@ -755,8 +755,8 @@ describe Syskit::InstanceRequirements do
             assert_nil @ir.try_bind(task)
         end
         it "is available as resolve for backward-compatibility" do
-            flexmock(Roby).should_receive(:warn_deprecated).
-                with(/try_resolve.*try_bind/).once
+            flexmock(Roby).should_receive(:warn_deprecated)
+                .with(/try_resolve.*try_bind/).once
             task = @task_m.new
             assert_equal task, @ir.try_resolve(task)
         end

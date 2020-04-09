@@ -143,8 +143,8 @@ module Syskit
                     end
 
                     it 'resolves if called for the slave after the master' do
-                        flexmock(dynamics).should_receive(:set_port_info).
-                            with(@slave, nil, any).once
+                        flexmock(dynamics).should_receive(:set_port_info)
+                                          .with(@slave, nil, any).once
                         flexmock(dynamics).should_receive(:set_port_info)
                         dynamics.initial_information(@master)
                         dynamics.initial_information(@slave)
@@ -153,8 +153,8 @@ module Syskit
                     end
 
                     it 'resolves if called for the master after the slave' do
-                        flexmock(dynamics).should_receive(:set_port_info).
-                            with(@slave, nil, any).once
+                        flexmock(dynamics).should_receive(:set_port_info)
+                                          .with(@slave, nil, any).once
                         flexmock(dynamics).should_receive(:set_port_info)
                         dynamics.initial_information(@slave)
                         dynamics.initial_information(@master)
@@ -164,8 +164,8 @@ module Syskit
 
                     it "resolves the slave's main trigger using the master's" do
                         dynamics.propagate([@master, @slave])
-                        assert_equal 0.1, dynamics.task_info(@slave).
-                            minimal_period
+                        assert_equal 0.1, dynamics.task_info(@slave)
+                                                  .minimal_period
                     end
 
                     it "samples the slave's port using the trigger activity" do

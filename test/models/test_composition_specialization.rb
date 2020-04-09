@@ -55,8 +55,8 @@ describe Syskit::Models::CompositionSpecialization do
         end
         it "merges the model lists if child names collide" do
             srv2 = Syskit::DataService.new_submodel
-            flexmock(Syskit::Models).should_receive(:merge_model_lists).with([srv2], [simple_component_model]).
-                once.and_return(obj = Object.new)
+            flexmock(Syskit::Models).should_receive(:merge_model_lists).with([srv2], [simple_component_model])
+                                    .once.and_return(obj = Object.new)
 
             test = Syskit::Models::CompositionSpecialization.new 'srv' => [srv2]
             test.add(Hash['srv' => [simple_component_model]], [])

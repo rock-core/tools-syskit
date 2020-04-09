@@ -317,8 +317,8 @@ module Syskit
 
             # Tests if +port_name+ is connected to +other_port+ on +other_task+
             def connected_to?(port_name, other_task, other_port)
-                relation_graph_for(Flows::DataFlow).
-                    connected?(self, port_name, other_task, other_port)
+                relation_graph_for(Flows::DataFlow)
+                    .connected?(self, port_name, other_task, other_port)
             end
 
             # Connect a set of ports between +self+ and +target_task+.
@@ -346,8 +346,8 @@ module Syskit
                     ensure_has_output_port(out_port)
                     sink_task.ensure_has_input_port(in_port)
                 end
-                relation_graph_for(Flows::DataFlow).
-                    remove_connections(self, sink_task, mappings)
+                relation_graph_for(Flows::DataFlow)
+                    .remove_connections(self, sink_task, mappings)
             end
 
             def disconnect_port(port_name)
@@ -387,13 +387,13 @@ module Syskit
             # @see each_concrete_input_connection each_concrete_output_connection
             #   each_output_connection
             def each_input_connection(port = nil, &block)
-                relation_graph_for(Flows::DataFlow).
-                    each_in_connection(self, port, &block)
+                relation_graph_for(Flows::DataFlow)
+                    .each_in_connection(self, port, &block)
             end
 
             def each_concrete_input_connection(port = nil, &block)
-                relation_graph_for(Flows::DataFlow).
-                    each_concrete_in_connection(self, port, &block)
+                relation_graph_for(Flows::DataFlow)
+                    .each_concrete_in_connection(self, port, &block)
             end
 
             # Tests if an input port or any input ports is connected to an
@@ -411,8 +411,8 @@ module Syskit
             end
 
             def each_concrete_output_connection(port = nil, &block)
-                relation_graph_for(Flows::DataFlow).
-                    each_concrete_out_connection(self, port, &block)
+                relation_graph_for(Flows::DataFlow)
+                    .each_concrete_out_connection(self, port, &block)
             end
 
             # Tests if an output port or any output ports is connected to an
@@ -436,8 +436,8 @@ module Syskit
             # @yield (see ConnectionGraph#each_out_connection)
             # @yieldparam (see ConnectionGraph#each_out_connection)
             def each_output_connection(port = nil, &block)
-                relation_graph_for(Flows::DataFlow).
-                    each_out_connection(self, port, &block)
+                relation_graph_for(Flows::DataFlow)
+                    .each_out_connection(self, port, &block)
             end
 
             # Returns true if all the declared connections to the inputs of +task+ have been applied.
@@ -467,8 +467,8 @@ module Syskit
 
                     is_connected =
                         ActualDataFlow.has_edge?(source_task.orocos_task, orocos_task) &&
-                        ActualDataFlow.edge_info(source_task.orocos_task, orocos_task).
-                            has_key?([source_port, sink_port])
+                        ActualDataFlow.edge_info(source_task.orocos_task, orocos_task)
+                            .has_key?([source_port, sink_port])
 
                     if !is_connected
                         logger.debug do

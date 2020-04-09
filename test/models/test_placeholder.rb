@@ -80,10 +80,10 @@ module Syskit
                     @task_m = Syskit::TaskContext.new_submodel(name: "T")
                     @srv0_m = Syskit::DataService.new_submodel(name: "A")
                     @srv1_m = Syskit::DataService.new_submodel(name: "B")
-                    flexmock(Placeholder).should_receive(:resolve_models_argument).
-                        once.
-                        with(service_models, component_model: component_model).
-                        and_return([task_m, [srv0_m, srv1_m], nil])
+                    flexmock(Placeholder).should_receive(:resolve_models_argument)
+                        .once
+                        .with(service_models, component_model: component_model)
+                        .and_return([task_m, [srv0_m, srv1_m], nil])
                 end
                 it "creates an abstract model that is its own concrete model" do
                     placeholder_m = Placeholder.create_for(service_models,
@@ -101,9 +101,9 @@ module Syskit
                 it "creates a model that fullfills the given arguments" do
                     placeholder_m = Placeholder.create_for(service_models,
                                                            component_model: component_model)
-                    expected_models = [task_m, srv0_m, srv1_m].
-                        map { |m| m.each_fullfilled_model.to_set }.
-                        inject(&:|)
+                    expected_models = [task_m, srv0_m, srv1_m]
+                        .map { |m| m.each_fullfilled_model.to_set }
+                        .inject(&:|)
 
                     assert_equal expected_models,
                                  placeholder_m.each_fullfilled_model.to_set
@@ -139,22 +139,22 @@ module Syskit
                     before do
                         @placeholder_m = task_m.new_submodel
                         @placeholder_name = flexmock
-                        flexmock(Placeholder).should_receive(:create_for).
-                            with(service_models, component_model: task_m, as: placeholder_name).
-                            and_return(placeholder_m)
+                        flexmock(Placeholder).should_receive(:create_for)
+                            .with(service_models, component_model: task_m, as: placeholder_name)
+                            .and_return(placeholder_m)
                     end
                     it "creates a placeholder model and returns it" do
-                        flexmock(Placeholder).should_receive(:resolve_models_argument).
-                            with(service_models, component_model: task_m).
-                            and_return([task_m, service_models, nil])
+                        flexmock(Placeholder).should_receive(:resolve_models_argument)
+                            .with(service_models, component_model: task_m)
+                            .and_return([task_m, service_models, nil])
                         assert_equal placeholder_m, Placeholder.for(
                             service_models, component_model: task_m, as: placeholder_name)
                     end
                     it "bounds a provided data service to the created placeholder model" do
                         task_m.provides srv0_m, as: 'test'
-                        flexmock(Placeholder).should_receive(:resolve_models_argument).
-                            with(service_models, component_model: task_m.test_srv).
-                            and_return([task_m, service_models, task_m.test_srv])
+                        flexmock(Placeholder).should_receive(:resolve_models_argument)
+                            .with(service_models, component_model: task_m.test_srv)
+                            .and_return([task_m, service_models, task_m.test_srv])
                         assert_equal placeholder_m.test_srv, Placeholder.for(
                             service_models, component_model: task_m.test_srv, as: placeholder_name)
                     end
@@ -223,8 +223,8 @@ module Syskit
                 it "lists AbstractComponent as fullfilled model" do
                     srv_m = DataService.new_submodel
                     proxy_m = Placeholder.create_for([srv_m])
-                    assert proxy_m.each_fullfilled_model.to_a.
-                        include?(AbstractComponent)
+                    assert proxy_m.each_fullfilled_model.to_a
+                        .include?(AbstractComponent)
                 end
                 it "can be found through AbstractComponent" do
                     srv_m = DataService.new_submodel
@@ -292,8 +292,8 @@ module Syskit
                 it "returns a new placeholder model that provides the combined models" do
                     self_m  = Placeholder.for([srv0_m], component_model: task_m)
                     other_m = Placeholder.for([srv1_m], component_model: task_m)
-                    flexmock(Placeholder).should_receive(:for).with(Set[srv0_m, srv1_m], component_model: task_m).
-                        once.and_return(result_m = flexmock)
+                    flexmock(Placeholder).should_receive(:for).with(Set[srv0_m, srv1_m], component_model: task_m)
+                        .once.and_return(result_m = flexmock)
                     assert_equal result_m, self_m.merge(other_m)
                 end
                 it "dispatches to a bound data service if it is given one" do
@@ -322,29 +322,29 @@ module Syskit
                 it "handles arguments that are not placeholder models themselves" do
                     self_m  = Placeholder.for([srv0_m], component_model: task_m)
                     other_m = task_m.new_submodel
-                    flexmock(Placeholder).should_receive(:for).with(Set[srv0_m], component_model: other_m).
-                        once.and_return(result_m = flexmock)
+                    flexmock(Placeholder).should_receive(:for).with(Set[srv0_m], component_model: other_m)
+                        .once.and_return(result_m = flexmock)
                     assert_equal result_m, self_m.merge(other_m)
                 end
                 it "merges the placeholder's base task models together" do
                     other_task_m = Syskit::Component.new_submodel
                     self_m  = Placeholder.for([srv0_m], component_model: task_m)
                     other_m = Placeholder.for([srv1_m], component_model: other_task_m)
-                    flexmock(task_m).should_receive(:merge).with(other_task_m).
-                        and_return(merged_task_m = task_m.new_submodel)
-                    flexmock(Placeholder).should_receive(:for).
-                        with(Set[srv0_m, srv1_m], component_model: merged_task_m).
-                        once.and_return(result_m = flexmock)
+                    flexmock(task_m).should_receive(:merge).with(other_task_m)
+                        .and_return(merged_task_m = task_m.new_submodel)
+                    flexmock(Placeholder).should_receive(:for)
+                        .with(Set[srv0_m, srv1_m], component_model: merged_task_m)
+                        .once.and_return(result_m = flexmock)
                     assert_equal result_m, self_m.merge(other_m)
                 end
                 it "merges the placeholder's base task model with a plain task model" do
                     self_m  = Placeholder.for([srv0_m], component_model: task_m)
                     other_m = Syskit::Component.new_submodel
-                    flexmock(task_m).should_receive(:merge).with(other_m).
-                        and_return(merged_task_m = task_m.new_submodel)
-                    flexmock(Placeholder).should_receive(:for).
-                        with(Set[srv0_m], component_model: merged_task_m).
-                        once.and_return(result_m = flexmock)
+                    flexmock(task_m).should_receive(:merge).with(other_m)
+                        .and_return(merged_task_m = task_m.new_submodel)
+                    flexmock(Placeholder).should_receive(:for)
+                        .with(Set[srv0_m], component_model: merged_task_m)
+                        .once.and_return(result_m = flexmock)
                     assert_equal result_m, self_m.merge(other_m)
                 end
             end

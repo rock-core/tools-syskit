@@ -24,8 +24,8 @@ module Syskit
             it 'forwards a state machine argument to an instance requirements' do
                 cmp_m = @cmp_m
                 @cmp_m.argument :bar
-                @interface_m.describe('foo').
-                    required_arg(:bar, 'some argument')
+                @interface_m.describe('foo')
+                            .required_arg(:bar, 'some argument')
                 @interface_m.action_state_machine 'foo' do
                     start(state cmp_m.with_arguments(bar: bar))
                 end

@@ -208,9 +208,9 @@ module Syskit
             it "builds a graph that represents all the concrete connections" do
                 dataflow = Flows::DataFlow.new
                 dataflow.add_vertex(task = Syskit::TaskContext.new)
-                flexmock(dataflow).should_receive(:each_concrete_in_connection).
-                    and_iterates([source1 = Object.new, 'out', 'in', Hash.new],
-                                 [source2 = Object.new, 'out', 'in', Hash.new])
+                flexmock(dataflow).should_receive(:each_concrete_in_connection)
+                                  .and_iterates([source1 = Object.new, 'out', 'in', Hash.new],
+                                                [source2 = Object.new, 'out', 'in', Hash.new])
                 expected = [
                     [source1, task, ['out', 'in'] => Hash.new],
                     [source2, task, ['out', 'in'] => Hash.new]]
@@ -221,9 +221,9 @@ module Syskit
             it "ignores non-TaskContext vertices" do
                 dataflow = Flows::DataFlow.new
                 dataflow.add_vertex(task = Syskit::Composition.new)
-                flexmock(dataflow).should_receive(:each_concrete_in_connection).
-                    and_iterates([source1 = Object.new, 'out', 'in', Hash.new],
-                                 [source2 = Object.new, 'out', 'in', Hash.new])
+                flexmock(dataflow).should_receive(:each_concrete_in_connection)
+                                  .and_iterates([source1 = Object.new, 'out', 'in', Hash.new],
+                                                [source2 = Object.new, 'out', 'in', Hash.new])
                 graph = dataflow.compute_concrete_connection_graph
                 assert graph.each_edge.empty?
             end

@@ -93,8 +93,8 @@ module Syskit
                 # We assume that all classes in OroGen have Syskit::TaskContext
                 # as superclass by default
                 if !statement
-                    statement = ::YARD.parse_string("Syskit::TaskContext").
-                        enumerator.first
+                    statement = ::YARD.parse_string("Syskit::TaskContext")
+                        .enumerator.first
                 end
                 super(statement)
             end

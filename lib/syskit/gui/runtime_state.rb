@@ -316,16 +316,16 @@ module Syskit
             def logger_task?(t)
                 return if @logger_m == false
 
-                @logger_m ||= Syskit::TaskContext.
-                    find_model_from_orogen_name('logger::Logger') || false
+                @logger_m ||= Syskit::TaskContext
+                    .find_model_from_orogen_name('logger::Logger') || false
                 t.kind_of?(@logger_m)
             end
 
             def update_tasks_info
                 if current_job
-                    job_task = syskit_log_stream.plan.find_tasks(Roby::Interface::Job).
-                        with_arguments(job_id: current_job.job_id).
-                        first
+                    job_task = syskit_log_stream.plan.find_tasks(Roby::Interface::Job)
+                        .with_arguments(job_id: current_job.job_id)
+                        .first
                     return if !job_task
 
                     placeholder_task = job_task.planned_task
@@ -370,8 +370,8 @@ module Syskit
             end
 
             def update_orocos_tasks
-                candidate_tasks = self.all_tasks.
-                    find_all { |t| t.kind_of?(Syskit::TaskContext) }
+                candidate_tasks = self.all_tasks
+                    .find_all { |t| t.kind_of?(Syskit::TaskContext) }
                 orocos_tasks = candidate_tasks.map { |t| t.arguments[:orocos_name] }.compact.to_set
                 removed = current_orocos_tasks - orocos_tasks
                 new     = orocos_tasks - current_orocos_tasks

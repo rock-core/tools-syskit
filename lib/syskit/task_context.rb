@@ -924,11 +924,11 @@ module Syskit
                 interrupt_event.emit
                 aborted_event.emit
             elsif execution_agent && !execution_agent.finishing?
-                promise = execution_engine.
-                    promise(description: "promise:#{self}#interrupt") do
+                promise = execution_engine
+                    .promise(description: "promise:#{self}#interrupt") do
                         stop_orocos_task
-                    end.
-                    on_success(description: "#{self}#interrupt#done") do |result|
+                    end
+                    .on_success(description: "#{self}#interrupt#done") do |result|
                         if result == :aborted
                             interrupt_event.emit
                             aborted_event.emit

@@ -162,8 +162,8 @@ module Syskit
                 def select
                     result = exec
                     if result == Qt::Dialog::Accepted
-                        @filter.data(@list.current_index).
-                            to_string
+                        @filter.data(@list.current_index)
+                            .to_string
                     end
                 end
             end
@@ -171,8 +171,8 @@ module Syskit
             def add_orogen_project
                 loader = Roby.app.default_pkgconfig_loader
                 model_names = loader.each_available_task_model_name.to_a
-                syskit2orogen = model_names.
-                    each_with_object(Hash.new) do |(orogen_name, project_name), result|
+                syskit2orogen = model_names
+                    .each_with_object(Hash.new) do |(orogen_name, project_name), result|
                         unless loader.has_loaded_project?(project_name)
                             syskit_path = ['OroGen', *orogen_name.split('::')]
                             syskit_name = syskit_path.join(".")
@@ -191,8 +191,8 @@ module Syskit
 
             def add_orogen_type
                 loader = Roby.app.default_pkgconfig_loader
-                syskit2orogen = loader.each_available_type_name.
-                    each_with_object(Hash.new) do |(type_name, typekit_name, _), result|
+                syskit2orogen = loader.each_available_type_name
+                    .each_with_object(Hash.new) do |(type_name, typekit_name, _), result|
                         next if type_name.end_with?("_m")
                         next if type_name =~ /\[/
 
@@ -221,9 +221,9 @@ module Syskit
                         Roby.app.app_dir
                     end
 
-                existing_models = Roby.app.root_models.
-                    flat_map { |root| root.each_submodel.to_a }.
-                    to_set
+                existing_models = Roby.app.root_models
+                    .flat_map { |root| root.each_submodel.to_a }
+                    .to_set
 
                 files = Qt::FileDialog.getOpenFileNames(
                     self, "Pick model file(s) to add", initial_dir)
@@ -313,9 +313,9 @@ module Syskit
                 if edit_cmd.null?
                     Qt::MessageBox.warning(self, "Edit File", "No editor configured to open file #{url.to_string}. Edit #{global_settings.file_name} and add a cmdline= line in the [Main] section there. The %PATH and %LINENO placeholders will be replaced (if present) by the path and line number that should be edited")
                 else
-                    edit_cmd = edit_cmd.to_string.
-                        gsub("%FILEPATH", url.to_local_file).
-                        gsub("%LINENO", url.query_item_value('lineno') || '0')
+                    edit_cmd = edit_cmd.to_string
+                        .gsub("%FILEPATH", url.to_local_file)
+                        .gsub("%LINENO", url.query_item_value('lineno') || '0')
 
                     edit_cmd = Shellwords.shellsplit(edit_cmd)
                     stdin, stdout, stderr, wait_thr = Open3.popen3(*edit_cmd)

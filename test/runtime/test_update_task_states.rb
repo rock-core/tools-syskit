@@ -33,9 +33,9 @@ module Syskit
                 end
                 it "marks the task as failed-to-start if the execution agent cannot be killed" do
                     task.should_receive(:kill_execution_agent_if_alone).and_return(false)
-                    failure_reason = expect_execution { Runtime.update_task_states(plan) }.
-                        scheduler(true).
-                        to { fail_to_start task }
+                    failure_reason = expect_execution { Runtime.update_task_states(plan) }
+                        .scheduler(true)
+                        .to { fail_to_start task }
                     assert_equal "#{task} reports that it cannot be configured (FATAL_ERROR ?)",
                                  failure_reason.original_exception.message
                 end

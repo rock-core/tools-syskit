@@ -258,8 +258,8 @@ module Syskit
 
             @task = task
             @merged_task = merged_task
-            @compositions = merged_task.parent_objects(Roby::TaskStructure::Dependency).
-                map { |parent| [parent, parent[merged_task, Roby::TaskStructure::Dependency].dup] }
+            @compositions = merged_task.parent_objects(Roby::TaskStructure::Dependency)
+                .map { |parent| [parent, parent[merged_task, Roby::TaskStructure::Dependency].dup] }
         end
 
         def pretty_print(pp)
@@ -309,9 +309,9 @@ module Syskit
                     candidates = task.plan.find_local_tasks(task.concrete_model).not_abstract.to_set
                 end
 
-                parents = task.
-                    enum_for(:each_parent_object, Roby::TaskStructure::Dependency).
-                    map do |parent_task|
+                parents = task
+                    .enum_for(:each_parent_object, Roby::TaskStructure::Dependency)
+                    .map do |parent_task|
                         options = parent_task[task,
                                               Roby::TaskStructure::Dependency]
                         [options[:roles], parent_task]
@@ -389,9 +389,9 @@ module Syskit
             all_tasks.each do |t|
                 next if task_parents.has_key?(t)
 
-                parents = t.
-                    enum_for(:each_parent_object, Roby::TaskStructure::Dependency).
-                    map do |parent_task|
+                parents = t
+                    .enum_for(:each_parent_object, Roby::TaskStructure::Dependency)
+                    .map do |parent_task|
                         options = parent_task[t, Roby::TaskStructure::Dependency]
                         [options[:roles], parent_task]
                     end

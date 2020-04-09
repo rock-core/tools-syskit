@@ -79,8 +79,8 @@ module Syskit
 
             # Creates a new null type and returns it
             def stub_type(name)
-                Roby.app.default_loader.
-                    resolve_type(name, define_dummy_type: true)
+                Roby.app.default_loader
+                    .resolve_type(name, define_dummy_type: true)
             end
         end
     end

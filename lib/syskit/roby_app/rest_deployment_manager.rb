@@ -105,8 +105,8 @@ module Syskit
 
             # Finds a registered deployment by ID
             def find_registered_deployment_by_id(id)
-                @deployment_group.each_configured_deployment.
-                    find { |c| c.object_id == id }
+                @deployment_group.each_configured_deployment
+                                 .find { |c| c.object_id == id }
             end
 
             # Finds an overriden deployment by ID

@@ -48,9 +48,9 @@ describe Syskit::Actions::InterfaceModelExtension do
 
         it "creates a profile on-the-fly if given a block" do
             task_m = Syskit::TaskContext.new_submodel
-            flexmock(@actions.profile).should_receive(:use_profile).once.
-                with(->(p) { p.name ==  "::<anonymous>" }, any, any).
-                pass_thru
+            flexmock(@actions.profile).should_receive(:use_profile).once
+                                      .with(->(p) { p.name ==  "::<anonymous>" }, any, any)
+                                      .pass_thru
 
             new_definitions = @actions.use_profile do
                 define 'test', task_m

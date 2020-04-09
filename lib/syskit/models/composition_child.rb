@@ -82,8 +82,8 @@ module Syskit
             def try_resolve_and_bind_child_recursive(root)
                 # Handle a composition child of a composition child
                 if composition_model.respond_to?(:try_resolve_and_bind_child_recursive)
-                    resolved_parent = composition_model.
-                        try_resolve_and_bind_child_recursive(root)
+                    resolved_parent = composition_model
+                        .try_resolve_and_bind_child_recursive(root)
 
                     try_resolve_and_bind_child(resolved_parent) if resolved_parent
                 else
@@ -238,8 +238,8 @@ module Syskit
                     return false
                 end
 
-                cmp_connections = composition_model.
-                    explicit_connections[[child_name, sink_port.component_model.child_name]]
+                cmp_connections = composition_model
+                    .explicit_connections[[child_name, sink_port.component_model.child_name]]
                 cmp_connections.has_key?([source_port.name,sink_port.name])
             end
 

@@ -221,19 +221,19 @@ module Syskit
 
                 # Finally, select 'default' as configuration for all
                 # remaining tasks that do not have a 'conf' argument set
-                work_plan.find_local_tasks(logger_model).
-                    each do |task|
-                        if !task.arguments[:conf]
-                            task.arguments[:conf] = ['default']
-                        end
+                work_plan.find_local_tasks(logger_model)
+                         .each do |task|
+                    if !task.arguments[:conf]
+                        task.arguments[:conf] = ['default']
                     end
+                end
 
                 # Mark as permanent any currently running logger
-                work_plan.find_tasks(logger_model).
-                    not_finished.
-                    to_a.each do |t|
-                        work_plan.add_permanent_task(t)
-                    end
+                work_plan.find_tasks(logger_model)
+                         .not_finished
+                         .to_a.each do |t|
+                    work_plan.add_permanent_task(t)
+                end
             end
         end
         Engine.register_deployment_postprocessing(

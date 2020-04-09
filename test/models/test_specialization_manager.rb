@@ -339,15 +339,15 @@ describe Syskit::Models::SpecializationManager do
             selection = Hash.new
             match = [flexmock, [flexmock]]
             flexmock(mng).should_receive(:find_matching_specializations).with(selection).and_return([match])
-            flexmock(mng).should_receive(:specialized_model).once.
-                with(match[0], match[1]).and_return(model = flexmock)
+            flexmock(mng).should_receive(:specialized_model).once
+                .with(match[0], match[1]).and_return(model = flexmock)
             assert_equal model, mng.matching_specialized_model(selection)
         end
         it "raises if more than one specialization matches and strict is set" do
             selection = Hash['child' => task_m.selected_for(srv_m)]
-            flexmock(mng).should_receive(:find_matching_specializations).
-                with('child' => task_m).
-                and_return([[flexmock(:weak_match? => true), []], [flexmock(:weak_match? => true), []]])
+            flexmock(mng).should_receive(:find_matching_specializations)
+                .with('child' => task_m)
+                .and_return([[flexmock(:weak_match? => true), []], [flexmock(:weak_match? => true), []]])
             assert_raises(Syskit::AmbiguousSpecialization) do
                 mng.matching_specialized_model(selection, strict: true)
             end
@@ -356,19 +356,19 @@ describe Syskit::Models::SpecializationManager do
             selection = Hash.new
             matches = [[flexmock(:weak_match? => true), [flexmock]], [flexmock(:weak_match? => true), [flexmock]]]
             flexmock(mng).should_receive(:find_matching_specializations).with(selection).and_return(matches)
-            flexmock(mng).should_receive(:find_common_specialization_subset).once.
-                with(matches).and_return(matches[0])
-            flexmock(mng).should_receive(:specialized_model).once.
-                with(matches[0][0], matches[0][1]).and_return(model = flexmock)
+            flexmock(mng).should_receive(:find_common_specialization_subset).once
+                .with(matches).and_return(matches[0])
+            flexmock(mng).should_receive(:specialized_model).once
+                .with(matches[0][0], matches[0][1]).and_return(model = flexmock)
             assert_equal model, mng.matching_specialized_model(selection, strict: false)
         end
         it "applies specializations that are orthogonal from the service selection" do
             task_spec = cmp_m.specialize cmp_m.test_child => task_m
-            selection, _ = Syskit::DependencyInjection.new('test' => task_m).
-                instance_selection_for('test', cmp_m.test_child)
+            selection, _ = Syskit::DependencyInjection.new('test' => task_m)
+                .instance_selection_for('test', cmp_m.test_child)
             selection = Hash['test' => selection]
-            result = cmp_m.specializations.
-                matching_specialized_model(selection, strict: true)
+            result = cmp_m.specializations
+                .matching_specialized_model(selection, strict: true)
             assert result.applied_specializations.include?(task_spec)
         end
         it "can disambiguate among the possible specializations based on the selected services" do
@@ -377,8 +377,8 @@ describe Syskit::Models::SpecializationManager do
             a.should_receive(:weak_match?).with(selection).and_return(true)
             b.should_receive(:weak_match?).with(selection).and_return(false)
             flexmock(mng).should_receive(:find_matching_specializations).with('test' => task_m).and_return(matches)
-            flexmock(mng).should_receive(:specialized_model).once.
-                with(matches[0][0], matches[0][1]).and_return(model = flexmock)
+            flexmock(mng).should_receive(:specialized_model).once
+                .with(matches[0][0], matches[0][1]).and_return(model = flexmock)
             assert_equal model, mng.matching_specialized_model(selection, strict: true)
         end
         it "can disambiguate among the possible specializations based on the specialization hints" do
@@ -389,8 +389,8 @@ describe Syskit::Models::SpecializationManager do
             a.should_receive(:weak_match?).with(hint).and_return(true)
             b.should_receive(:weak_match?).with(hint).and_return(false)
             flexmock(mng).should_receive(:find_matching_specializations).with(selection).and_return(matches)
-            flexmock(mng).should_receive(:specialized_model).once.
-                with(matches[0][0], matches[0][1]).and_return(model = flexmock)
+            flexmock(mng).should_receive(:specialized_model).once
+                .with(matches[0][0], matches[0][1]).and_return(model = flexmock)
             assert_equal model, mng.matching_specialized_model(
                 selection, strict: true,
                 specialization_hints: [hint])

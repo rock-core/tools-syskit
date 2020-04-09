@@ -94,8 +94,8 @@ module Syskit
             def instanciate(instance_requirements)
                 log_timepoint "instanciate_requirements"
                 toplevel_tasks = instance_requirements.each_with_index.map do |requirements, i|
-                    task = requirements.instanciate(plan).
-                        to_task
+                    task = requirements.instanciate(plan)
+                        .to_task
                     # We add all these tasks as permanent tasks, to use
                     # #static_garbage_collect to cleanup #plan.
                     plan.add_permanent_task(task)
@@ -303,8 +303,8 @@ module Syskit
 
                 # Check that all devices are properly assigned
                 missing_devices = components.find_all do |t|
-                    t.model.each_master_driver_service.
-                        any? { |srv| !t.find_device_attached_to(srv) }
+                    t.model.each_master_driver_service
+                        .any? { |srv| !t.find_device_attached_to(srv) }
                 end
                 unless missing_devices.empty?
                     raise DeviceAllocationFailed.new(plan, missing_devices),

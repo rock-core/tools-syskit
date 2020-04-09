@@ -68,17 +68,17 @@ module Syskit
                 it "deregisters the override if an exception is raised" do
                     @orogen_deployment_m.task 'another_test_task', @orogen_task_m
                     error = Class.new(RuntimeError)
-                    flexmock(@conf.deployment_group).
-                        should_receive(:use_unmanaged_task).once.pass_thru
-                    flexmock(@conf.deployment_group).
-                        should_receive(:use_unmanaged_task).once.and_raise(error)
+                    flexmock(@conf.deployment_group)
+                        .should_receive(:use_unmanaged_task).once.pass_thru
+                    flexmock(@conf.deployment_group)
+                        .should_receive(:use_unmanaged_task).once.and_raise(error)
 
                     original = stub_registered_deployment.object_id
                     assert_raises(error) do
                         @manager.make_unmanaged(original)
                     end
-                    assert_equal [original], @conf.deployment_group.
-                        each_configured_deployment.map(&:object_id)
+                    assert_equal [original], @conf.deployment_group
+                                                  .each_configured_deployment.map(&:object_id)
                 end
             end
 
@@ -207,15 +207,15 @@ module Syskit
                 it "deregisters new deployments" do
                     @manager.use_deployment(@deployment_m => 'test')
                     @manager.clear
-                    assert_equal [], @conf.deployment_group.each_configured_deployment.
-                        map(&:object_id)
+                    assert_equal [], @conf.deployment_group.each_configured_deployment
+                                          .map(&:object_id)
                 end
                 it "deregisters overrides" do
                     original = stub_registered_deployment
                     @manager.make_unmanaged(original.object_id)
                     @manager.clear
-                    assert_equal [original.object_id], @conf.deployment_group.each_configured_deployment.
-                        map(&:object_id)
+                    assert_equal [original.object_id], @conf.deployment_group.each_configured_deployment
+                                                            .map(&:object_id)
                 end
             end
 
@@ -226,10 +226,10 @@ module Syskit
 
                 it "returns a command line valid for the given deployment" do
                     deployment = stub_registered_deployment
-                    flexmock(@roby_app.default_pkgconfig_loader).
-                        should_receive(:find_deployment_binfile).
-                        with(deployment.model.orogen_model.name).
-                        and_return('/path/to/deployment')
+                    flexmock(@roby_app.default_pkgconfig_loader)
+                        .should_receive(:find_deployment_binfile)
+                        .with(deployment.model.orogen_model.name)
+                        .and_return('/path/to/deployment')
                     command_line = @manager.command_line(deployment.object_id)
                     assert_equal '/path/to/deployment', command_line.command
                 end
@@ -242,10 +242,10 @@ module Syskit
 
                 it "returns a command line valid for an overriden deployment" do
                     deployment = stub_registered_deployment
-                    flexmock(@roby_app.default_pkgconfig_loader).
-                        should_receive(:find_deployment_binfile).
-                        with(deployment.model.orogen_model.name).
-                        and_return('/path/to/deployment')
+                    flexmock(@roby_app.default_pkgconfig_loader)
+                        .should_receive(:find_deployment_binfile)
+                        .with(deployment.model.orogen_model.name)
+                        .and_return('/path/to/deployment')
                     @manager.make_unmanaged(deployment.object_id)
                     command_line = @manager.command_line(deployment.object_id)
                     assert_equal '/path/to/deployment', command_line.command

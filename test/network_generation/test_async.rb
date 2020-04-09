@@ -45,12 +45,12 @@ module Syskit
             describe "#cancel" do
                 it "discards the transaction once the future finishes" do
                     latch = Concurrent::IVar.new
-                    flexmock(Engine).new_instances.should_receive(:resolve_system_network).
-                        and_return { latch.value }
+                    flexmock(Engine).new_instances.should_receive(:resolve_system_network)
+                                    .and_return { latch.value }
                     future = subject.start(Set[flexmock])
                     work_plan = future.engine.work_plan
-                    flexmock(work_plan).should_receive(:discard_transaction).once.
-                        pass_thru
+                    flexmock(work_plan).should_receive(:discard_transaction).once
+                                       .pass_thru
                     subject.cancel
                     latch.set true
                     future.value

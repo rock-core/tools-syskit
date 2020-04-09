@@ -72,14 +72,14 @@ module Syskit
             end
 
             def add_port_info(port_name, info)
-                (ports[port_name.to_str] ||= NetworkGeneration::PortDynamics.new(port_name.to_str)).
-                    merge(info)
+                (ports[port_name.to_str] ||= NetworkGeneration::PortDynamics.new(port_name.to_str))
+                    .merge(info)
             end
 
             # (see InstanceRequirements#add_port_period)
             def add_port_period(port_name, period, sample_count = 1)
-                (ports[port_name.to_str] ||= NetworkGeneration::PortDynamics.new(port_name.to_str)).
-                    add_trigger('period', period, sample_count)
+                (ports[port_name.to_str] ||= NetworkGeneration::PortDynamics.new(port_name.to_str))
+                    .add_trigger('period', period, sample_count)
             end
 
             # (see InstanceRequirements#find_port_dynamics)
@@ -897,9 +897,9 @@ module Syskit
         def compute_template
             base_requirements = dup.with_no_arguments
             template = TemplatePlan.new
-            template.root_task = base_requirements.
-                instanciate(template, use_template: false).
-                to_task
+            template.root_task = base_requirements
+                .instanciate(template, use_template: false)
+                .to_task
             merge_solver = NetworkGeneration::MergeSolver.new(template)
             merge_solver.merge_identical_tasks
             template.root_task = merge_solver.replacement_for(template.root_task)

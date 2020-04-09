@@ -432,8 +432,8 @@ module Syskit
                 assert_raises(ArgumentError) { subject.default_driver }
             end
             it "returns the driver if there is exactly one" do
-                flexmock(subject).should_receive(:find_all_drivers).
-                    and_return([mock = flexmock])
+                flexmock(subject).should_receive(:find_all_drivers)
+                                 .and_return([mock = flexmock])
                 assert_equal mock, subject.default_driver
             end
         end

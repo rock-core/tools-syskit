@@ -359,8 +359,8 @@ module Syskit
             # @param [#to_instance_requirements] requirements the IR object
             # @return [Definition] the added instance requirement
             def define(name, requirements)
-                resolved = resolved_dependency_injection.
-                    direct_selection_for(requirements) || requirements
+                resolved = resolved_dependency_injection
+                    .direct_selection_for(requirements) || requirements
                 doc = MetaRuby::DSLs.parse_documentation_block(
                     ->(file) { Roby.app.app_file?(file) }, /^define$/)
                 register_definition(name, resolved.to_instance_requirements, doc: doc)

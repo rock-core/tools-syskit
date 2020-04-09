@@ -97,15 +97,15 @@ module Syskit
                     model = TaskContext.new_submodel
                     task = syskit_stub_deploy_and_configure(model)
                     plan.add_permanent_task(deployment = task.execution_agent)
-                    expect_execution { plan.unmark_mission_task(task) }.
-                        garbage_collect(true).
-                        to { finalize task }
+                    expect_execution { plan.unmark_mission_task(task) }
+                        .garbage_collect(true)
+                        .to { finalize task }
                     # NOTE: we need to mock the configuration manager AFTER the
                     # model stub, as stubbing protects the original manager
-                    flexmock(model.configuration_manager).should_receive(:reload).once.
-                        and_return(['default'])
-                    flexmock(app).should_receive(:notify).
-                        with('syskit', 'INFO', "task #{task.orocos_name} needs reconfiguration").once
+                    flexmock(model.configuration_manager).should_receive(:reload).once
+                                                         .and_return(['default'])
+                    flexmock(app).should_receive(:notify)
+                                 .with('syskit', 'INFO', "task #{task.orocos_name} needs reconfiguration").once
                     app.syskit_reload_config
                     assert_equal [task.orocos_name], deployment.pending_reconfigurations
                     assert_equal [[task.orocos_name], []],
@@ -117,12 +117,12 @@ module Syskit
                     deployment = task.execution_agent
                     # NOTE: we need to mock the configuration manager AFTER the
                     # model stub, as stubbing protects the original manager
-                    flexmock(model.configuration_manager).should_receive(:reload).once.
-                        and_return(['default'])
-                    flexmock(app).should_receive(:notify).
-                        with('syskit', 'INFO', "task #{task.orocos_name} needs reconfiguration").once
-                    flexmock(app).should_receive(:notify).
-                        with('syskit', 'INFO', "1 running tasks configuration changed. In the shell, use 'redeploy' to trigger reconfiguration.").once
+                    flexmock(model.configuration_manager).should_receive(:reload).once
+                                                         .and_return(['default'])
+                    flexmock(app).should_receive(:notify)
+                                 .with('syskit', 'INFO', "task #{task.orocos_name} needs reconfiguration").once
+                    flexmock(app).should_receive(:notify)
+                                 .with('syskit', 'INFO', "1 running tasks configuration changed. In the shell, use 'redeploy' to trigger reconfiguration.").once
                     app.syskit_reload_config
                     assert task.needs_reconfiguration?
                     assert_equal [task.orocos_name], deployment.pending_reconfigurations
@@ -133,8 +133,8 @@ module Syskit
                     model = TaskContext.new_submodel
                     task = syskit_stub_and_deploy(model)
                     deployment = task.execution_agent
-                    flexmock(model.configuration_manager).should_receive(:reload).once.
-                        and_return(['default'])
+                    flexmock(model.configuration_manager).should_receive(:reload).once
+                                                         .and_return(['default'])
                     app.syskit_reload_config
                     refute task.needs_reconfiguration?
                     assert_equal [], deployment.pending_reconfigurations
@@ -144,8 +144,8 @@ module Syskit
                 it "does not redeploy the network" do
                     model = TaskContext.new_submodel
                     task = syskit_stub_deploy_and_configure(model)
-                    flexmock(model.configuration_manager).should_receive(:reload).once.
-                        and_return(['default'])
+                    flexmock(model.configuration_manager).should_receive(:reload).once
+                                                         .and_return(['default'])
                     flexmock(Runtime).should_receive(:apply_requirement_modifications).never
                     app.syskit_reload_config
                 end

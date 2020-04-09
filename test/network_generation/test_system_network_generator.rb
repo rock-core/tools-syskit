@@ -13,14 +13,14 @@ module Syskit
                 subject { SystemNetworkGenerator.new(Roby::Plan.new) }
 
                 it "adds instanciated tasks as permanent tasks" do
-                    flexmock(requirements).should_receive(:instanciate).
-                        and_return(instanciated_task = component_m.new)
+                    flexmock(requirements).should_receive(:instanciate)
+                                          .and_return(instanciated_task = component_m.new)
                     subject.instanciate([requirements])
                     assert subject.plan.permanent_task?(instanciated_task)
                 end
                 it "returns the list of toplevel tasks in the same order than the requirements" do
-                    flexmock(requirements).should_receive(:instanciate).
-                        and_return(task0 = component_m.new, task1 = component_m.new)
+                    flexmock(requirements).should_receive(:instanciate)
+                                          .and_return(task0 = component_m.new, task1 = component_m.new)
                     assert_equal [task0, task1], subject.instanciate([requirements, requirements])
                 end
                 it "allocates devices using the task instance requirement information" do

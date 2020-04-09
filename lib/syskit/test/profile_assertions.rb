@@ -102,8 +102,8 @@ module Syskit
                                              compute_policies: false, compute_deployments: false,
                                              validate_generated_network: false, **instanciate_options)
                         # Get rid of all the tasks that 
-                        still_abstract = plan.find_local_tasks(Syskit::Component).
-                            abstract.to_set
+                        still_abstract = plan.find_local_tasks(Syskit::Component)
+                            .abstract.to_set
                         still_abstract &= plan.compute_useful_tasks([task])
                         tags, other = still_abstract.partition { |task| task.class <= Actions::Profile::Tag }
                         tags_from_other = tags.find_all { |task| task.class.profile != subject_syskit_model }
@@ -287,8 +287,8 @@ module Syskit
                 # was given, or an array otherwise. I'd like to have someone
                 # to talk me out of this kind of ideas.
                 tasks = plan.compute_useful_tasks(Array(roots))
-                task_contexts = tasks.find_all { |t| t.kind_of?(Syskit::TaskContext) }.
-                    each do |task_context|
+                task_contexts = tasks.find_all { |t| t.kind_of?(Syskit::TaskContext) }
+                    .each do |task_context|
                         if !task_context.plan
                             raise ProfileAssertionFailed.new(actions, nil), "#{task_context} got garbage-collected before it got configured"
                         end

@@ -38,10 +38,10 @@ Qt::Application.new(ARGV)
 # Look into all the models we want to generate documentation for
 Scripts.setup
 
-task_contexts = Syskit::TaskContext.each_submodel.
-    find_all { |m| !m.placeholder? && !m.private_specialization? }
-compositions = Syskit::Composition.each_submodel.
-    find_all { |m| !m.is_specialization? }
+task_contexts = Syskit::TaskContext.each_submodel
+    .find_all { |m| !m.placeholder? && !m.private_specialization? }
+compositions = Syskit::Composition.each_submodel
+    .find_all { |m| !m.is_specialization? }
 data_services = Syskit::DataService.each_submodel
 profiles = Syskit::Actions::Profile.profiles
 
@@ -125,9 +125,9 @@ end
 index_page = Page.new(MetaRuby::GUI::HTML::HTMLPage.new)
 index_page.root_dir = []
 
-all_items = (task_contexts.to_a + compositions.to_a + data_services.to_a + profiles.to_a + Orocos.registry.each.to_a).
-    sort_by { |m| m.name }.
-    map { |m| index_page.link_to(m) }
+all_items = (task_contexts.to_a + compositions.to_a + data_services.to_a + profiles.to_a + Orocos.registry.each.to_a)
+    .sort_by { |m| m.name }
+    .map { |m| index_page.link_to(m) }
 index_page.render_list(nil, all_items, :filter => true, :id => 'model-index')
 html = index_page.html(:ressource_dir => asset_dir)
 File.open(File.join("doc", "index.html"), "w") do |io|

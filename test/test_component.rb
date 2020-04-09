@@ -234,8 +234,8 @@ describe Syskit::Component do
             before do
                 @cmp_m = Syskit::Composition.new_submodel
                 @cmp_m.argument :arg
-                @cmp_m.add(@task_m, as: 'test').
-                    with_arguments(arg: Roby::Task.from(:parent_task).arg)
+                @cmp_m.add(@task_m, as: 'test')
+                      .with_arguments(arg: Roby::Task.from(:parent_task).arg)
             end
 
             it "does not merge if the two tasks have from(:parent_task) ... arguments that "\
@@ -337,9 +337,9 @@ describe Syskit::Component do
             merged_task.specialize
             merged_task.require_dynamic_service 'dyn', as: 'srv', argument: 10
             task.specialize
-            flexmock(task.model).should_receive(:require_dynamic_service).once.
-                with('dyn', as: 'srv', argument: 10).
-                pass_thru
+            flexmock(task.model).should_receive(:require_dynamic_service).once
+                                .with('dyn', as: 'srv', argument: 10)
+                                .pass_thru
             task.merge(merged_task)
         end
         describe "handling of default arguments" do
@@ -599,8 +599,8 @@ describe Syskit::Component do
             it "calls #setup_failed! instead of setup_successful! if the setup raises" do
                 task.should_receive(:setup_failed!).once.pass_thru
                 task.should_receive(:setup_successful!).never
-                expect_execution { task.setup.execute }.
-                    to { fail_to_start task, reason: Roby::EmissionFailed }
+                expect_execution { task.setup.execute }
+                    .to { fail_to_start task, reason: Roby::EmissionFailed }
                 refute task.setting_up?
                 refute task.setup?
             end

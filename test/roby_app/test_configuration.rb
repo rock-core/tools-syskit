@@ -20,12 +20,12 @@ describe Syskit::RobyApp::Configuration do
 
         it "accepts a task model-to-name mapping" do
             deployment_m = stub_deployment 'test'
-            default_deployment_name = OroGen::Spec::Project.
-                default_deployment_name('test::Task')
-            flexmock(@conf.app.default_loader).
-                should_receive(:deployment_model_from_name).
-                with(default_deployment_name).
-                and_return(deployment_m.orogen_model)
+            default_deployment_name = OroGen::Spec::Project
+                .default_deployment_name('test::Task')
+            flexmock(@conf.app.default_loader)
+                .should_receive(:deployment_model_from_name)
+                .with(default_deployment_name)
+                .and_return(deployment_m.orogen_model)
             configured_deployments = conf.use_deployment task_m => 'task'
             assert_equal 1, configured_deployments.size
             configured_d = configured_deployments.first
@@ -60,8 +60,8 @@ describe Syskit::RobyApp::Configuration do
             configured_deployments = @conf.use_unmanaged_task @task_m => 'name'
             assert_equal 1, configured_deployments.size
             configured_d = configured_deployments.first
-            deployed_task = configured_d.each_orogen_deployed_task_context_model.
-                first
+            deployed_task = configured_d.each_orogen_deployed_task_context_model
+                .first
             assert_equal 'name', deployed_task.name
             assert_equal @task_m.orogen_model, deployed_task.task_model
         end

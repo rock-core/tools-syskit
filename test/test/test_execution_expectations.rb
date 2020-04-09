@@ -25,15 +25,15 @@ module Syskit
 
             describe "#have_one_new_sample" do
                 it "passes if the task emits a sample and returns it" do
-                    value = expect_execution { syskit_write task.in_port, 10 }.
-                        to { have_one_new_sample task.out_port }
+                    value = expect_execution { syskit_write task.in_port, 10 }
+                        .to { have_one_new_sample task.out_port }
                     assert_equal 10, value
                 end
                 it "fails if the task does not emit a new sample" do
                     e = assert_raises(Roby::Test::ExecutionExpectations::Unmet) do
-                        expect_execution.
-                            timeout(0.01).
-                            to { have_one_new_sample task.out_port }
+                        expect_execution
+                            .timeout(0.01)
+                            .to { have_one_new_sample task.out_port }
                     end
                     assert_equal "#{task.out_port} should have received a new sample",
                                  e.message.split("\n")[1]
@@ -41,9 +41,9 @@ module Syskit
                 it "provides the backtrace from the point of call by default" do
                     expectation = nil
                     assert_raises(Roby::Test::ExecutionExpectations::Unmet) do
-                        expect_execution.
-                            timeout(0.01).
-                            to do
+                        expect_execution
+                            .timeout(0.01)
+                            .to do
                                 expectation = have_one_new_sample task.out_port
                             end
                     end
@@ -55,9 +55,9 @@ module Syskit
                 it "allows to override the backtrace" do
                     expectation = nil
                     assert_raises(Roby::Test::ExecutionExpectations::Unmet) do
-                        expect_execution.
-                            timeout(0.01).
-                            to do
+                        expect_execution
+                            .timeout(0.01)
+                            .to do
                                 expectation = have_one_new_sample task.out_port,
                                                                   backtrace: ['bla']
                             end
@@ -68,15 +68,15 @@ module Syskit
 
             describe "#have_no_new_sample" do
                 it "validates if the task does not emit a sample" do
-                    expect_execution.
-                        timeout(0.01).
-                        to { have_no_new_sample task.out_port }
+                    expect_execution
+                        .timeout(0.01)
+                        .to { have_no_new_sample task.out_port }
                 end
                 it "fails if the task does emit a new sample" do
                     e = assert_raises(Roby::Test::ExecutionExpectations::Unmet) do
-                        expect_execution { syskit_write task.in_port, 10 }.
-                            timeout(0.01).
-                            to { have_no_new_sample task.out_port }
+                        expect_execution { syskit_write task.in_port, 10 }
+                            .timeout(0.01)
+                            .to { have_no_new_sample task.out_port }
                     end
                     assert_equal "#{task.out_port} should not have received a new "\
                         "sample, but it received one: 10", e.message.split("\n")[1]
@@ -84,9 +84,9 @@ module Syskit
                 it "provides the backtrace from the point of call by default" do
                     expectation = nil
                     assert_raises(Roby::Test::ExecutionExpectations::Unmet) do
-                        expect_execution { syskit_write task.in_port, 10 }.
-                            timeout(0.01).
-                            to do
+                        expect_execution { syskit_write task.in_port, 10 }
+                            .timeout(0.01)
+                            .to do
                                 expectation = have_no_new_sample task.out_port
                             end
                     end
@@ -98,9 +98,9 @@ module Syskit
                 it "allows to override the backtrace" do
                     expectation = nil
                     assert_raises(Roby::Test::ExecutionExpectations::Unmet) do
-                        expect_execution { syskit_write task.in_port, 10 }.
-                            timeout(0.01).
-                            to do
+                        expect_execution { syskit_write task.in_port, 10 }
+                            .timeout(0.01)
+                            .to do
                                 expectation = have_no_new_sample task.out_port,
                                                                  backtrace: ['bla']
                             end

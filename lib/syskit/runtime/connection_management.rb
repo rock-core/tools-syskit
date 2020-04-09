@@ -311,8 +311,8 @@ module Syskit
                     case error
                     when Orocos::ComError, Orocos::NotFound
                         terminating_deployments =
-                            plan.find_tasks(Syskit::Deployment).finishing.
-                            flat_map { |d| d.remote_task_handles.values }
+                            plan.find_tasks(Syskit::Deployment).finishing
+                                .flat_map { |d| d.remote_task_handles.values }
 
                         if !terminating_deployments.include?(from_task) && !terminating_deployments.include?(to_task)
                             warn "error while disconnecting #{from_task}:#{from_port} => #{to_task}:#{to_port}: #{error.message}"
@@ -348,8 +348,8 @@ module Syskit
                 performed_connections, failed_connections = perform_connections(actual_connections)
                 post_connect_success(performed_connections)
                 post_connect_failure(failed_connections)
-                new.map { |(_, to_task), mappings| to_task if !to_task.executable? }.
-                    compact
+                new.map { |(_, to_task), mappings| to_task if !to_task.executable? }
+                   .compact
             end
 
             def pre_connect(new)

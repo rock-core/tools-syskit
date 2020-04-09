@@ -344,8 +344,8 @@ describe Syskit::Models::Composition do
             cmp_m.add task_m, as: 'test'
             cmp_m.export cmp_m.test_child.out_port
 
-            cmp = cmp_m.to_instance_requirements.add_port_period('out', 0.1).
-                instanciate(plan)
+            cmp = cmp_m.to_instance_requirements.add_port_period('out', 0.1)
+                .instanciate(plan)
             port_dynamics = cmp.requirements.find_port_dynamics('out')
             assert_equal [Syskit::NetworkGeneration::PortDynamics::Trigger.new('period', 0.1, 1)],
                          port_dynamics.triggers.to_a
@@ -383,12 +383,12 @@ describe Syskit::Models::Composition do
 
             # Make sure the forwarding is set up with the relevant port mapping
             # applied
-            component.new_instances.should_receive(:forward_output_ports).
-                with(composition, ['out', 'srv_out']=>{}).
-                once
-            composition.new_instances.should_receive(:forward_input_ports).
-                with(component, ['srv_in', 'in']=>{}).
-                once
+            component.new_instances.should_receive(:forward_output_ports)
+                .with(composition, ['out', 'srv_out']=>{})
+                .once
+            composition.new_instances.should_receive(:forward_input_ports)
+                .with(component, ['srv_in', 'in']=>{})
+                .once
 
             context = Syskit::DependencyInjectionContext.new('srv' => component)
             composition.instanciate(plan, context)
@@ -396,10 +396,10 @@ describe Syskit::Models::Composition do
 
         it "adds its children as dependencies" do
             composition_m = simple_composition_model
-            flexmock(composition_m).new_instances.
-                should_receive(:depends_on).with(simple_component_model, any).once.pass_thru
-            flexmock(composition_m).new_instances.
-                should_receive(:depends_on).pass_thru
+            flexmock(composition_m).new_instances
+                .should_receive(:depends_on).with(simple_component_model, any).once.pass_thru
+            flexmock(composition_m).new_instances
+                .should_receive(:depends_on).pass_thru
             composition_m.instanciate(plan, Syskit::DependencyInjectionContext.new('srv' => simple_component_model))
         end
 
@@ -407,8 +407,8 @@ describe Syskit::Models::Composition do
             task = simple_composition_model.instanciate(plan)
             child_task = simple_component_model.new
             flexmock(simple_component_model).should_receive(:new).once.and_return(child_task)
-            task = simple_composition_model.
-                instanciate(plan, Syskit::DependencyInjectionContext.new('srv' => simple_component_model))
+            task = simple_composition_model
+                .instanciate(plan, Syskit::DependencyInjectionContext.new('srv' => simple_component_model))
             assert task.has_role?('srv'), "no child of task #{task} with role srv, existing roles: #{task.each_role.to_a.sort.join(", ")}"
         end
 
@@ -427,8 +427,8 @@ describe Syskit::Models::Composition do
             srv = Syskit::DataService.new_submodel(name: "Srv")
             task = Syskit::TaskContext.new_submodel(name: "Task") { provides srv, as: 'srv' }
             cmp = Syskit::Composition.new_submodel(name: "SubCmp") do
-                add(srv, as: 'srv').
-                    with_arguments(test: 10)
+                add(srv, as: 'srv')
+                    .with_arguments(test: 10)
             end
             cmp = cmp.instanciate(plan, Syskit::DependencyInjectionContext.new(srv => task))
             assert_same task, cmp.srv_child.class
@@ -439,8 +439,8 @@ describe Syskit::Models::Composition do
             srv = Syskit::DataService.new_submodel(name: "Srv")
             task = Syskit::TaskContext.new_submodel(name: "Task") { provides srv, as: 'srv' }
             cmp = Syskit::Composition.new_submodel(name: "SubCmp") do
-                add(srv, as: 'srv').
-                    with_arguments(test: 10)
+                add(srv, as: 'srv')
+                    .with_arguments(test: 10)
             end
             cmp = cmp.instanciate(plan, Syskit::DependencyInjectionContext.new(srv => task.with_arguments(bla: 20)))
             assert_same task, cmp.srv_child.class
@@ -475,8 +475,8 @@ describe Syskit::Models::Composition do
             second = Syskit::Composition.new_submodel(name: "SecondCmp") { add srv, as: 'second_test' }
             cmp = Syskit::Composition.new_submodel(name: "RootCmp") do
                 add task, as: 'first'
-                add(second, as: 'second').
-                    use(srv => first_child)
+                add(second, as: 'second')
+                    .use(srv => first_child)
             end
             root = cmp.instanciate(plan, Syskit::DependencyInjectionContext.new('first.first_test' => task))
             assert_equal cmp.first_child, root.child_selection['second'].selected.resolved_dependency_injection.explicit[srv]
@@ -489,8 +489,8 @@ describe Syskit::Models::Composition do
             second = Syskit::Composition.new_submodel(name: "SecondCmp") { add srv, as: 'second_test' }
             cmp = Syskit::Composition.new_submodel(name: "RootCmp") do
                 add first, as: 'first'
-                add(second, as: 'second').
-                    use(srv => first_child.first_test_child)
+                add(second, as: 'second')
+                    .use(srv => first_child.first_test_child)
             end
             root = cmp.instanciate(plan, Syskit::DependencyInjectionContext.new('first.first_test' => task))
             assert_same root.first_child.first_test_child, root.second_child.second_test_child
@@ -506,8 +506,8 @@ describe Syskit::Models::Composition do
             second = Syskit::Composition.new_submodel(name: "SecondCmp") { add srv, as: 'second_test' }
             cmp = Syskit::Composition.new_submodel(name: "RootCmp") do
                 add first, as: 'first'
-                add(second, as: 'second').
-                    use(srv => first_child.first_test_child)
+                add(second, as: 'second')
+                    .use(srv => first_child.first_test_child)
             end
             root = cmp.instanciate(plan, Syskit::DependencyInjectionContext.new('first.first_test' => task.s0_srv))
             assert_same root.first_child.first_test_child, root.second_child.second_test_child
@@ -619,8 +619,8 @@ describe Syskit::Models::Composition do
             attr_reader :composition_m, :srv_child
             before do
                 @srv_child = simple_component_model.new
-                flexmock(simple_component_model).should_receive(:new).
-                    and_return(srv_child).once
+                flexmock(simple_component_model).should_receive(:new)
+                    .and_return(srv_child).once
             end
 
             def composition_model(dependency_options)
@@ -730,8 +730,8 @@ describe Syskit::Models::Composition do
             end
             cmp_m = Syskit::Composition.new_submodel do
                 add task_m, as: 'test'
-                add(child_cmp_m, as: 'child').
-                    use('test' => test_child)
+                add(child_cmp_m, as: 'child')
+                    .use('test' => test_child)
             end
             cmp = cmp_m.use('test' => task_m).instanciate(plan)
             assert_same cmp.test_child, cmp.child_child.test_child

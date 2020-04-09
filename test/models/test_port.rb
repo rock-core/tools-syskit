@@ -32,14 +32,14 @@ describe Syskit::Models::Port do
 
         it "creates the connection directly if the argument is a port" do
             policy = Hash.new
-            flexmock(out_task_m).should_receive(:connect_ports).explicitly.once.
-                with(in_task_m, ['out', 'in'] => policy)
+            flexmock(out_task_m).should_receive(:connect_ports).explicitly.once
+                                .with(in_task_m, ['out', 'in'] => policy)
             out_task_m.out_port.connect_to in_task_m.in_port, policy
         end
         it "passes through Syskit.connect if the argument is not a port" do
             policy = Hash.new
-            flexmock(Syskit).should_receive(:connect).once.
-                with(out_task_m.out_port, in_task_m, policy)
+            flexmock(Syskit).should_receive(:connect).once
+                            .with(out_task_m.out_port, in_task_m, policy)
             out_task_m.out_port.connect_to in_task_m, policy
         end
         it "raises WrongPortConnectionDirection if the source is an input port" do
@@ -98,8 +98,8 @@ describe Syskit::Models::Port do
         end
         it "resolves self to component port and delegate to the resolved port's can_connect_to? method" do
             component_out_port = flexmock
-            component_out_port.should_receive(:can_connect_to?).with(srv_in.int_port).once.
-                and_return(true)
+            component_out_port.should_receive(:can_connect_to?).with(srv_in.int_port).once
+                              .and_return(true)
             flexmock(srv_out.int_port).should_receive(:try_to_component_port).and_return(component_out_port)
 
             assert srv_out.int_port.can_connect_to?(srv_in.int_port)

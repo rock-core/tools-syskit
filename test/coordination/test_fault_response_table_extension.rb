@@ -47,12 +47,12 @@ describe Syskit::Coordination::Models::FaultResponseTableExtension do
         table_model = Roby::Coordination::FaultResponseTable.new_submodel do
             data_monitoring_table do
                 root component_m
-                monitor("threshold", out1_port).
-                    trigger_on do |sample|
+                monitor("threshold", out1_port)
+                    .trigger_on do |sample|
                         recorder.called(sample)
                         sample > 10
-                    end.
-                    raise_exception
+                    end
+                    .raise_exception
             end
             on_fault threshold_monitor do
                 locate_on_origin

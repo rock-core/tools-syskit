@@ -565,8 +565,8 @@ module Syskit
         # Force reconfiguration for all tasks in a plan that match the given
         # orocos name
         def self.needs_reconfiguration!(plan, orocos_name)
-            plan.find_local_tasks(Syskit::Deployment).
-                each do |deployment_task|
+            plan.find_local_tasks(Syskit::Deployment)
+                .each do |deployment_task|
                     if deployment_task.has_orocos_name?(orocos_name)
                         deployment_task.needs_reconfiguration!(orocos_name)
                     end
