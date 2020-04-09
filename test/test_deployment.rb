@@ -503,7 +503,6 @@ module Syskit
                 end
             end
 
-
         end
 
         describe "#dead!" do

@@ -52,7 +52,6 @@ module Syskit
             # The expected model
             attr_reader :expected
 
-
             def initialize(key, selected, expected)
                 @key, @selected, @expected = key, selected, expected
             end

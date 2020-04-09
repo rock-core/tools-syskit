@@ -111,37 +111,6 @@ Layout/EmptyLineAfterMagicComment:
   Exclude:
     - 'syskit.gemspec'
 
-# Offense count: 28
-# Cop supports --auto-correct.
-Layout/EmptyLines:
-  Exclude:
-    - 'lib/syskit/data_flow.rb'
-    - 'lib/syskit/exceptions.rb'
-    - 'lib/syskit/gui/job_status_display.rb'
-    - 'lib/syskit/instance_requirements.rb'
-    - 'lib/syskit/models/component.rb'
-    - 'lib/syskit/models/composition_child.rb'
-    - 'lib/syskit/models/dynamic_data_service.rb'
-    - 'lib/syskit/models/placeholder.rb'
-    - 'lib/syskit/roby_app.rb'
-    - 'lib/syskit/roby_app/configuration.rb'
-    - 'lib/syskit/roby_app/plugin.rb'
-    - 'lib/syskit/runtime/connection_management.rb'
-    - 'lib/syskit/runtime/update_task_states.rb'
-    - 'test/coordination/test_fault_response_table_extension.rb'
-    - 'test/coordination/test_task_script.rb'
-    - 'test/droby/test_droby_dump.rb'
-    - 'test/models/test_component.rb'
-    - 'test/models/test_task_context.rb'
-    - 'test/roby_app/test_rest_deployment_manager.rb'
-    - 'test/roby_app/test_unmanaged_tasks.rb'
-    - 'test/runtime/test_connection_management.rb'
-    - 'test/test_component.rb'
-    - 'test/test_composition.rb'
-    - 'test/test_deployment.rb'
-    - 'test/test_instance_requirements.rb'
-    - 'test/test_task_context.rb'
-
 # Offense count: 12
 # Cop supports --auto-correct.
 # Configuration parameters: EnforcedStyle.

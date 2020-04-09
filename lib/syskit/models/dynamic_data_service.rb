@@ -113,7 +113,6 @@ module Syskit
                 end
             end
 
-
             # Instanciates a new bound dynamic service on the underlying
             # component
             #

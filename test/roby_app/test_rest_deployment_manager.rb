@@ -203,7 +203,6 @@ module Syskit
                 end
             end
 
-
             describe "#clear" do
                 it "deregisters new deployments" do
                     @manager.use_deployment(@deployment_m => 'test')

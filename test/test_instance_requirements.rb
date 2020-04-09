@@ -480,7 +480,6 @@ describe Syskit::InstanceRequirements do
             @task_m = Syskit::TaskContext.new_submodel
             task_m.provides srv_m, as: 'test'
 
-
             @cmp_m = Syskit::Composition.new_submodel
             cmp_m.add srv_m, as: 'test0'
             cmp_m.specialize cmp_m.test0_child => task_m do

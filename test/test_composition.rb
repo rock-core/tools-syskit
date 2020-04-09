@@ -150,7 +150,6 @@ describe Syskit::Composition do
             end
         end
 
-
         it "should be able to map an renamed exported port even if the original child got overloaded" do
             srv_m = Syskit::DataService.new_submodel do
                 output_port 'srv_out', '/double'

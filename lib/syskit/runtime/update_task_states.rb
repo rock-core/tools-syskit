@@ -71,7 +71,6 @@ module Syskit
                         end
                     end
 
-
                     if state_count >= Deployment::STATE_READER_BUFFER_SIZE
                         Runtime.warn "got #{state_count} state updates for #{t}, we might have lost some state updates in the process"
                     end

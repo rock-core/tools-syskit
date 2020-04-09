@@ -41,7 +41,6 @@ module Syskit
                     @type = Typelib::Registry.new.create_numeric '/Test', 10, :float
                 end
 
-
                 it "marshals both the type and the registry when the type is not known on the peer" do
                     droby = marshal.dump(type)
                     assert_equal '/Test', droby.name

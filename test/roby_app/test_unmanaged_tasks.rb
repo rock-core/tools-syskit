@@ -80,7 +80,6 @@ module Syskit
                 refute monitor_thread.alive?
             end
 
-
             it "allows to kill a started deployment that was not ready" do
                 expect_execution { deployment_task.start! }.
                     join_all_waiting_work(false).

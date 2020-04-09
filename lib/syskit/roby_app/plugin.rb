@@ -280,7 +280,6 @@ module Syskit
                     syskit_model
                 end
 
-
                 if file = load_component_extension(orogen.name)
                     tasks.each do |t|
                         t.definition_location = [OroGenLocation.new(file, 1, nil)]

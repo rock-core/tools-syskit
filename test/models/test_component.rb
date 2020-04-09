@@ -529,7 +529,6 @@ describe Syskit::Models::Component do
         end
     end
 
-
     describe "#self_port_to_component_port" do
         it "should return its argument" do
             stub_t = self.stub_t
@@ -899,7 +898,6 @@ describe Syskit::Models::Component do
             assert_equal 'my_name', m.short_name
         end
     end
-
 
     describe "#find_data_service" do
         it "returns nil if the service is unknown" do

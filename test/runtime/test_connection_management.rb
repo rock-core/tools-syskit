@@ -217,7 +217,6 @@ module Syskit
                 end
             end
 
-
             describe "#update" do
                 describe "interaction between connections and task states" do
                     attr_reader :source_task, :sink_task

@@ -19,7 +19,6 @@ require 'syskit/roby_app/single_file_dsl'
 require 'syskit/roby_app/unmanaged_process'
 require 'syskit/roby_app/unmanaged_tasks_manager'
 
-
 module Syskit
     class << self
         # The main configuration object

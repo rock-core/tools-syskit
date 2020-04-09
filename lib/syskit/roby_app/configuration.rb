@@ -170,7 +170,6 @@ module Syskit
             # log_dir/local_process_server.txt
             attr_predicate :redirect_local_process_server?, true
 
-
             # @deprecated access {#logs} for logging configuration
             def enable_logging
                 Roby.warn_deprecated "logging configuration has been moved to Syskit.conf.logs (of type LoggingConfiguration)"

@@ -90,7 +90,6 @@ describe Syskit::Coordination::Models::FaultResponseTableExtension do
             fault_m.argument :test_arg
         end
 
-
         it "allows giving static arguments to the used data monitoring tables" do
             fault_m.use_data_monitoring_table data_m, arg: 10
             flexmock(plan).should_receive(:use_data_monitoring_table).once.with(data_m, arg: 10)

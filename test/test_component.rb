@@ -511,7 +511,6 @@ describe Syskit::Component do
             end
             dynport = task_m.orogen_model.dynamic_ports.find { true }
 
-
             plan.add(task = task_m.new)
             plan.in_transaction do |trsc|
                 proxy = trsc[task]

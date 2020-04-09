@@ -1239,7 +1239,6 @@ module Syskit
 
             end
 
-
             describe "handling of static input ports" do
                 handling_of_static_ports(input: true)
 
@@ -1605,7 +1604,6 @@ module Syskit
                     end
                 end
             end
-
 
             describe "#commit_properties" do
                 attr_reader :task, :stub_property, :remote_test_property

@@ -6,7 +6,6 @@ module OroGen
     end
 end
 
-
 describe Syskit::Models::TaskContext do
     before do
         @model_toplevel_constant_registration, @model_constant_registration =
