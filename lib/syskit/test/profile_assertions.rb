@@ -303,7 +303,6 @@ module Syskit
             def can_configure_together(*actions)
                 assert_can_configure_together(*actions)
             end
-
         end
     end
 end

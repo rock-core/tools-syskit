@@ -43,6 +43,5 @@ module Syskit
             end
         end
     end
-
 end
 

@@ -320,7 +320,6 @@ module Syskit
             end
             extend Creation
         end
-
     end
 
     # @api private

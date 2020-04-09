@@ -111,16 +111,6 @@ Layout/EmptyLineAfterMagicComment:
   Exclude:
     - 'syskit.gemspec'
 
-# Offense count: 3
-# Cop supports --auto-correct.
-# Configuration parameters: EnforcedStyle.
-# SupportedStyles: empty_lines, empty_lines_except_namespace, empty_lines_special, no_empty_lines
-Layout/EmptyLinesAroundModuleBody:
-  Exclude:
-    - 'lib/syskit/models/orogen_base.rb'
-    - 'lib/syskit/models/placeholder.rb'
-    - 'lib/syskit/test/profile_assertions.rb'
-
 # Offense count: 1
 # Cop supports --auto-correct.
 # Configuration parameters: EnforcedStyleAlignWith, AutoCorrect, Severity.
