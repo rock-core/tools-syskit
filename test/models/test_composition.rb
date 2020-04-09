@@ -151,15 +151,15 @@ describe Syskit::Models::Composition do
             base.add(service, as: 'srv_in')
             base.connect(base.srv_child => base.srv_in_child)
 
-            assert_equal([[ ['srv', 'srv_in'], {['specialized_out', 'srv_in'] => {}} ]], composition.each_explicit_connection.to_a)
+            assert_equal([[['srv', 'srv_in'], {['specialized_out', 'srv_in'] => {}}]], composition.each_explicit_connection.to_a)
             composition.overload('srv_in', service1)
-            assert_equal([[ ['srv', 'srv_in'], {['specialized_out', 'specialized_in'] => {}} ]], composition.each_explicit_connection.to_a)
+            assert_equal([[['srv', 'srv_in'], {['specialized_out', 'specialized_in'] => {}}]], composition.each_explicit_connection.to_a)
 
             composition = composition.new_submodel
             composition.overload('srv', component)
-            assert_equal([[ ['srv', 'srv_in'], {['out', 'specialized_in'] => {}} ]], composition.each_explicit_connection.to_a)
+            assert_equal([[['srv', 'srv_in'], {['out', 'specialized_in'] => {}}]], composition.each_explicit_connection.to_a)
             composition.overload('srv_in', component)
-            assert_equal([[ ['srv', 'srv_in'], {['out', 'in'] => {}} ]], composition.each_explicit_connection.to_a)
+            assert_equal([[['srv', 'srv_in'], {['out', 'in'] => {}}]], composition.each_explicit_connection.to_a)
         end
     end
 
