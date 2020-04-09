@@ -21,7 +21,7 @@ describe Syskit::RobyApp::Configuration do
         it "accepts a task model-to-name mapping" do
             deployment_m = stub_deployment 'test'
             default_deployment_name = OroGen::Spec::Project
-                .default_deployment_name('test::Task')
+                                      .default_deployment_name('test::Task')
             flexmock(@conf.app.default_loader)
                 .should_receive(:deployment_model_from_name)
                 .with(default_deployment_name)
@@ -61,7 +61,7 @@ describe Syskit::RobyApp::Configuration do
             assert_equal 1, configured_deployments.size
             configured_d = configured_deployments.first
             deployed_task = configured_d.each_orogen_deployed_task_context_model
-                .first
+                                        .first
             assert_equal 'name', deployed_task.name
             assert_equal @task_m.orogen_model, deployed_task.task_model
         end

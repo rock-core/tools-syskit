@@ -75,7 +75,7 @@ describe Syskit::Actions::Profile do
 
             dst = Syskit::Actions::Profile.new
             flexmock(dst).should_receive(:register_definition).with('test', src.test_def, doc: nil).once
-                .and_return(definition_mock)
+                         .and_return(definition_mock)
             dst.use_profile src
         end
 
@@ -99,7 +99,7 @@ describe Syskit::Actions::Profile do
 
             dst = Syskit::Actions::Profile.new
             flexmock(dst).should_receive(:register_definition).with('test', src.test_def, doc: "test documentation").once
-                .and_return(definition_mock)
+                         .and_return(definition_mock)
             dst.use_profile src
         end
 
@@ -121,11 +121,11 @@ describe Syskit::Actions::Profile do
 
             define = flexmock(src.definitions['test'])
             define.should_receive(:dup).once
-                .and_return(duped = definition_mock)
+                  .and_return(duped = definition_mock)
             duped.should_receive(:push_selections).once
             dst = Syskit::Actions::Profile.new
             flexmock(dst).should_receive(:register_definition).with('test', duped, doc: nil).once
-                .and_return(duped)
+                         .and_return(duped)
             dst.use_profile src
         end
 
@@ -189,7 +189,7 @@ describe Syskit::Actions::Profile do
             child_profile = Syskit::Actions::Profile.new
             child_profile.use_profile parent_profile, 'test' => srv_task_m
             task = child_profile.test_def.arguments[:action]
-                .requirements.instanciate(plan)
+                                .requirements.instanciate(plan)
             assert_kind_of srv_task_m, task.test_child
         end
     end
@@ -295,8 +295,8 @@ describe Syskit::Actions::Profile do
         # registration logic
         droby_remote_marshaller.register_object(remote_profile)
         flexmock(droby_remote_marshaller).should_receive(:find_model_by_name)
-            .with('SyskitProfileTest::Test')
-            .and_return(remote_profile)
+                                         .with('SyskitProfileTest::Test')
+                                         .and_return(remote_profile)
         remote, local = assert_droby_compatible(SyskitProfileTest::Test, bidirectional: true)
         refute_same remote, test_profile
         assert_same local, test_profile
@@ -429,7 +429,7 @@ describe Syskit::Actions::Profile do
         it "injects the DI context" do
             expected_req = nil
             flexmock(profile).should_receive(:inject_di_context)
-                .with(->(req) { expected_req = req }).once
+                             .with(->(req) { expected_req = req }).once
             resolved_req = profile.resolved_definition('test')
             assert_same expected_req, resolved_req
         end

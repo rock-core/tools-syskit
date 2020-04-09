@@ -17,8 +17,8 @@ Rake::TestTask.new('test:core') do |t|
     simplecov_set_name(t, 'core')
     test_files = FileList['test/**/test_*.rb']
     test_files = test_files
-        .exclude("test/ros/**/*.rb")
-        .exclude("test/gui/**/*.rb")
+                 .exclude("test/ros/**/*.rb")
+                 .exclude("test/gui/**/*.rb")
     t.test_files = test_files
     t.warning = false
 end

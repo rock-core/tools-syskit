@@ -175,15 +175,15 @@ module Syskit
                 mappings.each do |child, child_model|
                     if Models.is_model?(child)
                         children = composition_model.each_child
-                            .find_all { |name, child_definition| child_definition.fullfills?(child) }
-                            .map { |name, _| name }
+                                                    .find_all { |name, child_definition| child_definition.fullfills?(child) }
+                                                    .map { |name, _| name }
 
                         if children.empty?
                             raise ArgumentError, "invalid specialization #{child.short_name} => #{child_model.short_name}: no child of #{composition_model.short_name} fullfills #{child.short_name}"
                         elsif children.size > 1
                             children = children.map do |child_name|
                                 child_models = composition_model.find_child(child_name)
-                                    .each_required_model.map(&:short_name).sort.join(",")
+                                                                .each_required_model.map(&:short_name).sort.join(",")
                                 "#{child_name}: #{child_models}"
                             end
                             raise ArgumentError, "invalid specialization #{child.short_name} => #{child_model.short_name}: more than one child of #{composition_model.short_name} fullfills #{child.short_name} (#{children.sort.join("; ")}). You probably want to select one specifically by name"

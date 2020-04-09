@@ -410,7 +410,7 @@ module Syskit
             req = InstanceRequirements.new
             value = flexmock
             value.should_receive(:to_instance_requirements).once
-               .and_return(req)
+                 .and_return(req)
             di = DependencyInjection.new
             di.add('name' => value)
             assert_same req, di.explicit['name']
@@ -541,9 +541,9 @@ module Syskit
             c0 = Component.new_submodel
             obj = DependencyInjection.new('test', 'name' => 'bla')
             flexmock(DependencyInjection).should_receive(:find_name_resolution)
-                .with('bla', any).once.and_return(bla = Object.new)
+                                         .with('bla', any).once.and_return(bla = Object.new)
             flexmock(DependencyInjection).should_receive(:find_name_resolution)
-                .with('test', any).once.and_return(test = Object.new)
+                                         .with('test', any).once.and_return(test = Object.new)
             assert_equal %w{}.to_set, obj.resolve_names
             assert_equal Hash['name' => bla], obj.explicit
             assert_equal [test].to_set, obj.defaults
@@ -553,9 +553,9 @@ module Syskit
             c0 = Component.new_submodel
             obj = DependencyInjection.new('name' => 'bla', 'value' => 'test')
             flexmock(DependencyInjection).should_receive(:find_name_resolution)
-                .with('bla', any).once.and_return(nil)
+                                         .with('bla', any).once.and_return(nil)
             flexmock(DependencyInjection).should_receive(:find_name_resolution)
-                .with('test', any).once.and_return(sel = Object.new)
+                                         .with('test', any).once.and_return(sel = Object.new)
             assert_equal %w{bla}.to_set, obj.resolve_names
         end
 

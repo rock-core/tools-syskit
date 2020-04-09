@@ -165,7 +165,7 @@ module Syskit
                     result = exec
                     if result == Qt::Dialog::Accepted
                         @filter.data(@list.current_index)
-                            .to_string
+                               .to_string
                     end
                 end
             end
@@ -174,13 +174,13 @@ module Syskit
                 loader = Roby.app.default_pkgconfig_loader
                 model_names = loader.each_available_task_model_name.to_a
                 syskit2orogen = model_names
-                    .each_with_object(Hash.new) do |(orogen_name, project_name), result|
-                        unless loader.has_loaded_project?(project_name)
-                            syskit_path = ['OroGen', *orogen_name.split('::')]
-                            syskit_name = syskit_path.join(".")
-                            result[syskit_name] = [syskit_path, project_name]
-                        end
+                                .each_with_object(Hash.new) do |(orogen_name, project_name), result|
+                    unless loader.has_loaded_project?(project_name)
+                        syskit_path = ['OroGen', *orogen_name.split('::')]
+                        syskit_name = syskit_path.join(".")
+                        result[syskit_name] = [syskit_path, project_name]
                     end
+                end
 
                 if (selected = Picker.select(self, syskit2orogen.keys))
                     syskit_path, project_name = syskit2orogen[selected]
@@ -194,16 +194,16 @@ module Syskit
             def add_orogen_type
                 loader = Roby.app.default_pkgconfig_loader
                 syskit2orogen = loader.each_available_type_name
-                    .each_with_object(Hash.new) do |(type_name, typekit_name, _), result|
-                        next if type_name.end_with?("_m")
-                        next if type_name =~ /\[/
+                                      .each_with_object(Hash.new) do |(type_name, typekit_name, _), result|
+                    next if type_name.end_with?("_m")
+                    next if type_name =~ /\[/
 
-                        unless loader.has_loaded_typekit?(typekit_name)
-                            syskit_path = ["Types", *Typelib.split_typename(type_name)]
-                            syskit_name = syskit_path.join(".")
-                            result[syskit_name] = [syskit_path, typekit_name]
-                        end
+                    unless loader.has_loaded_typekit?(typekit_name)
+                        syskit_path = ["Types", *Typelib.split_typename(type_name)]
+                        syskit_name = syskit_path.join(".")
+                        result[syskit_name] = [syskit_path, typekit_name]
                     end
+                end
 
                 if (selected = Picker.select(self, syskit2orogen.keys))
                     syskit_path, typekit_name = syskit2orogen[selected]
@@ -224,8 +224,8 @@ module Syskit
                     end
 
                 existing_models = Roby.app.root_models
-                    .flat_map { |root| root.each_submodel.to_a }
-                    .to_set
+                                      .flat_map { |root| root.each_submodel.to_a }
+                                      .to_set
 
                 files = Qt::FileDialog.getOpenFileNames(
                     self, "Pick model file(s) to add", initial_dir
@@ -318,8 +318,8 @@ module Syskit
                     Qt::MessageBox.warning(self, "Edit File", "No editor configured to open file #{url.to_string}. Edit #{global_settings.file_name} and add a cmdline= line in the [Main] section there. The %PATH and %LINENO placeholders will be replaced (if present) by the path and line number that should be edited")
                 else
                     edit_cmd = edit_cmd.to_string
-                        .gsub("%FILEPATH", url.to_local_file)
-                        .gsub("%LINENO", url.query_item_value('lineno') || '0')
+                                       .gsub("%FILEPATH", url.to_local_file)
+                                       .gsub("%LINENO", url.query_item_value('lineno') || '0')
 
                     edit_cmd = Shellwords.shellsplit(edit_cmd)
                     stdin, stdout, stderr, wait_thr = Open3.popen3(*edit_cmd)

@@ -36,7 +36,7 @@ module Syskit
             # Before we can terminate Syskit, we need to abort all
             # deployments that were managed by this client
             deployments = plan.find_tasks(Syskit::Deployment)
-                .find_all { |t| t.arguments[:on] == process_server.name }
+                              .find_all { |t| t.arguments[:on] == process_server.name }
             deployments.each { |t| t.aborted_event.emit if !t.pending? && !t.finished? }
             Syskit.conf.remove_process_server(process_server.name)
         end

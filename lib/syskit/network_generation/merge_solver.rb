@@ -231,7 +231,7 @@ module Syskit
                 # Get the set of candidates. We are checking if the tasks in
                 # this set can be replaced by +task+
                 candidates = plan.find_local_tasks(task.model.concrete_model)
-                    .to_a
+                                 .to_a
                 debug do
                     debug "#{candidates.to_a.size - 1} candidates for #{task}, matching model"
                     debug "  #{task.model.concrete_model}"

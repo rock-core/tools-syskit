@@ -92,7 +92,7 @@ module Syskit
                     clash = other_group.use_deployment(Hash[deployment_m => 'self_'],
                                                        on: 'test-mng', process_managers: conf, loader: loader).first
                     flexmock(self_deployment).should_receive(:==)
-                        .with(clash).and_return(false)
+                                             .with(clash).and_return(false)
                     assert_raises(TaskNameAlreadyInUse) do
                         group.use_group(other_group)
                     end
@@ -280,7 +280,7 @@ module Syskit
                     @deployment_m = Syskit::Deployment.new_submodel
                     @task_m = Syskit::RubyTaskContext.new_submodel
                     flexmock(task_m).should_receive(:deployment_model)
-                        .and_return(deployment_m)
+                                    .and_return(deployment_m)
                 end
 
                 it "registers a configured deployment using #deployment_model" do
@@ -289,7 +289,7 @@ module Syskit
                         'test', Hash[task_context_class: Orocos::RubyTasks::TaskContext]
                     )
                     flexmock(group).should_receive(:register_configured_deployment)
-                        .once
+                                   .once
                     configured_deployment = group.use_ruby_tasks(
                         Hash[task_m => 'test'], on: 'test-mng', process_managers: conf
                     )
@@ -311,7 +311,7 @@ module Syskit
                 it "warns about deprecation of multiple definitions" do
                     task1_m = Syskit::RubyTaskContext.new_submodel
                     flexmock(Roby).should_receive(:warn_deprecated)
-                        .with(/defining more than one ruby/).once
+                                  .with(/defining more than one ruby/).once
                     @group.use_ruby_tasks(Hash[@task_m => 'a', task1_m => 'b'],
                                           process_managers: @conf)
                 end
@@ -353,19 +353,19 @@ module Syskit
                         assert_equal Hash['test' => 'test'], configured_deployment
                             .name_mappings
                         task_name, task_model = configured_deployment
-                            .each_deployed_task_model.first
+                                                .each_deployed_task_model.first
                         assert_equal 'test', task_name
                         assert_equal task_m, task_model
                         true
                     end
 
                     flexmock(group).should_receive(:register_configured_deployment)
-                        .with(expected).once
+                                   .with(expected).once
                     configured_deployment = group.use_unmanaged_task(
                         Hash[task_m => 'test'],
                         on: 'test-mng', process_managers: conf
                     )
-                        .first
+                                                 .first
                     expected[configured_deployment]
 
                     assert_equal 'test-mng', configured_deployment.process_server_name
@@ -383,13 +383,13 @@ module Syskit
                         assert_equal Hash['test' => 'test'], configured_deployment
                             .name_mappings
                         task_name, task_model = configured_deployment
-                            .each_deployed_task_model.first
+                                                .each_deployed_task_model.first
                         assert_equal 'test', task_name
                         assert_equal task_m, task_model
                         true
                     end
                     flexmock(group).should_receive(:register_configured_deployment)
-                        .with(expected).once
+                                   .with(expected).once
 
                     deprecated_feature do
                         group.use_unmanaged_task(Hash['test::Task' => 'test'],
@@ -434,11 +434,11 @@ module Syskit
                         name: 'test_deployment'
                     )
                     flexmock(loader).should_receive(:deployment_model_from_name)
-                        .with('test_deployment')
-                        .and_return(deployment_m.orogen_model)
+                                    .with('test_deployment')
+                                    .and_return(deployment_m.orogen_model)
                     flexmock(loader).should_receive(:deployment_model_from_name)
-                        .with(OroGen::Spec::Project.default_deployment_name('test::Task'))
-                        .and_return(deployment_m.orogen_model)
+                                    .with(OroGen::Spec::Project.default_deployment_name('test::Task'))
+                                    .and_return(deployment_m.orogen_model)
                     conf.register_process_server(
                         'localhost', Orocos::RubyTasks::ProcessManager.new(
                                          Roby.app.default_loader
@@ -463,7 +463,7 @@ module Syskit
                         true
                     end
                     flexmock(group).should_receive(:register_configured_deployment)
-                        .once.with(expected)
+                                   .once.with(expected)
 
                     actual = group.use_deployment(Hash[task_m => 'test'], on: 'test-mng',
                                                                           process_managers: conf, loader: loader).first
@@ -481,7 +481,7 @@ module Syskit
                         true
                     end
                     flexmock(group).should_receive(:register_configured_deployment)
-                        .once.with(expected)
+                                   .once.with(expected)
                     actual = group.use_deployment(deployment_m,
                                                   on: 'test-mng', process_managers: conf, loader: loader).first
                     assert expected[actual]
@@ -498,9 +498,9 @@ module Syskit
                         true
                     end
                     flexmock(group).should_receive(:register_configured_deployment)
-                        .once.with(expected)
+                                   .once.with(expected)
                     flexmock(loader).should_receive(:task_model_from_name)
-                        .and_raise(OroGen::NotFound)
+                                    .and_raise(OroGen::NotFound)
                     actual = group.use_deployment('test_deployment',
                                                   on: 'test-mng', process_managers: conf, loader: loader).first
                     assert expected[actual]
@@ -514,7 +514,7 @@ module Syskit
                         true
                     end
                     flexmock(group).should_receive(:register_configured_deployment)
-                        .once.with(expected)
+                                   .once.with(expected)
 
                     actual = group.use_deployment(Hash[task_m => 'test'],
                                                   on: 'test-mng', process_managers: conf,
@@ -611,34 +611,34 @@ module Syskit
                         name: 'test_deployment'
                     )
                     flexmock(loader).should_receive(:deployment_model_from_name)
-                        .with('test_deployment')
-                        .and_return(deployment_m.orogen_model)
+                                    .with('test_deployment')
+                                    .and_return(deployment_m.orogen_model)
                     flexmock(loader).should_receive(:deployment_model_from_name)
-                        .with(OroGen::Spec::Project.default_deployment_name('test::Task'))
-                        .and_return(deployment_m.orogen_model)
+                                    .with(OroGen::Spec::Project.default_deployment_name('test::Task'))
+                                    .and_return(deployment_m.orogen_model)
                 end
 
                 it "registers all deployments of the given project" do
                     flexmock(loader).should_receive(:project_model_from_name)
-                        .with('test_project')
-                        .and_return(project = flexmock)
+                                    .with('test_project')
+                                    .and_return(project = flexmock)
                     project.should_receive(:each_deployment)
-                        .and_yield(deployment_m.orogen_model)
+                           .and_yield(deployment_m.orogen_model)
 
                     flexmock(group).should_receive(:use_deployment)
-                        .with('test_deployment',
-                              on: 'test-mng', process_managers: conf, loader: loader)
-                        .once
+                                   .with('test_deployment',
+                                         on: 'test-mng', process_managers: conf, loader: loader)
+                                   .once
                     group.use_deployments_from('test_project',
                                                on: 'test-mng', process_managers: conf, loader: loader)
                 end
 
                 it "ignores uninstalled deployments" do
                     flexmock(loader).should_receive(:project_model_from_name)
-                        .with('test_project')
-                        .and_return(project = flexmock)
+                                    .with('test_project')
+                                    .and_return(project = flexmock)
                     project.should_receive(:each_deployment)
-                        .and_yield(flexmock(:install? => false))
+                           .and_yield(flexmock(:install? => false))
 
                     flexmock(group).should_receive(:use_deployment).never
                     group.use_deployments_from('test_project',

@@ -75,10 +75,10 @@ module Syskit
         remaining_outputs = output_ports.dup
         remaining_outputs.delete_if do |out_port|
             in_port = input_ports
-                .find do |in_port|
-                    in_port.name == out_port.name &&
-                        in_port.type == out_port.type
-                end
+                      .find do |in_port|
+                in_port.name == out_port.name &&
+                    in_port.type == out_port.type
+            end
             if in_port
                 result << [out_port, in_port]
                 matched_input_ports << in_port
@@ -91,10 +91,10 @@ module Syskit
         # match. This is, by experience, expected behaviour in practice
         remaining_outputs.each do |out_port|
             candidates = input_ports
-                .find_all { |in_port| in_port.type == out_port.type }
+                         .find_all { |in_port| in_port.type == out_port.type }
             if candidates.size > 1
                 filtered_candidates = candidates
-                    .find_all { |p| !matched_input_ports.include?(p) }
+                                      .find_all { |p| !matched_input_ports.include?(p) }
                 if filtered_candidates.size == 1
                     candidates = filtered_candidates
                 end
@@ -113,7 +113,7 @@ module Syskit
             if outputs_per_input[in_port]
                 if !in_port.multiplexes?
                     candidates = result.map { |o, i| o if i == in_port }
-                        .compact
+                                       .compact
                     raise AmbiguousAutoConnection.new(in_port, candidates)
                 end
             end

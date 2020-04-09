@@ -355,7 +355,7 @@ module Syskit
                 expect_execution { task.start! }
                     .to do
                         fail_to_start task, reason: Roby::EmissionFailed.match
-                            .with_original_exception(Orocos::NotFound)
+                                                                        .with_original_exception(Orocos::NotFound)
                     end
             end
             it "checks that all required input ports are present" do
@@ -372,14 +372,14 @@ module Syskit
                 expect_execution { task.start! }
                     .to do
                         fail_to_start task, reason: Roby::EmissionFailed.match
-                            .with_original_exception(Orocos::NotFound)
+                                                                        .with_original_exception(Orocos::NotFound)
                     end
             end
             it "emits the start event once the state reader reported the RUNNING state" do
                 FlexMock.use(task.state_reader) do |state_reader|
                     state = nil
                     state_reader.should_receive(:read_with_result)
-                        .and_return { s, state = state, [Orocos::OLD_DATA, nil]; s }
+                                .and_return { s, state = state, [Orocos::OLD_DATA, nil]; s }
                     execute { task.start! }
                     refute task.running?
                     state = [Orocos::NEW_DATA, :RUNNING]
@@ -395,7 +395,7 @@ module Syskit
                 expect_execution { task.start! }
                     .to do
                         fail_to_start task, reason: Roby::EmissionFailed.match
-                            .with_original_exception(error_m)
+                                                                        .with_original_exception(error_m)
                     end
             end
         end
@@ -434,7 +434,7 @@ module Syskit
                 "but the task is in a stopped state" do
                 task.orocos_task.should_receive(:stop).and_return do
                     Orocos::TaskContext.instance_method(:stop)
-                        .call(task.orocos_task, false)
+                                       .call(task.orocos_task, false)
                     raise Orocos::StateTransitionFailed
                 end
                 expect_execution { task.stop! }
@@ -474,7 +474,7 @@ module Syskit
             it "does nothing if no runtime state has been received" do
                 task.should_receive(:orogen_state).and_return(:exception)
                 orocos_task.should_receive(:runtime_state?).with(:exception)
-                    .and_return(false)
+                           .and_return(false)
                 task.handle_state_changes
                 expect_execution.to do
                     not_emit task.start_event
@@ -484,7 +484,7 @@ module Syskit
                 "and emits the event mapped by #state_event" do
                 task.should_receive(:orogen_state).and_return(:blabla)
                 orocos_task.should_receive(:runtime_state?).with(:blabla)
-                    .and_return(true)
+                           .and_return(true)
                 task.should_receive(:state_event).with(:blabla).and_return(:test)
                 expect_execution { task.handle_state_changes }
                     .to do
@@ -506,7 +506,7 @@ module Syskit
                 syskit_start(task)
                 task.should_receive(:last_orogen_state).and_return(:BLA)
                 orocos_task.should_receive(:error_state?)
-                    .with(:BLA).once.and_return(true)
+                           .with(:BLA).once.and_return(true)
                 expect_execution { task.handle_state_changes }
                     .to { emit task.running_event }
                 assert_equal 2, task.running_event.history.size
@@ -516,7 +516,7 @@ module Syskit
                 syskit_start(task)
                 task.should_receive(:last_orogen_state).and_return(:BLA)
                 orocos_task.should_receive(:error_state?)
-                    .with(:BLA).once.and_return(false)
+                           .with(:BLA).once.and_return(false)
                 task.handle_state_changes
                 expect_execution.to { not_emit task.running_event }
             end
@@ -604,13 +604,13 @@ module Syskit
             it "returns false if no state is given and read_current_state "\
                 "returns something else than FATAL_ERROR" do
                 flexmock(@task).should_receive(:read_current_state)
-                    .and_return(:BLA)
+                               .and_return(:BLA)
                 refute @task.will_never_setup?
             end
             it "returns true if no state is given and read_current_state "\
                 "returns FATAL_ERROR" do
                 flexmock(@task).should_receive(:read_current_state)
-                    .and_return(:FATAL_ERROR)
+                               .and_return(:FATAL_ERROR)
                 assert @task.will_never_setup?
             end
         end
@@ -648,7 +648,7 @@ module Syskit
                 plan.add(other_task = task.execution_agent.task(task.orocos_name))
                 assert task.ready_for_setup?
                 flexmock(other_task.orocos_task).should_receive(:configure)
-                    .and_raise(Orocos::StateTransitionFailed)
+                                                .and_raise(Orocos::StateTransitionFailed)
                 other_task.setup.execute
                 refute task.ready_for_setup?
                 execution_engine.join_all_waiting_work
@@ -682,7 +682,7 @@ module Syskit
             it "returns true if the task's current state is an exception state" do
                 task.should_receive(:read_current_state).and_return(state = Object.new)
                 flexmock(task.orocos_task).should_receive(:exception_state?)
-                    .with(state).and_return(true)
+                                          .with(state).and_return(true)
                 assert task.ready_for_setup?
             end
             it "returns true if the task's current state is STOPPED" do
@@ -838,9 +838,9 @@ module Syskit
                 recorder.should_receive(:called).once.ordered
                 flexmock(task.orocos_task).should_receive(:rtt_state).and_return(rtt_state)
                 promise = execution_engine
-                    .promise(description: "#{name}#prepare_task_for_setup") do
-                        recorder.called
-                    end
+                          .promise(description: "#{name}#prepare_task_for_setup") do
+                    recorder.called
+                end
                 promise = task.prepare_for_setup(promise)
                 promise.execute
                 execution_engine.join_all_waiting_work
@@ -869,8 +869,8 @@ module Syskit
             it "does nothing if the state is STOPPED and "\
                 "the task does not need to be reconfigured" do
                 flexmock(task.execution_agent).should_receive(:configuration_changed?)
-                    .with(task.orocos_name, ['default'], Set.new)
-                    .and_return(false)
+                                              .with(task.orocos_name, ['default'], Set.new)
+                                              .and_return(false)
                 orocos_task.should_receive(:cleanup).never
                 task.should_receive(:clean_dynamic_port_connections).never
                 messages = capture_log(task, :info) do
@@ -902,8 +902,8 @@ module Syskit
             it "cleans up if the state is STOPPED and "\
                 "the task's configuration changed" do
                 flexmock(task.execution_agent).should_receive(:configuration_changed?)
-                    .with(task.orocos_name, ['default'], Set.new)
-                    .and_return(true)
+                                              .with(task.orocos_name, ['default'], Set.new)
+                                              .and_return(true)
                 orocos_task.should_receive(:cleanup).once.ordered
                 task.should_receive(:clean_dynamic_port_connections).once.ordered
                 messages = capture_log(task, :info) do
@@ -915,7 +915,7 @@ module Syskit
                 port_names = []
                 orocos_task.should_receive(:port_names).and_return { port_names }
                 orocos_task.should_receive(:cleanup).once
-                    .and_return { port_names = ['test'] }
+                           .and_return { port_names = ['test'] }
                 task.should_receive(:clean_dynamic_port_connections)
                     .with(['test']).once
 
@@ -928,7 +928,7 @@ module Syskit
                 port_names = []
                 orocos_task.should_receive(:port_names).and_return { port_names }
                 orocos_task.should_receive(:reset_exception)
-                    .and_return { port_names = ['test'] }
+                           .and_return { port_names = ['test'] }
                 task.should_receive(:clean_dynamic_port_connections)
                     .with(['test']).once
 
@@ -1002,8 +1002,8 @@ module Syskit
                 expect_execution { promise.execute }
                     .to do
                         fail_to_start task, reason: Roby::EmissionFailed.match
-                            .with_origin(task.start_event)
-                            .with_original_exception(error_e)
+                                                                        .with_origin(task.start_event)
+                                                                        .with_original_exception(error_e)
                     end
             end
             it "keeps the task in the plan until the asynchronous setup is finished" do
@@ -1021,10 +1021,10 @@ module Syskit
                     raise RuntimeError
                 end
                 flexmock(task.start_event).should_receive(:emit_failed)
-                    .pass_thru do |ret|
-                        refute task.can_finalize?
-                        ret
-                    end
+                                          .pass_thru do |ret|
+                    refute task.can_finalize?
+                    ret
+                end
 
                 plan.unmark_mission_task(task)
                 expect_execution.scheduler(true).join_all_waiting_work(false).garbage_collect(true).to do
@@ -1074,9 +1074,9 @@ module Syskit
                 end
                 task = syskit_stub_and_deploy(task_m.with_conf('my', 'conf'))
                 flexmock(task.model.configuration_manager).should_receive(:conf)
-                    .with(['my', 'conf'], true)
-                    .once
-                    .and_return('v' => 10)
+                                                          .with(['my', 'conf'], true)
+                                                          .once
+                                                          .and_return('v' => 10)
                 syskit_configure(task)
                 Orocos.allow_blocking_calls do
                     assert_equal 10, task.orocos_task.v
@@ -1325,7 +1325,7 @@ module Syskit
             it "uses the intermediate type as property type" do
                 intermediate_t = stub_type '/intermediate'
                 flexmock(Roby.app.default_loader).should_receive(:intermediate_type_for)
-                    .with(double_t).and_return(intermediate_t)
+                                                 .with(double_t).and_return(intermediate_t)
                 task = task_m.new
                 assert_same intermediate_t, task.property('test').type
             end
@@ -1406,7 +1406,7 @@ module Syskit
                     task = syskit_stub_and_deploy(task_m)
                     task.property_overrides.test = 10
                     flexmock(task.model.configuration_manager).should_receive(:apply)
-                        .once.and_return { |*args| task.property(:test).write(20) }
+                                                              .once.and_return { |*args| task.property(:test).write(20) }
                     syskit_configure(task)
                     assert_equal 10, task.property_overrides.test
                 end
@@ -1415,7 +1415,7 @@ module Syskit
                     task = syskit_stub_and_deploy(task_m)
                     task.property_overrides.test = 10
                     flexmock(task.model.configuration_manager).should_receive(:apply)
-                        .once.and_return { |*args| task.property(:test).write(20) }
+                                                              .once.and_return { |*args| task.property(:test).write(20) }
                     syskit_configure(task)
                     task.clear_property_overrides
                     assert_equal 20, task.properties.test
@@ -1480,7 +1480,7 @@ module Syskit
                         error_m = Class.new(RuntimeError)
                         property.write(0.1)
                         mock_remote_property.should_receive(:write).once
-                            .and_raise(error_m)
+                                            .and_raise(error_m)
                         expect_execution.to do
                             have_internal_error task, PropertyUpdateError.match.with_original_exception(error_m)
                         end
@@ -1575,18 +1575,18 @@ module Syskit
 
                         it "forces a task reconfiguration if the current property value differs from the ones on the task at the point of configuration" do
                             flexmock(task.orocos_task).should_receive(:cleanup)
-                                .once.globally.ordered.pass_thru
+                                                      .once.globally.ordered.pass_thru
                             flexmock(task.orocos_task).should_receive(:configure)
-                                .once.globally.ordered.pass_thru
+                                                      .once.globally.ordered.pass_thru
                             task.properties.test = 10
                             syskit_configure(task)
                             assert_equal 10, Orocos.allow_blocking_calls { task.orocos_task.test }
                         end
                         it "forces a task reconfiguration if #configure changes the properties in a way that requires it" do
                             flexmock(task.orocos_task).should_receive(:cleanup)
-                                .once.globally.ordered.pass_thru
+                                                      .once.globally.ordered.pass_thru
                             flexmock(task.orocos_task).should_receive(:configure)
-                                .once.globally.ordered.pass_thru
+                                                      .once.globally.ordered.pass_thru
                             def task.configure
                                 super
                                 properties.test = 10
@@ -1635,8 +1635,8 @@ module Syskit
                     stub_property.write(0.1)
                     flexmock(stub_property).should_receive(:needs_commit?).and_return(true)
                     flexmock(Orocos::Property).new_instances.should_receive(:write).once
-                        .with(Typelib.from_ruby(0.1, double_t))
-                        .pass_thru
+                                              .with(Typelib.from_ruby(0.1, double_t))
+                                              .pass_thru
                     task.commit_properties.execute
                     execution_engine.join_all_waiting_work
                     Orocos.allow_blocking_calls do
@@ -1656,10 +1656,10 @@ module Syskit
                     stub_property.write(0.1)
                     property = flexmock
                     property.should_receive(:write).once
-                        .globally.ordered
+                            .globally.ordered
                     stub_property.remote_property = property
                     flexmock(stub_property).should_receive(:update_remote_value).once
-                        .globally.ordered.pass_thru
+                                           .globally.ordered.pass_thru
                     task.commit_properties.execute
                     execution_engine.join_all_waiting_work
                     assert_equal Typelib.from_ruby(0.1, double_t), stub_property.remote_value
@@ -1667,9 +1667,9 @@ module Syskit
                 it "updates the property's log after it has been written" do
                     stub_property.write(0.1)
                     mock_remote_property.should_receive(:write).once
-                        .globally.ordered
+                                        .globally.ordered
                     flexmock(stub_property).should_receive(:update_log).once
-                        .globally.ordered.pass_thru
+                                           .globally.ordered.pass_thru
                     task.commit_properties.execute
                     execution_engine.join_all_waiting_work
                 end
@@ -1720,7 +1720,7 @@ module Syskit
                         @barrier = Concurrent::CyclicBarrier.new(2)
                         syskit_configure_and_start(task)
                         mock_remote_property.should_receive(:write)
-                            .pass_thru { barrier.wait }
+                                            .pass_thru { barrier.wait }
                         task.properties.test = 42
                     end
 
@@ -1766,7 +1766,7 @@ module Syskit
                         error_m = Class.new(RuntimeError)
                         stub_property.write(0.1)
                         mock_remote_property.should_receive(:write).once
-                            .and_raise(error_m)
+                                            .and_raise(error_m)
 
                         expect_execution { task.commit_properties.execute }
                             .to { have_error_matching PropertyUpdateError.match.with_origin(task).with_original_exception(error_m) }
@@ -1780,8 +1780,8 @@ module Syskit
                             property 'p', '/int'
                         end
                         flexmock(Orocos::TaskContext).new_instances
-                            .should_receive(:property).with('p')
-                            .and_return(flexmock(name: 'p', raw_read: 20))
+                                                     .should_receive(:property).with('p')
+                                                     .and_return(flexmock(name: 'p', raw_read: 20))
                         @task = syskit_stub_and_deploy(task_m)
                     end
 
@@ -1830,7 +1830,7 @@ module Syskit
 
                 it "does not block the event loop if the node's configure command blocks" do
                     flexmock(task.orocos_task).should_receive(:configure).once
-                        .pass_thru { barrier.wait }
+                                              .pass_thru { barrier.wait }
                     capture_log(task, :info) do
                         wait_for_synchronization(scheduler: true)
                         assert_process_events_does_not_block
@@ -1839,7 +1839,7 @@ module Syskit
                 it "does not block the event loop if the node's start command blocks" do
                     syskit_configure(task)
                     flexmock(task.orocos_task).should_receive(:start).once
-                        .pass_thru { barrier.wait }
+                                              .pass_thru { barrier.wait }
                     capture_log(task, :info) do
                         wait_for_synchronization { task.start! }
                         assert_process_events_does_not_block
@@ -1848,7 +1848,7 @@ module Syskit
                 it "does not block the event loop if the node's stop command blocks" do
                     syskit_configure_and_start(task)
                     flexmock(task.orocos_task).should_receive(:stop).once
-                        .pass_thru { barrier.wait }
+                                              .pass_thru { barrier.wait }
                     plan.unmark_mission_task(task)
                     capture_log(task, :info) do
                         wait_for_synchronization { task.stop! }
@@ -1858,7 +1858,7 @@ module Syskit
                 it "does not block the event loop if the node's cleanup command blocks" do
                     Orocos.allow_blocking_calls { task.orocos_task.configure(false) }
                     flexmock(task.orocos_task).should_receive(:cleanup).once
-                        .pass_thru { barrier.wait }
+                                              .pass_thru { barrier.wait }
                     capture_log(task, :info) do
                         wait_for_synchronization(scheduler: true)
                         assert_process_events_does_not_block
@@ -1867,7 +1867,7 @@ module Syskit
                 it "does not block the event loop if the node's reset_exception command blocks" do
                     task.orocos_task.local_ruby_task.exception
                     flexmock(task.orocos_task).should_receive(:reset_exception).once
-                        .pass_thru { barrier.wait }
+                                              .pass_thru { barrier.wait }
                     capture_log(task, :info) do
                         wait_for_synchronization(scheduler: true)
                         assert_process_events_does_not_block

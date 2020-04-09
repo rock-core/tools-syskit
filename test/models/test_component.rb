@@ -383,23 +383,23 @@ describe Syskit::Models::Component do
                     expected_mappings = Hash['out' => 'bla_out', 'in' => 'bla_in']
 
                     subject.should_receive(:directional_port_mapping).with(task_m, 'output', srv_m.out_port, 'explicit_out')
-                        .once.and_return(expected_mappings['out'])
+                           .once.and_return(expected_mappings['out'])
                     subject.should_receive(:directional_port_mapping).with(task_m, 'input', srv_m.in_port, nil)
-                        .once.and_return(expected_mappings['in'])
+                           .once.and_return(expected_mappings['in'])
                     flexmock(Syskit::Models).should_receive(:merge_orogen_task_context_models)
-                        .with(task_m.orogen_model, [srv_m.orogen_model], expected_mappings)
-                        .once
+                                            .with(task_m.orogen_model, [srv_m.orogen_model], expected_mappings)
+                                            .once
                     subject.update_component_model_interface(task_m, srv_m, 'out' => 'explicit_out')
                 end
                 it "should return the updated port mappings" do
                     expected_mappings = Hash['out' => 'bla_out', 'in' => 'bla_in']
                     subject.should_receive(:directional_port_mapping).with(task_m, 'output', srv_m.out_port, 'explicit_out')
-                        .once.and_return(expected_mappings['out'])
+                           .once.and_return(expected_mappings['out'])
                     subject.should_receive(:directional_port_mapping).with(task_m, 'input', srv_m.in_port, nil)
-                        .once.and_return(expected_mappings['in'])
+                           .once.and_return(expected_mappings['in'])
                     flexmock(Syskit::Models).should_receive(:merge_orogen_task_context_models)
-                        .with(task_m.orogen_model, [srv_m.orogen_model], expected_mappings)
-                        .once
+                                            .with(task_m.orogen_model, [srv_m.orogen_model], expected_mappings)
+                                            .once
                     assert_equal expected_mappings, subject.update_component_model_interface(task_m, srv_m, 'out' => 'explicit_out')
                 end
             end
@@ -444,14 +444,14 @@ describe Syskit::Models::Component do
                     provides srv_m, "out" => "#{name}_out", "in" => "#{name}_in"
                 end
                 @context = Syskit::Models::DynamicDataService::InstantiationContext
-                    .new(task_m, "dyn", dyn)
+                           .new(task_m, "dyn", dyn)
             end
             describe "#provides" do
                 it "should call provides_dynamic" do
                     srv_m = self.srv_m.new_submodel
                     flexmock(task_m).should_receive(:provides_dynamic).once
-                        .with(srv_m, Hash['out' => 'out_port', 'in' => 'in_port'], as: 'dyn', bound_service_class: Syskit::Models::BoundDynamicDataService)
-                        .and_return(result = flexmock)
+                                    .with(srv_m, Hash['out' => 'out_port', 'in' => 'in_port'], as: 'dyn', bound_service_class: Syskit::Models::BoundDynamicDataService)
+                                    .and_return(result = flexmock)
                     result.should_receive(:dynamic_service=)
                     result.should_receive(:dynamic_service_options=)
                     context.provides(srv_m, 'out' => 'out_port', 'in' => 'in_port')

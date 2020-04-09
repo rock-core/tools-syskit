@@ -357,9 +357,9 @@ module Syskit
                 end
 
                 app.ros_loader.search_path
-                    .concat(Roby.app.find_dirs('models', 'ROBOT', 'orogen', 'ros', :all => app.auto_load_all?, :order => :specific_first))
+                   .concat(Roby.app.find_dirs('models', 'ROBOT', 'orogen', 'ros', :all => app.auto_load_all?, :order => :specific_first))
                 app.ros_loader.packs
-                    .concat(Roby.app.find_dirs('models', 'ROBOT', 'pack', 'ros', :all => true, :order => :specific_last))
+                   .concat(Roby.app.find_dirs('models', 'ROBOT', 'pack', 'ros', :all => true, :order => :specific_last))
             end
 
             def syskit_listen_to_configuration_changes
@@ -644,9 +644,9 @@ module Syskit
             #   deployments should be started. If nil, all servers are considered
             def syskit_start_all_deployments(on: nil, except_on: "unmanaged_tasks")
                 existing_deployments = plan.find_tasks(Syskit::Deployment)
-                    .not_finished
-                    .find_all { |d| d.reusable? }
-                    .map(&:process_name).to_set
+                                           .not_finished
+                                           .find_all { |d| d.reusable? }
+                                           .map(&:process_name).to_set
 
                 Syskit.conf.each_configured_deployment(on: on, except_on: except_on) do |configured_deployment|
                     next if existing_deployments.include?(configured_deployment.process_name)

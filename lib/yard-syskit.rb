@@ -94,7 +94,7 @@ module Syskit
                 # as superclass by default
                 if !statement
                     statement = ::YARD.parse_string("Syskit::TaskContext")
-                        .enumerator.first
+                                      .enumerator.first
                 end
                 super(statement)
             end

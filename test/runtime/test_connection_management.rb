@@ -7,8 +7,8 @@ module Syskit
 
             def test_it_creates_a_new_connection_when_a_new_edge_is_added_between_tasks
                 mock_raw_port(source_task, 'out1').should_receive(:connect_to)
-                    .with(mock_raw_port(sink_task, 'in1'), Hash).once
-                    .pass_thru
+                                                  .with(mock_raw_port(sink_task, 'in1'), Hash).once
+                                                  .pass_thru
                 source.out1_port.connect_to sink.in1_port
                 ConnectionManagement.update(plan)
             end
@@ -16,11 +16,11 @@ module Syskit
             def test_it_passes_the_policy_and_distance_between_the_two_tasks_to_the_underlying_connect_to_call
                 policy = Hash[type: :buffer, size: 20]
                 flexmock(source.out1_port.to_actual_port.component).should_receive(:distance_to)
-                    .with(sink.in1_port.to_actual_port.component)
-                    .and_return(distance = flexmock)
+                                                                   .with(sink.in1_port.to_actual_port.component)
+                                                                   .and_return(distance = flexmock)
                 mock_raw_port(source_task, 'out1').should_receive(:connect_to)
-                    .with(mock_raw_port(sink_task, 'in1'), distance: distance, **policy).once
-                    .pass_thru
+                                                  .with(mock_raw_port(sink_task, 'in1'), distance: distance, **policy).once
+                                                  .pass_thru
                 source.out1_port.connect_to sink.in1_port, policy
                 ConnectionManagement.update(plan)
             end
@@ -30,8 +30,8 @@ module Syskit
                 ConnectionManagement.update(plan)
                 source.out2_port.connect_to sink.in2_port
                 mock_raw_port(source_task, 'out2').should_receive(:connect_to)
-                    .with(mock_raw_port(sink_task, 'in2'), Hash).once
-                    .pass_thru
+                                                  .with(mock_raw_port(sink_task, 'in2'), Hash).once
+                                                  .pass_thru
                 ConnectionManagement.update(plan)
             end
 
@@ -40,8 +40,8 @@ module Syskit
                 source.out2_port.connect_to sink.in2_port
                 ConnectionManagement.update(plan)
                 mock_raw_port(source_task, 'out2').should_receive(:disconnect_from)
-                    .with(mock_raw_port(sink_task, 'in2')).once
-                    .pass_thru
+                                                  .with(mock_raw_port(sink_task, 'in2')).once
+                                                  .pass_thru
                 source.out2_port.disconnect_from sink.in2_port
                 ConnectionManagement.update(plan)
             end
@@ -51,8 +51,8 @@ module Syskit
                 ConnectionManagement.update(plan)
                 source.remove_sink sink
                 mock_raw_port(source_task, 'out1').should_receive(:disconnect_from)
-                    .with(mock_raw_port(sink_task, 'in1')).once
-                    .pass_thru
+                                                  .with(mock_raw_port(sink_task, 'in1')).once
+                                                  .pass_thru
                 ConnectionManagement.update(plan)
             end
         end
@@ -166,9 +166,9 @@ module Syskit
                 describe "static source port" do
                     before do
                         flexmock(ActualDataFlow).should_receive(:static?)
-                            .with(source_task.orocos_task, 'out').and_return(true)
+                                                .with(source_task.orocos_task, 'out').and_return(true)
                         flexmock(ActualDataFlow).should_receive(:static?)
-                            .with(sink_task.orocos_task, 'in').and_return(false)
+                                                .with(sink_task.orocos_task, 'in').and_return(false)
                     end
 
                     it "returns false if the modified task is not represented in the plan" do
@@ -178,7 +178,7 @@ module Syskit
                     end
                     it "returns false if the modified task is to be garbage-collected" do
                         flexmock(management).should_receive(:find_setup_syskit_task_context_from_orocos_task)
-                            .and_return(source_task)
+                                            .and_return(source_task)
                         plan.unmark_mission_task(source_task)
                         assert !management.removed_connections_require_network_update?(
                             Hash[[source_task.orocos_task, sink_task.orocos_task] => [['out', 'in']]]
@@ -186,7 +186,7 @@ module Syskit
                     end
                     it "returns true if the task is already configured" do
                         flexmock(management).should_receive(:find_setup_syskit_task_context_from_orocos_task)
-                            .and_return(source_task)
+                                            .and_return(source_task)
                         assert management.removed_connections_require_network_update?(
                             Hash[[source_task.orocos_task, sink_task.orocos_task] => [['out', 'in']]]
                         )
@@ -196,9 +196,9 @@ module Syskit
                 describe "static sink port" do
                     before do
                         flexmock(ActualDataFlow).should_receive(:static?)
-                            .with(source_task.orocos_task, 'out').and_return(false)
+                                                .with(source_task.orocos_task, 'out').and_return(false)
                         flexmock(ActualDataFlow).should_receive(:static?)
-                            .with(sink_task.orocos_task, 'in').and_return(true)
+                                                .with(sink_task.orocos_task, 'in').and_return(true)
                     end
 
                     it "returns false if the modified task is not represented in the plan" do
@@ -208,7 +208,7 @@ module Syskit
                     end
                     it "returns false if the modified task is to be garbage-collected" do
                         flexmock(management).should_receive(:find_setup_syskit_task_context_from_orocos_task)
-                            .and_return(sink_task)
+                                            .and_return(sink_task)
                         plan.unmark_mission_task(sink_task)
                         assert !management.removed_connections_require_network_update?(
                             Hash[[source_task.orocos_task, sink_task.orocos_task] => [['out', 'in']]]
@@ -216,7 +216,7 @@ module Syskit
                     end
                     it "returns true if the task is already configured" do
                         flexmock(management).should_receive(:find_setup_syskit_task_context_from_orocos_task)
-                            .and_return(sink_task)
+                                            .and_return(sink_task)
                         assert management.removed_connections_require_network_update?(
                             Hash[[source_task.orocos_task, sink_task.orocos_task] => [['out', 'in']]]
                         )
@@ -244,10 +244,10 @@ module Syskit
                         out_port = mock_raw_port(source_task, 'out')
                         in_port  = mock_raw_port(sink_task, 'in')
                         out_port.should_receive(:connect_to)
-                            .with(in_port, Hash).once.pass_thru
+                                .with(in_port, Hash).once.pass_thru
 
                         flexmock(sink_task.orocos_task).should_receive(:configure)
-                            .once.ordered.pass_thru
+                                                       .once.ordered.pass_thru
                         source_task.connect_to(sink_task)
                         refute sink_task.ready_for_setup?,
                                "#{sink_task} is ready_for_setup? but its inputs are "\
@@ -266,10 +266,10 @@ module Syskit
 
                             flexmock(manager = ConnectionManagement.new(plan))
                             manager.should_receive(:removed_connections_require_network_update?)
-                                .and_return(true)
+                                   .and_return(true)
                             manager.should_receive(:update).once.pass_thru.ordered
                             flexmock(Runtime).should_receive(:apply_requirement_modifications)
-                                .with(any, force: true).once.ordered
+                                             .with(any, force: true).once.ordered
                             manager.update
                             assert_equal expected, dataflow_graph.pending_changes
                             dataflow_graph.pending_changes = nil
@@ -406,13 +406,13 @@ module Syskit
                             out_port = mock_raw_port(source_task, 'out')
                             in_port  = mock_raw_port(sink_task, 'in')
                             out_port.should_receive(:connect_to)
-                                .with(in_port, Hash)
-                                .once.globally.ordered(:connections)
-                                .pass_thru
+                                    .with(in_port, Hash)
+                                    .once.globally.ordered(:connections)
+                                    .pass_thru
                             out_port.should_receive(:connect_to)
-                                .with(->(port) { port.name == 'in2' }, any)
-                                .once.globally.ordered(:connections)
-                                .pass_thru
+                                    .with(->(port) { port.name == 'in2' }, any)
+                                    .once.globally.ordered(:connections)
+                                    .pass_thru
 
                             expect_execution.scheduler(true).to { emit pre_operational_task.start_event }
                         end
@@ -443,7 +443,7 @@ module Syskit
                                 plan.add(new_source_task = source_task
                                     .execution_agent.task(source_task.orocos_name))
                                 new_source_task.out_port
-                                    .connect_to sink_task.in_port, type: :data
+                                               .connect_to sink_task.in_port, type: :data
                                 ConnectionManagement.update(plan)
                                 assert source_task.out_port.connected_to?(sink_task.in_port)
                                 edge_info = ActualDataFlow.edge_info(
@@ -471,16 +471,16 @@ module Syskit
                                 in_port  = mock_raw_port(sink_task, 'in')
                                 new_out_port = mock_raw_port(new_source_task, 'out')
                                 out_port.should_receive(:disconnect_from)
-                                    .with(in_port)
-                                    .once.globally.ordered
-                                    .pass_thru
+                                        .with(in_port)
+                                        .once.globally.ordered
+                                        .pass_thru
                                 new_out_port.should_receive(:connect_to)
-                                    .with(in_port, Hash)
-                                    .once.globally.ordered
-                                    .pass_thru
+                                            .with(in_port, Hash)
+                                            .once.globally.ordered
+                                            .pass_thru
                                 ConnectionManagement.update(plan)
                                 expect_execution.garbage_collect(true).scheduler(true)
-                                    .to { emit new_source_task.start_event }
+                                                .to { emit new_source_task.start_event }
 
                                 edge_info = ActualDataFlow.edge_info(
                                     new_source_task.orocos_task, sink_task.orocos_task
@@ -493,7 +493,7 @@ module Syskit
                         describe "sink tasks" do
                             before do
                                 source_task.out_port
-                                    .connect_to sink_task.in_port, type: :buffer
+                                           .connect_to sink_task.in_port, type: :buffer
                                 ConnectionManagement.update(plan)
                                 edge_info = ActualDataFlow.edge_info(
                                     source_task.orocos_task, sink_task.orocos_task
@@ -523,13 +523,13 @@ module Syskit
                                 in_port  = mock_raw_port(sink_task, 'in')
                                 new_in_port = mock_raw_port(new_sink_task, 'in')
                                 out_port.should_receive(:disconnect_from)
-                                    .with(in_port)
-                                    .once.globally.ordered
-                                    .pass_thru
+                                        .with(in_port)
+                                        .once.globally.ordered
+                                        .pass_thru
                                 out_port.should_receive(:connect_to)
-                                    .with(new_in_port, Hash[distance: TaskContext::D_SAME_PROCESS, type: :data])
-                                    .once.globally.ordered
-                                    .pass_thru
+                                        .with(new_in_port, Hash[distance: TaskContext::D_SAME_PROCESS, type: :data])
+                                        .once.globally.ordered
+                                        .pass_thru
                                 ConnectionManagement.update(plan)
                                 expect_execution.garbage_collect(true).scheduler(true).to { emit new_sink_task.start_event }
                                 assert_equal Hash[['out', 'in'] => Hash[type: :data]], ActualDataFlow.edge_info(source_task.orocos_task, new_sink_task.orocos_task)
@@ -592,16 +592,16 @@ module Syskit
 
                     manager = ConnectionManagement.new(plan)
                     flexmock(manager).should_receive(:compute_connection_changes)
-                        .with(Set[source_task]).once.ordered
-                        .and_return([Hash.new, Hash.new])
+                                     .with(Set[source_task]).once.ordered
+                                     .and_return([Hash.new, Hash.new])
                     flexmock(manager).should_receive(:compute_connection_changes)
-                        .with(Set[source_task, sink_task]).once.ordered
-                        .and_return([Hash.new, Hash.new])
+                                     .with(Set[source_task, sink_task]).once.ordered
+                                     .and_return([Hash.new, Hash.new])
                     flexmock(manager).should_receive(:apply_connection_changes)
-                        .and_return([
-                                        flexmock(:base, Hash.new, empty?: false),
-                                        flexmock(:base, Hash.new, empty?: false)
-                                    ])
+                                     .and_return([
+                                                     flexmock(:base, Hash.new, empty?: false),
+                                                     flexmock(:base, Hash.new, empty?: false)
+                                                 ])
                     dataflow_graph = plan.task_relation_graph_for(Syskit::Flows::DataFlow)
                     dataflow_graph.modified_tasks << source_task
 
@@ -755,7 +755,7 @@ module Syskit
                 it "removes connections when the source deployment is stopped" do
                     stop_and_collect_execution_agents(source)
                     flexmock(ConnectionManagement).new_instances.should_receive(:warn)
-                        .with(/error while disconnecting|I am assuming that the disconnection is actually effective/)
+                                                  .with(/error while disconnecting|I am assuming that the disconnection is actually effective/)
                     ConnectionManagement.update(plan)
                     assert_is_disconnected(source_alive: false)
                 end
@@ -763,7 +763,7 @@ module Syskit
                 it "removes connections when the sink deployment is stopped" do
                     stop_and_collect_execution_agents(sink)
                     flexmock(ConnectionManagement).new_instances.should_receive(:warn)
-                        .with(/error while disconnecting|I am assuming that the disconnection is actually effective/)
+                                                  .with(/error while disconnecting|I am assuming that the disconnection is actually effective/)
                     ConnectionManagement.update(plan)
                     assert_is_disconnected(sink_alive: false)
                 end
@@ -778,8 +778,8 @@ module Syskit
                 sink.model.orogen_model.input_port 'in', '/double'
                 source.out_port.connect_to sink.in_port
                 exception = expect_execution { ConnectionManagement.update(plan) }
-                    .to { have_error_matching PortNotFound.match.with_origin(sink) }
-                    .exception
+                            .to { have_error_matching PortNotFound.match.with_origin(sink) }
+                            .exception
                 assert_equal 'in', exception.port_name
                 assert_equal :input, exception.port_kind
             end
@@ -792,8 +792,8 @@ module Syskit
                 source.model.orogen_model.output_port 'out', '/double'
                 source.out_port.connect_to sink.in_port
                 exception = expect_execution { ConnectionManagement.update(plan) }
-                    .to { have_error_matching PortNotFound.match.with_origin(source) }
-                    .exception
+                            .to { have_error_matching PortNotFound.match.with_origin(source) }
+                            .exception
                 assert_equal 'out', exception.port_name
                 assert_equal :output, exception.port_kind
             end
@@ -888,8 +888,8 @@ module Syskit
                     assert(!sink.execution_agent.running?)
                     syskit_start_execution_agents(sink)
                     mock_raw_port(source, 'out').should_receive(:connect_to)
-                        .with(mock_raw_port(sink, 'in'), Hash).once
-                        .pass_thru
+                                                .with(mock_raw_port(sink, 'in'), Hash).once
+                                                .pass_thru
                     ConnectionManagement.update(plan)
                 end
 
@@ -1052,9 +1052,9 @@ module Syskit
                         stop_and_collect_tasks source_task
                         assert Syskit::ActualDataFlow.has_edge?(source_orocos, sink_orocos)
                         flexmock(sink_task).should_receive(:removing_input_port_connection)
-                            .with(source_orocos, 'out', 'in').once.globally.ordered
+                                           .with(source_orocos, 'out', 'in').once.globally.ordered
                         flexmock(sink_task).should_receive(:removed_input_port_connection)
-                            .with(source_orocos, 'out', 'in').once.globally.ordered
+                                           .with(source_orocos, 'out', 'in').once.globally.ordered
                         execute { source_agent.stop! }
                         Syskit::Runtime::ConnectionManagement.update(plan)
                     end
@@ -1063,9 +1063,9 @@ module Syskit
                         stop_and_collect_tasks sink_task
                         assert Syskit::ActualDataFlow.has_edge?(source_orocos, sink_orocos)
                         flexmock(source_task).should_receive(:removing_output_port_connection)
-                            .with('out', sink_orocos, 'in').once.globally.ordered
+                                             .with('out', sink_orocos, 'in').once.globally.ordered
                         flexmock(source_task).should_receive(:removed_output_port_connection)
-                            .with('out', sink_orocos, 'in').once.globally.ordered
+                                             .with('out', sink_orocos, 'in').once.globally.ordered
                         execute { sink_agent.stop! }
                         Syskit::Runtime::ConnectionManagement.update(plan)
                     end

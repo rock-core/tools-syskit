@@ -214,7 +214,7 @@ module Syskit
                 remaining_tasks = tasks.dup
                 while !missing_ports.empty?
                     remaining_tasks = remaining_tasks
-                        .sort_by { |t| triggering_dependencies[t].size }
+                                      .sort_by { |t| triggering_dependencies[t].size }
 
                     @changed = false
                     remaining_tasks.delete_if do |task|

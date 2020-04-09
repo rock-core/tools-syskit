@@ -45,9 +45,9 @@ module Syskit::GUI
                 end
 
                 providers = providers.sort_by(&:first)
-                    .map do |name, model|
-                        page.link_to(model, name)
-                    end
+                                     .map do |name, model|
+                    page.link_to(model, name)
+                end
                 page.render_list("Provided By", providers)
             end
 

@@ -253,9 +253,9 @@ module Syskit
                             if @orogen_name
                                 begin
                                     orogen_model = peer
-                                        .orogen_task_context_model_from_name(@orogen_name)
+                                                   .orogen_task_context_model_from_name(@orogen_name)
                                     local_model = Syskit::TaskContext
-                                        .define_from_orogen(orogen_model, register: false)
+                                                  .define_from_orogen(orogen_model, register: false)
                                     if name
                                         local_model.name = name
                                     end
@@ -266,7 +266,7 @@ module Syskit
                             if !orogen_model
                                 syskit_supermodel = peer.local_model(self.supermodel)
                                 local_model = syskit_supermodel
-                                    .new_submodel(name: @orogen_name)
+                                              .new_submodel(name: @orogen_name)
                                 if name
                                     local_model.name = name
                                 end
@@ -297,18 +297,18 @@ module Syskit
 
                     def droby_dump(peer)
                         types = orogen_model.each_interface_type
-                            .map { |t| peer.dump(t) }
+                                            .map { |t| peer.dump(t) }
 
                         supermodel = Roby::DRoby::V5::DRobyModel
-                            .dump_supermodel(peer, self)
+                                     .dump_supermodel(peer, self)
                         provided_models = Roby::DRoby::V5::DRobyModel
-                            .dump_provided_models_of(peer, self)
+                                          .dump_provided_models_of(peer, self)
 
                         orogen_name = orogen_model.name
                         if orogen_model.name && (project_name = orogen_model.project.name)
                             begin
                                 project_text, _ = orogen_model.project.loader
-                                    .project_model_text_from_name(project_name)
+                                                              .project_model_text_from_name(project_name)
                             rescue OroGen::ProjectNotFound
                             end
                         end

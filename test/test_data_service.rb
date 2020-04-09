@@ -104,7 +104,7 @@ describe Syskit::ComBus do
         end
         @combus = robot.com_bus combus_m, as: 'COM'
         @device = robot.device(device_m, as: 'DEV')
-            .attach_to(robot.COM_dev)
+                       .attach_to(robot.COM_dev)
     end
     describe "#each_com_bus_device" do
         it "lists the combus devices the task is driving" do
@@ -153,7 +153,7 @@ describe Syskit::ComBus do
             end
             it "creates a service on the combus task for each attached device" do
                 flexmock(combus).should_receive(:require_dynamic_service_for_device)
-                    .with(combus_driver_m, device).once.pass_thru
+                                .with(combus_driver_m, device).once.pass_thru
                 combus_task = combus.instanciate(plan).to_task
                 assert_kind_of combus_driver_m, combus_task
                 assert_equal combus_m::BusSrv, combus_task.find_data_service('DEV').model.model
@@ -185,26 +185,26 @@ describe Syskit::ComBus do
             end
             it "creates a service on the combus task" do
                 flexmock(combus_task).should_receive(:require_dynamic_service)
-                    .with('com_bus', as: 'DEV', bus_to_client: true, client_to_bus: true).once.pass_thru
+                                     .with('com_bus', as: 'DEV', bus_to_client: true, client_to_bus: true).once.pass_thru
                 combus_task.attach(device_task)
             end
             it "does not create an input service on the combus task if messages flow only from the bus to the client" do
                 mock_bus_direction(bus_to_client: true, client_to_bus: false)
                 flexmock(combus_task).should_receive(:require_dynamic_service)
-                    .with('com_bus', as: 'DEV', bus_to_client: true, client_to_bus: false).once.pass_thru
+                                     .with('com_bus', as: 'DEV', bus_to_client: true, client_to_bus: false).once.pass_thru
                 combus_task.attach(device_task)
             end
             it "does not create an output service on the combus task if messages flow only from the client to the bus" do
                 mock_bus_direction(bus_to_client: false, client_to_bus: true)
                 flexmock(combus_task).should_receive(:require_dynamic_service)
-                    .with('com_bus', as: 'DEV', bus_to_client: false, client_to_bus: true).once.pass_thru
+                                     .with('com_bus', as: 'DEV', bus_to_client: false, client_to_bus: true).once.pass_thru
                 combus_task.attach(device_task)
             end
             it "uses the bus model's #dynamic_service_name to set up the dynamic service" do
                 flexmock(combus_m).should_receive(:dynamic_service_name).and_return('dyn_srv').by_default
                 srv = combus_task.require_dynamic_service('com_bus', as: 'DEV', bus_to_client: true, client_to_bus: true)
                 flexmock(combus_task).should_receive(:require_dynamic_service)
-                    .with('dyn_srv', as: 'DEV', bus_to_client: true, client_to_bus: true).once.and_return(srv)
+                                     .with('dyn_srv', as: 'DEV', bus_to_client: true, client_to_bus: true).once.and_return(srv)
                 combus_task.attach(device_task)
             end
             it "ignores devices that are not attached to the bus" do

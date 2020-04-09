@@ -143,73 +143,73 @@ describe Syskit::NetworkGeneration::MergeSolver do
         attr_reader :task_model, :port_model
         before do
             @port_model = flexmock
-                .should_receive(:multiplexes?).and_return(false).by_default
-                .mock
+                          .should_receive(:multiplexes?).and_return(false).by_default
+                          .mock
             @task_model = flexmock
-                .should_receive(:find_input_port).and_return(port_model).by_default
-                .mock
+                          .should_receive(:find_input_port).and_return(port_model).by_default
+                          .mock
         end
 
         it "should return an empty array if given the same task" do
             task = flexmock(model: task_model)
-                .should_receive(:each_concrete_input_connection).and_yield(src = Object.new, 'src_port', 'sink_port', Hash.new)
-                .mock
+                   .should_receive(:each_concrete_input_connection).and_yield(src = Object.new, 'src_port', 'sink_port', Hash.new)
+                   .mock
             assert_equal [], solver.resolve_input_matching(task, task)
         end
         it "should not check for multiplexing ports for ports that do match" do
             task = flexmock(model: task_model)
-                .should_receive(:each_concrete_input_connection).and_yield(src = Object.new, 'src_port', 'sink_port', Hash.new)
-                .mock
+                   .should_receive(:each_concrete_input_connection).and_yield(src = Object.new, 'src_port', 'sink_port', Hash.new)
+                   .mock
             task_model.should_receive(:find_input_port).never
             solver.resolve_input_matching(task, task)
         end
         it "should return nil if the source port name is different" do
             task = flexmock(model: task_model)
-                .should_receive(:each_concrete_input_connection).and_yield(src = Object.new, 'src_port', 'sink_port', Hash.new)
-                .mock
+                   .should_receive(:each_concrete_input_connection).and_yield(src = Object.new, 'src_port', 'sink_port', Hash.new)
+                   .mock
             target_task = flexmock(model: task_model)
-                .should_receive(:each_concrete_input_connection).and_yield(src, 'other_src_port', 'sink_port', Hash.new)
-                .mock
+                          .should_receive(:each_concrete_input_connection).and_yield(src, 'other_src_port', 'sink_port', Hash.new)
+                          .mock
             assert !solver.resolve_input_matching(task, target_task)
         end
         it "should return nil if the policies are different" do
             task = flexmock(model: task_model)
-                .should_receive(:each_concrete_input_connection).and_yield(src = Object.new, 'src_port', 'sink_port', policy = flexmock(:empty? => false))
-                .mock
+                   .should_receive(:each_concrete_input_connection).and_yield(src = Object.new, 'src_port', 'sink_port', policy = flexmock(:empty? => false))
+                   .mock
             target_task = flexmock(model: task_model)
-                .should_receive(:each_concrete_input_connection).and_yield(src, 'src_port', 'sink_port', target_policy = flexmock(:empty? => false))
-                .mock
+                          .should_receive(:each_concrete_input_connection).and_yield(src, 'src_port', 'sink_port', target_policy = flexmock(:empty? => false))
+                          .mock
             flexmock(Syskit).should_receive(:update_connection_policy).with(policy, target_policy).and_return(nil).once
             assert !solver.resolve_input_matching(task, target_task)
         end
         it "should call the task model with the input port name to get the port model if connections mismatch" do
             task_model.should_receive(:find_input_port).with('sink_port').once.and_return(port_model)
             task = flexmock(model: task_model)
-                .should_receive(:each_concrete_input_connection).and_yield(src = Object.new, 'src_port', 'sink_port', policy = flexmock(:empty? => false))
-                .mock
+                   .should_receive(:each_concrete_input_connection).and_yield(src = Object.new, 'src_port', 'sink_port', policy = flexmock(:empty? => false))
+                   .mock
             target_task = flexmock(model: task_model)
-                .should_receive(:each_concrete_input_connection).and_yield(target_src = Object.new, 'src_port', 'sink_port', target_policy = flexmock(:empty? => false))
-                .mock
+                          .should_receive(:each_concrete_input_connection).and_yield(target_src = Object.new, 'src_port', 'sink_port', target_policy = flexmock(:empty? => false))
+                          .mock
             flexmock(Syskit).should_receive(:update_connection_policy).with(policy, target_policy).and_return(nil).once
             assert !solver.resolve_input_matching(task, target_task)
         end
         it "should return the mismatching connection if the source port task is different" do
             task = flexmock(model: task_model)
-                .should_receive(:each_concrete_input_connection).and_yield(src = Object.new, 'src_port', 'sink_port', Hash.new)
-                .mock
+                   .should_receive(:each_concrete_input_connection).and_yield(src = Object.new, 'src_port', 'sink_port', Hash.new)
+                   .mock
             target_task = flexmock(model: task_model)
-                .should_receive(:each_concrete_input_connection).and_yield(target_src = Object.new, 'src_port', 'sink_port', Hash.new)
-                .mock
+                          .should_receive(:each_concrete_input_connection).and_yield(target_src = Object.new, 'src_port', 'sink_port', Hash.new)
+                          .mock
             assert_equal [["sink_port", src, target_src]],
                          solver.resolve_input_matching(task, target_task)
         end
         it "should return nil if the source port tasks are different and the policies are not compatible" do
             task = flexmock(model: task_model)
-                .should_receive(:each_concrete_input_connection).and_yield(src = Object.new, 'src_port', 'sink_port', policy = flexmock(:empty? => false))
-                .mock
+                   .should_receive(:each_concrete_input_connection).and_yield(src = Object.new, 'src_port', 'sink_port', policy = flexmock(:empty? => false))
+                   .mock
             target_task = flexmock(model: task_model)
-                .should_receive(:each_concrete_input_connection).and_yield(target_src = Object.new, 'src_port', 'sink_port', target_policy = flexmock(:empty? => false))
-                .mock
+                          .should_receive(:each_concrete_input_connection).and_yield(target_src = Object.new, 'src_port', 'sink_port', target_policy = flexmock(:empty? => false))
+                          .mock
             flexmock(Syskit).should_receive(:update_connection_policy).with(policy, target_policy).and_return(nil).once
             assert !solver.resolve_input_matching(task, target_task)
         end
@@ -223,29 +223,29 @@ describe Syskit::NetworkGeneration::MergeSolver do
             end
             it "should return nil if connections from the same port are connected with different policies" do
                 task = flexmock(model: task_model)
-                    .should_receive(:each_concrete_input_connection).and_yield(src = Object.new, 'src_port', 'sink_port', policy)
-                    .mock
+                       .should_receive(:each_concrete_input_connection).and_yield(src = Object.new, 'src_port', 'sink_port', policy)
+                       .mock
                 target_task = flexmock(model: task_model)
-                    .should_receive(:each_concrete_input_connection).and_yield(src, 'src_port', 'sink_port', target_policy)
-                    .mock
+                              .should_receive(:each_concrete_input_connection).and_yield(src, 'src_port', 'sink_port', target_policy)
+                              .mock
                 assert !solver.resolve_input_matching(task, target_task)
             end
             it "should return an empty array for connections from different ports regardless of the connection policy" do
                 task = flexmock(model: task_model)
-                    .should_receive(:each_concrete_input_connection).and_yield(src = Object.new, 'src_port', 'sink_port', policy)
-                    .mock
+                       .should_receive(:each_concrete_input_connection).and_yield(src = Object.new, 'src_port', 'sink_port', policy)
+                       .mock
                 target_task = flexmock(model: task_model)
-                    .should_receive(:each_concrete_input_connection).and_yield(src, 'other_src_port', 'sink_port', target_policy)
-                    .mock
+                              .should_receive(:each_concrete_input_connection).and_yield(src, 'other_src_port', 'sink_port', target_policy)
+                              .mock
                 assert_equal [], solver.resolve_input_matching(task, target_task)
             end
             it "should return an empty array for connections from different tasks regardless of the connection policy" do
                 task = flexmock(model: task_model)
-                    .should_receive(:each_concrete_input_connection).and_yield(src = Object.new, 'src_port', 'sink_port', policy)
-                    .mock
+                       .should_receive(:each_concrete_input_connection).and_yield(src = Object.new, 'src_port', 'sink_port', policy)
+                       .mock
                 target_task = flexmock(model: task_model)
-                    .should_receive(:each_concrete_input_connection).and_yield(src, 'other_src_port', 'sink_port', target_policy)
-                    .mock
+                              .should_receive(:each_concrete_input_connection).and_yield(src, 'other_src_port', 'sink_port', target_policy)
+                              .mock
                 assert_equal [], solver.resolve_input_matching(task, target_task)
             end
         end
@@ -274,8 +274,8 @@ describe Syskit::NetworkGeneration::MergeSolver do
                 cmp2 = cmp_m.use(task_m.out2_srv).instanciate(plan)
                 solver = Syskit::NetworkGeneration::MergeSolver.new(plan)
                 flexmock(solver).should_receive(:apply_merge_group)
-                    .with(->(mapping) { mapping.to_a.all? { |a, b| a.kind_of?(Syskit::TaskContext) && b.kind_of?(Syskit::TaskContext) } })
-                    .pass_thru
+                                .with(->(mapping) { mapping.to_a.all? { |a, b| a.kind_of?(Syskit::TaskContext) && b.kind_of?(Syskit::TaskContext) } })
+                                .pass_thru
                 solver.merge_identical_tasks
                 plan.clear
             end

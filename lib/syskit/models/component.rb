@@ -102,7 +102,7 @@ module Syskit
 
                 if matching_services.size > 1
                     main_matching_services = matching_services
-                        .find_all { |service| service.master? }
+                                             .find_all { |service| service.master? }
 
                     if main_matching_services.size != 1
                         raise AmbiguousServiceSelection.new(self, target_model, main_matching_services), "there is more than one service of type #{target_model.name} in #{self.name}#{" matching name hint #{pattern}" if pattern}"
@@ -404,7 +404,7 @@ module Syskit
                 elsif expected_name
                     if !component_port
                         known_ports = send("each_#{direction}_port")
-                            .map { |p| "#{p.name}[#{p.type.name}]" }
+                                      .map { |p| "#{p.name}[#{p.type.name}]" }
                         raise InvalidPortMapping, "the provided port mapping from #{port.name} to #{port_name} is invalid: #{port_name} is not a #{direction} port in #{short_name}. Known output ports are #{known_ports.sort.join(", ")}"
                     else
                         raise InvalidPortMapping, "the provided port mapping from #{port.name} to #{port_name} is invalid: #{port_name} is of type #{component_port.type_name} in #{short_name} and I was expecting #{port.type}"
@@ -412,7 +412,7 @@ module Syskit
                 end
 
                 candidates = send("each_#{direction}_port")
-                    .find_all { |p| p.type == port.type }
+                             .find_all { |p| p.type == port.type }
                 if candidates.empty?
                     return
                 elsif candidates.size == 1
@@ -1068,7 +1068,7 @@ module Syskit
                                  end
                     missing_services.each do |_, srv|
                         dynamic_service_options = Hash[as: srv.name]
-                            .merge(srv.dynamic_service_options)
+                                                  .merge(srv.dynamic_service_options)
                         base_model.require_dynamic_service srv.dynamic_service.name, dynamic_service_options
                     end
                     base_model

@@ -59,7 +59,7 @@ module Syskit
 
                     expect_execution { planning_task.failed_event.emit }.to do
                         have_error_matching Roby::PlanningFailedError.match
-                            .with_origin(original_task)
+                                                                     .with_origin(original_task)
                     end
                     assert_equal [], Engine.discover_requirement_tasks_from_plan(plan)
                 end
@@ -96,7 +96,7 @@ module Syskit
 
                 it "saves the mapping from requirement task in real_plan to instanciated task in work_plan" do
                     flexmock(requirements).should_receive(:instanciate)
-                        .and_return(instanciated_task = simple_component_model.new)
+                                          .and_return(instanciated_task = simple_component_model.new)
                     mapping = syskit_engine.compute_system_network([planning_task])
                     assert_equal instanciated_task, mapping[planning_task]
                 end
@@ -165,7 +165,7 @@ module Syskit
                     flexmock(proxy).should_receive(:transaction_modifies_static_ports?).once.and_return(true)
                     syskit_engine.reconfigure_tasks_on_static_port_modification([proxy])
                     tasks = work_plan.find_local_tasks(Syskit::TaskContext)
-                        .with_arguments(orocos_name: task.orocos_name).to_a
+                                     .with_arguments(orocos_name: task.orocos_name).to_a
                     assert_equal 2, tasks.size
                     tasks.delete(proxy)
                     new_task = tasks.first
@@ -180,7 +180,7 @@ module Syskit
                     flexmock(proxy).should_receive(:transaction_modifies_static_ports?).once.and_return(false)
                     syskit_engine.reconfigure_tasks_on_static_port_modification([proxy])
                     tasks = work_plan.find_local_tasks(Syskit::TaskContext)
-                        .with_arguments(orocos_name: task.orocos_name).to_a
+                                     .with_arguments(orocos_name: task.orocos_name).to_a
                     assert_equal work_plan.wrap([task]), tasks
                 end
 
@@ -188,7 +188,7 @@ module Syskit
                     task = syskit_stub_and_deploy("Task") { input_port('in', '/double').static }
                     syskit_engine.reconfigure_tasks_on_static_port_modification([task])
                     tasks = work_plan.find_local_tasks(Syskit::TaskContext)
-                        .with_arguments(orocos_name: task.orocos_name).to_a
+                                     .with_arguments(orocos_name: task.orocos_name).to_a
                     assert_equal work_plan.wrap([task]), tasks
                 end
 
@@ -202,7 +202,7 @@ module Syskit
                         cmp = syskit_deploy(cmp_m)
                         original_task = cmp.test_child
                         flexmock(task_m).new_instances.should_receive(:can_be_deployed_by?)
-                            .with(->(proxy) { proxy.__getobj__ == cmp.test_child }).and_return(false)
+                                        .with(->(proxy) { proxy.__getobj__ == cmp.test_child }).and_return(false)
                         new_cmp = syskit_deploy(cmp_m)
 
                         # Should have instanciated a new composition since the children
@@ -234,7 +234,7 @@ module Syskit
                         child  = parent.test_child
 
                         flexmock(child_m).new_instances.should_receive(:can_be_deployed_by?)
-                            .with(->(proxy) { proxy.__getobj__ == child }).and_return(false)
+                                         .with(->(proxy) { proxy.__getobj__ == child }).and_return(false)
                         new_parent = syskit_deploy(parent_m)
                         new_child = new_parent.test_child
 
@@ -311,7 +311,7 @@ module Syskit
                         @existing_task = existing_deployment_task.task('test', record: false)
                         @task = deployment_task.task 'test'
                         flexmock(task).should_receive(:can_be_deployed_by?)
-                            .with(existing_task).and_return(false)
+                                      .with(existing_task).and_return(false)
                     end
 
                     it "creates a new deployed task" do
@@ -333,7 +333,7 @@ module Syskit
                         work_plan.add(deployment_task = deployment_m.new)
                         task = deployment_task.task('test')
                         flexmock(task).should_receive(:can_be_deployed_by?)
-                            .with(first_new_task).and_return(false)
+                                      .with(first_new_task).and_return(false)
                         syskit_engine.adapt_existing_deployment(deployment_task, existing_deployment_task)
                         second_new_task = existing_deployment_task.created_tasks[1].last
 
@@ -345,7 +345,7 @@ module Syskit
 
                     it "synchronizes with the existing tasks even if there are no current ones" do
                         flexmock(syskit_engine).should_receive(:find_current_deployed_task)
-                            .once.and_return(nil)
+                                               .once.and_return(nil)
                         syskit_engine.adapt_existing_deployment(deployment_task, existing_deployment_task)
                         created_task = existing_deployment_task.created_tasks[0].last
                         assert_equal [created_task.start_event],
@@ -433,7 +433,7 @@ module Syskit
                     assert_equal [expected_deployment], selected_deployments.to_a
 
                     task2 = work_plan.find_local_tasks
-                        .with_arguments(orocos_name: 'task2').first
+                                     .with_arguments(orocos_name: 'task2').first
                     assert task2
                     refute task2.transaction_proxy?
 
@@ -475,7 +475,7 @@ module Syskit
                     required2 = work_plan[existing0].children.first
                     assert_equal 'task2', required2.orocos_name
                     assert required2.each_parent_task
-                        .find { |t| t.orocos_name == 'task1' }
+                                    .find { |t| t.orocos_name == 'task1' }
                 end
 
                 it 'raises if there is a repeated deployment' do

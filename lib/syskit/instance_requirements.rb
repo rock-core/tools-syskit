@@ -898,8 +898,8 @@ module Syskit
             base_requirements = dup.with_no_arguments
             template = TemplatePlan.new
             template.root_task = base_requirements
-                .instanciate(template, use_template: false)
-                .to_task
+                                 .instanciate(template, use_template: false)
+                                 .to_task
             merge_solver = NetworkGeneration::MergeSolver.new(template)
             merge_solver.merge_identical_tasks
             template.root_task = merge_solver.replacement_for(template.root_task)

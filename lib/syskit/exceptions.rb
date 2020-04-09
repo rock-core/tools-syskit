@@ -259,7 +259,7 @@ module Syskit
             @task = task
             @merged_task = merged_task
             @compositions = merged_task.parent_objects(Roby::TaskStructure::Dependency)
-                .map { |parent| [parent, parent[merged_task, Roby::TaskStructure::Dependency].dup] }
+                                       .map { |parent| [parent, parent[merged_task, Roby::TaskStructure::Dependency].dup] }
         end
 
         def pretty_print(pp)
@@ -310,12 +310,12 @@ module Syskit
                 end
 
                 parents = task
-                    .enum_for(:each_parent_object, Roby::TaskStructure::Dependency)
-                    .map do |parent_task|
-                        options = parent_task[task,
-                                              Roby::TaskStructure::Dependency]
-                        [options[:roles], parent_task]
-                    end
+                          .enum_for(:each_parent_object, Roby::TaskStructure::Dependency)
+                          .map do |parent_task|
+                    options = parent_task[task,
+                                          Roby::TaskStructure::Dependency]
+                    [options[:roles], parent_task]
+                end
                 abstract_tasks[task] = [parents, candidates]
             end
         end
@@ -390,11 +390,11 @@ module Syskit
                 next if task_parents.has_key?(t)
 
                 parents = t
-                    .enum_for(:each_parent_object, Roby::TaskStructure::Dependency)
-                    .map do |parent_task|
-                        options = parent_task[t, Roby::TaskStructure::Dependency]
-                        [options[:roles], parent_task]
-                    end
+                          .enum_for(:each_parent_object, Roby::TaskStructure::Dependency)
+                          .map do |parent_task|
+                    options = parent_task[t, Roby::TaskStructure::Dependency]
+                    [options[:roles], parent_task]
+                end
                 task_parents[t] = parents
             end
         end

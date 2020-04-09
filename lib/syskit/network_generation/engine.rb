@@ -250,8 +250,8 @@ module Syskit
                 end
 
                 replacement_filter = Roby::Plan::ReplacementFilter.new
-                    .exclude_relation(Syskit::Flows::DataFlow)
-                    .exclude_tasks(work_plan.find_local_tasks(Syskit::Component))
+                                                                  .exclude_relation(Syskit::Flows::DataFlow)
+                                                                  .exclude_tasks(work_plan.find_local_tasks(Syskit::Component))
 
                 required_instances.each do |req_task, actual_task|
                     placeholder_task = work_plan.wrap_task(req_task.planned_task)
@@ -339,14 +339,14 @@ module Syskit
                 selected_deployment_tasks = Set.new
                 used_deployments.each do |deployment_task|
                     existing_candidates = work_plan
-                        .find_local_tasks(deployment_task.model)
-                        .not_finishing.not_finished.to_set
+                                          .find_local_tasks(deployment_task.model)
+                                          .not_finishing.not_finished.to_set
 
                     # Check for the corresponding task in the plan
                     existing_deployment_tasks = (existing_candidates & existing_deployments)
-                        .find_all do |t|
-                            t.process_name == deployment_task.process_name
-                        end
+                                                .find_all do |t|
+                        t.process_name == deployment_task.process_name
+                    end
 
                     debug do
                         debug "  looking to reuse a deployment for #{deployment_task.process_name} (#{deployment_task})"
@@ -415,7 +415,7 @@ module Syskit
                 # the new deployment task and ignore the one that is being
                 # replaced
                 already_setup_tasks = work_plan.find_tasks(Syskit::TaskContext).not_finished.not_finishing
-                    .find_all { |t| deployed_tasks.include?(t) && (t.setting_up? || t.setup?) }
+                                               .find_all { |t| deployed_tasks.include?(t) && (t.setting_up? || t.setup?) }
 
                 already_setup_tasks.each do |t|
                     if t.transaction_modifies_static_ports?
@@ -488,7 +488,7 @@ module Syskit
                         existing_tasks.each do |previous_task|
                             debug { "  #{new_task} needs to wait for #{existing_task} to finish before reconfiguring" }
                             parent_task_contexts = previous_task.each_parent_task
-                                .find_all { |t| t.kind_of?(Syskit::TaskContext) }
+                                                                .find_all { |t| t.kind_of?(Syskit::TaskContext) }
                             parent_task_contexts.each do |t|
                                 t.remove_child(previous_task)
                             end

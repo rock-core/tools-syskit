@@ -26,7 +26,7 @@ module Syskit
             describe "#have_one_new_sample" do
                 it "passes if the task emits a sample and returns it" do
                     value = expect_execution { syskit_write task.in_port, 10 }
-                        .to { have_one_new_sample task.out_port }
+                            .to { have_one_new_sample task.out_port }
                     assert_equal 10, value
                 end
                 it "fails if the task does not emit a new sample" do

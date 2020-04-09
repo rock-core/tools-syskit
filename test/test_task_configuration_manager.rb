@@ -5,7 +5,7 @@ module Syskit
         before do
             Roby.app.import_types_from 'base'
             rbs_t = @rbs_t = Roby.app.default_loader
-                .resolve_type('/base/samples/RigidBodyState')
+                                 .resolve_type('/base/samples/RigidBodyState')
             @task_m = Syskit::TaskContext.new_submodel do
                 property 'foo', rbs_t
             end
@@ -15,7 +15,7 @@ module Syskit
             it "applies converted fields before applying the configuration" do
                 task = syskit_stub_and_deploy(@task_m)
                 task.properties.foo = Roby.app.default_loader
-                    .resolve_type('/base/samples/RigidBodyState_m').new
+                                          .resolve_type('/base/samples/RigidBodyState_m').new
                 task.properties.foo.time = Time.at(10)
                 task.properties.foo.position = Eigen::Vector3.new(1, 2, 3)
                 syskit_stub_conf @task_m, 'default', data: {
