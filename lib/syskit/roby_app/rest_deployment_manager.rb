@@ -54,7 +54,6 @@ module Syskit
                 end
                 @overrides[configured_deployment] = overrides
                 overrides.map(&:object_id)
-
             rescue Exception
                 overrides.each do |c|
                     @deployment_group.deregister_configured_deployment(c)

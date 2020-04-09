@@ -640,7 +640,6 @@ module Syskit
                     compute_deployments: compute_deployments,
                     garbage_collect: garbage_collect,
                     validate_final_network: validate_final_network)
-
             rescue Exception => e
                 handle_resolution_exception(e, on_error: on_error)
                 raise

@@ -148,7 +148,6 @@ module Syskit
 
                 # Finally, we create
                 new_specialization
-
             ensure
                 Models.debug do
                     Models.log_nest -2
@@ -379,7 +378,6 @@ module Syskit
                 composite_spec.composition_model = child_composition
                 instanciated_specializations[composite_spec.specialized_children] = composite_spec
                 child_composition
-
             ensure
                 Models.debug do
                     Models.log_nest -2

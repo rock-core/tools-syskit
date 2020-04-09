@@ -85,7 +85,6 @@ module Syskit
                 end
                 run_event.wait
             end
-
         rescue Exception => e
             poll_thread_error.reset(e)
         ensure

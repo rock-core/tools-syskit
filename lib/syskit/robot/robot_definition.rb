@@ -48,7 +48,6 @@ module Syskit
                 end
                 invalidate_dependency_injection unless new_devices.empty?
                 new_devices
-
             rescue StandardError
                 invalidate_dependency_injection
                 raise

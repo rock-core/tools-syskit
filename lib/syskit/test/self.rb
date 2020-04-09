@@ -104,7 +104,6 @@ module Syskit
             plug_connection_management
             ENV['PKG_CONFIG_PATH'] = @old_pkg_config
             super
-
         ensure
             if @syskit_handler_ids && execution_engine
                 Syskit::RobyApp::Plugin.unplug_engine_from_roby(@syskit_handler_ids.values, execution_engine)

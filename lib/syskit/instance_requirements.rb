@@ -954,7 +954,6 @@ module Syskit
 
                 post_instanciation_setup(task.to_task)
                 model.bind(task)
-
             rescue InstanciationError => e
                 e.instanciation_chain << self
                 raise
