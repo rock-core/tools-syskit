@@ -10,13 +10,6 @@
 Lint/RedundantCopDisableDirective:
   Enabled: false
 
-# Offense count: 1
-# Cop supports --auto-correct.
-# Configuration parameters: IndentationWidth.
-Layout/AssignmentIndentation:
-  Exclude:
-    - 'lib/syskit/models/component.rb'
-
 # Offense count: 5
 # Cop supports --auto-correct.
 # Configuration parameters: EnforcedStyleAlignWith.

@@ -749,11 +749,11 @@ module Syskit
                 if !@implicit_fullfilled_model
                     has_abstract = false
                     @implicit_fullfilled_model =
-                            super.find_all do |m|
-                                has_abstract ||= (m == AbstractComponent)
-                                !m.respond_to?(:private_specialization?) ||
-                                    !m.private_specialization?
-                            end
+                        super.find_all do |m|
+                            has_abstract ||= (m == AbstractComponent)
+                            !m.respond_to?(:private_specialization?) ||
+                                !m.private_specialization?
+                        end
                     @implicit_fullfilled_model << AbstractComponent \
                         unless has_abstract
                 end
