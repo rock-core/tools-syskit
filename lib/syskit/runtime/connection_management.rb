@@ -362,7 +362,7 @@ module Syskit
                             break
                         end
 
-                        policy, _ = Kernel.filter_options(policy, Orocos::Port::CONNECTION_POLICY_OPTIONS)
+                        policy, = Kernel.filter_options(policy, Orocos::Port::CONNECTION_POLICY_OPTIONS)
 
                         from_syskit_port = from_task.find_output_port(from_port)
                         to_syskit_port   = to_task.find_input_port(to_port)

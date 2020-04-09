@@ -710,7 +710,7 @@ module Syskit
                         syskit_stub_deployment_model(root_combus_driver_m)
                         _, bus_task = deploy_dev_and_bus
 
-                        bus_child, _ = bus_task.each_child.to_a.first
+                        bus_child, = bus_task.each_child.to_a.first
                         assert bus_child
                         assert_equal root_bus, bus_child.arguments[:driver_dev]
                     end

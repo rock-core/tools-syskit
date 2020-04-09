@@ -65,7 +65,7 @@ describe Syskit::DependencyInjection do
             di = Syskit::DependencyInjection.new(
                 "child" => Syskit::DependencyInjection.nothing, srv_m => task_m
             )
-            _, requirements, _ = di.selection_for("child", srv_m)
+            _, requirements, = di.selection_for("child", srv_m)
             assert_equal srv_m.placeholder_model, requirements.model
         end
         it "will accept DependencyInjection.do_not_inherit as a selection, thus falling back to more general selections" do
@@ -75,7 +75,7 @@ describe Syskit::DependencyInjection do
             di = Syskit::DependencyInjection.new(
                 "child" => Syskit::DependencyInjection.do_not_inherit, srv_m => task_m
             )
-            _, requirements, _ = di.selection_for("child", srv_m)
+            _, requirements, = di.selection_for("child", srv_m)
             assert_equal task_m, requirements.model
         end
     end

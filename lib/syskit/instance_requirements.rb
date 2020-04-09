@@ -588,7 +588,7 @@ module Syskit
                 next unless req.respond_to?(:fullfills?)
 
                 if child = model.find_child(child_name)
-                    _, selected_m, _ = new_mappings.selection_for(child_name, child)
+                    _, selected_m, = new_mappings.selection_for(child_name, child)
                     unless selected_m.fullfills?(child)
                         raise InvalidSelection.new(child_name, req, child), "#{req} is not a valid selection for #{child_name}. Was expecting something that provides #{child}"
                     end
@@ -1058,7 +1058,7 @@ module Syskit
 
             resolved_di = resolved_dependency_injection
             model.each_child do |child_name, _|
-                selected_child, _ = model.find_child_model_and_task(
+                selected_child, = model.find_child_model_and_task(
                     child_name, resolved_di
                 )
                 yield(child_name, selected_child)

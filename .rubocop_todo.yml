@@ -1507,20 +1507,6 @@ Style/RedundantSelf:
     - 'test/models/test_component.rb'
     - 'test/network_generation/test_system_network_generator.rb'
 
-# Offense count: 15
-# Cop supports --auto-correct.
-# Configuration parameters: AllowNamedUnderscoreVariables.
-Style/TrailingUnderscoreVariable:
-  Exclude:
-    - 'lib/syskit/coordination/data_monitoring_table.rb'
-    - 'lib/syskit/droby/v5/droby_dump.rb'
-    - 'lib/syskit/instance_requirements.rb'
-    - 'lib/syskit/runtime/connection_management.rb'
-    - 'test/models/test_composition.rb'
-    - 'test/models/test_specialization_manager.rb'
-    - 'test/network_generation/test_engine.rb'
-    - 'test/test_dependency_injection.rb'
-
 # Offense count: 4
 # Cop supports --auto-correct.
 # Configuration parameters: ExactNameMatch, AllowPredicates, AllowDSLWriters, IgnoreClassMethods, AllowedMethods.

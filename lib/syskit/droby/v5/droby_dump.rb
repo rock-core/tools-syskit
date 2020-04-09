@@ -312,8 +312,8 @@ module Syskit
                         orogen_name = orogen_model.name
                         if orogen_model.name && (project_name = orogen_model.project.name)
                             begin
-                                project_text, _ = orogen_model.project.loader
-                                                              .project_model_text_from_name(project_name)
+                                project_text, = orogen_model.project.loader
+                                                            .project_model_text_from_name(project_name)
                             rescue OroGen::ProjectNotFound
                             end
                         end

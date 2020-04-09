@@ -74,7 +74,7 @@ describe Syskit::Models::Composition do
 
         it "registers specializations applied on the parent model on the child model" do
             root = Syskit::Composition.new_submodel { add Syskit::DataService.new_submodel, as: "srv" }
-            specialized_m, _ = create_specialized_model(root)
+            specialized_m, = create_specialized_model(root)
             test_m = specialized_m.new_submodel
             assert_equal specialized_m.applied_specializations, test_m.applied_specializations
         end
@@ -133,7 +133,7 @@ describe Syskit::Models::Composition do
     describe "#each_explicit_connection" do
         it "applies port mappings on overloads" do
             stub_t = self.stub_t
-            service, component, _ = models
+            service, component, = models
             service1 = Syskit::DataService.new_submodel do
                 input_port "specialized_in", stub_t
                 output_port "specialized_out", stub_t
@@ -353,7 +353,7 @@ describe Syskit::Models::Composition do
         it "computes port mappings for selected children" do
             service, component, composition = models
             context = Syskit::DependencyInjectionContext.new("srv" => component)
-            explicit, _ = composition.find_children_models_and_tasks(context)
+            explicit, = composition.find_children_models_and_tasks(context)
             assert_equal({ "srv_in" => "in", "srv_out" => "out" }, explicit["srv"].port_mappings)
         end
     end
@@ -1067,7 +1067,7 @@ describe Syskit::Models::Composition do
         end
 
         it "says that the submodel of a specialized composition fullfills the specialized composition" do
-            spec_m, _ = create_specialized_model
+            spec_m, = create_specialized_model
             assert spec_m.new_submodel.fullfills?(spec_m)
         end
         it "says that a specialized composition fullfills another if it has at least the same specializations" do
@@ -1094,8 +1094,8 @@ describe Syskit::Models::Composition do
         end
 
         it "merges two specialized composition models by creating a specialized submodels on which the union is applied" do
-            spec0_m, _ = create_specialized_model
-            spec1_m, _ = create_specialized_model
+            spec0_m, = create_specialized_model
+            spec1_m, = create_specialized_model
             merged = spec0_m.merge(spec1_m)
             refute_same merged, root_m
             refute_same merged, spec0_m
