@@ -10,17 +10,6 @@
 Lint/RedundantCopDisableDirective:
   Enabled: false
 
-# Offense count: 4
-# Cop supports --auto-correct.
-# Configuration parameters: EnforcedStyle.
-# SupportedStyles: squiggly, active_support, powerpack, unindent
-Layout/HeredocIndentation:
-  Exclude:
-    - 'lib/syskit/scripts/browse.rb'
-    - 'lib/syskit/scripts/doc.rb'
-    - 'lib/syskit/scripts/ide.rb'
-    - 'syskit.gemspec'
-
 # Offense count: 2077
 # Cop supports --auto-correct.
 # Configuration parameters: AutoCorrect, Max, AllowHeredoc, AllowURI, URISchemes, IgnoreCopDirectives, IgnoredPatterns.

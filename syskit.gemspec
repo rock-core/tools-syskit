@@ -10,13 +10,13 @@ Gem::Specification.new do |s|
     s.authors = ["Sylvain Joyeux"]
     s.email = "sylvain.joyeux@m4x.org"
     s.summary = "Component network management extension for Roby"
-    s.description = <<-EOD
-The Roby plan manager is currently developped from within the Robot Construction
-Kit (http://rock-robotics.org). Have a look there. Additionally, the [Roby User
-Guide](http://rock-robotics.org/api/tools/roby) is a good place to start with
-Roby.
+    s.description = <<~EOD
+        The Roby plan manager is currently developped from within the Robot Construction
+        Kit (http://rock-robotics.org). Have a look there. Additionally, the [Roby User
+        Guide](http://rock-robotics.org/api/tools/roby) is a good place to start with
+        Roby.
 
-Syskit is a Roby extension that handles component-based networks
+        Syskit is a Roby extension that handles component-based networks
     EOD
     s.homepage = "http://rock-robotics.org"
     s.licenses = ["LGPLv2 or later"]
