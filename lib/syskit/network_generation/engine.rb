@@ -537,7 +537,7 @@ module Syskit
                     validate_abstract_network: validate_abstract_network,
                     validate_generated_network: validate_generated_network)
 
-                Hash[ requirement_tasks.zip(toplevel_tasks) ]
+                Hash[requirement_tasks.zip(toplevel_tasks)]
             end
 
             # Computes the system network, that is the network that fullfills
