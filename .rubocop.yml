@@ -15,3 +15,8 @@ Style/StderrPuts:
 Naming/PredicateName:
     Enabled: false
 
+Naming/FileName:
+  Exclude:
+    - 'lib/yard-syskit.rb'
+    - 'test/roby_app/app/models/compositions/reload_ruby_task-1.rb'
+    - 'test/roby_app/app/models/compositions/reload_ruby_task-2.rb'
