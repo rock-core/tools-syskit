@@ -20,7 +20,7 @@ module Syskit
             plan.add(@source = source_m.new)
             plan.add(@sink = sink_m.new)
         end
-        
+
         describe "#add_edge" do
             it "raises if trying to add an edge without mappings" do
                 assert_raises(ArgumentError) do

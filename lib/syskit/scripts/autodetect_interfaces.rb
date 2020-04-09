@@ -20,7 +20,7 @@ tasks = TaskContext.each_submodel.to_a
 while !tasks.empty?
     result = Array.new
 
-    task = tasks.find do |t| 
+    task = tasks.find do |t|
         !tasks.any? { |m| t < m }
     end
     tasks.delete(task)

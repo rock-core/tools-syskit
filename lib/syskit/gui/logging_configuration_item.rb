@@ -17,12 +17,12 @@ module Syskit
             attr_reader :groups_item_value
             def initialize(logging_configuration, options = Hash.new)
                 super(logging_configuration)
-                @options = options    
+                @options = options
                 setText 'Logging Configuration'
 
-                @conf_logs_item_name, @conf_logs_item_value = add_conf_item('Enable conf logs', 
+                @conf_logs_item_name, @conf_logs_item_value = add_conf_item('Enable conf logs',
                                                                             :conf_logs_enabled)
-                @port_logs_item_name, @port_logs_item_value = add_conf_item('Enable port logs', 
+                @port_logs_item_name, @port_logs_item_value = add_conf_item('Enable port logs',
                                                                             :port_logs_enabled)
 
                 @groups_item_name = LoggingGroupsItem.new(@current_model.groups, 'Enable group')
@@ -35,11 +35,11 @@ module Syskit
                 if column == 1
                     i = index.sibling(row, 0)
                     return if !i.isValid
-            
+
                     item = i.model.itemFromIndex i
                     item.accept_changes
                 end
-                modified!(false)        
+                modified!(false)
             end
 
             # Notify child to also accept user changes,

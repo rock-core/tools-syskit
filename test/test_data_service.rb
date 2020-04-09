@@ -9,7 +9,7 @@ describe Syskit::Device do
         robot = flexmock(devices: devices)
         flexmock(task_m).new_instances.should_receive(:robot).explicitly.and_return(robot)
     end
-    
+
     describe "#find_device_attached_to" do
         attr_reader :dev0
         before do
@@ -59,7 +59,7 @@ describe Syskit::Device do
             assert_equal [dev0], task.each_master_device.to_a
         end
     end
-    
+
     describe "#find_all_driver_services_for" do
         it "returns the services bound to the given device" do
             task_m.driver_for device_m, as: 'dev0'

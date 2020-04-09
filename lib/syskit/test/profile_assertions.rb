@@ -101,7 +101,7 @@ module Syskit
                         task = syskit_deploy(act, syskit_engine: syskit_engine,
                                              compute_policies: false, compute_deployments: false,
                                              validate_generated_network: false, **instanciate_options)
-                        # Get rid of all the tasks that 
+                        # Get rid of all the tasks that
                         still_abstract = plan.find_local_tasks(Syskit::Component)
                             .abstract.to_set
                         still_abstract &= plan.compute_useful_tasks([task])
@@ -134,7 +134,7 @@ module Syskit
 
             # Tests that the following definition can be successfully
             # instanciated in a valid, non-abstract network.
-            # 
+            #
             # If given a profile, it will perform the test on each action of the
             # profile taken in isolation. If you want to test whether actions
             # can be instanciated at the same time, use

@@ -67,14 +67,14 @@ module Syskit
             # @overload add(deployment)
             #   @param [Models::Deployment] deployment match any task
             #     which is supported by this deployment
-            #   
+            #
             # @overload add(port)
             #   @param [Models::Port] model match any port matching this model
-            #   
+            #
             # @overload add(name)
             #   @param [String,Regexp,#===] name match any object (deployment, task, port or
             #     type) whose name matches this.
-            #   
+            #
             def add(object)
                 case object
                 when Class

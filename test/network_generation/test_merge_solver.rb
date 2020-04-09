@@ -5,7 +5,7 @@ describe Syskit::NetworkGeneration::MergeSolver do
     include Syskit::Fixtures::SimpleCompositionModel
 
     attr_reader :solver
-    
+
     before do
         @solver = Syskit::NetworkGeneration::MergeSolver.new(plan)
     end
@@ -138,7 +138,7 @@ describe Syskit::NetworkGeneration::MergeSolver do
             assert solver.may_merge_compositions?(c1, c0)
         end
     end
-    
+
     describe "#resolve_input_matching" do
         attr_reader :task_model, :port_model
         before do

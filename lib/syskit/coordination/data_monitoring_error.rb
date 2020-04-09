@@ -13,7 +13,7 @@ module Syskit
                 @time = time
                 @samples = samples
             end
-            
+
             def pretty_print(pp)
                 pp.text "data monitor #{monitor} triggered at #{time}, with data samples "
                 pp.seplist(samples) do |s|

@@ -72,7 +72,7 @@ module Syskit
             end
 
             # Changes the top most item in the tree state
-            # and makes it update its childs accordingly 
+            # and makes it update its childs accordingly
             def enabled(toggle)
                 @item_name.enabled toggle unless @item_name.nil?
             end

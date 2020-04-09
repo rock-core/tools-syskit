@@ -77,7 +77,7 @@ module Syskit
                 #
                 # @param [#bind] predicate the predicate model object. See
                 #   the description of the {predicate} attribute.
-                # 
+                #
                 # If a block is given, it is a shortcut to using the
                 # DataMonitorPredicateFromBlock. The block will be called with
                 # samples from each of the monitor's data sources, and must

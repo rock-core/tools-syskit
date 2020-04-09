@@ -98,7 +98,7 @@ begin
 
     setup_error = Scripts.setup
     w = Syskit::GUI::Instanciate.new(
-        nil, 
+        nil,
         required_actions.join(" "),
         Roby.app.permanent_requirements)
     w.show

@@ -69,7 +69,7 @@ describe Syskit::Models::Port do
             end
         end
     end
-    
+
     describe "#can_connect_to?" do
         attr_reader :srv_out, :srv_in
         before do

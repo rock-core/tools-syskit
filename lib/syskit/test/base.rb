@@ -60,7 +60,7 @@ module Syskit
             def unplug_connection_management
                 RobyApp::Plugin.unplug_handler_from_roby(execution_engine, :connection_management)
             end
-            
+
             # @deprecated use the expectations on {ExecutionExpectations} instead
             def assert_has_no_new_sample(reader, timeout = 0.2)
                 Roby.warn_deprecated "#{__method__} is deprecated, use the have_no_new_sample expectation on expect_execution instead"

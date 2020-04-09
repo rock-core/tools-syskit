@@ -162,7 +162,7 @@ module Syskit
 
         connections = resolve_connections(output_ports, input_ports)
         if connections.empty?
-            raise InvalidAutoConnection.new(source, sink) 
+            raise InvalidAutoConnection.new(source, sink)
         end
 
         connections.each do |out_port, in_port|

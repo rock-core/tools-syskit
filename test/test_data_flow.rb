@@ -139,7 +139,7 @@ module Syskit
                 refute dataflow_graph.has_edge?(source, sink)
             end
         end
-        
+
         describe "#each_concrete_in_connection" do
             it "yields nothing if there are no input connections" do
                 assert subject.each_concrete_in_connection(tasks[0]).to_a.empty?

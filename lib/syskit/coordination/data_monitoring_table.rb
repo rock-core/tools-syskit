@@ -44,7 +44,7 @@ module Syskit
         #       end
         #     end
         #   end
-        #   
+        #
         class DataMonitoringTable < Roby::Coordination::Base
             extend Models::DataMonitoringTable
 

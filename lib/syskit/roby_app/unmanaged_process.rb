@@ -158,7 +158,7 @@ module Syskit
             def kill(wait = false)
                 # Announce we're quitting to #monitor_thread. It's used in
                 # #dead? directly if there is no monitoring thread
-                @quitting.set 
+                @quitting.set
             end
 
             # @api private

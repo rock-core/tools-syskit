@@ -35,7 +35,7 @@ module Syskit
                     items_data << [subject.item_name.groups_item_name.items_name[key], group.name]
                     items_data << [subject.item_name.groups_item_name.items_value[key], group.enabled]
                 end
-                items_data             
+                items_data
             end
 
             def all_items
@@ -104,7 +104,7 @@ module Syskit
 
             it 'adds group to view' do
                 conf.groups['events'] = Syskit::ShellInterface::LoggingGroup.new 'events', true
-                
+
                 subject.refresh
                 assert_view_matches_conf
             end
@@ -112,7 +112,7 @@ module Syskit
             it 'changes views modified? state' do
                 item = subject.item_name.port_logs_item_value
                 item_set_bool(item, !conf.port_logs_enabled)
-                
+
                 modified_items = []
                 modified_items << subject.item_name.port_logs_item_value
                 modified_items << subject.item_name.port_logs_item_name
@@ -126,7 +126,7 @@ module Syskit
                 modified_items.clear
                 item = item_from_name('images')
                 item_set_bool(item, !conf.groups['images'].enabled)
-                
+
                 modified_items << item
                 modified_items << subject.item_name.groups_item_name.items_name['images']
                 modified_items << subject.item_name.groups_item_name
@@ -141,7 +141,7 @@ module Syskit
             it 'discards changes in the view model' do
                 item = item_from_name('images')
                 item_set_bool(item, !conf.groups['images'].enabled)
-                
+
                 client.should_receive(:call).times(0)
                 subject.item_value.modified!(false)
 
@@ -161,7 +161,7 @@ module Syskit
                 item_set_bool(item_from_name('messages'), conf.groups['images'].enabled)
 
                 syskit.should_receive(:async_call).with(['syskit'], :update_logging_conf, conf, any).and_yield(nil, nil).times(1)
-                subject.item_value.write                
+                subject.item_value.write
                 assert_view_matches_conf
                 assert_items_modified(all_items, false)
             end
@@ -183,12 +183,12 @@ module Syskit
                 item_set_bool(item, conf.groups['messages'].enabled)
                 assert_equal item.modified?, false
             end
-            
+
             it 'disables/enables views when client is disconnected/connected' do
                 client_mock = client
                 @client = nil
 
-                subject.refresh                
+                subject.refresh
                 all_items.each do |item|
                     assert_equal item.isEnabled, false
                 end

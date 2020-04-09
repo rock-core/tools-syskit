@@ -44,7 +44,7 @@ describe Syskit::Coordination::DataMonitoringTable do
         syskit_start(component)
         ruby_task.out.write(10)
         plan.unmark_mission_task(component)
-        
+
         expect_execution.to do
             have_internal_error component, Roby::CodeError.match
                 .with_ruby_exception(error_m)

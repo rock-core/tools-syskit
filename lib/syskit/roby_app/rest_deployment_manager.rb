@@ -45,7 +45,7 @@ module Syskit
                     task_m = Syskit::TaskContext.find_model_by_orogen(orogen_m.task_model)
                     @conf.process_server_config_for('unmanaged_tasks')
                     new_deployments = @deployment_group.use_unmanaged_task(
-                        { task_m => orogen_m.name }, 
+                        { task_m => orogen_m.name },
                         process_managers: @conf)
                     # Update overrides at each iteration (instead of using a functional
                     # construct) so that the rescue clause can undo the overrides that

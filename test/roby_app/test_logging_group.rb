@@ -113,7 +113,7 @@ module Syskit
                     task.executed_by(deployment_m.new)
                     task.out_port
                 end
-            
+
                 it "does not match by default" do
                     assert !subject.matches_port?(port)
                 end

@@ -34,7 +34,7 @@ module Syskit
 
             # Returns the syskit model for the given oroGen model
             #
-            # @raise ArgumentError if no syskit model exists 
+            # @raise ArgumentError if no syskit model exists
             def model_for(orogen_model)
                 if m = find_model_by_orogen(orogen_model)
                     return m

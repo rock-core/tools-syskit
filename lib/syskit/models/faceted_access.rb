@@ -89,7 +89,7 @@ module Syskit
                     ports.first.attach(self)
                 end
             end
-            
+
             def self_port_to_component_port(port)
                 port_mappings[port.name].first.to_component_port
             end

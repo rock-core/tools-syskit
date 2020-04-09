@@ -147,7 +147,7 @@ describe Syskit::RobyApp::Configuration do
                           .and_return { @available_deployment_names }
             @server_loader.should_receive(:each_available_project_name)
                           .and_return { @available_project_names }
-                              
+
             @server = Syskit::RobyApp::ProcessServer.new(
                 Roby.app, port: 0, loader: @server_loader
             )
