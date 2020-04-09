@@ -38,7 +38,7 @@ module Syskit
                     task_m.argument :arg
                     task = subject.instanciate([task_m.with_arguments(arg: 10)]).first
                     assert_equal [[task_m, AbstractComponent], Hash[arg: 10]],
-                        task.fullfilled_model
+                                 task.fullfilled_model
                 end
                 it "use the arguments as filtered by the task in #fullfilled_model" do
                     task_m = Syskit::TaskContext.new_submodel
@@ -51,7 +51,7 @@ module Syskit
                     task = subject.instanciate([task_m.with_arguments(arg: 10)]).first
                     assert_equal 5, task.arg
                     assert_equal [[task_m, Syskit::AbstractComponent], Hash[arg: 5]],
-                        task.fullfilled_model
+                                 task.fullfilled_model
                 end
             end
 

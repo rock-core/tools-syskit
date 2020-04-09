@@ -36,7 +36,7 @@ module Syskit
                             to { have_one_new_sample task.out_port }
                     end
                     assert_equal "#{task.out_port} should have received a new sample",
-                        e.message.split("\n")[1]
+                                 e.message.split("\n")[1]
                 end
                 it "provides the backtrace from the point of call by default" do
                     expectation = nil
@@ -59,7 +59,7 @@ module Syskit
                             timeout(0.01).
                             to do
                                 expectation = have_one_new_sample task.out_port,
-                                    backtrace: ['bla']
+                                                                  backtrace: ['bla']
                             end
                     end
                     assert_equal ['bla'], expectation.backtrace
@@ -102,7 +102,7 @@ module Syskit
                             timeout(0.01).
                             to do
                                 expectation = have_no_new_sample task.out_port,
-                                    backtrace: ['bla']
+                                                                 backtrace: ['bla']
                             end
                     end
                     assert_equal ['bla'], expectation.backtrace

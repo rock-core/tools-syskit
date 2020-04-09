@@ -287,13 +287,13 @@ describe DataService do
         it "includes the model itself, the service type and the root models" do
             parent_model = DataService.new_submodel
             assert_equal [parent_model, DataService],
-                parent_model.each_fullfilled_model.to_a
+                         parent_model.each_fullfilled_model.to_a
         end
         it "includes other service models it provides" do
             parent_model = DataService.new_submodel
             child_model  = DataService.new_submodel { provides parent_model }
             assert_equal [child_model, parent_model, DataService],
-                child_model.each_fullfilled_model.to_a
+                         child_model.each_fullfilled_model.to_a
         end
     end
 
@@ -402,13 +402,13 @@ describe Device do
         it "includes the model itself, the service type and the root models" do
             parent_model = Device.new_submodel
             assert_equal [parent_model, Device, DataService],
-                parent_model.each_fullfilled_model.to_a
+                         parent_model.each_fullfilled_model.to_a
         end
         it "includes other service models it provides" do
             parent_model = Device.new_submodel
             child_model  = Device.new_submodel { provides parent_model }
             assert_equal [child_model, parent_model, Device, DataService],
-                child_model.each_fullfilled_model.to_a
+                         child_model.each_fullfilled_model.to_a
         end
     end
 
@@ -444,7 +444,7 @@ describe ComBus do
 
     def new_submodel(options = Hash.new, &block)
         options = Kernel.validate_options options,
-            name: nil, message_type: '/int'
+                                          name: nil, message_type: '/int'
         ComBus.new_submodel(options, &block)
     end
 
@@ -604,13 +604,13 @@ describe ComBus do
         it "includes the model itself, the service type and the root models" do
             parent_model = ComBus.new_submodel message_type: '/int'
             assert_equal [parent_model, ComBus, Device, DataService],
-                parent_model.each_fullfilled_model.to_a
+                         parent_model.each_fullfilled_model.to_a
         end
         it "includes other service models it provides" do
             parent_model = ComBus.new_submodel message_type: '/int'
             child_model  = ComBus.new_submodel { provides parent_model }
             assert_equal [child_model, parent_model, ComBus, Device, DataService],
-                child_model.each_fullfilled_model.to_a
+                         child_model.each_fullfilled_model.to_a
         end
     end
 

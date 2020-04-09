@@ -2,7 +2,7 @@ require 'syskit/gui/component_network_view'
 module Syskit::GUI
     module ModelViews
         Roby::TaskStructure.relation 'SpecializationCompatibilityGraph',
-            child_name: :compatible_specialization, dag: false
+                                     child_name: :compatible_specialization, dag: false
 
         # Visualization of a composition model
         #
@@ -112,7 +112,7 @@ module Syskit::GUI
                     id: 'specializations'
                 ]
                 page.push_plan('Specializations', 'relation_to_dot',
-                                         plan, display_options)
+                               plan, display_options)
             end
 
             def render(model, doc: true, **options)

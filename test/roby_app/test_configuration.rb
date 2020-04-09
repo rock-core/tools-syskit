@@ -38,7 +38,7 @@ describe Syskit::RobyApp::Configuration do
             @task_m = Syskit::RubyTaskContext.new_submodel
             @conf = Syskit::RobyApp::Configuration.new(Roby.app)
             @conf.register_process_server('ruby_tasks',
-                Orocos::RubyTasks::ProcessManager.new(Roby.app.default_loader), "")
+                                          Orocos::RubyTasks::ProcessManager.new(Roby.app.default_loader), "")
         end
 
         it "defines a deployment for a given ruby task context model" do
@@ -54,7 +54,7 @@ describe Syskit::RobyApp::Configuration do
             @task_m = Syskit::TaskContext.new_submodel
             @conf = Syskit::RobyApp::Configuration.new(Roby.app)
             @conf.register_process_server('unmanaged_tasks',
-                Orocos::RubyTasks::ProcessManager.new(Roby.app.default_loader), "")
+                                          Orocos::RubyTasks::ProcessManager.new(Roby.app.default_loader), "")
         end
         it "defines a configured deployment from a task model and name" do
             configured_deployments = @conf.use_unmanaged_task @task_m => 'name'

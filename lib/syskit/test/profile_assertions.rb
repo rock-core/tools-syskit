@@ -176,8 +176,8 @@ module Syskit
                 end
                 self.assertions += 1
                 syskit_deploy(AtomicActions(actions),
-                                 compute_policies: false,
-                                 compute_deployments: false)
+                              compute_policies: false,
+                              compute_deployments: false)
             rescue Exception => e
                 raise ProfileAssertionFailed.new(actions, e), e.message
             end
@@ -250,8 +250,8 @@ module Syskit
                 end
                 self.assertions += 1
                 syskit_deploy(AtomicActions(actions),
-                                 compute_policies: true,
-                                 compute_deployments: true)
+                              compute_policies: true,
+                              compute_deployments: true)
             rescue Exception => e
                 raise ProfileAssertionFailed.new(actions, e), e.message
             end

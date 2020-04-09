@@ -244,8 +244,8 @@ module Syskit
                             once.ordered.pass_thru
                         source_task.connect_to(sink_task)
                         refute sink_task.ready_for_setup?,
-                            "#{sink_task} is ready_for_setup? but its inputs are "\
-                            "not connected yet"
+                               "#{sink_task} is ready_for_setup? but its inputs are "\
+                               "not connected yet"
                         ConnectionManagement.update(plan)
                         assert sink_task.ready_for_setup?
                         expect_execution.scheduler(true).to { emit sink_task.start_event }
@@ -421,12 +421,12 @@ module Syskit
                         describe "source tasks" do
                             before do
                                 source_task.out_port.connect_to sink_task.in_port,
-                                    type: :buffer
+                                                                type: :buffer
                                 ConnectionManagement.update(plan)
                                 edge_info = ActualDataFlow.edge_info(
                                     source_task.orocos_task, sink_task.orocos_task)
                                 assert_equal Hash[['out', 'in'] => Hash[type: :buffer]],
-                                    edge_info
+                                             edge_info
                             end
 
                             it "handles an old task still present in the plan while the "\
@@ -441,7 +441,7 @@ module Syskit
                                 edge_info = ActualDataFlow.edge_info(
                                     new_source_task.orocos_task, sink_task.orocos_task)
                                 assert_equal Hash[['out', 'in'] => Hash[type: :data]],
-                                    edge_info
+                                             edge_info
                             end
 
                             it "handles an old task still present in the plan while "\
@@ -475,7 +475,7 @@ module Syskit
                                 edge_info = ActualDataFlow.edge_info(
                                     new_source_task.orocos_task, sink_task.orocos_task)
                                 assert_equal Hash[['out', 'in'] => Hash[type: :data]],
-                                    edge_info
+                                             edge_info
                             end
                         end
 
@@ -487,7 +487,7 @@ module Syskit
                                 edge_info = ActualDataFlow.edge_info(
                                     source_task.orocos_task, sink_task.orocos_task)
                                 assert_equal Hash[['out', 'in'] => Hash[type: :buffer]],
-                                    edge_info
+                                             edge_info
                             end
 
                             it "handles an old task still present in the plan while the new task's connection is added, both tasks not setup" do

@@ -54,7 +54,7 @@ module Syskit
                         @manager.make_unmanaged(original)
                     end
                     assert_equal "#{original} is already overriden, cannot override it again",
-                        e.message
+                                 e.message
                 end
                 it "raises UsedInOverride if the deployment is already used in an override" do
                     original = stub_registered_deployment.object_id
@@ -63,7 +63,7 @@ module Syskit
                         @manager.make_unmanaged(overrides[0])
                     end
                     assert_equal "#{overrides[0]} is already used in an override, cannot override it",
-                        e.message
+                                 e.message
                 end
                 it "deregisters the override if an exception is raised" do
                     @orogen_deployment_m.task 'another_test_task', @orogen_task_m

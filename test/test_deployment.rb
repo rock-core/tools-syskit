@@ -211,7 +211,7 @@ module Syskit
                     plan.add(deployment_task = @deployment_m.new)
                     task = deployment_task.task('slave')
                     assert_equal ['default', 'master'],
-                        task.child_from_role('scheduler').conf
+                                 task.child_from_role('scheduler').conf
                 end
 
                 it "constrains the configuration of the slave task" do
@@ -275,7 +275,7 @@ module Syskit
                             with_original_exception(ArgumentError)
                     end
                     assert_equal "there is no registered process server called does_not_exist",
-                        exception.error.message
+                                 exception.error.message
                 end
                 it "does not emit ready" do
                     process_server.should_receive(:start).and_return(process)
@@ -450,7 +450,7 @@ module Syskit
                     end
 
                     assert_equal "#{task} is supported by #{deployment_task} but there does not seem to be any task called invalid_task_name on this deployment",
-                        exception.error.message
+                                 exception.error.message
                 end
             end
 

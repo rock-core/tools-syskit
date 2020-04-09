@@ -91,7 +91,7 @@ module Syskit
                     resolver = view.resolver ||
                         MetaRuby::GUI::ModelHierarchy::Resolver.new(view.root_model)
                     register_type(view.root_model, view.renderer, view.name,
-                        view.priority, categories: [view.name],
+                                  view.priority, categories: [view.name],
                         resolver: resolver)
                 end
                 update_model_selector

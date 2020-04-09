@@ -51,19 +51,19 @@ describe Syskit::Models::SpecializationManager do
         it "should normalize a single model into a model set" do
             srv = Syskit::DataService.new_submodel
             assert_equal Hash['string' => [srv].to_set],
-                mng.normalize_specialization_mappings('string' => srv)
+                         mng.normalize_specialization_mappings('string' => srv)
         end
         it "should convert a component model selector into the corresponding child name" do
             cmp_m.overload('test', task_m)
             c = task_m.new_submodel
             assert_equal Hash['test' => [c].to_set],
-                mng.normalize_specialization_mappings(task_m => c)
+                         mng.normalize_specialization_mappings(task_m => c)
         end
         it "should convert a data service selector into the corresponding child name" do
             srv2 = Syskit::DataService.new_submodel
             cmp_m.overload('test', srv2)
             assert_equal Hash['test' => [task_m].to_set],
-                mng.normalize_specialization_mappings(srv2 => task_m)
+                         mng.normalize_specialization_mappings(srv2 => task_m)
         end
         it "should raise if a model is used as selector, but there are no corresponding children available" do
             assert_raises(ArgumentError) do
@@ -200,7 +200,7 @@ describe Syskit::Models::SpecializationManager do
 
         it "should return the base composition model if no specializations are selected" do
             assert_same cmp_m,
-                mng.specialized_model(Syskit::Models::CompositionSpecialization.new)
+                        mng.specialized_model(Syskit::Models::CompositionSpecialization.new)
         end
 
         it "should return the same model for the same specializations" do

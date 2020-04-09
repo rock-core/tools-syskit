@@ -263,7 +263,7 @@ module Syskit
                 assert_equal 'parent::Task', unmarshalled.supermodel.orogen_model.name
                 assert_equal 'child::Task', unmarshalled.orogen_model.name
                 assert_same unmarshalled.supermodel.orogen_model,
-                    unmarshalled.orogen_model.superclass
+                            unmarshalled.orogen_model.superclass
             end
 
             it "deals with types shared between the superclass and the subclass" do

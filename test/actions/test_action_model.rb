@@ -18,7 +18,7 @@ describe Syskit::Actions::Models::Action do
             subclass_m.describe 'test_def'
             subclass_m.send(:define_method, 'test_def') {}
             assert_equal subclass_m.find_action_by_name('test_def'),
-                action.rebind(subclass_m)
+                         action.rebind(subclass_m)
         end
         it "maps a definition-based action that got overloaded by another" do
             action = interface_m.find_action_by_name('test_def')

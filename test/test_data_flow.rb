@@ -45,7 +45,7 @@ module Syskit
             it "creates connections between a composition's input port and a task" do
                 cmp.forward_input_ports(task, ['in', 'in'] => Hash.new)
                 assert_equal Hash[['in', 'in'] => Hash.new],
-                    dataflow_graph.edge_info(cmp, task)
+                             dataflow_graph.edge_info(cmp, task)
             end
             it "raises if the ports are not input ports" do
                 assert_raises(DataFlow::Extension::NotInputPort) do
@@ -81,7 +81,7 @@ module Syskit
             it "creates connections between a composition's output port and a task" do
                 task.forward_output_ports(cmp, ['out', 'out'] => Hash.new)
                 assert_equal Hash[['out', 'out'] => Hash.new],
-                    dataflow_graph.edge_info(task, cmp)
+                             dataflow_graph.edge_info(task, cmp)
             end
             it "raises if the ports are not output ports" do
                 assert_raises(DataFlow::Extension::NotOutputPort) do
@@ -116,7 +116,7 @@ module Syskit
             it "registers the connection between the ports" do
                 source.connect_ports sink, ['out', 'in'] => Hash.new
                 assert_equal Hash[['out', 'in'] => Hash.new],
-                    dataflow_graph.edge_info(source, sink)
+                             dataflow_graph.edge_info(source, sink)
             end
             it "raises if the ports have an invalid direction" do
                 assert_raises(DataFlow::Extension::NotOutputPort) do
@@ -151,7 +151,7 @@ module Syskit
                 assert_equal Set[[tasks[1], 'out', 'in', Hash.new],
                                  [tasks[2], 'out', 'in', Hash.new],
                                  [tasks[3], 'out', 'in', Hash.new]],
-                    subject.each_concrete_in_connection(tasks[0]).to_set
+                             subject.each_concrete_in_connection(tasks[0]).to_set
             end
             it "ignores a connection to a composition whose port is not forwarded" do
                 cmp[1].out_port.connect_to tasks[0].in_port
@@ -168,7 +168,7 @@ module Syskit
                 subject.concrete_connection_graph.remove_edge(tasks[1], tasks[0])
                 assert_equal Set[[tasks[2], 'out', 'in', Hash.new],
                                  [tasks[3], 'out', 'in', Hash.new]],
-                    subject.each_concrete_in_connection(tasks[0]).to_set
+                             subject.each_concrete_in_connection(tasks[0]).to_set
             end
         end
 
@@ -183,7 +183,7 @@ module Syskit
                 assert_equal Set[['out', 'in', tasks[1], Hash.new],
                                  ['out', 'in', tasks[2], Hash.new],
                                  ['out', 'in', tasks[3], Hash.new]],
-                    subject.each_concrete_out_connection(tasks[0]).to_set
+                             subject.each_concrete_out_connection(tasks[0]).to_set
             end
             it "ignores a connection to a composition whose port is not forwarded" do
                 tasks[0].out_port.connect_to cmp[1].in_port
@@ -200,7 +200,7 @@ module Syskit
                 subject.concrete_connection_graph.remove_edge(tasks[0], tasks[1])
                 assert_equal Set[['out', 'in', tasks[2], Hash.new],
                                  ['out', 'in', tasks[3], Hash.new]],
-                    subject.each_concrete_out_connection(tasks[0]).to_set
+                             subject.each_concrete_out_connection(tasks[0]).to_set
             end
         end
 
@@ -237,7 +237,7 @@ module Syskit
                 concrete_graph.add_edge(new_source, sink, ['out', 'in'] => Hash[type: :data])
                 concrete_graph.replace_vertex(old_source, new_source)
                 assert_equal Hash[['out', 'in'] => Hash[type: :data], ['other_out', 'in'] => Hash.new],
-                    concrete_graph.edge_info(new_source, sink)
+                             concrete_graph.edge_info(new_source, sink)
             end
         end
 

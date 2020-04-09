@@ -69,7 +69,7 @@ describe Syskit::Models::Composition do
             create_specialized_model(root)
             submodel = root.new_submodel
             assert_equal submodel.specializations.specializations.keys,
-                root.specializations.specializations.keys
+                         root.specializations.specializations.keys
         end
 
         it "registers specializations applied on the parent model on the child model" do
@@ -181,7 +181,7 @@ describe Syskit::Models::Composition do
                 composition = Syskit::Composition.new_submodel { add service, as: 'srv' }
                 exported_port = composition.export composition.srv_child.in_port, as: 'srv_in'
                 assert_equal Syskit::Models::InputPort.new(composition, composition.srv_child.in_port.orogen_model, 'srv_in'),
-                    exported_port
+                             exported_port
                 assert_equal composition.find_port('srv_in'), exported_port
             end
             it "promotes exported output ports by setting the new name and component model but keeps the orogen model" do
@@ -190,7 +190,7 @@ describe Syskit::Models::Composition do
                 composition = Syskit::Composition.new_submodel { add service, as: 'srv' }
                 exported_port = composition.export composition.srv_child.out_port, as: 'srv_out'
                 assert_equal Syskit::Models::OutputPort.new(composition, composition.srv_child.out_port.orogen_model, 'srv_out'),
-                    exported_port
+                             exported_port
                 assert_equal composition.find_port('srv_out'), exported_port
             end
             # This does not sound quite right, but it is important for
@@ -203,9 +203,9 @@ describe Syskit::Models::Composition do
                 cmp_m = Syskit::Composition.new_submodel { add srv_m, as: 'srv' }
                 assert cmp_m.srv_child.in_port == cmp_m.srv_child.in_port
                 export = cmp_m.export cmp_m.srv_child.in_port,
-                    as: 'srv_in'
+                                      as: 'srv_in'
                 cmp_m.export cmp_m.srv_child.in_port,
-                    as: 'srv_in'
+                             as: 'srv_in'
             end
             it "raises if trying to override an existing port export" do
                 stub_t = self.stub_t
@@ -215,10 +215,10 @@ describe Syskit::Models::Composition do
                     add srv_m, as: 's1'
                 end
                 cmp_m.export cmp_m.s0_child.in_port,
-                    as: 'srv_in'
+                             as: 'srv_in'
                 assert_raises(ArgumentError) do
                     cmp_m.export cmp_m.s1_child.in_port,
-                        as: 'srv_in'
+                                 as: 'srv_in'
                 end
             end
             it "raises ArgumentError if given a port that is not a port of a child of the composition" do
@@ -234,7 +234,7 @@ describe Syskit::Models::Composition do
         describe "#find_exported_output" do
             it "returns the actual output port" do
                 assert_equal simple_composition_model.srv_child.srv_out_port,
-                    simple_composition_model.find_exported_output('srv_out')
+                             simple_composition_model.find_exported_output('srv_out')
             end
             it "returns nil for unknown ports" do
                 assert !simple_composition_model.find_exported_output('bla')
@@ -243,7 +243,7 @@ describe Syskit::Models::Composition do
         describe "#find_exported_input" do
             it "returns the actual input port" do
                 assert_equal simple_composition_model.srv_child.srv_in_port,
-                    simple_composition_model.find_exported_input('srv_in')
+                             simple_composition_model.find_exported_input('srv_in')
             end
             it "returns nil for unknown ports" do
                 assert !simple_composition_model.find_exported_input('bla')
@@ -348,7 +348,7 @@ describe Syskit::Models::Composition do
                 instanciate(plan)
             port_dynamics = cmp.requirements.find_port_dynamics('out')
             assert_equal [Syskit::NetworkGeneration::PortDynamics::Trigger.new('period', 0.1, 1)],
-                port_dynamics.triggers.to_a
+                         port_dynamics.triggers.to_a
         end
     end
 
@@ -861,7 +861,7 @@ describe Syskit::Models::Composition do
                 assert_is_proxy_model_for [service], child.overload_info.required.base_model
                 assert_is_proxy_model_for [service1], child.overload_info.selected.base_model
                 assert_equal Hash['srv_in' => 'specialized_in', 'srv_out' => 'specialized_out'],
-                    child.port_mappings.slice('srv_in', 'srv_out')
+                             child.port_mappings.slice('srv_in', 'srv_out')
 
                 c1 = c0.new_submodel(name: "C1")
                 c1.overload('srv', component)
@@ -870,7 +870,7 @@ describe Syskit::Models::Composition do
                 assert_is_proxy_model_for [service1], child.overload_info.required.base_model
                 assert_is_proxy_model_for [component.srv1_srv], child.overload_info.selected.base_model
                 assert_equal Hash['specialized_in' => 'in', 'specialized_out' => 'out'],
-                    child.port_mappings
+                             child.port_mappings
             end
 
             it "does nothing if the child already provides the service" do
@@ -905,7 +905,7 @@ describe Syskit::Models::Composition do
                 assert_equal [specialized_m,cmp_m,srv_m,Syskit::DataService,
                     Syskit::Composition,Syskit::Component,Syskit::AbstractComponent,
                     Roby::Task].to_set,
-                    specialized_m.each_fullfilled_model.to_set
+                             specialized_m.each_fullfilled_model.to_set
             end
         end
     end
@@ -992,13 +992,13 @@ describe Syskit::Models::Composition do
     describe "#conf" do
         it "registers the child name to conf selection into #configurations" do
             simple_composition_model.conf 'test', \
-                simple_composition_model.srv_child => ['default', 'test']
+                                          simple_composition_model.srv_child => ['default', 'test']
             assert_equal Hash['srv' => ['default', 'test']], simple_composition_model.configurations['test']
         end
         it "accepts to register configurations using strings, but warns about deprecations" do
             flexmock(Roby).should_receive(:warn_deprecated).once
             simple_composition_model.conf 'test', \
-                'srv' => ['default', 'test']
+                                          'srv' => ['default', 'test']
             assert_equal Hash['srv' => ['default', 'test']], simple_composition_model.configurations['test']
         end
     end

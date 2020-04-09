@@ -441,7 +441,7 @@ module Syskit
                 req = definitions[name]
                 unless req
                     raise ArgumentError,
-                        "profile #{self.name} has no definition called #{name}"
+                          "profile #{self.name} has no definition called #{name}"
                 end
                 req.resolve
             end

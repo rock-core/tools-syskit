@@ -12,12 +12,12 @@ module Syskit
             
             rescue_from RESTDeploymentManager::NotFound do |e|
                 error! e.message, 404,
-                    "x-roby-error" => e.class.name.gsub(/^.*::/, '')
+                       "x-roby-error" => e.class.name.gsub(/^.*::/, '')
             end
 
             rescue_from RESTDeploymentManager::Forbidden do |e|
                 error! e.message, 403,
-                    "x-roby-error" => e.class.name.gsub(/^.*::/, '')
+                       "x-roby-error" => e.class.name.gsub(/^.*::/, '')
             end
 
             helpers Roby::Interface::REST::Helpers
@@ -218,13 +218,13 @@ module Syskit
                     end
                 rescue OroGen::NotFound => e
                     error! "deployment name #{params[:name]} does not exist: #{e.message}", 404,
-                        "x-roby-error" => "NotFound"
+                           "x-roby-error" => "NotFound"
                 rescue TaskNameRequired => e
                     error! e.message, 403,
-                        "x-roby-error" => "TaskNameRequired"
+                           "x-roby-error" => "TaskNameRequired"
                 rescue TaskNameAlreadyInUse => e
                     error! "registering the deployment #{params[:name]} => #{params[:as]} would lead to a naming conflict", 409,
-                        "x-roby-error" => "TaskNameAlreadyInUse"
+                           "x-roby-error" => "TaskNameAlreadyInUse"
                 end
             end
 
@@ -343,8 +343,8 @@ module Syskit
             end
             get '/deployments/:id/command_line' do
                 deployment_manager.command_line(params[:id],
-                    tracing: params[:tracing],
-                    name_service_ip: params[:name_service_ip]).to_h
+                                                tracing: params[:tracing],
+                                                name_service_ip: params[:name_service_ip]).to_h
             end
         end
     end

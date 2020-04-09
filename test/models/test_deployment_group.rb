@@ -23,14 +23,14 @@ module Syskit
                     deployment_m = Syskit::Deployment.new_submodel
                     group.register_configured_deployment(
                         ConfiguredDeployment.new('test', deployment_m,
-                            Hash['task' => 'task']))
+                                                 Hash['task' => 'task']))
                     refute group.empty?
                 end
             end
 
             describe "#use_group" do
                 attr_reader :task_m, :deployment_m,
-                    :self_deployment, :other_group, :other_deployment
+                            :self_deployment, :other_group, :other_deployment
 
                 before do
                     @task_m = task_m = Syskit::TaskContext.new_submodel
@@ -54,7 +54,7 @@ module Syskit
                     assert_equal self_deployment, group.
                         find_deployment_from_task_name('self_task')
                     assert_equal Set[other_deployment, self_deployment],
-                        group.find_all_deployments_from_process_manager('test-mng')
+                                 group.find_all_deployments_from_process_manager('test-mng')
                 end
 
                 it "does not modify its argument" do
@@ -65,13 +65,13 @@ module Syskit
                     refute other_group.
                         find_deployment_from_task_name('self_task')
                     assert_equal Set[other_deployment],
-                        other_group.find_all_deployments_from_process_manager('test-mng')
+                                 other_group.find_all_deployments_from_process_manager('test-mng')
                 end
 
                 it "passes if the two groups have the same deployment" do
                     other_group.use_deployment(Hash[deployment_m => 'self_'],
-                        on: 'test-mng', process_managers: conf,
-                        loader: loader).first
+                                               on: 'test-mng', process_managers: conf,
+                                               loader: loader).first
                     group.use_group(other_group)
 
                     assert_equal other_deployment, group.
@@ -79,13 +79,13 @@ module Syskit
                     assert_equal self_deployment, group.
                         find_deployment_from_task_name('self_task')
                     assert_equal Set[other_deployment, self_deployment],
-                        group.find_all_deployments_from_process_manager('test-mng')
+                                 group.find_all_deployments_from_process_manager('test-mng')
                 end
 
                 it "raises if the receiver and argument have clashing task names "\
                     "and leaves the receiver as-is" do
                     clash = other_group.use_deployment(Hash[deployment_m => 'self_'],
-                        on: 'test-mng', process_managers: conf, loader: loader).first
+                                                       on: 'test-mng', process_managers: conf, loader: loader).first
                     flexmock(self_deployment).should_receive(:==).
                         with(clash).and_return(false)
                     assert_raises(TaskNameAlreadyInUse) do
@@ -96,15 +96,15 @@ module Syskit
                     assert_same self_deployment, group.
                         find_deployment_from_task_name('self_task')
                     assert_equal Set[self_deployment],
-                        group.find_all_deployments_from_process_manager('test-mng')
+                                 group.find_all_deployments_from_process_manager('test-mng')
                 end
 
                 it "keeps the two groups separate" do
                     group = DeploymentGroup.new
                     group.use_group(other_group)
                     other_group.use_deployment(Hash[deployment_m => 'self_'],
-                        on: 'test-mng', process_managers: conf,
-                        loader: loader).first
+                                               on: 'test-mng', process_managers: conf,
+                                               loader: loader).first
                     assert_equal Set[other_deployment], group.
                         find_all_deployments_from_process_manager('test-mng')
                     refute group.find_deployment_from_task_name('self_task')
@@ -224,11 +224,11 @@ module Syskit
                     "uses an existing name from another deployment" do
                     group.register_configured_deployment(
                         ConfiguredDeployment.new('test', deployment_m,
-                            Hash['task' => 'task']))
+                                                 Hash['task' => 'task']))
                     assert_raises(TaskNameAlreadyInUse) do
                         group.register_configured_deployment(
                             ConfiguredDeployment.new('other', deployment_m,
-                                Hash['task' => 'task']))
+                                                     Hash['task' => 'task']))
                     end
                 end
                 it "passes if trying to re-register the same deployment" do
@@ -290,7 +290,7 @@ module Syskit
                 it "gives a proper error if the mappings argument is not a hash" do
                     e = assert_raises(ArgumentError) do
                         @group.use_ruby_tasks @task_m,
-                            process_managers: @conf
+                                              process_managers: @conf
                     end
                     assert_equal "mappings should be given as model => name", e.message
                 end
@@ -300,14 +300,14 @@ module Syskit
                     flexmock(Roby).should_receive(:warn_deprecated).
                         with(/defining more than one ruby/).once
                     @group.use_ruby_tasks(Hash[@task_m => 'a', task1_m => 'b'],
-                        process_managers: @conf)
+                                          process_managers: @conf)
                 end
 
                 it "raises if the model is a composition" do
                     cmp_m = Syskit::Composition.new_submodel
                     e = assert_raises(ArgumentError) do
                         @group.use_ruby_tasks(Hash[cmp_m => 'task'],
-                            process_managers: @conf)
+                                              process_managers: @conf)
                     end
                     assert_equal "#{cmp_m} is not a ruby task model", e.message
                 end
@@ -316,7 +316,7 @@ module Syskit
                     task_m = Syskit::TaskContext.new_submodel
                     e = assert_raises(ArgumentError) do
                         @group.use_ruby_tasks(Hash[task_m => 'task'],
-                            process_managers: @conf)
+                                              process_managers: @conf)
                     end
                     assert_equal "#{task_m} is not a ruby task model", e.message
                 end
@@ -326,7 +326,7 @@ module Syskit
                 attr_reader :task_m
                 before do
                     conf.register_process_server('unmanaged_tasks',
-                        RobyApp::UnmanagedTasksManager.new, '')
+                                                 RobyApp::UnmanagedTasksManager.new, '')
                     @task_m = Syskit::TaskContext.new_submodel(
                         name: 'Test', orogen_model_name: 'test::Task')
                 end
@@ -378,14 +378,14 @@ module Syskit
 
                     deprecated_feature do
                         group.use_unmanaged_task(Hash['test::Task' => 'test'],
-                            on: 'test-mng', process_managers: conf)
+                                                 on: 'test-mng', process_managers: conf)
                     end
                 end
 
                 it "raises if the process manager does not exist" do
                     assert_raises(RobyApp::Configuration::UnknownProcessServer) do
                         group.use_unmanaged_task(Hash[task_m => 'test'],
-                            on: 'does_not_exist')
+                                                 on: 'does_not_exist')
                     end
                 end
 
@@ -393,7 +393,7 @@ module Syskit
                     cmp_m = Syskit::Composition.new_submodel
                     e = assert_raises(ArgumentError) do
                         @group.use_unmanaged_task(Hash[cmp_m => 'name'],
-                            process_managers: @conf)
+                                                  process_managers: @conf)
                     end
                     assert_equal "expected a mapping from a task context model to "\
                         "a name, but got #{cmp_m}", e.message
@@ -402,7 +402,7 @@ module Syskit
                     task_m = Syskit::RubyTaskContext.new_submodel
                     e = assert_raises(ArgumentError) do
                         @group.use_unmanaged_task(Hash[task_m => 'name'],
-                            process_managers: @conf)
+                                                  process_managers: @conf)
                     end
                     assert_equal "expected a mapping from a task context model to "\
                         "a name, but got #{task_m}", e.message
@@ -438,7 +438,7 @@ module Syskit
                             'orogen_default_test__Task' => 'test',
                             'orogen_default_test__Task_Logger' => 'test_Logger']
                         assert_equal expected_name_mapping,
-                            configured_deployment.name_mappings
+                                     configured_deployment.name_mappings
                         true
                     end
                     flexmock(group).should_receive(:register_configured_deployment).
@@ -456,13 +456,13 @@ module Syskit
                         assert_equal 'test_deployment', configured_deployment.process_name
                         expected_name_mapping = Hash[]
                         assert_equal expected_name_mapping,
-                            configured_deployment.name_mappings
+                                     configured_deployment.name_mappings
                         true
                     end
                     flexmock(group).should_receive(:register_configured_deployment).
                         once.with(expected)
                     actual = group.use_deployment(deployment_m,
-                        on: 'test-mng', process_managers: conf, loader: loader).first
+                                                  on: 'test-mng', process_managers: conf, loader: loader).first
                     assert expected[actual]
                 end
 
@@ -473,7 +473,7 @@ module Syskit
                         assert_equal 'test_deployment', configured_deployment.process_name
                         expected_name_mapping = Hash[]
                         assert_equal expected_name_mapping,
-                            configured_deployment.name_mappings
+                                     configured_deployment.name_mappings
                         true
                     end
                     flexmock(group).should_receive(:register_configured_deployment).
@@ -481,7 +481,7 @@ module Syskit
                     flexmock(loader).should_receive(:task_model_from_name).
                         and_raise(OroGen::NotFound)
                     actual = group.use_deployment('test_deployment',
-                        on: 'test-mng', process_managers: conf, loader: loader).first
+                                                  on: 'test-mng', process_managers: conf, loader: loader).first
                     assert expected[actual]
                 end
 
@@ -496,8 +496,8 @@ module Syskit
                         once.with(expected)
 
                     actual = group.use_deployment(Hash[task_m => 'test'],
-                        on: 'test-mng', process_managers: conf,
-                        loader: loader, simulation: true).first
+                                                  on: 'test-mng', process_managers: conf,
+                                                  loader: loader, simulation: true).first
                     assert expected[actual]
                 end
 
@@ -505,9 +505,9 @@ module Syskit
                     "are not prefixed" do
                     deployment_m.orogen_model.task 'task', task_m.orogen_model
                     configured_deployment = group.use_deployment(deployment_m,
-                        on: 'test-mng', process_managers: conf, loader: loader).first
+                                                                 on: 'test-mng', process_managers: conf, loader: loader).first
                     assert_equal Hash['task' => 'task'],
-                        configured_deployment.name_mappings
+                                 configured_deployment.name_mappings
                 end
 
                 it "raises if the given model is a composition" do
@@ -555,14 +555,14 @@ module Syskit
                 it "should allow registering on another process server" do
                     deployment1_m = stub_deployment 'deployment1'
                     @group.use_deployment deployment1_m,
-                        on: 'test', process_managers: @conf
+                                          on: 'test', process_managers: @conf
                     assert_equal 1, @group.
                         find_all_deployments_from_process_manager('test').size
                 end
                 it "raises OroGen::NotFound if the deployment does not exist" do
                     e = assert_raises(OroGen::NotFound) do
                         @group.use_deployment "does_not_exist",
-                            on: 'test', process_managers: @conf
+                                              on: 'test', process_managers: @conf
                     end
                     assert_equal "does_not_exist is neither a task model "\
                         "nor a deployment name", e.message
@@ -571,12 +571,12 @@ module Syskit
                     "without giving an explicit name" do
                     e = assert_raises(Syskit::TaskNameRequired) do
                         @group.use_deployment(@task_m,
-                            on: 'test', process_managers: @conf)
+                                              on: 'test', process_managers: @conf)
                     end
                     assert_equal "you must provide a task name when starting "\
                         "a component by type, as e.g. use_deployment "\
                         "OroGen.xsens_imu.Task => 'imu'",
-                        e.message
+                                 e.message
                 end
             end
 
@@ -607,7 +607,7 @@ module Syskit
                              on: 'test-mng', process_managers: conf, loader: loader).
                         once
                     group.use_deployments_from('test_project',
-                        on: 'test-mng', process_managers: conf, loader: loader)
+                                               on: 'test-mng', process_managers: conf, loader: loader)
                 end
 
                 it "ignores uninstalled deployments" do
@@ -619,7 +619,7 @@ module Syskit
 
                     flexmock(group).should_receive(:use_deployment).never
                     group.use_deployments_from('test_project',
-                        on: 'test-mng', process_managers: conf, loader: loader)
+                                               on: 'test-mng', process_managers: conf, loader: loader)
                 end
             end
 

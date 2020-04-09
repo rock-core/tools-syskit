@@ -260,7 +260,7 @@ module Syskit
 
                     if placeholder_task != actual_task
                         work_plan.replace(placeholder_task, actual_task,
-                            filter: replacement_filter)
+                                          filter: replacement_filter)
                         # Need to switch the planning relation as well, it is
                         # not done by #replace
                         placeholder_task.remove_planning_task req_task

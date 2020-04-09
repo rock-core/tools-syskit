@@ -18,9 +18,9 @@ module Syskit
             nil
         end
         command :dump_task_config, 'saves configuration from running tasks into yaml files',
-            :model => 'the model of the tasks that should be saved',
-            :path => 'the directory in which the configuration files should be saved',
-            :name => '(optional) if given, the name of the section for the new configuration. Defaults to the orocos task names'
+                :model => 'the model of the tasks that should be saved',
+                :path => 'the directory in which the configuration files should be saved',
+                :name => '(optional) if given, the name of the section for the new configuration. Defaults to the orocos task names'
 
         # Saves the configuration of all running tasks to disk
         #
@@ -32,8 +32,8 @@ module Syskit
             nil
         end
         command :dump_all_config, 'saves the configuration of all running tasks into yaml files',
-            :path => 'the directory in which the configuration files should be saved',
-            :name => '(optional) if given, the name of the section for the new configuration. Defaults to the orocos task names'
+                :path => 'the directory in which the configuration files should be saved',
+                :name => '(optional) if given, the name of the section for the new configuration. Defaults to the orocos task names'
 
         class ShellDeploymentRestart < Roby::Task
             event :start, :controlable => true
@@ -72,7 +72,7 @@ module Syskit
             end
         end
         command :stop_deployments, 'stops deployment processes',
-            :models => '(optional) if given, a list of task or deployment models pointing to what should be stopped. If not given, all deployments are stopped'
+                :models => '(optional) if given, a list of task or deployment models pointing to what should be stopped. If not given, all deployments are stopped'
 
         # Restarts deployment processes
         #
@@ -111,21 +111,21 @@ module Syskit
             nil
         end
         command :restart_deployments, 'restarts deployment processes',
-            :models => '(optional) if given, a list of task or deployment models pointing to what should be restarted. If not given, all deployments are restarted'
+                :models => '(optional) if given, a list of task or deployment models pointing to what should be restarted. If not given, all deployments are restarted'
 
         # (see Application#syskit_reload_config)
         def reload_config
             app.syskit_reload_config
         end
         command :reload_config, 'reloads YAML configuration files from disk',
-            'You need to call the redeploy command to apply the new configuration'
+                'You need to call the redeploy command to apply the new configuration'
 
         # (see Application#syskit_pending_reloaded_configurations)
         def pending_reloaded_configurations
             app.syskit_pending_reloaded_configurations
         end
         command :pending_reloaded_configurations, 'returns the list of TaskContext names that are marked as needing reconfiguration',
-            'They will be reconfigured on the next redeploy or system transition'
+                'They will be reconfigured on the next redeploy or system transition'
 
         # Require the engine to redeploy the current network
         #
@@ -136,7 +136,7 @@ module Syskit
             nil
         end
         command :redeploy, 'redeploys the current network',
-            'It is mostly used to apply the configuration loaded with reload_config'
+                'It is mostly used to apply the configuration loaded with reload_config'
 
         def enable_log_group(string)
             Syskit.conf.logs.enable_log_group(string)
@@ -144,7 +144,7 @@ module Syskit
             nil
         end
         command :enable_logging_of, 'enables a log group',
-            name: "the log group name"
+                name: "the log group name"
 
         # @deprecated use enable_log_group instead
         def enable_logging_of(string)
@@ -157,7 +157,7 @@ module Syskit
             nil
         end
         command :disable_log_group, 'disables a log group',
-            name: "the log group name"
+                name: "the log group name"
 
         # @deprecated use disable_log_group instead
         def disable_logging_of(string)
@@ -194,7 +194,7 @@ module Syskit
             redeploy
         end
         command :update_logging_conf, 'updates the current logging configuration',
-            conf: "the new logging settings"
+                conf: "the new logging settings"
     end
 end
 

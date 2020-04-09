@@ -81,7 +81,7 @@ module Syskit
                 candidates = port_mappings[name]
                 if candidates.size > 1
                     raise AmbiguousPortOnCompositeModel.new(self, required.each_required_model.to_a, name, candidates),
-                        "#{name} is an ambiguous port on #{self}: it can be mapped to #{candidates.map(&:to_s).join(", ")}"
+                          "#{name} is an ambiguous port on #{self}: it can be mapped to #{candidates.map(&:to_s).join(", ")}"
                 end
 
                 ports = ports_on_required[name]

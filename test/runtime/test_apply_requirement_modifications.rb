@@ -15,7 +15,7 @@ module Syskit
                 execute { Runtime.apply_requirement_modifications(plan) }
                 assert plan.syskit_current_resolution
                 assert_equal Set[requirement_task.planning_task],
-                    plan.syskit_current_resolution.future.requirement_tasks
+                             plan.syskit_current_resolution.future.requirement_tasks
             end
 
             it "restarts the current async resolution if a new IR task appeared" do
@@ -32,7 +32,7 @@ module Syskit
 
                 assert plan.syskit_current_resolution
                 assert_equal Set[*requirement_tasks.map(&:planning_task)],
-                    plan.syskit_current_resolution.future.requirement_tasks
+                             plan.syskit_current_resolution.future.requirement_tasks
             end
 
             it "stops the current async resolution all running IR tasks became useless" do
@@ -64,7 +64,7 @@ module Syskit
 
                 assert plan.syskit_current_resolution
                 assert_equal Set[requirement_tasks[0].planning_task],
-                    plan.syskit_current_resolution.future.requirement_tasks
+                             plan.syskit_current_resolution.future.requirement_tasks
             end
 
             it "cancels an async resolution if one of the IR tasks has been interrupted" do

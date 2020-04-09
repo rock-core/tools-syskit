@@ -35,9 +35,9 @@ describe Syskit::Models::BoundDataService do
             output_port 'out_base_unmapped', '/double'
         end
         service = component_model.provides(model,
-                    as: 'test',
-                    'in_model' => 'in_port',
-                    'out_model' => 'out_port')
+                                           as: 'test',
+                                           'in_model' => 'in_port',
+                                           'out_model' => 'out_port')
 
         return base, parent, model, component_model, service
     end
@@ -216,7 +216,7 @@ describe Syskit::Models::BoundDataService do
                     sub1_m.test_srv.bind(task)
                 end
                 assert_equal "cannot bind #{sub1_m.test_srv} on #{task}: does not fullfill #{sub1_m.test_srv.component_model}",
-                    e.message
+                             e.message
             end
         end
     end
@@ -332,7 +332,7 @@ describe Syskit::Models::BoundDataService do
             end
             task_m.provides srv_m, as: 'test'
             assert_equal task_m.test_srv.out_port,
-                task_m.test_srv.find_port_for_task_port(task_m.task_out_port)
+                         task_m.test_srv.find_port_for_task_port(task_m.task_out_port)
         end
 
         it "returns nil if there is no mapping" do
@@ -454,9 +454,9 @@ class TC_Models_BoundDataService < Minitest::Test
             output_port 'out_base_unmapped', '/double'
         end
         service = component_model.provides(model,
-                    as: 'test',
-                    'in_model' => 'in_port',
-                    'out_model' => 'out_port')
+                                           as: 'test',
+                                           'in_model' => 'in_port',
+                                           'out_model' => 'out_port')
 
         return base, parent, model, component_model, service
     end
@@ -483,7 +483,7 @@ class TC_Models_BoundDataService < Minitest::Test
         component_model.provides other_service, as: 'unrelated_service'
 
         assert_equal [base,parent,model,DataService].to_set,
-            service.each_fullfilled_model.to_set
+                     service.each_fullfilled_model.to_set
     end
 
     def test_port_mappings
@@ -508,19 +508,19 @@ class TC_Models_BoundDataService < Minitest::Test
                        'out_model' => 'out_port',
                        'out_parent_unmapped' => 'out_parent_unmapped',
                        'out_base_unmapped' => 'out_base_unmapped' },
-                       service.port_mappings_for_task)
+                     service.port_mappings_for_task)
         assert_equal({ 'in_parent' => 'in_port',
                        'in_parent_unmapped' => 'in_parent_unmapped',
                        'in_base_unmapped' => 'in_base_unmapped',
                        'out_parent' => 'out_port',
                        'out_parent_unmapped' => 'out_parent_unmapped',
                        'out_base_unmapped' => 'out_base_unmapped' },
-                       service.port_mappings_for(parent))
+                     service.port_mappings_for(parent))
         assert_equal({ 'in_base' => 'in_port',
                        'in_base_unmapped' => 'in_base_unmapped',
                        'out_base' => 'out_port',
                        'out_base_unmapped' => 'out_base_unmapped' },
-                       service.port_mappings_for(base))
+                     service.port_mappings_for(base))
     end
 
     def assert_ports_equal(component_model, names, result)
@@ -535,14 +535,14 @@ class TC_Models_BoundDataService < Minitest::Test
             setup_transitive_services
 
         assert_ports_equal service, ['out_base_unmapped', 'out_parent_unmapped', 'out_model'],
-            service.each_output_port
+                           service.each_output_port
     end
 
     def test_each_input_port
         base, parent, model, component_model, service =
             setup_transitive_services
         assert_ports_equal service, ['in_base_unmapped', 'in_parent_unmapped', 'in_model'],
-            service.each_input_port
+                           service.each_input_port
     end
 
     def test_narrowed_find_input_port_gives_access_to_unmapped_ports

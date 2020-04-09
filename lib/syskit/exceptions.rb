@@ -314,7 +314,7 @@ module Syskit
                         enum_for(:each_parent_object, Roby::TaskStructure::Dependency).
                         map do |parent_task|
                             options = parent_task[task,
-                                Roby::TaskStructure::Dependency]
+                                                  Roby::TaskStructure::Dependency]
                             [options[:roles], parent_task]
                         end
                     abstract_tasks[task] = [parents, candidates]

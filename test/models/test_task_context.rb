@@ -300,7 +300,7 @@ describe Syskit::Models::TaskContext do
         it "creates the model from the superclass if it does not exist" do
             orogen_parent = OroGen::Spec::TaskContext.new(app.default_orogen_project)
             orogen = OroGen::Spec::TaskContext.new(app.default_orogen_project,
-                subclasses: orogen_parent)
+                                                   subclasses: orogen_parent)
             parent_model = Syskit::TaskContext.new_submodel
             flexmock(Syskit::TaskContext).
                 should_receive(:define_from_orogen).with(orogen, register: false).
@@ -317,7 +317,7 @@ describe Syskit::Models::TaskContext do
             parent_model = Syskit::TaskContext.define_from_orogen(orogen_parent)
 
             orogen = OroGen::Spec::TaskContext.new(app.default_orogen_project,
-                subclasses: orogen_parent)
+                                                   subclasses: orogen_parent)
             flexmock(Syskit::TaskContext).
                 should_receive(:define_from_orogen).with(orogen).
                 pass_thru
@@ -427,7 +427,7 @@ describe Syskit::Models::TaskContext do
         it "inherits the manager from the underlying concrete model" do
             task_m = Syskit::TaskContext.new_submodel
             assert_same task_m.configuration_manager,
-                task_m.specialize.configuration_manager
+                        task_m.specialize.configuration_manager
         end
     end
 

@@ -22,4 +22,4 @@ class Interface < Roby::Interface::CommandLibrary
     end
 end
 Roby::Interface::Interface.subcommand 'unit_tests',
-    Interface, 'Commands used by unit tests'
+                                      Interface, 'Commands used by unit tests'

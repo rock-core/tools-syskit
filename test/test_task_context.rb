@@ -275,7 +275,7 @@ module Syskit
             it "should return the port from #orocos_task if it exists" do
                 Orocos.allow_blocking_calls do
                     assert_equal task.orocos_task.port("in"),
-                        task.find_input_port("in").to_orocos_port
+                                 task.find_input_port("in").to_orocos_port
                 end
             end
             it "should return nil for an output port" do
@@ -298,7 +298,7 @@ module Syskit
             it "should return the port from #orocos_task if it exists" do
                 Orocos.allow_blocking_calls do
                     assert_equal task.orocos_task.port("out"),
-                        task.find_output_port("out").to_orocos_port
+                                 task.find_output_port("out").to_orocos_port
                 end
             end
             it "should return nil for an input port" do
@@ -784,13 +784,13 @@ module Syskit
                 task = syskit_stub_deploy_and_configure task_m
                 task.require_dynamic_service 'test', as: 'test'
                 source_task = syskit_stub_deploy_and_configure 'SourceTask',
-                    as: 'source_task' do
+                                                               as: 'source_task' do
                         input_port "dynamic", "/double"
                     end
                 orocos_tasks = [source_task.orocos_task, task.orocos_task]
 
                 ActualDataFlow.add_connections(*orocos_tasks,
-                    Hash[['dynamic', 'dynamic'] => [Hash.new, false, false]])
+                                               Hash[['dynamic', 'dynamic'] => [Hash.new, false, false]])
                 assert ActualDataFlow.has_edge?(*orocos_tasks)
                 task.clean_dynamic_port_connections([])
                 assert !ActualDataFlow.has_edge?(*orocos_tasks)
@@ -813,7 +813,7 @@ module Syskit
                 orocos_tasks = [task.orocos_task, sink_task.orocos_task]
 
                 ActualDataFlow.add_connections(*orocos_tasks,
-                    Hash[['dynamic', 'dynamic'] => [Hash.new, false, false]])
+                                               Hash[['dynamic', 'dynamic'] => [Hash.new, false, false]])
                 assert ActualDataFlow.has_edge?(*orocos_tasks)
                 task.clean_dynamic_port_connections([])
                 refute ActualDataFlow.has_edge?(*orocos_tasks)
@@ -873,7 +873,7 @@ module Syskit
                     prepare_task_for_setup(:STOPPED)
                 end
                 assert_equal ["not reconfiguring #{task}: the task is already configured as required"],
-                    messages
+                             messages
             end
             it "cleans up if the state is STOPPED and "\
                 "the task is marked as requiring reconfiguration" do
@@ -884,7 +884,7 @@ module Syskit
                     prepare_task_for_setup(:STOPPED)
                 end
                 assert_equal ["cleaning up #{task}"],
-                    messages
+                             messages
             end
             it "cleans up if the state is STOPPED and "\
                 "the task has never been configured" do
@@ -1363,7 +1363,7 @@ module Syskit
                             task.does_not_exist_property
                         end
                         assert_match(/^undefined method `does_not_exist_property' for/,
-                            exception.message)
+                                     exception.message)
                     end
                     it "passes through to method resolution if the name "\
                         "does not end with _property" do
@@ -1429,7 +1429,7 @@ module Syskit
                 end
                 it "returns an enumerator if called without a block" do
                     assert_equal [task.property('test')],
-                        task.each_property.to_a
+                                 task.each_property.to_a
                 end
             end
 
@@ -1755,7 +1755,7 @@ module Syskit
                         expect_execution { task.stop! }.to { emit task.stop_event }
                         assert_equal original_remote_value, task.test_property.remote_value
                         assert_equal original_remote_value,
-                            Orocos.allow_blocking_calls { task.orocos_task.test }
+                                     Orocos.allow_blocking_calls { task.orocos_task.test }
                     end
                 end
 

@@ -90,8 +90,8 @@ module Syskit
                         'ros', fake_client, app.log_dir, host_id: 'syskit')
                 elsif Syskit.conf.define_default_process_managers?
                     Syskit.conf.register_process_server('ruby_tasks',
-                        Orocos::RubyTasks::ProcessManager.new(app.default_loader),
-                        app.log_dir, host_id: 'syskit')
+                                                        Orocos::RubyTasks::ProcessManager.new(app.default_loader),
+                                                        app.log_dir, host_id: 'syskit')
 
                     Syskit.conf.register_process_server(
                         'unmanaged_tasks', UnmanagedTasksManager.new, app.log_dir)
@@ -419,7 +419,7 @@ module Syskit
                     notify 'syskit', 'INFO', "#{running_needs_reconfiguration.size} running tasks configuration changed. In the shell, use 'redeploy' to trigger reconfiguration."
                 end
                 ui_event 'syskit_orogen_config_reloaded', needs_reconfiguration,
-                    running_needs_reconfiguration
+                         running_needs_reconfiguration
                 needs_reconfiguration
             end
 

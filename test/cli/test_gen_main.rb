@@ -99,7 +99,7 @@ module Syskit
                         cmd.stop
                         assert_equal 1, cmd.exit_status
                         assert_match /failed to start a component of model logger::Logger, cannot create a configuration file with default values/,
-                            cmd.stderr
+                                     cmd.stderr
                     end
                 end
             end

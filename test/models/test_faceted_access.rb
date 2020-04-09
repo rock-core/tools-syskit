@@ -31,9 +31,9 @@ describe Syskit::Models::FacetedAccess do
     describe "#find_all_port_mappings_for" do
         it "should return the port on the final object model" do
             assert_equal [sub_task_m.sd_port].to_set,
-                facet.find_all_port_mappings_for('d')
+                         facet.find_all_port_mappings_for('d')
             assert_equal [sub_task_m.i_port].to_set,
-                facet.find_all_port_mappings_for('i')
+                         facet.find_all_port_mappings_for('i')
         end
 
         it "should return an empty set if the port does not exist on the facet" do
@@ -48,7 +48,7 @@ describe Syskit::Models::FacetedAccess do
             sub_task_m.provides srv1_m, as: 'test1'
             facet = Syskit::Models::FacetedAccess.new(sub_task_m, Syskit::Models::Placeholder.for([srv1_m, srv_m]))
             assert_equal [sub_task_m.sd_port].to_set,
-                facet.find_all_port_mappings_for('d')
+                         facet.find_all_port_mappings_for('d')
         end
         it "should return more than one port if the name is used multiple times on the input and candidates are mapped to different ports on the final model" do
             stub_t = self.stub_t
@@ -58,7 +58,7 @@ describe Syskit::Models::FacetedAccess do
             sub_task_m.provides srv1_m, as: 'test1'
             facet = Syskit::Models::FacetedAccess.new(sub_task_m, Syskit::Models::Placeholder.for([srv1_m, srv_m]))
             assert_equal [sub_task_m.sd_port, sub_task_m.i_port].to_set,
-                facet.find_all_port_mappings_for('d')
+                         facet.find_all_port_mappings_for('d')
         end
     end
 

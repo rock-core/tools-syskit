@@ -51,7 +51,7 @@ describe Syskit::Models::CompositionSpecialization do
             test = Syskit::Models::CompositionSpecialization.new 'srv2' => simple_composition_model
             test.add(Hash['srv' => simple_component_model], [])
             assert_equal Hash['srv' => simple_component_model, 'srv2' => simple_composition_model],
-                test.specialized_children
+                         test.specialized_children
         end
         it "merges the model lists if child names collide" do
             srv2 = Syskit::DataService.new_submodel

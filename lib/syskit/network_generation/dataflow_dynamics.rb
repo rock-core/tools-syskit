@@ -215,7 +215,7 @@ module Syskit
             def create_port_info(task, port_name)
                 port_model = task.model.find_port(port_name)
                 dynamics = PortDynamics.new("#{task.orocos_name}.#{port_model.name}",
-                                        port_model.sample_size)
+                                            port_model.sample_size)
                 dynamics.add_trigger("burst", port_model.burst_period, port_model.burst_size)
                 set_port_info(task, port_name, dynamics)
                 dynamics

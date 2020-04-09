@@ -277,7 +277,7 @@ module Syskit
                 candidates = find_all_data_services_from_type(type)
                 if candidates.size > 1
                     raise AmbiguousServiceSelection.new(self, type, candidates),
-                        "multiple services match #{type.short_name} on #{short_name}"
+                          "multiple services match #{type.short_name} on #{short_name}"
                 elsif candidates.size == 1
                     return candidates.first
                 end

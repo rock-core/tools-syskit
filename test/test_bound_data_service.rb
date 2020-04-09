@@ -90,9 +90,9 @@ class TC_BoundDataService < Minitest::Test
             output_port 'out_base_unmapped', '/double'
         end
         service = component_model.provides(model,
-                    as: 'test',
-                    'in_model' => 'in_port',
-                    'out_model' => 'out_port')
+                                           as: 'test',
+                                           'in_model' => 'in_port',
+                                           'out_model' => 'out_port')
 
         return base, parent, model, component_model, service
     end
@@ -246,7 +246,7 @@ class TC_BoundDataService < Minitest::Test
         component_model.provides other_service, as: 'unrelated_service'
 
         assert_equal [base,parent,model,DataService].to_set,
-            service.each_fullfilled_model.to_set
+                     service.each_fullfilled_model.to_set
     end
 end
 

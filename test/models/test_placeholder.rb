@@ -14,22 +14,22 @@ module Syskit
                 describe "calling without an explicit component model" do
                     it "separates a task model and data services" do
                         assert_equal [task_m, [srv_m], nil],
-                            Placeholder.resolve_models_argument([srv_m, task_m])
+                                     Placeholder.resolve_models_argument([srv_m, task_m])
                     end
                     it "returns Syskit::Component as task model if none is given" do
                         assert_equal [Syskit::Component, [srv_m], nil],
-                            Placeholder.resolve_models_argument([srv_m])
+                                     Placeholder.resolve_models_argument([srv_m])
                     end
                     it "uses a bound data service task model as component model" do
                         task_m.provides srv_m, as: 'test'
                         other_srv_m = Syskit::DataService.new_submodel
                         assert_equal [task_m, [other_srv_m], task_m.test_srv],
-                            Placeholder.resolve_models_argument([task_m.test_srv, other_srv_m])
+                                     Placeholder.resolve_models_argument([task_m.test_srv, other_srv_m])
                     end
                     it "removes already fullfilled models from the service list" do
                         task_m.provides srv_m, as: 'test'
                         assert_equal [task_m, [], nil],
-                            Placeholder.resolve_models_argument([task_m, srv_m])
+                                     Placeholder.resolve_models_argument([task_m, srv_m])
                     end
 
                     it "raises ArgumentError if more than one task model was given" do
@@ -58,16 +58,16 @@ module Syskit
                         other_srv_m = Syskit::DataService.new_submodel
                         task_m.provides other_srv_m, as: 'test'
                         assert_equal [task_m, [srv_m], task_m.test_srv],
-                            Placeholder.resolve_models_argument([srv_m], component_model: task_m.test_srv)
+                                     Placeholder.resolve_models_argument([srv_m], component_model: task_m.test_srv)
                     end
                     it "filters out already provided services" do
                         task_m.provides srv_m, as: 'test'
                         assert_equal [task_m, [], nil],
-                            Placeholder.resolve_models_argument([srv_m], component_model: task_m)
+                                     Placeholder.resolve_models_argument([srv_m], component_model: task_m)
                     end
                     it "handles a plain component model" do
                         assert_equal [task_m, [srv_m], nil],
-                            Placeholder.resolve_models_argument([srv_m], component_model: task_m)
+                                     Placeholder.resolve_models_argument([srv_m], component_model: task_m)
                     end
                 end
             end
@@ -87,7 +87,7 @@ module Syskit
                 end
                 it "creates an abstract model that is its own concrete model" do
                     placeholder_m = Placeholder.create_for(service_models,
-                        component_model: component_model)
+                                                           component_model: component_model)
                     assert placeholder_m.abstract?
                     assert_same placeholder_m, placeholder_m.concrete_model
                     assert placeholder_m.placeholder?
@@ -95,33 +95,33 @@ module Syskit
                 it "registers the created placeholder model as a submodel "\
                     "of the component model" do
                     placeholder_m = Placeholder.create_for(service_models,
-                        component_model: component_model)
+                                                           component_model: component_model)
                     assert task_m.has_submodel?(placeholder_m)
                 end
                 it "creates a model that fullfills the given arguments" do
                     placeholder_m = Placeholder.create_for(service_models,
-                        component_model: component_model)
+                                                           component_model: component_model)
                     expected_models = [task_m, srv0_m, srv1_m].
                         map { |m| m.each_fullfilled_model.to_set }.
                         inject(&:|)
 
                     assert_equal expected_models,
-                        placeholder_m.each_fullfilled_model.to_set
+                                 placeholder_m.each_fullfilled_model.to_set
                 end
                 it "ensures that the created model provides all specified services" do
                     placeholder_m = Placeholder.create_for(service_models,
-                        component_model: component_model)
+                                                           component_model: component_model)
                     assert_equal srv0_m, placeholder_m.m0_srv.model
                     assert_equal srv1_m, placeholder_m.m1_srv.model
                 end
                 it "sets a default name" do
                     placeholder_m = Placeholder.create_for(service_models,
-                        component_model: component_model)
+                                                           component_model: component_model)
                     assert_equal "Syskit::Models::Placeholder<T,A,B>", placeholder_m.name
                 end
                 it "uses the 'as' argument as the created service name if provided" do
                     placeholder_m = Placeholder.create_for(service_models,
-                        component_model: component_model, as: 'Name')
+                                                           component_model: component_model, as: 'Name')
                     assert_equal "Name", placeholder_m.name
                 end
             end
@@ -235,7 +235,7 @@ module Syskit
                 it "only fullfills the service models" do
                     proxy_m = Placeholder.create_for([@srv_m])
                     assert_equal [@srv_m, Syskit::DataService, Syskit::AbstractComponent],
-                        proxy_m.each_fullfilled_model.to_a
+                                 proxy_m.each_fullfilled_model.to_a
                 end
                 it "creates a task model that represents a data service" do
                     proxy_m = Placeholder.create_for([@srv_m])

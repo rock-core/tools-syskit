@@ -108,7 +108,7 @@ module Syskit
                                   "RuntimeError (RuntimeError)"], background_thread_died
                 end
                 assert_equal ["unmanaged_deployment_test unexpectedly died on process server unmanaged_tasks"],
-                    process_died
+                             process_died
             end
 
             it "deregisters the process object of the process whose thread failed" do
@@ -138,7 +138,7 @@ module Syskit
                     end.to { emit deployment_task.failed_event }
                 end
                 assert_equal ["unmanaged_deployment_test unexpectedly died on process server unmanaged_tasks"],
-                    messages
+                             messages
             end
 
             # This is really a heisentest .... previous versions of

@@ -37,7 +37,7 @@ module Syskit
                         scheduler(true).
                         to { fail_to_start task }
                     assert_equal "#{task} reports that it cannot be configured (FATAL_ERROR ?)",
-                        failure_reason.original_exception.message
+                                 failure_reason.original_exception.message
                 end
             end
         end

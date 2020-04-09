@@ -89,13 +89,13 @@ describe Syskit::Composition do
             it "resolves an exported input" do
                 Orocos.allow_blocking_calls do
                     assert_equal child.orocos_task.port("in"),
-                        cmp.find_input_port("exported_in").to_orocos_port
+                                 cmp.find_input_port("exported_in").to_orocos_port
                 end
             end
             it "resolves an exported output" do
                 Orocos.allow_blocking_calls do
                     assert_equal child.orocos_task.port("out"),
-                        cmp.find_output_port("exported_out").to_orocos_port
+                                 cmp.find_output_port("exported_out").to_orocos_port
                 end
             end
         end
@@ -112,13 +112,13 @@ describe Syskit::Composition do
             it "resolves an exported input port to the actual task port" do
                 Orocos.allow_blocking_calls do
                     assert_equal child.orocos_task.port("in"),
-                        cmp.find_input_port("exported_in").to_orocos_port
+                                 cmp.find_input_port("exported_in").to_orocos_port
                 end
             end
             it "resolves an exported output port to the actual task port" do
                 Orocos.allow_blocking_calls do
                     assert_equal child.orocos_task.port("out"),
-                        cmp.find_output_port("exported_out").to_orocos_port
+                                 cmp.find_output_port("exported_out").to_orocos_port
                 end
             end
         end
@@ -139,13 +139,13 @@ describe Syskit::Composition do
             it "resolves the input port of a provided service" do
                 Orocos.allow_blocking_calls do
                     assert_equal child.orocos_task.port("in"),
-                        cmp.test_srv.find_input_port("srv_in").to_orocos_port
+                                 cmp.test_srv.find_input_port("srv_in").to_orocos_port
                 end
             end
             it "resolves the output port of a provided service" do
                 Orocos.allow_blocking_calls do
                     assert_equal child.orocos_task.port("out"),
-                        cmp.test_srv.find_output_port("srv_out").to_orocos_port
+                                 cmp.test_srv.find_output_port("srv_out").to_orocos_port
                 end
             end
         end

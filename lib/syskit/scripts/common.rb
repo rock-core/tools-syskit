@@ -166,9 +166,9 @@ require 'syskit/roby_app'
                     default_exclude << OroGen::Logger::Logger
                 end
                 display_options = Kernel.validate_options display_options,
-                    :remove_compositions => false,
-                    :excluded_models => default_exclude.to_set,
-                    :annotations => Set.new
+                                                          :remove_compositions => false,
+                                                          :excluded_models => default_exclude.to_set,
+                                                          :annotations => Set.new
 
                 # Now output them
                 case output_type
@@ -194,9 +194,9 @@ require 'syskit/roby_app'
                     end
                     display = Ui::InstanciatedNetworkDisplay.new
                     display.plan_display.push_plan('Task Dependency Hierarchy', 'hierarchy',
-                                      Roby.plan, Roby.syskit_engine, display_options)
+                                                   Roby.plan, Roby.syskit_engine, display_options)
                     display.plan_display.push_plan('Dataflow', 'dataflow',
-                                      Roby.plan, Roby.syskit_engine, display_options)
+                                                   Roby.plan, Roby.syskit_engine, display_options)
                     if @last_error
                         display.add_error(@last_error)
                     end

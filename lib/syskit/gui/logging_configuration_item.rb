@@ -21,9 +21,9 @@ module Syskit
                 setText 'Logging Configuration'
 
                 @conf_logs_item_name, @conf_logs_item_value = add_conf_item('Enable conf logs', 
-                                                        :conf_logs_enabled)
+                                                                            :conf_logs_enabled)
                 @port_logs_item_name, @port_logs_item_value = add_conf_item('Enable port logs', 
-                                                        :port_logs_enabled)
+                                                                            :port_logs_enabled)
 
                 @groups_item_name = LoggingGroupsItem.new(@current_model.groups, 'Enable group')
                 @groups_item_value = Vizkit::VizkitItem.new("#{@current_model.groups.size} logging group(s)")

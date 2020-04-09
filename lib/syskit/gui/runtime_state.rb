@@ -128,7 +128,7 @@ module Syskit
                 @syskit_poll = Qt::Timer.new
                 @syskit_poll_period = poll_period
                 connect syskit_poll, SIGNAL('timeout()'),
-                    self, SLOT('poll_syskit_interface()')
+                        self, SLOT('poll_syskit_interface()')
 
                 if poll_period
                     @syskit_poll.start(poll_period)
@@ -140,7 +140,7 @@ module Syskit
                 action = global_actions[:start]   = Qt::Action.new("Start", self)
                 @starting_monitor = Qt::Timer.new
                 connect @starting_monitor, SIGNAL('timeout()'),
-                    self, SLOT('monitor_syskit_startup()')
+                        self, SLOT('monitor_syskit_startup()')
                 connect action, SIGNAL('triggered()') do
                     app_start(robot_name: @robot_name)
                 end
@@ -293,8 +293,8 @@ module Syskit
                     Roby.app.argv_set.flat_map { |arg| ['--set', arg] })
                 @syskit_pid =
                     Kernel.spawn Gem.ruby, '-S', 'syskit', 'run', "--wait-shell-connection",
-                        *extra_args,
-                        pgroup: true
+                                 *extra_args,
+                                 pgroup: true
                 @starting_monitor.start(100)
                 run_hook :on_connection_state_changed, 'STARTING'
             end
@@ -443,7 +443,7 @@ module Syskit
                 splitter.add_widget job_summary
                 splitter.add_widget(@job_expanded_status = ExpandedJobStatus.new)
                 connect(@job_expanded_status, SIGNAL('fileOpenClicked(const QUrl&)'),
-                    self, SIGNAL('fileOpenClicked(const QUrl&)'))
+                        self, SIGNAL('fileOpenClicked(const QUrl&)'))
 
                 task_inspector_widget = Qt::Widget.new
                 task_inspector_layout = Qt::VBoxLayout.new(task_inspector_widget)

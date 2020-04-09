@@ -99,7 +99,7 @@ describe Syskit::NetworkGeneration::LoggerConfigurationSupport do
                 add_logging_to_network(syskit_engine, plan)
             assert_equal Hash[['state', 'task.state'] => Hash.new,
                 ['out2', 'task.out2'] => Hash.new],
-                @dataflow_graph.edge_info(task, logger)
+                         @dataflow_graph.edge_info(task, logger)
         end
 
         it "completely disconnects a task if all its ports are ignored" do
@@ -127,11 +127,11 @@ describe Syskit::NetworkGeneration::LoggerConfigurationSupport do
             assert_equal Hash[['state', 'task.state'] => Hash.new,
                 ['out1', 'task.out1'] => Hash.new,
                 ['out2', 'task.out2'] => Hash.new],
-                @dataflow_graph.edge_info(new_task, logger)
+                         @dataflow_graph.edge_info(new_task, logger)
             assert_equal Hash[['state', 'task.state'] => Hash.new,
                 ['out1', 'task.out1'] => Hash.new,
                 ['out2', 'task.out2'] => Hash.new],
-                @dataflow_graph.edge_info(task, logger)
+                         @dataflow_graph.edge_info(task, logger)
         end
 
         it "creates new logging ports if the logger task is already configured" do

@@ -207,7 +207,7 @@ describe Syskit::Coordination::DataMonitoringTable do
         monitor = syskit_deploy_configure_and_start(monitors.first)
         # We want the fault table to emit 'success', don't make it an error
         composition.depends_on composition.test_child,
-            success: :success, remove_when_done: true
+                               success: :success, remove_when_done: true
         plan.add_mission_task(composition)
         syskit_wait_ready(table, component: composition)
 

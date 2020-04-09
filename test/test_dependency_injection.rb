@@ -146,13 +146,13 @@ describe Syskit::DependencyInjection do
             srv1.provides srv0
             mapping = { 'value' => srv0, srv0 => srv1 }
             assert_equal({ 'value' => srv1, srv0 => srv1 },
-                Syskit::DependencyInjection.resolve_recursive_selection_mapping(mapping))
+                         Syskit::DependencyInjection.resolve_recursive_selection_mapping(mapping))
         end
 
         it "does not resolve names" do
             mapping = { 'name' => 'value', 'value' => 'bla' }
             assert_equal(mapping,
-                Syskit::DependencyInjection.resolve_recursive_selection_mapping(mapping))
+                         Syskit::DependencyInjection.resolve_recursive_selection_mapping(mapping))
         end
 
         it "resolves the component model of bound data services" do
@@ -164,7 +164,7 @@ describe Syskit::DependencyInjection do
 
             mapping = { srv_m => proxy_m.m0_srv, proxy_m => proxy2_m, proxy2_m => task_m }
             assert_equal(task_m.test_srv,
-                Syskit::DependencyInjection.resolve_recursive_selection_mapping(mapping)[srv_m])
+                         Syskit::DependencyInjection.resolve_recursive_selection_mapping(mapping)[srv_m])
         end
 
         it "properly maintains already resolved bound data services if an indentity selection is present" do
@@ -175,7 +175,7 @@ describe Syskit::DependencyInjection do
 
             mapping = { srv_m => task_m.test_srv, task_m => task_m }
             assert_equal(task_m.test_srv,
-                Syskit::DependencyInjection.resolve_recursive_selection_mapping(mapping)[srv_m])
+                         Syskit::DependencyInjection.resolve_recursive_selection_mapping(mapping)[srv_m])
         end
     end
 
@@ -420,7 +420,7 @@ class TC_DependencyInjection < Minitest::Test
         c.provides srv0, as: 'srv0'
         c.provides srv1, as: 'srv1'
         assert_equal(Hash[srv0 => c, srv1 => c, c => c, Syskit::AbstractComponent => c],
-            DependencyInjection.resolve_default_selections(Hash.new, [c]))
+                     DependencyInjection.resolve_default_selections(Hash.new, [c]))
     end
 
     def test_resolve_default_selections_does_not_select_conflicting_defaults
@@ -434,7 +434,7 @@ class TC_DependencyInjection < Minitest::Test
         c2 = Component.new_submodel
         c2.provides srv0, as: 'srv0'
         assert_equal(Hash[srv1 => c0, c0 => c0, c1 => c1, c2 => c2],
-            DependencyInjection.resolve_default_selections(Hash.new, [c0, c1, c2]))
+                     DependencyInjection.resolve_default_selections(Hash.new, [c0, c1, c2]))
     end
 
     def test_resolve_default_selections_does_not_override_explicit_selections
@@ -442,7 +442,7 @@ class TC_DependencyInjection < Minitest::Test
         c0 = Component.new_submodel
         c0.provides srv0, as: 'srv0'
         assert_equal(Hash[srv0 => 'value', c0 => c0, Syskit::AbstractComponent => c0],
-            DependencyInjection.resolve_default_selections(Hash[srv0 => 'value'], [c0]))
+                     DependencyInjection.resolve_default_selections(Hash[srv0 => 'value'], [c0]))
     end
 
     def test_resolve_default_selections_applies_recursive_selection_before_resolving
@@ -462,7 +462,7 @@ class TC_DependencyInjection < Minitest::Test
         c_m.provides srv_m, as: 's1'
 
         assert_equal Hash[c_m => c_m, Syskit::AbstractComponent => c_m],
-            DependencyInjection.resolve_default_selections(Hash.new, [c_m])
+                     DependencyInjection.resolve_default_selections(Hash.new, [c_m])
     end
 
     def test_find_name_resolution_plain_name
@@ -575,7 +575,7 @@ class TC_DependencyInjection < Minitest::Test
         c1 = c0.new_submodel
         di = DependencyInjection.new(c0 => c1)
         assert_equal [nil, InstanceRequirements.new([c1]), Hash.new, [c0].to_set],
-            di.selection_for(nil, InstanceRequirements.new([c0]))
+                     di.selection_for(nil, InstanceRequirements.new([c0]))
     end
 
     def test_selection_for_data_services_to_component_maps_services
@@ -583,7 +583,7 @@ class TC_DependencyInjection < Minitest::Test
         c0 = Component.new_submodel { provides srv, as: 'srv' }
         di = DependencyInjection.new(srv => c0)
         assert_equal [nil, InstanceRequirements.new([c0]), {srv => c0.srv_srv}, [srv].to_set],
-            di.selection_for(nil, InstanceRequirements.new([srv]))
+                     di.selection_for(nil, InstanceRequirements.new([srv]))
     end
 
     def test_selection_for_data_services_to_composite_model_without_proxy
@@ -607,7 +607,7 @@ class TC_DependencyInjection < Minitest::Test
         di = DependencyInjection.new(c0 => c1)
 
         assert_equal [nil, InstanceRequirements.new([srv]), Hash.new],
-            di.selection_for(nil, InstanceRequirements.new([c0, srv]))
+                     di.selection_for(nil, InstanceRequirements.new([c0, srv]))
     end
 
     def test_selection_for_data_services_to_composite_model_with_proxy

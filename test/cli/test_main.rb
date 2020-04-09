@@ -12,37 +12,37 @@ module Roby
                 it "accepts syskit help CMD for a thor command" do
                     cmd = run_command_and_stop "syskit help quit"
                     assert_match /quits a running Roby application to be available/,
-                        cmd.stdout
+                                 cmd.stdout
                 end
                 it "accepts syskit CMD --help for a thor command" do
                     cmd = run_command_and_stop "syskit quit --help"
                     assert_match /quits a running Roby application to be available/,
-                        cmd.stdout
+                                 cmd.stdout
                 end
                 it "accepts syskit help CMD for a plain script command" do
                     cmd = run_command_and_stop "syskit help process_server"
                     assert_match /sets the host to connect to as hostname/,
-                        cmd.stdout
+                                 cmd.stdout
                 end
                 it "accepts syskit CMD --help for a plain script command" do
                     cmd = run_command_and_stop "syskit process_server --help"
                     assert_match /sets the host to connect to as hostname/,
-                        cmd.stdout
+                                 cmd.stdout
                 end
                 it "provides a simple help message with 'syskit'" do
                     cmd = run_command_and_stop 'syskit'
                     assert_match /Run 'syskit help <mode>' for more information/,
-                        cmd.stdout
+                                 cmd.stdout
                 end
                 it "provides a simple help message with 'syskit --help'" do
                     cmd = run_command_and_stop 'syskit --help'
                     assert_match /Run 'syskit help <mode>' for more information/,
-                        cmd.stdout
+                                 cmd.stdout
                 end
                 it "provides a simple help message with 'syskit help'" do
                     cmd = run_command_and_stop 'syskit help'
                     assert_match /Run 'syskit help <mode>' for more information/,
-                        cmd.stdout
+                                 cmd.stdout
                 end
             end
 

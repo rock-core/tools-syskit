@@ -171,7 +171,7 @@ module Syskit
                     new_task = tasks.first
 
                     assert_child_of proxy.stop_event, new_task.start_event,
-                        Roby::EventStructure::SyskitConfigurationPrecedence
+                                    Roby::EventStructure::SyskitConfigurationPrecedence
                 end
 
                 it "does not reconfigure already-configured tasks whose static input ports have not been modified" do
@@ -212,7 +212,7 @@ module Syskit
                         refute_equal new_cmp.test_child, cmp.test_child
                         # And the old tasks should be ready to garbage-collect
                         assert_equal [cmp, original_task].to_set,
-                            execute { plan.static_garbage_collect.to_set }
+                                     execute { plan.static_garbage_collect.to_set }
                     end
                 end
 
@@ -242,7 +242,7 @@ module Syskit
                         refute_equal new_child, child
                         # And the old tasks should be ready to garbage-collect
                         assert_equal [child].to_set,
-                            execute { plan.static_garbage_collect.to_set }
+                                     execute { plan.static_garbage_collect.to_set }
                     end
                 end
             end
@@ -324,7 +324,7 @@ module Syskit
                         syskit_engine.adapt_existing_deployment(deployment_task, existing_deployment_task)
                         created_task = existing_deployment_task.created_tasks[0].last
                         assert_equal [created_task.start_event],
-                            existing_task.stop_event.each_syskit_configuration_precedence(false).to_a
+                                     existing_task.stop_event.each_syskit_configuration_precedence(false).to_a
                     end
                     it "re-synchronizes with all the existing tasks if more than one is present at a given time" do
                         syskit_engine.adapt_existing_deployment(deployment_task, existing_deployment_task)
@@ -338,9 +338,9 @@ module Syskit
                         second_new_task = existing_deployment_task.created_tasks[1].last
 
                         assert_equal [first_new_task.start_event, second_new_task.start_event],
-                            existing_task.stop_event.each_syskit_configuration_precedence(false).to_a
+                                     existing_task.stop_event.each_syskit_configuration_precedence(false).to_a
                         assert_equal [second_new_task.start_event],
-                            first_new_task.stop_event.each_syskit_configuration_precedence(false).to_a
+                                     first_new_task.stop_event.each_syskit_configuration_precedence(false).to_a
                     end
 
                     it "synchronizes with the existing tasks even if there are no current ones" do
@@ -349,7 +349,7 @@ module Syskit
                         syskit_engine.adapt_existing_deployment(deployment_task, existing_deployment_task)
                         created_task = existing_deployment_task.created_tasks[0].last
                         assert_equal [created_task.start_event],
-                            existing_task.stop_event.each_syskit_configuration_precedence(false).to_a
+                                     existing_task.stop_event.each_syskit_configuration_precedence(false).to_a
                     end
                 end
             end
@@ -391,7 +391,7 @@ module Syskit
                         syskit_engine.finalize_deployed_tasks
 
                     assert_equal [work_plan[existing_deployment]],
-                        selected_deployments.to_a
+                                 selected_deployments.to_a
                 end
 
                 it "clears the deployments that are not in the plan" do
@@ -438,9 +438,9 @@ module Syskit
                     refute task2.transaction_proxy?
 
                     assert_equal [work_plan[task0], work_plan[task1], task2].to_set,
-                        expected_deployment.each_executed_task.to_set
+                                 expected_deployment.each_executed_task.to_set
                     assert_equal [work_plan[task0], task2].to_set,
-                        selected_deployed_tasks.to_set
+                                 selected_deployed_tasks.to_set
                 end
 
                 it "maintains the dependencies" do
@@ -539,7 +539,7 @@ module Syskit
 
                     assert_equal(['non_default'], new_deployed.child_child.conf)
                     assert_equal [deployed.child_child.stop_event],
-                        new_deployed.child_child.start_event.parent_objects(Roby::EventStructure::SyskitConfigurationPrecedence).to_a
+                                 new_deployed.child_child.start_event.parent_objects(Roby::EventStructure::SyskitConfigurationPrecedence).to_a
                 end
 
                 it "reconfigures a toplevel task if its configuration changed" do
@@ -553,7 +553,7 @@ module Syskit
                     plan.add_mission_task(deployed_reconf)
 
                     assert_equal [deployed_task.stop_event],
-                        deployed_reconf.start_event.parent_objects(Roby::EventStructure::SyskitConfigurationPrecedence).to_a
+                                 deployed_reconf.start_event.parent_objects(Roby::EventStructure::SyskitConfigurationPrecedence).to_a
                     plan.useful_tasks
                     assert_equal([planning_task, deployed_task].to_set,
                                  execute { plan.static_garbage_collect.to_set })
@@ -576,7 +576,7 @@ module Syskit
                     new_child = new_cmp.child_child
 
                     assert_equal [child.stop_event],
-                        new_child.start_event.parent_objects(Roby::EventStructure::SyskitConfigurationPrecedence).to_a
+                                 new_child.start_event.parent_objects(Roby::EventStructure::SyskitConfigurationPrecedence).to_a
                 end
 
                 it 'does not change anything if asked to deploy the same composition twice' do

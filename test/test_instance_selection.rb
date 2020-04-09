@@ -14,9 +14,9 @@ describe Syskit::InstanceSelection do
     describe "compute_service_selection" do
         it "should map the task to itself if the required model contains a component model" do
             assert_equal Hash[simple_component_model => simple_component_model],
-                Syskit::InstanceSelection.compute_service_selection(
-                    simple_component_model.to_instance_requirements,
-                    simple_component_model.to_instance_requirements, Hash.new)
+                         Syskit::InstanceSelection.compute_service_selection(
+                             simple_component_model.to_instance_requirements,
+                             simple_component_model.to_instance_requirements, Hash.new)
         end
     end
 
@@ -27,8 +27,8 @@ describe Syskit::InstanceSelection do
                 provides srv_m, as: 'test'
             end
             sel = Syskit::InstanceSelection.new(nil,
-                component_m.to_instance_requirements,
-                srv_m.to_instance_requirements)
+                                                component_m.to_instance_requirements,
+                                                srv_m.to_instance_requirements)
             assert_equal component_m.test_srv, sel.selected.service
         end
 
@@ -38,10 +38,10 @@ describe Syskit::InstanceSelection do
                 provides srv_m, as: 'test'
             end
             sel = Syskit::InstanceSelection.new(nil,
-                component_m.test_srv.to_instance_requirements,
-                srv_m.to_instance_requirements)
+                                                component_m.test_srv.to_instance_requirements,
+                                                srv_m.to_instance_requirements)
             assert_equal component_m.test_srv,
-                sel.service_selection[srv_m]
+                         sel.service_selection[srv_m]
         end
 
         it "should use the information present in selected and required to resolve ambiguities" do
@@ -51,10 +51,10 @@ describe Syskit::InstanceSelection do
                 provides srv_m, as: 'ambiguous'
             end
             sel = Syskit::InstanceSelection.new(nil,
-                component_m.test_srv.to_instance_requirements,
-                srv_m.to_instance_requirements)
+                                                component_m.test_srv.to_instance_requirements,
+                                                srv_m.to_instance_requirements)
             assert_equal component_m.test_srv,
-                sel.service_selection[srv_m]
+                         sel.service_selection[srv_m]
         end
     end
 
@@ -84,7 +84,7 @@ describe Syskit::InstanceSelection do
             end
             component = component_m.new
             sel = Syskit::InstanceSelection.new(component,
-                component_m.test_srv.to_instance_requirements)
+                                                component_m.test_srv.to_instance_requirements)
 
             assert_equal component.test_srv, sel.instanciate(plan)
         end

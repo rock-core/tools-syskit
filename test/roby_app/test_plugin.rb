@@ -54,7 +54,7 @@ module Syskit
 
                     assert_same m0.model.orogen_model, m1.model.orogen_model
                     assert_same OroGen::PluginRemoteModelLoading::Task.orogen_model,
-                        m1.orogen_model.find_task_by_name('m1task').task_model
+                                m1.orogen_model.find_task_by_name('m1task').task_model
                 end
             end
             describe "local process server startup" do
@@ -109,7 +109,7 @@ module Syskit
                     app.syskit_reload_config
                     assert_equal [task.orocos_name], deployment.pending_reconfigurations
                     assert_equal [[task.orocos_name], []],
-                        app.syskit_pending_reloaded_configurations
+                                 app.syskit_pending_reloaded_configurations
                 end
                 it "announces specifically if running tasks have had their configuration changed" do
                     model = TaskContext.new_submodel
@@ -127,7 +127,7 @@ module Syskit
                     assert task.needs_reconfiguration?
                     assert_equal [task.orocos_name], deployment.pending_reconfigurations
                     assert_equal [[task.orocos_name], [task.orocos_name]],
-                        app.syskit_pending_reloaded_configurations
+                                 app.syskit_pending_reloaded_configurations
                 end
                 it "ignores models that have never been configured" do
                     model = TaskContext.new_submodel
@@ -139,7 +139,7 @@ module Syskit
                     refute task.needs_reconfiguration?
                     assert_equal [], deployment.pending_reconfigurations
                     assert_equal [[], []],
-                        app.syskit_pending_reloaded_configurations
+                                 app.syskit_pending_reloaded_configurations
                 end
                 it "does not redeploy the network" do
                     model = TaskContext.new_submodel
@@ -166,13 +166,13 @@ module Syskit
 
                 it "reloads and redefines orogen deployments" do
                     copy_into_app 'models/pack/orogen/reload-1.orogen',
-                        'models/pack/orogen/reload.orogen'
+                                  'models/pack/orogen/reload.orogen'
                     copy_into_app 'config/robots/reload_orogen.rb',
-                        'config/robots/default.rb'
+                                  'config/robots/default.rb'
                     pid = roby_app_spawn 'run', silent: true
                     interface = assert_roby_app_is_running(pid)
                     copy_into_app 'models/pack/orogen/reload-2.orogen',
-                        'models/pack/orogen/reload.orogen'
+                                  'models/pack/orogen/reload.orogen'
                     perform_app_assertion interface.unit_tests.orogen_deployment_exists?
                     interface.reload_models
                     perform_app_assertion interface.unit_tests.orogen_model_reloaded?
@@ -181,13 +181,13 @@ module Syskit
 
                 it "reloads and redefines ruby tasks" do
                     copy_into_app 'models/compositions/reload_ruby_task-1.rb',
-                        'models/compositions/reload_ruby_task.rb'
+                                  'models/compositions/reload_ruby_task.rb'
                     copy_into_app 'config/robots/reload_ruby_task.rb',
-                        'config/robots/default.rb'
+                                  'config/robots/default.rb'
                     pid = roby_app_spawn 'run', silent: true
                     interface = assert_roby_app_is_running(pid)
                     copy_into_app 'models/compositions/reload_ruby_task-2.rb',
-                        'models/compositions/reload_ruby_task.rb'
+                                  'models/compositions/reload_ruby_task.rb'
                     perform_app_assertion interface.unit_tests.orogen_deployment_exists?
                     interface.reload_models
                     perform_app_assertion interface.unit_tests.orogen_model_reloaded?
@@ -196,13 +196,13 @@ module Syskit
 
                 it "reloads and redefines unmanaged tasks" do
                     copy_into_app 'models/pack/orogen/reload-1.orogen',
-                        'models/pack/orogen/reload.orogen'
+                                  'models/pack/orogen/reload.orogen'
                     copy_into_app 'config/robots/reload_unmanaged_task.rb',
-                        'config/robots/default.rb'
+                                  'config/robots/default.rb'
                     pid = roby_app_spawn 'run', silent: true
                     interface = assert_roby_app_is_running(pid)
                     copy_into_app 'models/pack/orogen/reload-2.orogen',
-                        'models/pack/orogen/reload.orogen'
+                                  'models/pack/orogen/reload.orogen'
                     perform_app_assertion interface.unit_tests.orogen_deployment_exists?
                     interface.reload_models
                     perform_app_assertion interface.unit_tests.orogen_model_reloaded?

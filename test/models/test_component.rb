@@ -41,7 +41,7 @@ describe Syskit::Models::Component do
             task_model.provides device, as: 'slave', slave_of: 'master1'
 
             assert_equal [task_model.master1_srv, task_model.master2_srv].to_set,
-                task_model.each_master_driver_service.to_set
+                         task_model.each_master_driver_service.to_set
         end
         it "should ignore pure data services" do
             task_model = Syskit::TaskContext.new_submodel
@@ -152,7 +152,7 @@ describe Syskit::Models::Component do
                 output_port 'out', stub_t
             end
             assert_equal Hash['out' => 'other_out', 'in' => 'other_in'],
-                task_m.compute_port_mappings(srv_m)
+                         task_m.compute_port_mappings(srv_m)
         end
         it "raises if mappings are not string-to-string" do
             stub_t = self.stub_t

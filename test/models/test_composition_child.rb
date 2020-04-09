@@ -19,10 +19,10 @@ describe Syskit::Models::CompositionChild do
                 add srv_m, as: 'task'
             end
             cmp = cmp_m.instanciate(plan,
-                Syskit::DependencyInjectionContext.new('task' => task_m))
+                                    Syskit::DependencyInjectionContext.new('task' => task_m))
             assert_kind_of task_m, cmp.task_child
             assert_equal task_m.s_srv.bind(cmp.task_child),
-                cmp_m.task_child.try_resolve_and_bind_child(cmp)
+                         cmp_m.task_child.try_resolve_and_bind_child(cmp)
         end
         it "returns nil if the composition child does not exist" do
             cmp_m = Syskit::Composition.new_submodel
@@ -51,7 +51,7 @@ describe Syskit::Models::CompositionChild do
             @cmp_m.add @task_m, as: 'task'
             plan.add(cmp = @cmp_m.instanciate(plan))
             assert_equal cmp.task_child,
-                @cmp_m.task_child.try_resolve_and_bind_child_recursive(cmp)
+                         @cmp_m.task_child.try_resolve_and_bind_child_recursive(cmp)
         end
         it "will resolve the children recursively" do
             child_cmp_m = Syskit::Composition.new_submodel
@@ -59,7 +59,7 @@ describe Syskit::Models::CompositionChild do
             child_cmp_m.add @task_m, as: 'second'
             plan.add(cmp = @cmp_m.instanciate(plan))
             assert_equal cmp.first_child.second_child,
-                @cmp_m.first_child.second_child.try_resolve_and_bind_child_recursive(cmp)
+                         @cmp_m.first_child.second_child.try_resolve_and_bind_child_recursive(cmp)
         end
         it "binds the found task to the expected service if there is an expected service" do
             child_cmp_m = Syskit::Composition.new_submodel
@@ -67,7 +67,7 @@ describe Syskit::Models::CompositionChild do
             child_cmp_m.add @srv_m, as: 'second'
             plan.add(cmp = @cmp_m.use('first.second' => @task_m).instanciate(plan))
             assert_equal cmp.first_child.second_child.test_srv,
-                @cmp_m.first_child.second_child.try_resolve_and_bind_child_recursive(cmp)
+                         @cmp_m.first_child.second_child.try_resolve_and_bind_child_recursive(cmp)
         end
         it "returns nil if the composition child does not exist" do
             child_cmp_m = Syskit::Composition.new_submodel
@@ -87,7 +87,7 @@ describe Syskit::Models::CompositionChild do
             child_cmp_m.add @srv_m, as: 'second'
             plan.add(cmp = @cmp_m.use('first.second' => @task_m).instanciate(plan))
             assert_equal cmp.first_child.second_child.test_srv,
-                @cmp_m.first_child.second_child.try_resolve_child_recursive(cmp)
+                         @cmp_m.first_child.second_child.try_resolve_child_recursive(cmp)
         end
     end
 
@@ -178,7 +178,7 @@ describe Syskit::Models::CompositionChild do
                 root_cmp = root_cmp_m.use('root.test' => @task_m).instanciate(plan)
                 test_task = root_cmp.root_child.test_child
                 assert_equal test_task.test_srv,
-                    root_cmp_m.root_child.test_child.bind(test_task)
+                            root_cmp_m.root_child.test_child.bind(test_task)
             end
             it "does not move up to parents that are not the expected compositions" do
                 plan.add(task = @task_m.new)
@@ -191,7 +191,7 @@ describe Syskit::Models::CompositionChild do
                 assert_equal "cannot bind cmp_m.test_child["\
                     "Syskit::Models::Placeholder<srv_m>] to task_m:: "\
                     "it is not the child of any cmp_m composition",
-                    e.message.gsub(/:0x.*:/, '::')
+                            e.message.gsub(/:0x.*:/, '::')
             end
             it "does not move up to parents when the role does not match" do
                 plan.add(task = @task_m.new)

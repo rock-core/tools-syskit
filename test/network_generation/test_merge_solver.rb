@@ -201,7 +201,7 @@ describe Syskit::NetworkGeneration::MergeSolver do
                 should_receive(:each_concrete_input_connection).and_yield(target_src = Object.new, 'src_port', 'sink_port', Hash.new).
                 mock
             assert_equal [["sink_port", src, target_src]],
-                solver.resolve_input_matching(task, target_task)
+                         solver.resolve_input_matching(task, target_task)
         end
         it "should return nil if the source port tasks are different and the policies are not compatible" do
             task = flexmock(model: task_model).

@@ -97,11 +97,11 @@ module Syskit
                         flexmock(Syskit.conf.deployment_group).should_receive(:each_configured_deployment).
                             and_return { @configured_deployments }
                         Syskit.conf.register_process_server('localhost',
-                            flexmock(:on, Orocos::RemoteProcesses::Client))
+                                                            flexmock(:on, Orocos::RemoteProcesses::Client))
                         Syskit.conf.register_process_server('unmanaged_tasks',
-                            flexmock(:on, UnmanagedTasksManager))
+                                                            flexmock(:on, UnmanagedTasksManager))
                         Syskit.conf.register_process_server('something_else',
-                            flexmock())
+                                                            flexmock())
 
                         orogen_task_m = OroGen::Spec::TaskContext.new(
                             Roby.app.default_orogen_project, 'test::Task')
@@ -120,7 +120,7 @@ module Syskit
                     end
                     it "returns empty if there are no deployments registered" do
                         assert_equal Hash['registered_deployments' => []],
-                            get_json('/deployments/registered')
+                                     get_json('/deployments/registered')
                     end
                     it "returns the deployments as registered in Syskit" do
                         configured_deployment = Models::ConfiguredDeployment.new(
@@ -140,7 +140,7 @@ module Syskit
                             "created" => false
                         ]
                         assert_equal Hash['registered_deployments' => [expected]],
-                            get_json('/deployments/registered')
+                                     get_json('/deployments/registered')
                     end
 
                     it "returns a deployment type of 'orocos' for an orocos remote process server" do
@@ -148,7 +148,7 @@ module Syskit
                             'localhost', @deployment_m, Hash[], 'test_deployment', Hash.new)
                         @configured_deployments << configured_deployment
                         assert_equal 'orocos',
-                            get_json('/deployments/registered')['registered_deployments'][0]['type']
+                                     get_json('/deployments/registered')['registered_deployments'][0]['type']
                     end
 
                     it "returns a deployment type of 'unmanaged' for an unmanaged task" do
@@ -156,7 +156,7 @@ module Syskit
                             'unmanaged_tasks', @deployment_m, Hash[], 'test_deployment', Hash.new)
                         @configured_deployments << configured_deployment
                         assert_equal 'unmanaged',
-                            get_json('/deployments/registered')['registered_deployments'][0]['type']
+                                     get_json('/deployments/registered')['registered_deployments'][0]['type']
                     end
 
                     it "ignores tasks whose process server type is not exported" do
@@ -307,7 +307,7 @@ module Syskit
                         result = patch "/deployments/123/unmanage"
                         assert_equal 200, result.status
                         assert_equal Hash["overriding_deployments" => [42, 84]],
-                            JSON.parse(result.body)
+                                     JSON.parse(result.body)
                     end
                     it "returns 404 if the ID does not exist" do
                         flexmock(RESTDeploymentManager).new_instances.

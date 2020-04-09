@@ -965,7 +965,7 @@ module Syskit
                     end
                 end
                 task.update_requirements(task_requirements,
-                    name: name, keep_abstract: true)
+                                         name: name, keep_abstract: true)
 
                 if required_host && task.respond_to?(:required_host=)
                     task.required_host = required_host

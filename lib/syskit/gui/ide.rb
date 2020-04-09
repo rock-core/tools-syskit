@@ -153,7 +153,7 @@ module Syskit
                 def self.select(parent, items)
                     if items.empty?
                         Qt::MessageBox.information(parent, "Nothing to pick",
-                            "There is nothing to pick from")
+                                                   "There is nothing to pick from")
                         return
                     end
                     new(parent, items).select

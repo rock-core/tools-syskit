@@ -29,11 +29,11 @@ module Syskit
             end
             it "allows to add new connections to an existing edge" do
                 subject.add_edge(source, sink,
-                    ['out1', 'in1'] => Hash.new)
+                                 ['out1', 'in1'] => Hash.new)
                 subject.add_edge(source, sink,
-                    ['out2', 'in2'] => Hash.new)
+                                 ['out2', 'in2'] => Hash.new)
                 assert_equal Hash[['out1', 'in1'] => Hash.new, ['out2', 'in2'] => Hash.new],
-                    subject.edge_info(source, sink)
+                             subject.edge_info(source, sink)
             end
             it "passes if trying to update the policy of a connection with itself" do
                 subject.add_edge(source, sink,
@@ -41,17 +41,17 @@ module Syskit
                 subject.add_edge(source, sink,
                                  ['out2', 'sink2'] => Hash.new, ['out1', 'in1'] => Hash.new)
                 assert_equal Hash[['out1', 'in1'] => Hash.new, ['out2', 'sink2'] => Hash.new],
-                    subject.edge_info(source, sink)
+                             subject.edge_info(source, sink)
             end
             it "raises if trying to change the policy of an existing connection" do
                 subject.add_edge(source, sink,
-                    ['out1', 'in1'] => Hash.new)
+                                 ['out1', 'in1'] => Hash.new)
                 assert_raises(ArgumentError) do
                     subject.add_edge(source, sink,
-                        ['out1', 'in1'] => Hash[buffer: 10])
+                                     ['out1', 'in1'] => Hash[buffer: 10])
                 end
                 assert_equal Hash[['out1', 'in1'] => Hash.new],
-                    subject.edge_info(source, sink)
+                             subject.edge_info(source, sink)
             end
         end
 
@@ -103,19 +103,19 @@ module Syskit
             end
             it "enumerates the required connections" do
                 subject.add_connections(source, sink,
-                    ['out1', 'in1'] => Hash.new,
-                    ['out2', 'in1'] => Hash.new,
-                    ['out2', 'in2'] => Hash.new)
+                                        ['out1', 'in1'] => Hash.new,
+                                        ['out2', 'in1'] => Hash.new,
+                                        ['out2', 'in2'] => Hash.new)
                 assert_equal [[source, 'out1', 'in1', Hash.new], [source, 'out2', 'in1', Hash.new], [source, 'out2', 'in2', Hash.new]],
-                    subject.each_in_connection(sink).to_a
+                             subject.each_in_connection(sink).to_a
             end
             it "restricts itself to the given port" do
                 subject.add_connections(source, sink,
-                    ['out1', 'in1'] => Hash.new,
-                    ['out2', 'in1'] => Hash.new,
-                    ['out2', 'in2'] => Hash.new)
+                                        ['out1', 'in1'] => Hash.new,
+                                        ['out2', 'in1'] => Hash.new,
+                                        ['out2', 'in2'] => Hash.new)
                 assert_equal [[source, 'out2', 'in2', Hash.new]],
-                    subject.each_in_connection(sink, 'in2').to_a
+                             subject.each_in_connection(sink, 'in2').to_a
             end
         end
 
@@ -125,31 +125,31 @@ module Syskit
             end
             it "enumerates the required connections" do
                 subject.add_connections(source, sink,
-                    ['out1', 'in1'] => Hash.new,
-                    ['out2', 'in1'] => Hash.new,
-                    ['out2', 'in2'] => Hash.new)
+                                        ['out1', 'in1'] => Hash.new,
+                                        ['out2', 'in1'] => Hash.new,
+                                        ['out2', 'in2'] => Hash.new)
                 assert_equal [['out1', 'in1', sink, Hash.new], ['out2', 'in1', sink, Hash.new], ['out2', 'in2', sink, Hash.new]],
-                    subject.each_out_connection(source).to_a
+                             subject.each_out_connection(source).to_a
             end
             it "restricts itself to the given port" do
                 subject.add_connections(source, sink,
-                    ['out1', 'in1'] => Hash.new,
-                    ['out2', 'in1'] => Hash.new,
-                    ['out2', 'in2'] => Hash.new)
+                                        ['out1', 'in1'] => Hash.new,
+                                        ['out2', 'in1'] => Hash.new,
+                                        ['out2', 'in2'] => Hash.new)
                 assert_equal [['out2', 'in1', sink, Hash.new], ['out2', 'in2', sink, Hash.new]],
-                    subject.each_out_connection(source, 'out2').to_a
+                             subject.each_out_connection(source, 'out2').to_a
             end
         end
 
         describe "#remove_connections" do
             it "deregisters the requested connections from the current edge info" do
                 subject.add_connections(source, sink,
-                    ['out1', 'in1'] => Hash.new,
-                    ['out2', 'in1'] => Hash.new,
-                    ['out2', 'in2'] => Hash.new)
+                                        ['out1', 'in1'] => Hash.new,
+                                        ['out2', 'in1'] => Hash.new,
+                                        ['out2', 'in2'] => Hash.new)
                 subject.remove_connections(source, sink, [['out2', 'in1']])
                 assert_equal Hash[['out1', 'in1'] => Hash.new, ['out2', 'in2'] => Hash.new],
-                    subject.edge_info(source, sink)
+                             subject.edge_info(source, sink)
             end
             it "removes the edge if the remaining mappings are empty" do
                 plan.add(source2 = source_m.new)
