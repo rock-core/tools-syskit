@@ -189,34 +189,6 @@ Layout/HeredocIndentation:
     - 'lib/syskit/scripts/ide.rb'
     - 'syskit.gemspec'
 
-# Offense count: 83
-# Cop supports --auto-correct.
-# Configuration parameters: Width, IgnoredPatterns.
-Layout/IndentationWidth:
-  Exclude:
-    - 'lib/syskit/actions/action_model.rb'
-    - 'lib/syskit/bound_data_service.rb'
-    - 'lib/syskit/component.rb'
-    - 'lib/syskit/coordination/task_script_extension.rb'
-    - 'lib/syskit/data_service.rb'
-    - 'lib/syskit/dependency_injection_context.rb'
-    - 'lib/syskit/deployment.rb'
-    - 'lib/syskit/exceptions.rb'
-    - 'lib/syskit/graphviz.rb'
-    - 'lib/syskit/instance_requirements.rb'
-    - 'lib/syskit/instance_selection.rb'
-    - 'lib/syskit/runtime/exceptions.rb'
-    - 'lib/syskit/task_context.rb'
-    - 'lib/syskit/test/base.rb'
-    - 'lib/syskit/test/self.rb'
-    - 'syskit.gemspec'
-    - 'test/models/test_bound_data_service.rb'
-    - 'test/models/test_data_services.rb'
-    - 'test/models/test_deployment.rb'
-    - 'test/models/test_placeholder.rb'
-    - 'test/runtime/test_connection_management.rb'
-    - 'test/test_dependency_injection.rb'
-
 # Offense count: 36
 # Cop supports --auto-correct.
 # Configuration parameters: AllowDoxygenCommentStyle, AllowGemfileRubyComment.
