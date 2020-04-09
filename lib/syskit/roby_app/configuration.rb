@@ -571,7 +571,7 @@ module Syskit
             end
 
             def clear_deployments
-                #Roby.warn_deprecated "conf.clear_deployments is deprecated, use the profile-level deployment API"
+                # Roby.warn_deprecated "conf.clear_deployments is deprecated, use the profile-level deployment API"
                 @deployment_group = Models::DeploymentGroup.new
             end
 

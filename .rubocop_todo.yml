@@ -189,14 +189,6 @@ Layout/HeredocIndentation:
     - 'lib/syskit/scripts/ide.rb'
     - 'syskit.gemspec'
 
-# Offense count: 36
-# Cop supports --auto-correct.
-# Configuration parameters: AllowDoxygenCommentStyle, AllowGemfileRubyComment.
-Layout/LeadingCommentSpace:
-  Exclude:
-    - 'lib/syskit/roby_app/configuration.rb'
-    - 'test/ros/test_task_context.rb'
-
 # Offense count: 2077
 # Cop supports --auto-correct.
 # Configuration parameters: AutoCorrect, Max, AllowHeredoc, AllowURI, URISchemes, IgnoreCopDirectives, IgnoredPatterns.
