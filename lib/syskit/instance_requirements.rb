@@ -1008,7 +1008,7 @@ module Syskit
         end
 
         def to_s
-            result = "#{base_model.short_name}"
+            result = base_model.short_name.to_s
             if model != base_model
                 result << "[narrowed to #{model.short_name}]"
             end
@@ -1029,7 +1029,7 @@ module Syskit
             if model != base_model
                 pp.text "#{model}(from #{base_model})"
             else
-                pp.text "#{model}"
+                pp.text model.to_s
             end
             pp.nest(2) do
                 unless pushed_selections.empty?

@@ -1482,16 +1482,6 @@ Style/RedundantBegin:
     - 'test/models/test_composition.rb'
     - 'test/test/test_task_context_test.rb'
 
-# Offense count: 11
-# Cop supports --auto-correct.
-Style/RedundantInterpolation:
-  Exclude:
-    - 'lib/syskit/exceptions.rb'
-    - 'lib/syskit/gui/runtime_state.rb'
-    - 'lib/syskit/instance_requirements.rb'
-    - 'lib/syskit/network_generation/engine.rb'
-    - 'test/models/test_composition.rb'
-
 # Offense count: 42
 # Cop supports --auto-correct.
 Style/RedundantSelf:

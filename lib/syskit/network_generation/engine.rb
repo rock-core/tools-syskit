@@ -787,11 +787,11 @@ module Syskit
                 pp.nest(2) do
                     pp.breakable
                     work_plan.each_task do |task|
-                        pp.text "#{task}"
+                        pp.text task.to_s
                         pp.nest(4) do
                             pp.breakable
                             pp.seplist(task.children.to_a) do |t|
-                                pp.text "#{t}"
+                                pp.text t.to_s
                             end
                         end
                         pp.breakable
@@ -803,7 +803,7 @@ module Syskit
                 pp.nest(4) do
                     pp.breakable
                     work_plan.task_relation_graph_for(Flows::DataFlow).each_edge do |from, to, info|
-                        pp.text "#{from}"
+                        pp.text from.to_s
                         pp.breakable
                         pp.text "  => #{to} (#{info})"
                         pp.breakable

@@ -14,7 +14,7 @@ describe Syskit::Models::Composition do
 
     def create_specialized_model(root_m)
         srv = Syskit::DataService.new_submodel
-        block = proc { provides srv, as: "#{srv}" }
+        block = proc { provides srv, as: srv.to_s }
         root_m.specialize(root_m.srv_child => srv, &block)
         m = root_m.narrow(Syskit::DependencyInjection.new("srv" => srv))
         [m, srv]

@@ -112,7 +112,7 @@ module Syskit
             pp.nest(2) do
                 pp.breakable
                 pp.seplist(candidates) do |model|
-                    pp.text "#{model.short_name}"
+                    pp.text model.short_name.to_s
                 end
             end
         end
@@ -330,7 +330,7 @@ module Syskit
 
             abstract_tasks.each do |task, (parents, candidates)|
                 pp.breakable
-                pp.text "#{task.to_s.gsub(/Syskit::/, '')}"
+                pp.text task.to_s.gsub(/Syskit::/, "").to_s
                 pp.nest(2) do
                     pp.breakable
                     if candidates
@@ -341,7 +341,7 @@ module Syskit
                             pp.nest(2) do
                                 pp.breakable
                                 pp.seplist(candidates) do |c_task|
-                                    pp.text "#{c_task.short_name}"
+                                    pp.text c_task.short_name.to_s
                                 end
                             end
                         end
@@ -432,7 +432,7 @@ module Syskit
                             pp.nest(2) do
                                 pp.breakable
                                 pp.seplist(tasks) do |cand_t|
-                                    pp.text "#{cand_t}"
+                                    pp.text cand_t.to_s
                                 end
                             end
                         end
