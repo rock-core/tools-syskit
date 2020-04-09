@@ -123,6 +123,7 @@ module Syskit
                         if !(planner = task.planning_task) || !planner.respond_to?(:requirements)
                             raise ArgumentError, "#{action_name} is not an action created from a Syskit definition or device"
                         end
+
                         plan.add_mission_task(task)
                         task
                     end

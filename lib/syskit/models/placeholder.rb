@@ -48,6 +48,7 @@ module Syskit
 
             def each_required_model
                 return enum_for(:each_required_model) if !block_given?
+
                 if component_model?
                     yield(proxied_component_model)
                 end
@@ -101,6 +102,7 @@ module Syskit
 
             def each_port
                 return enum_for(:each_port) if !block_given?
+
                 each_output_port { |p| yield(p) }
                 each_input_port { |p| yield(p) }
             end
@@ -299,6 +301,7 @@ module Syskit
                             if service
                                 raise ArgumentError, "more than one bound data service given: #{service} and #{m}"
                             end
+
                             service = m
                             m.component_model
                         else m

@@ -96,6 +96,7 @@ require 'syskit/roby_app'
                         if !output_modes.include?(output_type)
                             raise ArgumentError, "unknown or unavailable output mode #{output_type}, available output modes: #{output_modes.join(", ")}"
                         end
+
                         Scripts.output_file = output_file
                         Scripts.output_type = output_type.downcase
                     end

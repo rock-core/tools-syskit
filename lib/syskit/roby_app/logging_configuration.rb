@@ -146,6 +146,7 @@ module Syskit
                 if groups[name.to_str]
                     raise ArgumentError, "there is already a group registered under the name #{name}, use #update_group if you mean to update it"
                 end
+
                 group = LoggingGroup.new(enabled)
                 yield(group) if block_given?
                 groups[name.to_str] = group
@@ -173,11 +174,13 @@ module Syskit
             #   exclusion is being considered.
             def object_excluded_from_log?
                 return true if !port_logs_enabled?
+
                 has_one_match = false
 
                 groups.each_value do |group|
                     if yield(group)
                         return false if group.enabled?
+
                         has_one_match = true
                     end
                 end

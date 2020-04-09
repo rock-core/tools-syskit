@@ -46,6 +46,7 @@ module Syskit
                 if syskit.reachable?
                     begin
                         return if refreshing?
+
                         @pending_call = syskit.async_call ['syskit'], :logging_conf do |error, result|
                             if error.nil?
                                 enabled true
@@ -97,6 +98,7 @@ module Syskit
                     end
                 else
                     return if @item_name.modified?
+
                     @item_name.update_conf(conf)
                 end
             end

@@ -188,6 +188,7 @@ module Syskit
                 if !unresolved.empty?
                     raise NameResolutionError.new(unresolved), "could not resolve names while pushing #{spec} on #{self}"
                 end
+
                 # Resolve recursive selection, and default selections
                 spec.resolve_default_selections
                 # Finally, add it to the new state

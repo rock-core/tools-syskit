@@ -51,6 +51,7 @@ module Syskit
             # @return [void]
             def each_master_driver_service(&block)
                 return enum_for(:each_master_driver_service) if !block_given?
+
                 each_root_data_service do |srv|
                     if srv.model < Syskit::Device
                         yield(srv)
@@ -65,6 +66,7 @@ module Syskit
             # @return [void]
             def each_com_bus_driver_service(&block)
                 return enum_for(:each_com_bus_driver_service) if !block_given?
+
                 each_root_data_service do |srv|
                     if srv.model < Syskit::ComBus
                         yield(srv)
@@ -105,6 +107,7 @@ module Syskit
                     if main_matching_services.size != 1
                         raise AmbiguousServiceSelection.new(self, target_model, main_matching_services), "there is more than one service of type #{target_model.name} in #{self.name}#{" matching name hint #{pattern}" if pattern}"
                     end
+
                     selected = main_matching_services.first
                 else
                     selected = matching_services.first
@@ -140,6 +143,7 @@ module Syskit
             # @yield [Models::BoundDataService]
             def each_slave_data_service(master_service)
                 return enum_for(:each_slave_data_service, master_service) if !block_given?
+
                 each_data_service(nil) do |name, service|
                     if service.master && (service.master.full_name == master_service.full_name)
                         yield(service)
@@ -153,6 +157,7 @@ module Syskit
             # @yield [Models::BoundDataService]
             def each_root_data_service(&block)
                 return enum_for(:each_root_data_service) if !block_given?
+
                 each_data_service(nil) do |name, service|
                     if service.master?
                         yield(service)
@@ -239,6 +244,7 @@ module Syskit
                 if !srv
                     raise ArgumentError, "no service of #{self} provides #{service_model}"
                 end
+
                 return srv.as(service_model)
             end
 
@@ -508,6 +514,7 @@ module Syskit
             # @yieldparam [DynamicDataService] srv
             def each_required_dynamic_service
                 return enum_for(:each_required_dynamic_service) if !block_given?
+
                 each_data_service do |_, srv|
                     if srv.dynamic?
                         yield(srv)
@@ -537,6 +544,7 @@ module Syskit
                 if !as
                     raise ArgumentError, "no name given, please provide the as: option"
                 end
+
                 service_name = as.to_s
 
                 dyn = find_dynamic_service(dynamic_service_name)
@@ -629,6 +637,7 @@ module Syskit
                         if !master_srv
                             raise ArgumentError, "master data service #{master_source} is not registered on #{self}"
                         end
+
                         master = master_srv
                     end
                     full_name = "#{master.full_name}.#{name}"
@@ -1091,6 +1100,7 @@ module Syskit
 
             def each_required_model
                 return enum_for(:each_required_model) if !block_given?
+
                 yield(concrete_model)
             end
 

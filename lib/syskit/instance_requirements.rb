@@ -280,6 +280,7 @@ module Syskit
                 if !model.to_component_model.fullfills?(service.component_model)
                     raise ArgumentError, "#{service} is not a service of #{self}"
                 end
+
                 if service.component_model.placeholder?
                     if srv = base_model.find_data_service_from_type(service.model)
                         @base_model = srv
@@ -432,12 +433,14 @@ module Syskit
             # Enumerates all of this component's ports
             def each_port(&block)
                 return enum_for(:each_port) if !block_given?
+
                 each_output_port(&block)
                 each_input_port(&block)
             end
 
             def each_input_port
                 return enum_for(:each_input_port) if !block_given?
+
                 model.each_input_port do |p|
                     yield(p.attach(self))
                 end
@@ -445,6 +448,7 @@ module Syskit
 
             def each_output_port
                 return enum_for(:each_output_port) if !block_given?
+
                 model.each_output_port do |p|
                     yield(p.attach(self))
                 end
@@ -471,6 +475,7 @@ module Syskit
                     if v1 != v2
                         raise ArgumentError, "cannot merge #{self} and #{other_spec}: argument value mismatch for #{name}, resp. #{v1} and #{v2}"
                     end
+
                     v1
                 end
                 @selections.merge(other_spec.selections)
@@ -579,6 +584,7 @@ module Syskit
                 explicit.each_key do |child_name|
                     req = new_mappings.explicit[child_name]
                     next if !req.respond_to?(:fullfills?)
+
                     if child = model.find_child(child_name)
                         _, selected_m, _ = new_mappings.selection_for(child_name, child)
                         if !selected_m.fullfills?(child)
@@ -1047,6 +1053,7 @@ module Syskit
                 if !composition_model?
                     raise RuntimeError, "cannot call #each_child on #{self} as it does not represent a composition model"
                 end
+
                 resolved_di = resolved_dependency_injection
                 model.each_child do |child_name, _|
                     selected_child, _ = model.find_child_model_and_task(
@@ -1083,6 +1090,7 @@ module Syskit
 
             def each_required_service_model
                 return enum_for(:each_required_service_model) if !block_given?
+
                 model.each_required_model do |m|
                     yield(m) if m.kind_of?(Syskit::Models::DataServiceModel)
                 end
@@ -1090,6 +1098,7 @@ module Syskit
 
             def each_required_model
                 return enum_for(:each_required_model) if !block_given?
+
                 model.each_required_model do |m|
                     yield(m)
                 end
@@ -1135,6 +1144,7 @@ module Syskit
                 if !model.has_port?(port_name)
                     raise ArgumentError, "#{model} has not port called #{port_name}"
                 end
+
                 dynamics.add_port_period(port_name, period, sample_count)
                 self
             end

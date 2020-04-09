@@ -100,6 +100,7 @@ module Syskit
                     if as && as != name
                         raise ArgumentError, "the as: argument was given (with value #{as}) but it is required to be #{name}. Note that it can be omitted in a dynamic service block"
                     end
+
                     @service = component_model.provides_dynamic(
                         service_model, port_mappings, as: name,
                         bound_service_class: BoundDynamicDataService, **arguments)
@@ -126,6 +127,7 @@ module Syskit
                 if !instantiator.service
                     raise InvalidDynamicServiceBlock.new(self), "the block #{block} used to instantiate the dynamic service #{name} on #{component_model.short_name} with options #{options} did not provide any service"
                 end
+
                 instantiator.service
             end
 
@@ -168,6 +170,7 @@ module Syskit
                     if !expected_name
                         raise InvalidPortMapping, "no explicit mapping has been given for the service port #{port.name} and no port on #{component_model.short_name} matches. You must give an explicit mapping of the form 'service_port_name' => 'task_port_name' if you expect the port to be dynamically created."
                     end
+
                     return expected_name
                 end
 
@@ -175,6 +178,7 @@ module Syskit
                 if !component_model.send("has_dynamic_#{direction}_port?", expected_name, port.type)
                     raise InvalidPortMapping, "there are no dynamic #{direction} ports declared in #{component_model.short_name} that match #{expected_name}:#{port.type_name}"
                 end
+
                 return expected_name
             end
         end

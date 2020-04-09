@@ -74,6 +74,7 @@ module Syskit
 
                 task.model.each_master_driver_service do |srv|
                     next if task.find_device_attached_to(srv)
+
                     if dev = find_selected_device_in_hierarchy(:"#{srv.name}_dev", task, srv.model.to_instance_requirements)
                         Engine.debug do
                             Engine.debug "  selected #{dev} for #{srv.name}"

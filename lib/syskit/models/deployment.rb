@@ -92,6 +92,7 @@ module Syskit
             # Enumerate the names of the tasks deployed by self
             def each_deployed_task_name
                 return enum_for(__method__) if !block_given?
+
                 orogen_model.task_activities.each do |task|
                     yield(task.name)
                 end

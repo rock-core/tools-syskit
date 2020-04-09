@@ -10,6 +10,7 @@ module Syskit
                 if !future.fulfilled?
                     raise future.reason
                 end
+
                 result
             end
 

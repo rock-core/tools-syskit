@@ -34,6 +34,7 @@ while !tasks.empty?
             if task.has_data_source?(interface_name) && task.data_source_type(interface_name) == source_model
                 next
             end
+
             result.delete_if { |m, n| source_model < m && n == interface_name }
 
             result << [source_model, interface_name]

@@ -343,6 +343,7 @@ module Syskit
             #   this deployment, or nil if there should be none
             def default_prefix(deployment_model)
                 return if !prefix
+
                 deployment_name = deployment_model.deployment_name
 
                 exclude = prefix_blacklist.any? do |pattern|
@@ -359,6 +360,7 @@ module Syskit
             #   be published, or nil if none
             def default_sd_domain(deployment_model)
                 return if !sd_domain
+
                 deployment_name = deployment_model.name
 
                 publish = publish_white_list.any? do |pattern|
@@ -418,6 +420,7 @@ module Syskit
             # @return [void]
             def each_process_server
                 return enum_for(__method__) if !block_given?
+
                 process_servers.each_value do |config|
                     yield(config.client)
                 end

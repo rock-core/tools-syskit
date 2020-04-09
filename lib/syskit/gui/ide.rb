@@ -195,6 +195,7 @@ module Syskit
                     each_with_object(Hash.new) do |(type_name, typekit_name, _), result|
                         next if type_name.end_with?("_m")
                         next if type_name =~ /\[/
+
                         unless loader.has_loaded_typekit?(typekit_name)
                             syskit_path = ["Types", *Typelib.split_typename(type_name)]
                             syskit_name = syskit_path.join(".")

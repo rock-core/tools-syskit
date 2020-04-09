@@ -97,6 +97,7 @@ module Syskit
                     elsif predicate_block
                         predicate = DataMonitorPredicateFromBlock.new(data_streams, predicate_block)
                     end
+
                     @predicate = predicate
                     self
                 end

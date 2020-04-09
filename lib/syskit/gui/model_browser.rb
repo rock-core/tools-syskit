@@ -26,6 +26,7 @@ module Syskit
                             next if type.null?
                             next if type <= Typelib::NumericType
                             next if type <= Typelib::ArrayType
+
                             yield(type)
                         end
                     end

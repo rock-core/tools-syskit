@@ -46,6 +46,7 @@ module Syskit
 
                 if name = self.name
                     return if name !~ /^OroGen::/
+
                     name = name.gsub(/^OroGen::/, '')
                     begin
                         if constant("::#{name}") == self

@@ -250,6 +250,7 @@ module Syskit
                 elsif other_component.composition_model != composition_model
                     raise ArgumentError, "cannot connect ports of #{self} to ports of #{other_component}: they are children of different composition models"
                 end
+
                 cmp_connections = composition_model.explicit_connections[[child_name, other_component.child_name]]
                 connections.each do |port_pair, policy|
                     cmp_connections[port_pair] = policy

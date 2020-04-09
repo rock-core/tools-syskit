@@ -128,6 +128,7 @@ module Syskit
                         if !complete
                             return []
                         end
+
                         return ports, true
                     else
                         return candidates, complete
@@ -326,6 +327,7 @@ module Syskit
                 if !@result.has_key?(task)
                     return
                 end
+
                 task_info = @result[task]
                 task_info.delete(port_name)
                 if task_info.empty?

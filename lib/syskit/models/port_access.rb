@@ -51,6 +51,7 @@ module Syskit
             # Enumerates all of this component's ports
             def each_port(&block)
                 return enum_for(:each_port) if !block_given?
+
                 each_output_port(&block)
                 each_input_port(&block)
             end
@@ -58,6 +59,7 @@ module Syskit
             # Enumerates this component's output ports
             def each_output_port
                 return enum_for(:each_output_port) if !block_given?
+
                 orogen_model.each_output_port do |p|
                     yield(ports[p.name] ||= OutputPort.new(self, p))
                 end
@@ -66,6 +68,7 @@ module Syskit
             # Enumerates this component's input ports
             def each_input_port
                 return enum_for(:each_input_port) if !block_given?
+
                 orogen_model.each_input_port do |p|
                     yield(ports[p.name] ||= InputPort.new(self, p))
                 end
@@ -81,6 +84,7 @@ module Syskit
             # will be considered
             def has_output_port?(name, including_dynamic = true)
                 return true if find_output_port(name)
+
                 if including_dynamic
                     has_dynamic_output_port?(name)
                 end
@@ -91,6 +95,7 @@ module Syskit
             # will be considered
             def has_input_port?(name, including_dynamic = true)
                 return true if find_input_port(name)
+
                 if including_dynamic
                     has_dynamic_input_port?(name)
                 end

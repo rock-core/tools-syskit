@@ -78,6 +78,7 @@ module Syskit
 
             def self.handles?(node)
                 return if !super
+
                 node.class_name.namespace[0] == "OroGen"
             end
 

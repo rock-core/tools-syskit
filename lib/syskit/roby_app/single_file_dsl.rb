@@ -23,6 +23,7 @@ module Syskit
                 if m =~ /(?:_def|_dev)$|^define$/
                     return global_profile.send(m, *args, &block)
                 end
+
                 super
             end
         end

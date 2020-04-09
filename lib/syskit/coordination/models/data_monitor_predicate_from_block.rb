@@ -66,6 +66,7 @@ module Syskit
 
                     if !@full
                         return if samples.compact.size != samples.size
+
                         @full = true
                     end
                     @new_samples = false
@@ -81,6 +82,7 @@ module Syskit
                         if !args.empty?
                             raise ArgumentError, "#{args.size} provided to #{m}, zero expected"
                         end
+
                         return arguments[m]
                     end
                     return super

@@ -298,6 +298,7 @@ module Syskit
                 dataflow_graph = work_plan.task_relation_graph_for(Syskit::Flows::DataFlow)
                 all_tasks.each do |t|
                     next if used_tasks.include?(t)
+
                     dataflow_graph.in_neighbours(t).dup.each do |source_t|
                         connections = dataflow_graph.edge_info(source_t, t).dup
                         connections.delete_if do |(source_port, sink_port), policy|
@@ -441,6 +442,7 @@ module Syskit
                 if tasks.size > 1
                     raise InternalError, "could not find the current task in #{deployed_tasks.map(&:to_s).sort.join(", ")}"
                 end
+
                 tasks.first
             end
 
@@ -457,6 +459,7 @@ module Syskit
                 orocos_name_to_existing = Hash.new
                 existing_deployment_task.each_executed_task do |t|
                     next if t.finished?
+
                     (orocos_name_to_existing[t.orocos_name] ||= Array.new) << t
                 end
 

@@ -61,6 +61,7 @@ module Syskit
             if !has_edge?(source_task, sink_task)
                 return false
             end
+
             edge_info(source_task, sink_task).has_key?([source_port, sink_port])
         end
 
@@ -79,6 +80,7 @@ module Syskit
             if mappings.empty?
                 raise ArgumentError, "the connection set is empty"
             end
+
             freeze_edge_info(mappings)
             super
         end
@@ -88,6 +90,7 @@ module Syskit
                 if v1 != v2
                     raise ArgumentError, "cannot override policy information by default: trying to override the policy between #{source} and #{sink} from #{k}: #{v1} to #{k}: #{v2}"
                 end
+
                 v1
             end
             freeze_edge_info(merged)
@@ -136,6 +139,7 @@ module Syskit
         #   each_output_connection
         def each_in_connection(task, port = nil)
             return enum_for(__method__, task, port) if !block_given?
+
             if port.respond_to? :name
                 port = port.name
             end
@@ -170,6 +174,7 @@ module Syskit
         #
         def each_out_connection(task, port = nil)
             return enum_for(__method__, task, port) if !block_given?
+
             if port.respond_to? :name
                 port = port.name
             end

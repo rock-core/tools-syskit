@@ -54,6 +54,7 @@ module Syskit
             # @yield [CompositionSpecialization]
             def each_specialization
                 return enum_for(:each_specialization) if !block_given?
+
                 specializations.each_value do |spec|
                     yield(spec)
                 end
@@ -128,6 +129,7 @@ module Syskit
                 # instantiation cannot be represented)
                 each_specialization do |spec|
                     next if spec == new_specialization || spec == new_specialization
+
                     if compatible_specializations?(spec, new_specialization)
                         spec.compatibilities << new_specialization
                         new_specialization.compatibilities << spec
@@ -187,6 +189,7 @@ module Syskit
                             end
                             raise ArgumentError, "invalid specialization #{child.short_name} => #{child_model.short_name}: more than one child of #{composition_model.short_name} fullfills #{child.short_name} (#{children.sort.join("; ")}). You probably want to select one specifically by name"
                         end
+
                         child = children.first
                     elsif !child.respond_to?(:to_str)
                         raise ArgumentError, "invalid child selector #{child}"
@@ -276,6 +279,7 @@ module Syskit
                     if result != sym_result
                         raise NonSymmetricSpecializationConstraint.new(validator, [spec1, spec2]), "#{validator} returned #{!!result} on (#{spec1},#{spec2}) and #{!!sym_result} on (#{spec2},#{spec1}). Specialization constraints must be symmetric"
                     end
+
                     result
                 end
             end
@@ -370,6 +374,7 @@ module Syskit
                 elsif current_model = instanciated_specializations[composite_spec.specialized_children]
                     return current_model.composition_model
                 end
+
                 child_composition = create_specialized_model(composite_spec, applied_specializations)
                 composite_spec.composition_model = child_composition
                 instanciated_specializations[composite_spec.specialized_children] = composite_spec
@@ -527,6 +532,7 @@ module Syskit
 
                         remaining.delete(s1 = remaining.first)
                         next if s0 == s1 # possible if the iteration on 'result' above did not find anything
+
                         if merged.compatible_with?(s1)
                             merged.merge(s1)
                             all << s1

@@ -304,6 +304,7 @@ module Syskit
             # @yieldparam [Profile] profile
             def each_used_profile(&block)
                 return enum_for(__method__) unless block_given?
+
                 used_profiles.each do |profile, _tags|
                     yield(profile)
                 end
@@ -454,6 +455,7 @@ module Syskit
             # @see each_resolved_definition
             def each_definition(&block)
                 return enum_for(__method__) if !block_given?
+
                 definitions.each_value do |req|
                     yield(req.dup)
                 end
@@ -465,6 +467,7 @@ module Syskit
             #   {#resolved_definition}
             def each_resolved_definition
                 return enum_for(__method__) if !block_given?
+
                 definitions.each_value do |req|
                     yield(req.resolve)
                 end
@@ -637,6 +640,7 @@ module Syskit
             # It enumerates the profiles created so far
             def self.each_submodel
                 return enum_for(__method__) if !block_given?
+
                 filter_submodels do |profile|
                     yield(profile)
                     false

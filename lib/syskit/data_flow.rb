@@ -247,6 +247,7 @@ module Syskit
                     yield(first_conn.source_port, last_conn.sink_port, last_conn.sink_task, aggregated_policy)
                 end
             end
+
             self
         end
 

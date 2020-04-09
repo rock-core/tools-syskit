@@ -113,6 +113,7 @@ module Syskit
                             other_profiles = tags_from_other.map { |t| t.class.profile }.uniq
                             raise Roby::Test::Assertion.new(TaskAllocationFailed.new(syskit_engine, tags)), "#{act} contains tags from another profile (found #{other_profiles.map(&:name).sort.join(", ")}, expected #{subject_syskit_model}"
                         end
+
                         plan.unmark_mission_task(task)
                         expect_execution.garbage_collect(true).to_run
                     rescue Exception => e

@@ -56,6 +56,7 @@ module Syskit
             elsif !(name.camelcase(:upper) == name)
                 raise ArgumentError, "#{name} is not a valid model name. Model names must start with an uppercase letter, and are usually written in UpperCamelCase"
             end
+
             name
         end
 
@@ -68,6 +69,7 @@ module Syskit
                 if target_a != target_b
                     raise Ambiguous, "merging conflicting port mappings: #{source} => #{target_a} and #{source} => #{target_b}"
                 end
+
                 target_a
             end
         end

@@ -107,6 +107,7 @@ module Syskit
 
             def each_input_port
                 return enum_for(:each_input_port) if !block_given?
+
                 each_port_helper :each_input_port do |p|
                     yield(p)
                 end
@@ -114,6 +115,7 @@ module Syskit
 
             def each_output_port
                 return enum_for(:each_output_port) if !block_given?
+
                 each_port_helper :each_output_port do |p|
                     yield(p)
                 end
@@ -121,6 +123,7 @@ module Syskit
 
             def each_port
                 return enum_for(:each_port) if block_given?
+
                 each_input_port(&proc)
                 each_output_port(&proc)
             end

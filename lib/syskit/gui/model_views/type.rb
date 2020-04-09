@@ -38,6 +38,7 @@ module Syskit::GUI
                 [Syskit::Component,Syskit::DataService].each do |base_model|
                     base_model.each_submodel do |submodel|
                         next if submodel.placeholder?
+
                         submodel.each_output_port do |port|
                             if port.type.name == type.name
                                 producers << [page.link_to(submodel), port.name]

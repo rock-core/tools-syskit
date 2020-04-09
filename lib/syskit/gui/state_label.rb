@@ -157,6 +157,7 @@ module Syskit
             # @param [String] color the color to use for this state
             def update_state(state, text: state.to_s, color: color_from_state(state))
                 return if !color
+
                 update_style(color)
                 update_text(text)
                 @current_state = state.to_s
@@ -184,6 +185,7 @@ module Syskit
             # {#extra_style}
             def update_text(text = current_text)
                 return if rate_limited? && @last_update && (Time.now - @last_update) < 1
+
                 @last_update = Time.now
 
                 text = text.to_str

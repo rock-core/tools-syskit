@@ -185,6 +185,7 @@ module Syskit
             #   machines
             def distance_to(other)
                 return if !execution_agent || !other.execution_agent
+
                 execution_agent.distance_to(other.execution_agent)
             end
 
@@ -1113,6 +1114,7 @@ module Syskit
                 if orocos_port.type != port.type
                     raise UnexpectedPortType.new(port, orocos_port.type)
                 end
+
                 orocos_port
             end
 

@@ -180,6 +180,7 @@ module Syskit
                     action_combo.enabled = true
                     syskit.actions.sort_by(&:name).each do |action|
                         next if action.advanced?
+
                         action_combo.add_item(action.name, Qt::Variant.new(action.doc))
                     end
                     ui_logging_configuration.refresh
@@ -244,6 +245,7 @@ module Syskit
                 elsif syskit_log_stream
                     syskit_log_stream.close
                 end
+
                 @syskit_log_stream = Roby::Interface::Async::Log.new(syskit.remote_name, port: port)
                 syskit_log_stream.on_reachable do
                     deselect_job
@@ -313,6 +315,7 @@ module Syskit
 
             def logger_task?(t)
                 return if @logger_m == false
+
                 @logger_m ||= Syskit::TaskContext.
                     find_model_from_orogen_name('logger::Logger') || false
                 t.kind_of?(@logger_m)
@@ -324,6 +327,7 @@ module Syskit
                         with_arguments(job_id: current_job.job_id).
                         first
                     return if !job_task
+
                     placeholder_task = job_task.planned_task
                     return if !placeholder_task
 

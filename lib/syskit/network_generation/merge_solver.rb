@@ -61,6 +61,7 @@ module Syskit
                     if task_replacement_graph.leaf?(replacement)
                         return replacement
                     end
+
                     @resolved_replacements.delete(task)
                 end
 
@@ -114,6 +115,7 @@ module Syskit
                     if merged_task == task
                         raise "trying to merge a task onto itself: #{merged_task}"
                     end
+
                     if task.respond_to?(:merge)
                         task.merge(merged_task)
                     end
@@ -400,6 +402,7 @@ module Syskit
 
                 topsort.each do |composition|
                     next if !composition.plan
+
                     each_composition_merge_candidate(composition) do |merged_composition|
                         apply_merge_group(merged_composition => composition)
                     end

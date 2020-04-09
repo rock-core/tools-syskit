@@ -119,6 +119,7 @@ module Syskit
                         elsif !selected_m.fullfills?(required_m)
                             raise ArgumentError, "#{selected_m} was explicitly selected for #{required_m}, but does not provide it"
                         end
+
                         mappings[required_m] = selected_m.attach(selected_component_model)
                     else
                         selected_m = selected_component_model.find_data_service_from_type(required_m)

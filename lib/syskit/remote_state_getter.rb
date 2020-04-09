@@ -108,6 +108,7 @@ module Syskit
                 elsif exit_condition.set?
                     raise ThreadError, "#{self} is quitting, cannot call #wait"
                 end
+
                 sync_latch.reset(latch = Concurrent::CountDownLatch.new(2))
                 latch
             end

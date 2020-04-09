@@ -90,6 +90,7 @@ module Syskit
                 elsif ports.empty?
                     raise InternalError, "oroGen's logger::Logger task should have one catch-all dynamic input port, and has none"
                 end
+
                 @logger_dynamic_port = ports.first
             end
 
@@ -118,6 +119,7 @@ module Syskit
                 return if !engine.dataflow_dynamics
 
                 return unless (logger_model = find_logger_model)
+
                 setup_logger_model(logger_model)
 
                 fallback_policy = Hash[

@@ -265,6 +265,7 @@ module Syskit
             #   should be added to the Syskit side
             def project_define_from_orogen(orogen)
                 return if loaded_orogen_projects.has_key?(orogen.name)
+
                 Syskit.info "loading oroGen project #{orogen.name}"
 
                 tasks = orogen.self_tasks.each_value.map do |task_def|
@@ -399,6 +400,7 @@ module Syskit
                 running_needs_reconfiguration = []
                 TaskContext.each_submodel do |model|
                     next if !model.concrete_model?
+
                     changed_sections = model.configuration_manager.reload
                     plan.find_tasks(Deployment).each do |deployment_task|
                         deployment_task.mark_changed_configuration_as_not_reusable(
@@ -575,6 +577,7 @@ module Syskit
                             if !is_running
                                 raise Orocos::RemoteProcesses::Client::StartupFailed, "the local process server failed to start"
                             end
+
                             nil
                         end
                 end
@@ -608,6 +611,7 @@ module Syskit
                 process_servers = Syskit.conf.each_process_server_config.map(&:name)
                 process_servers.each do |name|
                     next if name =~ /-sim$/
+
                     ps = Syskit.conf.remove_process_server(name)
                     ps.client.disconnect
                 end
@@ -640,6 +644,7 @@ module Syskit
 
                 Syskit.conf.each_configured_deployment(on: on, except_on: except_on) do |configured_deployment|
                     next if existing_deployments.include?(configured_deployment.process_name)
+
                     plan.add_permanent_task(configured_deployment.new)
                 end
             end
@@ -698,6 +703,7 @@ module Syskit
                 handlers.each do |handler_name|
                     m, options = roby_engine_propagation_handlers.fetch(handler_name)
                     next if @handler_ids.has_key?(handler_name)
+
                     @handler_ids[handler_name] = roby_engine.add_propagation_handler(options, &m)
                 end
             end
@@ -806,6 +812,7 @@ module Syskit
 
             def self.validate_port_has_fixed_size(port, with_global_size, only_warn: false, ignore: [])
                 return if with_global_size.include?(port.type)
+
                 if fixed_size_type?(port.type) || globally_sized_type?(port.type)
                     with_global_size << port.type
                     return
