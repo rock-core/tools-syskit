@@ -1,0 +1,17 @@
+inherit_from: .rubocop_todo.yml
+
+inherit_gem:
+  rubocop-rock: defaults.yml
+
+AllCops:
+  TargetRubyVersion: "2.5"
+
+Style/MultilineMemoization:
+    EnforcedStyle: braces
+
+Style/StderrPuts:
+    Enabled: false
+
+Naming/PredicateName:
+    Enabled: false
+
