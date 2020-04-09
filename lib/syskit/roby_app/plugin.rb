@@ -374,9 +374,7 @@ module Syskit
             end
 
             def syskit_remove_configuration_changes_listener
-                if @conf_listener
-                    @conf_listener.stop
-                end
+                @conf_listener&.stop
             end
 
             # Verifies whether the configuration on disk and the configurations

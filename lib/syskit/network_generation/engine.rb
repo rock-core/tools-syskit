@@ -235,9 +235,7 @@ module Syskit
                     end
                 end
 
-                if @dataflow_dynamics
-                    @dataflow_dynamics.apply_merges(merge_solver)
-                end
+                @dataflow_dynamics&.apply_merges(merge_solver)
             end
 
             # Replaces the toplevel tasks (i.e. tasks planned by the

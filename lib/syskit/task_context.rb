@@ -610,9 +610,7 @@ module Syskit
         # If true, #configure must be called on this task before it is
         # started. This flag is reset after #configure has been called
         def needs_reconfiguration?
-            if execution_agent
-                execution_agent.needs_reconfiguration?(orocos_name)
-            end
+            execution_agent&.needs_reconfiguration?(orocos_name)
         end
 
         # Make sure that #configure will be called on this task before it
@@ -620,7 +618,7 @@ module Syskit
         #
         # See also #setup and #needs_reconfiguration?
         def needs_reconfiguration!
-            execution_agent.needs_reconfiguration!(orocos_name) if execution_agent
+            execution_agent&.needs_reconfiguration!(orocos_name)
         end
 
         # Tests if this task can be reused in the next deployment run
@@ -993,7 +991,7 @@ module Syskit
         end
 
         event :aborted, terminal: true do |_context|
-            if execution_agent && execution_agent.running? && !execution_agent.finishing?
+            if execution_agent&.running? && !execution_agent.finishing?
                 aborted_event
                     .achieve_asynchronously(description: "aborting #{self}") do
                         begin orocos_task.stop(false)

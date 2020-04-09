@@ -110,7 +110,7 @@ module Syskit
                 # HACK: has a task inspector, which also needs
                 # HACK: Orocos.initialize, so the IDE *does* call initialize
                 # HACK: explicitely
-                @runtime_state.reset if @runtime_state
+                @runtime_state&.reset
                 model_browser.update_exceptions
                 model_browser.reload
                 testing.reloaded

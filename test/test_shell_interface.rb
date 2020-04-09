@@ -12,9 +12,7 @@ module Syskit
         end
 
         after do
-            if @ee_thread
-                @ee_thread.join
-            end
+            @ee_thread&.join
         end
 
         describe "#redeploy" do

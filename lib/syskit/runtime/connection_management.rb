@@ -271,16 +271,12 @@ module Syskit
             def post_disconnect_success(disconnections)
                 modified = Set.new
                 disconnections.each do |syskit_from_task, from_task, from_port, syskit_to_task, to_task, to_port|
-                    if syskit_from_task
-                        syskit_from_task.removed_output_port_connection(
-                            from_port, to_task, to_port
-                        )
-                    end
-                    if syskit_to_task
-                        syskit_to_task.removed_input_port_connection(
-                            from_task, from_port, to_port
-                        )
-                    end
+                    syskit_from_task&.removed_output_port_connection(
+                        from_port, to_task, to_port
+                    )
+                    syskit_to_task&.removed_input_port_connection(
+                        from_task, from_port, to_port
+                    )
 
                     if ActualDataFlow.static?(from_task, from_port)
                         if syskit_from_task
@@ -670,10 +666,8 @@ module Syskit
                 )
 
                 unless tasks.empty?
-                    if dataflow_graph.pending_changes
-                        dataflow_graph.pending_changes.first.each do |t|
-                            tasks << t if active_task?(t)
-                        end
+                    dataflow_graph.pending_changes&.first&.each do |t|
+                        tasks << t if active_task?(t)
                     end
 
                     # Auto-add any Syskit task that has the same underlying

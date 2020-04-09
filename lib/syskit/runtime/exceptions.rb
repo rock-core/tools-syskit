@@ -20,8 +20,7 @@ module Syskit
                 static_model = failed_task.concrete_model
 
                 # Might have been a wrong configure() implementation. Check.
-                if dynamic_model &&
-                    dynamic_model.send("find_#{port_kind}_port", port_name) &&
+                if dynamic_model&.send("find_#{port_kind}_port", port_name) &&
                     !static_model.send("find_#{port_kind}_port", port_name)
 
                     pp.text "it is a dynamic port that should have been created by #{static_model.short_name}#configure"

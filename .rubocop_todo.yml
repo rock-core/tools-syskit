@@ -1781,22 +1781,6 @@ Style/RescueStandardError:
   Exclude:
     - 'test/coordination/test_task_script.rb'
 
-# Offense count: 13
-# Cop supports --auto-correct.
-# Configuration parameters: ConvertCodeThatCanStartToReturnNil, AllowedMethods.
-# AllowedMethods: present?, blank?, presence, try, try!
-Style/SafeNavigation:
-  Exclude:
-    - 'lib/syskit/gui/ide.rb'
-    - 'lib/syskit/gui/logging_configuration.rb'
-    - 'lib/syskit/network_generation/engine.rb'
-    - 'lib/syskit/roby_app/plugin.rb'
-    - 'lib/syskit/runtime/connection_management.rb'
-    - 'lib/syskit/runtime/exceptions.rb'
-    - 'lib/syskit/task_context.rb'
-    - 'test/roby_app/test_unmanaged_tasks.rb'
-    - 'test/test_shell_interface.rb'
-
 # Offense count: 1
 # Cop supports --auto-correct.
 Style/SelfAssignment:

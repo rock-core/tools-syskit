@@ -23,9 +23,7 @@ module Syskit
                         .to { emit deployment_task.stop_event }
                 end
 
-                if unmanaged_task
-                    unmanaged_task.dispose
-                end
+                unmanaged_task&.dispose
 
                 Syskit.conf.remove_process_server('unmanaged_tasks')
             end
