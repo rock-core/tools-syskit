@@ -186,14 +186,6 @@ Layout/LineLength:
     - 'test/test_task_configuration_manager.rb'
     - 'test/test_task_context.rb'
 
-# Offense count: 1
-# Cop supports --auto-correct.
-# Configuration parameters: EnforcedStyle.
-# SupportedStyles: symmetrical, new_line, same_line
-Layout/MultilineMethodDefinitionBraceLayout:
-  Exclude:
-    - 'lib/syskit/network_generation/engine.rb'
-
 # Offense count: 20
 # Cop supports --auto-correct.
 # Configuration parameters: EnforcedStyle, IndentationWidth.

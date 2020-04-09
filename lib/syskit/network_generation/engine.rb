@@ -653,7 +653,8 @@ module Syskit
 
             def apply_system_network_to_plan(
                 required_instances, compute_deployments: true,
-                garbage_collect: true, validate_final_network: true)
+                garbage_collect: true, validate_final_network: true
+            )
 
                 # Now, deploy the network by matching the available
                 # deployments to the one in the generated network. Note that
