@@ -15,12 +15,19 @@ module Syskit
                     @exit_code = exit_code
                     @signal = signal
                 end
+
                 def stopped?; false end
+
                 def exited?; !@exit_code.nil? end
+
                 def exitstatus; @exit_code end
+
                 def signaled?; !@signal.nil? end
+
                 def termsig; @signal end
+
                 def stopsig; end
+
                 def success?; exitstatus == 0 end
             end
 

@@ -142,6 +142,7 @@ module Syskit
                 @deployment_m = Deployment.new_submodel
                 @stub_process_servers = []
             end
+
             def teardown
                 @stub_process_servers.each do |ps|
                     Syskit.conf.remove_process_server(ps.name)

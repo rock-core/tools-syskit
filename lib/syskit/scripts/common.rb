@@ -24,12 +24,14 @@ require 'syskit/roby_app'
             def self.tic
                 @tic = Time.now
             end
+
             def self.toc(string = nil)
                 if string
                     ::Robot.info string % [Time.now - @tic]
                 else ::Robot.info yield(Time.now - @tic)
                 end
             end
+
             def self.toc_tic(string = nil, &block)
                 toc(string, &block)
                 tic

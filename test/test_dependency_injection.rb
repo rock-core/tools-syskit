@@ -376,6 +376,7 @@ class TC_DependencyInjection < Minitest::Test
 	req_srv.select_service(c.srv_srv)
         assert_equal(Hash[key => req_srv], normalized)
     end
+
     def test_normalize_selection_accepts_data_service_to_component_that_fullfill_the_key_and_maps_the_service
         srv0 = DataService.new_submodel
         c = Component.new_submodel { provides srv0, as: 'srv' }

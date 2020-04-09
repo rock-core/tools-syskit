@@ -293,6 +293,7 @@ module Syskit
                     end
                 end
             end
+
             def save_to_settings(settings = self.settings)
                 settings.set_value("MainWindow/size", Qt::Variant.new(size))
                 %w{model_browser testing runtime_state}.each do |child_object_name|

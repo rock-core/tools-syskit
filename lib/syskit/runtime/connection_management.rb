@@ -209,7 +209,6 @@ module Syskit
                 false
             end
 
-
             def pre_disconnect(removed)
                 removed.flat_map do |(source_task, sink_task), mappings|
                     mappings.map do |source_port, sink_port|

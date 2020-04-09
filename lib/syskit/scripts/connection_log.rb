@@ -15,6 +15,7 @@ class Decoder < Roby::LogReplay::PlanRebuilder
             end
         end
     end
+
     def removed_task_child(time, parent, rel, child)
         parent, rel, child = super
         raise if rel == Syskit::RequiredDataFlow

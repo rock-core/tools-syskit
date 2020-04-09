@@ -54,6 +54,7 @@ module Syskit
                     super
                 end
             end
+
             def sample_size(*args)
                 if args.empty?
                     super || master_device.sample_size
@@ -61,6 +62,7 @@ module Syskit
                     super
                 end
             end
+
             def burst(*args)
                 if args.empty?
                     super || master_device.burst

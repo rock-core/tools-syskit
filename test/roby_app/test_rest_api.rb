@@ -27,6 +27,7 @@ module Syskit
                 assert response.ok?, response.body
                 JSON.parse(response.body)
             end
+
             def post_json(*args)
                 response = post *args
                 assert_equal 201, response.status, "POST failed with code #{response.status}: #{response.body}"

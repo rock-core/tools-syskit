@@ -107,6 +107,7 @@ module Syskit
                 Syskit.update_connection_policy(old_options, new_options)
             end
         end
+
         # Create new connections between +source_task+ and +sink_task+.
         #
         # +mappings+ is a map from port name pairs to the connection policy
@@ -313,7 +314,6 @@ module Syskit
                 dataflow_graph.has_out_connections?(self, port_name) ||
                     dataflow_graph.has_in_connections?(self, port_name)
             end
-
 
             # Tests if +port_name+ is connected to +other_port+ on +other_task+
             def connected_to?(port_name, other_task, other_port)

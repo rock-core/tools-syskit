@@ -83,6 +83,7 @@ module Syskit
                 add_propagation_handler(type: :propagation, late: true,
                                         &Runtime.method(:apply_requirement_modifications))
         end
+
         def unplug_apply_requirement_modifications
             execution_engine.remove_propagation_handler(@syskit_handler_ids.delete(:apply_requirement_modifications))
         end
@@ -92,6 +93,7 @@ module Syskit
                 add_propagation_handler(type: :propagation, late: true,
                                         &Runtime::ConnectionManagement.method(:update))
         end
+
         def unplug_connection_management
             execution_engine.remove_propagation_handler(@syskit_handler_ids.delete(:connection_management))
         end

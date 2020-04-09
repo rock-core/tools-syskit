@@ -10,13 +10,16 @@ module Syskit
             @tasks = Hash.new
             @loader = FlexMock.undefined
         end
+
         def wait_termination(*)
             @killed_processes, dead_processes = Array.new, @killed_processes
             dead_processes
         end
+
         def start(name, *)
             tasks.fetch(name)
         end
+
         def disconnect
         end
     end
@@ -27,12 +30,15 @@ module Syskit
             @process_server = process_server
             @name_mappings = Hash['task' => 'mapped_task_name']
         end
+
         def get_mapped_name(name)
             name_mappings.fetch(name)
         end
+
         def kill(*args)
             process_server.killed_processes << self
         end
+
         def resolve_all_tasks(*)
         end
     end
@@ -603,6 +609,7 @@ module Syskit
                 @deployment_m = Deployment.new_submodel
                 @stub_process_servers = []
             end
+
             def teardown
                 @stub_process_servers.each do |ps|
                     Syskit.conf.remove_process_server(ps.name)

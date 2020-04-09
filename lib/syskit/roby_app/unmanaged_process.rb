@@ -194,8 +194,10 @@ module Syskit
 
             # Returns true if the tasks have been successfully discovered
             def ready?; !!deployed_tasks end
+
             # True if the process is running. This is an alias for running?
             def alive?; !dead? end
+
             # True if the process is running. This is an alias for alive?
             def running?; alive? end
 

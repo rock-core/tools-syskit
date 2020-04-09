@@ -208,6 +208,7 @@ module Syskit
             # @return [Boolean] true if this is an output port, false otherwise.
             #   The default implementation returns false
             def output?; false end
+
             # @return [Boolean] true if this is an input port, false otherwise.
             #   The default implementation returns false
             def input?; false end
@@ -266,7 +267,9 @@ module Syskit
             end
 
             def hash; [port, policy].hash end
+
             def eql?(other); self == other end
+
             def ==(other)
                 other.port == port && other.policy == policy
             end
@@ -300,7 +303,9 @@ module Syskit
             end
 
             def hash; [port, policy].hash end
+
             def eql?(other); self == other end
+
             def ==(other)
                 other.port == port && other.policy == policy
             end

@@ -89,6 +89,7 @@ module Syskit
             attr_predicate :conf_logs_enabled?
             # See {#conf_log_enabled?}
             def enable_conf_logging; @conf_logs_enabled = true end
+
             # See {#conf_log_enabled?}
             def disable_conf_logging; @conf_logs_enabled = false end
 
@@ -122,6 +123,7 @@ module Syskit
             attr_predicate :port_logs_enabled?
             # See {#log_enabled?}
             def enable_port_logging; @port_logs_enabled = true end
+
             # See {#log_enabled?}
             def disable_port_logging; @port_logs_enabled = false end
 

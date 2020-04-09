@@ -57,6 +57,7 @@ module Syskit
                 def initialize
                     super(Roby::Task)
                 end
+
                 def each_submodel(model)
                     super do |m|
                         yield(m) if !m.respond_to?(:placeholder?) ||

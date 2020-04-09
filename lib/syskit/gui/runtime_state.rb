@@ -388,9 +388,11 @@ module Syskit
                 def show
                     widget.show
                 end
+
                 def hide
                     widget.hide
                 end
+
                 def update(*args)
                     hook.call(*args)
                 end

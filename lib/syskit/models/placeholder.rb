@@ -264,7 +264,6 @@ module Syskit
                     end
                 end
 
-
                 # @api private
                 #
                 # Resolves the base task model and set of service models that should be used

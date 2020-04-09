@@ -11,10 +11,12 @@ module Syskit
                     @error = Concurrent::Atom.new(nil)
                     push_state(0)
                 end
+
                 def push_state(value)
                     @state_queue.push(value)
                     @state.reset(value)
                 end
+
                 def rtt_state
                     if error = @error.value
                         raise error
@@ -26,6 +28,7 @@ module Syskit
                         @state.value
                     end
                 end
+
                 def raise_error=(error)
                     @error.reset(error)
                 end

@@ -284,7 +284,6 @@ module Syskit
                 pp.text "of #{composition_model}"
             end
 
-
             def short_name
                 "#{composition_model.short_name}.#{child_name}_child[#{model.short_name}]"
             end

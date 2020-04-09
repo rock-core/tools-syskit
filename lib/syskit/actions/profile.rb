@@ -109,6 +109,7 @@ module Syskit
             attr_reader :name
             # The profile's basename
             def basename; name.gsub(/.*::/, '') end
+
             # The profile's namespace
             def spacename; name.gsub(/::[^:]*$/, '') end
             # The definitions

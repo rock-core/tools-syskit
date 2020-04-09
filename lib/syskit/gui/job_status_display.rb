@@ -110,7 +110,6 @@ module Syskit
                 self.size = s
             end
 
-
             def enterEvent(event)
                 super
                 if show_actions?
@@ -130,6 +129,7 @@ module Syskit
                 emit clicked
                 event.accept
             end
+
             def mouseReleaseEvent(event)
                 event.accept
             end

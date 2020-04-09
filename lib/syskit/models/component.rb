@@ -422,7 +422,6 @@ module Syskit
                 end
             end
 
-
             # Declares that this component model will dynamically provide the
             # ports necessary to provide a service model
             #
@@ -574,10 +573,15 @@ module Syskit
             end
 
             def each_port; end
+
             def each_input_port; end
+
             def each_output_port; end
+
             def find_input_port(name); end
+
             def find_output_port(name); end
+
             def find_port(name); end
 
             PROVIDES_ARGUMENTS = { as: nil, slave_of: nil }

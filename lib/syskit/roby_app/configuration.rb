@@ -176,6 +176,7 @@ module Syskit
                 Roby.warn_deprecated "logging configuration has been moved to Syskit.conf.logs (of type LoggingConfiguration)"
                 logs.enable_port_logging
             end
+
             # @deprecated access {#logs} for logging configuration
             def disable_logging
                 Roby.warn_deprecated "logging configuration has been moved to Syskit.conf.logs (of type LoggingConfiguration)"
@@ -444,6 +445,7 @@ module Syskit
                 def wait_termination(timeout = 0)
                     []
                 end
+
                 def disconnect
                 end
             end

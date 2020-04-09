@@ -111,44 +111,6 @@ Layout/EmptyLineAfterMagicComment:
   Exclude:
     - 'syskit.gemspec'
 
-# Offense count: 71
-# Cop supports --auto-correct.
-# Configuration parameters: AllowAdjacentOneLineDefs, NumberOfEmptyLines.
-Layout/EmptyLineBetweenDefs:
-  Exclude:
-    - 'lib/syskit/actions/profile.rb'
-    - 'lib/syskit/data_flow.rb'
-    - 'lib/syskit/droby/v5/droby_dump.rb'
-    - 'lib/syskit/exceptions.rb'
-    - 'lib/syskit/gui/ide.rb'
-    - 'lib/syskit/gui/job_status_display.rb'
-    - 'lib/syskit/gui/model_browser.rb'
-    - 'lib/syskit/gui/runtime_state.rb'
-    - 'lib/syskit/instance_requirements.rb'
-    - 'lib/syskit/models/component.rb'
-    - 'lib/syskit/models/composition_child.rb'
-    - 'lib/syskit/models/placeholder.rb'
-    - 'lib/syskit/models/port.rb'
-    - 'lib/syskit/models/port_access.rb'
-    - 'lib/syskit/robot/slave_device_instance.rb'
-    - 'lib/syskit/roby_app/configuration.rb'
-    - 'lib/syskit/roby_app/logging_configuration.rb'
-    - 'lib/syskit/roby_app/single_file_dsl.rb'
-    - 'lib/syskit/roby_app/unmanaged_process.rb'
-    - 'lib/syskit/roby_app/unmanaged_tasks_manager.rb'
-    - 'lib/syskit/runtime/connection_management.rb'
-    - 'lib/syskit/scripts/common.rb'
-    - 'lib/syskit/scripts/connection_log.rb'
-    - 'lib/syskit/test/base.rb'
-    - 'lib/syskit/test/ruby_task_context_test.rb'
-    - 'lib/syskit/test/self.rb'
-    - 'test/models/test_composition.rb'
-    - 'test/roby_app/test_rest_api.rb'
-    - 'test/test_dependency_injection.rb'
-    - 'test/test_deployment.rb'
-    - 'test/test_remote_state_getter.rb'
-    - 'test/test_task_context.rb'
-
 # Offense count: 28
 # Cop supports --auto-correct.
 Layout/EmptyLines:

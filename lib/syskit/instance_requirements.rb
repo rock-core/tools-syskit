@@ -216,7 +216,6 @@ module Syskit
                 try_bind(task)
             end
 
-
             # Maps the given task to the underlying model
             def bind(task)
                 model.bind(task)
@@ -501,6 +500,7 @@ module Syskit
             end
 
             def hash; model.hash end
+
             def eql?(obj)
                 obj.kind_of?(InstanceRequirements) &&
                     obj.base_model == base_model &&
@@ -508,6 +508,7 @@ module Syskit
                     obj.pushed_selections == pushed_selections &&
                     obj.arguments == arguments
             end
+
             def ==(obj)
                 eql?(obj)
             end

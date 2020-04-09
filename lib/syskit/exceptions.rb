@@ -912,6 +912,7 @@ module Syskit
             def initialize(model, models, port_name, candidates)
                 @model, @models, @port_name, @candidates = model, models, port_name, candidates
             end
+
             def pretty_print(pp)
                 pp.text "port name #{port_name} is ambiguous on #{model}"
                 pp.breakable

@@ -629,9 +629,11 @@ describe Syskit::Models::Composition do
                     add m, dependency_options.merge(as: 'srv')
                 end
             end
+
             def instanciate
                 @composition = @composition_m.instanciate(plan, Syskit::DependencyInjectionContext.new('srv' => simple_component_model))
             end
+
             def assert_dependency_contains(flags)
                 options = @composition[@srv_child, Roby::TaskStructure::Dependency]
                 flags.each do |flag_name, flag_options|

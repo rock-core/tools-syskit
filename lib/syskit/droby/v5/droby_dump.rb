@@ -125,6 +125,7 @@ module Syskit
                     def initialize(byte_array, type)
                         @byte_array, @type = byte_array, type
                     end
+
                     def proxy(peer)
                         peer.local_object(type).from_buffer(byte_array)
                     end
@@ -144,6 +145,7 @@ module Syskit
                         @name = name
                         @xml = xml
                     end
+
                     def proxy(peer)
                         if xml
                             reg = Typelib::Registry.from_xml(xml)
