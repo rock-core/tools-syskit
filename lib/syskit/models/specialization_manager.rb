@@ -152,7 +152,7 @@ module Syskit
                 new_specialization
             ensure
                 Models.debug do
-                    Models.log_nest -2
+                    Models.log_nest(-2)
                     break
                 end
             end
@@ -375,7 +375,7 @@ module Syskit
                 child_composition
             ensure
                 Models.debug do
-                    Models.log_nest -2
+                    Models.log_nest(-2)
                     break
                 end
             end

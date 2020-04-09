@@ -38,8 +38,8 @@ module Syskit
                 button_box = Qt::DialogButtonBox.new(
                     Qt::DialogButtonBox::Ok | Qt::DialogButtonBox::Cancel
                 )
-                connect(button_box, SIGNAL("accepted()"), self, SLOT("accept()"));
-                connect(button_box, SIGNAL("rejected()"), self, SLOT("reject()"));
+                connect(button_box, SIGNAL("accepted()"), self, SLOT("accept()"))
+                connect(button_box, SIGNAL("rejected()"), self, SLOT("reject()"))
                 layout.add_widget(button_box)
             end
 

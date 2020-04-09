@@ -1,5 +1,7 @@
 # frozen_string_literal: true
 
+require "English"
+
 require "backports/2.7.0/enumerable/filter_map"
 
 require "orocos"

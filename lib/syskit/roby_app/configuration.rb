@@ -394,11 +394,12 @@ module Syskit
             # @raise [UnknownProcessServer] if no such process server exists
             # @return [ProcessServerConfig]
             def process_server_config_for(name)
-                config = process_servers[name]
-                if config then config
-                else
-                    raise UnknownProcessServer, "there is no registered process server called #{name}"
+                unless (config = process_servers[name])
+                    raise UnknownProcessServer,
+                          "there is no registered process server called #{name}"
                 end
+
+                config
             end
 
             # Returns the process server object named +name+

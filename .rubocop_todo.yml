@@ -214,12 +214,6 @@ Lint/AmbiguousBlockAssociation:
     - 'test/network_generation/test_system_network_deployer.rb'
     - 'test/test_task_context.rb'
 
-# Offense count: 4
-Lint/AmbiguousOperator:
-  Exclude:
-    - 'lib/syskit/models/specialization_manager.rb'
-    - 'test/roby_app/test_rest_api.rb'
-
 # Offense count: 23
 Lint/AmbiguousRegexpLiteral:
   Exclude:
@@ -841,12 +835,6 @@ Naming/MethodParameterName:
     - 'test/models/test_ruby_task_context.rb'
     - 'test/models/test_task_context.rb'
 
-# Offense count: 6
-# Configuration parameters: .
-# SupportedStyles: inline, group
-Style/AccessModifierDeclarations:
-  EnforcedStyle: inline
-
 # Offense count: 7
 # Cop supports --auto-correct.
 # Configuration parameters: AutoCorrect, EnforcedStyle.
@@ -1360,12 +1348,6 @@ Style/IdenticalConditionalBranches:
     - 'lib/syskit/instance_requirements.rb'
     - 'lib/syskit/roby_app/rest_api.rb'
 
-# Offense count: 1
-# Configuration parameters: AllowIfModifier.
-Style/IfInsideElse:
-  Exclude:
-    - 'lib/syskit/instance_requirements.rb'
-
 # Offense count: 182
 # Cop supports --auto-correct.
 Style/IfUnlessModifier:
@@ -1440,31 +1422,6 @@ Style/IfUnlessModifier:
     - 'test/test_shell_interface.rb'
     - 'test/test_task_context.rb'
 
-# Offense count: 1
-# Cop supports --auto-correct.
-Style/InfiniteLoop:
-  Exclude:
-    - 'test/test_remote_state_getter.rb'
-
-# Offense count: 3
-# Cop supports --auto-correct.
-# Configuration parameters: EnforcedStyle.
-# SupportedStyles: line_count_dependent, lambda, literal
-Style/Lambda:
-  Exclude:
-    - 'lib/syskit/gui/runtime_state.rb'
-    - 'test/test_instance_requirements.rb'
-
-# Offense count: 5
-# Cop supports --auto-correct.
-# Configuration parameters: IgnoredMethods.
-Style/MethodCallWithoutArgsParentheses:
-  Exclude:
-    - 'lib/syskit/gui/runtime_state.rb'
-    - 'lib/syskit/gui/widget_list.rb'
-    - 'test/models/test_composition.rb'
-    - 'test/roby_app/test_rest_api.rb'
-
 # Offense count: 3
 Style/MethodMissingSuper:
   Exclude:
@@ -1490,43 +1447,6 @@ Style/MultilineBlockChain:
     - 'test/test_deployment.rb'
     - 'test/test_shell_interface.rb'
 
-# Offense count: 1
-# Cop supports --auto-correct.
-# Configuration parameters: EnforcedStyle.
-# SupportedStyles: keyword, braces
-Style/MultilineMemoization:
-  Exclude:
-    - 'lib/syskit/deployment.rb'
-
-# Offense count: 2
-Style/MultilineTernaryOperator:
-  Exclude:
-    - 'lib/syskit/shell_interface.rb'
-
-# Offense count: 2
-Style/MultipleComparison:
-  Exclude:
-    - 'lib/syskit/models/task_context.rb'
-
-# Offense count: 2
-# Cop supports --auto-correct.
-# Configuration parameters: AllowedMethods.
-# AllowedMethods: be, be_a, be_an, be_between, be_falsey, be_kind_of, be_instance_of, be_truthy, be_within, eq, eql, end_with, include, match, raise_error, respond_to, start_with
-Style/NestedParenthesizedCalls:
-  Exclude:
-    - 'test/coordination/test_action_state_machine.rb'
-
-# Offense count: 1
-# Cop supports --auto-correct.
-Style/Not:
-  Exclude:
-    - 'test/ros/test_task_context.rb'
-
-# Offense count: 1
-Style/OptionalArguments:
-  Exclude:
-    - 'lib/syskit/gui/logging_configuration.rb'
-
 # Offense count: 15
 # Cop supports --auto-correct.
 # Configuration parameters: PreferredDelimiters.
@@ -1539,12 +1459,6 @@ Style/PercentLiteralDelimiters:
     - 'test/test_component.rb'
     - 'test/test_dependency_injection.rb'
     - 'test/test_instance_requirements.rb'
-
-# Offense count: 1
-# Cop supports --auto-correct.
-Style/PerlBackrefs:
-  Exclude:
-    - 'lib/syskit/gui/component_network_base_view.rb'
 
 # Offense count: 21
 # Cop supports --auto-correct.
@@ -1568,22 +1482,6 @@ Style/RedundantBegin:
     - 'test/models/test_composition.rb'
     - 'test/test/test_task_context_test.rb'
 
-# Offense count: 2
-# Cop supports --auto-correct.
-Style/RedundantCondition:
-  Exclude:
-    - 'lib/syskit/models/base.rb'
-    - 'lib/syskit/roby_app/configuration.rb'
-
-# Offense count: 4
-# Cop supports --auto-correct.
-Style/RedundantException:
-  Exclude:
-    - 'lib/syskit/instance_requirements.rb'
-    - 'lib/syskit/roby_app/unmanaged_process.rb'
-    - 'lib/syskit/test/task_context_test.rb'
-    - 'test/test_shell_interface.rb'
-
 # Offense count: 11
 # Cop supports --auto-correct.
 Style/RedundantInterpolation:
@@ -1592,12 +1490,6 @@ Style/RedundantInterpolation:
     - 'lib/syskit/gui/runtime_state.rb'
     - 'lib/syskit/instance_requirements.rb'
     - 'lib/syskit/network_generation/engine.rb'
-    - 'test/models/test_composition.rb'
-
-# Offense count: 1
-# Cop supports --auto-correct.
-Style/RedundantParentheses:
-  Exclude:
     - 'test/models/test_composition.rb'
 
 # Offense count: 100
@@ -1674,48 +1566,6 @@ Style/RedundantSelf:
     - 'test/models/test_component.rb'
     - 'test/network_generation/test_system_network_generator.rb'
 
-# Offense count: 1
-# Cop supports --auto-correct.
-# Configuration parameters: EnforcedStyle, AllowInnerSlashes.
-# SupportedStyles: slashes, percent_r, mixed
-Style/RegexpLiteral:
-  Exclude:
-    - 'lib/syskit/gui/model_views/composition.rb'
-
-# Offense count: 1
-# Cop supports --auto-correct.
-# Configuration parameters: EnforcedStyle.
-# SupportedStyles: implicit, explicit
-Style/RescueStandardError:
-  Exclude:
-    - 'test/coordination/test_task_script.rb'
-
-# Offense count: 1
-# Cop supports --auto-correct.
-Style/SelfAssignment:
-  Exclude:
-    - 'lib/syskit/models/composition_specialization.rb'
-
-# Offense count: 9
-# Cop supports --auto-correct.
-# Configuration parameters: AllowAsExpressionSeparator.
-Style/Semicolon:
-  Exclude:
-    - 'lib/syskit/gui/app_start_dialog.rb'
-    - 'test/actions/test_interface_model_extension.rb'
-    - 'test/network_generation/test_engine.rb'
-    - 'test/roby_app/test_logging_group.rb'
-    - 'test/test_deployment.rb'
-    - 'test/test_task_context.rb'
-
-# Offense count: 1
-# Cop supports --auto-correct.
-# Configuration parameters: EnforcedStyle.
-# SupportedStyles: use_perl_names, use_english_names
-Style/SpecialGlobalVars:
-  Exclude:
-    - 'lib/syskit/scripts/common.rb'
-
 # Offense count: 15
 # Cop supports --auto-correct.
 # Configuration parameters: AllowNamedUnderscoreVariables.
@@ -1745,9 +1595,3 @@ Style/WhileUntilModifier:
   Exclude:
     - 'test/ros/test_task_context.rb'
     - 'test/test_remote_state_getter.rb'
-
-# Offense count: 1
-# Cop supports --auto-correct.
-Style/ZeroLengthPredicate:
-  Exclude:
-    - 'lib/syskit/remote_state_getter.rb'

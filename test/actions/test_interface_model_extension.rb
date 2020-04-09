@@ -299,7 +299,10 @@ describe Syskit::Actions::InterfaceModelExtension do
             recorder.should_receive(:called).once
             actions.class_eval do
                 describe "test"
-                define_method(:test_def) { recorder.called; super() }
+                define_method(:test_def) do
+                    recorder.called
+                    super()
+                end
             end
             plan.add(actions.new(plan).test_def)
         end

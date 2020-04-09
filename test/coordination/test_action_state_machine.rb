@@ -12,7 +12,7 @@ module Syskit
                 cmp_m = @cmp_m
                 @interface_m.describe("foo")
                 @interface_m.action_state_machine "foo" do
-                    start(state cmp_m)
+                    start state(cmp_m)
                 end
                 plan.add(root = @interface_m.new(plan).foo)
                 state_task, = expect_execution.scheduler(true).to do
@@ -27,7 +27,7 @@ module Syskit
                 @interface_m.describe("foo")
                             .required_arg(:bar, "some argument")
                 @interface_m.action_state_machine "foo" do
-                    start(state cmp_m.with_arguments(bar: bar))
+                    start state(cmp_m.with_arguments(bar: bar))
                 end
 
                 plan.add(root = @interface_m.new(plan).foo(bar: 10))

@@ -40,3 +40,6 @@ Metrics/BlockLength:
   ExcludedMethods:
       - describe
       - it
+
+Style/AccessModifierDeclarations:
+  Enabled: false

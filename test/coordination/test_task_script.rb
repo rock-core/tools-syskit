@@ -45,7 +45,7 @@ describe Syskit::Coordination::TaskScriptExtension do
                     writer = test_child.base_in_port.writer
                     begin
                         test_child.base_in_port.to_component_port
-                    rescue
+                    rescue StandardError
                     end
                 end
                 composition, component = start

@@ -31,7 +31,7 @@ module Syskit
                 @merge_solver  = flexmock(syskit_engine.merge_solver)
             end
 
-            def work_plan;
+            def work_plan
                 syskit_engine.work_plan
             end
 
@@ -266,7 +266,12 @@ module Syskit
                     @existing_deployment_task = work_plan[existing_deployment_task]
                     flexmock(syskit_engine.merge_solver)
                         .should_receive(:apply_merge_group)
-                        .with(->(mappings) { applied_merge_mappings.merge!(mappings); true })
+                        .with(
+                            lambda do |mappings|
+                                applied_merge_mappings.merge!(mappings)
+                                true
+                            end
+                        )
                         .pass_thru
                     work_plan.add(@deployment_task = EngineTestStubDeployment.new(task_m))
                 end

@@ -416,7 +416,9 @@ describe Syskit::Models::Composition do
             root = Syskit::Composition.new_submodel(name: "Cmp") do
                 add cmp, as: "cmp"
             end
-            root = root.use().instanciate(plan, Syskit::DependencyInjectionContext.new(srv => task))
+            root = root.to_instance_requirements.instanciate(
+                plan, Syskit::DependencyInjectionContext.new(srv => task)
+            )
             assert_same task, root.cmp_child.srv_child.class
         end
 
@@ -659,7 +661,9 @@ describe Syskit::Models::Composition do
             it "overrides the :failure flag" do
                 composition_model failure: [:success]
                 task = instanciate
-                assert_dependency_contains failure: (:start.never.or(:success.to_unbound_task_predicate))
+                assert_dependency_contains(
+                    failure: :start.never.or(:success.to_unbound_task_predicate)
+                )
             end
             it "resets the :success flag if explicitly given the :failure flag" do
                 composition_model failure: [:success]

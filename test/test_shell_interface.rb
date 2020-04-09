@@ -212,7 +212,8 @@ module Syskit
         #   process_execute_call
         def queue_execute_call(&block)
             if @interface_thread
-                raise RuntimeError, "you must call #process_execute_call after a call to #queue_execute_call"
+                raise "you must call #process_execute_call after a call "\
+                      "to #queue_execute_call"
             end
 
             @interface_thread_sync = sync = Concurrent::CyclicBarrier.new(2)

@@ -277,7 +277,7 @@ module Syskit
             end
 
             def hide_expanded_jobs?
-                !@ui_show_expanded_job.checked()
+                !@ui_show_expanded_job.checked
             end
 
             def remote_name
@@ -521,13 +521,16 @@ module Syskit
                 close.connect(SIGNAL("clicked()")) do
                     syskit_orogen_config_changed.hide
                 end
-                EventWidget.new("syskit_orogen_config_changed", syskit_orogen_config_changed, lambda {})
+                EventWidget.new(
+                    "syskit_orogen_config_changed",
+                    syskit_orogen_config_changed, -> {}
+                )
             end
 
             def create_ui_event_orogen_config_reloaded
                 syskit_orogen_config_reloaded = create_ui_event_frame
                 layout = Qt::HBoxLayout.new(syskit_orogen_config_reloaded)
-                layout.add_widget(label = Qt::Label.new(), 1)
+                layout.add_widget(label = Qt::Label.new, 1)
                 layout.add_widget(apply = create_ui_event_button("Reconfigure"))
                 layout.add_widget(close = create_ui_event_button("Close"))
                 apply.connect(SIGNAL("clicked()")) do

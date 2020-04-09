@@ -30,7 +30,7 @@ module Syskit::GUI
 
             def linkClicked(url)
                 if url.scheme == "plan"
-                    id = Integer(url.path.gsub(/\//, ""))
+                    id = Integer(url.path.gsub(%r{/}, ""))
                     if task = specializations.values.find { |task| task.dot_id == id }
                         clickedSpecialization(task)
                     end

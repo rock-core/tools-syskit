@@ -179,11 +179,17 @@ module Syskit
         command :logging_conf, "gets the current logging configuration"
 
         def update_logging_conf(conf)
-            conf.port_logs_enabled ? Syskit.conf.logs.enable_port_logging :
-                                     Syskit.conf.logs.disable_port_logging
+            if conf.port_logs_enabled
+                Syskit.conf.logs.enable_port_logging
+            else
+                Syskit.conf.logs.disable_port_logging
+            end
 
-            conf.conf_logs_enabled ? Syskit.conf.logs.enable_conf_logging :
-                                     Syskit.conf.logs.disable_conf_logging
+            if conf.conf_logs_enabled
+                Syskit.conf.logs.enable_conf_logging
+            else
+                Syskit.conf.logs.disable_conf_logging
+            end
 
             conf.groups.each_pair do |name, group|
                 begin

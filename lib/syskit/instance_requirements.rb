@@ -288,14 +288,12 @@ module Syskit
                     @base_model = model.find_data_service_from_type(service.model)
                     @model = base_model
                 end
+            elsif srv = base_model.find_data_service(service.name)
+                @base_model = srv
+                @model = srv.attach(model)
             else
-                if srv = base_model.find_data_service(service.name)
-                    @base_model = srv
-                    @model = srv.attach(model)
-                else
-                    @base_model = service.attach(model)
-                    @model = base_model
-                end
+                @base_model = service.attach(model)
+                @model = base_model
             end
             self
         end
@@ -1051,8 +1049,10 @@ module Syskit
 
         def each_child
             return enum_for(__method__) unless block_given?
+
             unless composition_model?
-                raise RuntimeError, "cannot call #each_child on #{self} as it does not represent a composition model"
+                raise "cannot call #each_child on #{self} as it does not "\
+                      "represent a composition model"
             end
 
             resolved_di = resolved_dependency_injection

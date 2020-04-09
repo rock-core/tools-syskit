@@ -412,8 +412,10 @@ describe Syskit::InstanceRequirements do
             model_m = Syskit::Composition.new_submodel
             flexmock(model_m).should_receive(:dependency_injection_names).and_return(%w{child})
             context = Syskit::DependencyInjectionContext.new(Syskit::DependencyInjection.new("child" => model_m))
+            has_no_child_selection =
+                ->(c) { !c.current_state.direct_selection_for("child") }
             flexmock(model_m).should_receive(:instanciate)
-                             .with(any, lambda { |c| !c.current_state.direct_selection_for("child") }, any)
+                             .with(any, has_no_child_selection, any)
                              .once.pass_thru
             model_m.to_instance_requirements.instanciate(plan, context)
         end
@@ -423,8 +425,10 @@ describe Syskit::InstanceRequirements do
             model_m.provides Syskit::DataService, as: "test"
             flexmock(model_m).should_receive(:dependency_injection_names).and_return(%w{child})
             context = Syskit::DependencyInjectionContext.new(Syskit::DependencyInjection.new("child" => model_m))
+            has_no_child_selection =
+                ->(c) { !c.current_state.direct_selection_for("child") }
             flexmock(model_m).should_receive(:instanciate)
-                             .with(any, lambda { |c| !c.current_state.direct_selection_for("child") }, any)
+                             .with(any, has_no_child_selection, any)
                              .once.pass_thru
             model_m.test_srv.to_instance_requirements.instanciate(plan, context)
         end

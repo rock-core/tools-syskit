@@ -124,7 +124,7 @@ module Syskit
 
         # Whether the state reader has read at least one state
         def ready?
-            last_read_state || (state_queue.size > 0)
+            last_read_state || !state_queue.empty?
         end
 
         # Read either a new or the last read state

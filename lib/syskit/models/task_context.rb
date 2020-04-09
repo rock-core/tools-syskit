@@ -68,9 +68,11 @@ module Syskit
                 orogen_model.each_state(with_superclass: with_superclass) do |name, type|
                     event_name = name.snakecase.downcase.to_sym
                     if type == :toplevel
-                        event event_name, terminal: (name == "EXCEPTION" || name == "FATAL_ERROR")
+                        event event_name,
+                              terminal: %w[EXCEPTION FATAL_ERROR].include?(name)
                     else
-                        event event_name, terminal: (type == :exception || type == :fatal_error)
+                        event event_name,
+                              terminal: %i[exception fatal_error].include?(type)
                         if type == :fatal
                             forward event_name => :fatal_error
                         elsif type == :exception

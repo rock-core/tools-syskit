@@ -309,7 +309,10 @@ module Syskit
                         .join_all_waiting_work(false).to_run
                     sync = Concurrent::Event.new
                     process.should_receive(:resolve_all_tasks)
-                           .and_return { sync.set; nil }
+                           .and_return do
+                               sync.set
+                               nil
+                           end
                     sync.wait
                     expect_execution { sync.wait }
                         .join_all_waiting_work(false)

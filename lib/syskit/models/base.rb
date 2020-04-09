@@ -22,9 +22,7 @@ module Syskit
             # to the user. Note that Syskit defines Class#short_name as an
             # alias to #name so that #short_name can be used everywhere
             def short_name
-                if name then name
-                else to_s
-                end
+                to_s
             end
 
             def to_s

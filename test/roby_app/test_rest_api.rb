@@ -22,14 +22,15 @@ module Syskit
             end
 
             def get_json(*args)
-                response = get *args
+                response = get(*args)
                 assert response.ok?, response.body
                 JSON.parse(response.body)
             end
 
             def post_json(*args)
-                response = post *args
-                assert_equal 201, response.status, "POST failed with code #{response.status}: #{response.body}"
+                response = post(*args)
+                assert_equal 201, response.status,
+                             "POST failed with code #{response.status}: #{response.body}"
                 JSON.parse(response.body)
             end
 
@@ -106,7 +107,7 @@ module Syskit
                         Syskit.conf.register_process_server("unmanaged_tasks",
                                                             flexmock(:on, UnmanagedTasksManager))
                         Syskit.conf.register_process_server("something_else",
-                                                            flexmock())
+                                                            flexmock)
 
                         orogen_task_m = OroGen::Spec::TaskContext.new(
                             Roby.app.default_orogen_project, "test::Task"

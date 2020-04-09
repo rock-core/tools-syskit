@@ -58,7 +58,7 @@ module Syskit
                     applied_specializations.each do |s|
                         merged.merge(s)
                     end
-                    list = list + applied_specializations.to_a
+                    list += applied_specializations.to_a
                     root_model.instanciate_specialization(merged, list)
                 end
             end

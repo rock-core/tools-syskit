@@ -357,7 +357,7 @@ module Syskit
                 when %r{/save}
                     save_svg namespace
                 when %r{/annotations/(\w+)}
-                    ann_name = $1
+                    ann_name = Regexp.last_match(1)
                     if new_state
                         config[:annotations] << ann_name
                     else

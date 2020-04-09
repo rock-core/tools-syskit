@@ -46,7 +46,11 @@ module Syskit
             end
 
             describe "#matches_deployment?" do
-                let(:deployment) { plan.add(deployment = deployment_m.new); deployment }
+                let(:deployment) do
+                    plan.add(deployment = deployment_m.new)
+                    deployment
+                end
+
                 it "does not match a deployment by default" do
                     assert !subject.matches_deployment?(deployment)
                 end

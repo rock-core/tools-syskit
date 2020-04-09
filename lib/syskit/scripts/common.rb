@@ -126,7 +126,7 @@ module Syskit
             end
 
             `dot -Tx11 does_not_exist 2>&1`
-            if has_dot_x11 = ($?.exitstatus != 1)
+            if has_dot_x11 = ($CHILD_STATUS.exitstatus != 1)
                 @output_modes << "x11"
                 @default_output_mode = "x11"
             end

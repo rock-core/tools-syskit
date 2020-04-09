@@ -360,13 +360,14 @@ module Syskit
                 @logger_task = each_executed_task
                                .find { |t| t.orocos_name == logger_name }
 
-                @logger_task ||=
+                @logger_task ||= (
                     begin
                         task(logger_name)
                         # Automatic setup by
                         # {NetworkGeneration::LoggerConfigurationSupport}
                     rescue ArgumentError
                     end
+                )
 
                 @logger_task&.default_logger = true
                 @logger_task

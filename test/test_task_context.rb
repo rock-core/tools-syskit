@@ -381,7 +381,8 @@ module Syskit
                     state_reader.should_receive(:read_with_result)
                                 .and_return do
                         s = state
-                        state = [Orocos::OLD_DATA, nil]; s
+                        state = [Orocos::OLD_DATA, nil]
+                        s
                     end
                     execute { task.start! }
                     refute task.running?
@@ -1225,13 +1226,15 @@ module Syskit
                 end
                 it "returns false if an unconnected port stays unconnected" do
                     configure_tasks
-                    source_task_p; sink_task_p # ensure both tasks are in the transaction
+                    source_task_p # ensure both tasks are in the transaction
+                    sink_task_p
                     assert !task_p.transaction_modifies_static_ports?
                 end
                 it "returns false if a connected port stays the same" do
                     source_task.out_port.connect_to sink_task.in_port
                     configure_tasks
-                    source_task_p; sink_task_p # ensure both tasks are in the transaction
+                    source_task_p # ensure both tasks are in the transaction
+                    sink_task_p
                     assert !task_p.transaction_modifies_static_ports?
                 end
                 it "returns true if the transaction removes a connections to a static port" do

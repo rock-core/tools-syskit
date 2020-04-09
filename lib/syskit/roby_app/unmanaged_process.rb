@@ -133,7 +133,7 @@ module Syskit
             #   self
             def task(task_name)
                 if !deployed_tasks
-                    raise RuntimeError, "process not running yet"
+                    raise "process not running yet"
                 elsif task = deployed_tasks[task_name]
                     task
                 else
