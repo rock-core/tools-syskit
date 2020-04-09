@@ -366,4 +366,3 @@ describe Syskit::Actions::InterfaceModelExtension do
         end
     end
 end
-

@@ -7,4 +7,3 @@ module SyskitUnitTests
         end
     end
 end
-

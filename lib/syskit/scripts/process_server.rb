@@ -26,4 +26,3 @@ Orocos.initialize
 server = Syskit::RobyApp::ProcessServer.new(Roby.app, port: server_port)
 server.open(fd: options[:fd])
 server.listen
-

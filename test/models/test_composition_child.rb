@@ -327,5 +327,3 @@ describe Syskit::Models::InvalidCompositionChildPort do
         PP.pp(e, ''.dup)
     end
 end
-
-

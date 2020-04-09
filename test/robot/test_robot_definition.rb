@@ -85,4 +85,3 @@ describe Syskit::Robot::RobotDefinition do
         end
     end
 end
-

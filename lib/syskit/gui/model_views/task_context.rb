@@ -17,4 +17,3 @@ module Syskit::GUI
         end
     end
 end
-

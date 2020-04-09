@@ -339,4 +339,3 @@ describe Syskit::Coordination::TaskScriptExtension do
         end
     end
 end
-

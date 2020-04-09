@@ -27,4 +27,3 @@ require './test/test_instance_requirements_task'
 require './test/test_shell_interface'
 
 require './test/test_exceptions'
-

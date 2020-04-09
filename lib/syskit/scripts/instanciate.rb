@@ -110,4 +110,3 @@ begin
     app.exec
 ensure Roby.app.cleanup
 end
-

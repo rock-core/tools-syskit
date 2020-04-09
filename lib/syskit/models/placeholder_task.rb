@@ -4,4 +4,3 @@ module Syskit
         PlaceholderTask = Placeholder
     end
 end
-

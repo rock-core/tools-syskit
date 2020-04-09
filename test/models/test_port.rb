@@ -110,5 +110,3 @@ describe Syskit::Models::Port do
         end
     end
 end
-
-

@@ -249,4 +249,3 @@ class TC_BoundDataService < Minitest::Test
                      service.each_fullfilled_model.to_set
     end
 end
-

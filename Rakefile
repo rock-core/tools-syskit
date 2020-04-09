@@ -43,4 +43,3 @@ end
 
 # For backward compatibility with some scripts that expected hoe
 task :gem => :build
-

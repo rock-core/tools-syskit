@@ -30,4 +30,3 @@ end
 Roby::Transaction.class_eval do
     prepend Syskit::Coordination::TransactionExtension
 end
-

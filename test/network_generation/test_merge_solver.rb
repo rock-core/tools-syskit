@@ -282,4 +282,3 @@ describe Syskit::NetworkGeneration::MergeSolver do
         end
     end
 end
-

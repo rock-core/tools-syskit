@@ -172,4 +172,3 @@ module Syskit
         connections
     end
 end
-

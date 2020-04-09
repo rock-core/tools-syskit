@@ -58,5 +58,3 @@ Scripts.run do
     settings.setValue('MainWindow/size', Qt::Variant.new(main.size))
     settings.sync
 end
-
-

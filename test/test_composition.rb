@@ -333,4 +333,3 @@ describe Syskit::Composition do
         end
     end
 end
-

@@ -3,4 +3,3 @@ module Syskit
         extend Models::RubyTaskContext
     end
 end
-

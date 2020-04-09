@@ -41,4 +41,3 @@ describe Syskit::Coordination::DataMonitor do
         end
     end
 end
-

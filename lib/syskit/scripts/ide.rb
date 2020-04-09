@@ -73,5 +73,3 @@ Syskit::Scripts.run do
     main.save_to_settings
     main.settings.sync
 end
-
-

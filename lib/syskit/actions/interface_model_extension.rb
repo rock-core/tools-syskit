@@ -160,4 +160,3 @@ module Syskit
         Roby::Actions::Interface.include InterfaceExtension
     end
 end
-

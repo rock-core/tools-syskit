@@ -665,4 +665,3 @@ describe Syskit::ROS::Node do
     #    end
     # end
 end
-

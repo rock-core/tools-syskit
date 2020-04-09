@@ -1247,4 +1247,3 @@ describe Syskit::Models::Composition do
         end
     end
 end
-

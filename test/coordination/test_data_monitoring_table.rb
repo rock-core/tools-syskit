@@ -271,4 +271,3 @@ describe Syskit::Coordination::DataMonitoringTable do
         end
     end
 end
-

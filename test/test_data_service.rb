@@ -238,4 +238,3 @@ describe Syskit::ComBus do
         end
     end
 end
-

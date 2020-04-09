@@ -151,4 +151,3 @@ module Syskit
         end
     end
 end
-

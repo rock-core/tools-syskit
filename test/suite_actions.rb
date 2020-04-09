@@ -5,4 +5,3 @@ require './test/actions/test_action_model'
 
 Syskit.logger = Logger.new(File.open("/dev/null", 'w'))
 Syskit.logger.level = Logger::DEBUG
-

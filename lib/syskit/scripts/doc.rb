@@ -133,4 +133,3 @@ html = index_page.html(:ressource_dir => asset_dir)
 File.open(File.join("doc", "index.html"), "w") do |io|
     io.write(html)
 end
-

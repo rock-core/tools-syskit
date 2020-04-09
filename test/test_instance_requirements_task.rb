@@ -102,4 +102,3 @@ describe Syskit::InstanceRequirementsTask do
         end
     end
 end
-

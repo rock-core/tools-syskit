@@ -28,4 +28,3 @@ end
 
 stream = Roby::LogReplay::EventFileStream.open(ARGV.shift)
 Decoder.new.analyze_stream(stream)
-

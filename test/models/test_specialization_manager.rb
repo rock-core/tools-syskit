@@ -463,4 +463,3 @@ describe Syskit::Models::SpecializationManager do
         end
     end
 end
-

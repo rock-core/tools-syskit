@@ -173,4 +173,3 @@ describe Syskit::RobyApp::Configuration do
         end
     end
 end
-

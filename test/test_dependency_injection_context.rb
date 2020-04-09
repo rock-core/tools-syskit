@@ -49,5 +49,3 @@ describe Syskit::DependencyInjectionContext do
         end
     end
 end
-
-

@@ -77,4 +77,3 @@ module Syskit
 end
 
 Roby::Coordination::TaskBase.include Syskit::Coordination::PortHandling
-

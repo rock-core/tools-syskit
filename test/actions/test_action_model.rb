@@ -134,4 +134,3 @@ describe Syskit::Actions::Models::Action do
         end
     end
 end
-

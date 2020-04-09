@@ -15,4 +15,3 @@ module Syskit
         FlexMock::PartialMockProxy.include FlexMockExtension
     end
 end
-

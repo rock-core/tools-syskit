@@ -32,4 +32,3 @@ error = Scripts.run do
 
     app.exec
 end
-
