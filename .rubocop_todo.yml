@@ -10,12 +10,6 @@
 Lint/RedundantCopDisableDirective:
   Enabled: false
 
-# Offense count: 1
-# Cop supports --auto-correct.
-Layout/BlockEndNewline:
-  Exclude:
-    - 'test/runtime/test_connection_management.rb'
-
 # Offense count: 11
 # Cop supports --auto-correct.
 # Configuration parameters: EnforcedStyle, IndentationWidth.
