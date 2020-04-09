@@ -9,7 +9,7 @@ module Syskit
         extend Logger::Hierarchy
         extend Logger::Forward
 
-    # Base functionality for all testing cases
+        # Base functionality for all testing cases
         module Base
             def setup
                 @task_stubs = Array.new
