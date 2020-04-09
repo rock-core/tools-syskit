@@ -16,12 +16,6 @@ Layout/BlockEndNewline:
   Exclude:
     - 'test/runtime/test_connection_management.rb'
 
-# Offense count: 1
-# Cop supports --auto-correct.
-Layout/EmptyLineAfterMagicComment:
-  Exclude:
-    - 'syskit.gemspec'
-
 # Offense count: 38
 # Cop supports --auto-correct.
 # Configuration parameters: AllowForAlignment, AllowBeforeTrailingComments, ForceEqualSignAlignment.
