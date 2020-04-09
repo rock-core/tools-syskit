@@ -921,10 +921,10 @@ module Syskit
 
         # Create a concrete task for this requirement
         def instanciate(plan,
-                        context = Syskit::DependencyInjectionContext.new,
-                        task_arguments: {},
-                        specialization_hints: {},
-                        use_template: true)
+            context = Syskit::DependencyInjectionContext.new,
+            task_arguments: {},
+            specialization_hints: {},
+            use_template: true)
 
             from_cache =
                 context.empty? && specialization_hints.empty? &&

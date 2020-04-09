@@ -23,7 +23,7 @@ module Syskit
             attr_reader :future
 
             def initialize(plan, event_logger: plan.event_logger,
-                           thread_pool: Concurrent::CachedThreadPool.new)
+                thread_pool: Concurrent::CachedThreadPool.new)
                 @plan = plan
                 @event_logger = event_logger
                 @thread_pool = thread_pool

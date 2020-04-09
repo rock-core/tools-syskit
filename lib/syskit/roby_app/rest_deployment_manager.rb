@@ -184,9 +184,9 @@ module Syskit
             # The returned command line assumes that the Syskit process runs on
             # the machine where it will be executed
             def command_line(id, tracing: false,
-                    name_service_ip: 'localhost',
-                    working_directory: @conf.app.log_dir,
-                    loader: @conf.app.default_pkgconfig_loader)
+                name_service_ip: 'localhost',
+                working_directory: @conf.app.log_dir,
+                loader: @conf.app.default_pkgconfig_loader)
 
                 deployment = find_registered_deployment_by_id(id) ||
                     find_overriden_deployment_by_id(id)

@@ -46,7 +46,7 @@ module Syskit
             attr_reader :loader
 
             def initialize(loader: Roby.app.default_loader,
-                           name_service: Orocos::CORBA.name_service)
+                name_service: Orocos::CORBA.name_service)
                 @loader = loader
                 @processes = {}
                 @name_service = name_service

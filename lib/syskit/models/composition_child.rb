@@ -26,7 +26,7 @@ module Syskit
             attr_predicate :optional?
 
             def initialize(composition_model, child_name, models = Set.new, dependency_options = Hash.new,
-                          parent_model = nil)
+                parent_model = nil)
                 @composition_model, @child_name = composition_model, child_name
                 super(models)
                 @dependency_options = Roby::TaskStructure::Dependency.validate_options(dependency_options)

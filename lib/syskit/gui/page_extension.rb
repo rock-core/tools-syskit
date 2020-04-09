@@ -32,8 +32,8 @@ module Syskit
             # @param [Hash] options additional options to pass to
             #   {Graphviz#to_file}
             def push_plan(title, kind, plan, buttons: [],
-                          zoom: 1, id: kind, external_objects: nil,
-                          **options)
+                zoom: 1, id: kind, external_objects: nil,
+                **options)
 
                 svg_io = Tempfile.open(kind)
                 begin

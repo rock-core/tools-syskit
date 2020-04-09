@@ -14,8 +14,8 @@ module Syskit
             attr_reader :merge_solver
 
             def initialize(plan,
-                           event_logger: plan.event_logger,
-                           merge_solver: MergeSolver.new(plan))
+                event_logger: plan.event_logger,
+                merge_solver: MergeSolver.new(plan))
                 if merge_solver.plan != plan
                     raise ArgumentError, "gave #{merge_solver} as merge solver, which applies on #{merge_solver.plan}. Was expecting #{plan}"
                 end
@@ -31,9 +31,9 @@ module Syskit
             #   list of toplevel tasks mapped to the instance requirements it
             #   represents
             def generate(instance_requirements,
-                         garbage_collect: true,
-                         validate_abstract_network: true,
-                         validate_generated_network: true)
+                garbage_collect: true,
+                validate_abstract_network: true,
+                validate_generated_network: true)
 
                 # We first generate a non-deployed network that fits all
                 # requirements.
@@ -185,8 +185,8 @@ module Syskit
             #
             # This network is neither validated nor tied to actual deployments
             def compute_system_network(instance_requirements, garbage_collect: true,
-                                       validate_abstract_network: true,
-                                       validate_generated_network: true)
+                validate_abstract_network: true,
+                validate_generated_network: true)
                 toplevel_tasks = log_timepoint_group 'instanciate' do
                     instanciate(instance_requirements)
                 end

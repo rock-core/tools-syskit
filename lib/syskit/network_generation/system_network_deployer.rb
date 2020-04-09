@@ -34,9 +34,9 @@ module Syskit
             attr_accessor :default_deployment_group
 
             def initialize(plan,
-                           event_logger: plan.event_logger,
-                           merge_solver: MergeSolver.new(plan),
-                           default_deployment_group: Syskit.conf.deployment_group)
+                event_logger: plan.event_logger,
+                merge_solver: MergeSolver.new(plan),
+                default_deployment_group: Syskit.conf.deployment_group)
 
                 @plan = plan
                 @event_logger = event_logger

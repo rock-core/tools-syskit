@@ -255,9 +255,9 @@ module Syskit
         # Generates a dot graph that represents the task hierarchy in this
         # deployment
         def relation_to_dot(accessor:, dot_edge_mark: '->',
-                            dot_graph_type: 'digraph', highlights: [],
-                            toned_down: [], displayed_options: [],
-                            annotations: ['task_info'])
+            dot_graph_type: 'digraph', highlights: [],
+            toned_down: [], displayed_options: [],
+            annotations: ['task_info'])
 
             port_annotations.clear
             task_annotations.clear
@@ -426,10 +426,10 @@ module Syskit
         # Generates a dot graph that represents the task dataflow in this
         # deployment
         def dataflow(remove_compositions: false,
-                     excluded_models: Set.new,
-                     annotations: Set.new,
-                     highlights: Set.new,
-                     show_all_ports: true)
+            excluded_models: Set.new,
+            annotations: Set.new,
+            highlights: Set.new,
+            show_all_ports: true)
 
             port_annotations.clear
             task_annotations.clear

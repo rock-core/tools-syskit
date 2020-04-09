@@ -120,8 +120,8 @@ module Syskit
         end
 
         def self.apply_requirement_modifications(plan,
-                                                 force: false,
-                                                 requirement_tasks: nil)
+            force: false,
+            requirement_tasks: nil)
             if plan.syskit_has_async_resolution?
                 # We're already running a resolution, make sure it is not
                 # obsolete

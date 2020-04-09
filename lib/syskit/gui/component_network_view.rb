@@ -125,13 +125,13 @@ module Syskit
             # @param [Hash] render_options additional options for the rendering
             #   of both graphs in {#render_plan}
             def render(model,
-                       method: :instanciate_model,
-                       name: model.object_id.to_s,
-                       show_requirements: false,
-                       instanciate_options: {},
-                       dataflow: {},
-                       hierarchy: {},
-                       **render_options)
+                method: :instanciate_model,
+                name: model.object_id.to_s,
+                show_requirements: false,
+                instanciate_options: {},
+                dataflow: {},
+                hierarchy: {},
+                **render_options)
                 super
 
                 plan.clear

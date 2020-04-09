@@ -277,8 +277,8 @@ module Syskit
             # @param [String] format a format string (usable with {String#%}
             #   used to render the definition place in HTML
             def self.html_defined_in(page, model,
-                                     with_require: true, definition_location: nil,
-                                     format: '<b>Defined in</b> %s')
+                with_require: true, definition_location: nil,
+                format: '<b>Defined in</b> %s')
                 path, lineno = *definition_location || find_definition_place(model)
                 return unless path
 

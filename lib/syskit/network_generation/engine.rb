@@ -71,7 +71,7 @@ module Syskit
             attr_reader :event_logger
 
             def initialize(plan, work_plan: Roby::Transaction.new(plan),
-                           event_logger: plan.event_logger)
+                event_logger: plan.event_logger)
                 @real_plan = plan
                 @work_plan = work_plan
                 @merge_solver = NetworkGeneration::MergeSolver.new(work_plan)
@@ -526,9 +526,9 @@ module Syskit
             end
 
             def compute_system_network(requirement_tasks = Engine.discover_requirement_tasks_from_plan(real_plan),
-                                       garbage_collect: true,
-                                       validate_abstract_network: true,
-                                       validate_generated_network: true)
+                garbage_collect: true,
+                validate_abstract_network: true,
+                validate_generated_network: true)
                 requirement_tasks = requirement_tasks.to_a
                 instance_requirements = requirement_tasks.map(&:requirements)
                 system_network_generator = SystemNetworkGenerator.new(
@@ -619,15 +619,15 @@ module Syskit
             #   for instance). Set it to false to do no special action (i.e.
             #   drop the currently generated plan)
             def resolve(requirement_tasks: Engine.discover_requirement_tasks_from_plan(real_plan),
-                        on_error: self.class.on_error,
-                        default_deployment_group: Syskit.conf.deployment_group,
-                        compute_deployments: true,
-                        compute_policies: true,
-                        garbage_collect: true,
-                        validate_abstract_network: true,
-                        validate_generated_network: true,
-                        validate_deployed_network: true,
-                        validate_final_network: true)
+                on_error: self.class.on_error,
+                default_deployment_group: Syskit.conf.deployment_group,
+                compute_deployments: true,
+                compute_policies: true,
+                garbage_collect: true,
+                validate_abstract_network: true,
+                validate_generated_network: true,
+                validate_deployed_network: true,
+                validate_final_network: true)
 
                 required_instances = resolve_system_network(
                     requirement_tasks,

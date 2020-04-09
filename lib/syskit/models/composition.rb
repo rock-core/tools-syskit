@@ -570,7 +570,7 @@ module Syskit
                     end
 
                     def require_dynamic_service(dynamic_service_name,
-                                                as: nil, **dyn_options)
+                        as: nil, **dyn_options)
                         @child = @context.specialized_child(@child)
                         srv = @child.model.require_dynamic_service(
                             dynamic_service_name, as: as, **dyn_options
@@ -972,9 +972,9 @@ module Syskit
             # @option arguments [Hash] task_arguments the set of arguments that
             #   should be passed to the composition task instance
             def instanciate(plan, context = DependencyInjectionContext.new,
-                            task_arguments: {},
-                            specialize: true,
-                            specialization_hints: [])
+                task_arguments: {},
+                specialize: true,
+                specialization_hints: [])
 
                 Models.debug do
                     Models.debug "instanciating #{short_name} with"
@@ -1197,7 +1197,7 @@ module Syskit
 
             # Create a new submodel of this composition model
             def setup_submodel(submodel, register_specializations: true,
-                               **submodel_options, &block)
+                **submodel_options, &block)
                 super(submodel, **submodel_options, &block)
 
                 if register_specializations
