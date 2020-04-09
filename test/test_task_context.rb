@@ -1236,7 +1236,6 @@ module Syskit
                     source_task_p.out_port.disconnect_from sink_task_p.in_port
                     assert task_p.transaction_modifies_static_ports?
                 end
-
             end
 
             describe "handling of static input ports" do
