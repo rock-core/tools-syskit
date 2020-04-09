@@ -233,7 +233,9 @@ module Syskit
         describe DataFlow::ConcreteConnectionGraph do
             it "updates the policy when replacing vertices" do
                 concrete_graph = DataFlow::ConcreteConnectionGraph.new
-                old_source, new_source, sink = Object.new, Object.new, Object.new
+                old_source = Object.new
+                new_source = Object.new
+                sink = Object.new
                 concrete_graph.add_edge(old_source, sink, ['out', 'in'] => {}, ['other_out', 'in'] => {})
                 concrete_graph.add_edge(new_source, sink, ['out', 'in'] => Hash[type: :data])
                 concrete_graph.replace_vertex(old_source, new_source)

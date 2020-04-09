@@ -16,8 +16,8 @@ module Syskit
                 pp.text "the RTT task #{failed_task.orocos_name} of type #{failed_task.model.short_name} was expected to have a port called #{port_name}, but does not."
                 pp.breakable
 
-                dynamic_model, static_model =
-                    failed_task.model, failed_task.concrete_model
+                dynamic_model = failed_task.model
+                static_model = failed_task.concrete_model
 
                 # Might have been a wrong configure() implementation. Check.
                 if dynamic_model &&

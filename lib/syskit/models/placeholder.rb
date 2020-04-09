@@ -62,8 +62,9 @@ module Syskit
                     return other_model.merge(self)
                 end
 
-                task_model, service_models, other_service_models =
-                    proxied_component_model, proxied_data_service_models, []
+                task_model = proxied_component_model
+                service_models = proxied_data_service_models
+                other_service_models = []
                 if other_model.placeholder?
                     task_model = task_model.merge(other_model.proxied_component_model)
                     other_service_models = other_model.proxied_data_service_models

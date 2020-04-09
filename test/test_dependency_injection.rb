@@ -202,12 +202,14 @@ describe Syskit::DependencyInjection do
             model0.should_receive(:fullfills?).with(model1).and_return(true)
             model1.should_receive(:fullfills?).with(model0).and_return(false)
 
-            di0, di1 = self.di0.dup, self.di1.dup
+            di0 = self.di0.dup
+            di1 = self.di1.dup
             di0.merge(di1)
             assert_same model0, di0.explicit['test']
 
             # Test the other way around
-            di0, di1 = self.di0.dup, self.di1.dup
+            di0 = self.di0.dup
+            di1 = self.di1.dup
             di1.merge(di0)
             assert_same model0, di1.explicit['test']
         end

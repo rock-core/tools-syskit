@@ -1210,9 +1210,11 @@ module Syskit
             task_arguments.each do |arg_name|
                 arg = task_model.find_argument(arg_name)
                 if arguments.has_key?(arg_name)
-                    optional, default_argument = true, arguments[arg_name]
+                    optional = true
+                    default_argument = arguments[arg_name]
                 elsif arg.has_default?
-                    optional, default_argument = true, arg.default
+                    optional = true
+                    default_argument = arg.default
                     if default_argument.kind_of?(Roby::DefaultArgument)
                         default_argument = default_argument.value
                     elsif arg.has_delayed_default?

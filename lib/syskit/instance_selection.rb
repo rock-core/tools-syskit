@@ -104,9 +104,8 @@ module Syskit
             end
 
             selected_component_model = selected.model.to_component_model
-            required_component_model, required_service_models =
-                required.component_model || Syskit::Component,
-                required.each_required_service_model.to_a
+            required_component_model = required.component_model || Syskit::Component
+            required_service_models = required.each_required_service_model.to_a
 
             mappings[required_component_model] =
                 selected_component_model

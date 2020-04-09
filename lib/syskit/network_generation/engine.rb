@@ -315,7 +315,8 @@ module Syskit
                 log_timepoint 'dataflow_graph_cleanup'
 
                 deployments = work_plan.find_tasks(Syskit::Deployment).not_finished
-                finishing_deployments, existing_deployments = {}, Set.new
+                finishing_deployments = {}
+                existing_deployments = Set.new
                 deployments.each do |task|
                     if task.finishing?
                         finishing_deployments[task.process_name] = task

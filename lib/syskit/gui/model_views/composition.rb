@@ -91,7 +91,8 @@ module Syskit::GUI
             def render_specializations(model)
                 plan, @specializations = create_specialization_graph(model.root_model)
 
-                current_specializations, incompatible_specializations = [], {}
+                current_specializations = []
+                incompatible_specializations = {}
                 if model.root_model != model
                     current_specializations = model.applied_specializations.map { |s| specializations[s] }
 

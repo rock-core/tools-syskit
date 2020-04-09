@@ -379,7 +379,10 @@ module Syskit
                 FlexMock.use(task.state_reader) do |state_reader|
                     state = nil
                     state_reader.should_receive(:read_with_result)
-                                .and_return { s, state = state, [Orocos::OLD_DATA, nil]; s }
+                                .and_return do
+                        s = state
+                        state = [Orocos::OLD_DATA, nil]; s
+                    end
                     execute { task.start! }
                     refute task.running?
                     state = [Orocos::NEW_DATA, :RUNNING]

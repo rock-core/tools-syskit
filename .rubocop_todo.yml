@@ -1618,39 +1618,6 @@ Style/OptionalArguments:
   Exclude:
     - 'lib/syskit/gui/logging_configuration.rb'
 
-# Offense count: 69
-# Cop supports --auto-correct.
-Style/ParallelAssignment:
-  Exclude:
-    - 'lib/syskit/coordination/data_monitor.rb'
-    - 'lib/syskit/coordination/models/data_monitor.rb'
-    - 'lib/syskit/data_flow.rb'
-    - 'lib/syskit/droby/v5/droby_dump.rb'
-    - 'lib/syskit/exceptions.rb'
-    - 'lib/syskit/gui/model_views/composition.rb'
-    - 'lib/syskit/gui/model_views/type.rb'
-    - 'lib/syskit/instance_requirements.rb'
-    - 'lib/syskit/instance_selection.rb'
-    - 'lib/syskit/models/composition_child.rb'
-    - 'lib/syskit/models/dynamic_data_service.rb'
-    - 'lib/syskit/models/placeholder.rb'
-    - 'lib/syskit/models/port.rb'
-    - 'lib/syskit/models/specialization_manager.rb'
-    - 'lib/syskit/network_generation/dataflow_computation.rb'
-    - 'lib/syskit/network_generation/engine.rb'
-    - 'lib/syskit/runtime/connection_management.rb'
-    - 'lib/syskit/runtime/exceptions.rb'
-    - 'lib/syskit/scripts/common.rb'
-    - 'test/models/test_component.rb'
-    - 'test/models/test_composition.rb'
-    - 'test/models/test_task_context.rb'
-    - 'test/test_component.rb'
-    - 'test/test_connection_graphs.rb'
-    - 'test/test_data_flow.rb'
-    - 'test/test_dependency_injection.rb'
-    - 'test/test_deployment.rb'
-    - 'test/test_task_context.rb'
-
 # Offense count: 15
 # Cop supports --auto-correct.
 # Configuration parameters: PreferredDelimiters.

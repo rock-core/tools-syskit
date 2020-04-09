@@ -197,7 +197,8 @@ describe Syskit::Component do
                     provides srv_m.new_submodel, as: name
                 end
             end
-            @testing_task, @tested_task = @task_m.new, @task_m.new
+            @testing_task = @task_m.new
+            @tested_task = @task_m.new
         end
 
         it "returns true if tasks are of identical models" do
@@ -264,7 +265,8 @@ describe Syskit::Component do
                     provides (options[:model] || srv_m.new_submodel), as: name, slave_of: options[:master]
                 end
             end
-            @task, @merged_task = task_m.new, task_m.new
+            @task = task_m.new
+            @merged_task = task_m.new
             plan.add(task)
             plan.add(merged_task)
         end

@@ -8,9 +8,8 @@ end
 
 describe Syskit::Models::TaskContext do
     before do
-        @model_toplevel_constant_registration, @model_constant_registration =
-            OroGen.syskit_model_toplevel_constant_registration?,
-            OroGen.syskit_model_constant_registration?
+        @model_toplevel_constant_registration = OroGen.syskit_model_toplevel_constant_registration?
+        @model_constant_registration = OroGen.syskit_model_constant_registration?
 
         OroGen.syskit_model_toplevel_constant_registration = false
         OroGen.syskit_model_constant_registration = false

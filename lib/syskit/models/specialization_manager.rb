@@ -405,8 +405,8 @@ module Syskit
                 end
 
                 def initialize(model, reference_model)
-                    @model, @reference_model =
-                        model, reference_model
+                    @model = model
+                    @reference_model = reference_model
                     @overload_info = ::Hash.new
                 end
 

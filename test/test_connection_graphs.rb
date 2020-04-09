@@ -59,44 +59,60 @@ describe Syskit do
     end
     describe ".connect" do
         it "should apply the connections as returned by resolve_connections" do
-            policy, out_port, in_port = {}, flexmock, flexmock
+            policy = {}
+            out_port = flexmock
+            in_port = flexmock
             flexmock(Syskit).should_receive(:resolve_connections).and_return([[out_port, in_port]])
             out_port.should_receive(:connect_to).with(in_port, policy).once
             Syskit.connect(out_port, in_port, policy)
         end
         it "should return the list of created connections" do
-            policy, out_port, in_port = {}, flexmock, flexmock
+            policy = {}
+            out_port = flexmock
+            in_port = flexmock
             flexmock(Syskit).should_receive(:resolve_connections).and_return([[out_port, in_port]])
             out_port.should_receive(:connect_to)
             assert_equal [[out_port, in_port]], Syskit.connect(out_port, in_port, policy)
         end
         it "should raise InvalidAutoConnection if no matches are found" do
-            policy, out_port, in_port = {}, flexmock, flexmock
+            policy = {}
+            out_port = flexmock
+            in_port = flexmock
             flexmock(Syskit).should_receive(:resolve_connections).and_return([])
             out_port.should_receive(:connect_to).never
             assert_raises(Syskit::InvalidAutoConnection) { Syskit.connect(out_port, in_port, policy) }
         end
         it "should be able to handle a single port as source" do
-            policy, out_port, in_port = {}, flexmock, flexmock
+            policy = {}
+            out_port = flexmock
+            in_port = flexmock
             flexmock(Syskit).should_receive(:resolve_connections).with([out_port], any).and_return([[out_port, in_port]])
             out_port.should_receive(:connect_to)
             Syskit.connect(out_port, in_port, policy)
         end
         it "should be able to handle a component as source" do
-            policy, out_port, in_port, source = {}, flexmock, flexmock, flexmock
+            policy = {}
+            out_port = flexmock
+            in_port = flexmock
+            source = flexmock
             source.should_receive(:each_output_port).and_return(out_port_list = [])
             flexmock(Syskit).should_receive(:resolve_connections).with(out_port_list, [in_port]).and_return([[out_port, in_port]])
             out_port.should_receive(:connect_to)
             Syskit.connect(source, in_port, policy)
         end
         it "should be able to handle a single port as sink" do
-            policy, out_port, in_port = {}, flexmock, flexmock
+            policy = {}
+            out_port = flexmock
+            in_port = flexmock
             flexmock(Syskit).should_receive(:resolve_connections).with(any, [in_port]).and_return([[out_port, in_port]])
             out_port.should_receive(:connect_to)
             Syskit.connect(out_port, in_port, policy)
         end
         it "should be able to handle a component as sink" do
-            policy, out_port, in_port, sink = {}, flexmock, flexmock, flexmock
+            policy = {}
+            out_port = flexmock
+            in_port = flexmock
+            sink = flexmock
             sink.should_receive(:each_input_port).and_return(in_port_list = [])
             flexmock(Syskit).should_receive(:resolve_connections).with([out_port], in_port_list).and_return([[out_port, in_port]])
             out_port.should_receive(:connect_to)

@@ -27,7 +27,8 @@ module Syskit
                 attr_reader :emitted_events
 
                 def initialize(name, data_streams)
-                    @name, @data_streams = name, data_streams
+                    @name = name
+                    @data_streams = data_streams
                     @predicate = nil
                     @emitted_events = []
                     @raises = false

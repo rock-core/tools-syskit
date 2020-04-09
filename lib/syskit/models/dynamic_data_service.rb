@@ -18,7 +18,10 @@ module Syskit
             attr_predicate :remove_when_unused?
 
             def initialize(component_model, name, service_model, block, addition_requires_reconfiguration: true, remove_when_unused: false)
-                @component_model, @name, @service_model, @block = component_model, name, service_model, block
+                @component_model = component_model
+                @name = name
+                @service_model = service_model
+                @block = block
                 @addition_requires_reconfiguration = addition_requires_reconfiguration
                 @remove_when_unused = remove_when_unused
                 @demoted = self
@@ -68,8 +71,10 @@ module Syskit
                 attr_reader :options
 
                 def initialize(component_model, name, dynamic_service, **options)
-                    @component_model, @name, @dynamic_service, @options =
-                        component_model, name, dynamic_service, options
+                    @component_model = component_model
+                    @name = name
+                    @dynamic_service = dynamic_service
+                    @options = options
                 end
 
                 # Proxy to declare a new argument on the (specialized) component

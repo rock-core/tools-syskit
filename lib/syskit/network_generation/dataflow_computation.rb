@@ -94,7 +94,8 @@ module Syskit
                 attr_reader :mode
 
                 def initialize(ports, mode)
-                    @ports, @mode = ports, mode
+                    @ports = ports
+                    @mode = mode
                 end
 
                 # Called by the algorithm to determine which ports should

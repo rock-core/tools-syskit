@@ -12,7 +12,8 @@ module Syskit
         end
 
         def wait_termination(*)
-            @killed_processes, dead_processes = [], @killed_processes
+            dead_processes = @killed_processes
+            @killed_processes = []
             dead_processes
         end
 

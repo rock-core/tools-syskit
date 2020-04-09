@@ -53,7 +53,9 @@ module Syskit
         attr_reader :expected
 
         def initialize(key, selected, expected)
-            @key, @selected, @expected = key, selected, expected
+            @key = key
+            @selected = selected
+            @expected = expected
         end
 
         def pretty_print(pp)
@@ -128,8 +130,8 @@ module Syskit
         attr_reader :required_service
 
         def initialize(task_model, required_service)
-            @task_model, @required_service =
-                [*task_model], required_service
+            @task_model = [*task_model]
+            @required_service = required_service
         end
 
         def pretty_print(pp)
@@ -160,7 +162,8 @@ module Syskit
         attr_reader :service_name
 
         def initialize(component_model, service_name)
-            @component_model, @service_name = component_model, service_name
+            @component_model = component_model
+            @service_name = service_name
         end
 
         def pretty_print(pp)
@@ -183,7 +186,8 @@ module Syskit
         attr_reader :child_name
 
         def initialize(composition_model, child_name, task_model, required_service)
-            @composition_model, @child_name = composition_model, child_name
+            @composition_model = composition_model
+            @child_name = child_name
             super(task_model, required_service)
         end
 
@@ -210,8 +214,9 @@ module Syskit
         attr_reader :candidates
 
         def initialize(task_model, required_service, candidates)
-            @task_model, @required_service, @candidates =
-                task_model, required_service, candidates
+            @task_model = task_model
+            @required_service = required_service
+            @candidates = candidates
         end
 
         def pretty_print(pp)
@@ -235,8 +240,8 @@ module Syskit
 
         def initialize(composition_model, child_name, task_model, required_service, candidates)
             super(task_model, required_service, candidates)
-            @composition_model, @child_name =
-                composition_model, child_name
+            @composition_model = composition_model
+            @child_name = child_name
         end
 
         def pretty_print(pp)
@@ -445,7 +450,8 @@ module Syskit
         def can_merge?; !!@can_merge end
 
         def initialize(device, task0, task1)
-            @device, @tasks = device, [task0, task1]
+            @device = device
+            @tasks = [task0, task1]
             @can_merge = task0.can_merge?(task1) || task1.can_merge?(task0)
             if can_merge?
                 # Mismatching inputs ... gather more info
@@ -602,8 +608,9 @@ module Syskit
         attr_reader :model
 
         def initialize(expected_model, name, model)
-            @expected_model, @name, @model =
-                expected_model, name, model
+            @expected_model = expected_model
+            @name = name
+            @model = model
         end
 
         def pretty_print(pp)
@@ -625,8 +632,10 @@ module Syskit
 
         def initialize(composition_model, child_name, selected_model, required_models)
             super()
-            @composition_model, @child_name, @selected_model, @required_models =
-                composition_model, child_name, selected_model, required_models
+            @composition_model = composition_model
+            @child_name = child_name
+            @selected_model = selected_model
+            @required_models = required_models
         end
 
         def pretty_print(pp)
@@ -672,7 +681,8 @@ module Syskit
     class InvalidAutoConnection < RuntimeError
         attr_reader :source, :sink
         def initialize(source, sink)
-            @source, @sink = source, sink
+            @source = source
+            @sink = sink
         end
 
         def pretty_print(pp)
@@ -714,8 +724,8 @@ module Syskit
         attr_reader :input_candidates
 
         def initialize(output, input_candidates)
-            @input_candidates, @output =
-                input_candidates, output
+            @input_candidates = input_candidates
+            @output = output
         end
 
         def pretty_print(pp)
@@ -747,8 +757,9 @@ module Syskit
         attr_reader :candidates
 
         def initialize(composition_model, selection, candidates)
-            @composition_model, @selection, @candidates =
-                composition_model, selection, candidates
+            @composition_model = composition_model
+            @selection = selection
+            @candidates = candidates
         end
 
         def pretty_print(pp)
@@ -795,7 +806,8 @@ module Syskit
         attr_reader :model_b
 
         def initialize(model_a, model_b)
-            @model_a, @model_b = model_a, model_b
+            @model_a = model_a
+            @model_b = model_b
         end
 
         def pretty_print(pp)
@@ -861,8 +873,9 @@ module Syskit
         attr_reader :model_b
         attr_reader :port_name
         def initialize(model_a, model_b, port_name)
-            @model_a, @model_b, @port_name =
-                model_a, model_b, port_name
+            @model_a = model_a
+            @model_b = model_b
+            @port_name = port_name
         end
 
         def pretty_print(pp)
@@ -880,7 +893,8 @@ module Syskit
         attr_reader :specializations
 
         def initialize(validator, specializations)
-            @validator, @specializations = validator, specializations
+            @validator = validator
+            @specializations = specializations
         end
 
         def pretty_print(pp)
@@ -909,7 +923,10 @@ module Syskit
     class AmbiguousPortOnCompositeModel < Ambiguous
         attr_reader :model, :models, :port_name, :candidates
         def initialize(model, models, port_name, candidates)
-            @model, @models, @port_name, @candidates = model, models, port_name, candidates
+            @model = model
+            @models = models
+            @port_name = port_name
+            @candidates = candidates
         end
 
         def pretty_print(pp)
@@ -943,8 +960,9 @@ module Syskit
         attr_reader :new_deployment
 
         def initialize(task_name, existing_deployment, new_deployment)
-            @task_name, @existing_deployment, @new_deployment =
-                task_name, existing_deployment, new_deployment
+            @task_name = task_name
+            @existing_deployment = existing_deployment
+            @new_deployment = new_deployment
         end
 
         def pretty_print(pp)

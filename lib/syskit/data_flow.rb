@@ -72,7 +72,8 @@ module Syskit
         #
         # Computes the concrete connection graph from the DataFlow information
         def compute_concrete_connection_graph
-            current_graph, @concrete_connection_graph = @concrete_connection_graph, nil
+            current_graph = @concrete_connection_graph
+            @concrete_connection_graph = nil
             graph = ConcreteConnectionGraph.new
             each_vertex do |task|
                 next unless task.kind_of?(Syskit::TaskContext)

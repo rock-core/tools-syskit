@@ -963,7 +963,8 @@ describe Syskit::Models::Composition do
     end
 
     it "should not leak connections from specializations into the root model" do
-        stub_t, other_stub_t = self.stub_t, self.other_stub_t
+        stub_t = self.stub_t
+        other_stub_t = self.other_stub_t
         shared_task_m = Syskit::TaskContext.new_submodel(name: "SharedTask") do
             input_port 'input', stub_t
             output_port 'output', other_stub_t
@@ -1187,7 +1188,8 @@ describe Syskit::Models::Composition do
     describe "dynamic services" do
         attr_reader :cmp_m, :task_m, :srv_m
         before do
-            stub_t, other_stub_t = self.stub_t, self.other_stub_t
+            stub_t = self.stub_t
+            other_stub_t = self.other_stub_t
             @task_m = Syskit::TaskContext.new_submodel do
                 output_port 'out', other_stub_t
             end
@@ -1208,7 +1210,8 @@ describe Syskit::Models::Composition do
         end
 
         it "exposes the means to add a new child" do
-            srv_m, task_m = self.srv_m, self.task_m
+            srv_m = self.srv_m
+            task_m = self.task_m
             cmp_m.dynamic_service srv_m, as: 'test' do
                 add task_m, as: 'test'
                 export test_child.out_port

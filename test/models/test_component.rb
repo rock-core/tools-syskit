@@ -127,7 +127,8 @@ describe Syskit::Models::Component do
             assert_raises(Syskit::InvalidPortMapping) { task_m.compute_port_mappings(srv_m, 'in' => 'out') }
         end
         it "raises if a port mapping leads to a port with the wrong type" do
-            stub_t, other_stub_t = self.stub_t, self.other_stub_t
+            stub_t = self.stub_t
+            other_stub_t = self.other_stub_t
             task_m = Syskit::TaskContext.new_submodel do
                 input_port 'in', other_stub_t
                 output_port 'out', other_stub_t
@@ -140,7 +141,8 @@ describe Syskit::Models::Component do
             assert_raises(Syskit::InvalidPortMapping) { task_m.compute_port_mappings(srv_m, 'in' => 'out') }
         end
         it "can pick a port by type if it is not ambiguous" do
-            stub_t, other_stub_t = self.stub_t, self.other_stub_t
+            stub_t = self.stub_t
+            other_stub_t = self.other_stub_t
             task_m = Syskit::TaskContext.new_submodel do
                 input_port 'in', other_stub_t
                 input_port 'other_in', stub_t
@@ -216,7 +218,8 @@ describe Syskit::Models::Component do
     describe "the dynamic service support" do
         attr_reader :task_m, :srv_m
         before do
-            stub_t, other_stub_t = self.stub_t, self.other_stub_t
+            stub_t = self.stub_t
+            other_stub_t = self.other_stub_t
             another_stub_t = stub_type '/another_test_t'
             @task_m = Syskit::TaskContext.new_submodel do
                 output_port "out", stub_t
@@ -287,7 +290,8 @@ describe Syskit::Models::Component do
                 end
             end
             it "should accept services that use static ports as well as dynamic ones" do
-                stub_t, other_stub_t = self.stub_t, self.other_stub_t
+                stub_t = self.stub_t
+                other_stub_t = self.other_stub_t
                 srv_m = Syskit::DataService.new_submodel do
                     input_port 'in', other_stub_t
                     output_port 'out', stub_t
@@ -764,7 +768,8 @@ describe Syskit::Models::Component do
             end
 
             it "selects port mappings based on type first" do
-                stub_t, other_stub_t = self.stub_t, self.other_stub_t
+                stub_t = self.stub_t
+                other_stub_t = self.other_stub_t
                 component = Syskit::TaskContext.new_submodel do
                     output_port 'out', other_stub_t
                     output_port 'other', stub_t
@@ -1006,7 +1011,8 @@ describe Syskit::Models::Component do
 
     describe "#find_input_port" do
         it "finds a port by its name" do
-            stub_t, port_model = self.stub_t, nil
+            stub_t = self.stub_t
+            port_model = nil
             model = Syskit::TaskContext.new_submodel do
                 port_model = input_port('p', stub_t)
             end
@@ -1033,7 +1039,8 @@ describe Syskit::Models::Component do
         before do
         end
         it "finds a port by its name" do
-            stub_t, port_model = self.stub_t, nil
+            stub_t = self.stub_t
+            port_model = nil
             model = Syskit::TaskContext.new_submodel do
                 port_model = output_port('p', stub_t)
             end

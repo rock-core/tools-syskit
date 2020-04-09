@@ -23,8 +23,9 @@ module Syskit
             # @param [String] name the port name if it is different than the
             #   name in 'orogen_model'
             def initialize(component_model, orogen_model, name = orogen_model.name)
-                @component_model, @name, @orogen_model =
-                    component_model, name, orogen_model
+                @component_model = component_model
+                @name = name
+                @orogen_model = orogen_model
 
                 @type =
                     if orogen_model.type.contains_opaques?

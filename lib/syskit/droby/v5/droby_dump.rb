@@ -124,7 +124,8 @@ module Syskit
                     attr_reader :byte_array
                     attr_reader :type
                     def initialize(byte_array, type)
-                        @byte_array, @type = byte_array, type
+                        @byte_array = byte_array
+                        @type = type
                     end
 
                     def proxy(peer)
@@ -170,7 +171,9 @@ module Syskit
             module InstanceRequirementsDumper
                 class DRoby
                     def initialize(name, model, arguments)
-                        @name, @model, @arguments = name, model, arguments
+                        @name = name
+                        @model = model
+                        @arguments = arguments
                     end
 
                     def proxy(peer)
@@ -232,8 +235,11 @@ module Syskit
                         def initialize(name, remote_siblings, arguments, supermodel, provided_models, events,
                             orogen_name, orogen_superclass_name, project_name, project_text, types)
                             super(name, remote_siblings, arguments, supermodel, provided_models, events)
-                            @orogen_name, @orogen_superclass_name, @project_name, @project_text, @types =
-                                orogen_name, orogen_superclass_name, project_name, project_text, types
+                            @orogen_name = orogen_name
+                            @orogen_superclass_name = orogen_superclass_name
+                            @project_name = project_name
+                            @project_text = project_text
+                            @types = types
                         end
 
                         def create_new_proxy_model(peer)

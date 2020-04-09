@@ -152,7 +152,8 @@ module Syskit
             @dot_generation = block
             @output_object = object
 
-            output_type, output_file = self.output_type, self.output_file
+            output_type = self.output_type
+            output_file = self.output_file
             if !DOT_DIRECT_OUTPUT.include?(output_type) && !output_file
                 @output_file =
                     if base_name = (self.robot_name || self.robot_type)

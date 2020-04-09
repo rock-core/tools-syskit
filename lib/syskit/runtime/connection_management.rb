@@ -231,7 +231,8 @@ module Syskit
             end
 
             def perform_disconnections(disconnections)
-                success, failure = Concurrent::Array.new, Concurrent::Array.new
+                success = Concurrent::Array.new
+                failure = Concurrent::Array.new
                 port_cache = Concurrent::Map.new
                 promises = disconnections.map do |syskit_from_task, from_task, from_port, syskit_to_task, to_task, to_port|
                     execution_engine = plan.execution_engine
@@ -404,7 +405,8 @@ module Syskit
             #   array. The failure array gets in addition the exception as last
             #   argument.
             def perform_connections(connections)
-                success, failure = Concurrent::Array.new, Concurrent::Array.new
+                success = Concurrent::Array.new
+                failure = Concurrent::Array.new
                 port_cache = Concurrent::Map.new
                 promises = connections.map do |from_task, from_port, to_task, to_port, policy, distance|
                     execution_engine = plan.execution_engine
@@ -531,12 +533,15 @@ module Syskit
 
             # Partition new connections between
             def new_connections_partition_held_ready(new)
-                additions_held, additions_ready = {}, {}
+                additions_held = {}
+                additions_ready = {}
                 new.each do |(from_task, to_task), mappings|
                     if !from_task.execution_agent.ready? || !to_task.execution_agent.ready?
-                        hold, ready = mappings, {}
+                        hold = mappings
+                        ready = {}
                     elsif from_task.setup? && to_task.setup?
-                        hold, ready = {}, mappings
+                        hold = {}
+                        ready = mappings
                     else
                         hold, ready = mappings.partition do |(from_port, to_port), policy|
                             (!from_task.setup? && !from_task.concrete_model.find_output_port(from_port)) ||

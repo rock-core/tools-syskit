@@ -23,7 +23,8 @@ module Syskit
             attr_predicate :raises?, true
 
             def initialize(model, data_streams)
-                @model, @data_streams = model, data_streams
+                @model = model
+                @data_streams = data_streams
                 @emitted_events = []
                 @raises = false
             end
