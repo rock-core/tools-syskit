@@ -633,14 +633,14 @@ module Syskit
 
             def restore_from_settings(settings)
                 %w{ui_hide_loggers ui_show_expanded_job}.each do |checkbox_name|
-                    default = Qt::Variant.new( send(checkbox_name).checked )
+                    default = Qt::Variant.new(send(checkbox_name).checked)
                     send(checkbox_name).checked = settings.value(checkbox_name, default).to_bool
                 end
             end
 
             def save_to_settings(settings)
                 %w(ui_hide_loggers ui_show_expanded_job).each do |checkbox_name|
-                    settings.set_value checkbox_name, Qt::Variant.new( send(checkbox_name).checked )
+                    settings.set_value checkbox_name, Qt::Variant.new(send(checkbox_name).checked)
                 end
             end
 

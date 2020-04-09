@@ -429,24 +429,6 @@ Layout/ParameterAlignment:
     - 'lib/syskit/roby_app/unmanaged_tasks_manager.rb'
     - 'lib/syskit/runtime/apply_requirement_modifications.rb'
 
-# Offense count: 6
-# Cop supports --auto-correct.
-# Configuration parameters: EnforcedStyle.
-# SupportedStyles: space, no_space
-Layout/SpaceInsideParens:
-  Exclude:
-    - 'lib/syskit/gui/runtime_state.rb'
-    - 'test/network_generation/test_engine.rb'
-
-# Offense count: 2
-# Cop supports --auto-correct.
-# Configuration parameters: EnforcedStyle, EnforcedStyleForEmptyBrackets.
-# SupportedStyles: space, no_space
-# SupportedStylesForEmptyBrackets: space, no_space
-Layout/SpaceInsideReferenceBrackets:
-  Exclude:
-    - 'lib/syskit/network_generation/engine.rb'
-
 # Offense count: 28
 # Cop supports --auto-correct.
 # Configuration parameters: IndentationWidth.

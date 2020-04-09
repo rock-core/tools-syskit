@@ -460,7 +460,7 @@ module Syskit
 
                 it "maintains the dependencies with two or more layers" do
                     deployment_m = create_deployment_model(task_count: 3)
-                    _, (existing0, ) =
+                    _, (existing0,) =
                         add_deployment_and_tasks(plan, deployment_m, %w[task0])
 
                     _, (required0, required1, required2) =
@@ -489,7 +489,7 @@ module Syskit
                     end
                 end
 
-                def create_deployment_model(task_count: )
+                def create_deployment_model(task_count:)
                     task_m = (0...task_count).map { TaskContext.new_submodel }
                     Deployment.new_submodel do
                         task_m.each_with_index do |m, i|
