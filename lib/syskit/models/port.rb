@@ -331,7 +331,6 @@ module Syskit
                     other.port == self.port &&
                     other.policy == self.policy
             end
-
         end
     end
 end

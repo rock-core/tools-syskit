@@ -111,30 +111,6 @@ Layout/EmptyLineAfterMagicComment:
   Exclude:
     - 'syskit.gemspec'
 
-# Offense count: 2
-# Cop supports --auto-correct.
-# Configuration parameters: EnforcedStyle.
-# SupportedStyles: empty_lines, empty_lines_except_namespace, empty_lines_special, no_empty_lines, beginning_only, ending_only
-Layout/EmptyLinesAroundClassBody:
-  Exclude:
-    - 'lib/syskit/gui/batch_manager.rb'
-    - 'lib/syskit/models/port.rb'
-
-# Offense count: 11
-# Cop supports --auto-correct.
-Layout/EmptyLinesAroundExceptionHandlingKeywords:
-  Exclude:
-    - 'lib/syskit/instance_requirements.rb'
-    - 'lib/syskit/models/dynamic_data_service.rb'
-    - 'lib/syskit/models/specialization_manager.rb'
-    - 'lib/syskit/network_generation/engine.rb'
-    - 'lib/syskit/remote_state_getter.rb'
-    - 'lib/syskit/robot/robot_definition.rb'
-    - 'lib/syskit/roby_app/rest_deployment_manager.rb'
-    - 'lib/syskit/runtime/update_task_states.rb'
-    - 'lib/syskit/test/base.rb'
-    - 'lib/syskit/test/self.rb'
-
 # Offense count: 1
 # Cop supports --auto-correct.
 Layout/EmptyLinesAroundMethodBody:

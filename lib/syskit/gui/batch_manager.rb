@@ -232,7 +232,6 @@ module Syskit
                     editor.to_plain_text
                 end
             end
-
         end
     end
 end
