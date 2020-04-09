@@ -51,10 +51,10 @@ module Syskit
                 before do
                     srv_m = Syskit::DataService.new_submodel
                     @task_m.dynamic_service srv_m, as: 'srv',
-                        remove_when_unused: true,
-                        addition_requires_reconfiguration: true do
-                            provides srv_m
-                        end
+                                                   remove_when_unused: true,
+                                                   addition_requires_reconfiguration: true do
+                        provides srv_m
+                    end
                 end
 
                 describe "the addition of new services that require reconfiguration" do
@@ -94,10 +94,10 @@ module Syskit
                 before do
                     srv_m = Syskit::DataService.new_submodel
                     @task_m.dynamic_service srv_m, as: 'srv',
-                        remove_when_unused: false,
-                        addition_requires_reconfiguration: false do
-                            provides srv_m
-                        end
+                                                   remove_when_unused: false,
+                                                   addition_requires_reconfiguration: false do
+                        provides srv_m
+                    end
                 end
 
                 describe "the addition of new services that require reconfiguration" do

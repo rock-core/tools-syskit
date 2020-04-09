@@ -99,8 +99,8 @@ module Syskit
                         self.assertions += 1
                         syskit_engine = Syskit::NetworkGeneration::Engine.new(plan)
                         task = syskit_deploy(act, syskit_engine: syskit_engine,
-                                             compute_policies: false, compute_deployments: false,
-                                             validate_generated_network: false, **instanciate_options)
+                                                  compute_policies: false, compute_deployments: false,
+                                                  validate_generated_network: false, **instanciate_options)
                         # Get rid of all the tasks that
                         still_abstract = plan.find_local_tasks(Syskit::Component)
                             .abstract.to_set

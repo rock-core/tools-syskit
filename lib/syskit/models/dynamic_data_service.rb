@@ -103,7 +103,7 @@ module Syskit
 
                     @service = component_model.provides_dynamic(
                         service_model, port_mappings, as: name,
-                        bound_service_class: BoundDynamicDataService, **arguments)
+                                                      bound_service_class: BoundDynamicDataService, **arguments)
                     service.dynamic_service = dynamic_service
                     service.dynamic_service_options = self.options.dup
                     service

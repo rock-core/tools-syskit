@@ -114,9 +114,9 @@ Hash[Syskit::TaskContext => task_contexts,
         FileUtils.mkdir_p File.dirname(path)
         File.open(path, 'w') do |io|
             io.write Page.to_html(sub, view.renderer, :interactive => false,
-                                  :external_objects => path + "-%s",
-                                  :root_dir => [relative_to_root],
-                                  :ressource_dir => File.join(relative_to_root, asset_dir))
+                                                      :external_objects => path + "-%s",
+                                                      :root_dir => [relative_to_root],
+                                                      :ressource_dir => File.join(relative_to_root, asset_dir))
         end
         puts "written #{path}"
     end

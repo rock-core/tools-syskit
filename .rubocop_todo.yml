@@ -10,28 +10,6 @@
 Lint/RedundantCopDisableDirective:
   Enabled: false
 
-# Offense count: 34
-# Cop supports --auto-correct.
-# Configuration parameters: AllowMultipleStyles, EnforcedHashRocketStyle, EnforcedColonStyle, EnforcedLastArgumentHashStyle.
-# SupportedHashRocketStyles: key, separator, table
-# SupportedColonStyles: key, separator, table
-# SupportedLastArgumentHashStyles: always_inspect, always_ignore, ignore_implicit, ignore_explicit
-Layout/HashAlignment:
-  Exclude:
-    - 'lib/syskit/gui/model_browser.rb'
-    - 'lib/syskit/models/dynamic_data_service.rb'
-    - 'lib/syskit/roby_app/configuration.rb'
-    - 'lib/syskit/scripts/doc.rb'
-    - 'lib/syskit/test/execution_expectations.rb'
-    - 'lib/syskit/test/profile_assertions.rb'
-    - 'test/fixtures/simple_composition_model.rb'
-    - 'test/models/test_deployment_group.rb'
-    - 'test/models/test_specialization_manager.rb'
-    - 'test/network_generation/test_logger.rb'
-    - 'test/test_component.rb'
-    - 'test/test_composition.rb'
-    - 'test/test_task_context.rb'
-
 # Offense count: 4
 # Cop supports --auto-correct.
 # Configuration parameters: EnforcedStyle.

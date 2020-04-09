@@ -60,7 +60,7 @@ module Syskit
             def have_one_new_sample(reader, backtrace: caller(1))
                 orocos_reader = ExecutionExpectations.resolve_orocos_reader(reader)
                 achieve(description: "#{reader} should have received a new sample",
-                    backtrace: backtrace) { orocos_reader.read_new }
+                        backtrace: backtrace) { orocos_reader.read_new }
             end
         end
     end

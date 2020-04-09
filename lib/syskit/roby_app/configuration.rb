@@ -577,23 +577,23 @@ module Syskit
 
             def use_ruby_tasks(mappings, on: 'ruby_tasks', remote_task: false)
                 deployment_group.use_ruby_tasks(mappings, on: on,
-                    remote_task: remote_task, process_managers: self)
+                                                          remote_task: remote_task, process_managers: self)
             end
 
             def use_unmanaged_task(mappings, on: 'unmanaged_tasks')
                 deployment_group.use_unmanaged_task(mappings, on: on,
-                    process_managers: self)
+                                                              process_managers: self)
             end
 
             def use_deployment(*names, on: 'localhost', **run_options)
                 deployment_group.use_deployment(*names, on: on,
-                    process_managers: self, loader: app.default_loader,
-                    **run_options)
+                                                        process_managers: self, loader: app.default_loader,
+                                                        **run_options)
             end
 
             def use_deployments_from(*names, on: 'localhost', **run_options)
                 deployment_group.use_deployment(*names, on: on,
-                    process_managers: self, loader: app.default_loader, **run_options)
+                                                        process_managers: self, loader: app.default_loader, **run_options)
             end
 
             def register_configured_deployment(configured_deployment)

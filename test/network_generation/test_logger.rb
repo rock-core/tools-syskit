@@ -43,8 +43,8 @@ describe Syskit::NetworkGeneration::LoggerConfigurationSupport do
             logger = plan.find_tasks(@logger_m).first
 
             assert_equal Hash[['state', 'task.state'] => Hash.new,
-                ['out1', 'task.out1'] => Hash.new,
-                ['out2', 'task.out2'] => Hash.new], @dataflow_graph.edge_info(task, logger)
+                              ['out1', 'task.out1'] => Hash.new,
+                              ['out2', 'task.out2'] => Hash.new], @dataflow_graph.edge_info(task, logger)
         end
 
         it "reuses an existing logger task if there is one" do
@@ -53,8 +53,8 @@ describe Syskit::NetworkGeneration::LoggerConfigurationSupport do
                 .add_logging_to_network(syskit_engine, plan)
 
             assert_equal Hash[['state', 'task.state'] => Hash.new,
-                ['out1', 'task.out1'] => Hash.new,
-                ['out2', 'task.out2'] => Hash.new], @dataflow_graph.edge_info(task, logger)
+                              ['out1', 'task.out1'] => Hash.new,
+                              ['out2', 'task.out2'] => Hash.new], @dataflow_graph.edge_info(task, logger)
         end
 
         it "sets default_logger?" do
@@ -98,7 +98,7 @@ describe Syskit::NetworkGeneration::LoggerConfigurationSupport do
             Syskit::NetworkGeneration::LoggerConfigurationSupport
                 .add_logging_to_network(syskit_engine, plan)
             assert_equal Hash[['state', 'task.state'] => Hash.new,
-                ['out2', 'task.out2'] => Hash.new],
+                              ['out2', 'task.out2'] => Hash.new],
                          @dataflow_graph.edge_info(task, logger)
         end
 
@@ -125,12 +125,12 @@ describe Syskit::NetworkGeneration::LoggerConfigurationSupport do
             Syskit::NetworkGeneration::LoggerConfigurationSupport
                 .add_logging_to_network(syskit_engine, plan)
             assert_equal Hash[['state', 'task.state'] => Hash.new,
-                ['out1', 'task.out1'] => Hash.new,
-                ['out2', 'task.out2'] => Hash.new],
+                              ['out1', 'task.out1'] => Hash.new,
+                              ['out2', 'task.out2'] => Hash.new],
                          @dataflow_graph.edge_info(new_task, logger)
             assert_equal Hash[['state', 'task.state'] => Hash.new,
-                ['out1', 'task.out1'] => Hash.new,
-                ['out2', 'task.out2'] => Hash.new],
+                              ['out1', 'task.out1'] => Hash.new,
+                              ['out2', 'task.out2'] => Hash.new],
                          @dataflow_graph.edge_info(task, logger)
         end
 

@@ -17,13 +17,13 @@ module Syskit
                     output_port 'out', stub_t
                 end
                 simple_component_model.provides simple_service_model, as: 'srv',
-                    'srv_in' => 'in', 'srv_out' => 'out'
+                                                                      'srv_in' => 'in', 'srv_out' => 'out'
                 @simple_task_model = TaskContext.new_submodel(name: "SimpleTaskModel") do
                     input_port 'in', stub_t
                     output_port 'out', stub_t
                 end
                 simple_task_model.provides simple_service_model, as: 'srv',
-                    'srv_in' => 'in', 'srv_out' => 'out'
+                                                                 'srv_in' => 'in', 'srv_out' => 'out'
                 @simple_composition_model = Composition.new_submodel(name: "SimpleCompositionModel") do
                     add srv, as: 'srv'
                     add srv, as: 'srv2'

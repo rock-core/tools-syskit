@@ -445,7 +445,7 @@ module Syskit
                         .once.with(expected)
 
                     actual = group.use_deployment(Hash[task_m => 'test'], on: 'test-mng',
-                        process_managers: conf, loader: loader).first
+                                                                          process_managers: conf, loader: loader).first
                     assert expected[actual]
                 end
 
