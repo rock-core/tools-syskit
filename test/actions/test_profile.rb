@@ -336,7 +336,7 @@ describe Syskit::Actions::Profile do
             profile = Syskit::Actions::Profile.new("name")
             profile.define "test1", Syskit::TaskContext
             profile.define "test2", Syskit::TaskContext
-            assert_equal ["test1", "test2"], profile.each_definition.map(&:name)
+            assert_equal %w[test1 test2], profile.each_definition.map(&:name)
         end
     end
 

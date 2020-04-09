@@ -534,14 +534,14 @@ module Syskit
             base, parent, model, component_model, service =
                 setup_transitive_services
 
-            assert_ports_equal service, ["out_base_unmapped", "out_parent_unmapped", "out_model"],
+            assert_ports_equal service, %w[out_base_unmapped out_parent_unmapped out_model],
                                service.each_output_port
         end
 
         def test_each_input_port
             base, parent, model, component_model, service =
                 setup_transitive_services
-            assert_ports_equal service, ["in_base_unmapped", "in_parent_unmapped", "in_model"],
+            assert_ports_equal service, %w[in_base_unmapped in_parent_unmapped in_model],
                                service.each_input_port
         end
 

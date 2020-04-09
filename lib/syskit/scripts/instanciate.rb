@@ -12,7 +12,7 @@ remove_loggers      = true
 validate_network    = true
 test = false
 annotations = Set.new
-default_annotations = ["connection_policy", "task_info"]
+default_annotations = %w[connection_policy task_info]
 display_timepoints = false
 
 parser = OptionParser.new do |opt|

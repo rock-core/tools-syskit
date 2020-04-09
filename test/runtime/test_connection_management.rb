@@ -159,7 +159,7 @@ module Syskit
                 it "returns false if the ports are not static" do
                     flexmock(ActualDataFlow, :static? => false)
                     assert !management.removed_connections_require_network_update?(
-                        Hash[[source_task, sink_task] => ["out", "in"]]
+                        Hash[[source_task, sink_task] => %w[out in]]
                     )
                 end
 
@@ -173,7 +173,7 @@ module Syskit
 
                     it "returns false if the modified task is not represented in the plan" do
                         assert !management.removed_connections_require_network_update?(
-                            Hash[[source_task.orocos_task, sink_task.orocos_task] => [["out", "in"]]]
+                            Hash[[source_task.orocos_task, sink_task.orocos_task] => [%w[out in]]]
                         )
                     end
                     it "returns false if the modified task is to be garbage-collected" do
@@ -181,14 +181,14 @@ module Syskit
                                             .and_return(source_task)
                         plan.unmark_mission_task(source_task)
                         assert !management.removed_connections_require_network_update?(
-                            Hash[[source_task.orocos_task, sink_task.orocos_task] => [["out", "in"]]]
+                            Hash[[source_task.orocos_task, sink_task.orocos_task] => [%w[out in]]]
                         )
                     end
                     it "returns true if the task is already configured" do
                         flexmock(management).should_receive(:find_setup_syskit_task_context_from_orocos_task)
                                             .and_return(source_task)
                         assert management.removed_connections_require_network_update?(
-                            Hash[[source_task.orocos_task, sink_task.orocos_task] => [["out", "in"]]]
+                            Hash[[source_task.orocos_task, sink_task.orocos_task] => [%w[out in]]]
                         )
                     end
                 end
@@ -203,7 +203,7 @@ module Syskit
 
                     it "returns false if the modified task is not represented in the plan" do
                         assert !management.removed_connections_require_network_update?(
-                            Hash[[source_task.orocos_task, sink_task.orocos_task] => [["out", "in"]]]
+                            Hash[[source_task.orocos_task, sink_task.orocos_task] => [%w[out in]]]
                         )
                     end
                     it "returns false if the modified task is to be garbage-collected" do
@@ -211,14 +211,14 @@ module Syskit
                                             .and_return(sink_task)
                         plan.unmark_mission_task(sink_task)
                         assert !management.removed_connections_require_network_update?(
-                            Hash[[source_task.orocos_task, sink_task.orocos_task] => [["out", "in"]]]
+                            Hash[[source_task.orocos_task, sink_task.orocos_task] => [%w[out in]]]
                         )
                     end
                     it "returns true if the task is already configured" do
                         flexmock(management).should_receive(:find_setup_syskit_task_context_from_orocos_task)
                                             .and_return(sink_task)
                         assert management.removed_connections_require_network_update?(
-                            Hash[[source_task.orocos_task, sink_task.orocos_task] => [["out", "in"]]]
+                            Hash[[source_task.orocos_task, sink_task.orocos_task] => [%w[out in]]]
                         )
                     end
                 end
@@ -305,7 +305,7 @@ module Syskit
                                 ActualDataFlow.add_connections(
                                     source_task.orocos_task,
                                     sink_task.orocos_task,
-                                    ["out", "in"] => [{}, source_static, sink_static]
+                                    %w[out in] => [{}, source_static, sink_static]
                                 )
                             end
 
@@ -433,7 +433,7 @@ module Syskit
                                 edge_info = ActualDataFlow.edge_info(
                                     source_task.orocos_task, sink_task.orocos_task
                                 )
-                                assert_equal Hash[["out", "in"] => Hash[type: :buffer]],
+                                assert_equal Hash[%w[out in] => Hash[type: :buffer]],
                                              edge_info
                             end
 
@@ -449,7 +449,7 @@ module Syskit
                                 edge_info = ActualDataFlow.edge_info(
                                     new_source_task.orocos_task, sink_task.orocos_task
                                 )
-                                assert_equal Hash[["out", "in"] => Hash[type: :data]],
+                                assert_equal Hash[%w[out in] => Hash[type: :data]],
                                              edge_info
                             end
 
@@ -485,7 +485,7 @@ module Syskit
                                 edge_info = ActualDataFlow.edge_info(
                                     new_source_task.orocos_task, sink_task.orocos_task
                                 )
-                                assert_equal Hash[["out", "in"] => Hash[type: :data]],
+                                assert_equal Hash[%w[out in] => Hash[type: :data]],
                                              edge_info
                             end
                         end
@@ -498,7 +498,7 @@ module Syskit
                                 edge_info = ActualDataFlow.edge_info(
                                     source_task.orocos_task, sink_task.orocos_task
                                 )
-                                assert_equal Hash[["out", "in"] => Hash[type: :buffer]],
+                                assert_equal Hash[%w[out in] => Hash[type: :buffer]],
                                              edge_info
                             end
 
@@ -508,7 +508,7 @@ module Syskit
                                 source_task.out_port.connect_to new_sink_task.in_port, type: :data
                                 ConnectionManagement.update(plan)
                                 assert source_task.out_port.connected_to?(sink_task.in_port)
-                                assert_equal Hash[["out", "in"] => Hash[type: :data]], ActualDataFlow.edge_info(source_task.orocos_task, new_sink_task.orocos_task)
+                                assert_equal Hash[%w[out in] => Hash[type: :data]], ActualDataFlow.edge_info(source_task.orocos_task, new_sink_task.orocos_task)
                             end
 
                             it "handles an old task still present in the plan while the new task's connection is added, the old task being running" do
@@ -532,7 +532,7 @@ module Syskit
                                         .pass_thru
                                 ConnectionManagement.update(plan)
                                 expect_execution.garbage_collect(true).scheduler(true).to { emit new_sink_task.start_event }
-                                assert_equal Hash[["out", "in"] => Hash[type: :data]], ActualDataFlow.edge_info(source_task.orocos_task, new_sink_task.orocos_task)
+                                assert_equal Hash[%w[out in] => Hash[type: :data]], ActualDataFlow.edge_info(source_task.orocos_task, new_sink_task.orocos_task)
                             end
                         end
                     end
@@ -1041,7 +1041,7 @@ module Syskit
                     plan.unmark_mission_task source_task
                     plan.unmark_permanent_task source_agent
                     ConnectionManagement.update(plan)
-                    source_task.disconnect_ports(sink_task, [["out", "in"]])
+                    source_task.disconnect_ports(sink_task, [%w[out in]])
                     stop_and_collect_execution_agents source_task
                     assert_disconnection_fails_and_warns(source_orocos, "out", sink_orocos, "in")
                     ConnectionManagement.update(plan)

@@ -126,7 +126,7 @@ describe Syskit::Models::Composition do
             composition.add simple_component_model, as: "source"
             composition.add simple_component_model, as: "sink"
             composition.connect composition.source_child.out_port => composition.sink_child.in_port
-            assert_equal({ ["source", "sink"] => { ["out", "in"] => {} } }.to_set, composition.each_explicit_connection.to_set)
+            assert_equal({ %w[source sink] => { %w[out in] => {} } }.to_set, composition.each_explicit_connection.to_set)
         end
     end
 
@@ -151,15 +151,15 @@ describe Syskit::Models::Composition do
             base.add(service, as: "srv_in")
             base.connect(base.srv_child => base.srv_in_child)
 
-            assert_equal([[["srv", "srv_in"], { ["specialized_out", "srv_in"] => {} }]], composition.each_explicit_connection.to_a)
+            assert_equal([[%w[srv srv_in], { %w[specialized_out srv_in] => {} }]], composition.each_explicit_connection.to_a)
             composition.overload("srv_in", service1)
-            assert_equal([[["srv", "srv_in"], { ["specialized_out", "specialized_in"] => {} }]], composition.each_explicit_connection.to_a)
+            assert_equal([[%w[srv srv_in], { %w[specialized_out specialized_in] => {} }]], composition.each_explicit_connection.to_a)
 
             composition = composition.new_submodel
             composition.overload("srv", component)
-            assert_equal([[["srv", "srv_in"], { ["out", "specialized_in"] => {} }]], composition.each_explicit_connection.to_a)
+            assert_equal([[%w[srv srv_in], { %w[out specialized_in] => {} }]], composition.each_explicit_connection.to_a)
             composition.overload("srv_in", component)
-            assert_equal([[["srv", "srv_in"], { ["out", "in"] => {} }]], composition.each_explicit_connection.to_a)
+            assert_equal([[%w[srv srv_in], { %w[out in] => {} }]], composition.each_explicit_connection.to_a)
         end
     end
 
@@ -271,8 +271,8 @@ describe Syskit::Models::Composition do
             child_cmp_task = cmp_task.cmp_child
             test_srv_task  = child_cmp_task.child_cmp_child
 
-            assert_equal Hash[["test", "child_cmp"] => {}], test_srv_task[child_cmp_task, Syskit::Flows::DataFlow]
-            assert_equal Hash[["child_cmp", "cmp"] => {}], child_cmp_task[cmp_task, Syskit::Flows::DataFlow]
+            assert_equal Hash[%w[test child_cmp] => {}], test_srv_task[child_cmp_task, Syskit::Flows::DataFlow]
+            assert_equal Hash[%w[child_cmp cmp] => {}], child_cmp_task[cmp_task, Syskit::Flows::DataFlow]
         end
 
         it "allows to export the port from a composition child's service" do
@@ -294,8 +294,8 @@ describe Syskit::Models::Composition do
             child_cmp_task = cmp_task.cmp_child
             test_srv_task  = child_cmp_task.child_cmp_child
 
-            assert_equal Hash[["test", "child_cmp"] => {}], test_srv_task[child_cmp_task, Syskit::Flows::DataFlow]
-            assert_equal Hash[["child_cmp", "cmp"] => {}], child_cmp_task[cmp_task, Syskit::Flows::DataFlow]
+            assert_equal Hash[%w[test child_cmp] => {}], test_srv_task[child_cmp_task, Syskit::Flows::DataFlow]
+            assert_equal Hash[%w[child_cmp cmp] => {}], child_cmp_task[cmp_task, Syskit::Flows::DataFlow]
         end
 
         it "updates the exported ports on overload" do
@@ -381,10 +381,10 @@ describe Syskit::Models::Composition do
             # Make sure the forwarding is set up with the relevant port mapping
             # applied
             component.new_instances.should_receive(:forward_output_ports)
-                     .with(composition, ["out", "srv_out"] => {})
+                     .with(composition, %w[out srv_out] => {})
                      .once
             composition.new_instances.should_receive(:forward_input_ports)
-                       .with(component, ["srv_in", "in"] => {})
+                       .with(component, %w[srv_in in] => {})
                        .once
 
             context = Syskit::DependencyInjectionContext.new("srv" => component)
@@ -669,7 +669,7 @@ describe Syskit::Models::Composition do
             it "adds additional roles to the default ones" do
                 composition_model roles: ["a_new_role"]
                 task = instanciate
-                assert_dependency_contains roles: ["a_new_role", "srv"].to_set
+                assert_dependency_contains roles: %w[a_new_role srv].to_set
             end
             it "overrides remove_when_done" do
                 skip "feature not implemented"
@@ -985,23 +985,23 @@ describe Syskit::Models::Composition do
             shared_child.connect_to task_child
         end
         expected = {}
-        expected[["task", "shared"]] = Hash[["output", "input"] => {}]
+        expected[%w[task shared]] = Hash[%w[output input] => {}]
         assert_equal expected, vision_m.connections
-        expected[["shared", "task"]] = Hash[["output", "input"] => {}]
+        expected[%w[shared task]] = Hash[%w[output input] => {}]
         assert_equal expected, specialized_m.composition_model.connections
     end
 
     describe "#conf" do
         it "registers the child name to conf selection into #configurations" do
             simple_composition_model.conf "test", \
-                                          simple_composition_model.srv_child => ["default", "test"]
-            assert_equal Hash["srv" => ["default", "test"]], simple_composition_model.configurations["test"]
+                                          simple_composition_model.srv_child => %w[default test]
+            assert_equal Hash["srv" => %w[default test]], simple_composition_model.configurations["test"]
         end
         it "accepts to register configurations using strings, but warns about deprecations" do
             flexmock(Roby).should_receive(:warn_deprecated).once
             simple_composition_model.conf "test", \
-                                          "srv" => ["default", "test"]
-            assert_equal Hash["srv" => ["default", "test"]], simple_composition_model.configurations["test"]
+                                          "srv" => %w[default test]
+            assert_equal Hash["srv" => %w[default test]], simple_composition_model.configurations["test"]
         end
     end
 

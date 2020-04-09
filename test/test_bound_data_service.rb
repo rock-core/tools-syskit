@@ -176,7 +176,7 @@ class TC_BoundDataService < Minitest::Test
         # the connect_ports call should translate service ports to actual ports
         # and pass on to add_sink
         flexmock(source_task).should_receive(:add_sink)
-                             .once.with(sink_task, { ["out_port", "in_port"] => {} })
+                             .once.with(sink_task, { %w[out_port in_port] => {} })
         source_task.out_port_port.connect_to sink_task.test_srv.in_model_port
     end
 
@@ -191,7 +191,7 @@ class TC_BoundDataService < Minitest::Test
         # the connect_ports call should translate service ports to actual ports
         # and pass on to add_sink
         flexmock(source_task).should_receive(:add_sink)
-                             .once.with(sink_task, { ["out_port", "in_port"] => {} })
+                             .once.with(sink_task, { %w[out_port in_port] => {} })
         source_task.out_port_port.connect_to sink.in_parent_port
     end
 
@@ -204,7 +204,7 @@ class TC_BoundDataService < Minitest::Test
         source = source_task.test_srv
 
         flexmock(source_task).should_receive(:add_sink)
-                             .once.with(sink_task, { ["out_port", "in_port"] => {} })
+                             .once.with(sink_task, { %w[out_port in_port] => {} })
         source.out_model_port.connect_to sink_task.in_port_port
     end
 
@@ -217,7 +217,7 @@ class TC_BoundDataService < Minitest::Test
         source = source_task.test_srv.as(parent)
 
         flexmock(source_task).should_receive(:add_sink)
-                             .once.with(sink_task, { ["out_port", "in_port"] => {} })
+                             .once.with(sink_task, { %w[out_port in_port] => {} })
 
         source.out_parent_port.connect_to sink_task.in_port_port
     end

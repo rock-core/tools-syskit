@@ -216,7 +216,7 @@ module Syskit
 
                     plan.add(deployment_task = @deployment_m.new)
                     task = deployment_task.task("slave")
-                    assert_equal ["default", "master"],
+                    assert_equal %w[default master],
                                  task.child_from_role("scheduler").conf
                 end
 

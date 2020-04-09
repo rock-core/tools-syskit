@@ -457,7 +457,7 @@ module Syskit
 
             def self.auto_require_models(app)
                 # Load the data services and task models
-                prefixes = ["services", "devices", "compositions", "profiles"]
+                prefixes = %w[services devices compositions profiles]
                 if Roby.app.backward_compatible_naming?
                     prefixes << "blueprints"
                 end

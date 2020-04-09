@@ -796,7 +796,7 @@ module Syskit
                 orocos_tasks = [source_task.orocos_task, task.orocos_task]
 
                 ActualDataFlow.add_connections(*orocos_tasks,
-                                               Hash[["dynamic", "dynamic"] => [{}, false, false]])
+                                               Hash[%w[dynamic dynamic] => [{}, false, false]])
                 assert ActualDataFlow.has_edge?(*orocos_tasks)
                 task.clean_dynamic_port_connections([])
                 assert !ActualDataFlow.has_edge?(*orocos_tasks)
@@ -819,7 +819,7 @@ module Syskit
                 orocos_tasks = [task.orocos_task, sink_task.orocos_task]
 
                 ActualDataFlow.add_connections(*orocos_tasks,
-                                               Hash[["dynamic", "dynamic"] => [{}, false, false]])
+                                               Hash[%w[dynamic dynamic] => [{}, false, false]])
                 assert ActualDataFlow.has_edge?(*orocos_tasks)
                 task.clean_dynamic_port_connections([])
                 refute ActualDataFlow.has_edge?(*orocos_tasks)
@@ -1075,7 +1075,7 @@ module Syskit
                 end
                 task = syskit_stub_and_deploy(task_m.with_conf("my", "conf"))
                 flexmock(task.model.configuration_manager).should_receive(:conf)
-                                                          .with(["my", "conf"], true)
+                                                          .with(%w[my conf], true)
                                                           .once
                                                           .and_return("v" => 10)
                 syskit_configure(task)

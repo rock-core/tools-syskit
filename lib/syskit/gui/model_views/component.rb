@@ -12,7 +12,7 @@ module Syskit::GUI
                 @interface_options = Hash[
                     mode: "dataflow",
                     title: "Interface",
-                    annotations: ["task_info", "port_details"].to_set,
+                    annotations: %w[task_info port_details].to_set,
                     zoom: 1]
             end
 

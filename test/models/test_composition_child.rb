@@ -246,7 +246,7 @@ describe Syskit::Models::CompositionChild do
             cmp_m.out_child.connect_to cmp_m.in_child.test_srv
 
             expected = Hash[
-                ["out", "in"] => { ["out", "in0"] => {} }
+                %w[out in] => { %w[out in0] => {} }
             ]
             assert_equal expected, cmp_m.connections
         end
@@ -269,7 +269,7 @@ describe Syskit::Models::CompositionChild do
             end
 
             expected = Hash[
-                ["out", "in"] => { ["out0", "in"] => {} }
+                %w[out in] => { %w[out0 in] => {} }
             ]
             assert_equal expected, cmp_m.connections
         end

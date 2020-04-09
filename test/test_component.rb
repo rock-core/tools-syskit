@@ -1102,15 +1102,15 @@ class TC_Component < Minitest::Test
         end
         plan.add(source_task = source_model.new)
         plan.add(sink_task = sink_model.new)
-        source_task.connect_ports(sink_task, ["out", "out"] => { type: :buffer, size: 20 })
-        assert_equal({ ["out", "out"] => { type: :buffer, size: 20 } },
+        source_task.connect_ports(sink_task, %w[out out] => { type: :buffer, size: 20 })
+        assert_equal({ %w[out out] => { type: :buffer, size: 20 } },
                      source_task[sink_task, Syskit::Flows::DataFlow])
         assert(source_task.connected_to?("out", sink_task, "out"))
-        source_task.connect_ports(sink_task, ["out", "other"] => { type: :buffer, size: 30 })
+        source_task.connect_ports(sink_task, %w[out other] => { type: :buffer, size: 30 })
         assert_equal(
             {
-                ["out", "out"] => { type: :buffer, size: 20 },
-                ["out", "other"] => { type: :buffer, size: 30 }
+                %w[out out] => { type: :buffer, size: 20 },
+                %w[out other] => { type: :buffer, size: 30 }
             }, source_task[sink_task, Syskit::Flows::DataFlow]
         )
         assert(source_task.connected_to?("out", sink_task, "out"))
@@ -1128,13 +1128,13 @@ class TC_Component < Minitest::Test
         plan.add(sink_task = sink_model.new)
 
         assert_raises(ArgumentError) do
-            source_task.connect_ports(sink_task, ["out", "does_not_exist"] => { type: :buffer, size: 20 })
+            source_task.connect_ports(sink_task, %w[out does_not_exist] => { type: :buffer, size: 20 })
         end
         assert(!dataflow_graph.has_vertex?(source_task))
         assert(!dataflow_graph.has_vertex?(sink_task))
 
         assert_raises(ArgumentError) do
-            source_task.connect_ports(sink_task, ["does_not_exist", "out"] => { type: :buffer, size: 20 })
+            source_task.connect_ports(sink_task, %w[does_not_exist out] => { type: :buffer, size: 20 })
         end
         assert(!dataflow_graph.has_vertex?(source_task))
         assert(!dataflow_graph.has_vertex?(sink_task))
@@ -1152,15 +1152,15 @@ class TC_Component < Minitest::Test
         end
         plan.add(source_task = source_model.new)
         plan.add(sink_task = sink_model.new)
-        source_task.connect_ports(sink_task, ["out", "out"] => { type: :buffer, size: 20 })
-        source_task.connect_ports(sink_task, ["out", "other"] => { type: :buffer, size: 30 })
+        source_task.connect_ports(sink_task, %w[out out] => { type: :buffer, size: 20 })
+        source_task.connect_ports(sink_task, %w[out other] => { type: :buffer, size: 30 })
         assert(source_task.connected_to?("out", sink_task, "out"))
         assert(source_task.connected_to?("out", sink_task, "other"))
 
         source_task.disconnect_ports(sink_task, [%w{out other}])
         assert_equal(
             {
-                ["out", "out"] => { type: :buffer, size: 20 }
+                %w[out out] => { type: :buffer, size: 20 }
             }, source_task[sink_task, Syskit::Flows::DataFlow]
         )
         assert(source_task.connected_to?("out", sink_task, "out"))
@@ -1176,27 +1176,27 @@ class TC_Component < Minitest::Test
         end
         plan.add(source_task = source_model.new)
         plan.add(sink_task = sink_model.new)
-        source_task.connect_ports(sink_task, ["out", "out"] => { type: :buffer, size: 20 })
+        source_task.connect_ports(sink_task, %w[out out] => { type: :buffer, size: 20 })
 
         assert_raises(ArgumentError) do
-            source_task.disconnect_ports(sink_task, [["out", "does_not_exist"]])
+            source_task.disconnect_ports(sink_task, [%w[out does_not_exist]])
         end
         assert_equal(
-            { ["out", "out"] => { type: :buffer, size: 20 } }, source_task[sink_task, Syskit::Flows::DataFlow]
+            { %w[out out] => { type: :buffer, size: 20 } }, source_task[sink_task, Syskit::Flows::DataFlow]
         )
 
         assert_raises(ArgumentError) do
-            source_task.disconnect_ports(sink_task, [["does_not_exist", "out"]])
+            source_task.disconnect_ports(sink_task, [%w[does_not_exist out]])
         end
         assert_equal(
-            { ["out", "out"] => { type: :buffer, size: 20 } }, source_task[sink_task, Syskit::Flows::DataFlow]
+            { %w[out out] => { type: :buffer, size: 20 } }, source_task[sink_task, Syskit::Flows::DataFlow]
         )
 
         assert_raises(ArgumentError) do
-            source_task.disconnect_ports(sink_task, [["does_not_exist", "does_not_exist"]])
+            source_task.disconnect_ports(sink_task, [%w[does_not_exist does_not_exist]])
         end
         assert_equal(
-            { ["out", "out"] => { type: :buffer, size: 20 } }, source_task[sink_task, Syskit::Flows::DataFlow]
+            { %w[out out] => { type: :buffer, size: 20 } }, source_task[sink_task, Syskit::Flows::DataFlow]
         )
     end
 
@@ -1210,7 +1210,7 @@ class TC_Component < Minitest::Test
         plan.add(source_task = source_model.new)
         plan.add(sink_task = sink_model.new)
         assert_raises(ArgumentError) do
-            source_task.disconnect_ports(sink_task, [["out", "out"]])
+            source_task.disconnect_ports(sink_task, [%w[out out]])
         end
     end
 

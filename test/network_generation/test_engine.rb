@@ -156,7 +156,7 @@ module Syskit
                     syskit_engine.work_plan.commit_transaction
                     flow_graph = plan.task_relation_graph_for(Flows::DataFlow)
                     info = flow_graph.edge_info(new, input)
-                    assert_equal Hash[["b", "in"] => {}], info
+                    assert_equal Hash[%w[b in] => {}], info
                 end
             end
 

@@ -1746,29 +1746,6 @@ Style/WhileUntilModifier:
     - 'test/ros/test_task_context.rb'
     - 'test/test_remote_state_getter.rb'
 
-# Offense count: 149
-# Cop supports --auto-correct.
-# Configuration parameters: EnforcedStyle, MinSize, WordRegex.
-# SupportedStyles: percent, brackets
-Style/WordArray:
-  Exclude:
-    - 'lib/syskit/gui/model_views/component.rb'
-    - 'lib/syskit/roby_app/plugin.rb'
-    - 'lib/syskit/scripts/instanciate.rb'
-    - 'test/actions/test_profile.rb'
-    - 'test/models/test_bound_data_service.rb'
-    - 'test/models/test_composition.rb'
-    - 'test/models/test_composition_child.rb'
-    - 'test/models/test_port.rb'
-    - 'test/network_generation/test_engine.rb'
-    - 'test/runtime/test_connection_management.rb'
-    - 'test/test_bound_data_service.rb'
-    - 'test/test_component.rb'
-    - 'test/test_connection_graph.rb'
-    - 'test/test_data_flow.rb'
-    - 'test/test_deployment.rb'
-    - 'test/test_task_context.rb'
-
 # Offense count: 1
 # Cop supports --auto-correct.
 Style/ZeroLengthPredicate:
