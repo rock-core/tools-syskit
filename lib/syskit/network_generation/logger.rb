@@ -43,7 +43,7 @@ module Syskit
                 end
 
                 @create_port ||= operation('createLoggingPort')
-                if !@create_port.callop(sink_port_name, logged_port_type, metadata)
+                unless @create_port.callop(sink_port_name, logged_port_type, metadata)
                     # Look whether a port with that name and type already
                     # exists. If it is the case, it means somebody else already
                     # created it and we're fine- Otherwise, raise an error
@@ -100,7 +100,7 @@ module Syskit
             end
 
             def self.setup_logger_model(logger_model)
-                if !(logger_model <= LoggerConfigurationSupport)
+                unless logger_model <= LoggerConfigurationSupport
                     logger_model.include LoggerConfigurationSupport
                     logger_model.stub do
                         def createLoggingPort(port_name, port_type, metadata)
@@ -117,7 +117,7 @@ module Syskit
             # The "configuration" means that we create the necessary connections
             # between each component's port and the logger
             def self.add_logging_to_network(engine, work_plan)
-                return if !engine.dataflow_dynamics
+                return unless engine.dataflow_dynamics
 
                 return unless (logger_model = find_logger_model)
 
@@ -130,7 +130,7 @@ module Syskit
 
                 seen_loggers = Set.new
                 engine.deployment_tasks.each do |deployment|
-                    next if !deployment.plan
+                    next unless deployment.plan
 
                     required_logging_ports = []
                     required_connections   = []
@@ -145,7 +145,7 @@ module Syskit
 
                         connections = {}
                         t.each_output_port do |p|
-                            next if !deployment.log_port?(p)
+                            next unless deployment.log_port?(p)
 
                             log_port_name = "#{t.orocos_name}.#{p.name}"
                             connections[[p.name, log_port_name]] = Hash[fallback_policy: fallback_policy]
@@ -154,7 +154,7 @@ module Syskit
                         required_connections << [t, connections]
                     end
 
-                    if !(logger_task = deployment.logger_task)
+                    unless (logger_task = deployment.logger_task)
                         warn "deployment #{deployment.process_name} has no logger (default logger name would be #{deployment.process_name}_Logger))"
                         next
                     end
@@ -224,7 +224,7 @@ module Syskit
                 # remaining tasks that do not have a 'conf' argument set
                 work_plan.find_local_tasks(logger_model)
                          .each do |task|
-                    if !task.arguments[:conf]
+                    unless task.arguments[:conf]
                         task.arguments[:conf] = ['default']
                     end
                 end

@@ -41,7 +41,7 @@ module Syskit
                 # that the block is applied on all specialization models that should
                 # have it applied
                 def apply_specialization_block(block)
-                    if !definition_blocks.include?(block)
+                    unless definition_blocks.include?(block)
                         instance_eval(&block)
                         definition_blocks << block
                     end
@@ -132,7 +132,7 @@ module Syskit
             def find_specialization(child_name, model)
                 if selected_models = specialized_children[child_name]
                     if matches = selected_models.find_all { |m| m.fullfills?(model) }
-                        if !matches.empty?
+                        unless matches.empty?
                             return matches
                         end
                     end

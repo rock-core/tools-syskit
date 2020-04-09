@@ -124,7 +124,7 @@ module Syskit
         # Save and restore calls are paired. See #save for more information.
         def restore
             expected_size = @savepoints.pop
-            if !expected_size
+            unless expected_size
                 raise ArgumentError, "save/restore stack is empty"
             end
 
@@ -188,7 +188,7 @@ module Syskit
             new_state = stack.last.resolver.dup
             # Resolve all names
             unresolved = spec.resolve_names(new_state.explicit)
-            if !unresolved.empty?
+            unless unresolved.empty?
                 raise NameResolutionError.new(unresolved), "could not resolve names while pushing #{spec} on #{self}"
             end
 

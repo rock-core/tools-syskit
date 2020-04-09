@@ -276,7 +276,7 @@ module Syskit
                 raise ArgumentError, "#{self} already points to a service which is different from #{service}"
             end
 
-            if !model.to_component_model.fullfills?(service.component_model)
+            unless model.to_component_model.fullfills?(service.component_model)
                 raise ArgumentError, "#{service} is not a service of #{self}"
             end
 
@@ -368,7 +368,7 @@ module Syskit
                 result.select_service(service.as(models))
                 result
             else
-                models = Array(models) if !models.respond_to?(:each)
+                models = Array(models) unless models.respond_to?(:each)
                 Models::FacetedAccess.new(self, Models::Placeholder.for(models))
             end
         end
@@ -394,7 +394,7 @@ module Syskit
         # @raise [ArgumentError] if this InstanceRequirements object does
         #   not refer to a composition
         def find_child(name)
-            if !model.respond_to?(:find_child)
+            unless model.respond_to?(:find_child)
                 raise ArgumentError, "#{self} is not a composition"
             end
             if child = model.find_child(name)
@@ -431,14 +431,14 @@ module Syskit
 
         # Enumerates all of this component's ports
         def each_port(&block)
-            return enum_for(:each_port) if !block_given?
+            return enum_for(:each_port) unless block_given?
 
             each_output_port(&block)
             each_input_port(&block)
         end
 
         def each_input_port
-            return enum_for(:each_input_port) if !block_given?
+            return enum_for(:each_input_port) unless block_given?
 
             model.each_input_port do |p|
                 yield(p.attach(self))
@@ -446,7 +446,7 @@ module Syskit
         end
 
         def each_output_port
-            return enum_for(:each_output_port) if !block_given?
+            return enum_for(:each_output_port) unless block_given?
 
             model.each_output_port do |p|
                 yield(p.attach(self))
@@ -543,7 +543,7 @@ module Syskit
         #
         # See also Composition#instanciate
         def use(*mappings)
-            if !(model <= Syskit::Composition)
+            unless model <= Syskit::Composition
                 raise ArgumentError, "#use is available only for compositions, got #{base_model.short_name}"
             end
 
@@ -566,12 +566,12 @@ module Syskit
 
             debug do
                 debug "adding use mappings to #{self}"
-                if !explicit.empty?
+                unless explicit.empty?
                     explicit.each do |key, obj|
                         debug "  #{key.short_name} => #{obj.short_name}"
                     end
                 end
-                if !defaults.empty?
+                unless defaults.empty?
                     debug "  #{defaults.map(&:short_name).join(", ")}"
                 end
                 break
@@ -584,11 +584,11 @@ module Syskit
             new_mappings.add(explicit)
             explicit.each_key do |child_name|
                 req = new_mappings.explicit[child_name]
-                next if !req.respond_to?(:fullfills?)
+                next unless req.respond_to?(:fullfills?)
 
                 if child = model.find_child(child_name)
                     _, selected_m, _ = new_mappings.selection_for(child_name, child)
-                    if !selected_m.fullfills?(child)
+                    unless selected_m.fullfills?(child)
                         raise InvalidSelection.new(child_name, req, child), "#{req} is not a valid selection for #{child_name}. Was expecting something that provides #{child}"
                     end
                 end
@@ -605,7 +605,7 @@ module Syskit
                     # or a child of a child that is a composition itself
                     parts = obj.split('.')
                     first_part = parts.first
-                    if !composition_model.has_child?(first_part)
+                    unless composition_model.has_child?(first_part)
                         children = {}
                         composition_model.each_child do |name, child|
                             children[name] = child
@@ -694,7 +694,7 @@ module Syskit
             end
 
             arguments.each do |k, v|
-                if !v.droby_marshallable?
+                unless v.droby_marshallable?
                     raise Roby::NotMarshallable, "values used as task arguments must be marshallable, attempting to set #{k} to #{v} of class #{v.class}, which is not"
                 end
             end
@@ -783,7 +783,7 @@ module Syskit
         # @param [{String=>Model<Component>}]
         # @return [self]
         def prefer_specializations(specialization_selectors)
-            if !composition_model?
+            unless composition_model?
                 raise ArgumentError, "#{self} does not represent a composition, cannot use #prefer_specializations"
             end
 
@@ -878,7 +878,7 @@ module Syskit
         #
         # @return [DependencyInjection]
         def resolved_dependency_injection
-            if !@di
+            unless @di
                 context = DependencyInjectionContext.new
                 context.push(context_selections)
                 # Add a barrier for the names that our models expect. This is
@@ -1011,14 +1011,14 @@ module Syskit
             if model != base_model
                 result << "[narrowed to #{model.short_name}]"
             end
-            if !pushed_selections.empty?
+            unless pushed_selections.empty?
                 result << ".use<0>(#{pushed_selections})"
                 use_suffix = "<1>"
             end
-            if !selections.empty?
+            unless selections.empty?
                 result << ".use#{use_suffix}(#{selections})"
             end
-            if !arguments.empty?
+            unless arguments.empty?
                 result << ".with_arguments(#{arguments.map { |k, v| "#{k}: #{v}" }.join(", ")})"
             end
             result
@@ -1031,16 +1031,16 @@ module Syskit
                 pp.text "#{model}"
             end
             pp.nest(2) do
-                if !pushed_selections.empty?
+                unless pushed_selections.empty?
                     pp.breakable
                     pp.text ".use<0>(#{pushed_selections})"
                     use_suffix = "<1>"
                 end
-                if !selections.empty?
+                unless selections.empty?
                     pp.breakable
                     pp.text ".use#{use_suffix}(#{selections})"
                 end
-                if !arguments.empty?
+                unless arguments.empty?
                     pp.breakable
                     pp.text ".with_arguments(#{arguments.map { |k, v| "#{k} => #{v}" }.join(", ")})"
                 end
@@ -1048,8 +1048,8 @@ module Syskit
         end
 
         def each_child
-            return enum_for(__method__) if !block_given?
-            if !composition_model?
+            return enum_for(__method__) unless block_given?
+            unless composition_model?
                 raise RuntimeError, "cannot call #each_child on #{self} as it does not represent a composition model"
             end
 
@@ -1091,7 +1091,7 @@ module Syskit
         end
 
         def each_required_service_model
-            return enum_for(:each_required_service_model) if !block_given?
+            return enum_for(:each_required_service_model) unless block_given?
 
             model.each_required_model do |m|
                 yield(m) if m.kind_of?(Syskit::Models::DataServiceModel)
@@ -1099,7 +1099,7 @@ module Syskit
         end
 
         def each_required_model
-            return enum_for(:each_required_model) if !block_given?
+            return enum_for(:each_required_model) unless block_given?
 
             model.each_required_model do |m|
                 yield(m)
@@ -1143,7 +1143,7 @@ module Syskit
         #   time
         # @return [self]
         def add_port_period(port_name, period, sample_count = 1)
-            if !model.has_port?(port_name)
+            unless model.has_port?(port_name)
                 raise ArgumentError, "#{model} has not port called #{port_name}"
             end
 

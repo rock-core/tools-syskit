@@ -21,7 +21,7 @@ module Syskit::GUI
 
             def render_doc(model)
                 doc = [model.doc, model.orogen_model.doc].compact.join("\n\n").strip
-                if !doc.empty?
+                unless doc.empty?
                     page.push nil, page.main_doc(doc)
                 end
             end

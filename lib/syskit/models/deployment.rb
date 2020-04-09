@@ -91,7 +91,7 @@ module Syskit
 
             # Enumerate the names of the tasks deployed by self
             def each_deployed_task_name
-                return enum_for(__method__) if !block_given?
+                return enum_for(__method__) unless block_given?
 
                 orogen_model.task_activities.each do |task|
                     yield(task.name)
@@ -103,7 +103,7 @@ module Syskit
             # @yieldparam [String] name the task name
             # @yieldparam [Models::TaskContext] model the deployed task model
             def each_deployed_task_model
-                return enum_for(__method__) if !block_given?
+                return enum_for(__method__) unless block_given?
 
                 each_orogen_deployed_task_context_model do |deployed_task|
                     task_model = Syskit::TaskContext.model_for(deployed_task.task_model)

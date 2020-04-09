@@ -22,7 +22,7 @@ module Syskit
 
                 dead_deployments.each do |p, exit_status|
                     d = Deployment.deployment_by_process(p)
-                    if !d.finishing?
+                    unless d.finishing?
                         d.warn "#{p.name} unexpectedly died on process server #{config.name}"
                     end
                     all_dead_deployments << d

@@ -58,7 +58,7 @@ module Syskit
         # Tests if there is a connection between +source_task+:+source_port+
         # and +sink_task+:+sink_port+
         def connected?(source_task, source_port, sink_task, sink_port)
-            if !has_edge?(source_task, sink_task)
+            unless has_edge?(source_task, sink_task)
                 return false
             end
 
@@ -138,7 +138,7 @@ module Syskit
         # @see each_concrete_input_connection each_concrete_output_connection
         #   each_output_connection
         def each_in_connection(task, port = nil)
-            return enum_for(__method__, task, port) if !block_given?
+            return enum_for(__method__, task, port) unless block_given?
 
             if port.respond_to? :name
                 port = port.name
@@ -173,7 +173,7 @@ module Syskit
         # @yieldparam [Hash] policy the connection policy
         #
         def each_out_connection(task, port = nil)
-            return enum_for(__method__, task, port) if !block_given?
+            return enum_for(__method__, task, port) unless block_given?
 
             if port.respond_to? :name
                 port = port.name

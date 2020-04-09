@@ -246,7 +246,7 @@ module Syskit
             #
             # @see invalidate_dependency_injection
             def resolved_dependency_injection
-                if !@di
+                unless @di
                     di = DependencyInjectionContext.new
                     di.push(robot.to_dependency_injection)
                     all_used_profiles.each do |prof, _|
@@ -389,7 +389,7 @@ module Syskit
             # @yieldparam [Definition] definition
             # @return [void]
             def each_definition
-                return enum_for(__method__) if !block_given?
+                return enum_for(__method__) unless block_given?
 
                 definitions.each do |name, definition|
                     definition = definition.dup
@@ -448,7 +448,7 @@ module Syskit
             # @yieldparam [Definition] definition the definition resolved with
             #   {#resolved_definition}
             def each_resolved_definition
-                return enum_for(__method__) if !block_given?
+                return enum_for(__method__) unless block_given?
 
                 definitions.each_value do |req|
                     yield(req.resolve)
@@ -616,7 +616,7 @@ module Syskit
             #
             # It enumerates the profiles created so far
             def self.each_submodel
-                return enum_for(__method__) if !block_given?
+                return enum_for(__method__) unless block_given?
 
                 filter_submodels do |profile|
                     yield(profile)
@@ -641,7 +641,7 @@ module Syskit
             #
             # @yieldparam [Models::Action] action_model
             def each_action
-                return enum_for(__method__) if !block_given?
+                return enum_for(__method__) unless block_given?
 
                 robot.each_master_device do |dev|
                     action_model = dev.to_action_model

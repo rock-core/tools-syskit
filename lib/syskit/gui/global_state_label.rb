@@ -24,7 +24,7 @@ module Syskit
             #
             # Qt handler called when the context menu is activated
             def contextMenuEvent(event)
-                if !actions.empty?
+                unless actions.empty?
                     app_state_menu(event.global_pos)
                     event.accept
                 end
@@ -32,7 +32,7 @@ module Syskit
 
             # Execute the app state menu
             def app_state_menu(global_pos)
-                if !actions.empty?
+                unless actions.empty?
                     menu = Qt::Menu.new(self)
                     actions.each { |act| menu.add_action(act) }
                     menu.exec(global_pos)

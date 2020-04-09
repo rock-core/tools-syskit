@@ -123,7 +123,7 @@ module Syskit
                     mappings[required_m] = selected_m.attach(selected_component_model)
                 else
                     selected_m = selected_component_model.find_data_service_from_type(required_m)
-                    if !selected_m
+                    unless selected_m
                         raise ArgumentError, "selected model #{selected} does not provide required service #{required_m.short_name}"
                     end
                 end
@@ -215,7 +215,7 @@ module Syskit
                 end
                 pp.breakable
                 pp.text "Services"
-                if !service_selection.empty?
+                unless service_selection.empty?
                     pp.nest(2) do
                         pp.breakable
                         pp.seplist(service_selection) do |sel|

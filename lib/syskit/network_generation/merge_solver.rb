@@ -135,7 +135,7 @@ module Syskit
                 plan.replace_subplan(task_replacements, merged_event_to_event)
 
                 merged_task_to_task.each do |merged_task, task|
-                    if !merged_task.transaction_proxy?
+                    unless merged_task.transaction_proxy?
                         plan.remove_task(merged_task)
                     end
                     register_replacement(merged_task, task)
@@ -212,7 +212,7 @@ module Syskit
                 # Ask the task about intrinsic merge criteria.
                 # Component#can_merge?  should not look at the relation graphs,
                 # only at criteria internal to the tasks.
-                if !can_merge
+                unless can_merge
                     info "rejected: can_merge? returned false"
                     return false
                 end
@@ -280,7 +280,7 @@ module Syskit
                 while !queue.empty?
                     task = queue.shift
                     # 'task' could have been merged already, ignore it
-                    next if !task.plan
+                    next unless task.plan
 
                     each_task_context_merge_candidate(task) do |merged_task|
                         # Try to resolve the merge
@@ -328,7 +328,7 @@ module Syskit
             end
 
             def may_merge_compositions?(merged_task, task)
-                if !may_merge_task_contexts?(merged_task, task)
+                unless may_merge_task_contexts?(merged_task, task)
                     return false
                 end
 
@@ -402,7 +402,7 @@ module Syskit
                 end
 
                 topsort.each do |composition|
-                    next if !composition.plan
+                    next unless composition.plan
 
                     each_composition_merge_candidate(composition) do |merged_composition|
                         apply_merge_group(merged_composition => composition)
@@ -412,7 +412,7 @@ module Syskit
 
             def resolve_merge(merged_task, task, mappings)
                 mismatched_inputs = log_nest(2) { resolve_input_matching(merged_task, task) }
-                if !mismatched_inputs
+                unless mismatched_inputs
                     # Incompatible inputs
                     return false, mappings
                 end

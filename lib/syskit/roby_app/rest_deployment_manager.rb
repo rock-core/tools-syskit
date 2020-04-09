@@ -134,7 +134,7 @@ module Syskit
             # @return [Boolean] true if the deployment ID was valid, false otherwise
             def deregister_deployment(id)
                 deployment = find_new_deployment_by_id(id)
-                if !deployment
+                unless deployment
                     if deployment = find_registered_deployment_by_id(id)
                         if used_in_override?(deployment)
                             raise UsedInOverride, "#{id} has been created for the purpose of an override, cannot deregister it"
@@ -155,7 +155,7 @@ module Syskit
             # @return [Boolean] true if the deployment ID was valid, false otherwise
             def deregister_override(id)
                 overriden_deployment = @overrides.keys.find { |c| c.object_id == id }
-                if !overriden_deployment
+                unless overriden_deployment
                     deployment = find_registered_deployment_by_id(id)
                     if !deployment
                         raise NotFound, "#{id} is not an existing deployment"

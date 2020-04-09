@@ -16,7 +16,7 @@ module Syskit
             # @option options [String] :on (localhost) the name of the process
             #   server on which this deployment should be started
             def use_ros_launcher(*names)
-                if !names.last.kind_of?(Hash)
+                unless names.last.kind_of?(Hash)
                     names << ({})
                 end
                 names[-1] = Hash[:on => 'ros'].merge(names[-1])

@@ -75,7 +75,7 @@ module Syskit
             end
 
             def find_port(name)
-                if !port_mappings[name]
+                unless port_mappings[name]
                     port_mappings[name] = find_all_port_mappings_for(name)
                 end
                 candidates = port_mappings[name]
@@ -85,7 +85,7 @@ module Syskit
                 end
 
                 ports = ports_on_required[name]
-                if !ports.empty?
+                unless ports.empty?
                     ports.first.attach(self)
                 end
             end
@@ -106,7 +106,7 @@ module Syskit
             end
 
             def each_input_port
-                return enum_for(:each_input_port) if !block_given?
+                return enum_for(:each_input_port) unless block_given?
 
                 each_port_helper :each_input_port do |p|
                     yield(p)
@@ -114,7 +114,7 @@ module Syskit
             end
 
             def each_output_port
-                return enum_for(:each_output_port) if !block_given?
+                return enum_for(:each_output_port) unless block_given?
 
                 each_port_helper :each_output_port do |p|
                     yield(p)

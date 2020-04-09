@@ -93,7 +93,7 @@ module Syskit
 
             def create_new_job(action_name, arguments = {})
                 action_model = @syskit.actions.find { |m| m.name == action_name }
-                if !action_model
+                unless action_model
                     raise ArgumentError, "no action named #{action_name} found"
                 end
 
@@ -108,7 +108,7 @@ module Syskit
                         )
                         has_default_arg = arguments.has_key?(arg.name.to_sym) || !arg.required?
 
-                        if !formatted_arguments.empty?
+                        unless formatted_arguments.empty?
                             formatted_arguments << ",\n"
                         end
                         doc_lines = (arg.doc || "").split("\n")

@@ -40,7 +40,7 @@ Scripts.run do
     main = Syskit::GUI::Browse.new
 
     # Select the model given on the command line (if any)
-    if !model_names.empty?
+    unless model_names.empty?
         model = begin
                     constant(model_names.first)
                 rescue NameError

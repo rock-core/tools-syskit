@@ -25,7 +25,7 @@ module Syskit
                 item1 = Vizkit::VizkitItem.new(label)
                 item2 = RubyItem.new
 
-                if !accessor.nil?
+                unless accessor.nil?
                     item2.getter do
                         @editing_model.method(accessor).call
                     end

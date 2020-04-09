@@ -342,14 +342,14 @@ module Syskit
             # @return [String,nil] the prefix that should be used when starting
             #   this deployment, or nil if there should be none
             def default_prefix(deployment_model)
-                return if !prefix
+                return unless prefix
 
                 deployment_name = deployment_model.deployment_name
 
                 exclude = prefix_blacklist.any? do |pattern|
                     pattern === deployment_name
                 end
-                if !exclude
+                unless exclude
                     "#{prefix}_"
                 end
             end
@@ -359,7 +359,7 @@ module Syskit
             # @return [String,nil] the SD domain on which this deployment should
             #   be published, or nil if none
             def default_sd_domain(deployment_model)
-                return if !sd_domain
+                return unless sd_domain
 
                 deployment_name = deployment_model.name
 
@@ -419,7 +419,7 @@ module Syskit
             #   as an object that conforms to orocos.rb's process server API
             # @return [void]
             def each_process_server
-                return enum_for(__method__) if !block_given?
+                return enum_for(__method__) unless block_given?
 
                 process_servers.each_value do |config|
                     yield(config.client)
@@ -559,7 +559,7 @@ module Syskit
             # @raise ArgumentError if there is no process server with that name
             def remove_process_server(name)
                 ps = process_servers.delete(name)
-                if !ps
+                unless ps
                     raise ArgumentError, "there is no registered process server called #{name}"
                 end
 

@@ -7,7 +7,7 @@ module Syskit
 
             def assert_future_fulfilled(future)
                 result = future.value
-                if !future.fulfilled?
+                unless future.fulfilled?
                     raise future.reason
                 end
 

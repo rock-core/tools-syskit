@@ -53,7 +53,7 @@ module Syskit
             #
             # @yield [CompositionSpecialization]
             def each_specialization
-                return enum_for(:each_specialization) if !block_given?
+                return enum_for(:each_specialization) unless block_given?
 
                 specializations.each_value do |spec|
                     yield(spec)
@@ -100,7 +100,7 @@ module Syskit
                 end
 
                 options, mappings = Kernel.filter_options options, :not => []
-                if !options[:not].respond_to?(:to_ary)
+                unless options[:not].respond_to?(:to_ary)
                     options[:not] = [options[:not]]
                 end
 
@@ -222,7 +222,7 @@ module Syskit
             def validate_specialization_mappings(new_spec)
                 new_spec.each do |child_name, child_models|
                     child_m = composition_model.find_child(child_name)
-                    if !child_m
+                    unless child_m
                         raise ArgumentError, "there is no child called #{child_name} in #{composition_model.short_name}"
                     end
 
@@ -324,7 +324,7 @@ module Syskit
                     (1..set.size).each do |subset_size|
                         set.to_a.combination(subset_size) do |subset|
                             subset = subset.to_set
-                            if !done_subsets.include?(subset)
+                            unless done_subsets.include?(subset)
                                 merged = Specialization.new
                                 subset.each { |spec| merged.merge(spec) }
                                 result << specialized_model(merged, subset)
@@ -411,7 +411,7 @@ module Syskit
                 end
 
                 def apply_block(block)
-                    if !model.definition_blocks.include?(block)
+                    unless model.definition_blocks.include?(block)
                         instance_eval(&block)
                         model.definition_blocks << block
                     end
@@ -517,7 +517,7 @@ module Syskit
                     # Now, add new elements for what is left
                     merged, all = nil
                     while !remaining.empty?
-                        if !merged
+                        unless merged
                             merged = CompositionSpecialization.new
                             merged.merge(s0)
                             all = [s0].to_set

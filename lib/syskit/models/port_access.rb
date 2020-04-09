@@ -53,7 +53,7 @@ module Syskit
 
             # Enumerates all of this component's ports
             def each_port(&block)
-                return enum_for(:each_port) if !block_given?
+                return enum_for(:each_port) unless block_given?
 
                 each_output_port(&block)
                 each_input_port(&block)
@@ -61,7 +61,7 @@ module Syskit
 
             # Enumerates this component's output ports
             def each_output_port
-                return enum_for(:each_output_port) if !block_given?
+                return enum_for(:each_output_port) unless block_given?
 
                 orogen_model.each_output_port do |p|
                     yield(ports[p.name] ||= OutputPort.new(self, p))
@@ -70,7 +70,7 @@ module Syskit
 
             # Enumerates this component's input ports
             def each_input_port
-                return enum_for(:each_input_port) if !block_given?
+                return enum_for(:each_input_port) unless block_given?
 
                 orogen_model.each_input_port do |p|
                     yield(ports[p.name] ||= InputPort.new(self, p))

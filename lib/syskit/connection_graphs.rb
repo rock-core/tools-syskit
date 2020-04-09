@@ -112,7 +112,7 @@ module Syskit
         outputs_per_input = {}
         result.each do |out_port, in_port|
             if outputs_per_input[in_port]
-                if !in_port.multiplexes?
+                unless in_port.multiplexes?
                     candidates = result.map { |o, i| o if i == in_port }
                                        .compact
                     raise AmbiguousAutoConnection.new(in_port, candidates)
@@ -125,7 +125,7 @@ module Syskit
             result.each do |out_port, in_port|
                 Models.debug "  #{out_port.name} => #{in_port.name}"
             end
-            if !remaining_outputs.empty?
+            unless remaining_outputs.empty?
                 Models.debug "  no matches found for outputs #{remaining_outputs.map(&:name).sort.join(",")}"
             end
             break

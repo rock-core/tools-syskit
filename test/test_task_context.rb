@@ -963,9 +963,7 @@ module Syskit
                     promise = task.setup.execute
                     expect_execution.to { achieve { task.setup? } }
                 end
-                if !expected_messages
-                    expected_messages = default_setup_task_messages(task)
-                end
+                expected_messages ||= default_setup_task_messages(task)
                 assert_equal expected_messages, messages
                 promise.value!
             end
@@ -1194,7 +1192,7 @@ module Syskit
                 before do
                     @source_task = syskit_stub_and_deploy "SourceTask" do
                         p = output_port('out', 'int')
-                        p.static if !input
+                        p.static unless input
                     end
                     @sink_task = syskit_stub_and_deploy "Task" do
                         p = input_port('in', 'int')

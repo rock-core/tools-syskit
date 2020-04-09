@@ -324,7 +324,7 @@ module Syskit
                     edit_cmd = Shellwords.shellsplit(edit_cmd)
                     stdin, stdout, stderr, wait_thr = Open3.popen3(*edit_cmd)
                     status = wait_thr.value
-                    if !status.success?
+                    unless status.success?
                         Qt::MessageBox.warning(self, "Edit File", "Runninga \"#{edit_cmd.join('" "')}\" failed\n\nProcess reported: #{stderr.read}")
                     end
                 end

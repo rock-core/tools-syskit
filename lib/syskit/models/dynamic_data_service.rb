@@ -93,7 +93,7 @@ module Syskit
                         raise ArgumentError, "this dynamic service instantiation block already created one new service"
                     end
 
-                    if !service_model.fullfills?(dynamic_service.service_model)
+                    unless service_model.fullfills?(dynamic_service.service_model)
                         raise ArgumentError, "#{service_model.short_name} does not fullfill the model for the dynamic service #{dynamic_service.name}, #{dynamic_service.service_model.short_name}"
                     end
 
@@ -123,7 +123,7 @@ module Syskit
             def instanciate(name, **options)
                 instantiator = component_model.create_dynamic_instantiation_context(name, self, **options)
                 instantiator.instance_eval(&block)
-                if !instantiator.service
+                unless instantiator.service
                     raise InvalidDynamicServiceBlock.new(self), "the block #{block} used to instantiate the dynamic service #{name} on #{component_model.short_name} with options #{options} did not provide any service"
                 end
 
@@ -144,7 +144,7 @@ module Syskit
                     port_mappings[service_port.name] = directional_port_mapping(component_model, 'input', service_port, user_port_mappings.delete(service_port.name))
                 end
 
-                if !user_port_mappings.empty?
+                unless user_port_mappings.empty?
                     raise Syskit::InvalidPortMapping, "port mappings #{user_port_mappings} do not match either the ports of #{service_model} or the ports of #{component_model}"
                 end
 
@@ -166,7 +166,7 @@ module Syskit
                     end
                 else
                     expected_name = component_model.find_directional_port_mapping(direction, port, nil)
-                    if !expected_name
+                    unless expected_name
                         raise InvalidPortMapping, "no explicit mapping has been given for the service port #{port.name} and no port on #{component_model.short_name} matches. You must give an explicit mapping of the form 'service_port_name' => 'task_port_name' if you expect the port to be dynamically created."
                     end
 
@@ -174,7 +174,7 @@ module Syskit
                 end
 
                 # Now verify that the rest can be instanciated
-                if !component_model.send("has_dynamic_#{direction}_port?", expected_name, port.type)
+                unless component_model.send("has_dynamic_#{direction}_port?", expected_name, port.type)
                     raise InvalidPortMapping, "there are no dynamic #{direction} ports declared in #{component_model.short_name} that match #{expected_name}:#{port.type_name}"
                 end
 

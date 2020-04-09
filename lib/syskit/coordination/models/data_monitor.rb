@@ -38,7 +38,7 @@ module Syskit
                 #
                 # @return [Syskit::Coordination::DataMonitor]
                 def bind(table)
-                    if !predicate
+                    unless predicate
                         raise ArgumentError, "no predicate defined in #{self}"
                     end
 

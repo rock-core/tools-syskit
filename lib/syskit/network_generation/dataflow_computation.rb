@@ -125,7 +125,7 @@ module Syskit
                     end
 
                     if mode == USE_ALL
-                        if !complete
+                        unless complete
                             return []
                         end
 
@@ -178,7 +178,7 @@ module Syskit
                 # #initial_information can add the required information if it is
                 # available
                 @missing_ports = required_information(tasks)
-                if !@missing_ports.kind_of?(Hash)
+                unless @missing_ports.kind_of?(Hash)
                     raise ArgumentError, "#required_information is supposed to return a Hash, but returned #{@missing_ports}"
                 end
 
@@ -254,7 +254,7 @@ module Syskit
                         propagate_task(task)
                     end
 
-                    if !@changed
+                    unless @changed
                         break
                     end
                 end
@@ -324,7 +324,7 @@ module Syskit
 
             # Deletes all available information about the specified port
             def remove_port_info(task, port_name)
-                if !@result.has_key?(task)
+                unless @result.has_key?(task)
                     return
                 end
 
@@ -337,7 +337,7 @@ module Syskit
 
             # Called when all information on +task+.+port_name+ has been added
             def done_port_info(task, port_name)
-                if !done_ports[task].include?(port_name)
+                unless done_ports[task].include?(port_name)
                     @changed = true
 
                     if has_information_for_port?(task, port_name)
@@ -404,7 +404,7 @@ module Syskit
                     task.each_concrete_input_connection(port.name) do |from_task, from_port, to_port, _|
                         connections << [from_task, from_port]
                     end
-                    if !connections.empty?
+                    unless connections.empty?
                         result[port.name] = Trigger.new(connections, Trigger::USE_ALL)
                         connections = Set.new
                     end

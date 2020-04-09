@@ -176,7 +176,7 @@ module Syskit
             # @yieldreturn [Boolean] whether the group matches the object whose
             #   exclusion is being considered.
             def object_excluded_from_log?
-                return true if !port_logs_enabled?
+                return true unless port_logs_enabled?
 
                 has_one_match = false
 

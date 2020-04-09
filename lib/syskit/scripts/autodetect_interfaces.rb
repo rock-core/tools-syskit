@@ -27,7 +27,7 @@ while !tasks.empty?
 
     Syskit::Interfaces.each do |source_model|
         next if task < source_model # already set
-        next if !(matches = source_model.guess_source_name(task))
+        next unless (matches = source_model.guess_source_name(task))
 
         # Remove useless entries in +result+
         matches.each do |interface_name|
@@ -41,7 +41,7 @@ while !tasks.empty?
         end
     end
 
-    if !result.empty?
+    unless result.empty?
         result.each do |source_model, interface_name|
             task_name = task.name.gsub(/^Syskit::/, '')
             mod_name, task_name = task_name.split '::'

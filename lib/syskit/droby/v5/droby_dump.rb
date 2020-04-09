@@ -158,7 +158,7 @@ module Syskit
 
                 def droby_dump(peer)
                     peer_registry = peer.object_manager.typelib_registry
-                    if !peer_registry.include?(name)
+                    unless peer_registry.include?(name)
                         reg = registry.minimal(name)
                         xml = reg.to_xml
                         peer_registry.merge(reg)
@@ -262,7 +262,7 @@ module Syskit
                                 end
                             end
 
-                            if !orogen_model
+                            unless orogen_model
                                 syskit_supermodel = peer.local_model(self.supermodel)
                                 local_model = syskit_supermodel
                                               .new_submodel(name: @orogen_name)

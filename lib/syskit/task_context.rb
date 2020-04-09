@@ -66,7 +66,7 @@ module Syskit
                 syskit_p.remote_property = p
                 syskit_p.update_remote_value(p_value)
                 syskit_p.update_log_metadata(p.log_metadata)
-                if !syskit_p.has_value?
+                unless syskit_p.has_value?
                     syskit_p.write(p_value)
                 end
             end
@@ -194,7 +194,7 @@ module Syskit
         # @return [Boolean] true if #merge(other_task) can be called and
         # false otherwise
         def can_merge?(other_task) # :nodoc:
-            return if !super
+            return unless super
 
             # Verify the host constraints (i.e. can't merge other_task in
             # +self+ if both have constraints on which host they should run,
@@ -218,7 +218,7 @@ module Syskit
             # already checked that services that have the same name in task
             # and self are actually of identical definition.
 
-            return false if !super
+            return false unless super
 
             # First check if there are services that need to be removed.
             # Syskit doesn't support that, so for those we cannot deploy
@@ -233,7 +233,7 @@ module Syskit
             # when added. Unlike with remove_when_unused, if 'task' is not
             # setup, we can add the new data services to 'task' and
             # therefore ignore the differences
-            return true if !task.setup?
+            return true unless task.setup?
 
             each_required_dynamic_service do |srv|
                 if srv.model.addition_requires_reconfiguration? && !task.find_data_service(srv.name)
@@ -264,14 +264,14 @@ module Syskit
 
         def deployment_hints
             hints = requirements.deployment_hints.to_set.dup
-            return hints if !hints.empty?
+            return hints unless hints.empty?
 
             if respond_to?(:each_master_device)
                 each_master_device do |dev|
                     hints |= dev.requirements.deployment_hints.to_set
                 end
             end
-            return hints if !hints.empty?
+            return hints unless hints.empty?
 
             super
         end
@@ -718,7 +718,7 @@ module Syskit
                     ) ||
                     self.properties.each.any? { |p| p.needs_commit? }
 
-                if !needs_reconfiguration
+                unless needs_reconfiguration
                     info "not reconfiguring #{self}: the task is already configured as required"
                 end
                 [needs_reconfiguration, state]

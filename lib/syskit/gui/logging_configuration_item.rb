@@ -34,7 +34,7 @@ module Syskit
             def write
                 if column == 1
                     i = index.sibling(row, 0)
-                    return if !i.isValid
+                    return unless i.isValid
 
                     item = i.model.itemFromIndex i
                     item.accept_changes

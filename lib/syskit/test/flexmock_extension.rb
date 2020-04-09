@@ -6,7 +6,7 @@ module Syskit
             # Specifies that an operation is expected to be called. The mocked
             # object is the Syskit taskcontext (NOT the orocos task context)
             def should_receive_operation(*args)
-                if !@obj.orocos_task
+                unless @obj.orocos_task
                     @obj.execution_agent.start!
                 end
                 flexmock_container.flexmock(@obj.orocos_task).should_receive(*args)

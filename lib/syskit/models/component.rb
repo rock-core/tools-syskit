@@ -50,7 +50,7 @@ module Syskit
             # @yieldparam [Model<Device>] device_model
             # @return [void]
             def each_master_driver_service(&block)
-                return enum_for(:each_master_driver_service) if !block_given?
+                return enum_for(:each_master_driver_service) unless block_given?
 
                 each_root_data_service do |srv|
                     if srv.model < Syskit::Device
@@ -65,7 +65,7 @@ module Syskit
             # @yield [Model<ComBus>] com_bus_model
             # @return [void]
             def each_com_bus_driver_service(&block)
-                return enum_for(:each_com_bus_driver_service) if !block_given?
+                return enum_for(:each_com_bus_driver_service) unless block_given?
 
                 each_root_data_service do |srv|
                     if srv.model < Syskit::ComBus
@@ -142,7 +142,7 @@ module Syskit
             #
             # @yield [Models::BoundDataService]
             def each_slave_data_service(master_service)
-                return enum_for(:each_slave_data_service, master_service) if !block_given?
+                return enum_for(:each_slave_data_service, master_service) unless block_given?
 
                 each_data_service(nil) do |name, service|
                     if service.master && (service.master.full_name == master_service.full_name)
@@ -156,7 +156,7 @@ module Syskit
             #
             # @yield [Models::BoundDataService]
             def each_root_data_service(&block)
-                return enum_for(:each_root_data_service) if !block_given?
+                return enum_for(:each_root_data_service) unless block_given?
 
                 each_data_service(nil) do |name, service|
                     if service.master?
@@ -241,7 +241,7 @@ module Syskit
             # only then call #as on the returned BoundDataService object
             def as(service_model)
                 srv = find_data_service_from_type(service_model)
-                if !srv
+                unless srv
                     raise ArgumentError, "no service of #{self} provides #{service_model}"
                 end
 
@@ -367,7 +367,7 @@ module Syskit
                 mapped_to_original.each do |mapped, original|
                     if original.size > 1
                         not_explicit = original.find_all { |pname| !normalized_mappings.has_key?(pname) }
-                        if !not_explicit.empty?
+                        unless not_explicit.empty?
                             raise InvalidPortMapping, "automatic port mapping would map ports #{original.sort.join(", ")} to the same port #{mapped}. I refuse to do this. If you actually mean to do it, provide the mapping #{original.map { |o| "\"#{o}\" => \"#{mapped}\"" }.join(", ")} explicitly"
                         end
                     end
@@ -514,7 +514,7 @@ module Syskit
             #
             # @yieldparam [DynamicDataService] srv
             def each_required_dynamic_service
-                return enum_for(:each_required_dynamic_service) if !block_given?
+                return enum_for(:each_required_dynamic_service) unless block_given?
 
                 each_data_service do |_, srv|
                     if srv.dynamic?
@@ -542,14 +542,14 @@ module Syskit
             #   through {DynamicDataService#instanciate}
             # @return [BoundDynamicDataService] the newly created service
             def require_dynamic_service(dynamic_service_name, as: nil, **dyn_options)
-                if !as
+                unless as
                     raise ArgumentError, "no name given, please provide the as: option"
                 end
 
                 service_name = as.to_s
 
                 dyn = find_dynamic_service(dynamic_service_name)
-                if !dyn
+                unless dyn
                     raise ArgumentError, "#{short_name} has no dynamic service called #{dynamic_service_name}, available dynamic services are: #{each_dynamic_service.map { |name, _| name }.sort.join(", ")}"
                 end
 
@@ -640,7 +640,7 @@ module Syskit
                 if master = slave_of
                     if master.respond_to?(:to_str)
                         master_srv = find_data_service(master)
-                        if !master_srv
+                        unless master_srv
                             raise ArgumentError, "master data service #{master_source} is not registered on #{self}"
                         end
 
@@ -658,7 +658,7 @@ module Syskit
                 # trying to specialize it
                 if has_data_service?(full_name)
                     parent_type = find_data_service(full_name).model
-                    if !(model <= parent_type)
+                    unless model <= parent_type
                         raise ArgumentError, "#{self} has a data service named #{full_name} of type #{parent_type}, which is not a parent type of #{model}"
                     end
                 end
@@ -688,7 +688,7 @@ module Syskit
                         port_mappings.delete(from.to_sym)
                     end
                 end
-                if !port_mappings.empty?
+                unless port_mappings.empty?
                     raise InvalidProvides.new(self, model), "invalid port mappings: #{port_mappings} do not match any ports in either #{self} or #{service}"
                 end
 
@@ -758,7 +758,7 @@ module Syskit
             end
 
             def implicit_fullfilled_model
-                if !@implicit_fullfilled_model
+                unless @implicit_fullfilled_model
                     has_abstract = false
                     @implicit_fullfilled_model =
                         super.find_all do |m|
@@ -891,7 +891,7 @@ module Syskit
                 key = placeholder_m.proxied_data_service_models.to_set
                 if by_type = placeholder_models.delete(key)
                     by_type.delete_if { |_, m| m == placeholder_m }
-                    if !by_type.empty?
+                    unless by_type.empty?
                         placeholder_models[key] = by_type
                     end
                     true
@@ -975,7 +975,7 @@ module Syskit
             end
 
             def fullfills?(object)
-                if !object.respond_to?(:each_required_dynamic_service)
+                unless object.respond_to?(:each_required_dynamic_service)
                     return super
                 end
 
@@ -1014,7 +1014,7 @@ module Syskit
                 target_real_model = target_model.concrete_model
 
                 if self_real_model != self || target_real_model != target_model
-                    if !self_real_model.can_merge?(target_real_model)
+                    unless self_real_model.can_merge?(target_real_model)
                         return false
                     end
                 elsif !super
@@ -1025,7 +1025,7 @@ module Syskit
                 # dynamic services
                 each_data_service do |_, self_srv|
                     task_srv = target_model.find_data_service(self_srv.name)
-                    next if !task_srv
+                    next unless task_srv
 
                     if task_srv.model != self_srv.model
                         NetworkGeneration::MergeSolver.debug do
@@ -1102,7 +1102,7 @@ module Syskit
             end
 
             def each_required_model
-                return enum_for(:each_required_model) if !block_given?
+                return enum_for(:each_required_model) unless block_given?
 
                 yield(concrete_model)
             end

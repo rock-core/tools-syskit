@@ -378,7 +378,7 @@ module Syskit
             # List the possible candidates for the missing devices
             candidates = {}
             abstract_task.model.each_master_driver_service do |srv|
-                if !abstract_task.arguments[:"#{srv.name}_dev"]
+                unless abstract_task.arguments[:"#{srv.name}_dev"]
                     candidates[srv] = plan.find_local_tasks(srv.model).to_set
                     candidates[srv].delete(abstract_task)
                     all_tasks |= candidates[srv]
@@ -409,7 +409,7 @@ module Syskit
                 pp.breakable
                 pp.text "for #{task.to_s.gsub(/Syskit::/, '')}"
                 pp.nest(2) do
-                    if !parents.empty?
+                    unless parents.empty?
                         pp.breakable
                         pp.seplist(parents) do |parent|
                             role, parent = parent
@@ -578,7 +578,7 @@ module Syskit
         end
 
         def pretty_print(pp)
-            if !instanciation_chain.empty?
+            unless instanciation_chain.empty?
                 pp.text "while instanciating"
                 pp.nest(2) do
                     pp.breakable
@@ -660,7 +660,7 @@ module Syskit
 
         def pretty_print(pp)
             pp.text "cannot resolve the names #{missing_names.sort.join(", ")}"
-            if !instanciation_chain.empty?
+            unless instanciation_chain.empty?
                 pp.breakable
                 super
             end

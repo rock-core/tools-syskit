@@ -429,7 +429,7 @@ module Syskit
                     end
                 end
                 task.model.each_output_port do |port|
-                    if !@triggers.has_key?([task, port.name])
+                    unless @triggers.has_key?([task, port.name])
                         done_port_info(task, port.name)
                     end
                 end
@@ -450,7 +450,7 @@ module Syskit
                 result = {}
                 tasks.each do |t|
                     ports = t.model.each_output_port.to_a
-                    if !ports.empty?
+                    unless ports.empty?
                         result[t] = ports.map(&:name).to_set
                         result[t] << nil
                     end
@@ -500,7 +500,7 @@ module Syskit
             end
 
             def propagate_task(task)
-                if !missing_ports.has_key?(task)
+                unless missing_ports.has_key?(task)
                     return true
                 end
 
@@ -513,7 +513,7 @@ module Syskit
                 end
 
                 required.each do |missing|
-                    if !compute_info_for(task, missing)
+                    unless compute_info_for(task, missing)
                         DataFlowDynamics.debug do
                             DataFlowDynamics.debug "  cannot compute information on #{missing}"
                             break

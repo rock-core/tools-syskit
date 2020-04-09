@@ -162,7 +162,7 @@ module Syskit
                     end
                 end
                 ui_clear.connect(SIGNAL('clicked()')) do
-                    if !job.active?
+                    unless job.active?
                         job.stop
                         emit clearJob
                         true

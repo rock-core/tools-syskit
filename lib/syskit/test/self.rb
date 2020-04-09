@@ -47,7 +47,7 @@ module Syskit
 
                 super
 
-                if !Orocos.initialized?
+                unless Orocos.initialized?
                     Orocos.allow_blocking_calls { Orocos.initialize }
                 end
                 execution_engine.scheduler = Roby::Schedulers::Temporal.new(true, true, plan)
@@ -65,7 +65,7 @@ module Syskit
                 plug_connection_management
                 unplug_apply_requirement_modifications
 
-                if !Syskit.conf.disables_local_process_server?
+                unless Syskit.conf.disables_local_process_server?
                     Syskit::RobyApp::Plugin.connect_to_local_process_server
                 end
 

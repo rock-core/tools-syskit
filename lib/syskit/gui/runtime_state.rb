@@ -289,7 +289,7 @@ module Syskit
                 return unless robot_name
 
                 extra_args = []
-                if !robot_name.empty?
+                unless robot_name.empty?
                     extra_args << "-r" << robot_name
                 end
                 if start_controller
@@ -331,10 +331,10 @@ module Syskit
                     job_task = syskit_log_stream.plan.find_tasks(Roby::Interface::Job)
                                                 .with_arguments(job_id: current_job.job_id)
                                                 .first
-                    return if !job_task
+                    return unless job_task
 
                     placeholder_task = job_task.planned_task
-                    return if !placeholder_task
+                    return unless placeholder_task
 
                     dependency = placeholder_task.relation_graph_for(Roby::TaskStructure::Dependency)
                     tasks = dependency.enum_for(:depth_first_visit, placeholder_task).to_a
@@ -344,7 +344,7 @@ module Syskit
                 end
 
                 if hide_loggers?
-                    if !@known_loggers
+                    unless @known_loggers
                         @known_loggers = Set.new
                         all_tasks.delete_if do |t|
                             @known_loggers << t if logger_task?(t)
@@ -419,7 +419,7 @@ module Syskit
                 job_summary_layout.add_widget(@clear_button)
                 @clear_button.connect(SIGNAL(:clicked)) do
                     @job_status_list.clear_widgets do |w|
-                        if !w.job.active?
+                        unless w.job.active?
                             w.job.stop
                             true
                         end

@@ -181,7 +181,7 @@ module Syskit
             #
             # @return [TaskConfigurationManager]
             def configuration_manager
-                if !@configuration_manager
+                unless @configuration_manager
                     if !concrete_model?
                         manager = concrete_model.configuration_manager
                     else

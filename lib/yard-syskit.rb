@@ -77,7 +77,7 @@ module Syskit
             namespace_only
 
             def self.handles?(node)
-                return if !super
+                return unless super
 
                 node.class_name.namespace[0] == "OroGen"
             end
@@ -92,10 +92,8 @@ module Syskit
             def parse_superclass(statement)
                 # We assume that all classes in OroGen have Syskit::TaskContext
                 # as superclass by default
-                if !statement
-                    statement = ::YARD.parse_string("Syskit::TaskContext")
-                                      .enumerator.first
-                end
+                statement ||= ::YARD.parse_string("Syskit::TaskContext")
+                                    .enumerator.first
                 super(statement)
             end
         end

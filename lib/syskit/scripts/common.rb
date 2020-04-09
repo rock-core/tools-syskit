@@ -95,7 +95,7 @@ module Syskit
                 opt.on('-o TYPE[:file]', '--output=TYPE[:file]', String, "in what format to output the result (can be: #{output_modes.join(", ")}), defaults to #{default_output_mode}") do |output_arg|
                     output_type, output_file = output_arg.split(':')
                     output_type = output_type.downcase
-                    if !output_modes.include?(output_type)
+                    unless output_modes.include?(output_type)
                         raise ArgumentError, "unknown or unavailable output mode #{output_type}, available output modes: #{output_modes.join(", ")}"
                     end
 
@@ -121,7 +121,7 @@ module Syskit
             @output_modes = %w{txt svg png dot}
 
             has_x11_display = ENV['DISPLAY']
-            if !has_x11_display
+            unless has_x11_display
                 @default_output_mode = 'txt'
             end
 
@@ -183,7 +183,7 @@ module Syskit
                 end
             when "png", "svg", "x11"
                 cmd = "dot -T#{output_type}"
-                if !DOT_DIRECT_OUTPUT.include?(output_type)
+                unless DOT_DIRECT_OUTPUT.include?(output_type)
                     cmd << " -o#{output_file}"
                 end
                 io = IO.popen(cmd, "w")
@@ -192,7 +192,7 @@ module Syskit
                 io.close
             when "qt"
                 require 'syskit/gui/instanciated_network_display'
-                if !$qApp
+                unless $qApp
                     app = Qt::Application.new(ARGV)
                 end
                 display = Ui::InstanciatedNetworkDisplay.new

@@ -470,7 +470,7 @@ module Syskit
                 deployed_tasks.each do |task|
                     existing_tasks = orocos_name_to_existing[task.orocos_name] ||
                         []
-                    if !existing_tasks.empty?
+                    unless existing_tasks.empty?
                         existing_task = find_current_deployed_task(existing_tasks)
                     end
 

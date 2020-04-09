@@ -90,7 +90,7 @@ module Syskit
             # Seriously. Keep it in your tests.
             def assert_is_self_contained(action_or_profile = subject_syskit_model, message: "%s is not self contained", exclude: [], **instanciate_options)
                 actions, skipped_actions = BulkAssertAtomicActions(action_or_profile, exclude: exclude)
-                if !skipped_actions.empty?
+                unless skipped_actions.empty?
                     flunk "could not validate #{skipped_actions.size} non-Syskit actions: #{skipped_actions.map(&:name).sort.join(", ")}, pass them to the 'exclude' argumet to #{__method__}"
                 end
 
@@ -143,7 +143,7 @@ module Syskit
             # If called without argument, it tests the spec's context profile
             def assert_can_instanciate(action_or_profile = subject_syskit_model, exclude: [])
                 actions, skipped_actions = BulkAssertAtomicActions(action_or_profile, exclude: exclude)
-                if !skipped_actions.empty?
+                unless skipped_actions.empty?
                     flunk "could not validate #{skipped_actions.size} non-Syskit actions: #{skipped_actions.map(&:name).sort.join(", ")}, pass them to the 'exclude' argumet to #{__method__}"
                 end
 
@@ -220,7 +220,7 @@ module Syskit
             # If called without argument, it tests the spec's context profile
             def assert_can_deploy(action_or_profile = subject_syskit_model, exclude: [])
                 actions, skipped_actions = BulkAssertAtomicActions(action_or_profile, exclude: exclude)
-                if !skipped_actions.empty?
+                unless skipped_actions.empty?
                     flunk "could not validate #{skipped_actions.size} non-Syskit actions: #{skipped_actions.map(&:name).sort.join(", ")}, pass them to the 'exclude' argument to #{__method__}"
                 end
 
@@ -289,7 +289,7 @@ module Syskit
                 tasks = plan.compute_useful_tasks(Array(roots))
                 task_contexts = tasks.find_all { |t| t.kind_of?(Syskit::TaskContext) }
                                      .each do |task_context|
-                    if !task_context.plan
+                    unless task_context.plan
                         raise ProfileAssertionFailed.new(actions, nil), "#{task_context} got garbage-collected before it got configured"
                     end
                 end

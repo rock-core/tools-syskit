@@ -7,7 +7,7 @@ module Syskit
             def profile(name = nil, &block)
                 return super if name
 
-                if !@profile
+                unless @profile
                     @profile = super("Profile") { self }
                     setup_main_profile(@profile)
                 end
@@ -37,7 +37,7 @@ module Syskit
             # An action library that is created and included on-the-fly to
             # support the actions derived from {#profile}
             def profile_library
-                if !@profile_library
+                unless @profile_library
                     @profile_library = Roby::Actions::Library.new_submodel
                     use_library @profile_library
                 end
@@ -93,7 +93,7 @@ module Syskit
             # @return [void]
             def use_profile(used_profile = nil, tag_selection = {}, transform_names: ->(name) { name })
                 if block_given?
-                    if !tag_selection.empty?
+                    unless tag_selection.empty?
                         raise ArgumentError, "cannot provide a tag selection when defining a new anonymous profile"
                     end
 

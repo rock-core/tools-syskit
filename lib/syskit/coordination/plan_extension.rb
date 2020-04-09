@@ -52,7 +52,7 @@ module Syskit
                 table_record = AttachedDataMonitoringTable.new table_m, arguments, Set.new, {}
                 queries.each do |query|
                     trigger = add_trigger(query) do |task|
-                        if !table_record.instances.has_key?(task)
+                        unless table_record.instances.has_key?(task)
                             task.when_finalized do |t|
                                 table_record.instances.delete(task)
                             end

@@ -75,7 +75,7 @@ module Syskit
             current_graph, @concrete_connection_graph = @concrete_connection_graph, nil
             graph = ConcreteConnectionGraph.new
             each_vertex do |task|
-                next if !task.kind_of?(Syskit::TaskContext)
+                next unless task.kind_of?(Syskit::TaskContext)
 
                 task_to_task = {}
                 each_concrete_in_connection(task) do |source_task, source_port, sink_port, policy|
@@ -128,7 +128,7 @@ module Syskit
         ConnectionInPath = Struct.new :source_task, :source_port, :sink_task, :sink_port, :policy
 
         def each_concrete_in_path(task, port = nil)
-            return enum_for(__method__, task, port) if !block_given?
+            return enum_for(__method__, task, port) unless block_given?
 
             each_in_connection(task, port) do |source_task, source_port, sink_port, policy|
                 connection = ConnectionInPath.new(source_task, source_port, task, sink_port, policy)
@@ -153,7 +153,7 @@ module Syskit
         end
 
         def each_concrete_out_path(task, port = nil)
-            return enum_for(__method__, task, port) if !block_given?
+            return enum_for(__method__, task, port) unless block_given?
 
             each_out_connection(task, port) do |source_port, sink_port, sink_task, policy|
                 connection = ConnectionInPath.new(task, source_port, sink_task, sink_port, policy)
@@ -199,7 +199,7 @@ module Syskit
         # @see each_input_connection each_concrete_output_connection
         #   each_output_connection
         def each_concrete_in_connection(task, port = nil)
-            return enum_for(__method__, task, port) if !block_given?
+            return enum_for(__method__, task, port) unless block_given?
 
             if concrete_connection_graph
                 return concrete_connection_graph.each_in_connection(task, port, &proc)
@@ -237,7 +237,7 @@ module Syskit
         # @see each_concrete_input_connection each_input_connection
         #   each_output_connection
         def each_concrete_out_connection(task, port = nil)
-            return enum_for(__method__, task, port) if !block_given?
+            return enum_for(__method__, task, port) unless block_given?
 
             if concrete_connection_graph
                 return concrete_connection_graph.each_out_connection(task, port, &proc)
@@ -264,7 +264,7 @@ module Syskit
             #
             # Raises ArgumentError if no such port can ever exist on +self+
             def ensure_has_output_port(name)
-                if !model.find_output_port(name)
+                unless model.find_output_port(name)
                     raise NotOutputPort, "#{self} has no output port called #{name}"
                 end
             end
@@ -274,7 +274,7 @@ module Syskit
             #
             # Raises ArgumentError if no such port can ever exist on +self+
             def ensure_has_input_port(name)
-                if !model.find_input_port(name)
+                unless model.find_input_port(name)
                     raise NotInputPort, "#{self} has no input port called #{name}"
                 end
             end
@@ -449,7 +449,7 @@ module Syskit
                 logger = Runtime::ConnectionManagement
                 each_concrete_input_connection do |source_task, source_port, sink_port, policy|
                     # Our source may not be initialized at all
-                    if !source_task.orocos_task
+                    unless source_task.orocos_task
                         logger.debug do
                             logger.debug "missing input connection because the source task is not ready on port #{sink_port} of"
                             logger.log_pp :debug, self
@@ -470,7 +470,7 @@ module Syskit
                         ActualDataFlow.edge_info(source_task.orocos_task, orocos_task)
                                       .has_key?([source_port, sink_port])
 
-                    if !is_connected
+                    unless is_connected
                         logger.debug do
                             logger.debug "missing input connection on port #{sink_port} of"
                             logger.log_pp :debug, self

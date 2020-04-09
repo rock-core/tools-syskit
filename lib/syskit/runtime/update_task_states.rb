@@ -34,11 +34,11 @@ module Syskit
                 end
 
                 if schedule && t.pending? && !t.setup? && !t.setting_up?
-                    next if !t.meets_configurationg_precedence_constraints?
+                    next unless t.meets_configurationg_precedence_constraints?
 
                     t.freeze_delayed_arguments
                     if t.will_never_setup?
-                        if !t.kill_execution_agent_if_alone
+                        unless t.kill_execution_agent_if_alone
                             t.failed_to_start!(
                                 Roby::CommandFailed.new(
                                     InternalError.exception("#{t} reports that it cannot be configured (FATAL_ERROR ?)"),

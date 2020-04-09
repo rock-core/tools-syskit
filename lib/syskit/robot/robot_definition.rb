@@ -242,7 +242,7 @@ module Syskit
                 result = DependencyInjection.new
                 device_model_to_instance = {}
                 devices.each_value do |instance|
-                    if !device_model_to_instance.delete(instance.device_model)
+                    unless device_model_to_instance.delete(instance.device_model)
                         device_model_to_instance[instance.device_model] = instance
                     end
                 end

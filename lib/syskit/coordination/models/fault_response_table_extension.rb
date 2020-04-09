@@ -22,7 +22,7 @@ module Syskit
                 #
                 # @return [Model<Coordination::DataMonitoringTable>]
                 def data_monitoring_table(&block)
-                    if !@embedded_table
+                    unless @embedded_table
                         table = Syskit::Coordination::DataMonitoringTable.new_submodel(&block)
                         arguments = {}
                         each_argument do |_, arg|

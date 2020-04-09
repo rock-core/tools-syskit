@@ -11,7 +11,7 @@ module Syskit
                         reader.to_orocos_port
                     end
                 end
-                if !reader.respond_to?(:read_new)
+                unless reader.respond_to?(:read_new)
                     if reader.respond_to?(:reader)
                         reader = Orocos.allow_blocking_calls do
                             reader.reader

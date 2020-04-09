@@ -103,7 +103,7 @@ module Syskit
             # (i.e. strings)
             def compute_connection_changes(tasks)
                 not_running = tasks.find_all { |t| !t.orocos_task }
-                if !not_running.empty?
+                unless not_running.empty?
                     debug do
                         debug "not computing connections because the deployment of the following tasks is not yet ready"
                         tasks.each do |t|
@@ -154,15 +154,15 @@ module Syskit
                         end
                     end
                     old_mapping.each_key do |ports|
-                        if !new_mapping.has_key?(ports)
+                        unless new_mapping.has_key?(ports)
                             removed_connections << ports
                         end
                     end
 
-                    if !new_connections.empty?
+                    unless new_connections.empty?
                         new[[source_task, sink_task]] = new_connections
                     end
-                    if !removed_connections.empty?
+                    unless removed_connections.empty?
                         removed[[source_task.orocos_task, sink_task.orocos_task]] = removed_connections
                     end
                 end
@@ -185,12 +185,12 @@ module Syskit
             def removed_connections_require_network_update?(connections)
                 unneeded_tasks = nil
                 handle_modified_task = lambda do |orocos_task|
-                    if !(syskit_task = find_setup_syskit_task_context_from_orocos_task(orocos_task))
+                    unless (syskit_task = find_setup_syskit_task_context_from_orocos_task(orocos_task))
                         return false
                     end
 
                     unneeded_tasks ||= plan.unneeded_tasks
-                    if !unneeded_tasks.include?(syskit_task)
+                    unless unneeded_tasks.include?(syskit_task)
                         return true
                     end
                 end
@@ -241,7 +241,7 @@ module Syskit
                                 (port_cache[[from_task, from_port]] ||= from_task.raw_port(from_port))
                             to_orocos_port   =
                                 (port_cache[[to_task, to_port]] ||= to_task.raw_port(to_port))
-                            if !from_orocos_port.disconnect_from(to_orocos_port)
+                            unless from_orocos_port.disconnect_from(to_orocos_port)
                                 warn "while disconnecting #{from_task}:#{from_port} => #{to_task}:#{to_port} returned false"
                                 warn "I assume that the ports are disconnected, but this should not have happened"
                             end
@@ -350,7 +350,7 @@ module Syskit
                 performed_connections, failed_connections = perform_connections(actual_connections)
                 post_connect_success(performed_connections)
                 post_connect_failure(failed_connections)
-                new.map { |(_, to_task), mappings| to_task if !to_task.executable? }
+                new.map { |(_, to_task), mappings| to_task unless to_task.executable? }
                    .compact
             end
 
@@ -544,7 +544,7 @@ module Syskit
                         end
                     end
 
-                    if !hold.empty?
+                    unless hold.empty?
                         debug do
                             debug "holding #{hold.size} connections from "
                             log_pp :debug, from_task
@@ -566,7 +566,7 @@ module Syskit
                         additions_held[[from_task, to_task]] = Hash[hold]
                     end
 
-                    if !ready.empty?
+                    unless ready.empty?
                         debug do
                             debug "ready on #{from_task} => #{to_task}"
                             ready.each do |(from_port, to_port), policy|
@@ -597,7 +597,7 @@ module Syskit
                     modified_tasks.merge apply_connection_additions(early_additions)
                 end
 
-                if !additions_held.empty?
+                unless additions_held.empty?
                     mark_connected_pending_tasks_as_executable(modified_tasks)
                     additions = additions_held.merge(late_additions) { |key, mappings1, mappings2| mappings1.merge(mappings2) }
                     return additions, late_removal
@@ -664,7 +664,7 @@ module Syskit
                     tasks.reject(&:executable?)
                 )
 
-                if !tasks.empty?
+                unless tasks.empty?
                     if dataflow_graph.pending_changes
                         dataflow_graph.pending_changes.first.each do |t|
                             tasks << t if active_task?(t)
@@ -696,7 +696,7 @@ module Syskit
                 end
 
                 dangling = dangling_task_cleanup
-                if !dangling.empty?
+                unless dangling.empty?
                     dataflow_graph.pending_changes ||= [[], {}, {}]
                     dataflow_graph.pending_changes[2].merge!(dangling) do |k, m0, m1|
                         m0.merge(m1)

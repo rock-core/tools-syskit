@@ -15,7 +15,7 @@ module Syskit
             end
 
             def ===(exception)
-                return false if !super
+                return false unless super
 
                 exception.monitor.model == monitor
             end

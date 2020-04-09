@@ -156,7 +156,7 @@ module Syskit
             #   change
             # @param [String] color the color to use for this state
             def update_state(state, text: state.to_s, color: color_from_state(state))
-                return if !color
+                return unless color
 
                 update_style(color)
                 update_text(text)

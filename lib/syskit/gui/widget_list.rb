@@ -92,7 +92,7 @@ module Syskit
 
             # Enumerate the widgets in the list
             def each_widget
-                return enum_for(__method__) if !block_given?
+                return enum_for(__method__) unless block_given?
 
                 @widgets.each do |item|
                     yield(item.widget)

@@ -158,7 +158,7 @@ module Syskit
                     app.import_types_from name
                 end
 
-                if !app.permanent_requirements.empty?
+                unless app.permanent_requirements.empty?
                     toplevel_object.extend SingleFileDSL
                     app.execution_engine.once do
                         app.permanent_requirements.each do |req|
@@ -187,7 +187,7 @@ module Syskit
             # Hook called by the main application to undo what {.prepare} did
             def self.shutdown(app)
                 remaining = Orocos.each_process.to_a
-                if !remaining.empty?
+                unless remaining.empty?
                     Syskit.warn "killing remaining Orocos processes: #{remaining.map(&:name).join(", ")}"
                     Orocos::Process.kill(remaining)
                 end
@@ -199,7 +199,7 @@ module Syskit
             end
 
             def default_loader
-                if !@default_loader
+                unless @default_loader
                     @default_loader = Orocos.default_loader
                     default_loader.on_project_load do |project|
                         project_define_from_orogen(project)
@@ -312,7 +312,7 @@ module Syskit
             def load_component_extension(name)
                 # If we are loading under Roby, get the plugins for the orogen
                 # project
-                return if !Syskit.conf.load_component_extensions?
+                return unless Syskit.conf.load_component_extensions?
 
                 file = find_file('models', 'orogen', "#{name}.rb", order: :specific_first) ||
                     find_file('tasks', 'orogen', "#{name}.rb", order: :specific_first) ||
@@ -402,7 +402,7 @@ module Syskit
                 needs_reconfiguration = []
                 running_needs_reconfiguration = []
                 TaskContext.each_submodel do |model|
-                    next if !model.concrete_model?
+                    next unless model.concrete_model?
 
                     changed_sections = model.configuration_manager.reload
                     plan.find_tasks(Deployment).each do |deployment_task|
@@ -420,7 +420,7 @@ module Syskit
                     end
                 end
 
-                if !running_needs_reconfiguration.empty?
+                unless running_needs_reconfiguration.empty?
                     notify 'syskit', 'INFO', "#{running_needs_reconfiguration.size} running tasks configuration changed. In the shell, use 'redeploy' to trigger reconfiguration."
                 end
                 ui_event 'syskit_orogen_config_reloaded', needs_reconfiguration,
@@ -536,7 +536,7 @@ module Syskit
                     raise ArgumentError, "there is already a process server called 'localhost' running"
                 end
 
-                if !File.exist?(Roby.app.log_dir)
+                unless File.exist?(Roby.app.log_dir)
                     FileUtils.mkdir_p(Roby.app.log_dir)
                 end
 
@@ -560,7 +560,7 @@ module Syskit
             end
 
             def self.connect_to_local_process_server(app)
-                if !@server_pid
+                unless @server_pid
                     raise Orocos::RemoteProcesses::Client::StartupFailed, "#connect_to_local_process_server got called but no process server is being started"
                 end
 
@@ -578,7 +578,7 @@ module Syskit
                                     false
                                 end
 
-                            if !is_running
+                            unless is_running
                                 raise Orocos::RemoteProcesses::Client::StartupFailed, "the local process server failed to start"
                             end
 
@@ -600,7 +600,7 @@ module Syskit
             # Stop the process server started by start_local_process_server if
             # one is running
             def self.stop_local_process_server
-                return if !has_local_process_server?
+                return unless has_local_process_server?
 
                 ::Process.kill('INT', @server_pid)
                 begin

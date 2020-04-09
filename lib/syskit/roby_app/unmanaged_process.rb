@@ -143,7 +143,7 @@ module Syskit
             #
             # Helper method to kill a thread
             def terminate_and_join_thread(thread)
-                return if !thread.alive?
+                return unless thread.alive?
 
                 thread.raise TerminateThread
                 begin

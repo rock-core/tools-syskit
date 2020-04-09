@@ -62,9 +62,9 @@ module Syskit
                 # Called to know whether this predicate matched or not
                 # @return [Boolean]
                 def finalize
-                    return if !has_new_sample?
+                    return unless has_new_sample?
 
-                    if !@full
+                    unless @full
                         return if samples.compact.size != samples.size
 
                         @full = true
@@ -79,7 +79,7 @@ module Syskit
 
                 def method_missing(m, *args)
                     if arguments.has_key?(m)
-                        if !args.empty?
+                        unless args.empty?
                             raise ArgumentError, "#{args.size} provided to #{m}, zero expected"
                         end
 

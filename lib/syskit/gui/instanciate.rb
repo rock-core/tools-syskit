@@ -95,7 +95,7 @@ module Syskit
                         current << name
                     end
                 end
-                if !current.empty?
+                unless current.empty?
                     passes << current
                 end
                 passes

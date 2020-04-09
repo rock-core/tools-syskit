@@ -808,10 +808,10 @@ module Syskit
                 end
 
                 def make_syskit_task_map(source_state, sink_state)
-                    source_state = if !source_state.nil?
+                    source_state = unless source_state.nil?
                                        flexmock(running?: source_state)
                                    end
-                    sink_state = if !sink_state.nil?
+                    sink_state = unless sink_state.nil?
                                      flexmock(running?: sink_state)
                                  end
                     map = flexmock

@@ -18,7 +18,7 @@ module Syskit
                     from_fault_response_table |= tbl.data_monitoring_tables.to_set
                 end
                 data_monitoring_tables.each do |tbl|
-                    if !from_fault_response_table.include?(tbl)
+                    unless from_fault_response_table.include?(tbl)
                         plan.use_data_monitoring_table tbl.model, tbl.arguments
                     end
                 end

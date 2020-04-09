@@ -20,7 +20,7 @@ require 'syskit/cli/main'
 # handled by thor
 if ARGV[0] == 'help'
     if (command_name = ARGV[1])
-        if !Syskit::CLI::Main.all_commands.has_key?(command_name)
+        unless Syskit::CLI::Main.all_commands.has_key?(command_name)
             ARGV.shift
             ARGV << '--help'
         end
