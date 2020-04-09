@@ -1651,14 +1651,6 @@ Style/ParallelAssignment:
     - 'test/test_deployment.rb'
     - 'test/test_task_context.rb'
 
-# Offense count: 2
-# Cop supports --auto-correct.
-# Configuration parameters: AllowSafeAssignment, AllowInMultilineConditions.
-Style/ParenthesesAroundCondition:
-  Exclude:
-    - 'bin/syskit'
-    - 'lib/syskit/robot/robot_definition.rb'
-
 # Offense count: 15
 # Cop supports --auto-correct.
 # Configuration parameters: PreferredDelimiters.

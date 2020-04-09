@@ -154,7 +154,7 @@ module Syskit
                 end
 
                 # Verify that the provided device model matches what we expect
-                unless (device_model < options[:expected_model])
+                unless device_model < options[:expected_model]
                     raise ArgumentError, "#{device_model} is not a "\
                                          "#{options[:expected_model].short_name}"
                 end

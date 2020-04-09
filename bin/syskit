@@ -4,7 +4,7 @@
 # so this makes sure that the Roby app is based on the handler's expected state
 trap('INT', 'DEFAULT')
 
-if (ENV['SYSKIT_USE_ROCK_BUNDLES'] != '0')
+if ENV['SYSKIT_USE_ROCK_BUNDLES'] != '0'
     require 'rock/bundle'
 
     # The logs are public by default in bundles, but are private by default in Roby
