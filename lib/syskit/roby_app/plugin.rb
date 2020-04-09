@@ -566,7 +566,7 @@ module Syskit
 
                 # Wait for the server to be ready
                 client = nil
-                while !client
+                until client
                     client =
                         begin Orocos::RemoteProcesses::Client.new('localhost', @server_port)
                         rescue Errno::ECONNREFUSED

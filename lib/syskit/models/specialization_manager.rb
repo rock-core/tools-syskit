@@ -516,7 +516,7 @@ module Syskit
 
                     # Now, add new elements for what is left
                     merged, all = nil
-                    while !remaining.empty?
+                    until remaining.empty?
                         unless merged
                             merged = CompositionSpecialization.new
                             merged.merge(s0)

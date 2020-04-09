@@ -1622,20 +1622,6 @@ Style/MutableConstant:
     - 'lib/syskit/scripts/common.rb'
     - 'lib/syskit/version.rb'
 
-# Offense count: 10
-# Cop supports --auto-correct.
-Style/NegatedWhile:
-  Exclude:
-    - 'lib/syskit/gui/widget_list.rb'
-    - 'lib/syskit/models/specialization_manager.rb'
-    - 'lib/syskit/network_generation/dataflow_computation.rb'
-    - 'lib/syskit/network_generation/merge_solver.rb'
-    - 'lib/syskit/remote_state_getter.rb'
-    - 'lib/syskit/roby_app/plugin.rb'
-    - 'lib/syskit/roby_app/unmanaged_process.rb'
-    - 'lib/syskit/scripts/autodetect_interfaces.rb'
-    - 'test/ros/test_task_context.rb'
-
 # Offense count: 2
 # Cop supports --auto-correct.
 # Configuration parameters: AllowedMethods.

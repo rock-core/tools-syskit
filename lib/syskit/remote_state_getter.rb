@@ -63,7 +63,7 @@ module Syskit
             # the synchronization section to ensure that {#wait} can check for
             # exit_condition being set and set the latch only if it is not
             last_state = nil
-            while !exit_condition.set?
+            until exit_condition.set?
                 if latch = sync_latch.value
                     latch.count_down
                 end

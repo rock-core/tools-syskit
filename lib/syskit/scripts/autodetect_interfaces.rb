@@ -17,7 +17,7 @@ end
 layout = Hash.new { |h, k| h[k] = [] }
 
 tasks = TaskContext.each_submodel.to_a
-while !tasks.empty?
+until tasks.empty?
     result = []
 
     task = tasks.find do |t|

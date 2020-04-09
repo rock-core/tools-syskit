@@ -8,7 +8,7 @@ describe Syskit::ROS::Node do
         # should start the node /rosout
         @pid = Orocos::ROS.roscore
         Orocos::ROS.spec_search_directories << File.join(File.dirname(__FILE__), "orogen")
-        while not Orocos::ROS.rosnode_running?("rosout")
+        until Orocos::ROS.rosnode_running?("rosout")
             sleep 1
         end
 

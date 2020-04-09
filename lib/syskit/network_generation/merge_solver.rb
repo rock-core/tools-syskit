@@ -277,7 +277,7 @@ module Syskit
                 end.reverse
 
                 invalid_merges.clear
-                while !queue.empty?
+                until queue.empty?
                     task = queue.shift
                     # 'task' could have been merged already, ignore it
                     next unless task.plan
@@ -390,7 +390,7 @@ module Syskit
                     degrees[task] = d
                 end
 
-                while !queue.empty?
+                until queue.empty?
                     task = queue.shift
                     if task.kind_of?(Syskit::Composition)
                         topsort << task

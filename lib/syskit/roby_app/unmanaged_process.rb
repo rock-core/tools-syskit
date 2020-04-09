@@ -168,7 +168,7 @@ module Syskit
             #
             # @param [Float] period polling period in seconds
             def monitor(period: 0.1)
-                while !quitting?
+                until quitting?
                     deployed_tasks.each_value do |task|
                         begin task.ping
                         rescue Orocos::ComError

@@ -212,7 +212,7 @@ module Syskit
                 debug ""
                 debug "== Propagation"
                 remaining_tasks = tasks.dup
-                while !missing_ports.empty?
+                until missing_ports.empty?
                     remaining_tasks = remaining_tasks
                                       .sort_by { |t| triggering_dependencies[t].size }
 

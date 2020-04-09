@@ -109,7 +109,7 @@ module Syskit
                 separators = @separators.values
 
                 kept_widgets = []
-                while !@widgets.empty?
+                until @widgets.empty?
                     w = @widgets.last
                     if !separators.include?(w.widget) && !w.permanent? && filter[w.widget]
                         @main_layout.remove_widget(w.widget)
