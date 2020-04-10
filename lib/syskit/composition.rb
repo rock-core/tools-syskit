@@ -133,21 +133,6 @@ module Syskit
             end
         end
 
-        # Finds the corresponding syskit port
-        # @param [String] the name of the port that should be found
-        # @return [Syskit::Port] the actuar orocos port with the given name
-        # @raises [ArgumentError] if the port does not exist
-        def port_by_name(name)
-            p = find_input_port(name) || find_output_port(name)
-            unless p
-                known_ports = each_port.map(&:name).sort.join(', ')
-                raise ArgumentError, "#{self} has no port called #{name}, known "\
-                                        "ports are: #{known_ports}"
-            end
-
-            p
-        end
-
         # Returns a child from its role, as the composition model tells we
         # should see it
         #

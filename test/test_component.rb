@@ -608,10 +608,417 @@ describe Syskit::Component do
 
             it "marks the underlying task as failed_to_start! if the setup raises" do
                 expect_execution { task.setup.execute }.to do
-                    fail_to_start task,
-                        reason: Roby::EmissionFailed.match.
-                            with_original_exception(error_m)
+                    fail_to_start(
+                        task,
+                        reason: Roby::EmissionFailed
+                                .match
+                                .with_original_exception(error_m)
+                    )
                 end
+            end
+        end
+    end
+
+    describe "model-level data readers" do
+        before do
+            @support_task_m = Syskit::TaskContext.new_submodel
+            @task_m = Syskit::TaskContext.new_submodel do
+                input_port "in", "/double"
+                output_port "out", "/double"
+            end
+        end
+
+        it "creates a bound accessor and attaches it on start" do
+            @support_task_m.data_reader @task_m.match.out_port, as: "test"
+            support_task = syskit_stub_and_deploy(@support_task_m)
+            task = syskit_stub_and_deploy(@task_m)
+            reader = support_task.test_reader
+            assert_equal Syskit::DynamicPortBinding::BoundOutputReader,
+                         reader.class
+
+            syskit_configure_and_start(support_task)
+            assert reader.valid?
+            assert_equal task.out_port, reader.resolved_accessor.port
+        end
+
+        it "updates it at runtime" do
+            @support_task_m.data_reader @task_m.match.running.out_port, as: "test"
+            support_task = syskit_stub_deploy_configure_and_start(@support_task_m)
+            task = syskit_stub_deploy_configure_and_start(@task_m)
+
+            reader = support_task.test_reader
+            expect_execution.to { achieve { reader.connected? } }
+
+            syskit_stop(task)
+            task = syskit_stub_deploy_configure_and_start(@task_m)
+            expect_execution.to { achieve { reader.connected? } }
+            assert_equal task.out_port, reader.resolved_accessor.port
+        end
+    end
+
+    describe "#data_reader" do
+        before do
+            @task_m = Syskit::TaskContext.new_submodel do
+                input_port "in", "/double"
+                output_port "out", "/double"
+            end
+            flexmock(Syskit::DynamicPortBinding::BoundOutputReader)
+
+            @task = syskit_stub_deploy_and_configure(@task_m)
+        end
+
+        describe "without a given accessor name" do
+            it "creates an unbound accessor" do
+                reader = @task.data_reader(@task_m.out_port)
+                assert_equal Syskit::DynamicPortBinding::OutputReader, reader.class
+                reader.attach_to_task(@task)
+                reader.update
+                assert_equal @task.out_port, reader.resolved_accessor.port
+            end
+
+            it "creates the reader with the specified policy" do
+                reader = @task.data_reader(@task_m.out_port, type: :buffer, size: 20)
+                assert_equal({ pull: true, type: :buffer, size: 20 },
+                             reader.policy)
+            end
+
+            it "sets 'pull' to true by default" do
+                reader = @task.data_reader(@task_m.out_port)
+                assert reader.policy[:pull]
+            end
+
+            it "lets the caller override 'pull'" do
+                reader = @task.data_reader(@task_m.out_port, pull: false)
+                refute reader.policy[:pull]
+            end
+        end
+
+        describe "when given a name" do
+            it "creates a bound accessor" do
+                writer = @task.data_reader(@task_m.out_port, as: "test")
+                assert_equal Syskit::DynamicPortBinding::BoundOutputReader, writer.class
+                writer.attach
+                writer.update
+                assert_equal @task.out_port, writer.resolved_accessor.port
+            end
+
+            it "makes the bound accessor accessible through the _reader accessors" do
+                reader = @task.data_reader(@task_m.out_port, as: "test")
+                assert_same reader, @task.test_reader
+            end
+
+            it "creates the accessor with the specified policy" do
+                reader = @task.data_reader(@task_m.out_port, type: :buffer, size: 20)
+                assert_equal({ pull: true, type: :buffer, size: 20 },
+                             reader.policy)
+            end
+
+            it "sets 'pull' to true by default" do
+                reader = @task.data_reader(@task_m.out_port)
+                assert reader.policy[:pull]
+            end
+
+            it "lets the caller override 'pull'" do
+                reader = @task.data_reader(@task_m.out_port, pull: false)
+                refute reader.policy[:pull]
+            end
+        end
+
+        it "raises if the port is an output port" do
+            e = assert_raises(ArgumentError) do
+                @task.data_reader(@task_m.in_port)
+            end
+            assert_equal "expected #{@task_m.in_port} to be an output port", e.message
+        end
+
+        it "does not attach and update the port writer if the task is not running" do
+            Syskit::DynamicPortBinding::BoundOutputReader
+                .new_instances.should_receive(:attach_to_task).never
+            Syskit::DynamicPortBinding::BoundOutputReader
+                .new_instances.should_receive(:update).never
+            @task.data_reader(@task_m.out_port, as: "test")
+        end
+
+        it "attaches created writers on start" do
+            writer = @task.data_reader(@task_m.out_port, as: "test")
+            flexmock(writer).should_receive(:attach_to_task).with(@task).once
+            flexmock(writer).should_receive(:update).at_least.once
+            syskit_start(@task)
+        end
+
+        it "attaches and updates the port writer if the task is already running" do
+            syskit_start(@task)
+            Syskit::DynamicPortBinding::BoundOutputReader
+                .new_instances.should_receive(:attach_to_task).with(@task).once
+            Syskit::DynamicPortBinding::BoundOutputReader
+                .new_instances.should_receive(:update).once
+            @task.data_reader(@task_m.out_port, as: "test")
+        end
+
+        it "disconnects the port writer on stop" do
+            writer = @task.data_reader(@task_m.out_port, as: "test")
+            syskit_start(@task)
+            flexmock(writer).should_receive(:disconnect).once
+            syskit_stop(@task)
+        end
+
+        describe "deprecated string-based arguments" do
+            before do
+                @task = syskit_stub_and_deploy(@task_m)
+            end
+
+            it "rejects a non-nil 'as' option" do
+                e = assert_raises(ArgumentError) do
+                    @task.data_reader("out", as: "test")
+                end
+                assert_equal "cannot provide the 'as' option to the deprecated "\
+                             "string-based call to #data_reader", e.message
+            end
+
+            it "creates a reader on one of the component's ports" do
+                writer = @task.data_reader("out")
+                assert_kind_of Syskit::OutputReader, writer
+                assert_equal @task.out_port, writer.port
+            end
+
+            it "resolves port mapping if accessing a composition's child" do
+                srv_m = Syskit::DataService.new_submodel do
+                    output_port "srv_out", "/double"
+                end
+                cmp_m = Syskit::Composition.new_submodel
+                @task_m.provides srv_m, as: "test"
+                cmp_m.add srv_m, as: "test"
+
+                cmp = syskit_stub_and_deploy(cmp_m.use("test" => @task_m))
+
+                writer = cmp.data_reader("test", "srv_out")
+                assert_equal cmp.test_child.out_port, writer.port
+            end
+
+            it "falls back to Roby's notion of role if accessing children "\
+               "from a non-composition" do
+                parent_task = syskit_stub_and_deploy(@task_m)
+                parent_task.depends_on @task, role: "test"
+
+                writer = parent_task.data_reader("test", "out")
+                assert_equal @task.out_port, writer.port
+            end
+
+            it "passes the connection policy" do
+                policy = { type: :buffer, size: 20 }
+                reader = @task.data_reader("out", **policy)
+                assert_equal({ pull: true }.merge(policy), reader.policy)
+            end
+
+            it "disconnects the port on task stop" do
+                syskit_configure_and_start(@task)
+                writer = @task.data_reader("out")
+                flexmock(writer).should_receive(:disconnect).once.pass_thru
+                syskit_stop(@task)
+            end
+
+            it "raises if the given port is an input port" do
+                e = assert_raises(ArgumentError) { @task.data_reader("in") }
+                assert_equal "#{@task}.in is an input port, expected an output port",
+                             e.message
+            end
+
+            it "raises if the given port does not exist" do
+                e = assert_raises(ArgumentError) { @task.data_reader("does_not_exist") }
+                assert_equal "'does_not_exist' is not a port of #{@task}. Known "\
+                             "ports are: in, out, state", e.message
+            end
+        end
+    end
+
+    describe "model-level data writers" do
+        before do
+            @support_task_m = Syskit::TaskContext.new_submodel
+            @task_m = Syskit::TaskContext.new_submodel do
+                input_port "in", "/double"
+                output_port "out", "/double"
+            end
+        end
+
+        it "creates a bound accessor and attaches it on start" do
+            @support_task_m.data_writer @task_m.match.in_port, as: "test"
+            support_task = syskit_stub_and_deploy(@support_task_m)
+            task = syskit_stub_and_deploy(@task_m)
+            reader = support_task.test_writer
+            assert_equal Syskit::DynamicPortBinding::BoundInputWriter,
+                         reader.class
+
+            syskit_configure_and_start(support_task)
+            assert reader.valid?
+            assert_equal task.in_port, reader.resolved_accessor.port
+        end
+
+        it "updates it at runtime" do
+            @support_task_m.data_writer @task_m.match.running.in_port, as: "test"
+            support_task = syskit_stub_deploy_configure_and_start(@support_task_m)
+            task = syskit_stub_deploy_configure_and_start(@task_m)
+
+            writer = support_task.test_writer
+            expect_execution.to { achieve { writer.connected? } }
+
+            syskit_stop(task)
+            task = syskit_stub_deploy_configure_and_start(@task_m)
+            expect_execution.to { achieve { writer.connected? } }
+            assert_equal task.in_port, writer.resolved_accessor.port
+        end
+    end
+
+    describe "#data_writer" do
+        before do
+            @task_m = Syskit::TaskContext.new_submodel do
+                input_port "in", "/double"
+                output_port "out", "/double"
+            end
+            flexmock(Syskit::DynamicPortBinding::BoundInputWriter)
+
+            @task = syskit_stub_deploy_and_configure(@task_m)
+        end
+
+        describe "without a given accessor name" do
+            it "creates an unbound accessor" do
+                writer = @task.data_writer(@task_m.in_port)
+                assert_equal Syskit::DynamicPortBinding::InputWriter, writer.class
+                writer.attach_to_task(@task)
+                writer.update
+                assert_equal @task.in_port, writer.resolved_accessor.port
+            end
+
+            it "creates the reader with the specified policy" do
+                writer = @task.data_writer(@task_m.in_port, type: :buffer, size: 20)
+                assert_equal({ type: :buffer, size: 20 },
+                             writer.policy)
+            end
+        end
+
+        describe "when given a name" do
+            it "creates a bound accessor" do
+                writer = @task.data_writer(@task_m.in_port, as: "test")
+                assert_equal Syskit::DynamicPortBinding::BoundInputWriter, writer.class
+                writer.attach
+                writer.update
+                assert_equal @task.in_port, writer.resolved_accessor.port
+            end
+
+            it "makes the bound accessor accessible through the _writer accessors" do
+                writer = @task.data_writer(@task_m.in_port, as: "test")
+                assert_same writer, @task.test_writer
+            end
+
+            it "creates the writer with the specified policy" do
+                writer = @task.data_writer(
+                    @task_m.in_port, type: :buffer, size: 20, as: "test"
+                )
+                assert_equal({ type: :buffer, size: 20 }, writer.policy)
+            end
+        end
+
+        it "raises if the port is an output port" do
+            assert_raises(ArgumentError) do
+                @task.data_writer(@task_m.out_port)
+            end
+        end
+
+        it "does not attach and update the port writer if the task is not running" do
+            Syskit::DynamicPortBinding::BoundInputWriter
+                .new_instances.should_receive(:attach_to_task).never
+            Syskit::DynamicPortBinding::BoundInputWriter
+                .new_instances.should_receive(:update).never
+            @task.data_writer(@task_m.in_port, as: "test")
+        end
+
+        it "attaches created writers on start" do
+            writer = @task.data_writer(@task_m.in_port, as: "test")
+            flexmock(writer).should_receive(:attach_to_task).with(@task).once
+            flexmock(writer).should_receive(:update).at_least.once
+            syskit_start(@task)
+        end
+
+        it "attaches and updates the port writer if the task is already running" do
+            syskit_start(@task)
+            Syskit::DynamicPortBinding::BoundInputWriter
+                .new_instances.should_receive(:attach_to_task).with(@task).once
+            Syskit::DynamicPortBinding::BoundInputWriter
+                .new_instances.should_receive(:update).once
+            @task.data_writer(@task_m.in_port, as: "test")
+        end
+
+        it "disconnects the port writer on stop" do
+            writer = @task.data_writer(@task_m.in_port, as: "test")
+            syskit_start(@task)
+            flexmock(writer).should_receive(:disconnect).once
+            syskit_stop(@task)
+        end
+
+        describe "deprecated string-based arguments" do
+            before do
+                @task = syskit_stub_and_deploy(@task_m)
+            end
+
+            it "rejects a non-nil 'as' option" do
+                e = assert_raises(ArgumentError) do
+                    @task.data_writer("in", as: "test")
+                end
+                assert_equal "cannot provide the 'as' option to the deprecated "\
+                             "string-based call to #data_writer", e.message
+            end
+
+            it "creates a reader on one of the component's ports" do
+                writer = @task.data_writer("in")
+                assert_kind_of Syskit::InputWriter, writer
+                assert_equal @task.in_port, writer.port
+            end
+
+            it "resolves port mapping if accessing a composition's child" do
+                srv_m = Syskit::DataService.new_submodel do
+                    input_port "srv_in", "/double"
+                end
+                cmp_m = Syskit::Composition.new_submodel
+                @task_m.provides srv_m, as: "test"
+                cmp_m.add srv_m, as: "test"
+
+                cmp = syskit_stub_and_deploy(cmp_m.use("test" => @task_m))
+
+                writer = cmp.data_writer("test", "srv_in")
+                assert_equal cmp.test_child.in_port, writer.port
+            end
+
+            it "falls back to Roby's notion of role if accessing children "\
+               "from a non-composition" do
+                parent_task = syskit_stub_and_deploy(@task_m)
+                parent_task.depends_on @task, role: "test"
+
+                writer = parent_task.data_writer("test", "in")
+                assert_equal @task.in_port, writer.port
+            end
+
+            it "passes the connection policy" do
+                policy = { type: :buffer, size: 20 }
+                reader = @task.data_writer("in", **policy)
+                assert_equal policy, reader.policy
+            end
+
+            it "disconnects the port on task stop" do
+                syskit_configure_and_start(@task)
+                writer = @task.data_writer("in")
+                flexmock(writer).should_receive(:disconnect).once.pass_thru
+                syskit_stop(@task)
+            end
+
+            it "raises if the given port is an output port" do
+                e = assert_raises(ArgumentError) { @task.data_writer("out") }
+                assert_equal "#{@task}.out is an output port, expected an input "\
+                             "port", e.message
+            end
+
+            it "raises if the given port does not exist" do
+                e = assert_raises(ArgumentError) { @task.data_writer("does_not_exist") }
+                assert_equal "'does_not_exist' is not a port of #{@task}. Known "\
+                             "ports are: in, out, state", e.message
             end
         end
     end
@@ -773,72 +1180,5 @@ class TC_Component < Minitest::Test
         merging_task.merge(merged_task)
         assert_equal([[model], {id: 'test'}],
                      merging_task.fullfilled_model)
-    end
-
-    def test_data_reader_creates_reader_on_associated_port
-        task = flexmock(Syskit::Component.new)
-        port = flexmock
-        port.should_receive(:reader).once.and_return(expected = Object.new)
-        task.should_receive(:find_output_port).once.with('out').and_return(port)
-        assert_same expected, task.data_reader('out')
-    end
-
-    def test_data_reader_passes_policy
-        task = flexmock(Syskit::Component.new)
-        port = flexmock
-        policy = Hash[pull: true, type: :buffer, size: 20]
-        port.should_receive(:reader).once.with(policy)
-        task.should_receive(:find_output_port).once.with('out').and_return(port)
-        task.data_reader('out', policy)
-    end
-
-    def test_data_reader_raises_if_the_output_port_does_not_exist
-        task = flexmock(Syskit::Component.new)
-        task.should_receive(:find_output_port).with('does_not_exist').and_return(nil)
-        assert_raises(ArgumentError) { task.data_reader('does_not_exist') }
-    end
-
-    def test_data_reader_creates_reader_using_pull_by_default
-        task = flexmock(Syskit::Component.new)
-        port = flexmock
-        port.should_receive(:reader).
-            once.with(pull: true, type: :buffer, size: 20)
-        task.should_receive(:find_output_port).
-            once.with('out').and_return(port)
-        task.data_reader('out', type: :buffer, size: 20)
-    end
-
-    def test_data_reader_allows_to_override_pull_flag
-        task = flexmock(Syskit::Component.new)
-        port = flexmock
-        port.should_receive(:reader).
-            once.with(pull: false, type: :buffer, size: 20)
-        task.should_receive(:find_output_port).
-            once.with('out').and_return(port)
-        task.data_reader('out', type: :buffer, size: 20, pull: false)
-    end
-
-    def test_data_writer_creates_writer_on_associated_port
-        task = flexmock(Syskit::Component.new)
-        port = flexmock
-        port.should_receive(:writer).once.and_return(expected = Object.new)
-        task.should_receive(:find_input_port).once.with('in').and_return(port)
-        assert_same expected, task.data_writer('in')
-    end
-
-    def test_data_writer_passes_policy
-        task = flexmock(Syskit::Component.new)
-        port = flexmock
-        policy = Hash[type: :buffer, size: 20]
-        port.should_receive(:writer).once.with(policy)
-        task.should_receive(:find_input_port).once.with('in').and_return(port)
-        task.data_writer('in', policy)
-    end
-
-    def test_data_writer_raises_if_the_port_does_not_exist
-        task = flexmock(Syskit::Component.new)
-        port = flexmock
-        task.should_receive(:find_input_port).once.with('in')
-        assert_raises(ArgumentError) { task.data_writer('in') }
     end
 end

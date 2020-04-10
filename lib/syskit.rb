@@ -38,7 +38,7 @@ require 'syskit/models/bound_data_service'
 require 'syskit/models/bound_dynamic_data_service'
 require 'syskit/models/composition_specialization'
 require 'syskit/models/composition'
-require 'syskit/models/dynamic_data_source'
+require "syskit/models/dynamic_port_binding"
 require 'syskit/models/task_context'
 require 'syskit/models/ruby_task_context'
 require 'syskit/models/deployment'
@@ -60,7 +60,7 @@ require 'syskit/ruby_task_context'
 require 'syskit/remote_state_getter'
 require 'syskit/deployment'
 require 'syskit/bound_data_service'
-require 'syskit/dynamic_data_source'
+require "syskit/dynamic_port_binding"
 
 # Queries
 require 'syskit/queries/abstract_component_base'

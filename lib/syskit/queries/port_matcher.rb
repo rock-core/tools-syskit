@@ -10,6 +10,22 @@ module Syskit
                 @type_filter = nil
             end
 
+            # Resolves the port direction if possible
+            #
+            # @return [nil,:input,:output]
+            def try_resolve_direction
+                return unless @name_filter.respond_to?(:to_str)
+
+                begin
+                    port = @component_matcher.find_port_by_name(@name_filter)
+                    return unless port
+                rescue Ambiguous
+                    return
+                end
+
+                port.output? ? :output : :input
+            end
+
             # Resolves the port type if possible
             #
             # @return [nil,Class<Typelib::Type>]

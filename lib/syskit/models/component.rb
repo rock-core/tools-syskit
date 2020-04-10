@@ -1124,37 +1124,87 @@ module Syskit
                 Queries::ComponentMatcher.new.with_model(self)
             end
 
-            # The data services defined on this task, as a mapping from the data
-            # service full name to the BoundDataService object.
+            # The data writers defined on this task, as a mapping from the writer's
+            # registered name to the {DynamicPortBinding::BoundOutputReader} object.
             #
             # @key_name full_name
-            # @return [Hash<String,BoundDataService>]
-            inherited_attribute(:data_source, :data_sources, map: true) do
+            # @return [Hash<String,DynamicPortBinding::BoundOutputReader>]
+            inherited_attribute(:data_reader, :data_readers, map: true) do
                 {}
             end
 
-            # Define a data source with the lifetime of this component
+            # Define an output reader managed by this component
             #
-            # The data source model will be available with a `_src` suffix on the
-            # component model. The data source instance will be also available with
-            # the same suffix on the component instance.
-            def data_source(port, as:)
-                data_sources[as] = DynamicDataSource.create(port)
+            # Define a data reader that will be handled automatically by the Component
+            # object. The reader will be made available through a `#{as}_reader`
+            # accessor
+            #
+            # The port definition may either be a port of this component, a port
+            # of a component child or a {Queries::PortMatcher} to dynamically bind
+            # to ports in the plan based on e.g. data type or service type
+            #
+            # @example create a data reader for a composition child
+            #    data_reader some_child.out_port, as: 'pose'
+            #
+            # @return [DynamicPortBinding::BoundOutputReader]
+            def data_reader(port, as:)
+                port = DynamicPortBinding.create(port)
+                unless port.output?
+                    raise ArgumentError,
+                          "expected an output port, but #{port} seems to be an input"
+                end
+
+                data_readers[as] = port.to_bound_data_accessor(as, self)
             end
 
-            def has_through_method_missing?(m) # rubocop:disable Naming/PredicateName
+            # The data writers defined on this task, as a mapping from the writer's
+            # registered name to the {DynamicPortBinding::BoundInputWriter} object.
+            #
+            # @key_name full_name
+            # @return [Hash<String,DynamicPortBinding::BoundInputWriter>]
+            inherited_attribute(:data_writer, :data_writers, map: true) do
+                {}
+            end
+
+            # Define an input writer managed by this component
+            #
+            # Define a writer that will be handled automatically by the Component
+            # object. The writer will be made available through a `#{as}_writer`
+            # accessor
+            #
+            # The port definition may either be a port of this component, a port
+            # of a component child or a {Queries::PortMatcher} to dynamically bind
+            # to ports in the plan based on e.g. data type or service type
+            #
+            # @example create a data reader for a composition child
+            #    data_reader some_child.cmd_in_port, as: 'cmd_in'
+            #
+            # @return [DynamicPortBinding::BoundInputWriter]
+            def data_writer(port, as:)
+                port = DynamicPortBinding.create(port)
+                if port.output?
+                    raise ArgumentError,
+                          "expected an input port, but #{port} seems to be an output"
+                end
+
+                data_writers[as] = port.to_bound_data_accessor(as, self)
+            end
+
+            def has_through_method_missing?(name)
                 MetaRuby::DSLs.has_through_method_missing?(
-                    self, m,
-                    '_srv' => :find_data_service,
-                    '_src' => :find_data_source
+                    self, name,
+                    "_srv" => :find_data_service,
+                    "_reader" => :find_data_reader,
+                    "_writer" => :find_data_writer
                 ) || super
             end
 
-            def find_through_method_missing(m, args)
+            def find_through_method_missing(name, args)
                 MetaRuby::DSLs.find_through_method_missing(
-                    self, m, args,
-                    '_srv' => :find_data_service,
-                    '_src' => :find_data_source
+                    self, name, args,
+                    "_srv" => :find_data_service,
+                    "_reader" => :find_data_reader,
+                    "_writer" => :find_data_writer
                 ) || super
             end
 

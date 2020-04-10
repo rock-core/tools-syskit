@@ -4,6 +4,9 @@ module Syskit
     module PortAccess
         # Returns the port object that maps to the given name, or nil if it
         # does not exist.
+        #
+        # @parma [String] name
+        # @return [Syskit::Port,nil]
         def find_port(name)
             name = name.to_str
             find_output_port(name) || find_input_port(name)
@@ -12,6 +15,20 @@ module Syskit
         def has_port?(name)
             name = name.to_str
             has_input_port?(name) || has_output_port?(name)
+        end
+
+        # Finds the port that has the given name
+        #
+        # @param [String] name the name of the port
+        # @return [Syskit::Port] the port
+        # @raises [ArgumentError] if the port does not exist
+        def port_by_name(name)
+            p = find_port(name)
+            return p if p
+
+            known_ports = each_port.map(&:name).sort.join(", ")
+            raise ArgumentError,
+                  "'#{name}' is not a port of #{self}. Known ports are: #{known_ports}"
         end
 
         # Returns the output port with the given name, or nil if it does not

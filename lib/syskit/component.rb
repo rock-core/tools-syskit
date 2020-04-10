@@ -52,6 +52,13 @@ module Syskit
             def initialize(**arguments)
                 super
                 @requirements = InstanceRequirements.new
+
+                @registered_data_writers =
+                    instanciate_data_accessors(model.each_data_writer)
+                @registered_data_readers =
+                    instanciate_data_accessors(model.each_data_reader)
+                @data_readers = @registered_data_readers.values
+                @data_writers = @registered_data_writers.values
             end
 
             def initialize_copy(source)
@@ -65,6 +72,17 @@ module Syskit
                 new_task = super
                 new_task.robot = robot
                 new_task
+            end
+
+            # @api private
+            #
+            # Creates the internal instanciated objects from the model-level data
+            # accessors created with {Models::Component#data_reader} and
+            # {Models::Component#data_writer}
+            def instanciate_data_accessors(accessors)
+                accessors.each_with_object({}) do |(name, object), h|
+                    h[name] = object.instanciate(self)
+                end
             end
 
             # Whether this component instance is a placeholder for an abstract
@@ -384,109 +402,273 @@ module Syskit
                 end
             end
 
-            # The set of data readers created with #data_reader. Used to disconnect
-            # them when the task stops
-            attribute(:data_readers) { [] }
+            # The set of data readers created with the string-based form of
+            # {#data_reader}. Used to disconnect them when the task stops
+            attr_reader :data_readers
 
-            # The set of data writers created with #data_writer. Used to disconnect
-            # them when the task stops
-            attribute(:data_writers) { [] }
+            # The set of data writers created with the string-based form of
+            # {#data_writer}. Used to disconnect them when the task stops
+            attr_reader :data_writers
 
-            # Common implementation of port search for #data_reader and
-            # #data_writer
-            def data_accessor(*args) # :nodoc:
-                policy = {}
-                policy = args.pop if args.last.respond_to?(:to_hash)
+            # @api private
+            #
+            # Common implementation of port search for {#data_reader_by_role_path}
+            # and {#data_writer_by_role_path}
+            def data_accessor_resolve_port_from_role_path(*role_path, port_name)
+                return port_by_name(port_name) if role_path.empty?
 
-                port_name = args.pop
-                if !args.empty?
-                    role_path = args
-                    parent = resolve_role_path(role_path[0..-2])
-                    task   = parent.child_from_role(role_path.last)
-                    if parent.respond_to?(:map_child_port)
-                        port_name = parent.map_child_port(role_path.last, port_name)
+                component = role_path.inject(self) do |model, role|
+                    if model.respond_to?(:required_composition_child_from_role)
+                        model.required_composition_child_from_role(role)
+                    else
+                        model.child_from_role(role)
                     end
-                else
-                    task = self
                 end
 
-                [task, port_name, policy]
+                component.port_by_name(port_name)
             end
 
-            # call-seq:
-            #   data_writer 'port_name'[, policy]
-            #   data_writer 'role_name', 'port_name'[, policy]
+            # @api private
+            # @deprecated use {Models::Component#data_writer} or the object-based call
+            #   to {#data_writer}
             #
-            # Returns a data writer that allows to read the specified port
+            # Internal implementation of the deprecated string-based call to {#data_writer}
             #
-            # In the first case, the returned writer is applied to a port on +self+.
-            # In the second case, it is a port of the specified child. In both
-            # cases, an optional connection policy can be specified as
+            # Resolve a data writer by its name, possibly prefixing it with a role
+            # path (a list of child names to the component that holds the port). If
+            # the task is a composition, the method will attempt to map the port name
+            # from the model's child (e.g. a service) to the actual component.
             #
-            #   data_writer('pose', 'pose_samples', :type => :buffer, :size => 1)
-            #
-            # A pull policy is taken by default, as to avoid impacting the
-            # components.
-            #
-            # The writer is automatically disconnected when the task quits
-            def data_writer(*args)
-                task, port_name, policy = data_accessor(*args)
+            # @return [InputWriter]
+            def data_writer_by_role_path(*role_path, port_name, **policy)
+                port = data_accessor_resolve_port_from_role_path(
+                    *role_path, port_name
+                )
+                if port.output?
+                    raise ArgumentError,
+                          "#{port} is an output port, expected an input port"
+                end
 
-                port = task.find_input_port(port_name)
-                raise ArgumentError, "#{task} has no input port #{port_name}" unless port
-
-                result = port.writer(policy)
+                result = port.writer(**policy)
                 data_writers << result
                 result
             end
 
-            # call-seq:
-            #   data_reader 'port_name'[, policy]
-            #   data_reader 'role_name', 'port_name'[, policy]
+            # @api private
             #
-            # Returns a data reader that allows to read the specified port
-            #
-            # In the first case, the returned reader is applied to a port on +self+.
-            # In the second case, it is a port of the specified child. In both
-            # cases, an optional connection policy can be specified as
-            #
-            #   data_reader('pose', 'pose_samples', :type => :buffer, :size => 1)
-            #
-            # A pull policy is taken by default, as to avoid impacting the
-            # components.
-            #
-            # The reader is automatically disconnected when the task quits
-            def data_reader(*args)
-                task, port_name, policy = data_accessor(*args)
-                policy, other_policy = Kernel.filter_options policy, { pull: true }
-                policy.merge!(other_policy)
+            # Internal implementation of {#data_reader} and {#data_writer}
+            def create_data_accessor(port, output:, as: nil, **policy)
+                port_binding =
+                    Models::DynamicPortBinding
+                    .create(port)
+                    .instanciate
 
-                port = task.find_output_port(port_name)
-                raise ArgumentError, "#{task} has no output port #{port_name}" unless port
+                if output ^ port_binding.output?
+                    direction = output ? "output" : "input"
+                    raise ArgumentError,
+                          "expected #{port} to be an #{direction} port"
+                end
 
-                result = port.reader(policy)
+                accessor =
+                    if as
+                        port_binding.to_bound_data_accessor(as, self, **policy)
+                    else
+                        port_binding.to_data_accessor(**policy)
+                    end
+
+                if running?
+                    accessor.attach
+                    accessor.update
+                end
+                accessor
+            end
+
+            # Set of {DynamicPortBinding::BoundInputWriter} registered on self
+            #
+            # They are added on creation from {Models::Component#data_writers}, or
+            # through {#data_writer}
+            #
+            # @return [{String=>DynamicPortBinding::BoundInputWriter}]
+            attr_reader :registered_data_writers
+
+            # Returns the {DynamicPortBinding::BoundInputWriter} with the given name if one
+            # exists
+            #
+            # @return [DynamicPortBinding::BoundInputWriter,nil]
+            def find_registered_data_writer(name)
+                @registered_data_writers[name.to_str]
+            end
+
+            # Dynamically creates a {DynamicPortBinding::InputWriter} managed
+            # by this component
+            #
+            # This is the dynamic version of {Models::Component#data_writer}.
+            #
+            # @param port one of this component's port, a composition child's port,
+            #   or a {Queries::PortMatcher}. In the latter case, the port will be
+            #   dynamically resolved at runtime within the plan this component is
+            #   part of
+            # @param [String] as the name under which this writer should be registered.
+            #   Registered data writers can be accessed through a `#{name}_writer`
+            #   accessor.
+            #
+            # @example
+            #   # create an object that will dynamically bind and write to
+            #   # the watchdog input port of a hypothetical running WatchdogUI
+            #   # service
+            #   data_writer Services::WatchdogUI.match.running.watchdog_port,
+            #               as: 'watchdog'
+            #
+            #   # From now on, the writer is available through the watchdog_writer
+            #   # accessor
+            #   watchdog_writer.write(sample)
+            #
+            # @overload data_writer(port_name, **policy)
+            #   @deprecated string-based form. See {#data_writer_by_role_path} for
+            #       more information
+            def data_writer(port, *args, as: nil, **policy)
+                if port.respond_to?(:to_str)
+                    if as
+                        raise ArgumentError,
+                              "cannot provide the 'as' option to the deprecated "\
+                              "string-based call to #data_writer"
+                    end
+
+                    return data_writer_by_role_path(port, *args, **policy)
+                end
+
+                writer = create_data_accessor(port, output: false, as: as, **policy)
+                @data_writers << writer
+                @registered_data_writers[as] = writer
+            end
+
+            # Set of {DynamicPortBinding::BoundOutputReader} registered on self
+            #
+            # They are added on creation from {Models::Component#data_readers}, or
+            # through {#data_reader}
+            #
+            # @return [{String=>DynamicPortBinding::BoundOutputReader}]
+            attr_reader :registered_data_readers
+
+            # Returns the {DynamicPortBinding::BoundOutputReader} with the
+            # given name if one exists
+            #
+            # @return [DynamicPortBinding::BoundOutputReader,nil]
+            def find_registered_data_reader(name)
+                @registered_data_readers[name.to_str]
+            end
+
+            # @api private
+            # @deprecated use {Models::Component#data_reader} or the object-based call
+            #   to {#data_reader}
+            #
+            # Internal implementation of the deprecated string-based call to
+            # {#data_reader}
+            #
+            # Resolve a data reader by its name, possibly prefixing it with a role
+            # path (a list of child names to the component that holds the port). If
+            # the task is a composition, the method will attempt to map the port name
+            # from the model's child (e.g. a service) to the actual component.
+            #
+            # @return [OutputReader]
+            def data_reader_by_role_path(*role_path, port_name, **policy)
+                port = data_accessor_resolve_port_from_role_path(*role_path, port_name)
+                unless port.output?
+                    raise ArgumentError,
+                          "#{port} is an input port, expected an output port"
+                end
+
+                result = port.reader(**policy)
                 data_readers << result
                 result
             end
 
+            # Dynamically creates a {DynamicPortBinding::OutputReader} managed
+            # by this component
+            #
+            # This is the dynamic version of {Models::Component#data_reader}.
+            #
+            # @param port one of this component's port, a composition child's port,
+            #   or a {Queries::PortMatcher}. In the latter case, the port will be
+            #   dynamically resolved at runtime within the plan this component is
+            #   part of
+            #
+            # @example
+            #   # create an object that will dynamically bind and read from
+            #   # the position output port of a hypothetical running ReferencePosition
+            #   # service
+            #   data_writer Services::ReferencePosition.match.running.position_port,
+            #               as: 'position'
+            #
+            #   # From now on, the writer is available through the watchdog_writer
+            #   # accessor
+            #   position_port.read_new
+            #
+            # @overload data_reader(port_name, **policy)
+            #   @deprecated string-based form. See {#data_reader_by_role_path} for
+            #       more information
+            def data_reader(port, *args, as: nil, pull: true, **policy)
+                if port.respond_to?(:to_str)
+                    if as
+                        raise ArgumentError,
+                              "cannot provide the 'as' option to the deprecated "\
+                              "string-based call to #data_reader"
+                    end
+
+                    return data_reader_by_role_path(port, *args, pull: pull, **policy)
+                end
+
+                reader = create_data_accessor(
+                    port, output: true, as: as, pull: pull, **policy
+                )
+                @data_readers << reader
+                @registered_data_readers[as] = reader
+            end
+
+            on :start do |_event|
+                @data_readers.each do |reader|
+                    if reader.kind_of?(DynamicPortBinding::OutputReader)
+                        reader.attach_to_task(self)
+                        reader.update
+                    end
+                end
+                @data_writers.each do |writer|
+                    if writer.kind_of?(DynamicPortBinding::InputWriter)
+                        writer.attach_to_task(self)
+                        writer.update
+                    end
+                end
+            end
+
+            poll do
+                @data_readers.each do |reader|
+                    reader.update if reader.respond_to?(:update)
+                end
+                @data_writers.each do |writer|
+                    writer.update if writer.respond_to?(:update)
+                end
+            end
+
             on :stop do |_event|
-                data_writers.each do |writer|
-                    writer.disconnect if writer.connected?
-                end
-                data_readers.each do |reader|
-                    reader.disconnect if reader.connected?
-                end
+                @data_writers.each(&:disconnect)
+                @data_readers.each(&:disconnect)
             end
 
             def has_through_method_missing?(m)
                 MetaRuby::DSLs.has_through_method_missing?(
-                    self, m, '_srv' => :has_data_service?
+                    self, m,
+                    "_srv" => :has_data_service?,
+                    "_writer" => :find_registered_data_writer,
+                    "_reader" => :find_registered_data_reader
                 ) || super
             end
 
             def find_through_method_missing(m, args)
                 MetaRuby::DSLs.find_through_method_missing(
-                    self, m, args, '_srv' => :find_data_service
+                    self, m, args,
+                    "_srv" => :find_data_service,
+                    "_writer" => :find_registered_data_writer,
+                    "_reader" => :find_registered_data_reader
                 ) || super
             end
 
@@ -557,7 +739,7 @@ module Syskit
             #
             # @param (see Models::Component#require_dynamic_service)
             # @return [BoundDataService] the newly created service
-            def require_dynamic_service(dynamic_service_name, as: nil, **dyn_options)
+            def require_dynamic_service(dynamic_service_name, as:, **dyn_options)
                 specialize
                 bound_service = model.require_dynamic_service(
                     dynamic_service_name, as: as, **dyn_options
