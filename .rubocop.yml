@@ -3,6 +3,10 @@ inherit_from: .rubocop_todo.yml
 inherit_gem:
   rubocop-rock: defaults.yml
 
+inherit_mode:
+  merge:
+  - Exclude
+
 AllCops:
   TargetRubyVersion: "2.5"
 
@@ -26,6 +30,11 @@ Naming/FileName:
 # custom methods before re-enabling
 Lint/NestedMethodDefinition:
   Enabled: false
+
+Metrics/ModuleLength:
+  Exclude:
+    - '**/test/**/test_*.rb'
+    - '**/test/**/*_test.rb'
 
 Metrics/BlockLength:
   ExcludedMethods:

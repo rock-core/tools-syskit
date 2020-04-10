@@ -676,11 +676,6 @@ Metrics/ModuleLength:
     - 'lib/syskit/models/composition.rb'
     - 'lib/syskit/roby_app/plugin.rb'
     - 'lib/syskit/test/network_manipulation.rb'
-    - 'test/models/test_deployment_group.rb'
-    - 'test/network_generation/test_engine.rb'
-    - 'test/runtime/test_connection_management.rb'
-    - 'test/test_deployment.rb'
-    - 'test/test_task_context.rb'
 
 # Offense count: 24
 # Configuration parameters: Max, CountKeywordArgs.
