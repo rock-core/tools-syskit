@@ -157,7 +157,7 @@ module Syskit
         end
 
         # True if there is an explicit selection for the given name
-        def has_selection_for?(name) # rubocop:disable Naming/PredicateName
+        def has_selection_for?(name)
             direct_selection_for(name)
         end
 

@@ -995,7 +995,7 @@ module Syskit
                 aborted_event
                     .achieve_asynchronously(description: "aborting #{self}") do
                         begin orocos_task.stop(false)
-                        rescue StandardError # rubocop:disable Lint/HandleExceptions
+                        rescue StandardError
                         end
                     end
             else

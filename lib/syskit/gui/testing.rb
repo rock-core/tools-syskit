@@ -9,8 +9,6 @@ require "metaruby/gui"
 require "roby/gui/exception_view"
 require "syskit/gui/state_label"
 
-# rubocop:disable Naming/PredicateName
-
 module Syskit
     module GUI
         # GUI to interface with testing
@@ -767,5 +765,3 @@ module Syskit
         end
     end
 end
-
-# rubocop:enable Naming/PredicateName

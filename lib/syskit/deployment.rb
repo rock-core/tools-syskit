@@ -365,7 +365,7 @@ module Syskit
                         task(logger_name)
                         # Automatic setup by
                         # {NetworkGeneration::LoggerConfigurationSupport}
-                    rescue ArgumentError # rubocop:disable Lint/HandleExceptions
+                    rescue ArgumentError
                     end
 
                 @logger_task&.default_logger = true
@@ -706,7 +706,7 @@ module Syskit
                     remote_task_handles.each_value do |remote_task|
                         remote_task.state_getter.join
                     end
-                rescue Orocos::ComError # rubocop:disable Lint/HandleExceptions
+                rescue Orocos::ComError
                     # Assume that the process is killed as it is not reachable
                 end
             end.on_success(description: "#{self}#stop_event#command#dead!") do

@@ -80,7 +80,7 @@ module Syskit
 
             include MetaRuby::DSLs::FindThroughMethodMissing
 
-            def has_through_method_missing?(m) # rubocop:disable Naming/PredicateName
+            def has_through_method_missing?(m)
                 MetaRuby::DSLs.has_through_method_missing?(
                     self, m,
                     "_srv" => :data_service_by_name?,

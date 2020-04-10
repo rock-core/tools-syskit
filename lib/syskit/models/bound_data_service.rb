@@ -379,7 +379,7 @@ module Syskit
 
             extend InstanceRequirements::Auto
 
-            def has_data_service?(name) # rubocop:disable Naming/PredicateName
+            def has_data_service?(name)
                 component_model.each_slave_data_service(self) do |slave_m|
                     return true if slave_m.name == name
                 end
@@ -393,7 +393,7 @@ module Syskit
                 nil
             end
 
-            def has_through_method_missing?(m) # rubocop:disable Naming/PredicateName
+            def has_through_method_missing?(m)
                 MetaRuby::DSLs.has_through_method_missing?(
                     self, m, "_srv" => :has_data_service?
                 ) || super

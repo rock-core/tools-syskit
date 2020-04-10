@@ -8,7 +8,8 @@
 
 # Need to disable this until the corresponding cops have been fixed
 Lint/RedundantCopDisableDirective:
-  Enabled: false
+  Exclude:
+    - 'lib/syskit/gui/batch_manager.rb'
 
 # Offense count: 2077
 # Cop supports --auto-correct.
