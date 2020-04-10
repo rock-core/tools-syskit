@@ -260,36 +260,15 @@ module Syskit
                         argument :orocos_name
                         argument :conf
                     end
-                    @deployment_m = Roby::Task.new_submodel do
-                        attr_reader :tasks
-                        attr_reader :created_tasks
-
-                        def initialize(arguments = {})
-                            super
-                            @created_tasks = []
-                            @tasks = {}
-                        end
-
-                        event :ready
-
-                        define_method :task do |task_name, task_model = nil, record: true|
-                            task = task_m.new(orocos_name: task_name)
-                            if record
-                                @created_tasks << [task_name, task_model, task]
-                            end
-                            task.executed_by self
-                            task
-                        end
-                    end
 
                     @applied_merge_mappings = {}
-                    plan.add(existing_deployment_task = deployment_m.new)
+                    plan.add(existing_deployment_task = EngineTestStubDeployment.new(task_m))
                     @existing_deployment_task = work_plan[existing_deployment_task]
                     flexmock(syskit_engine.merge_solver)
                         .should_receive(:apply_merge_group)
                         .with(->(mappings) { applied_merge_mappings.merge!(mappings); true })
                         .pass_thru
-                    work_plan.add(@deployment_task = deployment_m.new)
+                    work_plan.add(@deployment_task = EngineTestStubDeployment.new(task_m))
                 end
 
                 it "creates a new deployed task if there is not one already" do
@@ -332,7 +311,7 @@ module Syskit
                         syskit_engine.adapt_existing_deployment(deployment_task, existing_deployment_task)
                         first_new_task = existing_deployment_task.created_tasks[0].last
 
-                        work_plan.add(deployment_task = deployment_m.new)
+                        work_plan.add(deployment_task = EngineTestStubDeployment.new(task_m))
                         task = deployment_task.task("test")
                         flexmock(task).should_receive(:can_be_deployed_by?)
                                       .with(first_new_task).and_return(false)
@@ -823,6 +802,29 @@ module Syskit
                         )
                     end
                 end
+            end
+        end
+
+        class EngineTestStubDeployment < Roby::Task
+            attr_reader :tasks
+            attr_reader :created_tasks
+
+            def initialize(task_m, **arguments)
+                super(**arguments)
+                @task_m = task_m
+                @created_tasks = []
+                @tasks = {}
+            end
+
+            event :ready
+
+            define_method :task do |task_name, task_model = nil, record: true|
+                task = @task_m.new(orocos_name: task_name)
+                if record
+                    @created_tasks << [task_name, task_model, task]
+                end
+                task.executed_by self
+                task
             end
         end
     end

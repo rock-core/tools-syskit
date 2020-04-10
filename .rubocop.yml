@@ -26,3 +26,8 @@ Naming/FileName:
 # custom methods before re-enabling
 Lint/NestedMethodDefinition:
   Enabled: false
+
+Metrics/BlockLength:
+  ExcludedMethods:
+      - describe
+      - it
