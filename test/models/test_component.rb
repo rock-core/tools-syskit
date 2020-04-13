@@ -97,7 +97,9 @@ describe Syskit::Models::Component do
                 input_port "in", stub_t
                 output_port "out", stub_t
             end
-            mappings = task_m.compute_port_mappings(srv_m, "in" => "other_in", "out" => "other_out")
+            mappings = task_m.compute_port_mappings(
+                srv_m, "in" => "other_in", "out" => "other_out"
+            )
             assert_equal Hash["out" => "other_out", "in" => "other_in"], mappings
         end
         it "maps service ports to task ports with using the explicit port mappings" do
@@ -112,7 +114,9 @@ describe Syskit::Models::Component do
                 input_port "in", stub_t
                 output_port "out", stub_t
             end
-            mappings = task_m.compute_port_mappings(srv_m, "out" => "other_out", "in" => "other_in")
+            mappings = task_m.compute_port_mappings(
+                srv_m, "out" => "other_out", "in" => "other_in"
+            )
             assert_equal Hash["out" => "other_out", "in" => "other_in"], mappings
         end
         it "raises if a port mapping leads to a port with the wrong direction" do
@@ -750,6 +754,8 @@ describe Syskit::Models::Component do
             slave_srv = component.provides service, as: "srv", slave_of: "root"
             assert_equal [slave_srv], root_srv.each_slave_data_service.to_a
             assert_same slave_srv, component.find_data_service("root.srv")
+            assert_equal "srv", slave_srv.name
+            assert_equal "root.srv", slave_srv.full_name
         end
 
         it "allows slave services to have the same name than a root service" do

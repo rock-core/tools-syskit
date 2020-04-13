@@ -31,6 +31,10 @@ module Syskit
                     Syskit.logger = Logger.new(null_io)
                     Syskit.logger.level = Logger::DEBUG
                     Syskit.logger.formatter = current_formatter
+                elsif (level = ENV["TEST_LOG_LEVEL"])
+                    Syskit.warn "running tests with logger in #{level} mode "\
+                                "(from TEST_LOG_LEVEL)"
+                    Syskit.logger.level = Logger.const_get(ENV["TEST_LOG_LEVEL"])
                 else
                     Syskit.warn "running tests with logger in FATAL mode"
                     Syskit.logger.level = Logger::FATAL + 1

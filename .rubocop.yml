@@ -6,6 +6,7 @@ inherit_gem:
 inherit_mode:
   merge:
   - Exclude
+  - AllowedNames
 
 AllCops:
   TargetRubyVersion: "2.5"
@@ -43,3 +44,7 @@ Metrics/BlockLength:
 
 Style/AccessModifierDeclarations:
   Enabled: false
+
+Naming/MethodParameterName:
+  AllowedNames:
+  - as
