@@ -391,7 +391,6 @@ module Syskit
         available_graph_annotations << "connection_policy"
 
         def policy_to_string(policy)
-            puts "to_s: #{policy}"
             if policy.empty?
                 "(no policy)"
             elsif policy[:type] == :data
