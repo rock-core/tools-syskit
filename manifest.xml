@@ -24,5 +24,6 @@
     <test_depend package="base/orogen/types" />
     <test_depend package="tools/logger" />
     <test_depend package="rack-test" />
+    <test_depend package="rubocop" />
 </package>
 
