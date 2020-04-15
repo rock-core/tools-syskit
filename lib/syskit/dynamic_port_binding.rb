@@ -323,7 +323,7 @@ module Syskit
             end
 
             def update
-                @port if @port.component.plan
+                @port if @port.component.to_task.plan
             end
 
             def self.instanciate(task, model)

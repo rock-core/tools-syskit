@@ -82,6 +82,37 @@ module Syskit
                     refute port_binding.output?
                 end
             end
+
+            describe "from a data service port" do
+                before do
+                    @srv_m = Syskit::DataService.new_submodel do
+                        input_port "srv_in", "/double"
+                        output_port "srv_out", "/double"
+                    end
+                    @cmp_m = Syskit::Composition.new_submodel
+                    @cmp_m.add @srv_m, as: "test"
+                    @port_binding =
+                        Models::DynamicPortBinding
+                        .create_from_component_port(@cmp_m.test_child.srv_out_port)
+                        .instanciate
+                end
+
+                it "reports the port type" do
+                    assert_equal @srv_m.srv_out_port.type, @port_binding.type
+                end
+
+                it "reports the port's output direction" do
+                    assert @port_binding.output?
+                end
+
+                it "reports the port's input direction" do
+                    port_binding =
+                        Models::DynamicPortBinding
+                        .create_from_component_port(@cmp_m.test_child.srv_in_port)
+                        .instanciate
+                    refute port_binding.output?
+                end
+            end
         end
 
         describe "#to_data_accessor" do
@@ -260,6 +291,67 @@ module Syskit
                "is still not finalized" do
                 @port_binding.update
                 assert_equal [false, @expected_port], @port_binding.update
+            end
+
+            it "returns [false, ni] the first time if the underlying component "\
+               "is already finalized" do
+                expect_execution { plan.unmark_mission_task(@cmp) }
+                    .garbage_collect(true)
+                    .to_run
+                assert_equal [false, nil], @port_binding.update
+            end
+
+            it "returns [false, ni] after a successful update if the underlying "\
+               "component is finalized" do
+                @port_binding.update
+                expect_execution { plan.unmark_mission_task(@cmp) }
+                    .garbage_collect(true)
+                    .to_run
+                assert_equal [true, nil], @port_binding.update
+                assert_equal [false, nil], @port_binding.update
+            end
+        end
+
+        describe "#update from a data service port" do
+            attr_reader :cmp, :ds
+
+            before do
+                srv_m = Syskit::DataService.new_submodel do
+                    output_port "srv_out", "/double"
+                end
+                task_m = Syskit::TaskContext.new_submodel do
+                    output_port "out", "/double"
+                end
+                task_m.provides srv_m, as: "test"
+                @cmp_m = Syskit::Composition.new_submodel do
+                    add srv_m, as: "test"
+                end
+
+                @cmp = syskit_stub_and_deploy(
+                    @cmp_m.use("test" => task_m),
+                    remote_task: false
+                )
+                @port_binding_m =
+                    Models::DynamicPortBinding
+                    .create_from_component_port(@cmp_m.test_child.srv_out_port)
+                @port_binding = @port_binding_m.instanciate.attach_to_task(@cmp)
+            end
+
+            it "returns [true, port] the first time if the underlying component "\
+               "is not finalized" do
+                updated, port = @port_binding.update
+                assert updated
+                assert_equal "srv_out", port.name
+                assert_equal @cmp.test_child.out_port, port.to_component_port
+            end
+
+            it "returns [false, port] the second time if the underlying component "\
+               "is still not finalized" do
+                @port_binding.update
+                updated, port = @port_binding.update
+                refute updated
+                assert_equal "srv_out", port.name
+                assert_equal @cmp.test_child.out_port, port.to_component_port
             end
 
             it "returns [false, ni] the first time if the underlying component "\
