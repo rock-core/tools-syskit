@@ -154,29 +154,48 @@ module Syskit
             # then allows to for instance resolve ports "as if" they were
             # from the service itself.
             #
-            # @param [Syskit::Component] component the component instance
+            # @param [Syskit::Component,Syskit::BoundDataService] component
+            #   the component instance
             # @return [Syskit::Component,Syskit::BoundDataService] the bound
             #   data service.
             # @raise if self cannot be bound to the component, usually because
             #   the component is not the "right" child from the composition
-            def bind(component)
-                compositions = component.each_parent_task.
-                    find_all { |t| t.fullfills?(composition_model) }
-                parent = compositions.
-                    find { |t| component == t.find_child_from_role(child_name) }
-
-                unless parent
-                    if compositions.empty?
-                        raise ArgumentError, "cannot bind #{self} to #{component}: "\
-                            "it is not the child of any #{composition_model} composition"
-                    else
-                        raise ArgumentError, "cannot bind #{self} to #{component}: "\
-                            "it is the child of one or more #{composition_model} compositions, "\
-                            "but not with the role '#{child_name}'"
-                    end
+            def bind(component_or_service)
+                case component_or_service
+                when Syskit::BoundDataService
+                    # We still got to make sure that the service is from the
+                    # "right" child, and that it is actually compatible with
+                    # the child model
+                    bind_resolve_parent(component_or_service.component)
+                    super(component_or_service)
+                else
+                    parent = bind_resolve_parent(component_or_service)
+                    resolve_and_bind_child(composition_model.bind(parent))
                 end
+            end
 
-                resolve_and_bind_child(composition_model.bind(parent))
+            def bind_resolve_parent(component)
+                compositions =
+                    component
+                    .each_parent_task
+                    .find_all { |t| t.fullfills?(composition_model) }
+
+                parent =
+                    compositions
+                    .find { |t| component == t.find_child_from_role(child_name) }
+
+                return parent if parent
+
+                if compositions.empty?
+                    raise ArgumentError,
+                          "cannot bind #{self} to #{component}: it is not the child "\
+                          "of any #{composition_model} composition"
+                else
+                    raise ArgumentError,
+                          "cannot bind #{self} to #{component}: it is the child of "\
+                          "one or more #{composition_model} compositions, but not "\
+                          "with the role '#{child_name}'"
+                end
             end
 
             # The port mappings from this child's parent model to this model
