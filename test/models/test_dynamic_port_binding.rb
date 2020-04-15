@@ -416,23 +416,31 @@ module Syskit
                         assert_equal 40, resolver.__resolve(v)
                     end
 
+                    it "returns a new resolver" do
+                        parent = @resolver.field
+                        transformed = parent.transform { |v| v * 2 }
+                        v = @type.new(field: 20)
+                        assert_equal 20, parent.__resolve(v)
+                        assert_equal 40, transformed.__resolve(v)
+                    end
+
                     it "raises if trying to add two transformations" do
                         @resolver.transform { |v| v * 2 }
                         e = assert_raises(ArgumentError) do
-                            @resolver.transform { |v| v * 2 }
+                            @resolver.transform { |v| v * 2 }.transform { |v| v + 2 }
                         end
                         assert_equal "this resolver already has a transform block",
                                      e.message
                     end
 
                     it "raises if trying to access a subfield after "\
-                    "a transform block is set" do
-                        @resolver.transform(&:field)
+                       "a transform block is set" do
+                        resolver = @resolver.transform(&:field)
                         e = assert_raises(ArgumentError) do
-                            @resolver.field
+                            resolver.field
                         end
-                        assert_equal "cannot refine a resolver once .transform "\
-                                    "has been called", e.message
+                        assert_equal "cannot refine a resolver on which "\
+                                     ".transform has been called", e.message
                     end
                 end
 

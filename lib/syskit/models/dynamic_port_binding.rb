@@ -255,11 +255,11 @@ module Syskit
             #
             # Object that resolves a field or sub-field out of a Typelib value
             class ValueResolver < BasicObject
-                def initialize(reader, type: reader.type, path: [])
+                def initialize(reader, type: reader.type, path: [], transform: nil)
                     @reader = reader
                     @path = path
                     @type = type
-                    @transform = nil
+                    @transform = transform
                 end
 
                 # The underlying reader
@@ -321,7 +321,7 @@ module Syskit
                     if @transform
                         ::Kernel.raise(
                             ::ArgumentError,
-                            "cannot refine a resolver once .transform has been called"
+                            "cannot refine a resolver on which .transform has been called"
                         )
                     end
                 end
@@ -378,8 +378,9 @@ module Syskit
                         ::Kernel.raise ::ArgumentError,
                                        "this resolver already has a transform block"
                     end
-                    @transform = block
-                    self
+                    ValueResolver.new(
+                        @reader, path: @path, type: @type, transform: block
+                    )
                 end
 
                 def instanciate
