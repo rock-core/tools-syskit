@@ -447,6 +447,10 @@ module Syskit
                 raise ArgumentError,
                       "#{port} is an output port, expected an input port"
             end
+
+            result = port.writer(**policy)
+            data_writers << result
+            result
         end
 
         # @api private
@@ -470,7 +474,6 @@ module Syskit
                 port_binding.to_data_accessor(**policy)
             end
         end
-
 
         # Set of {DynamicPortBinding::BoundInputWriter} registered on self
         #
@@ -519,8 +522,8 @@ module Syskit
             if port.respond_to?(:to_str)
                 if as
                     raise ArgumentError,
-                            "cannot provide the 'as' option to the deprecated "\
-                            "string-based call to #data_writer"
+                          "cannot provide the 'as' option to the deprecated "\
+                          "string-based call to #data_writer"
                 end
 
                 return data_writer_by_role_path(port, *args, **policy)
@@ -579,7 +582,7 @@ module Syskit
             port = data_accessor_resolve_port_from_role_path(*role_path, port_name)
             unless port.output?
                 raise ArgumentError,
-                        "#{port} is an input port, expected an output port"
+                      "#{port} is an input port, expected an output port"
             end
 
             result = port.reader(**policy)
@@ -615,8 +618,8 @@ module Syskit
             if port.respond_to?(:to_str)
                 if as
                     raise ArgumentError,
-                            "cannot provide the 'as' option to the deprecated "\
-                            "string-based call to #data_reader"
+                          "cannot provide the 'as' option to the deprecated "\
+                          "string-based call to #data_reader"
                 end
 
                 return data_reader_by_role_path(port, *args, pull: pull, **policy)
@@ -972,28 +975,28 @@ module Syskit
                 __getobj__.update_requirements(requirements)
                 __getobj__.duplicate_missing_services_from(self)
             end
+        end
 
-            # Definition of the interface expected for elements of {#data_readers}
-            # and {#data_writers}
+        # Definition of the interface expected for elements of {#data_readers}
+        # and {#data_writers}
+        #
+        # This is meant as documentation, in case you wish to implement your own
+        #
+        # You do *not* need to subclass this
+        class DataAccessorInterface
+            # Calls once at the beginning to identify the reader "attachment point"
             #
-            # This is meant as documentation, in case you wish to implement your own
+            # For some readers, the task's plan is what is being used. For
+            # others, task itself has meaning
+            def attach_to_task(task); end
+
+            # Calls once just after #attach_to_task, and then repeatedly
             #
-            # You do *not* need to subclass this
-            class DataAccessorInterface
-                # Calls once at the beginning to identify the reader "attachment point"
-                #
-                # For some readers, the task's plan is what is being used. For
-                # others, task itself has meaning
-                def attach_to_task(task); end
+            # This method should
+            def update; end
 
-                # Calls once just after #attach_to_task, and then repeatedly
-                #
-                # This method should
-                def update; end
-
-                # Called at the end to release resources
-                def disconnect; end
-            end
+            # Called at the end to release resources
+            def disconnect; end
         end
     end
 end
