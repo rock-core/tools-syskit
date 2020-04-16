@@ -82,7 +82,7 @@ module Syskit
 
             def each_in_plan_by_model(plan)
                 @component_matcher.each_in_plan(plan) do |task|
-                    task.each_data_service do |_, ds|
+                    task.each_data_service do |ds|
                         if ds.service_model.fullfills?(@model.first)
                             yield(ds.as(@model.first))
                         end
@@ -104,6 +104,23 @@ module Syskit
                     task.each_data_service do |_, ds|
                         yield(ds)
                     end
+                end
+            end
+
+            def respond_to_missing?(name, _)
+                if name.to_s.end_with?("_port")
+                    super
+                else
+                    @component_matcher.respond_to?(name)
+                end
+            end
+
+            def method_missing(name, *args) # rubocop:disable Style/MethodMissingSuper
+                if name.to_s.end_with?("_port")
+                    super
+                else
+                    @component_matcher.send(name, *args)
+                    self
                 end
             end
         end

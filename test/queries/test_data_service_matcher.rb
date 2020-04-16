@@ -22,18 +22,50 @@ module Syskit
                 assert_matcher_finds [task.test_srv], matcher
             end
 
-            it 'can be created from a bound data service model' do
-                plan.add(task = @task_m.new)
-                matcher = @task_m.test_srv.match
-                puts matcher.data_service_model
-                assert_equal @srv_m, matcher.data_service_model
-                assert_matcher_finds [task.test_srv], matcher
+            describe "from a bound data service model" do
+                it "can be created from a bound data service model" do
+                    plan.add(task = @task_m.new)
+                    matcher = @task_m.test_srv.match
+                    assert_equal @srv_m, matcher.data_service_model
+                    assert_matcher_finds [task.test_srv], matcher
+                end
+
+                it "gives access to mapped ports" do
+                    plan.add(task = @task_m.new)
+                    port_matcher = @task_m.test_srv.match.srv_out_port
+                    assert_matcher_finds [task.test_srv.srv_out_port], port_matcher
+                end
+
+                it "accepts task matcher predicates" do
+                    matcher = @task_m.test_srv.match.abstract
+                    plan.add(task = @task_m.new)
+                    assert_matcher_finds [], matcher
+                    task.abstract = true
+                    assert_matcher_finds [task.test_srv], matcher
+                end
             end
 
-            it 'gives access to mapped ports' do
-                plan.add(task = @task_m.new)
-                port_matcher = @task_m.test_srv.match.srv_out_port
-                assert_matcher_finds [task.test_srv.srv_out_port], port_matcher
+            describe "from a data service model" do
+                it "can be created from a data service model" do
+                    plan.add(task = @task_m.new)
+                    matcher = @srv_m.match
+                    assert_matcher_finds [task.test_srv], matcher
+                end
+
+                it "gives access to mapped ports" do
+                    plan.add(task = @task_m.new)
+                    port_matcher = @srv_m.match.srv_out_port
+                    assert_matcher_finds [task.test_srv.srv_out_port], port_matcher
+                end
+
+                it "accepts task matcher predicates when created "\
+                   "on a data service model" do
+                    matcher = @srv_m.match.abstract
+                    plan.add(task = @task_m.new)
+                    assert_matcher_finds [], matcher
+                    task.abstract = true
+                    assert_matcher_finds [task.test_srv], matcher
+                end
             end
 
             describe '#as' do
