@@ -469,18 +469,11 @@ module Syskit
                           "expected #{port} to be an #{direction} port"
                 end
 
-                accessor =
-                    if as
-                        port_binding.to_bound_data_accessor(as, self, **policy)
-                    else
-                        port_binding.to_data_accessor(**policy)
-                    end
-
-                if running?
-                    accessor.attach
-                    accessor.update
+                if as
+                    port_binding.to_bound_data_accessor(as, self, **policy)
+                else
+                    port_binding.to_data_accessor(**policy)
                 end
-                accessor
             end
 
             # Set of {DynamicPortBinding::BoundInputWriter} registered on self
@@ -538,8 +531,23 @@ module Syskit
                 end
 
                 writer = create_data_accessor(port, output: false, as: as, **policy)
+                register_data_writer(writer, as: as)
+                writer
+            end
+
+            # Register a data writer object compatible with {DataWriterInterface}
+            #
+            # @param [DataWriterInterface] reader
+            # @param [String] as if non-nil, register it as a named writer that
+            #    can be resolved through the _writer accessors and
+            #    {#find_registered_data_writer}
+            def register_data_writer(writer, as: nil)
                 @data_writers << writer
-                @registered_data_writers[as] = writer
+                @registered_data_writers[as] = writer if as
+                return unless running?
+
+                writer.attach_to_task(self)
+                writer.update
             end
 
             # Set of {DynamicPortBinding::BoundOutputReader} registered on self
@@ -621,22 +629,31 @@ module Syskit
                 reader = create_data_accessor(
                     port, output: true, as: as, pull: pull, **policy
                 )
+                register_data_reader(reader, as: as)
+                reader
+            end
+
+            # Register a data reader object compatible with {DataReaderInterface}
+            #
+            # @param [DataReaderInterface] reader
+            # @param [String] as if non-nil, register it as a named reader that
+            #    can be resolved through the _reader accessors and
+            #    {#find_registered_data_reader}
+            def register_data_reader(reader, as: nil)
                 @data_readers << reader
-                @registered_data_readers[as] = reader
+                @registered_data_readers[as] = reader if as
+                return unless running?
+
+                reader.attach_to_task(self)
+                reader.update
             end
 
             on :start do |_event|
                 @data_readers.each do |reader|
-                    if reader.kind_of?(DynamicPortBinding::OutputReader)
-                        reader.attach_to_task(self)
-                        reader.update
-                    end
+                    reader.attach_to_task(self) if reader.respond_to?(:attach_to_task)
                 end
                 @data_writers.each do |writer|
-                    if writer.kind_of?(DynamicPortBinding::InputWriter)
-                        writer.attach_to_task(self)
-                        writer.update
-                    end
+                    writer.attach_to_task(self) if writer.respond_to?(:attach_to_task)
                 end
             end
 
@@ -961,6 +978,28 @@ module Syskit
                     __getobj__.update_requirements(requirements)
                     __getobj__.duplicate_missing_services_from(self)
                 end
+            end
+
+            # Definition of the interface expected for elements of {#data_readers}
+            # and {#data_writers}
+            #
+            # This is meant as documentation, in case you wish to implement your own
+            #
+            # You do *not* need to subclass this
+            class DataAccessorInterface
+                # Calls once at the beginning to identify the reader "attachment point"
+                #
+                # For some readers, the task's plan is what is being used. For
+                # others, task itself has meaning
+                def attach_to_task(task); end
+
+                # Calls once just after #attach_to_task, and then repeatedly
+                #
+                # This method should
+                def update; end
+
+                # Called at the end to release resources
+                def disconnect; end
             end
         end
 end

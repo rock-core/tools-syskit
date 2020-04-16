@@ -656,6 +656,57 @@ describe Syskit::Component do
         end
     end
 
+    describe Syskit::Component::DataAccessorInterface do
+        before do
+            @reader = Syskit::Component::DataAccessorInterface.new
+            flexmock(@reader)
+            @writer = Syskit::Component::DataAccessorInterface.new
+            flexmock(@writer)
+
+            @task_m = Syskit::Component.new_submodel
+            @task = syskit_stub_deploy_and_configure(@task_m)
+        end
+
+        it "calls #attach_to_task and #update on start" do
+            @task.register_data_reader(@reader)
+            @task.register_data_writer(@writer)
+            syskit_configure(@task)
+            @reader.should_receive(:attach_to_task).with(@task).once
+            @reader.should_receive(:update).at_least.once
+            @writer.should_receive(:attach_to_task).with(@task).once
+            @writer.should_receive(:update).at_least.once
+            syskit_start(@task)
+        end
+
+        it "calls #attach_to_task and #update immediately if registered at runtime" do
+            syskit_start(@task)
+            @reader.should_receive(:attach_to_task).with(@task).once
+            @reader.should_receive(:update).once
+            @writer.should_receive(:attach_to_task).with(@task).once
+            @writer.should_receive(:update).once
+            @task.register_data_reader(@reader)
+            @task.register_data_writer(@writer)
+        end
+
+        it "calls #update at each cycle" do
+            @task.register_data_reader(@reader)
+            @task.register_data_writer(@writer)
+            syskit_start(@task)
+            @reader.should_receive(:update).at_least.times(10)
+            @writer.should_receive(:update).at_least.times(10)
+            10.times { execute_one_cycle }
+        end
+
+        it "calls #disconnect on stop" do
+            @task.register_data_reader(@reader)
+            @task.register_data_writer(@writer)
+            syskit_start(@task)
+            @reader.should_receive(:disconnect).once
+            @writer.should_receive(:disconnect).once
+            syskit_stop(@task)
+        end
+    end
+
     describe "#data_reader" do
         before do
             @task_m = Syskit::TaskContext.new_submodel do
