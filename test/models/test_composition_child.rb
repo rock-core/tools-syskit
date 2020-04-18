@@ -143,42 +143,68 @@ describe Syskit::Models::CompositionChild do
             @task_m = Syskit::TaskContext.new_submodel(name: "task_m")
             @task_m.provides @srv_m, as: 'test'
         end
-        it "resolves a direct parent" do
-            cmp = @cmp_m.use('test' => @task_m).instanciate(plan)
-            test_task = cmp.test_child
-            assert_equal test_task.test_srv, @cmp_m.test_child.bind(test_task)
-        end
-        it "resolves recursively" do
-            root_cmp_m = Syskit::Composition.new_submodel
-            root_cmp_m.add @cmp_m, as: 'root'
-            root_cmp = root_cmp_m.use('root.test' => @task_m).instanciate(plan)
-            test_task = root_cmp.root_child.test_child
-            assert_equal test_task.test_srv,
-                root_cmp_m.root_child.test_child.bind(test_task)
-        end
-        it "does not move up to parents that are not the expected compositions" do
-            plan.add(task = @task_m.new)
-            other_cmp_m = Syskit::Composition.new_submodel(name: "other_cmp_m")
-            plan.add(other_cmp = other_cmp_m.new)
-            other_cmp.depends_on task, role: 'test'
-            e = assert_raises(ArgumentError) do
-                @cmp_m.test_child.bind(task)
+
+        describe "when given a bound data service" do
+            it "resolves the service if given as-is" do
+                cmp = @cmp_m.use("test" => @task_m).instanciate(plan)
+                test_task = cmp.test_child
+                assert_equal test_task.test_srv,
+                             @cmp_m.test_child.bind(test_task.test_srv)
             end
-            assert_equal "cannot bind cmp_m.test_child["\
-                "Syskit::Models::Placeholder<srv_m>] to task_m:: "\
-                "it is not the child of any cmp_m composition",
-                e.message.gsub(/:0x.*:/, '::')
-        end
-        it "does not move up to parents when the role does not match" do
-            plan.add(task = @task_m.new)
-            plan.add(cmp = @cmp_m.new)
-            cmp.depends_on task, role: 'something_else'
-            e = assert_raises(ArgumentError) do
-                @cmp_m.test_child.bind(task)
+
+            it "rejects a different service from the right child" do
+                other_srv_m = Syskit::DataService.new_submodel
+                @task_m.provides other_srv_m, as: "other"
+
+                cmp = @cmp_m.use("test" => @task_m).instanciate(plan)
+                e = assert_raises(ArgumentError) do
+                    @cmp_m.test_child.bind(cmp.test_child.other_srv)
+                end
+                assert_equal "cannot bind Syskit::Models::Placeholder<srv_m> to "\
+                             "#<BoundDataService: task_m:0x.other>",
+                             e.message.gsub(/0x[0-9a-f]+/, "0x")
             end
-            assert_equal "cannot bind cmp_m.test_child[Syskit::Models::Placeholder<srv_m>] to task_m:: "\
-                "it is the child of one or more cmp_m compositions, "\
-                "but not with the role 'test'", e.message.gsub(/:0x.*:/, '::')
+        end
+
+        describe "when given a component" do
+            it "resolves a direct parent" do
+                cmp = @cmp_m.use('test' => @task_m).instanciate(plan)
+                test_task = cmp.test_child
+                assert_equal test_task.test_srv, @cmp_m.test_child.bind(test_task)
+            end
+            it "resolves recursively" do
+                root_cmp_m = Syskit::Composition.new_submodel
+                root_cmp_m.add @cmp_m, as: 'root'
+                root_cmp = root_cmp_m.use('root.test' => @task_m).instanciate(plan)
+                test_task = root_cmp.root_child.test_child
+                assert_equal test_task.test_srv,
+                    root_cmp_m.root_child.test_child.bind(test_task)
+            end
+            it "does not move up to parents that are not the expected compositions" do
+                plan.add(task = @task_m.new)
+                other_cmp_m = Syskit::Composition.new_submodel(name: "other_cmp_m")
+                plan.add(other_cmp = other_cmp_m.new)
+                other_cmp.depends_on task, role: 'test'
+                e = assert_raises(ArgumentError) do
+                    @cmp_m.test_child.bind(task)
+                end
+                assert_equal "cannot bind cmp_m.test_child["\
+                    "Syskit::Models::Placeholder<srv_m>] to task_m:: "\
+                    "it is not the child of any cmp_m composition",
+                    e.message.gsub(/:0x.*:/, '::')
+            end
+            it "does not move up to parents when the role does not match" do
+                plan.add(task = @task_m.new)
+                plan.add(cmp = @cmp_m.new)
+                cmp.depends_on task, role: 'something_else'
+                e = assert_raises(ArgumentError) do
+                    @cmp_m.test_child.bind(task)
+                end
+                assert_equal "cannot bind cmp_m.test_child[Syskit::Models::"\
+                             "Placeholder<srv_m>] to task_m:: it is the child of one "\
+                             "or more cmp_m compositions, but not with the role 'test'",
+                             e.message.gsub(/:0x.*:/, '::')
+            end
         end
     end
 

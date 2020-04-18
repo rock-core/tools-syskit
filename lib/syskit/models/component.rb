@@ -705,26 +705,6 @@ module Syskit
                 dserv
             end
 
-            def has_through_method_missing?(m)
-                MetaRuby::DSLs.has_through_method_missing?(
-                    self, m, '_srv'.freeze => :find_data_service) || super
-            end
-
-            def find_through_method_missing(m, args)
-                MetaRuby::DSLs.find_through_method_missing(
-                    self, m, args, '_srv'.freeze => :find_data_service) || super
-            end
-
-            include MetaRuby::DSLs::FindThroughMethodMissing
-
-            def method_missing(m, *args, &block)
-                if m == :orogen_model
-                    raise NoMethodError, "tried to use a method to access an oroGen model, but none exists on #{self}"
-                end
-                super
-            end
-
-
             # Test if the given port is a port of self
             #
             # @param [Port] port
@@ -1138,6 +1118,106 @@ module Syskit
                         raise InvalidPortMapping, "#{self} already has a port named #{self_name} of type #{self_p.type}, cannot dynamically map #{p} onto it"
                     end
                 end
+            end
+
+            def match
+                Queries::ComponentMatcher.new.with_model(self)
+            end
+
+            # The data writers defined on this task, as a mapping from the writer's
+            # registered name to the {DynamicPortBinding::BoundOutputReader} object.
+            #
+            # @key_name full_name
+            # @return [Hash<String,DynamicPortBinding::BoundOutputReader>]
+            inherited_attribute(:data_reader, :data_readers, map: true) do
+                {}
+            end
+
+            # Define an output reader managed by this component
+            #
+            # Define a data reader that will be handled automatically by the Component
+            # object. The reader will be made available through a `#{as}_reader`
+            # accessor
+            #
+            # The port definition may either be a port of this component, a port
+            # of a component child or a {Queries::PortMatcher} to dynamically bind
+            # to ports in the plan based on e.g. data type or service type
+            #
+            # @example create a data reader for a composition child
+            #    data_reader some_child.out_port, as: 'pose'
+            #
+            # @return [DynamicPortBinding::BoundOutputReader]
+            def data_reader(port, as:)
+                port = DynamicPortBinding.create(port)
+                unless port.output?
+                    raise ArgumentError,
+                          "expected an output port, but #{port} seems to be an input"
+                end
+
+                data_readers[as] = port.to_bound_data_accessor(as, self)
+            end
+
+            # The data writers defined on this task, as a mapping from the writer's
+            # registered name to the {DynamicPortBinding::BoundInputWriter} object.
+            #
+            # @key_name full_name
+            # @return [Hash<String,DynamicPortBinding::BoundInputWriter>]
+            inherited_attribute(:data_writer, :data_writers, map: true) do
+                {}
+            end
+
+            # Define an input writer managed by this component
+            #
+            # Define a writer that will be handled automatically by the Component
+            # object. The writer will be made available through a `#{as}_writer`
+            # accessor
+            #
+            # The port definition may either be a port of this component, a port
+            # of a component child or a {Queries::PortMatcher} to dynamically bind
+            # to ports in the plan based on e.g. data type or service type
+            #
+            # @example create a data reader for a composition child
+            #    data_reader some_child.cmd_in_port, as: 'cmd_in'
+            #
+            # @return [DynamicPortBinding::BoundInputWriter]
+            def data_writer(port, as:)
+                port = DynamicPortBinding.create(port)
+                if port.output?
+                    raise ArgumentError,
+                          "expected an input port, but #{port} seems to be an output"
+                end
+
+                data_writers[as] = port.to_bound_data_accessor(as, self)
+            end
+
+            def has_through_method_missing?(name)
+                MetaRuby::DSLs.has_through_method_missing?(
+                    self, name,
+                    "_srv" => :find_data_service,
+                    "_reader" => :find_data_reader,
+                    "_writer" => :find_data_writer
+                ) || super
+            end
+
+            def find_through_method_missing(name, args)
+                MetaRuby::DSLs.find_through_method_missing(
+                    self, name, args,
+                    "_srv" => :find_data_service,
+                    "_reader" => :find_data_reader,
+                    "_writer" => :find_data_writer
+                ) || super
+            end
+
+            include MetaRuby::DSLs::FindThroughMethodMissing
+
+            def method_missing(m, *args, &block) # rubocop:disable Style/MissingRespondToMissing
+                if m == :orogen_model
+                    raise NoMethodError,
+                          'tried to use a method to access an oroGen model, '\
+                          "but none exists on #{self}"
+                end
+
+                super
             end
         end
     end

@@ -1335,6 +1335,11 @@ module Syskit
                 component
             end
 
+            # Stop a task
+            def syskit_stop(task)
+                expect_execution { task.stop! }.to { emit task.stop_event }
+            end
+
             # Export the dataflow and hierarchy to SVG
             def syskit_export_to_svg(
                 plan = self.plan, suffix: '',

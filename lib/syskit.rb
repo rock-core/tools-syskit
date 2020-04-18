@@ -38,6 +38,7 @@ require 'syskit/models/bound_data_service'
 require 'syskit/models/bound_dynamic_data_service'
 require 'syskit/models/composition_specialization'
 require 'syskit/models/composition'
+require "syskit/models/dynamic_port_binding"
 require 'syskit/models/task_context'
 require 'syskit/models/ruby_task_context'
 require 'syskit/models/deployment'
@@ -59,6 +60,13 @@ require 'syskit/ruby_task_context'
 require 'syskit/remote_state_getter'
 require 'syskit/deployment'
 require 'syskit/bound_data_service'
+require "syskit/dynamic_port_binding"
+
+# Queries
+require 'syskit/queries/abstract_component_base'
+require 'syskit/queries/component_matcher'
+require 'syskit/queries/data_service_matcher'
+require 'syskit/queries/port_matcher'
 
 # Dependency injection
 require 'syskit/dependency_injection'

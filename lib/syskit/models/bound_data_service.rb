@@ -45,6 +45,13 @@ module Syskit
             # to in the task model
             attr_reader :full_name
 
+            def match
+                Queries::DataServiceMatcher
+                    .new(component_model.match)
+                    .with_name(name)
+                    .with_model(model)
+            end
+
             # True if this service is not a slave service
             def master?
                 !@master

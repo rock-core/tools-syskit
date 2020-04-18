@@ -21,6 +21,7 @@
     <test_depend package="minitest" />
     <test_depend package="aruba" />
     <test_depend package="flexmock" />
+    <test_depend package="base/orogen/types" />
     <test_depend package="tools/logger" />
     <test_depend package="rack-test" />
 </package>

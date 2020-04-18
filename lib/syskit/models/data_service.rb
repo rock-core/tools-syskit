@@ -29,6 +29,12 @@ module Syskit
                 super()
             end
 
+            def match
+                Queries::DataServiceMatcher.new(
+                    Queries::ComponentMatcher.new.with_model(self)
+                ).with_model(self)
+            end
+
             def clear_model
                 super()
                 @orogen_model = OroGen::Spec::TaskContext.new(@orogen_model.project)
