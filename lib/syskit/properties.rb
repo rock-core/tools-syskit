@@ -1,3 +1,5 @@
+# frozen_string_literal: true
+
 module Syskit
     # A hash wrapper that gives access to properties in a more manageable way
     # than using a hash or using {TaskContext#property} and
@@ -21,12 +23,12 @@ module Syskit
 
         # Whether there is a property with this name
         def include?(name)
-            @properties.has_key?(name.to_str)
+            @properties.key?(name.to_str)
         end
 
         # Clear all written values
         def clear_values
-            @properties.each_value { |p| p.clear_value }
+            @properties.each_value(&:clear_value)
         end
 
         # Returns a property by name
@@ -38,11 +40,11 @@ module Syskit
 
         def __resolve_property(name)
             if p = @properties[name.to_str]
-                return false, p
+                [false, p]
             elsif name.start_with?("raw_")
                 non_raw_name = name[4..-1]
                 if p = @properties[non_raw_name]
-                    return true, p
+                    [true, p]
                 else
                     ::Kernel.raise ::Orocos::NotFound, "neither #{non_raw_name} nor #{name} are a property of #{@task}"
                 end
@@ -55,9 +57,9 @@ module Syskit
             if m =~ /=$/
                 raw, p = __resolve_property($`.to_s)
                 if raw
-                    return p.raw_write(*args)
+                    p.raw_write(*args)
                 else
-                    return p.write(*args)
+                    p.write(*args)
                 end
             else
                 raw, p = __resolve_property(m.to_s)
@@ -65,20 +67,19 @@ module Syskit
                 if raw
                     value = p.raw_read(*args)
                     if ::Kernel.block_given?
-                        return p.raw_write(yield(value))
+                        p.raw_write(yield(value))
                     else
-                        return value
+                        value
                     end
                 else
                     value = p.read(*args)
                     if ::Kernel.block_given?
-                        return p.write(yield(value))
+                        p.write(yield(value))
                     else
-                        return value
+                        value
                     end
                 end
             end
         end
     end
 end
-

@@ -1,6 +1,8 @@
-require 'orocos'
-require 'orocos/remote_processes'
-require 'orocos/remote_processes/server'
+# frozen_string_literal: true
+
+require "orocos"
+require "orocos/remote_processes"
+require "orocos/remote_processes/server"
 
 module Syskit
     module RobyApp
@@ -12,11 +14,12 @@ module Syskit
             end
 
             def open(fd: nil)
-                if fd
-                    server = TCPServer.for_fd(fd)
-                else
-                    server = TCPServer.new(nil, required_port)
-                end
+                server =
+                    if fd
+                        TCPServer.for_fd(fd)
+                    else
+                        TCPServer.new(nil, required_port)
+                    end
 
                 server.fcntl(Fcntl::FD_CLOEXEC, 1)
                 @port = server.addr[1]
@@ -25,27 +28,27 @@ module Syskit
                 @all_ios.clear
                 @all_ios << server << com_r
 
-                trap 'SIGCHLD' do
+                trap "SIGCHLD" do
                     com_w.write INTERNAL_SIGCHLD_TRIGGERED
                 end
             end
 
-            def create_log_dir(log_dir, time_tag, metadata = Hash.new)
+            def create_log_dir(log_dir, time_tag, metadata = {})
                 if log_dir
                     app.log_base_dir = log_dir
                 end
-                if parent_info = metadata['parent']
-                    if app_name = parent_info['app_name']
+                if parent_info = metadata["parent"]
+                    if app_name = parent_info["app_name"]
                         app.app_name = app_name
                     end
-                    if robot_name = parent_info['robot_name']
-                        app.robot(robot_name, parent_info['robot_type'] || robot_name)
+                    if robot_name = parent_info["robot_name"]
+                        app.robot(robot_name, parent_info["robot_type"] || robot_name)
                     end
                 end
 
                 app.add_app_metadata(metadata)
                 app.find_and_create_log_dir(time_tag)
-                if parent_info = metadata['parent']
+                if parent_info = metadata["parent"]
                     ::Robot.info "created #{app.log_dir} on behalf of"
                     YAML.dump(parent_info).each_line do |line|
                         ::Robot.info "  #{line.chomp}"

@@ -1,6 +1,6 @@
 # frozen_string_literal: true
 
-require 'syskit/test/self'
+require "syskit/test/self"
 
 module Syskit
     module Queries
@@ -16,7 +16,7 @@ module Syskit
                 end
             end
 
-            it 'matches all ports of the component matcher by default' do
+            it "matches all ports of the component matcher by default" do
                 plan.add(task = @task_m.new)
                 assert_matcher_finds(
                     [task.in_d_port, task.out_d_port, task.out_f_port, task.state_port],
@@ -24,29 +24,29 @@ module Syskit
                 )
             end
 
-            it 'optionally allows to filter with an exact name' do
+            it "optionally allows to filter with an exact name" do
                 plan.add(task = @task_m.new)
                 assert_matcher_finds [task.out_d_port],
-                                     PortMatcher.new(@task_m).with_name('out_d')
+                                     PortMatcher.new(@task_m).with_name("out_d")
             end
 
-            it 'optionally allows to filter with a name pattern' do
+            it "optionally allows to filter with a name pattern" do
                 plan.add(task = @task_m.new)
                 assert_matcher_finds [task.out_d_port, task.out_f_port],
                                      PortMatcher.new(@task_m).with_name(/^out/)
             end
 
-            it 'optionally allows to filter with a type' do
+            it "optionally allows to filter with a type" do
                 plan.add(task = @task_m.new)
                 assert_matcher_finds [task.out_f_port],
                                      PortMatcher.new(@task_m)
                                                 .with_type(@task_m.out_f_port.type)
             end
 
-            it 'combines name and type matching' do
+            it "combines name and type matching" do
                 plan.add(task = @task_m.new)
                 assert_finds_nothing PortMatcher.new(@task_m)
-                                                .with_name('out_d')
+                                                .with_name("out_d")
                                                 .with_type(@task_m.out_f_port.type)
                 assert_matcher_finds [task.out_f_port],
                                      PortMatcher.new(@task_m)
@@ -54,43 +54,43 @@ module Syskit
                                                 .with_type(@task_m.out_f_port.type)
             end
 
-            describe '#try_resolve_type' do
-                it 'returns the type filter if set' do
+            describe "#try_resolve_type" do
+                it "returns the type filter if set" do
                     component_matcher = @task_m.match
                     matcher = PortMatcher.new(component_matcher)
                                          .with_type(@task_m.out_d_port.type)
-                    assert_equal '/double', matcher.try_resolve_type.name
+                    assert_equal "/double", matcher.try_resolve_type.name
                 end
 
-                it 'returns nil if the name filter is a patter' do
+                it "returns nil if the name filter is a patter" do
                     component_matcher = @task_m.match
                     matcher = PortMatcher.new(component_matcher).with_name(/out_d/)
                     assert_nil matcher.try_resolve_type
                 end
 
-                it 'returns the type of the underlying component\'s port '\
-                   'if an explicit name is given' do
+                it "returns the type of the underlying component's port "\
+                   "if an explicit name is given" do
                     component_matcher = @task_m.match
-                    matcher = PortMatcher.new(component_matcher).with_name('out_d')
-                    assert_equal '/double', matcher.try_resolve_type.name
+                    matcher = PortMatcher.new(component_matcher).with_name("out_d")
+                    assert_equal "/double", matcher.try_resolve_type.name
                 end
 
-                it 'returns nil if the underlying component matcher cannot '\
-                   'resolve the port by name' do
+                it "returns nil if the underlying component matcher cannot "\
+                   "resolve the port by name" do
                     component_matcher = @task_m.match
                     flexmock(component_matcher)
-                        .should_receive(:find_port_by_name).with('bla')
+                        .should_receive(:find_port_by_name).with("bla")
                         .and_return(nil)
-                    matcher = PortMatcher.new(component_matcher).with_name('bla')
+                    matcher = PortMatcher.new(component_matcher).with_name("bla")
                     assert_nil matcher.try_resolve_type
                 end
 
-                it 'returns nil if the name is ambiguous for the component' do
+                it "returns nil if the name is ambiguous for the component" do
                     component_matcher = @task_m.match
                     flexmock(component_matcher)
-                        .should_receive(:find_port_by_name).with('bla')
+                        .should_receive(:find_port_by_name).with("bla")
                         .and_raise(Ambiguous)
-                    matcher = PortMatcher.new(component_matcher).with_name('bla')
+                    matcher = PortMatcher.new(component_matcher).with_name("bla")
                     assert_nil matcher.try_resolve_type
                 end
             end

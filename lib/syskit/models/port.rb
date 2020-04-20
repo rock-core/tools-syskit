@@ -1,3 +1,5 @@
+# frozen_string_literal: true
+
 module Syskit
     module Models
         # Representation of a component port on a component instance.
@@ -23,16 +25,19 @@ module Syskit
             # @param [String] name the port name if it is different than the
             #   name in 'orogen_model'
             def initialize(component_model, orogen_model, name = orogen_model.name)
-                @component_model, @name, @orogen_model =
-                    component_model, name, orogen_model
+                @component_model = component_model
+                @name = name
+                @orogen_model = orogen_model
 
-                if orogen_model.type.contains_opaques?
-                    @type = Orocos.default_loader.intermediate_type_for(orogen_model.type)
-                else
-                    @type = orogen_model.type
-                end
-                @max_sizes = orogen_model.max_sizes.
-                    merge(Orocos.max_sizes_for(type))
+                @type =
+                    if orogen_model.type.contains_opaques?
+                        Orocos.default_loader.intermediate_type_for(orogen_model.type)
+                    else
+                        orogen_model.type
+                    end
+
+                @max_sizes = orogen_model.max_sizes
+                                         .merge(Orocos.max_sizes_for(type))
             end
 
             def max_marshalling_size
@@ -96,8 +101,8 @@ module Syskit
             # @raise [WrongPortConnectionTypes]
             # @raise [WrongPortConnectionDirection]
             # @raise [SelfConnection]
-            def connect_to(in_port, policy = Hash.new)
-                out_port = self.to_component_port
+            def connect_to(in_port, policy = {})
+                out_port = to_component_port
                 if out_port == self
                     if in_port.respond_to?(:to_component_port)
                         in_port = in_port.to_component_port
@@ -123,7 +128,7 @@ module Syskit
 
             # Tests whether self is connected to the provided port
             def connected_to?(sink_port)
-                source_port = self.try_to_component_port
+                source_port = try_to_component_port
                 if source_port == self
                     sink_port = sink_port.try_to_component_port
                     component_model.connected?(source_port, sink_port)
@@ -135,9 +140,9 @@ module Syskit
             # Tests whether this port can be connceted to the provided input
             # port
             def can_connect_to?(sink_port)
-                source_port = self.try_to_component_port
+                source_port = try_to_component_port
                 if source_port == self
-                    sink_port  = sink_port.try_to_component_port
+                    sink_port = sink_port.try_to_component_port
                     output? && sink_port.input? && type == sink_port.type
                 else
                     source_port.can_connect_to?(sink_port)
@@ -207,10 +212,15 @@ module Syskit
 
             # @return [Boolean] true if this is an output port, false otherwise.
             #   The default implementation returns false
-            def output?; false end
+            def output?
+                false
+            end
+
             # @return [Boolean] true if this is an input port, false otherwise.
             #   The default implementation returns false
-            def input?; false end
+            def input?
+                false
+            end
         end
 
         class OutputPort < Port
@@ -230,9 +240,11 @@ module Syskit
                 Syskit::OutputPort.new(self, component_model.bind(component))
             end
 
-            def output?; true end
+            def output?
+                true
+            end
 
-            def reader(policy = Hash.new)
+            def reader(policy = {})
                 OutputReader.new(self, policy)
             end
         end
@@ -249,26 +261,30 @@ module Syskit
                 Syskit::InputPort.new(self, component_model.bind(component))
             end
 
-            def writer(policy = Hash.new)
+            def writer(policy = {})
                 InputWriter.new(self, policy)
             end
 
-            def input?; true end
+            def input?
+                true
+            end
         end
 
         class OutputReader
             attr_reader :port
             attr_reader :policy
 
-            def initialize(port, policy = Hash.new)
+            def initialize(port, policy = {})
                 @port = port
                 @policy = policy
             end
 
-            def hash; [port, policy].hash end
-            def eql?(other); self == other end
-            def ==(other)
-                other.port == port && other.policy == policy
+            def hash
+                [port, policy].hash
+            end
+
+            def eql?(other)
+                self == other
             end
 
             def bind(port_or_task)
@@ -285,8 +301,8 @@ module Syskit
 
             def ==(other)
                 other.kind_of?(OutputReader) &&
-                    other.port == self.port &&
-                    other.policy == self.policy
+                    other.port == port &&
+                    other.policy == policy
             end
         end
 
@@ -294,15 +310,17 @@ module Syskit
             attr_reader :port
             attr_reader :policy
 
-            def initialize(port, policy = Hash.new)
+            def initialize(port, policy = {})
                 @port = port
                 @policy = policy
             end
 
-            def hash; [port, policy].hash end
-            def eql?(other); self == other end
-            def ==(other)
-                other.port == port && other.policy == policy
+            def hash
+                [port, policy].hash
+            end
+
+            def eql?(other)
+                self == other
             end
 
             def bind(port_or_task)
@@ -323,12 +341,9 @@ module Syskit
 
             def ==(other)
                 other.kind_of?(InputWriter) &&
-                    other.port == self.port &&
-                    other.policy == self.policy
+                    other.port == port &&
+                    other.policy == policy
             end
-
         end
     end
 end
-
-

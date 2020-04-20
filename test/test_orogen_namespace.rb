@@ -1,6 +1,6 @@
 # frozen_string_literal: true
 
-require 'syskit/test/self'
+require "syskit/test/self"
 
 module Syskit
     describe OroGenNamespace do
@@ -15,72 +15,72 @@ module Syskit
             OroGen.syskit_model_constant_registration = @constant_registration
         end
 
-        it 'gives access to a registered model by method calls' do
+        it "gives access to a registered model by method calls" do
             obj = flexmock(
                 orogen_model: flexmock(
-                    project: flexmock(name: 'project'),
-                    name: 'project::Task'
+                    project: flexmock(name: "project"),
+                    name: "project::Task"
                 )
             )
             @object.register_syskit_model(obj)
             assert_same obj, @object.project.Task
         end
 
-        it 'handles namespaces in the component name' do
+        it "handles namespaces in the component name" do
             obj = flexmock(
                 orogen_model: flexmock(
-                    project: flexmock(name: 'project'),
-                    name: 'project::test::Task'
+                    project: flexmock(name: "project"),
+                    name: "project::test::Task"
                 )
             )
             @object.register_syskit_model(obj)
             assert_same obj, @object.project.test.Task
         end
 
-        it 'raises if given arguments' do
+        it "raises if given arguments" do
             obj = flexmock(
                 orogen_model: flexmock(
-                    project: flexmock(name: 'project'),
-                    name: 'project::Task'
+                    project: flexmock(name: "project"),
+                    name: "project::Task"
                 )
             )
             @object.register_syskit_model(obj)
             e = assert_raises(ArgumentError) do
-                @object.project.Task('something')
+                @object.project.Task("something")
             end
-            assert_equal 'expected 0 arguments, got 1', e.message
+            assert_equal "expected 0 arguments, got 1", e.message
         end
 
-        it 'raises if resolving a task that does not exist' do
+        it "raises if resolving a task that does not exist" do
             obj = flexmock(
                 orogen_model: flexmock(
-                    project: flexmock(name: 'project'),
-                    name: 'project::Task'
+                    project: flexmock(name: "project"),
+                    name: "project::Task"
                 )
             )
             @object.register_syskit_model(obj)
             e = assert_raises(NoMethodError) do
                 @object.project.Other
             end
-            assert_equal 'no task Other on project, available tasks: Task', e.message
+            assert_equal "no task Other on project, available tasks: Task", e.message
         end
 
-        it 'allows to resolve a project by its orogen name' do
+        it "allows to resolve a project by its orogen name" do
             obj = flexmock(
                 orogen_model: flexmock(
-                    project: flexmock(name: 'project'),
-                    name: 'project::Task'
+                    project: flexmock(name: "project"),
+                    name: "project::Task"
                 )
             )
             @object.register_syskit_model(obj)
-            assert_same obj, @object.syskit_model_by_orogen_name('project::Task')
+            assert_same obj, @object.syskit_model_by_orogen_name("project::Task")
         end
 
-        it 'raises if resolving a project that does not exist' do
+        it "raises if resolving a project that does not exist" do
             obj = flexmock(
                 orogen_model: flexmock(
-                    project: flexmock(name: 'project'),
-                    name: 'project::Task'
+                    project: flexmock(name: "project"),
+                    name: "project::Task"
                 )
             )
             @object.register_syskit_model(obj)
@@ -89,28 +89,28 @@ module Syskit
             end
             assert_equal(
                 "undefined method `does_not_exist' for #{@object}, "\
-                'available OroGen projects: project',
+                "available OroGen projects: project",
                 e.message
             )
         end
 
-        it 'does not register a model by constant by default' do
+        it "does not register a model by constant by default" do
             obj = flexmock(
                 orogen_model: flexmock(
-                    project: flexmock(name: 'project'),
-                    name: 'project::Task'
+                    project: flexmock(name: "project"),
+                    name: "project::Task"
                 )
             )
             @object.register_syskit_model(obj)
             refute @object.const_defined?(:Project)
         end
 
-        it 'registers a model by constant by CamelCasing it if enabled' do
+        it "registers a model by constant by CamelCasing it if enabled" do
             @object.syskit_model_constant_registration = true
             obj = flexmock(
                 orogen_model: flexmock(
-                    project: flexmock(name: 'project'),
-                    name: 'project::Task'
+                    project: flexmock(name: "project"),
+                    name: "project::Task"
                 )
             )
             @object.register_syskit_model(obj)
@@ -118,15 +118,15 @@ module Syskit
             assert_same obj, @object::Project::Task
         end
 
-        it 'returns the call chain that leads to the model' do
-            flexmock(@object, name: 'test')
+        it "returns the call chain that leads to the model" do
+            flexmock(@object, name: "test")
             obj = flexmock(
                 orogen_model: flexmock(
-                    project: flexmock(name: 'project'),
-                    name: 'project::Task'
+                    project: flexmock(name: "project"),
+                    name: "project::Task"
                 )
             )
-            assert_equal 'test.project.Task', @object.register_syskit_model(obj)
+            assert_equal "test.project.Task", @object.register_syskit_model(obj)
         end
 
         describe OroGenNamespace::DeploymentNamespace do
@@ -138,37 +138,37 @@ module Syskit
                 @m.clear
             end
 
-            it 'resolves a given model through method call' do
-                syskit_m = Deployment.new_submodel(name: 'blablabla')
+            it "resolves a given model through method call" do
+                syskit_m = Deployment.new_submodel(name: "blablabla")
                 @m.register_syskit_model(syskit_m)
                 assert_equal syskit_m, @m.blablabla
             end
 
-            it 'reports the list of available models on NoMethodError' do
-                @m.register_syskit_model(Deployment.new_submodel(name: 'depl1'))
-                @m.register_syskit_model(Deployment.new_submodel(name: 'depl2'))
+            it "reports the list of available models on NoMethodError" do
+                @m.register_syskit_model(Deployment.new_submodel(name: "depl1"))
+                @m.register_syskit_model(Deployment.new_submodel(name: "depl2"))
                 e = assert_raises(NoMethodError) do
                     @m.does_not_exist
                 end
                 assert_equal(
-                    'no deployment registered with the name \'does_not_exist\', '\
-                    'available deployments are: depl1, depl2',
+                    "no deployment registered with the name 'does_not_exist', "\
+                    "available deployments are: depl1, depl2",
                     e.message
                 )
             end
 
-            describe 'constant registration' do
-                it 'registers the deployments as constants on ::Deployments if '\
-                   'OroGen.syskit_model_constant_registration is set' do
+            describe "constant registration" do
+                it "registers the deployments as constants on ::Deployments if "\
+                   "OroGen.syskit_model_constant_registration is set" do
                     OroGen.syskit_model_constant_registration = true
-                    depl_m = Deployment.new_submodel(name: 'depl')
+                    depl_m = Deployment.new_submodel(name: "depl")
                     @m.register_syskit_model(depl_m)
                     assert_same depl_m, ::Deployments::Depl
                 end
 
-                it 'clears the registered constants on clear' do
+                it "clears the registered constants on clear" do
                     OroGen.syskit_model_constant_registration = true
-                    depl_m = Deployment.new_submodel(name: 'depl')
+                    depl_m = Deployment.new_submodel(name: "depl")
                     @m.register_syskit_model(depl_m)
                     @m.clear
                     refute ::Deployments.const_defined?(:Depl)

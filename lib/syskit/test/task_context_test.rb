@@ -1,3 +1,5 @@
+# frozen_string_literal: true
+
 module Syskit
     module Test
         # Base class for all spec contexts whose subject is a task context model
@@ -15,7 +17,7 @@ module Syskit
             def deploy_subject_syskit_model
                 task_context_m = self.class.subject_syskit_model.concrete_model
                 unless task_context_m.orogen_model.abstract?
-                    return use_deployment(task_context_m => 'task_under_test').first
+                    return use_deployment(task_context_m => "task_under_test").first
                 end
 
                 # This task context is abstract, i.e. does not have a
@@ -23,8 +25,7 @@ module Syskit
                 # it if we are in stub mode, skip the test otherwise
 
                 unless app.simulation?
-                    raise RuntimeError,
-                          'cannot deploy the abstract task context model '\
+                    raise "cannot deploy the abstract task context model "\
                           "#{task_context_m} in live mode"
                 end
 
@@ -48,8 +49,8 @@ module Syskit
             # @deprecated use instead
             #   it { is_configurable }
             def self.it_should_be_configurable
-                Test.warn 'it_should_be_configurable is deprecated, use'
-                Test.warn '  it { is_configurable } instead'
+                Test.warn "it_should_be_configurable is deprecated, use"
+                Test.warn "  it { is_configurable } instead"
                 it { is_configurable }
             end
 

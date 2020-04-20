@@ -1,3 +1,5 @@
+# frozen_string_literal: true
+
 module Syskit
     module Actions
         # Extension to the models of Roby::Actions::Interface
@@ -7,7 +9,7 @@ module Syskit
             def profile(name = nil, &block)
                 return super if name
 
-                if !@profile
+                unless @profile
                     @profile = super("Profile") { self }
                     setup_main_profile(@profile)
                 end
@@ -20,12 +22,11 @@ module Syskit
                 end
             end
 
-            def setup_main_profile(profile)
-            end
+            def setup_main_profile(profile); end
 
             # Define on self tags that match the profile's tags
             def use_profile_tags(profile)
-                tag_map = Hash.new
+                tag_map = {}
                 profile.each_tag do |tag|
                     tagged_models = [*tag.proxied_data_service_models]
                     tag_map[tag.tag_name] = @profile.tag(tag.tag_name, *tagged_models)
@@ -38,7 +39,7 @@ module Syskit
             # An action library that is created and included on-the-fly to
             # support the actions derived from {#profile}
             def profile_library
-                if !@profile_library
+                unless @profile_library
                     @profile_library = Roby::Actions::Library.new_submodel
                     use_library @profile_library
                 end
@@ -57,7 +58,9 @@ module Syskit
             end
 
             # Define a tag on {#profile}
-            def tag(name, model); profile.tag(name, model) end
+            def tag(name, model)
+                profile.tag(name, model)
+            end
 
             # @api private
             #
@@ -75,12 +78,12 @@ module Syskit
                         action_model.to_instance_requirements(arguments)
                     end
                 elsif !args.empty?
-                    profile_library.send(:define_method, action_name) do |arguments = Hash.new|
+                    profile_library.send(:define_method, action_name) do |arguments = {}|
                         action_model.to_instance_requirements(arguments)
                     end
                 else
                     profile_library.send(:define_method, action_name) do
-                        action_model.to_instance_requirements(Hash.new)
+                        action_model.to_instance_requirements({})
                     end
                 end
             end
@@ -92,9 +95,9 @@ module Syskit
             # @param [Hash] tag_selection selection for the profile tags, see
             #   {Profile#use_profile}
             # @return [void]
-            def use_profile(used_profile = nil, tag_selection = Hash.new, transform_names: ->(name) { name })
+            def use_profile(used_profile = nil, tag_selection = {}, transform_names: ->(name) { name })
                 if block_given?
-                    if !tag_selection.empty?
+                    unless tag_selection.empty?
                         raise ArgumentError, "cannot provide a tag selection when defining a new anonymous profile"
                     end
 
@@ -117,12 +120,14 @@ module Syskit
 
             def has_through_method_missing?(m)
                 MetaRuby::DSLs.has_through_method_missing?(
-                    profile, m, '_tag'.freeze => :has_tag?) || super
+                    profile, m, "_tag" => :has_tag?
+                ) || super
             end
 
             def find_through_method_missing(m, args)
                 MetaRuby::DSLs.find_through_method_missing(
-                    profile, m, args, '_tag'.freeze => :find_tag) || super
+                    profile, m, args, "_tag" => :find_tag
+                ) || super
             end
         end
 
@@ -147,12 +152,14 @@ module Syskit
 
             def has_through_method_missing?(m)
                 MetaRuby::DSLs.has_through_method_missing?(
-                    profile, m, '_tag'.freeze => :has_tag?) || super
+                    profile, m, "_tag" => :has_tag?
+                ) || super
             end
 
             def find_through_method_missing(m, args)
                 MetaRuby::DSLs.find_through_method_missing(
-                    profile, m, args, '_tag'.freeze => :find_tag) || super
+                    profile, m, args, "_tag" => :find_tag
+                ) || super
             end
 
             include MetaRuby::DSLs::FindThroughMethodMissing
@@ -160,4 +167,3 @@ module Syskit
         Roby::Actions::Interface.include InterfaceExtension
     end
 end
-

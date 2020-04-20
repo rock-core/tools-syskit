@@ -1,3 +1,5 @@
+# frozen_string_literal: true
+
 module Syskit
     module Models
         # Proxy class that gives access to a component under the cover of a
@@ -18,11 +20,11 @@ module Syskit
             #   {object}
             attr_reader :port_mappings
 
-            def initialize(object, required, mappings = Hash.new)
+            def initialize(object, required, mappings = {})
                 super(nil, object.to_instance_requirements, required.to_instance_requirements, mappings)
                 @object = object
-                @ports_on_required = Hash.new
-                @port_mappings = Hash.new
+                @ports_on_required = {}
+                @port_mappings = {}
             end
 
             def find_ports_on_required(name)
@@ -44,9 +46,9 @@ module Syskit
             def find_data_service_from_type(type)
                 srv = required.find_data_service_from_type(type)
                 if !required.each_required_model.to_a.include?(srv.model)
-                    return find_data_service(srv.name)
+                    find_data_service(srv.name)
                 else
-                    return srv
+                    srv
                 end
             end
 
@@ -75,21 +77,21 @@ module Syskit
             end
 
             def find_port(name)
-                if !port_mappings[name]
+                unless port_mappings[name]
                     port_mappings[name] = find_all_port_mappings_for(name)
                 end
                 candidates = port_mappings[name]
                 if candidates.size > 1
                     raise AmbiguousPortOnCompositeModel.new(self, required.each_required_model.to_a, name, candidates),
-                        "#{name} is an ambiguous port on #{self}: it can be mapped to #{candidates.map(&:to_s).join(", ")}"
+                          "#{name} is an ambiguous port on #{self}: it can be mapped to #{candidates.map(&:to_s).join(', ')}"
                 end
 
                 ports = ports_on_required[name]
-                if !ports.empty?
+                unless ports.empty?
                     ports.first.attach(self)
                 end
             end
-            
+
             def self_port_to_component_port(port)
                 port_mappings[port.name].first.to_component_port
             end
@@ -106,14 +108,16 @@ module Syskit
             end
 
             def each_input_port
-                return enum_for(:each_input_port) if !block_given?
+                return enum_for(:each_input_port) unless block_given?
+
                 each_port_helper :each_input_port do |p|
                     yield(p)
                 end
             end
 
             def each_output_port
-                return enum_for(:each_output_port) if !block_given?
+                return enum_for(:each_output_port) unless block_given?
+
                 each_port_helper :each_output_port do |p|
                     yield(p)
                 end
@@ -121,30 +125,32 @@ module Syskit
 
             def each_port
                 return enum_for(:each_port) if block_given?
+
                 each_input_port(&proc)
                 each_output_port(&proc)
             end
 
-            def connect_to(sink, policy = Hash.new)
+            def connect_to(sink, policy = {})
                 Syskit.connect(self, sink, policy)
             end
 
             def to_s
-                "#{object.to_s}.as(#{required.each_required_model.map(&:to_s).sort.join(",")})"
+                "#{object}.as(#{required.each_required_model.map(&:to_s).sort.join(',')})"
             end
 
             def has_through_method_missing?(m)
                 MetaRuby::DSLs.has_through_method_missing?(
-                    self, m, "_port".freeze => :has_port?) || super
+                    self, m, "_port" => :has_port?
+                ) || super
             end
 
             def find_through_method_missing(m, args)
                 MetaRuby::DSLs.find_through_method_missing(
-                    self, m, args, "_port".freeze => :find_port) || super
+                    self, m, args, "_port" => :find_port
+                ) || super
             end
 
             include MetaRuby::DSLs::FindThroughMethodMissing
         end
     end
 end
-

@@ -1,6 +1,8 @@
-require 'vizkit'
-require 'Qt4'
-require 'syskit/gui/ruby_item'
+# frozen_string_literal: true
+
+require "vizkit"
+require "Qt4"
+require "syskit/gui/ruby_item"
 
 module Syskit
     module GUI
@@ -25,7 +27,7 @@ module Syskit
                 item1 = Vizkit::VizkitItem.new(label)
                 item2 = RubyItem.new
 
-                if !accessor.nil?
+                unless accessor.nil?
                     item2.getter do
                         @editing_model.method(accessor).call
                     end
@@ -36,11 +38,11 @@ module Syskit
                 end
 
                 appendRow([item1, item2])
-                return item1, item2
+                [item1, item2]
             end
 
-            def data(role = Qt::UserRole+1)
-                if role == Qt::EditRole 
+            def data(role = Qt::UserRole + 1)
+                if role == Qt::EditRole
                     Qt::Variant.from_ruby self
                 else
                     super
@@ -49,14 +51,14 @@ module Syskit
 
             # Updates view's sibling modified? state possibly rejecting changes
             # made to the model
-            def modified!(value = true, items = [],update_parent = false)
+            def modified!(value = true, items = [], update_parent = false)
                 super
                 reject_changes unless value
                 if column == 0
-                    i = index.sibling(row,1)
+                    i = index.sibling(row, 1)
                     if i.isValid
                         item = i.model.itemFromIndex i
-                        item.modified!(value,items)
+                        item.modified!(value, items)
                     end
                 end
             end

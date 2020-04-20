@@ -1,3 +1,5 @@
+# frozen_string_literal: true
+
 module Syskit
     module Coordination
         # Definition of a data monitoring table
@@ -44,7 +46,7 @@ module Syskit
         #       end
         #     end
         #   end
-        #   
+        #
         class DataMonitoringTable < Roby::Coordination::Base
             extend Models::DataMonitoringTable
 
@@ -52,13 +54,13 @@ module Syskit
             attr_reader :monitors
 
             # (see Roby::Coordination::Base)
-            def initialize(root_task, arguments = Hash.new, options = Hash.new)
+            def initialize(root_task, arguments = {}, options = {})
                 super(root_task, arguments, options)
-                options, _ = Kernel.filter_options options, :on_replace => :drop
+                options, = Kernel.filter_options options, :on_replace => :drop
                 @poll_id = root_task.poll(options) do
                     poll
                 end
-                @monitors = Array.new
+                @monitors = []
                 @monitors_resolved = false
                 resolve_monitors
             end
@@ -79,7 +81,8 @@ module Syskit
                         root_task.depends_on(task_instance = coordination_task_model.instanciate(root_task.plan))
                         bind_coordination_task_to_instance(
                             instance_for(coordination_task_model), task_instance,
-                            on_replace: :copy)
+                            on_replace: :copy
+                        )
                     end
                 end
 

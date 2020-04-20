@@ -1,4 +1,6 @@
-require 'syskit/test/self'
+# frozen_string_literal: true
+
+require "syskit/test/self"
 
 module Syskit
     module NetworkGeneration
@@ -7,14 +9,15 @@ module Syskit
 
             def assert_future_fulfilled(future)
                 result = future.value
-                if !future.fulfilled?
+                unless future.fulfilled?
                     raise future.reason
                 end
+
                 result
             end
 
-            describe '#prepare' do
-                it 'computes the system network in a separate plan' do
+            describe "#prepare" do
+                it "computes the system network in a separate plan" do
                     requirements = Set[flexmock]
                     resolution = subject.prepare(requirements)
                     flexmock(resolution.engine).should_receive(:resolve_system_network)
@@ -44,12 +47,12 @@ module Syskit
             describe "#cancel" do
                 it "discards the transaction once the future finishes" do
                     latch = Concurrent::IVar.new
-                    flexmock(Engine).new_instances.should_receive(:resolve_system_network).
-                        and_return { latch.value }
+                    flexmock(Engine).new_instances.should_receive(:resolve_system_network)
+                                    .and_return { latch.value }
                     future = subject.start(Set[flexmock])
                     work_plan = future.engine.work_plan
-                    flexmock(work_plan).should_receive(:discard_transaction).once.
-                        pass_thru
+                    flexmock(work_plan).should_receive(:discard_transaction).once
+                                       .pass_thru
                     subject.cancel
                     latch.set true
                     future.value

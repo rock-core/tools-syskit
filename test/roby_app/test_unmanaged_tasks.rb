@@ -1,4 +1,6 @@
-require 'syskit/test/self'
+# frozen_string_literal: true
+
+require "syskit/test/self"
 
 module Syskit
     module RobyApp
@@ -8,9 +10,10 @@ module Syskit
             before do
                 @task_model = Syskit::TaskContext.new_submodel
                 Syskit.conf.register_process_server(
-                    'unmanaged_tasks', UnmanagedTasksManager.new)
-                @process_manager = Syskit.conf.process_server_for('unmanaged_tasks')
-                use_unmanaged_task task_model => 'unmanaged_deployment_test'
+                    "unmanaged_tasks", UnmanagedTasksManager.new
+                )
+                @process_manager = Syskit.conf.process_server_for("unmanaged_tasks")
+                use_unmanaged_task task_model => "unmanaged_deployment_test"
                 @task = syskit_deploy(task_model)
                 @deployment_task = @task.execution_agent
                 plan.unmark_mission_task(@task)
@@ -18,15 +21,13 @@ module Syskit
 
             after do
                 if deployment_task.running?
-                    expect_execution { deployment_task.stop! }.
-                        to { emit deployment_task.stop_event }
+                    expect_execution { deployment_task.stop! }
+                        .to { emit deployment_task.stop_event }
                 end
 
-                if unmanaged_task
-                    unmanaged_task.dispose
-                end
+                unmanaged_task&.dispose
 
-                Syskit.conf.remove_process_server('unmanaged_tasks')
+                Syskit.conf.remove_process_server("unmanaged_tasks")
             end
 
             def create_unmanaged_task
@@ -36,7 +37,8 @@ module Syskit
 
                 @unmanaged_task = Orocos.allow_blocking_calls do
                     Orocos::RubyTasks::TaskContext.from_orogen_model(
-                        'unmanaged_deployment_test', task_model.orogen_model)
+                        "unmanaged_deployment_test", task_model.orogen_model
+                    )
                 end
             end
 
@@ -57,43 +59,42 @@ module Syskit
             end
 
             it "readies the execution agent when the task becomes available" do
-                expect_execution { deployment_task.start! }.
-                    join_all_waiting_work(false).
-                    to do
+                expect_execution { deployment_task.start! }
+                    .join_all_waiting_work(false)
+                    .to do
                         emit deployment_task.start_event
                         not_emit deployment_task.ready_event
                     end
 
                 create_unmanaged_task
                 expect_execution.to { emit deployment_task.ready_event }
-                task = deployment_task.task('unmanaged_deployment_test')
+                task = deployment_task.task("unmanaged_deployment_test")
                 assert_equal unmanaged_task, task.orocos_task
             end
 
             it "stopping the process causes the monitor thread to quit" do
                 make_deployment_ready
                 monitor_thread = deployment_task.orocos_process.monitor_thread
-                expect_execution { deployment_task.stop! }.
-                    to { emit deployment_task.stop_event }
+                expect_execution { deployment_task.stop! }
+                    .to { emit deployment_task.stop_event }
                 refute deployment_task.orocos_process.monitor_thread.alive?
                 assert deployment_task.orocos_process.dead?
                 refute monitor_thread.alive?
             end
 
-
             it "allows to kill a started deployment that was not ready" do
-                expect_execution { deployment_task.start! }.
-                    join_all_waiting_work(false).
-                    to { emit deployment_task.start_event }
-                expect_execution { deployment_task.stop! }.
-                    join_all_waiting_work(false).
-                    to { emit deployment_task.stop_event }
+                expect_execution { deployment_task.start! }
+                    .join_all_waiting_work(false)
+                    .to { emit deployment_task.start_event }
+                expect_execution { deployment_task.stop! }
+                    .join_all_waiting_work(false)
+                    .to { emit deployment_task.stop_event }
             end
 
             it "allows to kill a deployment that is ready" do
                 make_deployment_ready
-                expect_execution { deployment_task.stop! }.
-                    to { emit deployment_task.stop_event }
+                expect_execution { deployment_task.stop! }
+                    .to { emit deployment_task.stop_event }
             end
 
             it "aborts the execution agent if the monitor thread fails in unexpected ways" do
@@ -101,14 +102,14 @@ module Syskit
 
                 process_died = capture_log(deployment_task, :warn) do
                     background_thread_died = capture_log(deployment_task.orocos_process, :fatal) do
-                        expect_execution { deployment_task.orocos_process.monitor_thread.raise RuntimeError }.
-                            to { emit deployment_task.failed_event }
+                        expect_execution { deployment_task.orocos_process.monitor_thread.raise RuntimeError }
+                            .to { emit deployment_task.failed_event }
                     end
                     assert_equal ["assuming #{deployment_task.orocos_process} died because the background thread died with",
                                   "RuntimeError (RuntimeError)"], background_thread_died
                 end
                 assert_equal ["unmanaged_deployment_test unexpectedly died on process server unmanaged_tasks"],
-                    process_died
+                             process_died
             end
 
             it "deregisters the process object of the process whose thread failed" do
@@ -121,7 +122,7 @@ module Syskit
                         assert_equal [process], process_manager.wait_termination(0).to_a
                         assert_equal Set[], process_manager.wait_termination(0)
                     end
-                ensure process_manager.processes['unmanaged_deployment_test'] = process
+                ensure process_manager.processes["unmanaged_deployment_test"] = process
                 end
             end
 
@@ -138,7 +139,7 @@ module Syskit
                     end.to { emit deployment_task.failed_event }
                 end
                 assert_equal ["unmanaged_deployment_test unexpectedly died on process server unmanaged_tasks"],
-                    messages
+                             messages
             end
 
             # This is really a heisentest .... previous versions of

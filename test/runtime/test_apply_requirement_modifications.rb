@@ -1,4 +1,6 @@
-require 'syskit/test/self'
+# frozen_string_literal: true
+
+require "syskit/test/self"
 
 module Syskit
     module Runtime
@@ -15,12 +17,12 @@ module Syskit
                 execute { Runtime.apply_requirement_modifications(plan) }
                 assert plan.syskit_current_resolution
                 assert_equal Set[requirement_task.planning_task],
-                    plan.syskit_current_resolution.future.requirement_tasks
+                             plan.syskit_current_resolution.future.requirement_tasks
             end
 
             it "restarts the current async resolution if a new IR task appeared" do
                 cmp_m = Composition.new_submodel
-                requirement_tasks = Array.new
+                requirement_tasks = []
                 requirement_tasks << plan.add_permanent_task(cmp_m.to_instance_requirements.as_plan)
                 execute { requirement_tasks[0].planning_task.start! }
                 execute { Runtime.apply_requirement_modifications(plan) }
@@ -32,7 +34,7 @@ module Syskit
 
                 assert plan.syskit_current_resolution
                 assert_equal Set[*requirement_tasks.map(&:planning_task)],
-                    plan.syskit_current_resolution.future.requirement_tasks
+                             plan.syskit_current_resolution.future.requirement_tasks
             end
 
             it "stops the current async resolution all running IR tasks became useless" do
@@ -50,7 +52,7 @@ module Syskit
 
             it "restarts an async resolution if one of the IR tasks became useless" do
                 cmp_m = Composition.new_submodel
-                requirement_tasks = Array.new
+                requirement_tasks = []
                 requirement_tasks << plan.add_permanent_task(cmp_m.to_instance_requirements.as_plan)
                 requirement_tasks << plan.add_permanent_task(cmp_m.to_instance_requirements.as_plan)
                 execute do
@@ -64,7 +66,7 @@ module Syskit
 
                 assert plan.syskit_current_resolution
                 assert_equal Set[requirement_tasks[0].planning_task],
-                    plan.syskit_current_resolution.future.requirement_tasks
+                             plan.syskit_current_resolution.future.requirement_tasks
             end
 
             it "cancels an async resolution if one of the IR tasks has been interrupted" do
@@ -74,8 +76,8 @@ module Syskit
                 execute { Runtime.apply_requirement_modifications(plan) }
 
                 flexmock(plan.syskit_current_resolution).should_receive(:cancel).once
-                expect_execution { requirement_task.planning_task.stop! }.
-                    to { have_error_matching Roby::PlanningFailedError }
+                expect_execution { requirement_task.planning_task.stop! }
+                    .to { have_error_matching Roby::PlanningFailedError }
                 execute { Runtime.apply_requirement_modifications(plan) }
 
                 assert !plan.syskit_current_resolution
@@ -99,8 +101,8 @@ module Syskit
                 execute { requirement_task.start! }
                 execute { Runtime.apply_requirement_modifications(plan) }
                 plan.syskit_current_resolution.future.value
-                expect_execution { Runtime.apply_requirement_modifications(plan) }.
-                    to { have_error_matching Roby::PlanningFailedError }
+                expect_execution { Runtime.apply_requirement_modifications(plan) }
+                    .to { have_error_matching Roby::PlanningFailedError }
                 assert requirement_task.failed?
                 assert_kind_of Syskit::MissingDeployments, requirement_task.failed_event.last.context.first
                 assert_exception_can_be_pretty_printed(requirement_task.failed_event.last.context.first)
@@ -108,4 +110,3 @@ module Syskit
         end
     end
 end
-

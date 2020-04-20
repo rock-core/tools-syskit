@@ -75,7 +75,7 @@ module Syskit
                     .merge(other.deployed_tasks) do |task_name, self_d, other_d|
                         if self_d != other_d
                             raise TaskNameAlreadyInUse.new(task_name, self_d, other_d),
-                                  'there is already a deployment that '\
+                                  "there is already a deployment that "\
                                   "provides #{task_name}"
                         end
                         self_d
@@ -264,18 +264,18 @@ module Syskit
             #   process managers
             # @return [[ConfiguredDeployment]]
             def use_ruby_tasks(
-                mappings, remote_task: false, on: 'ruby_tasks',
+                mappings, remote_task: false, on: "ruby_tasks",
                 process_managers: Syskit.conf
             )
                 # Verify that the process manager exists
                 process_managers.process_server_config_for(on)
 
                 if !mappings.respond_to?(:each_key)
-                    raise ArgumentError, 'mappings should be given as model => name'
+                    raise ArgumentError, "mappings should be given as model => name"
                 elsif mappings.size > 1
                     Roby.warn_deprecated(
-                        'defining more than one ruby task context ' \
-                        'deployment in a single use_ruby_tasks call is deprecated'
+                        "defining more than one ruby task context " \
+                        "deployment in a single use_ruby_tasks call is deprecated"
                     )
                 end
 
@@ -298,7 +298,7 @@ module Syskit
                     deployment_model = task_model.deployment_model
                     configured_deployment =
                         Models::ConfiguredDeployment
-                        .new(on, deployment_model, { 'task' => name }, name,
+                        .new(on, deployment_model, { "task" => name }, name,
                              task_context_class: task_context_class)
                     register_configured_deployment(configured_deployment)
                     configured_deployment
@@ -308,7 +308,7 @@ module Syskit
             # Declare tasks that are going to be started by some other process,
             # but whose tasks are going to be integrated in the syskit network
             def use_unmanaged_task(
-                mappings, on: 'unmanaged_tasks', process_managers: Syskit.conf
+                mappings, on: "unmanaged_tasks", process_managers: Syskit.conf
             )
                 # Verify that the process manager exists
                 process_managers.process_server_config_for(on)
@@ -316,9 +316,9 @@ module Syskit
                 model_to_name = mappings.map do |task_model, name|
                     if task_model.respond_to?(:to_str)
                         Roby.warn_deprecated(
-                            'specifying the task model as string '\
-                            'is deprecated. Load the task library and use Syskit\'s '\
-                            'task class'
+                            "specifying the task model as string "\
+                            "is deprecated. Load the task library and use Syskit's "\
+                            "task class"
                         )
                         task_model_name = task_model
                         task_model = Syskit::TaskContext
@@ -338,7 +338,7 @@ module Syskit
                         !(task_model <= Syskit::RubyTaskContext)
                     unless is_pure_task_context_model
                         raise ArgumentError,
-                              'expected a mapping from a task context '\
+                              "expected a mapping from a task context "\
                               "model to a name, but got #{task_model}"
                     end
                 end
@@ -369,7 +369,7 @@ module Syskit
             # @return [Array<Deployment>]
             def use_deployment(
                 *names,
-                on: 'localhost',
+                on: "localhost",
                 simulation: Roby.app.simulation?,
                 loader: nil,
                 process_managers: Syskit.conf,
@@ -395,15 +395,15 @@ module Syskit
                     if n.respond_to?(:orogen_model)
                         if !n.kind_of?(Class)
                             raise ArgumentError,
-                                  'only deployment models can be given without a name'
+                                  "only deployment models can be given without a name"
                         elsif n <= Syskit::TaskContext && !(n <= Syskit::RubyTaskContext)
                             raise TaskNameRequired,
-                                  'you must provide a task name when starting a '\
-                                  'component by type, as e.g. use_deployment '\
+                                  "you must provide a task name when starting a "\
+                                  "component by type, as e.g. use_deployment "\
                                   "OroGen.xsens_imu.Task => 'imu'"
                         elsif !(n <= Syskit::Deployment)
                             raise ArgumentError,
-                                  'only deployment models can be given without a name'
+                                  "only deployment models can be given without a name"
                         end
                         deployments_by_name[n.orogen_model.name] = n
                         n.orogen_model
@@ -420,7 +420,7 @@ module Syskit
                             !(k <= Syskit::RubyTaskContext)
                         unless is_valid
                             raise ArgumentError,
-                                  'only deployment and task context '\
+                                  "only deployment and task context "\
                                   "models can be deployed by use_deployment, got #{k}"
                         end
                         deployments_by_name[k.orogen_model.name] = k
@@ -491,7 +491,7 @@ module Syskit
             def pretty_print(pp)
                 pp.text "Deployment group with #{deployed_tasks.size} deployed tasks"
                 pp.breakable
-                pp.text 'By task:'
+                pp.text "By task:"
                 pp.nest(2) do
                     deployed_tasks.each do |name, task|
                         pp.breakable
@@ -500,7 +500,7 @@ module Syskit
                     end
                 end
                 pp.breakable
-                pp.text 'By model:'
+                pp.text "By model:"
                 pp.nest(2) do
                     task_context_deployment_candidates.each do |model, candidates|
                         pp.breakable

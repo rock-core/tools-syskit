@@ -1,10 +1,12 @@
-require 'syskit/test/self'
+# frozen_string_literal: true
+
+require "syskit/test/self"
 
 describe Syskit::Coordination::TaskScriptExtension do
     it "sets the CompositionChild instance as model for child tasks" do
-        data_service = Syskit::DataService.new_submodel { output_port 'out', '/double' }
+        data_service = Syskit::DataService.new_submodel { output_port "out", "/double" }
         composition_m = Syskit::Composition.new_submodel do
-            add data_service, as: 'test'
+            add data_service, as: "test"
         end
         assert_equal composition_m.test_child, composition_m.script.test_child.model.model
     end
@@ -13,30 +15,30 @@ describe Syskit::Coordination::TaskScriptExtension do
         attr_reader :base_srv_m, :srv_m, :component_m, :composition_m
         before do
             @base_srv_m = Syskit::DataService.new_submodel do
-                input_port 'base_in', '/double'
-                output_port 'base_out', '/double'
+                input_port "base_in", "/double"
+                output_port "base_out", "/double"
             end
             @srv_m = Syskit::DataService.new_submodel do
-                input_port 'srv_in', '/double'
-                output_port 'srv_out', '/double'
+                input_port "srv_in", "/double"
+                output_port "srv_out", "/double"
             end
-            srv_m.provides base_srv_m, 'base_in' => 'srv_in', 'base_out' => 'srv_out'
-            @component_m = syskit_stub_task_context_model 'Task' do
-                input_port 'in', '/double'
-                output_port 'out', '/double'
+            srv_m.provides base_srv_m, "base_in" => "srv_in", "base_out" => "srv_out"
+            @component_m = syskit_stub_task_context_model "Task" do
+                input_port "in", "/double"
+                output_port "out", "/double"
             end
-            component_m.provides srv_m, as: 'test'
+            component_m.provides srv_m, as: "test"
             @composition_m = Syskit::Composition.new_submodel
-            composition_m.add base_srv_m, as: 'test'
+            composition_m.add base_srv_m, as: "test"
         end
 
         describe "mapping ports from services using submodel creation" do
             def start
                 component = syskit_stub_deploy_and_configure(component_m)
                 composition_m = self.composition_m.new_submodel
-                composition_m.overload 'test', component_m
-                composition = syskit_stub_deploy_configure_and_start(composition_m.use('test' => component))
-                return composition, component
+                composition_m.overload "test", component_m
+                composition = syskit_stub_deploy_configure_and_start(composition_m.use("test" => component))
+                [composition, component]
             end
 
             it "gives writer access to input ports mapped from services" do
@@ -45,7 +47,7 @@ describe Syskit::Coordination::TaskScriptExtension do
                     writer = test_child.base_in_port.writer
                     begin
                         test_child.base_in_port.to_component_port
-                    rescue
+                    rescue StandardError
                     end
                 end
                 composition, component = start
@@ -67,8 +69,8 @@ describe Syskit::Coordination::TaskScriptExtension do
         describe "mapping ports from services using dependency injection" do
             def start
                 component = syskit_stub_deploy_and_configure(component_m)
-                composition = syskit_stub_deploy_configure_and_start(composition_m.use('test' => component))
-                return composition, component
+                composition = syskit_stub_deploy_configure_and_start(composition_m.use("test" => component))
+                [composition, component]
             end
 
             it "gives writer access to input ports mapped from services" do
@@ -119,11 +121,11 @@ describe Syskit::Coordination::TaskScriptExtension do
         attr_reader :component, :srv_m, :task_m
 
         before do
-            @srv_m = srv_m = Syskit::DataService.new_submodel { input_port 'srv_in', '/double' }
-            @task_m = Syskit::TaskContext.new_submodel(name: 'Task') do
-                input_port 'in', '/double'
+            @srv_m = srv_m = Syskit::DataService.new_submodel { input_port "srv_in", "/double" }
+            @task_m = Syskit::TaskContext.new_submodel(name: "Task") do
+                input_port "in", "/double"
             end
-            task_m.provides srv_m, as: 'test'
+            task_m.provides srv_m, as: "test"
             @component = syskit_stub_deploy_and_configure task_m
         end
 
@@ -145,15 +147,15 @@ describe Syskit::Coordination::TaskScriptExtension do
 
         it "gives access to ports from children" do
             composition_m = Syskit::Composition.new_submodel
-            composition_m.add srv_m, as: 'test'
+            composition_m.add srv_m, as: "test"
             assert_kind_of Syskit::InputPort, composition_m.script.test_child.srv_in_port
         end
 
         it "gives access to ports from grandchildren" do
-            root_m = Syskit::Composition.new_submodel(name: 'Root') { attr_reader :writer }
-            child_m = Syskit::Composition.new_submodel(name: 'Child')
-            child_m.add task_m, as: 'test'
-            root_m.add child_m, as: 'test'
+            root_m = Syskit::Composition.new_submodel(name: "Root") { attr_reader :writer }
+            child_m = Syskit::Composition.new_submodel(name: "Child")
+            child_m.add task_m, as: "test"
+            root_m.add child_m, as: "test"
 
             root_m.script do
                 writer = test_child.test_child.in_port.writer
@@ -167,13 +169,13 @@ describe Syskit::Coordination::TaskScriptExtension do
             root = syskit_stub_deploy_configure_and_start(root_m)
             writer = expect_execution.to { achieve { root.writer } }
             assert_equal root.test_child.test_child, writer.port.component
-            assert_equal 'in', writer.port.name
+            assert_equal "in", writer.port.name
         end
 
         it "does port mapping if necessary" do
             composition_m = Syskit::Composition.new_submodel
-            composition_m.add srv_m, as: 'test'
-            composition = syskit_stub_and_deploy(composition_m.use('test' => component))
+            composition_m.add srv_m, as: "test"
+            composition = syskit_stub_and_deploy(composition_m.use("test" => component))
 
             writer = nil
             composition.script do
@@ -201,7 +203,7 @@ describe Syskit::Coordination::TaskScriptExtension do
             attr_reader :writer, :actual_writer, :cmp
             before do
                 cmp_m = Syskit::Composition.new_submodel
-                cmp_m.add task_m, as: 'test'
+                cmp_m.add task_m, as: "test"
                 writer = nil
                 cmp_m.script do
                     writer = test_child.in_port.writer
@@ -232,22 +234,21 @@ describe Syskit::Coordination::TaskScriptExtension do
             it "forwards arbitrary exceptions" do
                 error = Class.new(RuntimeError)
                 flexmock(actual_writer).should_receive(:disconnect).and_raise(error)
-                expect_execution { cmp.stop! }.
-                    to { have_framework_error_matching error }
+                expect_execution { cmp.stop! }
+                    .to { have_framework_error_matching error }
             end
         end
-
     end
 
     describe "output port access" do
         attr_reader :component, :srv_m, :task_m
 
         before do
-            @srv_m = Syskit::DataService.new_submodel { output_port 'srv_out', '/double' }
+            @srv_m = Syskit::DataService.new_submodel { output_port "srv_out", "/double" }
             @task_m = Syskit::TaskContext.new_submodel do
-                output_port 'out', '/double'
+                output_port "out", "/double"
             end
-            task_m.provides srv_m, as: 'test'
+            task_m.provides srv_m, as: "test"
             @component = syskit_stub_deploy_and_configure task_m
         end
 
@@ -260,7 +261,7 @@ describe Syskit::Coordination::TaskScriptExtension do
             attr_reader :reader, :actual_reader, :cmp
             before do
                 cmp_m = Syskit::Composition.new_submodel
-                cmp_m.add task_m, as: 'test'
+                cmp_m.add task_m, as: "test"
                 reader = nil
                 cmp_m.script do
                     reader = test_child.out_port.reader
@@ -291,8 +292,8 @@ describe Syskit::Coordination::TaskScriptExtension do
             it "forwards arbitrary exceptions" do
                 error = Class.new(RuntimeError)
                 flexmock(actual_reader).should_receive(:disconnect).and_raise(error)
-                expect_execution { cmp.stop! }.
-                    to { have_framework_error_matching error }
+                expect_execution { cmp.stop! }
+                    .to { have_framework_error_matching error }
             end
         end
 
@@ -309,14 +310,14 @@ describe Syskit::Coordination::TaskScriptExtension do
 
         it "gives access to ports from children" do
             composition_m = Syskit::Composition.new_submodel
-            composition_m.add srv_m, as: 'test'
+            composition_m.add srv_m, as: "test"
             assert_kind_of Syskit::OutputPort, composition_m.script.test_child.srv_out_port
         end
 
         it "does port mapping if necessary" do
             composition_m = Syskit::Composition.new_submodel
-            composition_m.add srv_m, as: 'test'
-            composition = syskit_deploy_and_configure(composition_m.use('test' => component))
+            composition_m.add srv_m, as: "test"
+            composition = syskit_deploy_and_configure(composition_m.use("test" => component))
 
             reader = nil
             composition.script do
@@ -339,7 +340,4 @@ describe Syskit::Coordination::TaskScriptExtension do
             end
         end
     end
-
-
 end
-

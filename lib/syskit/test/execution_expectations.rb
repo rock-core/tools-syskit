@@ -1,3 +1,5 @@
+# frozen_string_literal: true
+
 module Syskit
     module Test
         # Definition of expectations for Roby's expect_execution harness
@@ -11,7 +13,7 @@ module Syskit
                         reader.to_orocos_port
                     end
                 end
-                if !reader.respond_to?(:read_new)
+                unless reader.respond_to?(:read_new)
                     if reader.respond_to?(:reader)
                         reader = Orocos.allow_blocking_calls do
                             reader.reader
@@ -51,7 +53,8 @@ module Syskit
             # @return [nil]
             def have_no_new_sample(reader, at_least_during: 0, backtrace: caller(1))
                 add_expectation(HaveNoNewSample.new(
-                    reader, at_least_during, backtrace))
+                                    reader, at_least_during, backtrace
+                                ))
             end
 
             # Expect that one sample arrives on the reader, and return the sample
@@ -60,9 +63,8 @@ module Syskit
             def have_one_new_sample(reader, backtrace: caller(1))
                 orocos_reader = ExecutionExpectations.resolve_orocos_reader(reader)
                 achieve(description: "#{reader} should have received a new sample",
-                    backtrace: backtrace) { orocos_reader.read_new }
+                        backtrace: backtrace) { orocos_reader.read_new }
             end
         end
     end
 end
-

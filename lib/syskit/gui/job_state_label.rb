@@ -1,3 +1,5 @@
+# frozen_string_literal: true
+
 module Syskit
     module GUI
         # A label that can be used to represent job states
@@ -25,5 +27,3 @@ module Syskit
         end
     end
 end
-
-

@@ -1,3 +1,5 @@
+# frozen_string_literal: true
+
 module Syskit
     module RobyApp
         # Management of the configuration related to logging of data streams and
@@ -61,7 +63,7 @@ module Syskit
         #
         class LoggingConfiguration
             def initialize
-                @groups = Hash.new
+                @groups = {}
                 @port_logs_enabled = true
                 @conf_logs_enabled = true
                 @default_logging_buffer_size = 25
@@ -88,9 +90,14 @@ module Syskit
             # Currently, properties are logged in a properties.0.log file
             attr_predicate :conf_logs_enabled?
             # See {#conf_log_enabled?}
-            def enable_conf_logging; @conf_logs_enabled = true end
+            def enable_conf_logging
+                @conf_logs_enabled = true
+            end
+
             # See {#conf_log_enabled?}
-            def disable_conf_logging; @conf_logs_enabled = false end
+            def disable_conf_logging
+                @conf_logs_enabled = false
+            end
 
             # The configuration log file
             attr_accessor :configuration_log
@@ -106,7 +113,8 @@ module Syskit
                 stream_name = "#{property.task_context.orocos_name}.#{property.name}"
                 if !configuration_log.has_stream?(stream_name)
                     configuration_log.create_stream(
-                        stream_name, property.type, property.log_metadata)
+                        stream_name, property.type, property.log_metadata
+                    )
                 else
                     configuration_log.stream(stream_name)
                 end
@@ -121,9 +129,14 @@ module Syskit
             # ports (#exclude_from_log)
             attr_predicate :port_logs_enabled?
             # See {#log_enabled?}
-            def enable_port_logging; @port_logs_enabled = true end
+            def enable_port_logging
+                @port_logs_enabled = true
+            end
+
             # See {#log_enabled?}
-            def disable_port_logging; @port_logs_enabled = false end
+            def disable_port_logging
+                @port_logs_enabled = false
+            end
 
             # Fetch a group by its name
             #
@@ -146,6 +159,7 @@ module Syskit
                 if groups[name.to_str]
                     raise ArgumentError, "there is already a group registered under the name #{name}, use #update_group if you mean to update it"
                 end
+
                 group = LoggingGroup.new(enabled)
                 yield(group) if block_given?
                 groups[name.to_str] = group
@@ -172,16 +186,18 @@ module Syskit
             # @yieldreturn [Boolean] whether the group matches the object whose
             #   exclusion is being considered.
             def object_excluded_from_log?
-                return true if !port_logs_enabled?
+                return true unless port_logs_enabled?
+
                 has_one_match = false
 
                 groups.each_value do |group|
                     if yield(group)
                         return false if group.enabled?
+
                         has_one_match = true
                     end
                 end
-                return has_one_match
+                has_one_match
             end
 
             # Returns true if the given port is excluded from logging
@@ -209,4 +225,3 @@ module Syskit
         end
     end
 end
-

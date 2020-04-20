@@ -1,9 +1,11 @@
-require 'syskit/test/self'
-require 'roby/test/aruba_minitest'
+# frozen_string_literal: true
+
+require "syskit/test/self"
+require "roby/test/aruba_minitest"
 
 module Syskit
     module CLI
-        describe 'syskit gen' do
+        describe "syskit gen" do
             include Roby::Test::ArubaMinitest
 
             def assert_app_valid(*args)
@@ -25,7 +27,7 @@ module Syskit
                 end
                 it "creates the config/orogen directory and adds a file to ensure it's saved in git" do
                     run_command_and_stop "syskit gen app"
-                    assert exist?('config/orogen/.gitkeep')
+                    assert exist?("config/orogen/.gitkeep")
                 end
             end
 
@@ -83,11 +85,11 @@ module Syskit
 
                 describe "gen orogen" do
                     it "generates extension points for an orogen project" do
-                        write_file 'models/pack/orogen/bla.orogen', <<-EOD
+                        write_file "models/pack/orogen/bla.orogen", <<-OROGEN_FILE
                         name 'bla'
                         task_context 'Task' do
                         end
-                        EOD
+                        OROGEN_FILE
                         run_command_and_stop "syskit gen orogen bla"
                         run_syskit_test "test/orogen/test_bla.rb"
                     end
@@ -99,7 +101,7 @@ module Syskit
                         cmd.stop
                         assert_equal 1, cmd.exit_status
                         assert_match /failed to start a component of model logger::Logger, cannot create a configuration file with default values/,
-                            cmd.stderr
+                                     cmd.stderr
                     end
                 end
             end

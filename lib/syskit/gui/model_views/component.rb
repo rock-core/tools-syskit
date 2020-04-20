@@ -1,4 +1,6 @@
-require 'syskit/gui/component_network_base_view'
+# frozen_string_literal: true
+
+require "syskit/gui/component_network_base_view"
 module Syskit::GUI
     module ModelViews
         # Visualization of a single component model. It is used to visualize the
@@ -10,9 +12,9 @@ module Syskit::GUI
             def initialize(page)
                 super
                 @interface_options = Hash[
-                    mode: 'dataflow',
-                    title: 'Interface',
-                    annotations: ['task_info', 'port_details'].to_set,
+                    mode: "dataflow",
+                    title: "Interface",
+                    annotations: %w[task_info port_details].to_set,
                     zoom: 1]
             end
 
@@ -32,7 +34,7 @@ module Syskit::GUI
                 task = instanciate_model(model)
                 @plan = task.plan
 
-                push_plan('interface', task.plan, push_options)
+                push_plan("interface", task.plan, push_options)
                 render_data_services(task)
             end
         end

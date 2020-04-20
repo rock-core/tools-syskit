@@ -1,10 +1,12 @@
+# frozen_string_literal: true
+
 module Syskit
     module ROS
         class Node < TaskContext
             extend Logger::Hierarchy
             include Logger::Hierarchy
 
-            def initialize(arguments = Hash.new)
+            def initialize(arguments = {})
                 super
             end
 
@@ -36,12 +38,9 @@ module Syskit
                 emit :stop
             end
 
-            def update_orogen_state
-            end
+            def update_orogen_state; end
 
-            def configure
-            end
+            def configure; end
         end
     end
 end
-

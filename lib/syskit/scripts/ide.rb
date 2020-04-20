@@ -1,7 +1,9 @@
-require 'roby'
-require 'syskit/gui/ide'
-require 'syskit/scripts/common'
-require 'vizkit'
+# frozen_string_literal: true
+
+require "roby"
+require "syskit/gui/ide"
+require "syskit/scripts/common"
+require "vizkit"
 
 Roby.app.require_app_dir
 
@@ -10,40 +12,40 @@ runtime_mode = nil
 runtime_only = false
 test_mode = false
 parser = OptionParser.new do |opt|
-    opt.banner = <<-EOD
-Usage: ide [file] [options]
-Loads the models from this bundle and allows to browse them. If a file is given, only this file is loaded.
-    EOD
+    opt.banner = <<~BANNER_TEXT
+        Usage: ide [file] [options]
+        Loads the models from this bundle and allows to browse them. If a file is given, only this file is loaded.
+    BANNER_TEXT
 
-    opt.on '--all', '-a', "Load all models from all active bundles instead of only the ones from the current" do
+    opt.on "--all", "-a", "Load all models from all active bundles instead of only the ones from the current" do
         load_all = true
     end
 
-    opt.on '-t', '--test', 'Start with tests already running' do
+    opt.on "-t", "--test", "Start with tests already running" do
         test_mode = true
     end
 
-    opt.on '--no-runtime', 'Do not attempt to connect to a running syskit instance' do
+    opt.on "--no-runtime", "Do not attempt to connect to a running syskit instance" do
         runtime_mode = false
     end
 
-    opt.on '--runtime', 'Start in runtime mode' do
+    opt.on "--runtime", "Start in runtime mode" do
         runtime_mode = true
     end
 
-    opt.on '--runtime-only', 'only show runtime control functionalities' do
+    opt.on "--runtime-only", "only show runtime control functionalities" do
         runtime_mode = true
         runtime_only = true
     end
 end
-options = Hash.new
+options = {}
 Roby::Application.host_options(parser, options)
 Roby.app.guess_app_dir unless runtime_only
 Syskit::Scripts.common_options(parser, true)
 remaining = parser.parse(ARGV)
 
 # We don't need the process server, win some startup time
-Roby.app.using 'syskit'
+Roby.app.using "syskit"
 Syskit.conf.only_load_models = true
 Syskit.conf.disables_local_process_server = true
 Roby.app.ignore_all_load_errors = true
@@ -64,7 +66,8 @@ Syskit::Scripts.run do
         robot_name: Roby.app.robot_name,
         runtime_only: runtime_only,
         runtime: runtime_mode, tests: test_mode,
-        host: options[:host], port: options[:port])
+        host: options[:host], port: options[:port]
+    )
     main.window_title = "Syskit #{Roby.app.app_name} #{Roby.app.robot_name} @#{options[:host]}"
 
     main.restore_from_settings
@@ -73,5 +76,3 @@ Syskit::Scripts.run do
     main.save_to_settings
     main.settings.sync
 end
-
-

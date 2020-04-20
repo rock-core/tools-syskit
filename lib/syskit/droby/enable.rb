@@ -1,4 +1,6 @@
-require 'syskit/droby/v5'
+# frozen_string_literal: true
+
+require "syskit/droby/v5"
 
 Orocos::RubyTasks::TaskContext.extend Roby::DRoby::V5::DRobyConstant::Dump
 Orocos::TaskContext.extend Roby::DRoby::V5::DRobyConstant::Dump

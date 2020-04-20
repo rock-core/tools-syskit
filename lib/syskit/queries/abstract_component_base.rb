@@ -11,7 +11,7 @@ module Syskit
                 ports = @model.map { |m| m.find_port(name) }.compact
                 return ports.first if ports.size <= 1
 
-                model_s = @model.map(&:to_s).join(', ')
+                model_s = @model.map(&:to_s).join(", ")
                 raise Ambiguous,
                       "more than one port named '#{name}' exist on composite model "\
                       "#{model_s}. Select a data service explicitly to disambiguate"
@@ -31,10 +31,10 @@ module Syskit
                 port = find_port_matcher_by_name(name)
                 return port if port
 
-                model_s = @model.map(&:to_s).join(', ')
+                model_s = @model.map(&:to_s).join(", ")
                 raise ArgumentError,
                       "no port named '#{name}' on #{model_s}, refine the "\
-                      'model with .which_fullfills first'
+                      "model with .which_fullfills first"
             end
 
             def data_service_by_name?(name)
@@ -72,27 +72,27 @@ module Syskit
                 ds = find_data_service_matcher_by_name(name)
                 return ds if ds
 
-                model_s = @model.map(&:to_s).join(', ')
+                model_s = @model.map(&:to_s).join(", ")
                 raise ArgumentError,
                       "no port named '#{name}' on #{model_s}, refine the "\
-                      'model with .with_model first'
+                      "model with .with_model first"
             end
 
             include MetaRuby::DSLs::FindThroughMethodMissing
 
-            def has_through_method_missing?(m) # rubocop:disable Naming/PredicateName
+            def has_through_method_missing?(m)
                 MetaRuby::DSLs.has_through_method_missing?(
                     self, m,
-                    '_srv' => :data_service_by_name?,
-                    '_port' => :port_by_name?
+                    "_srv" => :data_service_by_name?,
+                    "_port" => :port_by_name?
                 ) || super
             end
 
             def find_through_method_missing(m, args)
                 MetaRuby::DSLs.find_through_method_missing(
                     self, m, args,
-                    '_srv' => :find_data_service_matcher_by_name,
-                    '_port' => :find_port_matcher_by_name
+                    "_srv" => :find_data_service_matcher_by_name,
+                    "_port" => :find_port_matcher_by_name
                 ) || super
             end
         end

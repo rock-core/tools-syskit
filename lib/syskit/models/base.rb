@@ -1,3 +1,5 @@
+# frozen_string_literal: true
+
 module Syskit
     module Models
         extend Logger::Hierarchy
@@ -14,15 +16,15 @@ module Syskit
         module Base
             # List of names that are valid for this model in the context of
             # DependencyInjection
-            def dependency_injection_names; [] end
+            def dependency_injection_names
+                []
+            end
 
             # The model name that should be used in messages that are displayed
             # to the user. Note that Syskit defines Class#short_name as an
             # alias to #name so that #short_name can be used everywhere
             def short_name
-                if name then name
-                else to_s
-                end
+                to_s
             end
 
             def to_s
@@ -53,9 +55,10 @@ module Syskit
 
             if !name.respond_to?(:to_str)
                 raise ArgumentError, "expected a string as a model name, got #{name}"
-            elsif !(name.camelcase(:upper) == name)
+            elsif name.camelcase(:upper) != name
                 raise ArgumentError, "#{name} is not a valid model name. Model names must start with an uppercase letter, and are usually written in UpperCamelCase"
             end
+
             name
         end
 
@@ -68,6 +71,7 @@ module Syskit
                 if target_a != target_b
                     raise Ambiguous, "merging conflicting port mappings: #{source} => #{target_a} and #{source} => #{target_b}"
                 end
+
                 target_a
             end
         end
@@ -84,17 +88,17 @@ module Syskit
         # fields in +old_mappings+, saving the resulting mappins in +result+
         def self.update_port_mappings(result, new_mappings, old_mappings)
             old_mappings.each do |service, mappings|
-                updated_mappings = Hash.new
+                updated_mappings = {}
                 mappings.each do |from, to|
                     updated_mappings[from] = new_mappings[to] || to
                 end
                 result[service] =
-                    Models.merge_port_mappings(result[service] || Hash.new, updated_mappings)
+                    Models.merge_port_mappings(result[service] || {}, updated_mappings)
             end
         end
 
         # Merge the given orogen interfaces into one subclass
-        def self.merge_orogen_task_context_models(target, interfaces, port_mappings = Hash.new)
+        def self.merge_orogen_task_context_models(target, interfaces, port_mappings = {})
             interfaces.each do |i|
                 if i.name
                     target.implements i.name
@@ -124,8 +128,9 @@ module Syskit
             a_classes.concat(b_classes).each do |k|
                 if k < klass
                     klass = k
-                elsif !(klass <= k)
-                    raise IncompatibleComponentModels.new(k, klass), "models #{k.short_name} and #{klass.short_name} are not compatible"
+                elsif !(klass <= k) # rubocop:disable Style/InverseMethods
+                    raise IncompatibleComponentModels.new(k, klass),
+                          "models #{k.short_name} and #{klass.short_name} are not compatible"
                 end
             end
 
@@ -134,12 +139,10 @@ module Syskit
             a_modules.concat(b_modules).each do |m|
                 do_include = true
                 result.delete_if do |other_m|
-                    do_include &&= !(other_m <= m)
+                    do_include &&= !(other_m <= m) # rubocop:disable Style/InverseMethods
                     m < other_m
                 end
-                if do_include
-                    result << m
-                end
+                result << m if do_include
             end
             result
         end
@@ -157,5 +160,3 @@ module Syskit
         end
     end
 end
-
-

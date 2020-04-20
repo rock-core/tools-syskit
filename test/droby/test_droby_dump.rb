@@ -1,4 +1,6 @@
-require 'syskit/test/self'
+# frozen_string_literal: true
+
+require "syskit/test/self"
 
 module Syskit
     module DRoby
@@ -15,13 +17,13 @@ module Syskit
                 before do
                     @object_manager = Roby::DRoby::ObjectManager.new(local_id)
                     @marshal = Roby::DRoby::Marshal.new(object_manager, remote_id)
-                    @message_type = stub_type '/Test'
+                    @message_type = stub_type "/Test"
                     @combus = Syskit::ComBus.new_submodel message_type: message_type
                 end
 
                 it "marshals the type" do
                     m_combus = marshal.dump(combus)
-                    assert_equal '/Test', m_combus.message_type.name
+                    assert_equal "/Test", m_combus.message_type.name
                     assert_equal message_type.to_xml, m_combus.message_type.xml
                 end
                 it "marshals the lazy_dispatch? flag" do
@@ -38,13 +40,12 @@ module Syskit
                 before do
                     @object_manager = Roby::DRoby::ObjectManager.new(local_id)
                     @marshal = Roby::DRoby::Marshal.new(object_manager, remote_id)
-                    @type = Typelib::Registry.new.create_numeric '/Test', 10, :float
+                    @type = Typelib::Registry.new.create_numeric "/Test", 10, :float
                 end
-
 
                 it "marshals both the type and the registry when the type is not known on the peer" do
                     droby = marshal.dump(type)
-                    assert_equal '/Test', droby.name
+                    assert_equal "/Test", droby.name
                     assert_equal type.to_xml, droby.xml
                 end
 
@@ -52,19 +53,19 @@ module Syskit
                     value = type.new
                     droby = marshal.dump(value)
                     assert_equal value.to_byte_array, droby.byte_array
-                    assert_equal '/Test', droby.type.name
+                    assert_equal "/Test", droby.type.name
                     assert_equal type.to_xml, droby.type.xml
                 end
 
                 it "updates the peer with the marshalled types" do
                     marshal.dump(type)
-                    assert_equal type, object_manager.typelib_registry.get('/Test')
+                    assert_equal type, object_manager.typelib_registry.get("/Test")
                 end
 
                 it "does not re-marshal the same type definition twice" do
                     marshal.dump(type)
                     droby = marshal.dump(type)
-                    assert_equal '/Test', droby.name
+                    assert_equal "/Test", droby.name
                     assert !droby.xml
                 end
             end
@@ -76,29 +77,30 @@ module Syskit
                     @object_manager = Roby::DRoby::ObjectManager.new(remote_id)
                     @target_registry = object_manager.typelib_registry
                     @marshal = Roby::DRoby::Marshal.new(object_manager, remote_id)
-                    @type = Typelib::Registry.new.create_numeric '/Test', 4, :uint
+                    @type = Typelib::Registry.new.create_numeric "/Test", 4, :uint
                 end
 
                 it "updates the reference registry with the type definition when received" do
-                    marshalled   = V5::TypelibTypeModelDumper::DRoby.new('/Test', type.to_xml)
+                    marshalled   = V5::TypelibTypeModelDumper::DRoby.new("/Test", type.to_xml)
                     unmarshalled = marshal.local_object(marshalled)
 
-                    assert_same target_registry.get('/Test'), unmarshalled
+                    assert_same target_registry.get("/Test"), unmarshalled
                     refute_same type, unmarshalled
-                    assert_equal target_registry.get('/Test'), type
+                    assert_equal target_registry.get("/Test"), type
                 end
 
                 it "uses the existing type if xml is nil" do
-                    marshalled   = V5::TypelibTypeModelDumper::DRoby.new('/Test', nil)
-                    test_t = target_registry.create_opaque '/Test', 10
+                    marshalled = V5::TypelibTypeModelDumper::DRoby.new("/Test", nil)
+                    test_t = target_registry.create_opaque "/Test", 10
                     unmarshalled = marshal.local_object(marshalled)
                     assert_same test_t, unmarshalled
                 end
 
                 it "unmarshals the received value" do
-                    marshalled   = V5::TypelibTypeDumper::DRoby.new(
+                    marshalled = V5::TypelibTypeDumper::DRoby.new(
                         "\xBB\xCC\xDD\x00",
-                        V5::TypelibTypeModelDumper::DRoby.new('/Test', type.to_xml))
+                        V5::TypelibTypeModelDumper::DRoby.new("/Test", type.to_xml)
+                    )
                     unmarshalled = marshal.local_object(marshalled)
                     assert_equal 0xDDCCBB, Typelib.to_ruby(unmarshalled)
                 end
@@ -148,8 +150,8 @@ module Syskit
                 it "returns the constant" do
                     droby = droby_local_marshaller.dump(Actions::Profile.new("AProfile"))
                     droby = Marshal.load(Marshal.dump(droby))
-                    flexmock(droby).should_receive(:constant).with('AProfile').
-                        and_return(profile = Actions::Profile.new)
+                    flexmock(droby).should_receive(:constant).with("AProfile")
+                                   .and_return(profile = Actions::Profile.new)
                     unmarshalled = droby_remote_marshaller.local_object(droby)
                     assert_same profile, unmarshalled
                 end
@@ -161,7 +163,7 @@ module Syskit
             end
 
             it "dumps the orogen model and rebuilds the model on the other side" do
-                out_t = stub_type '/Test'
+                out_t = stub_type "/Test"
                 loader = OroGen::Loaders::RTT.new
                 loader.register_type_model(out_t)
                 project_text = <<-EOPROJECT
@@ -171,35 +173,35 @@ module Syskit
                 end
                 EOPROJECT
                 loader.project_model_from_text(project_text)
-                flexmock(loader).should_receive(:project_model_text_from_name).
-                    with('test').and_return(project_text)
+                flexmock(loader).should_receive(:project_model_text_from_name)
+                                .with("test").and_return(project_text)
 
-                orogen_model = loader.task_model_from_name('test::Task')
+                orogen_model = loader.task_model_from_name("test::Task")
                 task_m = Syskit::TaskContext.define_from_orogen(orogen_model, register: false)
                 unmarshalled = droby_transfer task_m
-                assert_equal '/Test', unmarshalled.out_port.type.name
+                assert_equal "/Test", unmarshalled.out_port.type.name
             end
 
             it "return an already existing oroGen model" do
-                local_model = OroGen::Spec::TaskContext.new(app.default_orogen_project, 'test::Task')
+                local_model = OroGen::Spec::TaskContext.new(app.default_orogen_project, "test::Task")
                 Roby.app.default_loader.register_task_context_model(local_model)
-                remote_model = OroGen::Spec::TaskContext.new(app.default_orogen_project, 'test::Task')
+                remote_model = OroGen::Spec::TaskContext.new(app.default_orogen_project, "test::Task")
                 task_m = Syskit::TaskContext.new_submodel(orogen_model: remote_model)
                 assert_same local_model, droby_transfer(task_m).orogen_model
             end
 
             it "return an already existing oroGen/Syskit model pair" do
-                local_model = OroGen::Spec::TaskContext.new(app.default_orogen_project, 'test::Task')
+                local_model = OroGen::Spec::TaskContext.new(app.default_orogen_project, "test::Task")
                 Roby.app.default_loader.register_task_context_model(local_model)
                 local_task_m = Syskit::TaskContext.define_from_orogen(local_model, register: false)
 
-                remote_model = OroGen::Spec::TaskContext.new(app.default_orogen_project, 'test::Task')
+                remote_model = OroGen::Spec::TaskContext.new(app.default_orogen_project, "test::Task")
                 remote_task_m = Syskit::TaskContext.new_submodel(orogen_model: remote_model)
                 assert_same local_task_m, droby_transfer(remote_task_m)
             end
 
             it "returns the same model once reconstructed" do
-                orogen_model = OroGen::Spec::TaskContext.new(app.default_orogen_project, 'test::Task')
+                orogen_model = OroGen::Spec::TaskContext.new(app.default_orogen_project, "test::Task")
                 task_m = Syskit::TaskContext.new_submodel(orogen_model: orogen_model)
                 unmarshalled = droby_transfer task_m
                 assert_same unmarshalled, droby_transfer(task_m)
@@ -214,17 +216,17 @@ module Syskit
                 EOPROJECT
                 loader.project_model_from_text(project_text)
 
-                orogen_model = loader.task_model_from_name('test::Task')
+                orogen_model = loader.task_model_from_name("test::Task")
                 task_m = Syskit::TaskContext.define_from_orogen(orogen_model, register: false)
                 unmarshalled = droby_transfer task_m
-                assert_equal 'test::Task', unmarshalled.orogen_model.name
+                assert_equal "test::Task", unmarshalled.orogen_model.name
             end
 
             it "gracefully handles models that do not have a real backing project" do
-                orogen_model = OroGen::Spec::TaskContext.new(app.default_orogen_project, 'test::Task')
+                orogen_model = OroGen::Spec::TaskContext.new(app.default_orogen_project, "test::Task")
                 task_m = Syskit::TaskContext.new_submodel(orogen_model: orogen_model)
                 unmarshalled = droby_transfer task_m
-                assert_equal 'test::Task', unmarshalled.orogen_model.name
+                assert_equal "test::Task", unmarshalled.orogen_model.name
             end
 
             it "gracefully handles anonymous models" do
@@ -251,34 +253,36 @@ module Syskit
             end
 
             it "marshals and unmarshals the superclasses" do
-                parent_model = OroGen::Spec::TaskContext.new(app.default_orogen_project, 'parent::Task')
+                parent_model = OroGen::Spec::TaskContext.new(app.default_orogen_project, "parent::Task")
                 parent_m = Syskit::TaskContext.new_submodel(orogen_model: parent_model)
 
                 child_model = OroGen::Spec::TaskContext.new(
-                    app.default_orogen_project, 'child::Task',
-                    subclasses: parent_model)
+                    app.default_orogen_project, "child::Task",
+                    subclasses: parent_model
+                )
                 child_m = parent_m.new_submodel(orogen_model: child_model)
 
                 unmarshalled = droby_transfer child_m
-                assert_equal 'parent::Task', unmarshalled.supermodel.orogen_model.name
-                assert_equal 'child::Task', unmarshalled.orogen_model.name
+                assert_equal "parent::Task", unmarshalled.supermodel.orogen_model.name
+                assert_equal "child::Task", unmarshalled.orogen_model.name
                 assert_same unmarshalled.supermodel.orogen_model,
-                    unmarshalled.orogen_model.superclass
+                            unmarshalled.orogen_model.superclass
             end
 
             it "deals with types shared between the superclass and the subclass" do
-                parent_model = OroGen::Spec::TaskContext.new(app.default_orogen_project, 'parent::Task')
-                parent_model.output_port 'out', stub_type('/test')
+                parent_model = OroGen::Spec::TaskContext.new(app.default_orogen_project, "parent::Task")
+                parent_model.output_port "out", stub_type("/test")
                 parent_m = Syskit::TaskContext.new_submodel(orogen_model: parent_model)
 
                 child_model = OroGen::Spec::TaskContext.new(
-                    app.default_orogen_project, 'child::Task',
-                    subclasses: parent_model)
-                child_model.output_port 'out2', stub_type('/test')
+                    app.default_orogen_project, "child::Task",
+                    subclasses: parent_model
+                )
+                child_model.output_port "out2", stub_type("/test")
                 child_m = parent_m.new_submodel(orogen_model: child_model)
 
                 droby_transfer child_m
-                assert droby_remote_marshaller.object_manager.typelib_registry.include?('/test')
+                assert droby_remote_marshaller.object_manager.typelib_registry.include?("/test")
             end
         end
     end

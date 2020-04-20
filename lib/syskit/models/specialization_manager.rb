@@ -1,3 +1,5 @@
+# frozen_string_literal: true
+
 module Syskit
     module Models
         # Management of the specializations of a particular composition model
@@ -9,7 +11,7 @@ module Syskit
             # @return [Model<Composition>]
             attr_reader :composition_model
 
-            inherited_attribute(:default_specialization, :default_specializations, :map => true) { Hash.new }
+            inherited_attribute(:default_specialization, :default_specializations, :map => true) { {} }
 
             def initialize(composition_model)
                 @composition_model = composition_model
@@ -18,7 +20,7 @@ module Syskit
             # The set of specializations defined on {#composition_model}
             #
             # @return [{{String => Array<Model<DataService>,Model<Component>>}=>CompositionSpecialization}]
-            attribute(:specializations) { Hash.new }
+            attribute(:specializations) { {} }
 
             # Registers the given specialization on this manager
             #
@@ -53,7 +55,8 @@ module Syskit
             #
             # @yield [CompositionSpecialization]
             def each_specialization
-                return enum_for(:each_specialization) if !block_given?
+                return enum_for(:each_specialization) unless block_given?
+
                 specializations.each_value do |spec|
                     yield(spec)
                 end
@@ -85,7 +88,7 @@ module Syskit
             #     specialize 'Control', FourWheelController, :not => SimpleController do
             #     end
             #
-            def specialize(options = Hash.new, &block)
+            def specialize(options = {}, &block)
                 Models.debug do
                     Models.debug "trying to specialize #{composition_model.short_name}"
                     Models.log_nest 2
@@ -99,7 +102,7 @@ module Syskit
                 end
 
                 options, mappings = Kernel.filter_options options, :not => []
-                if !options[:not].respond_to?(:to_ary)
+                unless options[:not].respond_to?(:to_ary)
                     options[:not] = [options[:not]]
                 end
 
@@ -109,11 +112,13 @@ module Syskit
                 validate_specialization_mappings(mappings)
 
                 # register it
-                if specialization = specializations[mappings]
-                    new_specialization = specialization.dup
-                else
-                    new_specialization = CompositionSpecialization.new
-                end
+                new_specialization =
+                    if (specialization = specializations[mappings])
+                        specialization.dup
+                    else
+                        CompositionSpecialization.new
+                    end
+
                 # validate the block
                 new_specialization.add(mappings, block)
                 specialized_composition_model =
@@ -128,6 +133,7 @@ module Syskit
                 # instantiation cannot be represented)
                 each_specialization do |spec|
                     next if spec == new_specialization || spec == new_specialization
+
                     if compatible_specializations?(spec, new_specialization)
                         spec.compatibilities << new_specialization
                         new_specialization.compatibilities << spec
@@ -146,10 +152,9 @@ module Syskit
 
                 # Finally, we create
                 new_specialization
-
             ensure
                 Models.debug do
-                    Models.log_nest -2
+                    Models.log_nest(-2)
                     break
                 end
             end
@@ -170,23 +175,24 @@ module Syskit
             #   specification, but more than one child matches this service
             def normalize_specialization_mappings(mappings)
                 # Normalize the user-provided specialization mapping
-                new_spec = Hash.new
+                new_spec = {}
                 mappings.each do |child, child_model|
                     if Models.is_model?(child)
-                        children = composition_model.each_child.
-                            find_all { |name, child_definition| child_definition.fullfills?(child) }.
-                            map { |name, _| name }
+                        children = composition_model.each_child
+                                                    .find_all { |name, child_definition| child_definition.fullfills?(child) }
+                                                    .map { |name, _| name }
 
                         if children.empty?
                             raise ArgumentError, "invalid specialization #{child.short_name} => #{child_model.short_name}: no child of #{composition_model.short_name} fullfills #{child.short_name}"
                         elsif children.size > 1
                             children = children.map do |child_name|
-                                child_models = composition_model.find_child(child_name).
-                                    each_required_model.map(&:short_name).sort.join(",")
+                                child_models = composition_model.find_child(child_name)
+                                                                .each_required_model.map(&:short_name).sort.join(",")
                                 "#{child_name}: #{child_models}"
                             end
-                            raise ArgumentError, "invalid specialization #{child.short_name} => #{child_model.short_name}: more than one child of #{composition_model.short_name} fullfills #{child.short_name} (#{children.sort.join("; ")}). You probably want to select one specifically by name"
+                            raise ArgumentError, "invalid specialization #{child.short_name} => #{child_model.short_name}: more than one child of #{composition_model.short_name} fullfills #{child.short_name} (#{children.sort.join('; ')}). You probably want to select one specifically by name"
                         end
+
                         child = children.first
                     elsif !child.respond_to?(:to_str)
                         raise ArgumentError, "invalid child selector #{child}"
@@ -201,7 +207,7 @@ module Syskit
 
                     new_spec[child.to_str] = child_model.to_set
                 end
-                return new_spec
+                new_spec
             end
 
             # Verifies that the child selection in +new_spec+ is valid
@@ -218,13 +224,13 @@ module Syskit
             def validate_specialization_mappings(new_spec)
                 new_spec.each do |child_name, child_models|
                     child_m = composition_model.find_child(child_name)
-                    if !child_m
+                    unless child_m
                         raise ArgumentError, "there is no child called #{child_name} in #{composition_model.short_name}"
                     end
 
                     merged = Placeholder.for(child_models).merge(child_m.model)
                     if merged == child_m.model
-                        raise ArgumentError, "#{child_models.map(&:short_name).sort.join(",")} does not specify a specialization of #{child_m.model}"
+                        raise ArgumentError, "#{child_models.map(&:short_name).sort.join(',')} does not specify a specialization of #{child_m.model}"
                     end
                 end
             end
@@ -234,7 +240,7 @@ module Syskit
             #
             # The block should take as input two Specialization instances and
             # return true if it is compatible and false otherwise
-            attribute(:specialization_constraints) { Array.new }
+            attribute(:specialization_constraints) { [] }
 
             # Registers a block that will be able to tell the system that two
             # specializations are not compatible (i.e. should never be applied
@@ -276,6 +282,7 @@ module Syskit
                     if result != sym_result
                         raise NonSymmetricSpecializationConstraint.new(validator, [spec1, spec2]), "#{validator} returned #{!!result} on (#{spec1},#{spec2}) and #{!!sym_result} on (#{spec2},#{spec1}). Specialization constraints must be symmetric"
                     end
+
                     result
                 end
             end
@@ -305,15 +312,8 @@ module Syskit
             #
             #   add 'ManualDriving',
             #       'Control' => controller_model.as(FourWheelController)
-            def default_specialization(child, child_model)
+            def default_specialization(_child, _child_model)
                 raise NotImplementedError
-
-                child = if child.respond_to?(:to_str)
-                            child.to_str
-                        else child.name.gsub(/.*::/, '')
-                        end
-
-                default_specializations[child] = child_model
             end
 
             def instanciate_all_possible_specializations
@@ -326,7 +326,7 @@ module Syskit
                     (1..set.size).each do |subset_size|
                         set.to_a.combination(subset_size) do |subset|
                             subset = subset.to_set
-                            if !done_subsets.include?(subset)
+                            unless done_subsets.include?(subset)
                                 merged = Specialization.new
                                 subset.each { |spec| merged.merge(spec) }
                                 result << specialized_model(merged, subset)
@@ -347,8 +347,8 @@ module Syskit
             def instanciated_specializations
                 root = composition_model.root_model
                 if root == composition_model
-                    return (@instanciated_specializations ||= Hash.new)
-                else return root.specializations.instanciated_specializations
+                    (@instanciated_specializations ||= {})
+                else root.specializations.instanciated_specializations
                 end
             end
 
@@ -360,7 +360,7 @@ module Syskit
             # separate.
             def specialized_model(composite_spec, applied_specializations = [composite_spec])
                 Models.debug do
-                    Models.debug "instanciating specializations: #{applied_specializations.map(&:to_s).sort.join(", ")}"
+                    Models.debug "instanciating specializations: #{applied_specializations.map(&:to_s).sort.join(', ')}"
                     Models.log_nest(2)
                     break
                 end
@@ -370,14 +370,14 @@ module Syskit
                 elsif current_model = instanciated_specializations[composite_spec.specialized_children]
                     return current_model.composition_model
                 end
+
                 child_composition = create_specialized_model(composite_spec, applied_specializations)
                 composite_spec.composition_model = child_composition
                 instanciated_specializations[composite_spec.specialized_children] = composite_spec
                 child_composition
-
             ensure
                 Models.debug do
-                    Models.log_nest -2
+                    Models.log_nest(-2)
                     break
                 end
             end
@@ -403,17 +403,19 @@ module Syskit
 
                 # Representation of a composition child within the block context
                 class Child < Models::FacetedAccess
-                    def child_name; object.child_name end
+                    def child_name
+                        object.child_name
+                    end
                 end
 
                 def initialize(model, reference_model)
-                    @model, @reference_model =
-                        model, reference_model
+                    @model = model
+                    @reference_model = reference_model
                     @overload_info = ::Hash.new
                 end
 
                 def apply_block(block)
-                    if !model.definition_blocks.include?(block)
+                    unless model.definition_blocks.include?(block)
                         instance_eval(&block)
                         model.definition_blocks << block
                     end
@@ -499,7 +501,7 @@ module Syskit
                 result = []
                 specialization_set = specialization_set.to_set
 
-                compatibilities = Hash.new
+                compatibilities = {}
                 specialization_set.each do |s0|
                     compatibilities[s0] = (s0.compatibilities.to_set & specialization_set) << s0
                 end
@@ -518,8 +520,8 @@ module Syskit
 
                     # Now, add new elements for what is left
                     merged, all = nil
-                    while !remaining.empty?
-                        if !merged
+                    until remaining.empty?
+                        unless merged
                             merged = CompositionSpecialization.new
                             merged.merge(s0)
                             all = [s0].to_set
@@ -527,6 +529,7 @@ module Syskit
 
                         remaining.delete(s1 = remaining.first)
                         next if s0 == s1 # possible if the iteration on 'result' above did not find anything
+
                         if merged.compatible_with?(s1)
                             merged.merge(s1)
                             all << s1
@@ -586,7 +589,7 @@ module Syskit
                     return [[CompositionSpecialization.new, []]]
                 end
 
-                return partition_specializations(matching_specializations)
+                partition_specializations(matching_specializations)
             end
 
             # Looks for a single composition model that matches the given

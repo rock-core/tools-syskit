@@ -89,7 +89,7 @@ module Syskit
             #   or nil if the execution finished
             def syskit_apply_async_resolution_results
                 unless syskit_finished_async_resolution?
-                    raise 'the current network resolution is not yet finished'
+                    raise "the current network resolution is not yet finished"
                 end
 
                 running_requirement_tasks =
@@ -108,8 +108,8 @@ module Syskit
                 nil
             rescue ::Exception => e # rubocop:disable Lint/RescueException
                 if running_requirement_tasks.empty?
-                    add_framework_error(e, 'deployment error without '\
-                        'requirement tasks')
+                    add_framework_error(e, "deployment error without "\
+                        "requirement tasks")
                 else
                     running_requirement_tasks.each do |t|
                         t.failed_event.emit(e)
@@ -120,8 +120,8 @@ module Syskit
         end
 
         def self.apply_requirement_modifications(plan,
-                                                 force: false,
-                                                 requirement_tasks: nil)
+            force: false,
+            requirement_tasks: nil)
             if plan.syskit_has_async_resolution?
                 # We're already running a resolution, make sure it is not
                 # obsolete

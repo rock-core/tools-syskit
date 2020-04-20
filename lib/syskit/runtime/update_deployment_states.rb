@@ -1,3 +1,5 @@
+# frozen_string_literal: true
+
 module Syskit
     module Runtime
         # This method is called once at the beginning of each execution cycle to
@@ -22,7 +24,7 @@ module Syskit
 
                 dead_deployments.each do |p, exit_status|
                     d = Deployment.deployment_by_process(p)
-                    if !d.finishing?
+                    unless d.finishing?
                         d.warn "#{p.name} unexpectedly died on process server #{config.name}"
                     end
                     all_dead_deployments << d
@@ -35,11 +37,10 @@ module Syskit
             client = process_server.client
             # Before we can terminate Syskit, we need to abort all
             # deployments that were managed by this client
-            deployments = plan.find_tasks(Syskit::Deployment).
-                find_all { |t| t.arguments[:on] == process_server.name }
+            deployments = plan.find_tasks(Syskit::Deployment)
+                              .find_all { |t| t.arguments[:on] == process_server.name }
             deployments.each { |t| t.aborted_event.emit if !t.pending? && !t.finished? }
             Syskit.conf.remove_process_server(process_server.name)
         end
     end
 end
-

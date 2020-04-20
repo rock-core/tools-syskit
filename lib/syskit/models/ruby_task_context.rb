@@ -31,7 +31,7 @@ module Syskit
                 deployment_name = "Deployment::RubyTasks::#{name}"
                 @deployment_model ||=
                     Syskit::Deployment.new_submodel(name: deployment_name) do
-                        task 'task', orogen_model
+                        task "task", orogen_model
                     end
             end
         end
