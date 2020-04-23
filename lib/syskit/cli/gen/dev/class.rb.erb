@@ -6,9 +6,9 @@
 # you want <%= class_name.last %> to provide
 <% indent, open_code, close_code = ::Roby::CLI::Gen.in_module(*class_name[0..-2]) %>
 <%= open_code %>
-<%= indent %>device_type '<%= class_name.last %>' do
-<%= indent %>    # input_port 'in', '/base/Vector3d'
-<%= indent %>    # output_port 'out', '/base/Vector3d'
+<%= indent %>device_type "<%= class_name.last %>" do
+<%= indent %>    # input_port "in", "/base/Vector3d"
+<%= indent %>    # output_port "out", "/base/Vector3d"
 <%= indent %>    #
 <%= indent %>    # Tell syskit that this service provides another. It adds the
 <%= indent %>    # ports from the provided service to this service
@@ -17,7 +17,7 @@
 <%= indent %>    # Tell syskit that this service provides another. It maps ports
 <%= indent %>    # from the provided service to the one in this service (instead
 <%= indent %>    # of adding)
-<%= indent %>    # provides AnotherSrv, 'provided_srv_in' => 'in'
+<%= indent %>    # provides AnotherSrv, "provided_srv_in" => 'in'
 
 <%= indent %>    # # Device models can define configuration extensions, which
 <%= indent %>    # # extend the additconfiguration capabilities of the device
@@ -36,16 +36,17 @@
 <%= indent %>    # #
 <%= indent %>    # # and then use the information to auto-configure the device
 <%= indent %>    # # drivers
-<%= indent %>    # # class OroGen::MyDeviceDriver::Task
-<%= indent %>    # #     driver_for <%= class_name.last %>, as: 'driver'
+<%= indent %>    # # Syskit.extend_task OroGen.my_device_driver.Task do
+<%= indent %>    # #     driver_for <%= class_name.last %>, as: "driver"
 <%= indent %>    # #     def configure
 <%= indent %>    # #         super
 <%= indent %>    # #         orocos_task.baudrate = robot_device.baudrate
 <%= indent %>    # #     end
 <%= indent %>    # # end
 <%= indent %>    # #
-<%= indent %>    # # NOTE: this should be limited to device-specific configurations
-<%= indent %>    # # NOTE: driver-specific parameters must be set in the corresponding
-<%= indent %>    # # NOTE: oroGen configuration file
+<%= indent %>    # # NOTE: this should be limited to device-specific
+<%= indent %>    # # NOTE: configurations driver-specific parameters
+<%= indent %>    # # NOTE: must be set in the corresponding oroGen
+<%= indent %>    # # NOTE: configuration file
 <%= indent %>end
 <%= close_code %>

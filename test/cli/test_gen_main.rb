@@ -13,6 +13,14 @@ module Syskit
                 syskit_quit = run_command "syskit quit --retry"
                 assert_command_stops syskit_run
                 assert_command_stops syskit_quit
+
+                # Disable Lint/UselessAssignment as we do assign "uselessly"
+                # in tests to show how it is done
+                #
+                # Note that we expect the user to go through the test file
+                # before he/she commits it ...
+                rubocop = run_command "rubocop --except Lint/UselessAssignment"
+                assert_command_stops rubocop
             end
 
             def run_syskit_test(*args)
