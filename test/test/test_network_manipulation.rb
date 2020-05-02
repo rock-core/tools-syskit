@@ -28,6 +28,15 @@ module Syskit
                              .to { have_one_new_sample out_reader }
                     assert_equal 10, sample
                 end
+
+                it "buffers multiple samples" do
+                    task = syskit_deploy_configure_and_start(@task_m)
+                    syskit_write task.in_port, 10, 20, 30
+                    assert_equal 10, task.orocos_task.in.read_new
+                    assert_equal 20, task.orocos_task.in.read_new
+                    assert_equal 30, task.orocos_task.in.read_new
+                    assert_nil task.orocos_task.in.read_new
+                end
             end
 
             describe "#syskit_create_writer" do

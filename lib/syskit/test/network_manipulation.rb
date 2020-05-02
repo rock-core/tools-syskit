@@ -75,9 +75,9 @@ module Syskit
             end
 
             # Write a sample on a given input port
-            def syskit_write(writer, sample)
-                writer = syskit_create_writer(writer)
-                writer.write(sample)
+            def syskit_write(writer, *samples)
+                writer = syskit_create_writer(writer, type: :buffer, size: samples.size)
+                samples.each { |s| writer.write(s) }
             end
 
             def syskit_create_writer(writer, **policy)
