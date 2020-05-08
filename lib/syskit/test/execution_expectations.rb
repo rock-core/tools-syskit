@@ -27,12 +27,12 @@ module Syskit
             #
             # Implementation of the {#have_no_new_sample} predicate
             class HaveNoNewSample < Roby::Test::ExecutionExpectations::Maintain
-                def initialize(reader, at_least_during, predicate, description, backtrace)
+                def initialize(reader, at_least_during, description, backtrace)
                     @reader = reader
                     orocos_reader = ExecutionExpectations.resolve_orocos_reader(reader)
                     block = proc do
                         sample = orocos_reader.read_new
-                        if sample && predicate.call(sample)
+                        if sample && (!@predicate || @predicate.call(sample))
                             @received_sample = sample
                             false
                         else
@@ -50,6 +50,24 @@ module Syskit
                     pp.text "but it received one: "
                     explanation.pretty_print(pp)
                 end
+
+                def to_s
+                    parent = super
+                    if @predicate
+                        "#{parent} matching the given predicate"
+                    else
+                        parent
+                    end
+                end
+
+                def matching(&block)
+                    if @predicate
+                        raise ArgumentError, "only one #matching predicate is allowed"
+                    end
+
+                    @predicate = block
+                    self
+                end
             end
 
             # Expect that no new samples arrive on the reader for a certain time
@@ -61,84 +79,83 @@ module Syskit
             def have_no_new_sample(reader, at_least_during: 0, backtrace: caller(1))
                 description = "#{reader} should not have received a new sample"
                 add_expectation(
-                    HaveNoNewSample.new(reader, at_least_during, ->(_) { true },
-                                        description, backtrace)
+                    HaveNoNewSample.new(reader, at_least_during, description, backtrace)
                 )
             end
 
-            # Expect that no new samples that match the given predicate arrive on
-            # the reader for a certain time period
+            # @api private
             #
-            # @param [Float] at_least_during no samples should arrive for at
-            #   least that many seconds. This is a minimum.
-            # @return [nil]
-            def have_no_new_sample_matching(
-                reader, at_least_during: 0, backtrace: caller(1), &predicate
-            )
-                description = "#{reader} should not have received a new sample "\
-                              "matching the given predicate"
-                add_expectation(
-                    HaveNoNewSample.new(reader, at_least_during, predicate,
-                                        description, backtrace)
-                )
+            # Implementation of the #have.*new_sample.* predicates
+            #
+            # It is basically #achieve, but with the ability to add a #matching
+            # block
+            class HaveNewSamples < Roby::Test::ExecutionExpectations::Achieve
+                def initialize(reader, count, backtrace)
+                    @received_samples = []
+                    @predicate = nil
+
+                    orocos_reader = ExecutionExpectations.resolve_orocos_reader(
+                        reader, type: :buffer, size: count
+                    )
+
+                    block = proc do
+                        if (sample = orocos_reader.read_new)
+                            if !@predicate || @predicate.call(sample)
+                                @received_samples << sample
+                                @received_samples.size == count
+                            end
+                        end
+                    end
+                    description = proc do
+                        matching = " matching the given predicate" if @predicate
+                        "#{reader} should have received #{count} new sample(s)"\
+                        "#{matching}, but got #{@received_samples.size}"
+                    end
+                    super(block, description, backtrace)
+                end
+
+                def return_object
+                    @received_samples
+                end
+
+                def matching(&block)
+                    if @predicate
+                        raise ArgumentError, "only one #matching predicate is allowed"
+                    end
+
+                    @predicate = block
+                    self
+                end
             end
 
             # Expect that one sample arrives on the reader, and return the sample
             #
+            # If you'd like to wait for a sample that matches a particular predicate,
+            # use #matching:
+            #
+            #   have_one_new_sample(reader)
+            #       .matching { |s| s > 10 }
+            #
             # @return [Object]
             def have_one_new_sample(reader, backtrace: caller(1))
-                have_new_samples(reader, 1, backtrace: backtrace) { true }
+                have_new_samples(reader, 1, backtrace: backtrace)
                     .filter_result_with(&:first)
             end
 
-            # Expect that one sample matching the given predicate arrives on the
-            # reader, and return it
+            # Expect that a certain number of sample arrives on the reader, and
+            # return them
+            #
+            # If you'd like to wait for samples that match a particular
+            # predicate, use #matching:
+            #
+            #   have_new_samples(reader, 10)
+            #       .matching(&:odd?)
             #
             # @return [Object]
-            def have_one_new_sample_matching(reader, backtrace: caller(1), &predicate)
-                have_new_samples_matching(
-                    reader, 1, backtrace: backtrace, &predicate
-                ).filter_result_with(&:first)
-            end
-
-            # Expect that a certain number of samples arrive on the reader,
-            # and return them
-            #
-            # @return [Array]
             def have_new_samples(reader, count, backtrace: caller(1))
-                received_count = 0
-                description ||= proc do
-                    "#{reader} should have received #{count} new sample(s), "\
-                    "but got #{received_count}"
-                end
-                have_new_samples_matching(
-                    reader, count,
-                    description: description, backtrace: backtrace
-                ) { received_count += 1 }
-            end
-
-            # Expect that a certain number of samples matching the given predicate
-            # arrive, and return them
-            #
-            # @return [Array]
-            def have_new_samples_matching(
-                reader, count, description: nil, backtrace: caller(1), &predicate
-            )
-                orocos_reader = ExecutionExpectations.resolve_orocos_reader(
-                    reader, type: :buffer, size: count
+                add_expectation(
+                    HaveNewSamples.new(reader, count, backtrace)
                 )
-
-                samples = []
-                description ||= proc do
-                    "#{reader} should have received #{count} new sample(s) matching "\
-                    "the given predicate, but got #{samples.size}"
-                end
-                achieve(description: description, backtrace: backtrace) do
-                    if (sample = orocos_reader.read_new)
-                        samples << sample if predicate.call(sample)
-                        samples if samples.size == count
-                    end
-                end
             end
         end
     end

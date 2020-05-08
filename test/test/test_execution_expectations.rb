@@ -60,12 +60,13 @@ module Syskit
                 end
             end
 
-            describe "#have_one_new_sample_matching" do
+            describe "#have_one_new_sample.matching" do
                 it "passes if the task emits a matching sample and returns it" do
                     value =
                         expect_execution { syskit_write task.in_port, 10 }
                         .to do
-                            have_one_new_sample_matching(task.in_port) { |s| s == 10 }
+                            have_one_new_sample(task.in_port)
+                                .matching { |s| s == 10 }
                         end
                     assert_equal 10, value
                 end
@@ -73,7 +74,7 @@ module Syskit
                     e = assert_raises(Roby::Test::ExecutionExpectations::Unmet) do
                         expect_execution { syskit_write task.in_port, 10 }
                             .timeout(0.01)
-                            .to { have_one_new_sample_matching(task.in_port) { false } }
+                            .to { have_one_new_sample(task.in_port).matching { false } }
                     end
                     assert_equal "#{task.in_port} should have received 1 new "\
                                  "sample(s) matching the given predicate, but got 0",
@@ -84,7 +85,7 @@ module Syskit
                     assert_raises(Roby::Test::ExecutionExpectations::Unmet) do
                         expect_execution.timeout(0.01).to do
                             expectation =
-                                have_one_new_sample_matching(task.in_port) { true }
+                                have_one_new_sample(task.in_port).matching { true }
                         end
                     end
                     lineno = __LINE__ - 3
@@ -98,9 +99,9 @@ module Syskit
                         expect_execution
                             .timeout(0.01)
                             .to do
-                                expectation = have_one_new_sample_matching(
+                                expectation = have_one_new_sample(
                                     task.in_port, backtrace: ["bla"]
-                                ) { true }
+                                ).matching { true }
                             end
                     end
                     assert_equal ["bla"], expectation.backtrace
@@ -148,18 +149,18 @@ module Syskit
                 end
             end
 
-            describe "#have_new_samples_matching" do
+            describe "#have_new_samples.matching" do
                 it "passes if the task emits enough matching samples and returns them" do
                     value =
                         expect_execution { syskit_write task.in_port, 1, 2, 3 }
-                        .to { have_new_samples_matching(task.in_port, 2, &:odd?) }
+                        .to { have_new_samples(task.in_port, 2).matching(&:odd?) }
                     assert_equal [1, 3], value
                 end
                 it "fails if the task does not emit enough matching samples" do
                     e = assert_raises(Roby::Test::ExecutionExpectations::Unmet) do
                         expect_execution { syskit_write task.in_port, 1, 2, 3 }
                             .timeout(0.01)
-                            .to { have_new_samples_matching(task.in_port, 2, &:even?) }
+                            .to { have_new_samples(task.in_port, 2).matching(&:even?) }
                     end
                     assert_match "#{task.in_port} should have received 2 new "\
                                  "sample(s) matching the given predicate, "\
@@ -170,7 +171,7 @@ module Syskit
                     assert_raises(Roby::Test::ExecutionExpectations::Unmet) do
                         expect_execution.timeout(0.01).to do
                             expectation =
-                                have_new_samples_matching(task.in_port, 2) { true }
+                                have_new_samples(task.in_port, 2).matching { true }
                         end
                     end
                     lineno = __LINE__ - 3
@@ -234,7 +235,7 @@ module Syskit
                 end
             end
 
-            describe "#have_no_new_sample_matching" do
+            describe "#have_no_new_sample.matching" do
                 it "validates if the task does not emit a sample" do
                     expect_execution
                         .timeout(0.01)
@@ -244,13 +245,16 @@ module Syskit
                    "match the predicate" do
                     expect_execution { syskit_write task.in_port, 10 }
                         .timeout(0.01)
-                        .to { have_no_new_sample_matching(task.in_port) { |s| s != 10 } }
+                        .to { have_no_new_sample(task.in_port).matching { |s| s != 10 } }
                 end
                 it "fails if the task emits a sample that matches the predicate" do
                     e = assert_raises(Roby::Test::ExecutionExpectations::Unmet) do
                         expect_execution { syskit_write task.in_port, 10 }
                             .timeout(0.01)
-                            .to { have_no_new_sample_matching(task.in_port) { |s| s == 10 } }
+                            .to do
+                                have_no_new_sample(task.in_port)
+                                    .matching { |s| s == 10 }
+                            end
                     end
                     assert_equal "#{task.in_port} should not have received a new sample "\
                                  "matching the given predicate, but it received one: 10",
@@ -262,12 +266,11 @@ module Syskit
                         expect_execution { syskit_write task.in_port, 10 }
                             .timeout(0.01)
                             .to do
-                                expectation = have_no_new_sample_matching(
-                                    task.in_port
-                                ) { true }
+                                expectation = have_no_new_sample(task.in_port)
+                                              .matching { true }
                             end
                     end
-                    lineno = __LINE__ - 5
+                    lineno = __LINE__ - 4
                     fileline = /^([^:]+):(\d+)/.match(expectation.backtrace.first)
                     assert_equal File.expand_path(__FILE__), File.expand_path(fileline[1])
                     assert_equal lineno, Integer(fileline[2])
