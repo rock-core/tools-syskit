@@ -138,7 +138,7 @@ module Syskit
             # @option options [Orocos::Spec::TaskContext, Orocos::ROS::Spec::Node] orogen_model (nil) the
             #   oroGen model that should be used. If not given, an empty model
             #   is created, possibly with the name given to the method as well.
-            def new_submodel(options = {}, &block)
+            def new_submodel(**options, &block)
                 super
             end
 

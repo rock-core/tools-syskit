@@ -201,11 +201,11 @@ module Syskit
         #
         # @see each_input_connection each_concrete_output_connection
         #   each_output_connection
-        def each_concrete_in_connection(task, port = nil)
+        def each_concrete_in_connection(task, port = nil, &block)
             return enum_for(__method__, task, port) unless block_given?
 
             if concrete_connection_graph
-                return concrete_connection_graph.each_in_connection(task, port, &proc)
+                return concrete_connection_graph.each_in_connection(task, port, &block)
             else
                 each_concrete_in_path(task, port) do |path, aggregated_policy|
                     first_conn = path.first
@@ -239,11 +239,11 @@ module Syskit
         #
         # @see each_concrete_input_connection each_input_connection
         #   each_output_connection
-        def each_concrete_out_connection(task, port = nil)
-            return enum_for(__method__, task, port) unless block_given?
+        def each_concrete_out_connection(task, port = nil, &block)
+            return enum_for(__method__, task, port) unless block
 
             if concrete_connection_graph
-                return concrete_connection_graph.each_out_connection(task, port, &proc)
+                return concrete_connection_graph.each_out_connection(task, port, &block)
             else
                 each_concrete_out_path(task, port) do |path, aggregated_policy|
                     first_conn = path.first

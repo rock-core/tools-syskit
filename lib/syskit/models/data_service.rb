@@ -119,11 +119,11 @@ module Syskit
                         @model.respond_to?(m)
                 end
 
-                def method_missing(m, *args, &block) # rubocop:disable Style/MethodMissingSuper
+                def method_missing(m, *args, **kw, &block) # rubocop:disable Style/MethodMissingSuper
                     if @orogen_model.respond_to?(m)
-                        @orogen_model.public_send(m, *args, &block)
+                        @orogen_model.public_send(m, *args, **kw, &block)
                     else
-                        @model.public_send(m, *args, &block)
+                        @model.public_send(m, *args, **kw, &block)
                     end
                 end
             end
@@ -336,9 +336,9 @@ module Syskit
             #
             # @return [TaskContext]
             def instanciate(
-                plan, context = DependencyInjectionContext.new, options = {}, &block
+                plan, context = DependencyInjectionContext.new, **options, &block
             )
-                placeholder_model.instanciate(plan, context, options, &block)
+                placeholder_model.instanciate(plan, context, **options, &block)
             end
 
             def pretty_print(pp)
@@ -404,7 +404,7 @@ module Syskit
 
         # Metamodel for all devices
         class DeviceModel < DataServiceModel
-            def setup_submodel(submodel, options = {}, &block)
+            def setup_submodel(submodel, **options, &block)
                 super
 
                 if device_configuration_module
@@ -492,7 +492,7 @@ module Syskit
 
         # Metamodel for all communication busses
         class ComBusModel < DeviceModel
-            def initialize(*args, &block)
+            def initialize(project: Roby.app.default_orogen_project, &block)
                 super
                 @override_policy = true
             end

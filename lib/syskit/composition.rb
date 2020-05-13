@@ -21,7 +21,7 @@ module Syskit
 
         terminates
 
-        def initialize(options = {})
+        def initialize(**)
             @child_selection = {}
             super
         end
@@ -75,7 +75,7 @@ module Syskit
         end
 
         # (see Component#post_instanciation_setup)
-        def post_instanciation_setup(arguments)
+        def post_instanciation_setup(**arguments)
             super
             return unless (conf_names = arguments[:conf])
 

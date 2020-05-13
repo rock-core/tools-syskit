@@ -352,7 +352,7 @@ describe Syskit::InstanceRequirements do
         end
         it "should return the required arguments as third element" do
             arguments = Hash[argument: "for the task"]
-            req = Syskit::InstanceRequirements.new([]).with_arguments(arguments)
+            req = Syskit::InstanceRequirements.new([]).with_arguments(**arguments)
             assert_equal arguments, req.fullfilled_model[2]
         end
     end

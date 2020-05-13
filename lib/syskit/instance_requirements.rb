@@ -914,7 +914,7 @@ module Syskit
 
             mappings = @template.deep_copy_to(plan)
             root_task = mappings[@template.root_task]
-            root_task.post_instanciation_setup(arguments.merge(extra_arguments))
+            root_task.post_instanciation_setup(**arguments.merge(extra_arguments))
             model.bind(root_task)
         end
 
@@ -1242,6 +1242,7 @@ module Syskit
 
         # Return the instance requirement object that runs this task
         # model with the given name
+        # Request to run this task model with the given name
         def deployed_as(name, **options)
             use_deployment_group(
                 model.to_deployment_group(name, **options)
@@ -1249,9 +1250,10 @@ module Syskit
             self
         end
 
-        # Return the instance requirement object that will hook onto
-        # an otherwise started component of the given name
-        # model with the given name
+        # Request to run this task model with the given name, as an unmanaged task
+        #
+        # Unmanaged tasks are started externally to Syskit, but Syskit still
+        # manages the task's configuration and state changes
         def deployed_as_unmanaged(name, **options)
             use_unmanaged_task(model => name, **options)
             self

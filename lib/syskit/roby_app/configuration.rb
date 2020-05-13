@@ -581,13 +581,15 @@ module Syskit
             end
 
             def use_ruby_tasks(mappings, on: "ruby_tasks", remote_task: false)
-                deployment_group.use_ruby_tasks(mappings, on: on,
-                                                          remote_task: remote_task, process_managers: self)
+                deployment_group.use_ruby_tasks(
+                    mappings, on: on, remote_task: remote_task, process_managers: self
+                )
             end
 
             def use_unmanaged_task(mappings, on: "unmanaged_tasks")
-                deployment_group.use_unmanaged_task(mappings, on: on,
-                                                              process_managers: self)
+                deployment_group.use_unmanaged_task(
+                    mappings, on: on, process_managers: self
+                )
             end
 
             def use_deployment(*names, on: "localhost", **run_options)

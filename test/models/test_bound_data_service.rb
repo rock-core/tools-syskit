@@ -36,10 +36,10 @@ describe Syskit::Models::BoundDataService do
             output_port "out_parent_unmapped", "/double"
             output_port "out_base_unmapped", "/double"
         end
-        service = component_model.provides(model,
-                                           as: "test",
-                                           "in_model" => "in_port",
-                                           "out_model" => "out_port")
+        service = component_model.provides(
+            model, "in_model" => "in_port", "out_model" => "out_port",
+            as: "test"
+        )
 
         [base, parent, model, component_model, service]
     end
@@ -455,10 +455,10 @@ module Syskit
                 output_port "out_parent_unmapped", "/double"
                 output_port "out_base_unmapped", "/double"
             end
-            service = component_model.provides(model,
-                                               as: "test",
-                                               "in_model" => "in_port",
-                                               "out_model" => "out_port")
+            service = component_model.provides(
+                model,
+                "in_model" => "in_port", "out_model" => "out_port", as: "test"
+            )
 
             [base, parent, model, component_model, service]
         end

@@ -31,7 +31,7 @@ module Syskit
                     "#{root_model.short_name}/#{specializations}"
                 end
 
-                def setup_submodel(submodel, options = {})
+                def setup_submodel(submodel, **options)
                     submodel.root_model = submodel
                     super
                 end

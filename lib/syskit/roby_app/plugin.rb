@@ -697,7 +697,7 @@ module Syskit
             def self.plug_engine_in_roby(roby_engine)
                 handler_ids = {}
                 roby_engine_propagation_handlers.each do |name, (m, options)|
-                    handler_ids[name] = roby_engine.add_propagation_handler(options, &m)
+                    handler_ids[name] = roby_engine.add_propagation_handler(**options, &m)
                 end
                 handler_ids
             end

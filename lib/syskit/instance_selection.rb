@@ -161,7 +161,7 @@ module Syskit
 
         # If this selection does not yet have an associated task,
         # instanciate one
-        def instanciate(plan, context = Syskit::DependencyInjectionContext.new, options = {})
+        def instanciate(plan, context = Syskit::DependencyInjectionContext.new, **options)
             if component
                 # We have an explicitly selected component. We just need to
                 # bind the bound data service if there is one
@@ -171,7 +171,7 @@ module Syskit
                 else component
                 end
             else
-                selected.instanciate(plan, context, options)
+                selected.instanciate(plan, context, **options)
             end
         end
 

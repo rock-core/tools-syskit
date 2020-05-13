@@ -225,9 +225,10 @@ module Syskit
                         child_m  = Syskit::TaskContext.new_submodel
                         parent_m = Syskit::TaskContext.new_submodel
                         parent_m.singleton_class.class_eval do
-                            define_method(:instanciate) do |*args|
-                                task = super(*args)
-                                task.depends_on(child_m.instanciate(*args), role: "test")
+                            define_method(:instanciate) do |*args, **kw|
+                                task = super(*args, **kw)
+                                task.depends_on(child_m.instanciate(*args, **kw),
+                                                role: "test")
                                 task
                             end
                         end
@@ -727,8 +728,8 @@ module Syskit
                             output_port "out1", "/double"
                             output_port "out2", "/double"
                         end
-                        task_m.provides srv_m, "out" => "out1", as: "out1"
-                        task_m.provides srv_m, "out" => "out2", as: "out2"
+                        task_m.provides srv_m, { "out" => "out1" }, as: "out1"
+                        task_m.provides srv_m, { "out" => "out2" }, as: "out2"
                         cmp_m = Syskit::Composition.new_submodel
                         cmp_m.add srv_m, as: "test"
                         cmp_m.export cmp_m.test_child.out_port
@@ -747,8 +748,8 @@ module Syskit
                             output_port "out1", "/double"
                             output_port "out2", "/double"
                         end
-                        task_m.provides srv_m, "out" => "out1", as: "out1"
-                        task_m.provides srv_m, "out" => "out2", as: "out2"
+                        task_m.provides srv_m, { "out" => "out1" }, as: "out1"
+                        task_m.provides srv_m, { "out" => "out2" }, as: "out2"
                         cmp_m = Syskit::Composition.new_submodel
                         cmp_m.add srv_m, as: "test"
                         cmp_m.export cmp_m.test_child.out_port

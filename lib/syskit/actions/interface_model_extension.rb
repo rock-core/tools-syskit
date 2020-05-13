@@ -75,15 +75,15 @@ module Syskit
                 args = action_model.each_arg.to_a
                 if args.any?(&:required?)
                     profile_library.send(:define_method, action_name) do |arguments|
-                        action_model.to_instance_requirements(arguments)
+                        action_model.to_instance_requirements(**arguments)
                     end
                 elsif !args.empty?
                     profile_library.send(:define_method, action_name) do |arguments = {}|
-                        action_model.to_instance_requirements(arguments)
+                        action_model.to_instance_requirements(**arguments)
                     end
                 else
                     profile_library.send(:define_method, action_name) do
-                        action_model.to_instance_requirements({})
+                        action_model.to_instance_requirements(**{})
                     end
                 end
             end
@@ -95,14 +95,18 @@ module Syskit
             # @param [Hash] tag_selection selection for the profile tags, see
             #   {Profile#use_profile}
             # @return [void]
-            def use_profile(used_profile = nil, tag_selection = {}, transform_names: ->(name) { name })
+            def use_profile(
+                used_profile = nil, tag_selection = {},
+                transform_names: ->(name) { name },
+                &block
+            )
                 if block_given?
                     unless tag_selection.empty?
                         raise ArgumentError, "cannot provide a tag selection when defining a new anonymous profile"
                     end
 
                     used_profile = Profile.new("#{self.name}::<anonymous>", register: true)
-                    used_profile.instance_eval(&proc)
+                    used_profile.instance_eval(&block)
                     tag_selection = use_profile_tags(used_profile)
                 elsif !used_profile
                     raise ArgumentError, "must provide either a profile object or a block"

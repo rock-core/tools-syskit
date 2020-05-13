@@ -810,7 +810,9 @@ describe Syskit::Models::Component do
                     output_port "other1", stub_t
                     output_port "other2", stub_t
                 end
-                assert_raises(Syskit::InvalidProvides) { component.provides(service, as: "srv") }
+                assert_raises(Syskit::InvalidProvides) do
+                    component.provides(service, as: "srv")
+                end
                 assert(!component.find_data_service_from_type(service))
             end
 
@@ -852,15 +854,20 @@ describe Syskit::Models::Component do
                 component = Syskit::TaskContext.new_submodel do
                     output_port "out", stub_t
                 end
-                assert_raises(Syskit::InvalidProvides) { component.provides(service, as: "srv", "does_not_exist" => "other1") }
+                assert_raises(Syskit::InvalidProvides) do
+                    component.provides(service, "does_not_exist" => "other1", as: "srv")
+                end
             end
 
-            it "raises if given an explicit port mapping with an invalid component port" do
+            it "raises if given an explicit port mapping "\
+               "with an invalid component port" do
                 stub_t = self.stub_t
                 component = Syskit::TaskContext.new_submodel do
                     output_port "out", stub_t
                 end
-                assert_raises(Syskit::InvalidProvides) { component.provides(service, as: "srv", "out" => "does_not_exist") }
+                assert_raises(Syskit::InvalidProvides) do
+                    component.provides(service, "out" => "does_not_exist", as: "srv")
+                end
             end
         end
     end
