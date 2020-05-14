@@ -116,6 +116,8 @@ module Syskit
                               "in a dynamic service block"
                     end
 
+                    ## WORKAROUND FOR RUBY 2.7
+                    Roby.sanitize_keywords_to_hash(port_mappings, arguments)
                     @service = component_model.provides_dynamic(
                         service_model, port_mappings,
                         as: name,

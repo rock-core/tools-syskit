@@ -593,14 +593,19 @@ module Syskit
             end
 
             def use_deployment(*names, on: "localhost", **run_options)
-                deployment_group.use_deployment(*names, on: on,
-                                                        process_managers: self, loader: app.default_loader,
-                                                        **run_options)
+                Roby.sanitize_keywords_to_array(names, run_options)
+                deployment_group.use_deployment(
+                    *names, on: on, process_managers: self,
+                            loader: app.default_loader, **run_options
+                )
             end
 
             def use_deployments_from(*names, on: "localhost", **run_options)
-                deployment_group.use_deployment(*names, on: on,
-                                                        process_managers: self, loader: app.default_loader, **run_options)
+                Roby.sanitize_keywords_to_array(names, run_options)
+                deployment_group.use_deployment(
+                    *names, on: on, process_managers: self,
+                            loader: app.default_loader, **run_options
+                )
             end
 
             def register_configured_deployment(configured_deployment)

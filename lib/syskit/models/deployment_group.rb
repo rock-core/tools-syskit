@@ -378,6 +378,9 @@ module Syskit
                 deployment_spec = {}
                 deployment_spec = names.pop if names.last.kind_of?(Hash)
 
+                ## WORKAROUND FOR 2.7.0
+                Roby.sanitize_keywords_to_hash(deployment_spec, run_options)
+
                 process_server_name = on
                 process_server_config =
                     if simulation
