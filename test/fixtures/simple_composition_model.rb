@@ -20,7 +20,7 @@ module Syskit
                 end
                 simple_component_model.provides(
                     simple_service_model,
-                    "srv_in" => "in", "srv_out" => "out",
+                    { "srv_in" => "in", "srv_out" => "out" },
                     as: "srv"
                 )
                 @simple_task_model = TaskContext.new_submodel(name: "SimpleTaskModel") do
@@ -29,7 +29,7 @@ module Syskit
                 end
                 simple_task_model.provides(
                     simple_service_model,
-                    "srv_in" => "in", "srv_out" => "out",
+                    { "srv_in" => "in", "srv_out" => "out" },
                     as: "srv"
                 )
                 @simple_composition_model = Composition.new_submodel(name: "SimpleCompositionModel") do

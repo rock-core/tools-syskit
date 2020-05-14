@@ -131,9 +131,10 @@ describe Syskit::Composition do
                 cmp_m.add task_m, as: "test"
                 cmp_m.export cmp_m.test_child.out_port, as: "exported_out"
                 cmp_m.export cmp_m.test_child.in_port, as: "exported_in"
-                cmp_m.provides srv_m, as: "test",
-                                      "srv_out" => "exported_out",
-                                      "srv_in" => "exported_in"
+                cmp_m.provides(
+                    srv_m, { "srv_out" => "exported_out", "srv_in" => "exported_in" },
+                    as: "test"
+                )
                 @cmp = syskit_stub_deploy_and_configure(cmp_m)
                 @child = cmp.test_child
             end

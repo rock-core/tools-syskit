@@ -845,7 +845,9 @@ describe Syskit::Models::Component do
                     output_port "other1", stub_t
                     output_port "other2", stub_t
                 end
-                bound_service = component.provides(service, as: "srv", "out" => "other1")
+                bound_service = component.provides(
+                    service, { "out" => "other1" }, as: "srv"
+                )
                 assert_equal({ "out" => "other1" }, bound_service.port_mappings_for_task)
             end
 
@@ -855,7 +857,9 @@ describe Syskit::Models::Component do
                     output_port "out", stub_t
                 end
                 assert_raises(Syskit::InvalidProvides) do
-                    component.provides(service, "does_not_exist" => "other1", as: "srv")
+                    component.provides(
+                        service, { "does_not_exist" => "other1" }, as: "srv"
+                    )
                 end
             end
 
@@ -866,7 +870,7 @@ describe Syskit::Models::Component do
                     output_port "out", stub_t
                 end
                 assert_raises(Syskit::InvalidProvides) do
-                    component.provides(service, "out" => "does_not_exist", as: "srv")
+                    component.provides(service, { "out" => "does_not_exist" }, as: "srv")
                 end
             end
         end

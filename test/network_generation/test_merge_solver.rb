@@ -302,8 +302,8 @@ describe Syskit::NetworkGeneration::MergeSolver do
                     output_port "out1", "/double"
                     output_port "out2", "/double"
                 end
-                task_m.provides srv_m, "out" => "out1", as: "out1"
-                task_m.provides srv_m, "out" => "out2", as: "out2"
+                task_m.provides srv_m, { "out" => "out1" }, as: "out1"
+                task_m.provides srv_m, { "out" => "out2" }, as: "out2"
                 @cmp_m = Syskit::Composition.new_submodel
                 cmp_m.add srv_m, as: "test"
                 cmp_m.export cmp_m.test_child.out_port

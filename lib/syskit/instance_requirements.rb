@@ -1259,7 +1259,7 @@ module Syskit
         # Unmanaged tasks are started externally to Syskit, but Syskit still
         # manages the task's configuration and state changes
         def deployed_as_unmanaged(name, **options)
-            use_unmanaged_task(model => name, **options)
+            use_unmanaged_task({ model => name }, **options)
             self
         end
     end
