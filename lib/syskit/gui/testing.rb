@@ -465,7 +465,7 @@ module Syskit
                 end
 
                 def finished?
-                    !!@runtime # rubocop:disable Style/DoubleNegation
+                    !!@runtime
                 end
 
                 def start
