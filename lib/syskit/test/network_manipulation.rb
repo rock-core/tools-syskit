@@ -127,22 +127,31 @@ module Syskit
                     end
                     break if action_tasks.empty?
 
-                    action_tasks.each do |t|
-                        tracker = t.as_service
-                        expect_execution { t.planning_task.start! }
-                            .to { emit t.planning_task.start_event }
-                        to_instanciate << tracker.task
+                    action_tasks.each do |action_t|
+                        planned = run_planners(action_t, recursive: false)
+                        planned_subplan = plan.compute_useful_tasks([planned])
+                        to_instanciate += plan.find_tasks.abstract.find_all do |t|
+                            planned_subplan.include?(t) &&
+                                t.respond_to?(:planning_task) &&
+                                t.planning_task
+                        end
                     end
                 end
                 to_instanciate
             end
 
             def syskit_generate_network(*to_instanciate, add_missions: true)
-                to_instanciate = normalize_instanciation_models(to_instanciate)
-                placeholders = to_instanciate.map(&:as_plan)
+                placeholders = to_instanciate.map do |obj|
+                    obj = obj.to_action if obj.respond_to?(:to_action)
+                    plan.add(obj = obj.as_plan)
+                    plan.add_mission_task(obj) if add_missions
+                    obj
+                end.compact
+                root_tasks = placeholders.map(&:as_service)
+                tasks_to_instanciate = normalize_instanciation_models(placeholders)
                 if add_missions
                     execute do
-                        placeholders.each do |t|
+                        tasks_to_instanciate.each do |t|
                             plan.add_mission_task(t)
                             t.planning_task.start! if t.planning_task.pending?
                         end
@@ -151,21 +160,21 @@ module Syskit
                 task_mapping = plan.in_transaction do |trsc|
                     engine = NetworkGeneration::Engine.new(plan, work_plan: trsc)
                     mapping = engine.compute_system_network(
-                        placeholders.map(&:planning_task),
+                        tasks_to_instanciate.map(&:planning_task),
                         validate_generated_network: false
                     )
                     trsc.commit_transaction
                     mapping
                 end
                 execute do
-                    placeholders.map do |task|
+                    tasks_to_instanciate.each do |task|
                         replacement = task_mapping[task.planning_task]
                         plan.replace_task(task, replacement)
                         plan.remove_task(task)
                         replacement.planning_task.success_event.emit
-                        replacement
                     end
                 end
+                root_tasks.map(&:task)
             end
 
             def default_deployment_group
@@ -182,8 +191,6 @@ module Syskit
                 **resolve_options
             )
                 to_instanciate = to_instanciate.flatten # For backward-compatibility
-                to_instanciate = normalize_instanciation_models(to_instanciate)
-
                 placeholder_tasks = to_instanciate.map do |act|
                     act = act.to_action if act.respond_to?(:to_action)
                     plan.add(task = act.as_plan)
@@ -191,6 +198,8 @@ module Syskit
                     task
                 end.compact
                 root_tasks = placeholder_tasks.map(&:as_service)
+                placeholder_tasks = normalize_instanciation_models(placeholder_tasks)
+
                 requirement_tasks = placeholder_tasks.map(&:planning_task)
 
                 not_running = requirement_tasks.find_all { |t| !t.running? }
@@ -637,6 +646,9 @@ module Syskit
             def syskit_stub_network(
                 root_tasks, remote_task: syskit_stub_resolves_remote_tasks?
             )
+                # Find the first Syskit task in the hierarchy
+
+
                 mapped_tasks = plan.in_transaction do |trsc|
                     mapped_tasks = syskit_stub_network_in_transaction(
                         trsc, root_tasks, remote_task: remote_task
@@ -648,7 +660,7 @@ module Syskit
                 execute do
                     syskit_stub_network_remove_obsolete_tasks(mapped_tasks)
                 end
-                root_tasks.map { |t, _| mapped_tasks[t] }
+                root_tasks.map { |t, _| mapped_tasks[t] || t }
             end
 
             def syskit_stub_network_remove_obsolete_tasks(mapped_tasks)
@@ -657,20 +669,47 @@ module Syskit
                 end
             end
 
+            # @api private
+            #
+            # Helper method that returns the set of syskit tasks to work on based on
+            # an arbitrary set of tasks in the plan
+            #
+            # The method looks at the dependent subgraph of a given set of roots, and
+            # extracts the Syskit subgraph within it.
+            #
+            # @return the set of roots within the Syskit component subnet, the set of
+            #   syskit tasks and the set of non-syskit tasks
+            def syskit_stub_network_discover(trsc, root_tasks)
+                tasks = Set.new
+                dependency_graph =
+                    trsc.plan.task_relation_graph_for(Roby::TaskStructure::Dependency)
+                Array(root_tasks).map do |t|
+                    tasks << t
+                    dependency_graph.depth_first_visit(t) { |child_t| tasks << child_t }
+                end
+
+                syskit, non_syskit =
+                    tasks.partition { |t| t.kind_of?(Syskit::Component) }
+
+                syskit_roots = syskit.find_all do |t|
+                    t.each_parent_task.none? { |parent_t| syskit.include?(parent_t) }
+                end
+
+                [syskit_roots, syskit, non_syskit]
+            end
+
             def syskit_stub_network_in_transaction(
                 trsc, root_tasks,
                 remote_task: syskit_stub_resolves_remote_tasks?
             )
-                plan = trsc.plan
-                tasks = Set.new
-                dependency_graph =
-                    plan.task_relation_graph_for(Roby::TaskStructure::Dependency)
-                root_tasks = Array(root_tasks).map do |t|
-                    tasks << t
-                    dependency_graph.depth_first_visit(t) do |child_t|
-                        tasks << child_t
-                    end
+                mapped_tasks = {}
 
+                plan = trsc.plan
+                syskit_roots, syskit_tasks, non_syskit_tasks =
+                    syskit_stub_network_discover(trsc, root_tasks)
+
+                # Save the permanent/mission status to re-apply it later
+                syskit_roots = syskit_roots.map do |t|
                     if plan.mission_task?(t)
                         [t, :mission_task]
                     elsif plan.permanent_task?(t)
@@ -680,14 +719,19 @@ module Syskit
                     end
                 end
 
-                other_tasks = tasks.each_with_object(Set.new) do |t, s|
+                # We don't touch non-Syskit tasks, just make them their own mapping
+                non_syskit_tasks.each { |t| mapped_tasks[t] = t }
+
+                # We need to add the parents to the transaction so as to keep
+                # the existing relationships
+                other_tasks = syskit_tasks.each_with_object(Set.new) do |t, s|
                     s.merge(t.each_parent_task)
                 end
-                other_tasks -= tasks
+                other_tasks -= syskit_tasks
                 trsc_other_tasks = other_tasks.map { |plan_t| trsc[plan_t] }
 
                 merge_solver = NetworkGeneration::MergeSolver.new(trsc)
-                trsc_tasks = tasks.map do |plan_t|
+                trsc_tasks = syskit_tasks.map do |plan_t|
                     trsc_t = trsc[plan_t]
                     merge_solver.register_replacement(plan_t, trsc_t)
                     trsc_t
@@ -770,15 +814,14 @@ module Syskit
                     merge_solver.apply_merge_group(original => replacement)
                 end
 
-                mapped_tasks = {}
-                tasks.each do |plan_t|
+                syskit_tasks.each do |plan_t|
                     replacement_t = merge_solver.replacement_for(plan_t)
                     mapped_tasks[plan_t] = trsc.may_unwrap(replacement_t)
                 end
 
                 trsc_new_roots = Set.new
-                root_tasks.each do |root_t, status|
-                    replacement_t = mapped_tasks[root_t]
+                syskit_roots.each do |root_t, status|
+                    replacement_t = mapped_tasks[root_t] || root_t
                     if replacement_t != root_t
                         unless replacement_t.planning_task
                             replacement_t.planned_by trsc[root_t.planning_task]

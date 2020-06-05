@@ -166,6 +166,56 @@ module Syskit
                     syskit_stub_deployment_model(@task_m, "orogen_default_Test")
                 end
 
+                it "accepts an object that responds to #to_action" do
+                    use_deployment @task_m => "test_deployment"
+                    action = flexmock(to_action: @task_m)
+                    task = syskit_deploy(action)
+                    assert_kind_of @task_m, task
+                    assert_equal "test_deployment", task.orocos_name
+                end
+
+                it "runs non-Syskit planners and then runs the deployer" do
+                    task_m = @task_m
+                    action_interface_m = Roby::Actions::Interface.new_submodel do
+                        describe("the action method").returns(task_m)
+                        define_method :method_action do
+                            task_m
+                        end
+                    end
+
+                    use_deployment @task_m => "test_deployment"
+                    task = syskit_deploy(action_interface_m.method_action)
+                    assert_kind_of @task_m, task
+                    assert_equal "test_deployment", task.orocos_name
+                end
+
+                it "runs the non-Syskit planners recursively" do
+                    root_task_m = Roby::Task.new_submodel
+                    task_m = @task_m
+                    action_interface_m = Roby::Actions::Interface.new_submodel do
+                        describe("the action method that will be called")
+                            .returns(task_m)
+                        define_method :recursive_method_action do
+                            task_m
+                        end
+
+                        describe("the action method that will be called")
+                            .returns(root_task_m)
+                        define_method :method_action do
+                            root_task = root_task_m.new
+                            root_task.depends_on model.recursive_method_action,
+                                                 role: "test"
+                            root_task
+                        end
+                    end
+
+                    use_deployment @task_m => "test_deployment"
+                    root_task = syskit_deploy(action_interface_m.method_action)
+                    task = root_task.find_child_from_role("test")
+                    assert_kind_of @task_m, task
+                    assert_equal "test_deployment", task.orocos_name
+                end
+
                 it "uses a usable deployment from the requirement's deployment group" do
                     task = syskit_deploy(@task_m.deployed_as("local_level", on: "stubs"))
                     assert_equal "local_level", task.orocos_name
@@ -181,6 +231,68 @@ module Syskit
                     use_deployment @task_m => "test_level", on: "stubs"
                     task = syskit_deploy(@task_m)
                     assert_equal "test_level", task.orocos_name
+                end
+            end
+
+            describe "#syskit_stub_and_deploy" do
+                before do
+                    @task_m = Syskit::TaskContext.new_submodel(name: "Test")
+                end
+
+                it "accepts an object that responds to #to_action" do
+                    action = flexmock(to_action: @task_m.with_arguments(arg: 42))
+                    task = syskit_stub_and_deploy(action)
+                    assert_kind_of @task_m, task
+                    assert_equal 42, task.arguments[:arg]
+                end
+
+                it "runs non-Syskit planners and then runs the deployer" do
+                    task_m = @task_m
+                    action_interface_m = Roby::Actions::Interface.new_submodel do
+                        describe("the action method").returns(task_m)
+                        define_method :method_action do
+                            task_m.with_arguments(arg: 42)
+                        end
+                    end
+
+                    task = syskit_stub_and_deploy(action_interface_m.method_action)
+                    assert_kind_of @task_m, task
+                    assert_equal 42, task.arguments[:arg]
+                    assert_equal "stubs", task.execution_agent.arguments[:on]
+
+                    # Make sure we can actually start the task
+                    syskit_configure_and_start(task)
+                end
+
+                it "runs the non-Syskit planners recursively" do
+                    root_task_m = Roby::Task.new_submodel
+                    task_m = @task_m
+                    action_interface_m = Roby::Actions::Interface.new_submodel do
+                        describe("the action method that will be called")
+                            .returns(task_m)
+                        define_method :recursive_method_action do
+                            task_m.with_arguments(arg: 42)
+                        end
+
+                        describe("the action method that will be called")
+                            .returns(root_task_m)
+                        define_method :method_action do
+                            root_task = root_task_m.new
+                            root_task.depends_on model.recursive_method_action,
+                                                 role: "test"
+                            root_task
+                        end
+                    end
+
+                    root_task = syskit_stub_and_deploy(action_interface_m.method_action)
+                    task = root_task.find_child_from_role("test")
+                    assert_kind_of @task_m, task
+                    assert_equal 42, task.arguments[:arg]
+                    assert task.execution_agent
+                    assert_equal "stubs", task.execution_agent.arguments[:on]
+
+                    # Make sure we can actually start the task
+                    syskit_configure_and_start(task)
                 end
             end
 
