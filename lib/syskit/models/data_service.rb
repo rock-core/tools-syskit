@@ -351,7 +351,7 @@ module Syskit
             # @return [nil,BoundDataService]
             def try_bind(component)
                 component.find_data_service_from_type(self)
-            rescue AmbiguousServiceSelection
+            rescue AmbiguousServiceSelection # rubocop:disable Lint/SuppressedException
             end
 
             # Binds the data service model on the given task
