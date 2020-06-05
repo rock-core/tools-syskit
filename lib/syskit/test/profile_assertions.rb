@@ -90,10 +90,15 @@ module Syskit
             #
             # Note that it is a really good idea to maintain this property. No.
             # Seriously. Keep it in your tests.
-            def assert_is_self_contained(action_or_profile = subject_syskit_model, message: "%s is not self contained", exclude: [], **instanciate_options)
+            def assert_is_self_contained(
+                action_or_profile = subject_syskit_model,
+                message: "%s is not self contained", exclude: [], **instanciate_options
+            )
                 actions, skipped_actions = BulkAssertAtomicActions(action_or_profile, exclude: exclude)
                 unless skipped_actions.empty?
-                    flunk "could not validate #{skipped_actions.size} non-Syskit actions: #{skipped_actions.map(&:name).sort.join(', ')}, pass them to the 'exclude' argumet to #{__method__}"
+                    flunk "could not validate #{skipped_actions.size} non-Syskit "\
+                          "actions: #{skipped_actions.map(&:name).sort.join(', ')}, "\
+                          "pass them to the 'exclude' argumet to #{__method__}"
                 end
 
                 actions.each do |act|

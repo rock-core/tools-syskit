@@ -18,7 +18,6 @@ Lint/RedundantCopDisableDirective:
 Layout/LineLength:
   Exclude:
     - 'lib/syskit/actions/action_model.rb'
-    - 'lib/syskit/actions/interface_model_extension.rb'
     - 'lib/syskit/actions/profile.rb'
     - 'lib/syskit/composition.rb'
     - 'lib/syskit/connection_graph.rb'
@@ -439,7 +438,6 @@ Lint/UselessAssignment:
 # Configuration parameters: Max.
 Metrics/AbcSize:
   Exclude:
-    - 'lib/syskit/actions/interface_model_extension.rb'
     - 'lib/syskit/actions/profile.rb'
     - 'lib/syskit/actual_data_flow_graph.rb'
     - 'lib/syskit/cli/gen_main.rb'
@@ -783,7 +781,6 @@ Naming/MethodParameterName:
   Exclude:
     - 'lib/syskit/actions/action.rb'
     - 'lib/syskit/actions/action_model.rb'
-    - 'lib/syskit/actions/interface_model_extension.rb'
     - 'lib/syskit/actions/profile.rb'
     - 'lib/syskit/bound_data_service.rb'
     - 'lib/syskit/component.rb'
@@ -855,7 +852,6 @@ Style/Documentation:
     - 'spec/**/*'
     - 'test/**/*'
     - 'lib/syskit/abstract_component.rb'
-    - 'lib/syskit/actions/interface_model_extension.rb'
     - 'lib/syskit/actions/profile.rb'
     - 'lib/syskit/base.rb'
     - 'lib/syskit/cli/gen_main.rb'
@@ -984,7 +980,6 @@ Style/GlobalVars:
 # Configuration parameters: MinBodyLength.
 Style/GuardClause:
   Exclude:
-    - 'lib/syskit/actions/interface_model_extension.rb'
     - 'lib/syskit/actions/profile.rb'
     - 'lib/syskit/connection_graphs.rb'
     - 'lib/syskit/coordination/data_monitor.rb'

@@ -212,11 +212,11 @@ describe Syskit::Actions::InterfaceModelExtension do
             @profile = Syskit::Actions::Profile.new(nil)
         end
 
-        def call_action_method(*arguments, &block)
+        def call_action_method(**arguments, &block)
             task_m = Syskit::TaskContext.new_submodel(&block)
             profile.define("test", task_m)
             actions.use_profile(profile)
-            task = actions.new(plan).test_def(*arguments)
+            task = actions.new(plan).test_def(**arguments)
             plan.add(task = task.as_plan)
             [task_m, task]
         end

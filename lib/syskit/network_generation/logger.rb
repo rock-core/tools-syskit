@@ -17,7 +17,7 @@ module Syskit
             # configuration
             attr_predicate :default_logger?, true
 
-            def initialize(arguments = {})
+            def initialize(**arguments)
                 super
                 @logged_ports = Set.new
             end
