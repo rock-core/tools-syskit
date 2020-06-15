@@ -28,11 +28,11 @@ module Syskit
             def setup_main_profile(profile); end
 
             # Define on self tags that match the profile's tags
-            def use_profile_tags(profile)
+            def use_profile_tags(used_profile)
                 tag_map = {}
-                profile.each_tag do |tag|
+                used_profile.each_tag do |tag|
                     tagged_models = [*tag.proxied_data_service_models]
-                    tag_map[tag.tag_name] = @profile.tag(tag.tag_name, *tagged_models)
+                    tag_map[tag.tag_name] = profile.tag(tag.tag_name, *tagged_models)
                 end
                 tag_map
             end

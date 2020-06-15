@@ -286,6 +286,18 @@ describe Syskit::Actions::InterfaceModelExtension do
         end
     end
 
+    describe "#use_profile_tags" do
+        it "defines tags on the interface's model that matches the given profile's" do
+            action_m = Roby::Actions::Interface.new_submodel
+            profile_m = Syskit::Actions::Profile.new
+            srv_m = Syskit::DataService.new_submodel
+            profile_m.tag "t", srv_m
+
+            action_m.use_profile_tags profile_m
+            assert action_m.profile.t_tag.fullfills?(srv_m)
+        end
+    end
+
     describe "overloading of definitions by actions" do
         attr_reader :actions, :profile
         before do
