@@ -1373,7 +1373,7 @@ module Syskit
 
             include MetaRuby::DSLs::FindThroughMethodMissing
 
-            def method_missing(name, *args, &block) # rubocop:disable Style/MissingRespondToMissing
+            ruby2_keywords def method_missing(name, *args, &block) # rubocop:disable Style/MissingRespondToMissing
                 if name == :orogen_model
                     raise NoMethodError,
                           "tried to use a method to access an oroGen model, "\

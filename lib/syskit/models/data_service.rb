@@ -119,11 +119,11 @@ module Syskit
                         @model.respond_to?(m)
                 end
 
-                def method_missing(m, *args, **kw, &block) # rubocop:disable Style/MethodMissingSuper
+                ruby2_keywords def method_missing(m, *args, &block) # rubocop:disable Style/MethodMissingSuper
                     if @orogen_model.respond_to?(m)
-                        @orogen_model.public_send(m, *args, **kw, &block)
+                        @orogen_model.public_send(m, *args, &block)
                     else
-                        @model.public_send(m, *args, **kw, &block)
+		        @model.public_send(m, *args, &block)
                     end
                 end
             end
