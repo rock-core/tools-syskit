@@ -102,31 +102,60 @@ module Syskit
                 end
 
                 actions.each do |act|
-                    begin
-                        self.assertions += 1
-                        syskit_engine = Syskit::NetworkGeneration::Engine.new(plan)
-                        task = syskit_deploy(act, syskit_engine: syskit_engine,
-                                                  compute_policies: false, compute_deployments: false,
-                                                  validate_generated_network: false, **instanciate_options)
-                        # Get rid of all the tasks that
-                        still_abstract = plan.find_local_tasks(Syskit::Component)
-                                             .abstract.to_set
-                        still_abstract &= plan.compute_useful_tasks([task])
-                        tags, other = still_abstract.partition { |task| task.class <= Actions::Profile::Tag }
-                        tags_from_other = tags.find_all { |task| task.class.profile != subject_syskit_model }
-                        if !other.empty?
-                            raise Roby::Test::Assertion.new(TaskAllocationFailed.new(syskit_engine, other)), format(message, act.to_s)
-                        elsif !tags_from_other.empty?
-                            other_profiles = tags_from_other.map { |t| t.class.profile }.uniq
-                            raise Roby::Test::Assertion.new(TaskAllocationFailed.new(syskit_engine, tags)), "#{act} contains tags from another profile (found #{other_profiles.map(&:name).sort.join(', ')}, expected #{subject_syskit_model}"
-                        end
-
-                        plan.unmark_mission_task(task)
-                        expect_execution.garbage_collect(true).to_run
-                    rescue Exception => e
-                        raise ProfileAssertionFailed.new(act, e), e.message
-                    end
+                    syskit_assert_action_is_self_contained(act, **instanciate_options)
                 end
+            end
+
+            def syskit_assert_action_is_self_contained(action, **instanciate_options)
+                self.assertions += 1
+                syskit_engine = Syskit::NetworkGeneration::Engine.new(plan)
+                task = syskit_deploy(
+                    action, syskit_engine: syskit_engine,
+                            compute_policies: false, compute_deployments: false,
+                            validate_generated_network: false, **instanciate_options
+                )
+                still_abstract = plan.find_local_tasks(Syskit::Component)
+                                     .abstract.to_set
+                still_abstract &= plan.compute_useful_tasks([task])
+                tags, other = still_abstract.partition do |task|
+                    task.class <= Actions::Profile::Tag
+                end
+
+                reference_profile = subject_syskit_model
+                if reference_profile.respond_to?(:profile) # action interface
+                    reference_profile = reference_profile.profile
+                end
+
+                tags_from_other = tags.find_all do |task|
+                    task.class.profile != reference_profile
+                end
+
+                if !other.empty?
+                    assertion_failure =
+                        Roby::Test::Assertion.new(
+                            TaskAllocationFailed.new(syskit_engine, other)
+                        )
+
+                    raise assertion_failure, format(message, action.to_s)
+
+                elsif !tags_from_other.empty?
+                    other_profiles =
+                        tags_from_other.map { |t| t.class.profile }.uniq
+                    assertion_failure =
+                        Roby::Test::Assertion.new(
+                            TaskAllocationFailed.new(syskit_engine, tags)
+                        )
+
+                    raise assertion_failure,
+                          "#{action} contains tags from another profile (found "\
+                          "#{other_profiles.map(&:name).sort.join(', ')}, "\
+                          "expected #{reference_profile}"
+                end
+
+                plan.unmark_mission_task(task)
+                expect_execution.garbage_collect(true).to_run
+            rescue Exception => e
+                raise ProfileAssertionFailed.new(action, e), e.message, e.backtrace
             end
 
             # Spec-style call for {#assert_is_self_contained}
