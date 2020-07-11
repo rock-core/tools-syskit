@@ -164,8 +164,8 @@ module Syskit
             #   describe MyBundle::Profiles::MyProfile do
             #     it { is_self_contained }
             #   end
-            def is_self_contained(action_or_profile = subject_syskit_model, options = {})
-                assert_is_self_contained(action_or_profile, options)
+            def is_self_contained(action_or_profile = subject_syskit_model, **options)
+                assert_is_self_contained(action_or_profile, **options)
             end
 
             # Tests that the following definition can be successfully

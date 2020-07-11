@@ -234,6 +234,20 @@ module Syskit
                 end
             end
 
+            describe "#syskit_generate_network" do
+                it "keeps a task's mission status" do
+                end
+
+                it "keeps a task's mission status even if child of a non-Syskit task" do
+                end
+
+                it "keeps a task's permanent status" do
+                end
+
+                it "keeps a task's permanent status even if child of a non-Syskit task" do
+                end
+            end
+
             describe "#syskit_stub_and_deploy" do
                 before do
                     @task_m = Syskit::TaskContext.new_submodel(name: "Test")

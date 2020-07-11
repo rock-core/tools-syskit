@@ -527,6 +527,8 @@ Metrics/AbcSize:
     - 'lib/syskit/test/profile_assertions.rb'
     - 'lib/syskit/test/self.rb'
     - 'lib/syskit/test/spec.rb'
+    - 'lib/syskit/test/stubs.rb'
+    - 'lib/syskit/test/stub_network.rb'
     - 'lib/syskit/test/task_context_test.rb'
     - 'lib/yard-syskit.rb'
     - 'test/fixtures/simple_composition_model.rb'
