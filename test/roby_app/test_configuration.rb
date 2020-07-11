@@ -44,7 +44,7 @@ describe Syskit::RobyApp::Configuration do
         end
 
         it "defines a deployment for a given ruby task context model" do
-            configured_deployments = @conf.use_ruby_tasks @task_m => "task"
+            configured_deployments = @conf.use_ruby_tasks({ @task_m => "task" })
             assert_equal 1, configured_deployments.size
             configured_d = configured_deployments.first
             assert_equal @task_m.deployment_model, configured_d.model

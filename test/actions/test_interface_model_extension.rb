@@ -212,11 +212,11 @@ describe Syskit::Actions::InterfaceModelExtension do
             @profile = Syskit::Actions::Profile.new(nil)
         end
 
-        def call_action_method(*arguments, &block)
+        def call_action_method(**arguments, &block)
             task_m = Syskit::TaskContext.new_submodel(&block)
             profile.define("test", task_m)
             actions.use_profile(profile)
-            task = actions.new(plan).test_def(*arguments)
+            task = actions.new(plan).test_def(**arguments)
             plan.add(task = task.as_plan)
             [task_m, task]
         end
@@ -283,6 +283,18 @@ describe Syskit::Actions::InterfaceModelExtension do
             from_object = actions.find_action_by_name("test_def").to_instance_requirements
             from_method = actions.new(plan).test_def
             assert_same from_object.template, from_method.template
+        end
+    end
+
+    describe "#use_profile_tags" do
+        it "defines tags on the interface's model that matches the given profile's" do
+            action_m = Roby::Actions::Interface.new_submodel
+            profile_m = Syskit::Actions::Profile.new
+            srv_m = Syskit::DataService.new_submodel
+            profile_m.tag "t", srv_m
+
+            action_m.use_profile_tags profile_m
+            assert action_m.profile.t_tag.fullfills?(srv_m)
         end
     end
 

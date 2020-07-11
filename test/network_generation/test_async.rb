@@ -21,7 +21,7 @@ module Syskit
                     requirements = Set[flexmock]
                     resolution = subject.prepare(requirements)
                     flexmock(resolution.engine).should_receive(:resolve_system_network)
-                                               .with(requirements, {})
+                                               .with(requirements, any)
                                                .once.and_return(ret = flexmock)
                     resolution.execute
                     assert_equal ret, subject.join
@@ -69,7 +69,7 @@ module Syskit
                     resolution = subject.prepare(requirements)
                     engine = flexmock(resolution.engine, :strict)
                     engine.should_receive(:resolve_system_network)
-                          .with(requirements, {}).once.and_return(ret = flexmock)
+                          .with(requirements, any).once.and_return(ret = flexmock)
                     engine.should_receive(:apply_system_network_to_plan)
                           .with(ret).once
                     resolution.execute

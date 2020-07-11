@@ -117,8 +117,8 @@ module Syskit
         # The default is to simply assign the arguments.
         # {Composition#post_instanciation_setup} would for instance also
         # propagate its configuration to its children
-        def post_instanciation_setup(arguments)
-            assign_arguments(arguments)
+        def post_instanciation_setup(**arguments)
+            assign_arguments(**arguments)
         end
 
         # Returns the set of models this task fullfills
@@ -829,7 +829,7 @@ module Syskit
             # Do not use #model here as we don't want a requirement that
             # uses a specialized model
             req = self.class.to_instance_requirements
-            req.with_arguments(arguments.assigned_arguments)
+            req.with_arguments(**arguments.assigned_arguments)
             req.on_server(required_host) if required_host
             req
         end

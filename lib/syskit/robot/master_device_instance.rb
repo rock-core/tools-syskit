@@ -382,8 +382,8 @@ module Syskit
             end
 
             # Add arguments to the underlying device driver
-            def with_arguments(arguments = {})
-                requirements.with_arguments(arguments)
+            def with_arguments(**arguments)
+                requirements.with_arguments(**arguments)
                 self
             end
 

@@ -1,5 +1,6 @@
 # frozen_string_literal: true
 
+require "ruby2_keywords"
 require "English"
 
 require "backports/2.7.0/enumerable/filter_map"

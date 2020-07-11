@@ -13,7 +13,7 @@ module Syskit
 
             def to_deployment_group(name, **options)
                 group = Models::DeploymentGroup.new
-                group.use_ruby_tasks(self => name, **options)
+                group.use_ruby_tasks({ self => name }, **options)
                 group
             end
 

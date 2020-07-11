@@ -168,7 +168,7 @@ describe Syskit::Actions::Profile do
             task_m = Syskit::TaskContext.new_submodel
             task_m.provides srv_m, as: "test"
             dst = Syskit::Actions::Profile.new
-            dst.use_profile src, "test" => task_m
+            dst.use_profile src, { "test" => task_m }
         end
 
         it "also promotes definitions that are used as arguments" do
@@ -189,7 +189,7 @@ describe Syskit::Actions::Profile do
             srv_task_m = Syskit::TaskContext.new_submodel
             srv_task_m.provides srv_m, as: "test"
             child_profile = Syskit::Actions::Profile.new
-            child_profile.use_profile parent_profile, "test" => srv_task_m
+            child_profile.use_profile parent_profile, { "test" => srv_task_m }
             task = child_profile.test_def.arguments[:action]
                                 .requirements.instanciate(plan)
             assert_kind_of srv_task_m, task.test_child

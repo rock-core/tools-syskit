@@ -242,7 +242,7 @@ module Syskit
                                          "of #{short_name}"
                 end
 
-                add(model, options.merge(as: child))
+                add(model, **options.merge(as: child))
             end
 
             # Add an element in this composition.
@@ -759,11 +759,11 @@ module Syskit
             # @param [DependencyInjection] context the dependency injection
             #   object that is used to determine the selected model
             # @return [Model<Composition>]
-            def narrow(context, options = {})
+            def narrow(context, **options)
                 explicit_selections, selected_models, =
                     find_children_models_and_tasks(context)
                 find_applicable_specialization_from_selection(
-                    explicit_selections, selected_models, options
+                    explicit_selections, selected_models, **options
                 )
             end
 
@@ -865,14 +865,14 @@ module Syskit
             end
 
             def find_applicable_specialization_from_selection(
-                explicit_selections, selections, options = {}
+                explicit_selections, selections, **options
             )
                 specialized_model = specializations.matching_specialized_model(
-                    explicit_selections, options
+                    explicit_selections, **options
                 )
                 return specialized_model if specialized_model != self
 
-                specializations.matching_specialized_model(selections, options)
+                specializations.matching_specialized_model(selections, **options)
             end
 
             # Resolves references to other children in a child's use flags
@@ -1006,7 +1006,7 @@ module Syskit
                 end
 
                 # First of all, add the task for +self+
-                plan.add(self_task = new(task_arguments))
+                plan.add(self_task = new(**task_arguments))
                 conf = if self_task.has_argument?(:conf)
                            self_task.conf(self_task.arguments[:conf])
                        else {}
@@ -1183,7 +1183,7 @@ module Syskit
             # Create a new submodel of this composition model that will be used
             # to represent a specialization
             def new_specialized_submodel(**options, &block)
-                submodel = new_submodel(options.merge(register_specializations: false),
+                submodel = new_submodel(**options.merge(register_specializations: false),
                                         &block)
                 submodel.extend Models::CompositionSpecialization::Extension
                 submodel

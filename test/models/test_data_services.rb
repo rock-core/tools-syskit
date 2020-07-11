@@ -16,8 +16,8 @@ module Syskit
             end
         end
 
-        def new_submodel(*args, &block)
-            service_type.new_submodel(*args, &block)
+        def new_submodel(*args, **options, &block)
+            service_type.new_submodel(*args, **options, &block)
         end
 
         def test_data_services_are_registered_as_submodels_of_task_service
@@ -444,10 +444,8 @@ module Syskit
     describe ComBus do
         include Test_DataServiceModel
 
-        def new_submodel(options = {}, &block)
-            options = Kernel.validate_options options,
-                                              name: nil, message_type: "/int"
-            ComBus.new_submodel(options, &block)
+        def new_submodel(name: nil, message_type: "/int", &block)
+            ComBus.new_submodel(name: name, message_type: message_type, &block)
         end
 
         before do

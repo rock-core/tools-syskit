@@ -170,7 +170,7 @@ module Syskit
                 plan, _context = DependencyInjectionContext.new,
                 task_arguments: {}, **
             )
-                plan.add(task = new(task_arguments))
+                plan.add(task = new(**task_arguments))
                 task
             end
 
@@ -185,10 +185,10 @@ module Syskit
             # For instance,
             #
             #   add(Cmp::CorridorServoing).
-            #       use(Cmp::Odometry.with_arguments('special_behaviour' => true))
+            #       use(Cmp::Odometry.with_arguments(special_behaviour: true))
             #
-            def with_arguments(*spec, &block)
-                InstanceRequirements.new([self]).with_arguments(*spec, &block)
+            def with_arguments(**arguments)
+                InstanceRequirements.new([self]).with_arguments(**arguments)
             end
 
             # Optional dependency injection
@@ -843,8 +843,8 @@ module Syskit
             # It will create the corresponding device model if it does not
             # already exist, and return it. See the documentation of
             # Component.data_service for the description of +arguments+
-            def driver_for(model, arguments = {})
-                dserv = provides(model, arguments)
+            def driver_for(model, **arguments)
+                dserv = provides(model, **arguments)
                 argument "#{dserv.name}_dev"
                 dserv
             end
@@ -1206,7 +1206,7 @@ module Syskit
                         dynamic_service_options =
                             { as: srv.name }.merge(srv.dynamic_service_options)
                         base_model.require_dynamic_service(
-                            srv.dynamic_service.name, dynamic_service_options
+                            srv.dynamic_service.name, **dynamic_service_options
                         )
                     end
                     base_model
@@ -1373,7 +1373,7 @@ module Syskit
 
             include MetaRuby::DSLs::FindThroughMethodMissing
 
-            def method_missing(name, *args, &block) # rubocop:disable Style/MissingRespondToMissing
+            ruby2_keywords def method_missing(name, *args, &block) # rubocop:disable Style/MissingRespondToMissing
                 if name == :orogen_model
                     raise NoMethodError,
                           "tried to use a method to access an oroGen model, "\

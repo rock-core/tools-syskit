@@ -130,10 +130,10 @@ module Syskit
                     requirements.respond_to?(m) || super
                 end
 
-                def method_missing(m, *args, &block)
+                def method_missing(m, *args, **kw, &block)
                     if requirements.respond_to?(m)
                         req = requirements.dup
-                        req.send(m, *args, &block)
+                        req.send(m, *args, **kw, &block)
                         Actions::Models::Action.new(req, doc)
                     else super
                     end

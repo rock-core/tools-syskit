@@ -181,7 +181,7 @@ module Syskit
                     def proxy(peer)
                         requirements = InstanceRequirements.new([peer.local_object(@model)])
                         requirements.name = @name
-                        requirements.with_arguments(@arguments)
+                        requirements.with_arguments(**@arguments)
                         requirements
                     end
                 end

@@ -44,7 +44,7 @@ module Syskit
                 Syskit.conf.process_server_config_for(process_server_name)
         end
 
-        def initialize(options = {})
+        def initialize(**options)
             super
 
             @quit_ready_event_monitor = Concurrent::Event.new
@@ -298,7 +298,7 @@ module Syskit
             end
 
             @orocos_process = process_server_config.client.start(
-                process_name, model.orogen_model, name_mappings, spawn_options
+                process_name, model.orogen_model, name_mappings, **spawn_options
             )
 
             Deployment.all_deployments[orocos_process] = self

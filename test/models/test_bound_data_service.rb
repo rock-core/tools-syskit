@@ -36,10 +36,9 @@ describe Syskit::Models::BoundDataService do
             output_port "out_parent_unmapped", "/double"
             output_port "out_base_unmapped", "/double"
         end
-        service = component_model.provides(model,
-                                           as: "test",
-                                           "in_model" => "in_port",
-                                           "out_model" => "out_port")
+        service = component_model.provides(
+            model, { "in_model" => "in_port", "out_model" => "out_port" }, as: "test"
+        )
 
         [base, parent, model, component_model, service]
     end
@@ -343,7 +342,7 @@ describe Syskit::Models::BoundDataService do
                 output_port "task_out", stub_t
                 output_port "other_out", stub_t
             end
-            task_m.provides srv_m, as: "test", "out" => "other_out"
+            task_m.provides srv_m, { "out" => "other_out" }, as: "test"
             assert_nil task_m.test_srv.find_port_for_task_port(task_m.task_out_port)
         end
     end
@@ -419,8 +418,12 @@ module Syskit
                 output_port "left", "/int"
                 output_port "right", "/int"
             end
-            left_srv = component_model.provides service_model, as: "left", "image" => "left"
-            right_srv = component_model.provides service_model, as: "right", "image" => "right"
+            left_srv = component_model.provides(
+                service_model, { "image" => "left" }, as: "left"
+            )
+            right_srv = component_model.provides(
+                service_model, { "image" => "right" }, as: "right"
+            )
             component_model.provides other_service_model, as: "other_srv"
             [service_model, other_service_model, component_model, left_srv, right_srv]
         end
@@ -455,10 +458,11 @@ module Syskit
                 output_port "out_parent_unmapped", "/double"
                 output_port "out_base_unmapped", "/double"
             end
-            service = component_model.provides(model,
-                                               as: "test",
-                                               "in_model" => "in_port",
-                                               "out_model" => "out_port")
+            service = component_model.provides(
+                model,
+                { "in_model" => "in_port", "out_model" => "out_port" },
+                as: "test"
+            )
 
             [base, parent, model, component_model, service]
         end

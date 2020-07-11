@@ -626,10 +626,10 @@ describe Syskit::Models::Composition do
                                                 .and_return(srv_child).once
             end
 
-            def composition_model(dependency_options)
+            def composition_model(**dependency_options)
                 m = simple_service_model
                 @composition_m = Syskit::Composition.new_submodel do
-                    add m, dependency_options.merge(as: "srv")
+                    add m, **dependency_options.merge(as: "srv")
                 end
             end
 

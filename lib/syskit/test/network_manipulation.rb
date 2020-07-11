@@ -42,14 +42,17 @@ module Syskit
             end
 
             def use_deployment(*args, **options)
+                Roby.sanitize_keywords_to_array(args, options)
                 @__test_deployment_group.use_deployment(*args, **options)
             end
 
             def use_ruby_tasks(*args, **options)
+                Roby.sanitize_keywords_to_array(args, options)
                 @__test_deployment_group.use_ruby_tasks(*args, **options)
             end
 
             def use_unmanaged_task(*args, **options)
+                Roby.sanitize_keywords_to_array(args, options)
                 @__test_deployment_group.use_unmanaged_task(*args, **options)
             end
 

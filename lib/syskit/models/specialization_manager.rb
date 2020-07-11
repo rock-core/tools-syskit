@@ -425,18 +425,20 @@ module Syskit
                     model.respond_to?(symbol) || super
                 end
 
-                def method_missing(m, *args, &block)
-                    if m =~ /_child$/
-                        child_name = $`
-                        if info = overload_info[child_name]
-                            info
-                        else
-                            child = model.public_send(m, *args, &block)
-                            ref_child = reference_model.public_send(m, *args, &block)
-                            overload_info[name] = Child.new(child, ref_child)
-                        end
-                    else model.send(m, *args, &block)
+                ruby2_keywords def method_missing(m, *args, &block)
+                    unless m =~ /_child$/
+                        return model.send(m, *args, &block)
                     end
+
+                    child_name = $`
+                    if (info = overload_info[child_name])
+                        return info
+                    end
+
+                    child = model.public_send(m, *args, &block)
+                    ref_child = reference_model
+                                .public_send(m, *args, &block)
+                    overload_info[name] = Child.new(child, ref_child)
                 end
             end
 
