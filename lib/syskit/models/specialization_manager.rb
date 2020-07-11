@@ -425,7 +425,7 @@ module Syskit
                     model.respond_to?(symbol) || super
                 end
 
-                ruby2_keywords def method_missing(m, *args, &block)
+                ruby2_keywords def method_missing(m, *args, &block) # rubocop:disable Style/MissingRespondToMissing
                     unless m =~ /_child$/
                         return model.send(m, *args, &block)
                     end
