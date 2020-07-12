@@ -843,8 +843,9 @@ module Syskit
             # It will create the corresponding device model if it does not
             # already exist, and return it. See the documentation of
             # Component.data_service for the description of +arguments+
-            def driver_for(model, **arguments)
-                dserv = provides(model, **arguments)
+            def driver_for(model, port_mappings = {}, **arguments)
+                Roby.sanitize_keywords_to_hash(port_mappings, arguments)
+                dserv = provides(model, port_mappings, **arguments)
                 argument "#{dserv.name}_dev"
                 dserv
             end

@@ -1089,4 +1089,40 @@ describe Syskit::Models::Component do
             assert task.abstract?
         end
     end
+
+    describe "#driver_for" do
+        before do
+            @dev_m = Syskit::Device.new_submodel
+        end
+
+        it "provides the device service model" do
+            task_m = Syskit::Component.new_submodel
+            task_m.driver_for @dev_m, as: "test"
+            assert task_m.test_srv, task_m.find_data_service_from_type(@dev_m)
+        end
+
+        it "creates the device argument" do
+            task_m = Syskit::Component.new_submodel
+            task_m.driver_for @dev_m, as: "test"
+            assert task_m.has_argument?(:test_dev)
+        end
+
+        it "forwards port mapping arguments" do
+            dev_m = Syskit::Device.new_submodel do
+                input_port "in", "/double"
+                output_port "out", "/double"
+            end
+
+            task_m = Syskit::TaskContext.new_submodel do
+                input_port "in1", "/double"
+                input_port "in2", "/double"
+                output_port "out1", "/double"
+                output_port "out2", "/double"
+            end
+
+            task_m.driver_for dev_m, "in" => "in2", "out" => "out1", as: "test"
+            assert_equal task_m.in2_port, task_m.test_srv.in_port.to_component_port
+            assert_equal task_m.out1_port, task_m.test_srv.out_port.to_component_port
+        end
+    end
 end
