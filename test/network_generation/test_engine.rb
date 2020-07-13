@@ -480,6 +480,8 @@ module Syskit
 
                 def create_deployment_model(task_count:)
                     task_m = (0...task_count).map { TaskContext.new_submodel }
+                    (@created_task_models ||= []).concat(task_m)
+
                     Deployment.new_submodel do
                         task_m.each_with_index do |m, i|
                             task "task#{i}", m.orogen_model
