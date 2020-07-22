@@ -976,7 +976,8 @@ module Syskit
 
             it "freezes delayed arguments" do
                 execute { plan.remove_task(task) }
-                task = syskit_stub_network_deployment(TaskContext.new_submodel.new)
+                task = Test::StubNetwork.new(self, stubs: @__stubs)
+                                        .stub_deployment(TaskContext.new_submodel.new)
                 plan.add_permanent_task(task)
                 syskit_start_execution_agents(task)
                 assert_nil task.arguments[:conf]

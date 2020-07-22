@@ -7,6 +7,7 @@ module Syskit
             # Overloaded to automatically call {#deploy_subject_syskit_model}
             def setup
                 super
+
                 task_context_m = self.class.subject_syskit_model.concrete_model
                 if app.simulation? || !task_context_m.orogen_model.abstract?
                     @deployed_subject_syskit_model = deploy_subject_syskit_model
@@ -41,7 +42,7 @@ module Syskit
             # Returns the task model under test
             def subject_syskit_model
                 model = self.class.subject_syskit_model
-                model = syskit_stub_required_devices(model)
+                model = @__stubs.stub_required_devices(model)
                 model.prefer_deployed_tasks(@deployed_subject_syskit_model)
                 model
             end

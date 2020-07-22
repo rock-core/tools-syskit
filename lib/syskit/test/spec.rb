@@ -48,20 +48,21 @@ module Syskit
 
                     @plan.syskit_apply_async_resolution_results
 
+                    root_tasks = @planning_tasks.map(&:planned_task)
+                    stub_network = StubNetwork.new(@test)
+
                     # NOTE: this is a run-planner equivalent to syskit_stub_network
                     # we will have to investigate whether we could implement one with
                     # the other (probably), but in the meantime we must keep both
                     # in sync
-                    root_tasks = @planning_tasks.map(&:planned_task)
                     mapped_tasks = @plan.in_transaction do |trsc|
-                        mapped_tasks = @test.syskit_stub_network_in_transaction(
-                            trsc, root_tasks
-                        )
+                        mapped_tasks =
+                            stub_network.apply_in_transaction(trsc, root_tasks)
                         trsc.commit_transaction
                         mapped_tasks
                     end
 
-                    @test.syskit_stub_network_remove_obsolete_tasks(mapped_tasks)
+                    stub_network.remove_obsolete_tasks(mapped_tasks)
                 end
                 @planning_tasks.all?(&:success?)
             end
