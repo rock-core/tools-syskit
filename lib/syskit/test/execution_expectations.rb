@@ -9,18 +9,33 @@ module Syskit
             # Helper used to resolve reader objects
             def self.resolve_orocos_reader(reader, **policy)
                 if reader.respond_to?(:to_orocos_port)
-                    reader = Orocos.allow_blocking_calls do
-                        reader.to_orocos_port
-                    end
+                    resolve_orocos_reader_from_port(reader, **policy)
+                elsif reader.respond_to?(:orocos_accessor)
+                    resolve_orocos_reader_from_syskit_reader(reader)
+                elsif !reader.respond_to?(:reader_new)
+                    raise ArgumentError, "#{reader} does not seem to be an output reader"
                 end
-                unless reader.respond_to?(:read_new)
-                    if reader.respond_to?(:reader)
-                        reader = Orocos.allow_blocking_calls do
-                            reader.reader(**policy)
-                        end
-                    end
+            end
+
+            # @api private
+            #
+            # Get an orocos reader from a syskit port
+            def self.resolve_orocos_reader_from_port(port, **policy)
+                orocos_port = Orocos.allow_blocking_calls { port.to_orocos_port }
+                if orocos_port.respond_to?(:read_new)
+                    orocos_port # local input port
+                else
+                    Orocos.allow_blocking_calls { orocos_port.reader(**policy) }
                 end
-                reader
+            end
+
+            # @api private
+            #
+            # Get an orocos reader from a syskit port
+            def self.resolve_orocos_reader_from_syskit_reader(reader)
+                Orocos.allow_blocking_calls do
+                    reader.port.to_orocos_port.reader(**reader.policy)
+                end
             end
 
             # @api private
