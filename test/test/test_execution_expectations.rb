@@ -11,6 +11,7 @@ module Syskit
             before do
                 task_m = Syskit::RubyTaskContext.new_submodel do
                     input_port "in", "/int"
+                    output_port "out", "/int"
                 end
                 use_ruby_tasks task_m => "test", on: "stubs"
                 @task = syskit_deploy_configure_and_start(task_m)
@@ -21,6 +22,17 @@ module Syskit
                     value = expect_execution { syskit_write task.in_port, 10 }
                             .to { have_one_new_sample task.in_port }
                     assert_equal 10, value
+                end
+                it "accepts an output port as input" do
+                    sample = expect_execution { syskit_write task.out_port, 0 }
+                             .to { have_one_new_sample task.out_port }
+                    assert_equal 0, sample
+                end
+                it "accepts a data reader as input" do
+                    reader = task.out_port.reader(type: :circular_buffer, size: 1)
+                    sample = expect_execution { syskit_write task.out_port, 0, 10 }
+                             .to { have_one_new_sample reader }
+                    assert_equal 10, sample
                 end
                 it "fails if the task does not emit a new sample" do
                     e = assert_raises(Roby::Test::ExecutionExpectations::Unmet) do
@@ -70,6 +82,20 @@ module Syskit
                         end
                     assert_equal 10, value
                 end
+                it "accepts an output port as input" do
+                    sample = expect_execution { syskit_write task.out_port, 10 }
+                             .to do
+                                 have_one_new_sample(task.out_port)
+                                     .matching { |i| i == 10 }
+                             end
+                    assert_equal 10, sample
+                end
+                it "accepts a data reader as input and uses its policy" do
+                    reader = task.out_port.reader(type: :buffer, size: 10)
+                    sample = expect_execution { syskit_write task.out_port, 10, 5 }
+                             .to { have_one_new_sample(reader).matching { |i| i == 5 } }
+                    assert_equal 5, sample
+                end
                 it "fails if the task emits samples that do not match the predicate" do
                     e = assert_raises(Roby::Test::ExecutionExpectations::Unmet) do
                         expect_execution { syskit_write task.in_port, 10 }
@@ -115,6 +141,17 @@ module Syskit
                             .to { have_new_samples task.in_port, 2 }
                     assert_equal [10, 20], value
                 end
+                it "accepts an output port as input" do
+                    value = expect_execution { syskit_write task.out_port, 10, 20 }
+                            .to { have_new_samples task.out_port, 2 }
+                    assert_equal [10, 20], value
+                end
+                it "accepts a data reader as input and uses its policy" do
+                    reader = task.out_port.reader(type: :circular_buffer, size: 2)
+                    value = expect_execution { syskit_write task.out_port, 10, 20, 30 }
+                            .to { have_new_samples reader, 2 }
+                    assert_equal [20, 30], value
+                end
                 it "fails if the task does not emit enough samples" do
                     e = assert_raises(Roby::Test::ExecutionExpectations::Unmet) do
                         expect_execution { syskit_write task.in_port, 10 }
@@ -151,10 +188,20 @@ module Syskit
 
             describe "#have_new_samples.matching" do
                 it "passes if the task emits enough matching samples and returns them" do
-                    value =
-                        expect_execution { syskit_write task.in_port, 1, 2, 3 }
-                        .to { have_new_samples(task.in_port, 2).matching(&:odd?) }
+                    value = expect_execution { syskit_write task.in_port, 1, 2, 3 }
+                            .to { have_new_samples(task.in_port, 2).matching(&:odd?) }
                     assert_equal [1, 3], value
+                end
+                it "accepts an output port as input" do
+                    value = expect_execution { syskit_write task.out_port, 1, 2, 3 }
+                            .to { have_new_samples(task.out_port, 1).matching(&:odd?) }
+                    assert_equal [1], value
+                end
+                it "accepts a data reader as input and uses its policy" do
+                    reader = task.out_port.reader(type: :circular_buffer, size: 2)
+                    value = expect_execution { syskit_write task.out_port, 1, 2, 3 }
+                            .to { have_new_samples(reader, 1).matching(&:odd?) }
+                    assert_equal [3], value
                 end
                 it "fails if the task does not emit enough matching samples" do
                     e = assert_raises(Roby::Test::ExecutionExpectations::Unmet) do
