@@ -147,7 +147,7 @@ module Syskit
                 connect @starting_monitor, SIGNAL("timeout()"),
                         self, SLOT("monitor_syskit_startup()")
                 connect action, SIGNAL("triggered()") do
-                    app_start(robot_name: @robot_name)
+                    app_start(robot_name: @robot_name, port: syskit.remote_port)
                 end
                 action = global_actions[:restart] = Qt::Action.new("Restart", self)
                 connect action, SIGNAL("triggered()") do
@@ -286,17 +286,16 @@ module Syskit
                 syskit.remote_name
             end
 
-            def app_start(robot_name: "default")
-                robot_name, start_controller = AppStartDialog.exec(Roby.app.robots.names, self, default_robot_name: robot_name)
+            def app_start(robot_name: "default", port: nil)
+                robot_name, start_controller = AppStartDialog.exec(
+                    Roby.app.robots.names, self, default_robot_name: robot_name
+                )
                 return unless robot_name
 
                 extra_args = []
-                unless robot_name.empty?
-                    extra_args << "-r" << robot_name
-                end
-                if start_controller
-                    extra_args << "-c"
-                end
+                extra_args << "-r" << robot_name unless robot_name.empty?
+                extra_args << "-c" if start_controller
+                extra_args << "--port=#{port}" if port
                 extra_args.concat(
                     Roby.app.argv_set.flat_map { |arg| ["--set", arg] }
                 )
