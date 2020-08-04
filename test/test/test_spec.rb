@@ -6,7 +6,7 @@ require "syskit/test"
 module Syskit
     module Test
         describe InstanceRequirementPlanningHandler do
-            include InstanceRequirementPlanningHandlerOptions
+            include InstanceRequirementPlanningHandler::Options
 
             before do
                 @task_m = Syskit::TaskContext.new_submodel(name: "Task")
