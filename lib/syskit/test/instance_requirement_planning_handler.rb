@@ -80,6 +80,7 @@ module Syskit
                         mapped_tasks
                     end
 
+                    stub_network.announce_replacements(mapped_tasks)
                     stub_network.remove_obsolete_tasks(mapped_tasks)
                 end
                 @planning_tasks.all?(&:finished?)

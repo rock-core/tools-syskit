@@ -59,6 +59,24 @@ module Syskit
                 end
             end
 
+            it "lets toplevel tasks be tracked using plan services" do
+                task = @cmp_m.instanciate(plan)
+                service = task.as_service
+                final = @stubs.apply([task]).first
+
+                assert_same final, service.to_task
+            end
+
+            it "lets non-toplevel tasks be tracked using plan services" do
+                task = @cmp_m.instanciate(plan)
+                task_child = task.srv_child
+                service = task_child.as_service
+                final = @stubs.apply([task]).first
+
+                refute_same task_child, task.srv_child
+                assert_same final.srv_child, service.to_task
+            end
+
             it "creates a stub device drivers when given a device" do
                 dev_m = Syskit::Device.new_submodel(name: "Dev")
                 dev_m.provides @srv_m

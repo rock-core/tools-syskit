@@ -50,6 +50,7 @@ module Syskit
                 end
 
                 @test.execute do
+                    announce_replacements(mapped_tasks)
                     remove_obsolete_tasks(mapped_tasks)
                 end
                 root_tasks.map { |t, _| mapped_tasks[t] }
@@ -149,6 +150,16 @@ module Syskit
             def remove_obsolete_tasks(mapped_tasks)
                 mapped_tasks.each do |old, new|
                     @plan.remove_task(old) if old != new
+                end
+            end
+
+            # @api private
+            #
+            # Call Plan#replaced for stubbed tasks so that they can be tracked with
+            # plan services
+            def announce_replacements(mapped_tasks)
+                mapped_tasks.each do |old, new|
+                    @plan.replaced(old, new) if old != new
                 end
             end
 
