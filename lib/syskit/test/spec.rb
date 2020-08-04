@@ -7,6 +7,7 @@ module Syskit
         # Planning handler for #roby_run_planner that handles
         # InstanceRequirementsTask
         class InstanceRequirementPlanningHandler
+            # @param [Spec] test
             def initialize(test)
                 @test = test
             end
@@ -37,8 +38,10 @@ module Syskit
             def apply_requirements
                 @plan.syskit_start_async_resolution(
                     @planning_tasks,
-                    validate_generated_network: false,
-                    compute_deployments: false
+                    validate_generated_network:
+                        @test.syskit_run_planner_validate_network?,
+                    compute_deployments:
+                        @test.syskit_run_planner_deploy_network?
                 )
             end
 
@@ -47,6 +50,7 @@ module Syskit
                     return unless @plan.syskit_finished_async_resolution?
 
                     @plan.syskit_apply_async_resolution_results
+                    return unless @test.syskit_run_planner_stub?
 
                     root_tasks = @planning_tasks.map(&:planned_task)
                     stub_network = StubNetwork.new(@test)
@@ -64,7 +68,7 @@ module Syskit
 
                     stub_network.remove_obsolete_tasks(mapped_tasks)
                 end
-                @planning_tasks.all?(&:success?)
+                @planning_tasks.all?(&:finished?)
             end
         end
         Roby::Test::Spec.roby_plan_with(
@@ -74,8 +78,52 @@ module Syskit
 
         Roby::Test::ExecutionExpectations.include ExecutionExpectations
 
+        module InstanceRequirementPlanningHandlerOptions
+            def setup
+                @syskit_run_planner_stub = true
+                @syskit_run_planner_validate_network = false
+                @syskit_run_planner_deploy_network = false
+
+                super
+            end
+
+            def syskit_run_planner_stub?
+                @syskit_run_planner_stub
+            end
+
+            attr_writer :syskit_run_planner_stub
+
+            def syskit_run_planner_validate_network?
+                @syskit_run_planner_validate_network
+            end
+
+            attr_writer :syskit_run_planner_validate_network
+
+            def syskit_run_planner_deploy_network?
+                @syskit_run_planner_deploy_network
+            end
+
+            attr_writer :syskit_run_planner_deploy_network
+
+            def syskit_run_planner_with_full_deployment(stub: true)
+                flags = [@syskit_run_planner_deploy_network,
+                         @syskit_run_planner_validate_network,
+                         @syskit_run_planner_stub]
+
+                @syskit_run_planner_deploy_network = true
+                @syskit_run_planner_validate_network = true
+                @syskit_run_planner_stub = stub
+                yield
+            ensure
+                @syskit_run_planner_deploy_network,
+                    @syskit_run_planner_validate_network,
+                    @syskit_run_planner_stub = *flags
+            end
+        end
+
         class Spec < Roby::Test::Spec
             include Test::Base
+            include InstanceRequirementPlanningHandlerOptions
 
             def setup
                 NetworkGeneration::Engine.on_error = :save
