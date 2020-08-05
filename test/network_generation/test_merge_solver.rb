@@ -230,6 +230,21 @@ describe Syskit::NetworkGeneration::MergeSolver do
                             .with(merged_task_policy, policy).and_return(nil).once
             refute solver.resolve_input_matching(merged_task, task)
         end
+        it "returns an empty array if the source port is the same and "\
+           "the policies are compatible" do
+            source_task = flexmock
+            merged_task = mock_merged_task_with_concrete_input_connections(
+                [source_task, "src_port", "sink_port",
+                 merged_task_policy = flexmock(empty?: false)]
+            )
+            task = mock_task_with_concrete_input_connections(
+                [source_task, "src_port", "sink_port",
+                 policy = flexmock(empty?: false)]
+            )
+            flexmock(solver).should_receive(compatible_policies?: true)
+            assert_equal([], solver.resolve_input_matching(merged_task, task))
+        end
+
         describe "connections to multiplexing inputs" do
             attr_reader :merged_task_policy, :policy
             before do
@@ -237,7 +252,8 @@ describe Syskit::NetworkGeneration::MergeSolver do
                 @merged_task_policy = flexmock(empty?: false)
                 @policy = flexmock(empty?: false)
                 flexmock(Syskit).should_receive(:update_connection_policy)
-                                .with(merged_task_policy, policy).and_return(nil)
+                                .with(merged_task_policy, policy)
+                                .and_return(nil).by_default
             end
             it "returns nil if connections from the same port are connected with "\
                "incompatible policies" do
@@ -250,7 +266,20 @@ describe Syskit::NetworkGeneration::MergeSolver do
                 )
                 refute solver.resolve_input_matching(merged_task, task)
             end
-            it "returns an empty array for connections from different ports regardless of the connection policy" do
+            it "returns an empty array if connections from the same port are "\
+               "connected with compatible policies" do
+                src_port = flexmock
+                merged_task = mock_merged_task_with_concrete_input_connections(
+                    [src_port, "src_port", "sink_port", merged_task_policy]
+                )
+                task = mock_task_with_concrete_input_connections(
+                    [src_port, "src_port", "sink_port", policy]
+                )
+                flexmock(solver).should_receive(compatible_policies?: true)
+                assert_equal [], solver.resolve_input_matching(merged_task, task)
+            end
+            it "returns an empty array for connections from different ports "\
+               "regardless of the connection policy" do
                 src_port = flexmock
                 merged_task = mock_merged_task_with_concrete_input_connections(
                     [src_port, "src_port", "sink_port", merged_task_policy]
@@ -260,7 +289,8 @@ describe Syskit::NetworkGeneration::MergeSolver do
                 )
                 assert_equal [], solver.resolve_input_matching(merged_task, task)
             end
-            it "should return an empty array for connections from different tasks regardless of the connection policy" do
+            it "returns an empty array for connections from different tasks "\
+               "regardless of the connection policy" do
                 src_port = flexmock
                 merged_task = mock_merged_task_with_concrete_input_connections(
                     [src_port, "src_port", "sink_port", merged_task_policy]
@@ -318,6 +348,29 @@ describe Syskit::NetworkGeneration::MergeSolver do
                 solver.merge_identical_tasks
                 plan.clear
             end
+        end
+
+        it "successfully merges a network in which the same component "\
+           "is used on both sides" do
+            source_task_m = Syskit::TaskContext
+                            .new_submodel { output_port "out", "/double" }
+            sink_task_m = Syskit::TaskContext
+                          .new_submodel { input_port "in", "/double" }
+            cmp_m = Syskit::Composition.new_submodel
+            cmp_m.add source_task_m, as: "source"
+            cmp_m.add sink_task_m, as: "sink"
+            cmp_m.source_child.connect_to cmp_m.sink_child
+
+            plan.add(source_task = source_task_m.instanciate(plan))
+            cmp_m.use("source" => source_task).instanciate(plan)
+            cmp_m.use("source" => source_task).instanciate(plan)
+
+            solver = Syskit::NetworkGeneration::MergeSolver.new(plan)
+            execute { solver.merge_identical_tasks }
+
+            assert_equal 1, plan.find_tasks(cmp_m).to_a.size
+            cmp = plan.find_tasks(cmp_m).first
+            assert_equal source_task, cmp.source_child
         end
     end
 end

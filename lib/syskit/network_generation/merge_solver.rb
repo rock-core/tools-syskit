@@ -540,7 +540,11 @@ module Syskit
                     return
                 end
 
-                [sink_port, m_source_task, source_task]
+                if m_source_task == source_task
+                    []
+                else
+                    [sink_port, m_source_task, source_task]
+                end
             end
 
             def merge_identical_tasks
