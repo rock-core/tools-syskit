@@ -410,6 +410,20 @@ module Syskit
         # {#data_writer}. Used to disconnect them when the task stops
         attr_reader :data_writers
 
+        # Enumerate this component's data readers
+        #
+        # @yieldparam [DataReaderInterface] reader
+        def each_data_reader(&block)
+            @data_readers.each(&block)
+        end
+
+        # Enumerate this component's data writers
+        #
+        # @yieldparam [DataWriterInterface] writer
+        def each_data_writer(&block)
+            @data_writers.each(&block)
+        end
+
         # @api private
         #
         # Common implementation of port search for {#data_reader_by_role_path}

@@ -249,6 +249,10 @@ module Syskit
         # A {OutputReader} instance that is part of the implementation of a component
         class BoundOutputReader < OutputReader
             include BoundAccessor
+
+            def to_s
+                "#{component}.#{name}_reader"
+            end
         end
 
         # Data writer tied to a {DynamicPortBinding}
@@ -274,6 +278,10 @@ module Syskit
         # An {InputWriter} instance that is part of the implementation of a component
         class BoundInputWriter < InputWriter
             include BoundAccessor
+
+            def to_s
+                "#{component}.#{name}_writer"
+            end
         end
 
         # @api private

@@ -644,6 +644,12 @@ describe Syskit::Component do
             assert_equal task.out_port, reader.resolved_accessor.port
         end
 
+        it "enumerates the bound readers with each_data_reader" do
+            @support_task_m.data_reader @task_m.match.out_port, as: "test"
+            support_task = syskit_stub_and_deploy(@support_task_m)
+            assert_equal [support_task.test_reader], support_task.each_data_reader.to_a
+        end
+
         it "updates it at runtime" do
             @support_task_m.data_reader @task_m.match.running.out_port, as: "test"
             support_task = syskit_stub_deploy_configure_and_start(@support_task_m)
@@ -905,6 +911,12 @@ describe Syskit::Component do
             syskit_configure_and_start(support_task)
             assert reader.valid?
             assert_equal task.in_port, reader.resolved_accessor.port
+        end
+
+        it "enumerates the bound writers with each_data_writer" do
+            @support_task_m.data_writer @task_m.match.in_port, as: "test"
+            support_task = syskit_stub_and_deploy(@support_task_m)
+            assert_equal [support_task.test_writer], support_task.each_data_writer.to_a
         end
 
         it "updates it at runtime" do
