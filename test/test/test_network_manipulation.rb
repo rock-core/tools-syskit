@@ -342,6 +342,38 @@ module Syskit
                     assert task.setup?
                 end
             end
+
+            describe "deploy_current_plan" do
+                before do
+                    @srv_m = Syskit::DataService.new_submodel
+                    @task_m = Syskit::TaskContext.new_submodel(name: "Task")
+                    @task_m.provides @srv_m, as: "srv"
+                    @cmp_m = Syskit::Composition.new_submodel(name: "Cmp")
+                    @cmp_m.add @srv_m, as: "srv"
+                end
+
+                it "passes if the plan can be deployed" do
+                    syskit_stub_configured_deployment @task_m, "stub_task_deployment"
+                    deployed_task_m =
+                        @task_m.to_instance_requirements
+                               .use_deployment_group(default_deployment_group)
+
+                    plan.add_mission_task(
+                        abstract_cmp = @cmp_m.use("srv" => deployed_task_m).as_plan
+                    )
+                    result = deploy_current_plan
+
+                    cmp = result[abstract_cmp]
+                    assert_equal "stub_task_deployment", cmp.srv_child.orocos_name
+                end
+
+                it "fails if the plan can't be deployed" do
+                    plan.add_mission_task(@cmp_m.as_plan)
+                    assert_raises(Roby::Test::ExecutionExpectations::UnexpectedErrors) do
+                        deploy_current_plan
+                    end
+                end
+            end
         end
     end
 end

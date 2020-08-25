@@ -1,81 +1,14 @@
 # frozen_string_literal: true
 
 require "roby/test/spec"
+require "syskit/test/base"
+require "syskit/test/instance_requirement_planning_handler"
 
 module Syskit
     module Test
-        # Planning handler for #roby_run_planner that handles
-        # InstanceRequirementsTask
-        class InstanceRequirementPlanningHandler
-            def initialize(test)
-                @test = test
-            end
-
-            def start(tasks)
-                @plan = tasks.first.plan
-                @planning_tasks = tasks.map do |t|
-                    unless (planning_task = t.planning_task)
-                        raise ArgumentError, "#{t} does not have a planning task"
-                    end
-
-                    planning_task
-                end
-
-                starting_tasks = @planning_tasks.find_all do |t|
-                    t.start! if t.pending?
-                    t.starting?
-                end
-                return apply_requirements if starting_tasks.empty?
-
-                starting_tasks.each do |t|
-                    t.start_event.on do |_|
-                        apply_requirements if starting_tasks.all?(&:running?)
-                    end
-                end
-            end
-
-            def apply_requirements
-                @plan.syskit_start_async_resolution(
-                    @planning_tasks,
-                    validate_generated_network: false,
-                    compute_deployments: false
-                )
-            end
-
-            def finished?
-                if @plan.syskit_has_async_resolution?
-                    return unless @plan.syskit_finished_async_resolution?
-
-                    @plan.syskit_apply_async_resolution_results
-
-                    root_tasks = @planning_tasks.map(&:planned_task)
-                    stub_network = StubNetwork.new(@test)
-
-                    # NOTE: this is a run-planner equivalent to syskit_stub_network
-                    # we will have to investigate whether we could implement one with
-                    # the other (probably), but in the meantime we must keep both
-                    # in sync
-                    mapped_tasks = @plan.in_transaction do |trsc|
-                        mapped_tasks =
-                            stub_network.apply_in_transaction(trsc, root_tasks)
-                        trsc.commit_transaction
-                        mapped_tasks
-                    end
-
-                    stub_network.remove_obsolete_tasks(mapped_tasks)
-                end
-                @planning_tasks.all?(&:success?)
-            end
-        end
-        Roby::Test::Spec.roby_plan_with(
-            Component.match.with_child(InstanceRequirementsTask),
-            InstanceRequirementPlanningHandler
-        )
-
-        Roby::Test::ExecutionExpectations.include ExecutionExpectations
-
         class Spec < Roby::Test::Spec
             include Test::Base
+            include InstanceRequirementPlanningHandler::Options
 
             def setup
                 NetworkGeneration::Engine.on_error = :save

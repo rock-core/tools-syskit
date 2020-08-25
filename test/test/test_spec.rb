@@ -6,6 +6,8 @@ require "syskit/test"
 module Syskit
     module Test
         describe InstanceRequirementPlanningHandler do
+            include InstanceRequirementPlanningHandler::Options
+
             before do
                 @task_m = Syskit::TaskContext.new_submodel(name: "Task")
                 @srv_m = Syskit::DataService.new_submodel(name: "Srv")
@@ -80,6 +82,48 @@ module Syskit
                     start cmp
                     start cmp.srv_child
                 end
+            end
+
+            it "handles a planning error" do
+                plan.add(cmp = @cmp_m.as_plan)
+
+                error = syskit_run_planner_with_full_deployment do
+                    expect_execution { cmp = run_planners(cmp) }
+                        .to { have_error_matching Roby::PlanningFailedError.match }
+                end
+
+                assert_equal cmp.to_task, error.origin
+            end
+
+            it "optionally attempts to deploy the network" do
+                plan.add(cmp = @cmp_m.as_plan)
+
+                syskit_run_planner_with_full_deployment do
+                    assert syskit_run_planner_deploy_network?
+                    assert syskit_run_planner_validate_network?
+                    assert syskit_run_planner_stub?
+
+                    expect_execution { run_planners(cmp) }
+                        .to { have_error_matching Roby::PlanningFailedError.match }
+                end
+                refute syskit_run_planner_deploy_network?
+                refute syskit_run_planner_validate_network?
+                assert syskit_run_planner_stub?
+            end
+
+            it "stubs the result by default" do
+                plan.add(cmp = @cmp_m.as_plan)
+
+                cmp = run_planners(cmp)
+                refute cmp.srv_child.abstract?
+            end
+
+            it "optionally does not stub the result" do
+                plan.add(cmp = @cmp_m.as_plan)
+
+                self.syskit_run_planner_stub = false
+                cmp = run_planners(cmp)
+                assert cmp.srv_child.abstract?
             end
 
             PlanningState = Struct.new(

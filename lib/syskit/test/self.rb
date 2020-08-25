@@ -3,6 +3,8 @@
 require "syskit/test/base"
 require "roby/test/self"
 require "syskit/test/network_manipulation"
+require "syskit/test/execution_expectations"
+require "syskit/test/spec"
 
 module Syskit
     module Test
@@ -10,8 +12,8 @@ module Syskit
         module Self
             include Roby::Test
             include Roby::Test::Assertions
-            include Test::Base
-            include Test::NetworkManipulation
+            include Base
+            include NetworkManipulation
 
             # A RobotDefinition object that allows to create new device models
             # easily

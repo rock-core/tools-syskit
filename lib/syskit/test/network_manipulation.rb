@@ -2,6 +2,7 @@
 
 require "syskit/test/stubs"
 require "syskit/test/stub_network"
+require "syskit/test/instance_requirement_planning_handler"
 
 # This is essentially required by the expect_execution harness
 # rubocop:disable Style/MultilineBlockChain
@@ -10,6 +11,8 @@ module Syskit
     module Test
         # Network manipulation functionality (stubs, ...) useful in tests
         module NetworkManipulation
+            include InstanceRequirementPlanningHandler::Options
+
             # Whether (false) the stub methods should resolve ruby tasks as ruby
             # tasks (i.e. Orocos::RubyTasks::TaskContext, the default), or
             # (true) as something that looks more like a remote task
@@ -870,6 +873,22 @@ module Syskit
                     .new(plan).to_file("hierarchy", "svg", hierarchy, **hierarchy_options)
                 puts "exported plan to #{dataflow} and #{hierarchy}"
                 [dataflow, hierarchy]
+            end
+
+            # Deploy the current plan
+            #
+            # It uses run_planers, and is therefore able to run method or state
+            # machine actions before it checks for the deployment
+            #
+            # It returns a mapping from the missions as they currently are to
+            # the deployed missions
+            def deploy_current_plan
+                old = plan.find_tasks.mission.to_a
+                new = syskit_run_planner_with_full_deployment do
+                    run_planners(old, recursive: true)
+                end
+
+                Hash[old.zip(new)]
             end
         end
     end
