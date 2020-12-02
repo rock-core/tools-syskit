@@ -70,8 +70,24 @@ module Syskit
                     engine = flexmock(resolution.engine, :strict)
                     engine.should_receive(:resolve_system_network)
                           .with(requirements, any).once.and_return(ret = flexmock)
+                    engine.should_receive(:apply_system_network_to_plan).with(ret).once
+                    resolution.execute
+                    subject.join
+                    assert subject.finished?
+                    subject.apply
+                end
+
+                it "carries forward options passed to prepare "\
+                   "that are relevant to the apply step" do
+                    requirements = Set[flexmock]
+                    resolution = subject.prepare(
+                        requirements, compute_deployments: false
+                    )
+                    engine = flexmock(resolution.engine, :strict)
+                    engine.should_receive(:resolve_system_network)
+                          .with(requirements, any).once.and_return(ret = flexmock)
                     engine.should_receive(:apply_system_network_to_plan)
-                          .with(ret).once
+                          .with(ret, compute_deployments: false).once
                     resolution.execute
                     subject.join
                     assert subject.finished?
