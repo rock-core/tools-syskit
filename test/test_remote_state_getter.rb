@@ -8,17 +8,38 @@ module Syskit
         before do
             @task = RemoteStateGetterStubTaskContext.new
             @getter = RemoteStateGetter.new(task)
-            getter.resume
+            getter.start
         end
+
         after do
             getter.disconnect
             getter.join
         end
 
+        describe "not-yet-started getters" do
+            before do
+                @getter = RemoteStateGetter.new(@task)
+            end
+
+            it "raises on #resume" do
+                assert_raises(RemoteStateGetter::NotYetStarted) do
+                    @getter.resume
+                end
+            end
+
+            it "does nothing on #disconnect" do
+                getter.disconnect
+            end
+
+            it "does nothing on #join" do
+                getter.join
+            end
+        end
+
         describe "#initialize" do
             it "accepts an initial state" do
                 getter = RemoteStateGetter.new(task, initial_state: 1)
-                getter.resume
+                getter.start
                 assert_equal 0, getter.wait
                 assert_equal 1, getter.read_new
                 assert_equal 0, getter.read_new
@@ -96,7 +117,7 @@ module Syskit
                 loop do
                     task = RemoteStateGetterStubTaskContext.new
                     getter = RemoteStateGetter.new(task)
-                    getter.resume
+                    getter.start
                     getter.wait
                     if rand > 0.5
                         getter_thread = Thread.new { getter.wait }
@@ -105,6 +126,7 @@ module Syskit
                         Thread.new { yield(task, getter) }
                         getter_thread = Thread.new { getter.wait }
                     end
+                    getter_thread.report_on_exception = false
 
                     begin
                         assert_equal 0, getter_thread.value

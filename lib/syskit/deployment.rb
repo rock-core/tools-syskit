@@ -680,6 +680,8 @@ module Syskit
                 state_reader.extend Orocos::TaskContext::StateReader
                 state_reader.state_symbols = remote_task.state_symbols
             else
+                state_getter.start
+                state_getter.pause
                 state_reader = state_getter
             end
             [state_reader, state_getter]
