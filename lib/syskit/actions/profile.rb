@@ -472,8 +472,8 @@ module Syskit
             end
 
             # (see Models::DeploymentGroup#use_group)
-            def use_group(deployment_group)
-                deployment_group.use_group(deployment_group)
+            def use_group(group)
+                deployment_group.use_group(group)
             end
 
             # (see Models::DeploymentGroup#use_ruby_tasks)
@@ -482,17 +482,17 @@ module Syskit
             end
 
             # (see Models::DeploymentGroup#use_unmanaged_task)
-            def use_unmanaged_task(mappings, on: "ruby_tasks")
+            def use_unmanaged_task(mappings, on: "unmanaged_tasks")
                 deployment_group.use_unmanaged_task(mappings, on: on)
             end
 
             # (see Models::DeploymentGroup#use_deployment)
-            def use_deployment(*names, on: "localhost", loader: deployment_group.loader, **run_options)
+            def use_deployment(*names, on: "localhost", loader: nil, **run_options)
                 deployment_group.use_deployment(*names, on: on, loader: loader, **run_options)
             end
 
             # (see Models::DeploymentGroup#use_deployments_from)
-            def use_deployments_from(project_name, loader: deployment_group.loader, **use_options)
+            def use_deployments_from(project_name, loader: nil, **use_options)
                 deployment_group.use_deployments_from(project_name, loader: loader, **use_options)
             end
 

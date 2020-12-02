@@ -280,11 +280,16 @@ module Syskit
                 it "raises if the on option refers to a non-existing process server" do
                     plan.add(task = deployment_m.new(on: "does_not_exist"))
                     exception = expect_execution { task.start! }.to do
-                        fail_to_start task, reason: Roby::CommandFailed.match
-                                                                       .with_original_exception(ArgumentError)
+                        fail_to_start(
+                            task, reason: Roby::CommandFailed
+                                          .match
+                                          .with_original_exception(ArgumentError)
+                        )
                     end
-                    assert_equal "there is no registered process server called does_not_exist",
-                                 exception.error.message
+                    assert_equal \
+                        "there is no registered process server called does_not_exist, "\
+                        "existing servers are: fixture, localhost, stubs",
+                        exception.error.message
                 end
                 it "does not emit ready" do
                     process_server.should_receive(:start).and_return(process)

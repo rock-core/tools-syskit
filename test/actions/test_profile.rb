@@ -511,6 +511,147 @@ module Syskit
                     assert_equal 30, cmp.test_child.arg
                 end
             end
+
+            describe "the deployment group interface" do
+                describe "#use_deployment" do
+                    it "selects the deployment for deployment on the "\
+                       "profile definitions" do
+                        task_m = TaskContext.new_submodel(name: "Test")
+                        deployment_m = syskit_stub_deployment_model(task_m)
+
+                        profile = Profile.new
+                        profile.use_deployment deployment_m
+                        profile.define "test", task_m
+
+                        # Note: so far, deployment groups are applied only when
+                        # accessed through the action interface
+                        syskit_run_planner_with_full_deployment do
+                            task = run_planners(profile.test_def.resolve)
+                            assert_kind_of deployment_m, task.execution_agent
+                        end
+                    end
+                end
+
+                describe "#use_ruby_tasks" do
+                    before do
+                        Syskit.conf.register_process_server(
+                            "ruby_tasks",
+                            Orocos::RubyTasks::ProcessManager.new(Roby.app.default_loader)
+                        )
+                    end
+
+                    it "selects the ruby task for deployment "\
+                       "on the profile definitions" do
+                        task_m = RubyTaskContext.new_submodel(name: "Test")
+
+                        profile = Profile.new
+                        profile.use_ruby_tasks task_m => "test"
+                        profile.define "test", task_m
+
+                        # Note: so far, deployment groups are applied only when
+                        # accessed through the action interface
+                        syskit_run_planner_with_full_deployment do
+                            run_planners(profile.test_def.resolve)
+                        end
+                    end
+                end
+
+                describe "#use_unmanaged_task" do
+                    before do
+                        Syskit.conf.register_process_server(
+                            "unmanaged_tasks", RobyApp::UnmanagedTasksManager.new
+                        )
+                    end
+
+                    after do
+                        Syskit.conf.remove_process_server("unmanaged_tasks")
+                    end
+
+                    it "selects the unmanaged task for deployment "\
+                       "on the profile definitions" do
+                        task_m = TaskContext.new_submodel(name: "Test")
+
+                        profile = Profile.new
+                        profile.use_unmanaged_task task_m => "test"
+                        profile.define "test", task_m
+
+                        # Note: so far, deployment groups are applied only when
+                        # accessed through the action interface
+                        task = syskit_run_planner_with_full_deployment do
+                            run_planners(profile.test_def.resolve)
+                        end
+                        assert_equal "unmanaged_tasks",
+                                     task.execution_agent.process_server_name
+                    end
+                end
+
+                describe "#use_deployments_from" do
+                    before do
+                        @loader = OroGen::Loaders::Base.new
+                        fake_client = RobyApp::Configuration::ModelOnlyServer.new(
+                            @loader
+                        )
+                        Syskit.conf.register_process_server("test", fake_client)
+                    end
+
+                    after do
+                        Syskit.conf.remove_process_server("test")
+                    end
+
+                    it "selects all the deployments of a given project " do
+                        task_m = TaskContext.new_submodel(name: "Test")
+                        deployment_m = syskit_stub_deployment_model(
+                            task_m, "test_deployment"
+                        )
+
+                        flexmock(@loader).should_receive(:project_model_from_name)
+                                         .with("test_project")
+                                         .and_return(project = flexmock)
+                        flexmock(@loader).should_receive(:task_model_from_name)
+                                         .and_raise(OroGen::NotFound)
+                        flexmock(@loader).should_receive(:task_model_from_name)
+                                         .with("Test")
+                                         .and_return(task_m.orogen_model)
+                        flexmock(@loader).should_receive(:deployment_model_from_name)
+                                         .with("test_deployment")
+                                         .and_return(deployment_m.orogen_model)
+                        project.should_receive(:each_deployment)
+                               .and_yield(deployment_m.orogen_model)
+
+                        profile = Profile.new
+                        profile.use_deployments_from "test_project", on: "test"
+                        profile.define "test", task_m
+
+                        # Note: so far, deployment groups are applied only when
+                        # accessed through the action interface
+                        syskit_run_planner_with_full_deployment do
+                            task = run_planners(profile.test_def.resolve)
+                            assert_kind_of deployment_m, task.execution_agent
+                        end
+                    end
+                end
+
+                describe "#use_group" do
+                    it "registers the group's deployments for usage on the profile "\
+                       "definitions" do
+                        task_m = TaskContext.new_submodel(name: "Test")
+                        deployment_m = syskit_stub_deployment_model(task_m)
+
+                        group = Syskit::Models::DeploymentGroup.new
+                        group.use_deployment deployment_m
+                        profile = Profile.new
+                        profile.use_group group
+                        profile.define "test", task_m
+
+                        # Note: so far, deployment groups are applied only when
+                        # accessed through the action interface
+                        syskit_run_planner_with_full_deployment do
+                            task = run_planners(profile.test_def.resolve)
+                            assert_kind_of deployment_m, task.execution_agent
+                        end
+                    end
+                end
+            end
         end
     end
 end
