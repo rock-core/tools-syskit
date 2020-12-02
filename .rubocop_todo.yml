@@ -115,7 +115,6 @@ Layout/LineLength:
     - 'syskit.gemspec'
     - 'test/actions/test_action_model.rb'
     - 'test/actions/test_interface_model_extension.rb'
-    - 'test/actions/test_profile.rb'
     - 'test/cli/test_gen_main.rb'
     - 'test/coordination/test_data_monitor.rb'
     - 'test/coordination/test_data_monitoring_table.rb'
