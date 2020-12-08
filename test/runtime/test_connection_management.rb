@@ -626,29 +626,34 @@ module Syskit
                         @cmp_m.source_child.out_port.connect_to \
                             @cmp_m.sink_child.in_port
 
-                        cmp = syskit_stub_deploy_and_configure(@cmp_m)
-                        @source_old = cmp.source_child
-                        @sink       = cmp.sink_child
+                        @cmp = syskit_stub_deploy_and_configure(@cmp_m)
+                        @source_old = @cmp.source_child
+                        @sink       = @cmp.sink_child
                     end
 
                     def create_new_source
                         agent = @source_old.execution_agent
                         name  = @source_old.orocos_name
                         plan.add_permanent_task(source_new = agent.task(name))
-                        source_new.out_port.connect_to @sink.in_port
                         source_new.should_configure_after(@source_old.stop_event)
+                        syskit_stub_and_deploy(
+                            @cmp_m.use(
+                                "source" => source_new,
+                                "sink" => @sink
+                            )
+                        )
+                        plan.unmark_mission_task(@cmp)
                         source_new
                     end
 
                     it "handles the old task being finalized" do
                         source_new = create_new_source
                         source_old = @source_old
-                        expect_execution do
-                            plan.execution_engine.garbage_collect([source_old])
-                            ConnectionManagement.update(plan)
-                        end.to do
-                            achieve { !source_old.plan }
+                        expect_execution.garbage_collect(true).to do
+                            finalize source_old
                         end
+
+                        execute { ConnectionManagement.update(plan) }
                         assert(Orocos.allow_blocking_calls do
                             source_new.out_port.to_orocos_port.connected?
                         end)
