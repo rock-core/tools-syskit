@@ -16,7 +16,7 @@ module Syskit
     # of task contexts. This Roby task represents the unix process itself.
     # Once it gets instanciated, the associated task contexts can be
     # accessed with #task(name)
-    class Deployment < ::Roby::Task
+    class Deployment < ::Roby::Task # rubocop:disable Metrics/ClassLength
         extend Models::Deployment
         extend Logger::Hierarchy
         include Logger::Hierarchy
@@ -694,37 +694,80 @@ module Syskit
         end
 
         ##
+        # method: kill!
+        #
+        # Hard-kill the process, without attempting to stop or cleanup the tasks
+        # it supports
+        event :kill, terminal: true do |_context|
+            remote_task_handles = stop_prepare
+            promise = self.promise(description: "#{self}#kill")
+            stop_kill(promise, remote_task_handles)
+            stop_event.achieve_asynchronously(promise, emit_on_success: false)
+        end
+
+        ##
         # method: stop!
         #
         # Stops all tasks that are running on top of this deployment, and
         # kill the deployment
         event :stop do |_context|
+            remote_task_handles = stop_prepare
+            promise = self.promise(description: "#{self}#stop")
+
+            # This is a heuristic added after the introduction of the kill
+            # event command. It's meant to guess whether the caller is trying
+            # to kill or cleanly stop the deployment. We basically assume
+            # 'kill' if some executed tasks are still in the plan (meaning it's
+            # not being stopped through garbage collection)
+            if each_executed_task.any? { true }
+                stop_kill(promise, remote_task_handles)
+            else
+                stop_cleanly(promise, remote_task_handles)
+            end
+
+            stop_event.achieve_asynchronously(promise, emit_on_success: false)
+        end
+
+        def stop_prepare
             quit_ready_event_monitor.set
-            promise = execution_engine.promise(description: "#{self}.stop_event.on") do
-                begin
-                    remote_task_handles.each_value do |remote_task|
-                        remote_task.state_getter.disconnect
+            remote_task_handles = self.remote_task_handles.dup
+            remote_task_handles.each_value do |remote_task|
+                remote_task.state_getter.disconnect
+            end
+            remote_task_handles
+        end
+
+        def stop_cleanly(promise, remote_task_handles)
+            promise.then(description: "#{self}.stop_event - cleaning RTT tasks") do
+                remote_task_handles.each_value do |remote_task|
+                    begin
                         if remote_task.handle.rtt_state == :STOPPED
                             remote_task.handle.cleanup(false)
                         end
+                    rescue Orocos::ComError
+                        # Assume that the process is killed as it is not reachable
                     end
-                    remote_task_handles.each_value do |remote_task|
-                        remote_task.state_getter.join
-                    end
-                rescue Orocos::ComError
-                    # Assume that the process is killed as it is not reachable
                 end
-            end.on_success(description: "#{self}#stop_event#command#dead!") do
+            end
+
+            stop_kill(promise, remote_task_handles, hard: false)
+        end
+
+        def stop_kill(promise, remote_task_handles, hard: true)
+            promise.then(description: "#{self}.stop_event - join state getters") do
+                remote_task_handles.each_value do |remote_task|
+                    remote_task.state_getter.join
+                end
+            end.on_success(description: "#{self}#stop_event - kill") do
                 ready_to_die!
                 begin
-                    orocos_process.kill(false)
+                    orocos_process.kill(false, cleanup: false, hard: hard)
                 rescue Orocos::ComError
                     # The underlying process server cannot be reached. Just emit
                     # failed ourselves
                     dead!(nil)
                 end
             end
-            stop_event.achieve_asynchronously(promise, emit_on_success: false)
         end
 
         # Called when the process is finished.

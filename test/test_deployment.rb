@@ -37,7 +37,7 @@ module Syskit
             name_mappings.fetch(name)
         end
 
-        def kill(*args)
+        def kill(*, **)
             process_server.killed_processes << self
         end
 
@@ -492,9 +492,30 @@ module Syskit
                     execute { deployment_task.stop! }
                     assert deployment_task.ready_to_die?
                 end
-                it "kills the process" do
-                    process.should_receive(:kill).once.pass_thru
+                it "kills the process gracefully, but does not ask "\
+                   "the process server to clean it up" do
+                    process.should_receive(:kill).once
+                           .with(false, cleanup: false, hard: false).pass_thru
                     expect_execution { deployment_task.stop! }
+                        .to { emit deployment_task.stop_event }
+                end
+                it "does not attempt to cleanup if some tasks have a representation in "\
+                   "the plan" do
+                    deployment_task.task("mapped_task_name")
+                    orocos_task.should_receive(:rtt_state).never
+                    orocos_task.should_receive(:cleanup).never
+                    process.should_receive(:kill).once
+                           .with(false, cleanup: false, hard: true).pass_thru
+                    expect_execution { deployment_task.stop! }
+                        .to { emit deployment_task.stop_event }
+                end
+                it "does not cleanup and hard-kills the process if "\
+                   "the kill event is called" do
+                    orocos_task.should_receive(:rtt_state).never
+                    orocos_task.should_receive(:cleanup).never
+                    process.should_receive(:kill).once
+                           .with(false, cleanup: false, hard: true).pass_thru
+                    expect_execution { deployment_task.kill! }
                         .to { emit deployment_task.stop_event }
                 end
                 it "ignores com errors with the tasks" do
