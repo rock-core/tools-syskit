@@ -359,6 +359,29 @@ module Syskit
                 end
             end
 
+            # @api private
+            #
+            # Helper to {#use_deployment} and {#use_deployments_from} to resolve
+            # the process server config as well as the orogen loader object
+            # based on its arguments
+            def resolve_process_config_and_loader_from_use_arguments(
+                on, simulation, loader, process_managers
+            )
+                process_server_name = on
+                process_server_config =
+                    if simulation
+                        process_managers
+                            .sim_process_server_config_for(process_server_name)
+                    else
+                        process_managers
+                            .process_server_config_for(process_server_name)
+                    end
+
+                loader ||= process_server_config.loader
+
+                [process_server_config, loader]
+            end
+
             # Add the given deployment (referred to by its process name, that is
             # the name given in the oroGen file) to the set of deployments the
             # engine can use.
@@ -378,20 +401,13 @@ module Syskit
                 deployment_spec = {}
                 deployment_spec = names.pop if names.last.kind_of?(Hash)
 
+                process_server_config, loader =
+                    resolve_process_config_and_loader_from_use_arguments(
+                        on, simulation, loader, process_managers
+                    )
+
                 ## WORKAROUND FOR 2.7.0
                 Roby.sanitize_keywords_to_hash(deployment_spec, run_options)
-
-                process_server_name = on
-                process_server_config =
-                    if simulation
-                        process_managers
-                            .sim_process_server_config_for(process_server_name)
-                    else
-                        process_managers
-                            .process_server_config_for(process_server_name)
-                    end
-
-                loader ||= process_server_config.loader
 
                 deployments_by_name = {}
                 names = names.map do |n|
@@ -460,10 +476,17 @@ module Syskit
             # @return [Array<Model<Deployment>>] the set of deployments
             # @see #use_deployment
             def use_deployments_from(
-                project_name, process_managers: Syskit.conf,
-                loader: Roby.app.default_loader, **use_options
+                project_name,
+                on: "localhost",
+                simulation: Roby.app.simulation?,
+                loader: nil,
+                process_managers: Syskit.conf,
+                **use_options
             )
                 Syskit.info "using deployments from #{project_name}"
+                _, loader = resolve_process_config_and_loader_from_use_arguments(
+                    on, simulation, loader, process_managers
+                )
                 orogen = loader.project_model_from_name(project_name)
 
                 result = []
@@ -472,8 +495,11 @@ module Syskit
                         Syskit.info "  #{deployment_def.name}"
                         result << use_deployment(
                             deployment_def.name,
+                            on: on,
+                            simulation: simulation,
+                            loader: loader,
                             process_managers: process_managers,
-                            loader: loader, **use_options
+                            **use_options
                         )
                     end
                 end

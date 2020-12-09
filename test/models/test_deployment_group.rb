@@ -627,12 +627,16 @@ module Syskit
                     project.should_receive(:each_deployment)
                            .and_yield(deployment_m.orogen_model)
 
-                    flexmock(group).should_receive(:use_deployment)
-                                   .with("test_deployment",
-                                         on: "test-mng", process_managers: conf, loader: loader)
-                                   .once
-                    group.use_deployments_from("test_project",
-                                               on: "test-mng", process_managers: conf, loader: loader)
+                    flexmock(group)
+                        .should_receive(:use_deployment)
+                        .with("test_deployment",
+                              on: "test-mng", process_managers: conf, loader: loader,
+                              simulation: nil)
+                        .once
+                    group.use_deployments_from(
+                        "test_project",
+                        on: "test-mng", process_managers: conf, loader: loader
+                    )
                 end
 
                 it "ignores uninstalled deployments" do

@@ -398,7 +398,8 @@ module Syskit
             def process_server_config_for(name)
                 unless (config = process_servers[name])
                     raise UnknownProcessServer,
-                          "there is no registered process server called #{name}"
+                          "there is no registered process server called #{name}, "\
+                          "existing servers are: #{process_servers.keys.sort.join(', ')}"
                 end
 
                 config
