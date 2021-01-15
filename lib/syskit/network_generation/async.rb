@@ -29,6 +29,7 @@ module Syskit
                 @plan = plan
                 @event_logger = event_logger
                 @thread_pool = thread_pool
+                @apply_system_network_options = {}
             end
 
             def transaction_finalized?
@@ -64,7 +65,15 @@ module Syskit
                 end
             end
 
+            ENGINE_OPTIONS_CARRIED_TO_APPLY_SYSTEM_NETWORK = %I[
+                compute_deployments garbage_collect validate_final_network
+            ].freeze
+
             def prepare(requirement_tasks = default_requirement_tasks, **resolver_options)
+                @apply_system_network_options = resolver_options.slice(
+                    *ENGINE_OPTIONS_CARRIED_TO_APPLY_SYSTEM_NETWORK
+                )
+
                 @future&.cancel
                 # Resolver is used within the block ... don't assign directly to @future
                 resolver = Resolution.new(plan, event_logger, requirement_tasks,
@@ -113,7 +122,9 @@ module Syskit
                 if future.fulfilled?
                     required_instances = future.value
                     begin
-                        engine.apply_system_network_to_plan(required_instances)
+                        engine.apply_system_network_to_plan(
+                            required_instances, **@apply_system_network_options
+                        )
                     rescue ::Exception => e
                         engine.handle_resolution_exception(e, on_error: Engine.on_error)
                         raise e
