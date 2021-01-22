@@ -18,6 +18,9 @@ require 'syskit/roby_app/plugin'
 require 'syskit/roby_app/single_file_dsl'
 require 'syskit/roby_app/unmanaged_process'
 require 'syskit/roby_app/unmanaged_tasks_manager'
+require 'syskit/roby_app/write_only_disk_file_system'
+require 'syskit/roby_app/ftp_server_driver'
+require 'syskit/roby_app/ftp_server'
 
 
 module Syskit
