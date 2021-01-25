@@ -9,6 +9,7 @@ module Orocos
         COMMAND_START      = "S"
         COMMAND_END        = "E"
         COMMAND_QUIT       = "Q"
+        COMMAND_UPLOAD_LOG = "U"
 
         EVENT_DEAD_PROCESS = "D"
         RET_STARTED_PROCESS = "P"

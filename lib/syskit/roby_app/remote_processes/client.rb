@@ -203,6 +203,11 @@ module Orocos
             @death_queue.push Marshal.load(socket)
         end
 
+        def upload_log_file(host, port, certificate, user, password, localfile)
+            socket.write(COMMAND_UPLOAD_LOG)
+            Marshal.dump([host, port, certificate, user, password, localfile], socket)
+        end
+
         # Waits for processes to terminate. +timeout+ is the number of
         # milliseconds we should wait. If set to nil, the call will block until
         # a process terminates

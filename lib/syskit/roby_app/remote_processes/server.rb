@@ -1,5 +1,7 @@
 require 'socket'
 require 'fcntl'
+require 'net/ftp'
+
 module Orocos
     module RemoteProcesses
     # A remote process management server.
@@ -317,6 +319,19 @@ module Orocos
                 end
             elsif cmd_code == COMMAND_QUIT
                 quit
+            elsif cmd_code == COMMAND_UPLOAD_LOG
+                begin
+                    host, port, certificate, user, password, localfile = Marshall.load(socket)
+                    Server.debug "#{socket} requested uploading a log file to FTP server"
+                    upload_log(host, port, certificate, user, password, localfile)
+                rescue Interrupt
+                    raise
+                rescue Exception => e
+                    Server.warn "failed to upload log to FTP server: #{e.message}"
+                    (e.backtrace || Array.new).each do |line|
+                        Server.warn "   #{line}"
+                    end
+                end
             end
 
             true
@@ -385,6 +400,13 @@ module Orocos
 
         def quit
             raise Interrupt
+        end
+
+        def upload_log(host, port, certificate, user, password, localfile)
+            Net::FTP.open(host, port: port, verify_mode: OpenSSL::SSL::VERIFY_PEER, ca_file: certificate) do |ftp|
+                ftp.login(user, password)
+                ftp.putbinaryfile(localfile, remotefile = File.basename(localfile)) # maybe add blocksize argument
+            end
         end
     end
     end
