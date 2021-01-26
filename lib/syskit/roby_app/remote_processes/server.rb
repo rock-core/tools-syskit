@@ -405,7 +405,8 @@ module Orocos
         def upload_log(host, port, certificate, user, password, localfile)
             Net::FTP.open(host, port: port, verify_mode: OpenSSL::SSL::VERIFY_PEER, ca_file: certificate) do |ftp|
                 ftp.login(user, password)
-                ftp.putbinaryfile(localfile, remotefile = File.basename(localfile)) # maybe add blocksize argument
+                lf = File.open(localfile)
+                ftp.storbinary("STOR #{File.basename(localfile)}", lf, Net::FTP::DEFAULT_BLOCKSIZE)
             end
         end
     end
