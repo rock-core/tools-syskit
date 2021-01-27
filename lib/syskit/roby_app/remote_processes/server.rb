@@ -113,6 +113,7 @@ module Orocos
             @port = nil
             @processes = Hash.new
             @all_ios = Array.new
+            @active_threads = Array.new
         end
 
         def each_client(&block)
@@ -182,6 +183,10 @@ module Orocos
             end
 
         rescue Exception => e
+            Server.info "waiting for all uploads to finish"
+            @active_threads.each { |t| t.join }
+            @active_threads = []
+
             if e.class == Interrupt # normal procedure
                 Server.fatal "process server exited normally"
                 return
@@ -323,7 +328,11 @@ module Orocos
                 begin
                     host, port, certificate, user, password, localfile = Marshall.load(socket)
                     Server.debug "#{socket} requested uploading a log file to FTP server"
-                    upload_log(host, port, certificate, user, password, localfile)
+                    @active_threads << Thread.new do
+                        Thread.current.abort_on_exception = true
+                        upload_log(host, port, certificate, user, password, localfile)
+                        @active_threads.delete(Thread.current)
+                    end
                 rescue Interrupt
                     raise
                 rescue Exception => e
