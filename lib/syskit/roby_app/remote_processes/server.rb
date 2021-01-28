@@ -251,22 +251,6 @@ module Orocos
             elsif cmd_code == COMMAND_GET_INFO
                 Server.debug "#{socket} requested system information"
                 Marshal.dump(build_system_info, socket)
-            elsif cmd_code == COMMAND_MOVE_LOG
-                Server.debug "#{socket} requested moving a log directory"
-                begin
-                    log_dir, results_dir = Marshal.load(socket)
-                    log_dir = File.expand_path(log_dir)
-                    results_dir = File.expand_path(results_dir)
-                    move_log_dir(log_dir, results_dir)
-                rescue Interrupt
-                    raise
-                rescue Exception => e
-                    Server.warn "failed to move log directory from #{log_dir} to #{results_dir}: #{e.message}"
-                    (e.backtrace || Array.new).each do |line|
-                        Server.warn "   #{line}"
-                    end
-                end
-
             elsif cmd_code == COMMAND_CREATE_LOG
                 begin
                     Server.debug "#{socket} requested creating a log directory"
@@ -367,15 +351,6 @@ module Orocos
             end
             File.open(File.join(log_dir, 'info.yml'), 'w') do |io|
                 YAML.dump(Hash['time' => time_tag].merge(metadata), io)
-            end
-        end
-
-        def move_log_dir(log_dir, results_dir)
-            date_tag    = File.read(File.join(log_dir, 'time_tag')).strip
-            Server.debug "  #{log_dir} => #{results_dir}"
-            if File.directory?(log_dir)
-                dirname = Server.unique_dirname(results_dir + '/', '', date_tag)
-                FileUtils.mv log_dir, dirname
             end
         end
         

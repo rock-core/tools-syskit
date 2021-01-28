@@ -185,13 +185,6 @@ module Orocos
             end
         end
 
-        # Requests that the process server moves the log directory at +log_dir+
-        # to +results_dir+
-        def save_log_dir(log_dir, results_dir)
-            socket.write(COMMAND_MOVE_LOG)
-            Marshal.dump([log_dir, results_dir], socket)
-        end
-
         # Creates a new log dir, and save the given time tag in it (used later
         # on by save_log_dir)
         def create_log_dir(log_dir, time_tag, metadata = Hash.new)
