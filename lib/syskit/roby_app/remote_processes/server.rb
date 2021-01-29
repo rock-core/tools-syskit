@@ -1,6 +1,7 @@
 require 'socket'
 require 'fcntl'
 require 'net/ftp'
+require 'orocos'
 
 module Syskit
     module RobyApp
@@ -12,7 +13,7 @@ module Syskit
             #
             # Use {ProcessClient} to access a server
             class Server
-                extend Logger::Root("Orocos::RemoteProcesses::Server", Logger::INFO)
+                extend Logger::Root("Syskit::RobyApp::RemoteProcesses::Server", Logger::INFO)
 
                 # Returns a unique directory name as a subdirectory of
                 # +base_dir+, based on +path_spec+. The generated name

@@ -1,4 +1,5 @@
-require 'orocos/remote_processes/loader'
+require 'orocos'
+require 'syskit/roby_app/remote_processes/loader'
 
 module Syskit
     module RobyApp
@@ -50,7 +51,7 @@ module Syskit
                 attr_reader :name_service
 
                 def to_s
-                    "#<Orocos::RemoteProcesses::Client #{host}:#{port}>"
+                    "#<Syskit::RobyApp::RemoteProcesses::Client #{host}:#{port}>"
                 end
                 def inspect; to_s end
 

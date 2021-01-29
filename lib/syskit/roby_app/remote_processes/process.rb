@@ -1,3 +1,5 @@
+require 'orocos/process'
+
 module Syskit
     module RobyApp
         module RemoteProcesses
