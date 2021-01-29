@@ -1,10 +1,12 @@
-require 'orocos/process'
+# frozen_string_literal: true
+
+require "orocos/process"
 
 module Syskit
     module RobyApp
         module RemoteProcesses
             # Representation of a remote process started with ProcessClient#start
-            class Process < ProcessBase
+            class Process < Orocos::ProcessBase
                 # The ProcessClient instance that gives us access to the remote process
                 # server
                 attr_reader :process_client
@@ -76,5 +78,3 @@ module Syskit
         end
     end
 end
-
-
