@@ -1,5 +1,7 @@
-require 'orocos'
-require 'syskit/roby_app/remote_processes/loader'
+# frozen_string_literal: true
+
+require "orocos"
+require "syskit/roby_app/remote_processes/loader"
 
 module Syskit
     module RobyApp

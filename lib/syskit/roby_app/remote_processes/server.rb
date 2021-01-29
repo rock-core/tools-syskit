@@ -1,7 +1,9 @@
-require 'socket'
-require 'fcntl'
-require 'net/ftp'
-require 'orocos'
+# frozen_string_literal: true
+
+require "socket"
+require "fcntl"
+require "net/ftp"
+require "orocos"
 
 module Syskit
     module RobyApp
@@ -186,7 +188,7 @@ module Syskit
 
                 rescue Exception => e
                     Server.info "waiting for all uploads to finish"
-                    @active_threads.each { |t| t.join }
+                    @active_threads.each(&:join)
                     @active_threads = []
 
                     if e.class == Interrupt # normal procedure
@@ -389,10 +391,15 @@ module Syskit
                 end
 
                 def upload_log(host, port, certificate, user, password, localfile)
-                    Net::FTP.open(host, port: port, verify_mode: OpenSSL::SSL::VERIFY_PEER, ca_file: certificate) do |ftp|
+                    Net::FTP.open(host,
+                                  port: port,
+                                  verify_mode: OpenSSL::SSL::VERIFY_PEER,
+                                  ca_file: certificate) do |ftp|
                         ftp.login(user, password)
                         lf = File.open(localfile)
-                        ftp.storbinary("STOR #{File.basename(localfile)}", lf, Net::FTP::DEFAULT_BLOCKSIZE)
+                        ftp.storbinary("STOR #{File.basename(localfile)}",
+                                       lf,
+                                       Net::FTP::DEFAULT_BLOCKSIZE)
                     end
                 end
             end

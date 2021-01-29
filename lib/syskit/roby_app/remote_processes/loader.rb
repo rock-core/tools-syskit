@@ -1,3 +1,5 @@
+# frozen_string_literal: true
+
 module Syskit
     module RobyApp
         module RemoteProcesses
@@ -89,4 +91,3 @@ module Syskit
         end
     end
 end
-
