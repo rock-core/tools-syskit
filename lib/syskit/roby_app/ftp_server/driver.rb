@@ -1,6 +1,8 @@
 # !/usr/bin/env ruby
 # frozen_string_literal: true
 
+require "syskit/roby_app/ftp_server/write_only_disk_file_system"
+
 module Syskit
     module RobyApp
         module FtpServer

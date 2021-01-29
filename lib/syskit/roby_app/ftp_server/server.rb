@@ -3,6 +3,8 @@
 require "ftpd"
 require "ipaddr"
 
+require "syskit/roby_app/ftp_server/driver"
+
 module Syskit
     module RobyApp
         module FtpServer
