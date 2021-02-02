@@ -18,13 +18,23 @@ describe Syskit::RobyApp::FtpServer do
 
     describe "#initialize" do
 
-        it "checks existence of ftp server" do
+        it "checks ftp server existence" do
+            Net::FTP.open("127.0.0.1", port: server.port, verify_mode: OpenSSL::SSL::VERIFY_PEER, ca_file: certificate) do |ftp|
+                assert ftp.login(user, password)
+            end
+        end
+
+        it "checks ftp server connection" do
 
             temp_dir = Ftpd::TempDir.make
             server = Syskit::RobyApp::FtpServer::Server.new(temp_dir)
-            assert Ftpd::DiskFileSystem::Accessors.exists?(server)
 
-        
+            File.new("testfile", "w+") 
+            certificate = "/home/rbtmrcs/.local/share/autoproj/gems/ruby/2.5.0/gems/ftpd-2.1.0/insecure-test-cert.pem"
+            upload_log("127.0.0.1", server.port, certificate, ENV["LOGNAME"], "", "testfile")
+            
+            assert File.exist?("#{temp_dir}/testfile"), msg = "Uploaded file doesn't exist."
+            
             # Dir.mktmpdir do |temp_dir|
             #     server = Syskit::RobyApp::FtpServer::Server.new(temp_dir)
             #     puts "\nServer running"
@@ -39,6 +49,5 @@ describe Syskit::RobyApp::FtpServer do
             #     assert File.exist?("#{temp_dir}/test.txt") != nil
             # end
         end
-
     end
 end
