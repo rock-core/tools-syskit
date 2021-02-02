@@ -12,6 +12,8 @@ module Syskit
             class Server
                 include Ftpd::InsecureCertificate
 
+                attr_reader :port
+
                 # tgt_dir must be an absolute path
                 def initialize(tgt_dir,
                     auth_level: "password",
@@ -26,7 +28,8 @@ module Syskit
                     nat_ip: nil,
                     passive_ports: nil,
                     debug: false,
-                    log: nil)
+                    log: nil,
+                    verbose: true)
 
                     @data_dir = tgt_dir
                     @interface = interface
@@ -46,7 +49,8 @@ module Syskit
                     @server = Ftpd::FtpServer.new(@driver)
                     configure_server
                     @server.start
-                    display_connection_info
+                    @port = @server.bound_port
+                    display_connection_info if verbose
                     create_connection_script
                 end
 
