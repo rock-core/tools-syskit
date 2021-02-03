@@ -8,6 +8,7 @@ require "net/ftp"
 require "syskit/roby_app/ftp_server"
 
 class FtpServerTest < Minitest::Test
+
     def spawn_server
         @temp_dir = Ftpd::TempDir.make
         @server = Syskit::RobyApp::FtpServer::Server.new(@temp_dir, user: "test.user")
@@ -19,6 +20,12 @@ class FtpServerTest < Minitest::Test
         @temp_dir = Ftpd::TempDir.make
         @server = Syskit::RobyApp::FtpServer::Server.new(@temp_dir, user: "test.user", password: "password123")
         @certificate = "/home/#{ENV['LOGNAME']}/.local/share/autoproj/gems/ruby/2.5.0/gems/ftpd-2.1.0/insecure-test-cert.pem"
+    end
+
+    def upload_testfile
+        File.new("testfile", "w+")
+        upload_log("127.0.0.1", @server.port, @certificate, "test.user", "", "testfile")
+        File.delete("testfile")
     end
 
     def upload_log(host, port, certificate, user, password, localfile)
@@ -45,23 +52,23 @@ class FtpServerTest < Minitest::Test
 
     def test_uploads_file_to_server
         spawn_server
-        File.new("testfile", "w+")
-        upload_log("127.0.0.1", @server.port, @certificate, "test.user", "", "testfile")
-        File.delete("testfile")
+        upload_testfile
         assert File.exist?("#{@temp_dir}/testfile"), "Uploaded file doesn't exist."
     end
 
     def test_cant_upload_file_that_already_exists
         spawn_server
-        File.new("testfile", "w+")
-        upload_log("127.0.0.1", @server.port, @certificate, "test.user", "", "testfile")
-        assert_raises(Net::FTPPermError) {upload_log("127.0.0.1", @server.port, @certificate, "test.user", "", "testfile")}
-        File.delete("testfile")
-        # "Can't upload: File already exists"
-        # Ftpd::PermanentFileSystemError
+        upload_testfile
+        assert_raises(Net::FTPPermError) {upload_testfile}
     end
 
     # def test_cant_read_from_remote_repository
+    #     spawn_server
+    #     File.new("testfile", "w+")
+    #     upload_log("127.0.0.1", @server.port, @certificate, "test.user", "", "testfile")
+    #     File.delete("testfile")
+    #     assert Ftpd::FileInfo.file?("#{@temp_dir}/testfile") != nil
     # end
+
 end
 
