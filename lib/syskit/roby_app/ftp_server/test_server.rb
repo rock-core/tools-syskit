@@ -65,13 +65,13 @@ class FtpServerTest < Minitest::Test
         assert_raises(Net::FTPPermError) {upload_testfile}
     end
 
-    # def test_cant_read_from_remote_repository
-    #     spawn_and_upload_testfile
-    #     Net::FTP.open("127.0.0.1", port: @server.port, verify_mode: OpenSSL::SSL::VERIFY_PEER, ca_file: @certificate) do |ftp|
-    #         ftp.login("test.user", "")
-    #         assert ftp.get("#{@temp_dir}/testfile", localfile = File.basename("#{@temp_dir}/testfile")) != nil
-    #     end
-    # end
+    def test_cant_read_from_remote_repository
+        spawn_and_upload_testfile
+        Net::FTP.open("127.0.0.1", port: @server.port, verify_mode: OpenSSL::SSL::VERIFY_PEER, ca_file: @certificate) do |ftp|
+            ftp.login("test.user", "")
+            assert_raises(Net::FTPPermError) {ftp.get("#{@temp_dir}/testfile")}
+        end
+    end
 
 end
 
