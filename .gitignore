@@ -22,3 +22,7 @@ coverage/
 
 
 tmp/
+
+lib/syskit/roby_app/ftp_server/build_syskit.sh
+lib/syskit/roby_app/ftp_server/Gemfile
+syskit-0.1.gem

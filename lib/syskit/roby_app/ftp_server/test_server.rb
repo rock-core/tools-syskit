@@ -1,12 +1,25 @@
+# frozen_string_literal: true
+
 require "minitest/autorun"
-require "minitest/spec"
 
 require "ftpd"
 require "net/ftp"
 
 require "syskit/roby_app/ftp_server"
 
-describe Syskit::RobyApp::FtpServer do
+class FtpServerTest < Minitest::Test
+    def spawn_server
+        @temp_dir = Ftpd::TempDir.make
+        @server = Syskit::RobyApp::FtpServer::Server.new(@temp_dir, user: "test.user")
+        @certificate = "/home/#{ENV['LOGNAME']}/.local/share/autoproj/gems/ruby/2.5.0/gems/ftpd-2.1.0/insecure-test-cert.pem"
+        # @certificate = Ftpd::InsecureCertificate.insecure_certfile_path
+    end
+
+    def spawn_server_with_password
+        @temp_dir = Ftpd::TempDir.make
+        @server = Syskit::RobyApp::FtpServer::Server.new(@temp_dir, user: "test.user", password: "password123")
+        @certificate = "/home/#{ENV['LOGNAME']}/.local/share/autoproj/gems/ruby/2.5.0/gems/ftpd-2.1.0/insecure-test-cert.pem"
+    end
 
     def upload_log(host, port, certificate, user, password, localfile)
         Net::FTP.open(host, port: port, verify_mode: OpenSSL::SSL::VERIFY_PEER, ca_file: certificate) do |ftp|
@@ -16,38 +29,39 @@ describe Syskit::RobyApp::FtpServer do
         end
     end
 
-    describe "#initialize" do
-
-        it "checks ftp server existence" do
-            Net::FTP.open("127.0.0.1", port: server.port, verify_mode: OpenSSL::SSL::VERIFY_PEER, ca_file: certificate) do |ftp|
-                assert ftp.login(user, password)
-            end
-        end
-
-        it "checks ftp server connection" do
-
-            temp_dir = Ftpd::TempDir.make
-            server = Syskit::RobyApp::FtpServer::Server.new(temp_dir)
-
-            File.new("testfile", "w+") 
-            certificate = "/home/rbtmrcs/.local/share/autoproj/gems/ruby/2.5.0/gems/ftpd-2.1.0/insecure-test-cert.pem"
-            upload_log("127.0.0.1", server.port, certificate, ENV["LOGNAME"], "", "testfile")
-            
-            assert File.exist?("#{temp_dir}/testfile"), msg = "Uploaded file doesn't exist."
-            
-            # Dir.mktmpdir do |temp_dir|
-            #     server = Syskit::RobyApp::FtpServer::Server.new(temp_dir)
-            #     puts "\nServer running"
-            #     assert Net::FTP.closed? != false
-            #     assert Net::FTP.connect("127.0.0.1", port = server.port) != false
-                
-            #     #FileUtils.touch File.expand_path('test.txt', temp_dir)
-            #     certificate = "/home/rbtmrcs/.local/share/autoproj/gems/ruby/2.5.0/gems/ftpd-2.1.0/insecure-test-cert.pem"
-            #     upload_log("127.0.0.1", "5000", certificate, ENV["LOGNAME"], "", "test.txt")
-                
-            #     # assert (test, msg=nil)
-            #     assert File.exist?("#{temp_dir}/test.txt") != nil
-            # end
+    def test_connects_to_server
+        spawn_server
+        Net::FTP.open("127.0.0.1", port: @server.port, verify_mode: OpenSSL::SSL::VERIFY_PEER, ca_file: @certificate) do |ftp|
+            assert ftp.login("test.user", ""), "FTP server doesn't connect."
         end
     end
+
+    def test_password_authentication
+        spawn_server_with_password
+        Net::FTP.open("127.0.0.1", port: @server.port, verify_mode: OpenSSL::SSL::VERIFY_PEER, ca_file: @certificate) do |ftp|
+            assert ftp.login("test.user", "password123"), "FTP server doesn't connect with authentication."
+        end
+    end
+
+    def test_uploads_file_to_server
+        spawn_server
+        File.new("testfile", "w+")
+        upload_log("127.0.0.1", @server.port, @certificate, "test.user", "", "testfile")
+        File.delete("testfile")
+        assert File.exist?("#{@temp_dir}/testfile"), "Uploaded file doesn't exist."
+    end
+
+    def test_cant_upload_file_that_already_exists
+        spawn_server
+        File.new("testfile", "w+")
+        upload_log("127.0.0.1", @server.port, @certificate, "test.user", "", "testfile")
+        assert_raises(Net::FTPPermError) {upload_log("127.0.0.1", @server.port, @certificate, "test.user", "", "testfile")}
+        File.delete("testfile")
+        # "Can't upload: File already exists"
+        # Ftpd::PermanentFileSystemError
+    end
+
+    # def test_cant_read_from_remote_repository
+    # end
 end
+
