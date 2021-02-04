@@ -8,6 +8,7 @@ require "net/ftp"
 require "syskit/roby_app/ftp_server"
 
 class FtpServerTest < Minitest::Test
+    # auxiliary functions
 
     def spawn_server
         @temp_dir = Ftpd::TempDir.make
@@ -25,7 +26,6 @@ class FtpServerTest < Minitest::Test
     def upload_testfile
         File.new("testfile", "w+")
         upload_log("127.0.0.1", @server.port, @certificate, "test.user", "", "testfile")
-        File.delete("testfile")
     end
 
     def spawn_and_upload_testfile
@@ -40,6 +40,8 @@ class FtpServerTest < Minitest::Test
             ftp.storbinary("STOR #{File.basename(localfile)}", lf, Net::FTP::DEFAULT_BLOCKSIZE)
         end
     end
+
+    # tests
 
     def test_connects_to_server
         spawn_server
@@ -57,19 +59,22 @@ class FtpServerTest < Minitest::Test
 
     def test_uploads_file_to_server
         spawn_and_upload_testfile
+        File.delete("testfile") if File.exist?("testfile") # delete in local directory
         assert File.exist?("#{@temp_dir}/testfile"), "Uploaded file doesn't exist."
     end
 
     def test_cant_upload_file_that_already_exists
         spawn_and_upload_testfile
+        File.delete("testfile") if File.exist?("testfile") # delete in local directory
         assert_raises(Net::FTPPermError) {upload_testfile}
     end
 
     def test_cant_read_from_remote_repository
         spawn_and_upload_testfile
+        File.delete("testfile") if File.exist?("testfile") # delete in local directory
         Net::FTP.open("127.0.0.1", port: @server.port, verify_mode: OpenSSL::SSL::VERIFY_PEER, ca_file: @certificate) do |ftp|
             ftp.login("test.user", "")
-            assert_raises(Net::FTPPermError) {ftp.get("#{@temp_dir}/testfile")}
+            assert_raises(Net::FTPPermError) { ftp.get("#{@temp_dir}/testfile") }
         end
     end
 
