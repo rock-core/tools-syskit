@@ -1,6 +1,10 @@
 # frozen_string_literal: true
 
 require "orocos/test"
+#require 'minitest/autorun'
+#require 'minitest/spec'
+#require 'flexmock/minitest'
+#require "orogen"
 require "syskit/roby_app/remote_processes"
 
 describe Syskit::RobyApp::RemoteProcesses do
