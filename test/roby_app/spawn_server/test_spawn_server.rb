@@ -6,15 +6,19 @@ require "minitest/spec"
 require "ftpd"
 require "net/ftp"
 
-require "syskit/roby_app/ftp_server"
+require "lib/syskit/roby_app/log_transfer_server"
 
-describe Syskit::RobyApp::FtpServer::Server do
+describe Syskit::RobyApp::LogTransferServer::SpawnServer do
 
-    class TestServer < Syskit::RobyApp::FtpServer::Server
+    class TestServer < Syskit::RobyApp::LogTransferServer::SpawnServer
+        include Ftpd::InsecureCertificate
+
         attr_accessor :certfile_path
 
-        def initialize(tgt_dir, certfile_path)
+        def initialize(tgt_dir, user: "test.user", password: "test.password")
             super
+            @user = user
+            @password = password
             @certfile_path = insecure_certfile_path
         end
     end 
@@ -22,13 +26,7 @@ describe Syskit::RobyApp::FtpServer::Server do
     ### AUXILIARY FUNCTIONS ###
     def spawn_server
         @temp_dir = Ftpd::TempDir.make
-        @server = TestServer.new(@temp_dir, user: "test.user")
-    end
-
-    def spawn_server_with_password
-        @temp_dir = Ftpd::TempDir.make
-        @server = Syskit::RobyApp::FtpServer::Server.new(@temp_dir, user: "test.user", password: "password123")
-        @certificate = "/home/#{ENV['LOGNAME']}/.local/share/autoproj/gems/ruby/2.5.0/gems/ftpd-2.1.0/insecure-test-cert.pem"
+        @server = TestServer.new(@temp_dir, user: "test.user", password: "test.password")
     end
 
     def upload_testfile
@@ -54,7 +52,7 @@ describe Syskit::RobyApp::FtpServer::Server do
     describe "#LogTransferServerTests" do
 
         before do
-            # spawn server
+            spawn_server
         end
 
         after do
@@ -62,9 +60,8 @@ describe Syskit::RobyApp::FtpServer::Server do
         end
         
         it "tests connection to server" do
-            spawn_server
-            Net::FTP.open("127.0.0.1", port: @server.port, verify_mode: OpenSSL::SSL::VERIFY_PEER, ca_file: @certificate) do |ftp|
-                assert ftp.login("test.user", ""), "FTP server doesn't connect."
+            Net::FTP.open("127.0.0.1", port: @server.port, verify_mode: OpenSSL::SSL::VERIFY_PEER, ca_file: @server.certfile_path) do |ftp|
+                assert ftp.login("test.user", "test.password"), "FTP server doesn't connect."
             end
         end
 
