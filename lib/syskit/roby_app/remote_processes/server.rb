@@ -184,10 +184,16 @@ module Syskit
                                 @all_ios.delete(socket)
                             end
                         end
+
+                        @active_threads.delete_if do |thread|
+                            !thread.alive?
+                        end
                     end
 
                 rescue Exception => e
-                    Server.info "waiting for all uploads to finish"
+                    unless @active_threads.empty?
+                        Server.info "waiting for all uploads to finish"
+                    end
                     @active_threads.each(&:join)
                     @active_threads = []
 
@@ -315,16 +321,16 @@ module Syskit
                     elsif cmd_code == COMMAND_UPLOAD_LOG
                         begin
                             host, port, certificate, user, password, localfile = Marshall.load(socket)
-                            Server.debug "#{socket} requested uploading a log file to FTP server"
+                            Server.debug "#{socket} requested uploading #{localfile} to log transfer FTP server"
                             @active_threads << Thread.new do
                                 Thread.current.abort_on_exception = true
                                 upload_log(host, port, certificate, user, password, localfile)
-                                @active_threads.delete(Thread.current)
+                                Server.info "finished uploading log (#{localfile})"
                             end
                         rescue Interrupt
                             raise
                         rescue Exception => e
-                            Server.warn "failed to upload log to FTP server: #{e.message}"
+                            Server.warn "failed to upload log to FTP server: (#{localfile}) #{e.message}"
                             (e.backtrace || Array.new).each do |line|
                                 Server.warn "   #{line}"
                             end
