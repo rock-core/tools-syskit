@@ -1,15 +1,16 @@
 # frozen_string_literal: true
 
 require "minitest/autorun"
+require "minitest/spec"
 
 require "ftpd"
 require "net/ftp"
 
 require "syskit/roby_app/ftp_server"
 
-class FtpServerTest < Minitest::Test
-    # auxiliary functions
-
+describe Syskit::RobyApp::FtpServer::Server do
+    
+    ### AUXILIARY FUNCTIONS ###
     def spawn_server
         @temp_dir = Ftpd::TempDir.make
         @server = Syskit::RobyApp::FtpServer::Server.new(@temp_dir, user: "test.user")
@@ -41,42 +42,44 @@ class FtpServerTest < Minitest::Test
         end
     end
 
-    # tests
-
-    def test_connects_to_server
-        spawn_server
-        Net::FTP.open("127.0.0.1", port: @server.port, verify_mode: OpenSSL::SSL::VERIFY_PEER, ca_file: @certificate) do |ftp|
-            assert ftp.login("test.user", ""), "FTP server doesn't connect."
+    ### TESTS ###
+    describe "#LogTransferServerTests" do
+        
+        it "tests connection to server" do
+            spawn_server
+            Net::FTP.open("127.0.0.1", port: @server.port, verify_mode: OpenSSL::SSL::VERIFY_PEER, ca_file: @certificate) do |ftp|
+                assert ftp.login("test.user", ""), "FTP server doesn't connect."
+            end
         end
-    end
 
-    def test_password_authentication
-        spawn_server_with_password
-        Net::FTP.open("127.0.0.1", port: @server.port, verify_mode: OpenSSL::SSL::VERIFY_PEER, ca_file: @certificate) do |ftp|
-            assert ftp.login("test.user", "password123"), "FTP server doesn't connect with authentication."
+        it "tests password authentication" do
+            spawn_server_with_password
+            Net::FTP.open("127.0.0.1", port: @server.port, verify_mode: OpenSSL::SSL::VERIFY_PEER, ca_file: @certificate) do |ftp|
+                assert ftp.login("test.user", "password123"), "FTP server doesn't connect with authentication."
+            end
         end
-    end
 
-    def test_uploads_file_to_server
-        spawn_and_upload_testfile
-        File.delete("testfile") if File.exist?("testfile") # delete in local directory
-        assert File.exist?("#{@temp_dir}/testfile"), "Uploaded file doesn't exist."
-    end
-
-    def test_cant_upload_file_that_already_exists
-        spawn_and_upload_testfile
-        File.delete("testfile") if File.exist?("testfile") # delete in local directory
-        assert_raises(Net::FTPPermError) {upload_testfile}
-    end
-
-    def test_cant_read_from_remote_repository
-        spawn_and_upload_testfile
-        File.delete("testfile") if File.exist?("testfile") # delete in local directory
-        Net::FTP.open("127.0.0.1", port: @server.port, verify_mode: OpenSSL::SSL::VERIFY_PEER, ca_file: @certificate) do |ftp|
-            ftp.login("test.user", "")
-            assert_raises(Net::FTPPermError) { ftp.get("#{@temp_dir}/testfile") }
+        it "tests file uploads to server" do
+            spawn_and_upload_testfile
+            File.delete("testfile") if File.exist?("testfile") # delete in local directory
+            assert File.exist?("#{@temp_dir}/testfile"), "Uploaded file doesn't exist."
         end
-    end
 
+        it "tests upload of file that already exists" do
+            spawn_and_upload_testfile
+            File.delete("testfile") if File.exist?("testfile") # delete in local directory
+            assert_raises(Net::FTPPermError) {upload_testfile}
+        end
+
+        it "tests read function blocking of remote repository" do
+            spawn_and_upload_testfile
+            File.delete("testfile") if File.exist?("testfile") # delete in local directory
+            Net::FTP.open("127.0.0.1", port: @server.port, verify_mode: OpenSSL::SSL::VERIFY_PEER, ca_file: @certificate) do |ftp|
+                ftp.login("test.user", "")
+                assert_raises(Net::FTPPermError) { ftp.get("#{@temp_dir}/testfile") }
+            end
+        end
+
+    end
 end
 
