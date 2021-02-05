@@ -3,26 +3,24 @@
 require "ftpd"
 require "ipaddr"
 
-require "syskit/roby_app/ftp_server/driver"
+require "syskit/roby_app/log_tranfer_server/driver"
 
 module Syskit
     module RobyApp
-        module FtpServer
-            # Class responsible for creating an FTP server
-            class Server
-                include Ftpd::InsecureCertificate
-
+        module LogTransferServer
+            # Class responsible for spawning an FTP server for transfering logs
+            class SpawnServer
                 attr_reader :port
 
                 # tgt_dir must be an absolute path
-                def initialize(tgt_dir,
-                    auth_level: "password",
-                    user: ENV["LOGNAME"] || "test",
-                    password: "",
+                def initialize(
+                    tgt_dir,
+                    user,
+                    password,
+                    certfile_path,
                     account: "",
                     interface: "127.0.0.1",
                     tls: :explicit,
-                    certfile_path: insecure_certfile_path, # insecure SSL certificate only for testing
                     port: 0,
                     session_timeout: default_session_timeout,
                     nat_ip: nil,
@@ -36,7 +34,7 @@ module Syskit
                     @tls = tls
                     @certfile_path = certfile_path
                     @port = port
-                    @auth_level = auth_level
+                    @auth_level = "password"
                     @user = user
                     @password = password
                     @account = account

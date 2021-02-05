@@ -5,7 +5,7 @@ require "pathname"
 
 module Syskit
     module RobyApp
-        module FtpServer
+        module LogTransferServer
             # Custom write-only file system that detects collision between files
             class WriteOnlyDiskFileSystem
                 include Ftpd::DiskFileSystem::Base
