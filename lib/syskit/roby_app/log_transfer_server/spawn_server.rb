@@ -49,7 +49,6 @@ module Syskit
                     @server.start
                     @port = @server.bound_port
                     display_connection_info if verbose
-                    create_connection_script
                 end
 
                 # The user should call this function in order to spawn the server
@@ -89,16 +88,6 @@ module Syskit
 
                 def uri
                     "ftp://#{connection_host}:#{@server.bound_port}"
-                end
-
-                def create_connection_script
-                    command_path = "/tmp/connect-to-example-ftp-server.sh"
-                    File.open(command_path, 'w') do |file|
-                        file.puts "#!/bin/bash"
-                        file.puts "ftp $FTP_ARGS #{connection_host} #{@server.bound_port}"
-                    end
-                    system("chmod +x #{command_path}")
-                    puts "Connection script written to #{command_path}"
                 end
 
                 def wait_until_stopped
