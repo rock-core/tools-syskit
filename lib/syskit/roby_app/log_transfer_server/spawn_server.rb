@@ -3,7 +3,7 @@
 require "ftpd"
 require "ipaddr"
 
-require "syskit/roby_app/log_tranfer_server/driver"
+require "syskit/roby_app/log_transfer_server/driver"
 
 module Syskit
     module RobyApp
