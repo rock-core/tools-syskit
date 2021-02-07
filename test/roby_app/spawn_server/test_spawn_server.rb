@@ -6,27 +6,28 @@ require "minitest/spec"
 require "ftpd"
 require "net/ftp"
 
-require "lib/syskit/roby_app/log_transfer_server"
+require "syskit/roby_app/log_transfer_server"
 
 describe Syskit::RobyApp::LogTransferServer::SpawnServer do
 
     class TestServer < Syskit::RobyApp::LogTransferServer::SpawnServer
         include Ftpd::InsecureCertificate
 
-        attr_accessor :certfile_path
+        attr_accessor :user, :password, :certfile_path
 
-        def initialize(tgt_dir, user: "test.user", password: "test.password")
+        def initialize(
+            tgt_dir, 
+            user = "test.user", 
+            password = "test.password", 
+            certfile_path = insecure_certfile_path)
             super
-            @user = user
-            @password = password
-            @certfile_path = insecure_certfile_path
         end
-    end 
-    
+    end
+
     ### AUXILIARY FUNCTIONS ###
     def spawn_server
         @temp_dir = Ftpd::TempDir.make
-        @server = TestServer.new(@temp_dir, user: "test.user", password: "test.password")
+        @server = TestServer.new(@temp_dir)
     end
 
     def upload_testfile
@@ -60,8 +61,8 @@ describe Syskit::RobyApp::LogTransferServer::SpawnServer do
         end
         
         it "tests connection to server" do
-            Net::FTP.open("127.0.0.1", port: @server.port, verify_mode: OpenSSL::SSL::VERIFY_PEER, ca_file: @server.certfile_path) do |ftp|
-                assert ftp.login("test.user", "test.password"), "FTP server doesn't connect."
+            Net::FTP.open(@server.interface, port: @server.port, verify_mode: OpenSSL::SSL::VERIFY_PEER, ca_file: @server.certfile_path) do |ftp|
+                assert ftp.login(@server.user, @server.password), "FTP server doesn't connect."
             end
         end
 

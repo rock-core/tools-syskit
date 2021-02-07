@@ -10,7 +10,7 @@ module Syskit
         module LogTransferServer
             # Class responsible for spawning an FTP server for transfering logs
             class SpawnServer
-                attr_reader :port
+                attr_reader :port, :interface
 
                 # tgt_dir must be an absolute path
                 def initialize(
