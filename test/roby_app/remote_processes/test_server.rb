@@ -1,19 +1,41 @@
 # frozen_string_literal: true
 
 require "orocos/test"
-#require 'minitest/autorun'
-#require 'minitest/spec'
-#require 'flexmock/minitest'
 require "orogen"
 require "syskit/roby_app/remote_processes"
+require "syskit/roby_app/log_transfer_server"
 
 describe Syskit::RobyApp::RemoteProcesses do
-    attr_reader :server, :client, :root_loader
+    attr_reader :server
+    attr_reader :client
+    attr_reader :root_loader
+    attr_reader :temp_dir
+    attr_reader :certificate
+    attr_reader :user
+    attr_reader :password
+    attr_reader :log_transfer_server
+    attr_reader :logfile
+
+    class TestLogTransferServer < Syskit::RobyApp::LogTransferServer::SpawnServer
+        include Ftpd::InsecureCertificate
+
+        attr_accessor :user, :password, :certfile_path
+
+        def initialize(
+            tgt_dir,
+            user = "test.user",
+            password = "password123",
+            certfile_path = insecure_certfile_path
+        )
+            super
+        end
+    end
 
     def start_server
         @server = Syskit::RobyApp::RemoteProcesses::Server.new(
             Syskit::RobyApp::RemoteProcesses::Server::DEFAULT_OPTIONS,
-            0)
+            0
+        )
         server.open
 
         @server_thread = Thread.new do
@@ -25,9 +47,10 @@ describe Syskit::RobyApp::RemoteProcesses do
         @root_loader = OroGen::Loaders::Aggregate.new
         OroGen::Loaders::RTT.setup_loader(root_loader)
         @client = Syskit::RobyApp::RemoteProcesses::Client.new(
-            'localhost',
+            "localhost",
             server.port,
-            :root_loader => root_loader)
+            :root_loader => root_loader
+        )
     end
 
     def start_and_connect_to_server
@@ -35,19 +58,21 @@ describe Syskit::RobyApp::RemoteProcesses do
         connect_to_server
     end
 
+    def spawn_log_transfer_server
+        @temp_dir = Ftpd::TempDir.make
+        @user = "test.user"
+        @password = "password123"
+        @log_transfer_server = TestLogTransferServer.new(@temp_dir, @user, @password)
+    end
+
     before do
         @current_log_level = Syskit::RobyApp::RemoteProcesses::Server.logger.level
-        Syskit::RobyApp::RemoteProcesses::Server.logger.level = Logger::FATAL + 1
     end
 
     after do
         if @server_thread
             @server_thread.raise Interrupt
             @server_thread.join
-        end
-
-        if @current_log_level
-            Syskit::RobyApp::RemoteProcesses::Server.logger.level = @current_log_level
         end
     end
 
@@ -57,50 +82,36 @@ describe Syskit::RobyApp::RemoteProcesses do
             root_loader = OroGen::Loaders::Aggregate.new
             OroGen::Loaders::RTT.setup_loader(root_loader)
             client = Syskit::RobyApp::RemoteProcesses::Client.new(
-                'localhost',
+                "localhost",
                 server.port,
-                :root_loader => root_loader)
+                :root_loader => root_loader
+            )
             assert_equal [client.loader], root_loader.loaders
         end
     end
 
-    describe "#pid" do
+    describe "#upload_log_file" do
         before do
             start_and_connect_to_server
+            spawn_log_transfer_server
+            @logfile = Dir.pwd + "/" + "logfile.log"
+            File.new(logfile, "w+")
         end
 
-        it "returns the process server's PID" do
-            assert_equal Process.pid, client.server_pid
-        end
-    end
-
-    describe "#loader" do
-        attr_reader :loader
-        before do
-            start_and_connect_to_server
-            @loader = client.loader
-        end
-    end
-
-    #????
-    describe "#start" do
-        before do
-            start_and_connect_to_server
-        end
-    end
-
-    describe "#command_upload_log" do
-        before do
-            start_and_connect_to_server
+        after do
+            File.delete(logfile)
         end
 
-        it "uploads log file" do
-            client = Syskit::RobyApp::RemoteProcesses::Client.new(
-                'localhost',
-                server.port)
-            certificate = "/home/#{ENV['LOGNAME']}/.local/share/autoproj/gems/ruby/2.5.0/gems/ftpd-2.1.0/insecure-test-cert.pem"
-            client.upload_log_file("127.0.0.1", 41475, certificate, "mateus", "123", "/home/mateus/logfile.log")
-            assert_equal 1, 1
+        it "uploads a log file" do
+            client.upload_log_file("127.0.0.1", log_transfer_server.port, certificate, user, password, logfile)
+            assert File.exist?("#{temp_dir}/logfile.log")
+        end
+
+        it "uploads a log file that already exists" do
+            client.upload_log_file("127.0.0.1", log_transfer_server.port, certificate, user, password, logfile)
+            assert_raises(Syskit::RobyApp::RemoteProcesses::Client::Failed) do
+                client.upload_log_file("127.0.0.1", log_transfer_server.port, certificate, user, password, logfile)
+            end
         end
     end
 end
