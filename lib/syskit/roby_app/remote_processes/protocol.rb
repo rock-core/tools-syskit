@@ -17,6 +17,8 @@ module Syskit
             RET_STARTED_PROCESS = "P"
             RET_YES = "Y"
             RET_NO  = "N"
+            UPLOADED = "U"
+            NOT_UPLOADED = "T"
         end
     end
 end
