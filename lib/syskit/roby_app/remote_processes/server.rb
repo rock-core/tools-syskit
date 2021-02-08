@@ -184,7 +184,6 @@ module Syskit
                                 @all_ios.delete(socket)
                             end
                         end
-
                         @active_threads.delete_if do |thread|
                             !thread.alive?
                         end
@@ -320,12 +319,19 @@ module Syskit
                         quit
                     elsif cmd_code == COMMAND_UPLOAD_LOG
                         begin
-                            host, port, certificate, user, password, localfile = Marshall.load(socket)
+                            host, port, certificate, user, password, localfile = Marshal.load(socket)
                             Server.debug "#{socket} requested uploading #{localfile} to log transfer FTP server"
                             @active_threads << Thread.new do
                                 Thread.current.abort_on_exception = true
-                                upload_log(host, port, certificate, user, password, localfile)
-                                Server.info "finished uploading log (#{localfile})"
+                                begin
+                                    upload_log(host, port, certificate, user, password, localfile)
+                                    Server.info "finished uploading log (#{localfile})"
+                                    socket.write(UPLOADED)
+                                rescue Net::FTPPermError => e
+                                    Server.warn "failed to upload log to FTP server: (#{localfile}) #{e.message}"
+                                    socket.write(NOT_UPLOADED)
+                                    Marshal.dump(e.message, socket)
+                                end
                             end
                         rescue Interrupt
                             raise
@@ -397,10 +403,12 @@ module Syskit
                 end
 
                 def upload_log(host, port, certificate, user, password, localfile)
-                    Net::FTP.open(host,
-                                  port: port,
-                                  verify_mode: OpenSSL::SSL::VERIFY_PEER,
-                                  ca_file: certificate) do |ftp|
+                    Net::FTP.open(
+                                host,
+                                port: port,
+                                verify_mode: OpenSSL::SSL::VERIFY_PEER,
+                                ca_file: certificate
+                            ) do |ftp|
                         ftp.login(user, password)
                         lf = File.open(localfile)
                         ftp.storbinary("STOR #{File.basename(localfile)}",

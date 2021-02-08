@@ -98,17 +98,18 @@ module Syskit
                     end
 
                     socket.write(COMMAND_GET_PID)
-                if !select([socket], [], [], timeout)
-                raise "timeout while reading process server at '#{host}:#{port}'"
-                end
+                    if !select([socket], [], [], timeout)
+                        raise "timeout while reading process server at '#{host}:#{port}'"
+                    end
+
                     @server_pid = Integer(Marshal.load(socket).first)
                 end
 
                 def info(timeout: @response_timeout)
                     socket.write(COMMAND_GET_INFO)
-                if !select([socket], [], [], timeout)
-                raise "timeout while reading process server at '#{host}:#{port}'"
-                end
+                    if !select([socket], [], [], timeout)
+                        raise "timeout while reading process server at '#{host}:#{port}'"
+                    end
                     Marshal.load(socket)
                 end
 
@@ -203,6 +204,12 @@ module Syskit
                 def upload_log_file(host, port, certificate, user, password, localfile)
                     socket.write(COMMAND_UPLOAD_LOG)
                     Marshal.dump([host, port, certificate, user, password, localfile], socket)
+
+                    reply = socket.read(1)
+                    return unless reply == NOT_UPLOADED
+
+                    msg = Marshal.load(socket)
+                    raise Failed, "failed to upload log to FTP server: (#{localfile}) #{msg}"
                 end
 
                 # Waits for processes to terminate. +timeout+ is the number of
@@ -283,4 +290,3 @@ module Syskit
         end
     end
 end
-
