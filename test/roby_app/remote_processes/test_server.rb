@@ -19,12 +19,12 @@ describe Syskit::RobyApp::RemoteProcesses do
     class TestLogTransferServer < Syskit::RobyApp::LogTransferServer::SpawnServer
         include Ftpd::InsecureCertificate
 
-        attr_accessor :user, :password, :certfile_path
+        attr_reader :certfile_path
 
         def initialize(
             tgt_dir,
-            user = "test.user",
-            password = "password123",
+            user,
+            password,
             certfile_path = insecure_certfile_path
         )
             super
