@@ -1,5 +1,7 @@
 # frozen_string_literal: true
 
+require "securerandom"
+
 class Module
     def backward_compatible_constant(old_name, new_constant, file)
         msg = "  #{name}::#{old_name} has been renamed to #{new_constant} and is now in #{file}"
@@ -143,6 +145,10 @@ module Syskit
                     fake_client = Configuration::ModelOnlyServer.new(app.default_loader)
                     Syskit.conf.register_process_server("localhost", fake_client, app.log_dir, host_id: "syskit")
                 end
+
+                password = SecureRandom.base64(15)
+                create_self_signed_certificate
+                start_local_log_transfer_server(app.log_dir, user, password, certificate)
 
                 rtt_core_model = app.default_loader.task_model_from_name("RTT::TaskContext")
                 Syskit::TaskContext.define_from_orogen(rtt_core_model, register: true)
@@ -875,6 +881,37 @@ module Syskit
             def self.setup_rest_interface(app, rest_api)
                 require "syskit/roby_app/rest_api"
                 rest_api.mount REST_API => "/syskit"
+            end
+
+            def self.start_local_log_transfer_server(tgt_dir, user, password, certificate)
+                @log_transfer_server = Syskit::RobyApp::LogTransferServer::SpawnServer.new(tgt_dir, user, password, certificate)
+            end
+
+            def create_self_signed_certificate
+                root_key = OpenSSL::PKey::RSA.new 2048 # the CA's public/private key
+                root_ca = OpenSSL::X509::Certificate.new
+                root_ca.version = 2 # cf. RFC 5280 - to make it a "v3" certificate
+                root_ca.serial = 1
+                root_ca.subject = OpenSSL::X509::Name.parse "/DC=org/DC=ruby-lang/CN=Ruby CA"
+                root_ca.issuer = root_ca.subject # root CA's are "self-signed"
+                root_ca.public_key = root_key.public_key
+                root_ca.not_before = Time.now
+                root_ca.not_after = root_ca.not_before + 2 * 365 * 24 * 60 * 60 # 2 years validity
+                ef = OpenSSL::X509::ExtensionFactory.new
+                ef.subject_certificate = root_ca
+                ef.issuer_certificate = root_ca
+                root_ca.add_extension(ef.create_extension("basicConstraints","CA:TRUE",true))
+                root_ca.add_extension(ef.create_extension("keyUsage","keyCertSign, cRLSign", true))
+                root_ca.add_extension(ef.create_extension("subjectKeyIdentifier","hash",false))
+                root_ca.add_extension(ef.create_extension("authorityKeyIdentifier","keyid:always",false))
+                root_ca.sign(root_key, OpenSSL::Digest::SHA256.new)
+
+                File.open("certificate.pem", "wb") do |f|
+                    f.print root_ca.to_pem
+                    f.print root_key
+                end
+
+                File.expand_path("certificate.pem")
             end
         end
     end
