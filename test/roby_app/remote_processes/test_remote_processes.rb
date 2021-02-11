@@ -1,5 +1,6 @@
 # frozen_string_literal: true
 
+require "securerandom"
 require "orocos/test"
 require "syskit/roby_app/remote_processes"
 require "syskit/roby_app/log_transfer_server"
@@ -202,7 +203,9 @@ describe Syskit::RobyApp::RemoteProcesses do
             start_and_connect_to_server
             spawn_log_transfer_server
             @logfile = Dir.pwd + "/" + "logfile.log"
-            File.new(logfile, "w+")
+            File.open(logfile, 'wb') do |f|
+                f.write( SecureRandom.random_bytes(5 * 2**20)) # create random 5 MB file
+            end
         end
 
         after do
@@ -211,10 +214,12 @@ describe Syskit::RobyApp::RemoteProcesses do
 
         it "uploads a log file" do
             client.upload_log_file("127.0.0.1", log_transfer_server.port, certificate, user, password, logfile)
-            assert File.exist?("#{temp_dir}/logfile.log")
+            @server_thread.raise Interrupt
+            @server_thread.join
+            assert FileUtils.compare_file(logfile, temp_dir + "/logfile.log")
         end
 
-        it "uploads a log file that already exists" do
+        it "refuses to upload" do
             client.upload_log_file("127.0.0.1", log_transfer_server.port, certificate, user, password, logfile)
             assert_raises(Syskit::RobyApp::RemoteProcesses::Client::Failed) do
                 client.upload_log_file("127.0.0.1", log_transfer_server.port, certificate, user, password, logfile)
