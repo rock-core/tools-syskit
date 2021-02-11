@@ -1,14 +1,34 @@
 # frozen_string_literal: true
 
 require "orocos/test"
-#require 'minitest/autorun'
-#require 'minitest/spec'
-#require 'flexmock/minitest'
-#require "orogen"
 require "syskit/roby_app/remote_processes"
+require "syskit/roby_app/log_transfer_server"
 
 describe Syskit::RobyApp::RemoteProcesses do
-    attr_reader :server, :client, :root_loader
+    attr_reader :server
+    attr_reader :client
+    attr_reader :root_loader
+    attr_reader :temp_dir
+    attr_reader :certificate
+    attr_reader :user
+    attr_reader :password
+    attr_reader :log_transfer_server
+    attr_reader :logfile
+
+    class TestLogTransferServer < Syskit::RobyApp::LogTransferServer::SpawnServer
+        include Ftpd::InsecureCertificate
+
+        attr_reader :certfile_path
+
+        def initialize(
+            tgt_dir,
+            user,
+            password,
+            certfile_path = insecure_certfile_path
+        )
+            super
+        end
+    end
 
     def start_server
         @server = Syskit::RobyApp::RemoteProcesses::Server.new(
@@ -25,7 +45,7 @@ describe Syskit::RobyApp::RemoteProcesses do
         @root_loader = OroGen::Loaders::Aggregate.new
         OroGen::Loaders::RTT.setup_loader(root_loader)
         @client = Syskit::RobyApp::RemoteProcesses::Client.new(
-            'localhost',
+            "localhost",
             server.port,
             :root_loader => root_loader)
     end
@@ -33,6 +53,13 @@ describe Syskit::RobyApp::RemoteProcesses do
     def start_and_connect_to_server
         start_server
         connect_to_server
+    end
+
+    def spawn_log_transfer_server
+        @temp_dir = Ftpd::TempDir.make
+        @user = "test.user"
+        @password = "password123"
+        @log_transfer_server = TestLogTransferServer.new(@temp_dir, @user, @password)
     end
 
     before do
@@ -57,7 +84,7 @@ describe Syskit::RobyApp::RemoteProcesses do
             root_loader = OroGen::Loaders::Aggregate.new
             OroGen::Loaders::RTT.setup_loader(root_loader)
             client = Syskit::RobyApp::RemoteProcesses::Client.new(
-                'localhost',
+                "localhost",
                 server.port,
                 :root_loader => root_loader)
             assert_equal [client.loader], root_loader.loaders
@@ -82,27 +109,27 @@ describe Syskit::RobyApp::RemoteProcesses do
         end
 
         it "knows about the available projects" do
-            assert loader.available_projects.has_key?('simple_sink')
+            assert loader.available_projects.has_key?("orogen_syskit_tests")
         end
 
         it "knows about the available typekits" do
-            assert loader.available_typekits.has_key?('simple_sink')
+            assert loader.available_typekits.has_key?("orogen_syskit_tests")
         end
 
         it "knows about the available deployments" do
-            assert loader.available_deployments.has_key?('simple_sink')
+            assert loader.available_deployments.has_key?("syskit_tests_empty")
         end
 
         it "can load a remote project model" do
-            assert loader.project_model_from_name('simple_sink')
+            assert loader.project_model_from_name("orogen_syskit_tests")
         end
 
         it "can load a remote typekit model" do
-            assert loader.typekit_model_from_name('simple_sink')
+            assert loader.typekit_model_from_name("orogen_syskit_tests")
         end
 
         it "can load a remote deployment model" do
-            assert loader.deployment_model_from_name('simple_sink')
+            assert loader.deployment_model_from_name("syskit_tests_empty")
         end
     end
 
@@ -112,12 +139,12 @@ describe Syskit::RobyApp::RemoteProcesses do
         end
 
         it "can start a process on the server synchronously" do
-            process = client.start "simple_sink", "simple_sink",
-                Hash["simple_sink_sink" => "test"],
+            process = client.start "syskit_tests_empty", "syskit_tests_empty",
+                Hash["syskit_tests_empty" => "syskit_tests_empty"],
                 :wait => true,
-                :oro_logfile => nil, :output => '/dev/null'
+                :oro_logfile => nil, :output => "/dev/null"
             assert process.alive?
-            assert Orocos.get('test')
+            assert Orocos.get("syskit_tests_empty")
         end
 
         it "raises if the deployment does not exist on the remote server" do
@@ -128,7 +155,7 @@ describe Syskit::RobyApp::RemoteProcesses do
 
         it "raises if the deployment does exist locally but not on the remote server" do
             project    = OroGen::Spec::Project.new(root_loader)
-            deployment = project.deployment 'test'
+            deployment = project.deployment "test"
             root_loader.register_deployment_model(deployment)
             assert_raises(OroGen::DeploymentModelNotFound) do
                 client.start "test", "test"
@@ -137,9 +164,9 @@ describe Syskit::RobyApp::RemoteProcesses do
 
         it "uses the deployment model loaded on the root loader" do
             project    = OroGen::Spec::Project.new(root_loader)
-            deployment = project.deployment 'simple_sink'
+            deployment = project.deployment "syskit_tests_empty"
             root_loader.register_deployment_model(deployment)
-            process = client.start "simple_sink", "simple_sink", Hash.new, :wait => true,
+            process = client.start "syskit_tests_empty", "syskit_tests_empty", Hash.new, :wait => true,
                 :oro_logfile => nil, :output => '/dev/null'
             assert_same deployment, process.model
         end
@@ -149,8 +176,8 @@ describe Syskit::RobyApp::RemoteProcesses do
         attr_reader :process
         before do
             start_and_connect_to_server
-            @process = client.start "simple_sink", "simple_sink",
-                Hash["simple_sink_sink" => "test"],
+            @process = client.start "syskit_tests_empty", "syskit_tests_empty",
+                Hash["syskit_tests_empty" => "syskit_tests_empty"],
                 :wait => true,
                 :oro_logfile => nil, :output => '/dev/null'
         end
@@ -158,7 +185,7 @@ describe Syskit::RobyApp::RemoteProcesses do
         it "kills an already started process" do
             process.kill(true)
             assert_raises Orocos::NotFound do
-                Orocos.get "simple_sink_sink"
+                Orocos.get "syskit_tests_empty"
             end
         end
 
@@ -167,6 +194,31 @@ describe Syskit::RobyApp::RemoteProcesses do
             dead_processes = client.wait_termination
             assert dead_processes[process]
             assert !process.alive?
+        end
+    end
+
+    describe "#upload_log_file" do
+        before do
+            start_and_connect_to_server
+            spawn_log_transfer_server
+            @logfile = Dir.pwd + "/" + "logfile.log"
+            File.new(logfile, "w+")
+        end
+
+        after do
+            File.delete(logfile)
+        end
+
+        it "uploads a log file" do
+            client.upload_log_file("127.0.0.1", log_transfer_server.port, certificate, user, password, logfile)
+            assert File.exist?("#{temp_dir}/logfile.log")
+        end
+
+        it "uploads a log file that already exists" do
+            client.upload_log_file("127.0.0.1", log_transfer_server.port, certificate, user, password, logfile)
+            assert_raises(Syskit::RobyApp::RemoteProcesses::Client::Failed) do
+                client.upload_log_file("127.0.0.1", log_transfer_server.port, certificate, user, password, logfile)
+            end
         end
     end
 end
