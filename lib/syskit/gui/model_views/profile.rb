@@ -1,7 +1,7 @@
 # frozen_string_literal: true
 
-require 'utilrb/qt/variant/from_ruby'
-require 'syskit/gui/component_network_view'
+require "utilrb/qt/variant/from_ruby"
+require "syskit/gui/component_network_view"
 
 module Syskit::GUI
     module ModelViews
@@ -27,11 +27,11 @@ module Syskit::GUI
                 end
 
             longest_key_line = key.max_by(&:size).size
-            key += [' ' * longest_key_line] * (sel.size - key.size) if key.size < sel.size
+            key += [" " * longest_key_line] * (sel.size - key.size) if key.size < sel.size
             key.each_with_index.map do |k, key_index|
                 if (v = sel[key_index])
-                    k += ' ' * (longest_key_line - k.size)
-                    k += ': ' if key_index == 0
+                    k += " " * (longest_key_line - k.size)
+                    k += ": " if key_index == 0
                     k + v.to_s
                 else
                     k
@@ -40,7 +40,7 @@ module Syskit::GUI
         end
 
         def self.render_instance_requirements_selections(
-            page, selections, use_method = 'use'
+            page, selections, use_method = "use"
         )
             defaults = selections.defaults.map do |defsel|
                 render_instance_requirements(page, defsel.to_instance_requirements)
@@ -48,11 +48,11 @@ module Syskit::GUI
             explicit = render_selection_mapping(page, selections.explicit)
             all = defaults + explicit
             all = all.each_with_index.map do |block, i|
-                block[0] = (i == 0 ? "  #{use_method}(" : '      ') + block[0]
+                block[0] = (i == 0 ? "  #{use_method}(" : "      ") + block[0]
                 block = [block[0]] + block[1..-1].map do |line|
-                    '      ' + line
+                    "      " + line
                 end
-                block[-1] = block[-1] + (i == all.size - 1 ? ')' : ',')
+                block[-1] = block[-1] + (i == all.size - 1 ? ")" : ",")
                 block
             end.flatten
         end
@@ -79,11 +79,11 @@ module Syskit::GUI
                                      .sort_by(&:name).compact
                     component_model.concat(service_models)
                 end
-                formatted = [component_model.map { |m| page.link_to(m) }.join(',')]
+                formatted = [component_model.map { |m| page.link_to(m) }.join(",")]
             end
             unless req.arguments.empty?
                 arguments = req.arguments.map { |key, value| "#{key}: #{value}" }
-                arguments = MetaRuby::GUI::HTML.escape_html(arguments.join(', '))
+                arguments = MetaRuby::GUI::HTML.escape_html(arguments.join(", "))
                 formatted[0] += ".with_arguments(#{arguments})"
             end
 
@@ -93,18 +93,18 @@ module Syskit::GUI
                     formatted_selections = render_instance_requirements_selections(
                         page, selections
                     )
-                    formatted[-1] += '.'
+                    formatted[-1] += "."
                     formatted.concat formatted_selections
                 end
             else
                 pushed_selections = req.send(:pushed_selections)
                 unless pushed_selections.empty?
                     formatted_selections = render_instance_requirements_selections(
-                        page, pushed_selections, 'use<0>'
+                        page, pushed_selections, "use<0>"
                     )
-                    formatted[-1] += '.'
+                    formatted[-1] += "."
                     formatted.concat formatted_selections
-                    use_suffix = '<1>'
+                    use_suffix = "<1>"
                 end
 
                 selections = req.send(:selections)
@@ -112,7 +112,7 @@ module Syskit::GUI
                     formatted_selections = render_instance_requirements_selections(
                         page, selections, "use#{use_suffix}"
                     )
-                    formatted[-1] += '.'
+                    formatted[-1] += "."
                     formatted.concat formatted_selections
                 end
             end
@@ -124,23 +124,22 @@ module Syskit::GUI
                 super
                 @render_method = :compute_system_network
                 add_button(
-                    Button.new('profile/deploy_network',
-                               on_text: 'Deploy Network',
-                               off_text: 'Do not Deploy Network',
+                    Button.new("profile/deploy_network",
+                               on_text: "Deploy Network",
+                               off_text: "Do not Deploy Network",
                                state: (@render_method == :compute_deployed_network))
                 )
             end
 
             def render(model, *args, show_requirements: true, **options)
                 page.push "#{model.name || '<unnamed>'}(#{model.model.name})",
-                          page.main_doc(model.doc || ''), id: options[:id]
-                puts "METHOD: #{@render_method}"
+                          page.main_doc(model.doc || ""), id: options[:id]
                 super(model, *args, method: @render_method,
                                     show_requirements: show_requirements, **options)
             end
 
             def buttonClicked(button_id, new_state) # rubocop:disable Naming/MethodName
-                return super unless button_id == '/profile/deploy_network'
+                return super unless button_id == "/profile/deploy_network"
 
                 @render_method =
                     if new_state
@@ -175,23 +174,23 @@ module Syskit::GUI
 
                     if with_value
                         text = ModelViews.render_mapping(page, key, object)
-                        key_text, value_text = text.first.split(': ')
+                        key_text, value_text = text.first.split(": ")
                         text[0] = "%s: #{value_text}"
                         Element.new(object, "<pre>#{text.join("\n")}</pre>",
                                     id, key_text, { buttons: [] }, {})
                     else
-                        Element.new(object, '%s', id, key, { buttons: [] }, {})
+                        Element.new(object, "%s", id, key, { buttons: [] }, {})
                     end
                 end
             end
 
             def first_paragraph(string)
-                paragraph = ''.dup
+                paragraph = "".dup
                 string.each_line do |line|
                     line = line.chomp
                     return paragraph if line.empty?
 
-                    paragraph << ' ' << line
+                    paragraph << " " << line
                 end
                 paragraph
             end
@@ -214,7 +213,7 @@ module Syskit::GUI
                 end
                 definitions = mapping_to_links(definitions, false, options[:interactive])
                 definitions.each do |obj|
-                    doc = first_paragraph(obj.object.doc || '')
+                    doc = first_paragraph(obj.object.doc || "")
                     obj.format = "%s: #{doc}"
                 end
 
@@ -242,10 +241,10 @@ module Syskit::GUI
                     compute_toplevel_links(model, interactive: interactive)
 
                 ComponentNetworkBaseView.html_defined_in(page, model, with_require: true)
-                render_links('Explicit Selection', explicit_selections)
-                render_links('Default selections', default_selections)
-                render_links('Definitions', definitions)
-                render_links('Devices', devices)
+                render_links("Explicit Selection", explicit_selections)
+                render_links("Default selections", default_selections)
+                render_links("Definitions", definitions)
+                render_links("Devices", devices)
                 page.save
 
                 return if interactive

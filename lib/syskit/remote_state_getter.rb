@@ -1,3 +1,5 @@
+# frozen_string_literal: true
+
 module Syskit
     # @api private
     #
@@ -29,6 +31,10 @@ module Syskit
         # To avoid deadlocking in {#wait} if the thread quits
         attr_reader :poll_thread_exit_sync
 
+        # Exception raised when an operation that requires the getter to be
+        # started is called
+        class NotYetStarted < RuntimeError; end
+
         def initialize(orocos_task, initial_state: nil, period: 0.02)
             @orocos_task = orocos_task
             @period = period
@@ -46,9 +52,13 @@ module Syskit
 
             period = self.period
             exit_condition.reset
+        end
+
+        def start
             @poll_thread = Thread.new do
                 poll_loop
             end
+            resume
         end
 
         # The internal polling loop
@@ -63,7 +73,7 @@ module Syskit
             # the synchronization section to ensure that {#wait} can check for
             # exit_condition being set and set the latch only if it is not
             last_state = nil
-            while !exit_condition.set?
+            until exit_condition.set?
                 if latch = sync_latch.value
                     latch.count_down
                 end
@@ -85,7 +95,6 @@ module Syskit
                 end
                 run_event.wait
             end
-
         rescue Exception => e
             poll_thread_error.reset(e)
         ensure
@@ -98,8 +107,21 @@ module Syskit
             end
         end
 
+        # @api private
+        #
+        # Raise if self is not started
+        def validate_thread_running
+            return if @poll_thread
+
+            raise NotYetStarted,
+                  "called an operation on a RemoteStateGetter that is not running. "\
+                  "call #start first"
+        end
+
         # Wait for the current state to be read and return it
         def wait
+            validate_thread_running
+
             latch = poll_thread_exit_sync.synchronize do
                 if !run_event.set?
                     raise ThreadError, "#{self} is paused, cannot call #wait"
@@ -108,6 +130,7 @@ module Syskit
                 elsif exit_condition.set?
                     raise ThreadError, "#{self} is quitting, cannot call #wait"
                 end
+
                 sync_latch.reset(latch = Concurrent::CountDownLatch.new(2))
                 latch
             end
@@ -124,7 +147,7 @@ module Syskit
 
         # Whether the state reader has read at least one state
         def ready?
-            last_read_state || (state_queue.size > 0)
+            last_read_state || !state_queue.empty?
         end
 
         # Read either a new or the last read state
@@ -148,11 +171,13 @@ module Syskit
 
         # Whether the polling thread is alive
         def connected?
-            !exit_condition.set?
+            @poll_thread && !exit_condition.set?
         end
 
         # Pause polling until {#resume} or {#disconnect} are called
         def pause
+            validate_thread_running
+
             run_event.reset
         end
 
@@ -160,6 +185,8 @@ module Syskit
         #
         # It is safe to call even if the polling is currently active
         def resume
+            validate_thread_running
+
             run_event.set
         end
 
@@ -176,8 +203,7 @@ module Syskit
 
         # Wait for the poll thread to finish after a {#disconnect}
         def join
-            poll_thread.join
+            poll_thread&.join
         end
     end
 end
-

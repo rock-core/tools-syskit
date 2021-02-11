@@ -1,7 +1,13 @@
-require 'roby/app/test_server'
-require 'roby/test/spec'
-require 'syskit/test'
-require 'autorespawn'
+# frozen_string_literal: true
+
+require "roby/app/test_server"
+require "roby/test/spec"
+require "syskit/test"
+require "autorespawn"
+
+require "metaruby/gui"
+require "roby/gui/exception_view"
+require "syskit/gui/state_label"
 
 module Syskit
     module GUI
@@ -61,44 +67,53 @@ module Syskit
             def initialize(parent = nil, app: Roby.app, poll_period: 0.1)
                 super(parent)
                 @app = app
-                @slaves = Hash.new
-                @pid_to_slave = Hash.new
+                @slaves = {}
+                @pid_to_slave = {}
 
-                @work_queue = Array.new
+                @work_queue = []
                 @process_lock = Mutex.new
                 @process_sync = ConditionVariable.new
                 @discovery_count = 0
                 @test_count = 0
                 @running = false
 
-                @manager = Autorespawn::Manager.new(name: Hash[models: ['syskit-ide']])
+                @manager = Autorespawn::Manager.new(name: Hash[models: ["syskit-ide"]])
                 @server  = Roby::App::TestServer.start(Process.pid)
                 @item_model = Qt::StandardItemModel.new(self)
                 create_ui
                 @test_result_page = MetaRuby::GUI::HTML::Page.new(test_result_ui.page)
                 @exception_rendering = Roby::GUI::ExceptionRendering.new(test_result_page)
                 test_result_page.enable_exception_rendering(exception_rendering)
-                exception_rendering.add_excluded_pattern(/\/lib\/minitest(?:\.rb:|\/)/)
-                exception_rendering.add_excluded_pattern(/\/lib\/autorespawn(?:\.rb:|\/)/)
+                exception_rendering.add_excluded_pattern(
+                    %r{/lib/minitest(?:\.rb:|/)}
+                )
+                exception_rendering.add_excluded_pattern(
+                    %r{/lib/autorespawn(?:\.rb:|/)}
+                )
 
-                connect test_result_page, SIGNAL('fileOpenClicked(const QUrl&)'), self, SIGNAL('fileOpenClicked(const QUrl&)')
+                connect(
+                    test_result_page, SIGNAL("fileOpenClicked(const QUrl&)"),
+                    self, SIGNAL("fileOpenClicked(const QUrl&)")
+                )
 
-                test_list_ui.connect(SIGNAL('clicked(const QModelIndex&)')) do |index|
+                test_list_ui.connect(SIGNAL("clicked(const QModelIndex&)")) do |index|
                     item = item_model.item_from_index(index)
                     display_item_details(item)
                 end
-                test_list_ui.connect(SIGNAL('doubleClicked(const QModelIndex&)')) do |index|
+                test_list_ui.connect(
+                    SIGNAL("doubleClicked(const QModelIndex&)")
+                ) do |index|
                     item = item_model.item_from_index(index)
                     manager.queue(item.slave)
                 end
                 add_hooks
 
                 @poll_timer = Qt::Timer.new
-                poll_timer.connect(SIGNAL('timeout()')) do
+                poll_timer.connect(SIGNAL("timeout()")) do
                     manager.poll(autospawn: running?)
                     process_pending_work
-                    if item = @selected_item
-                        runtime = @selected_item.runtime
+                    if (item = @selected_item)
+                        runtime = item.runtime
                         if runtime != @selected_item_runtime
                             update_selected_item_state
                             @selected_item_runtime = runtime
@@ -111,30 +126,29 @@ module Syskit
                 emit statsChanged
             end
 
-            signals 'fileOpenClicked(const QUrl&)'
+            signals "fileOpenClicked(const QUrl&)"
 
-            def save_to_settings(settings)
-            end
+            def save_to_settings(settings); end
 
             def restore_from_settings(settings)
-                parallel = settings.value('parallel_level')
-                if !parallel.null?
-                    manager.parallel_level = parallel.to_int
-                end
+                parallel = settings.value("parallel_level")
+                return if parallel.null?
+
+                manager.parallel_level = parallel.to_int
             end
 
             def create_status_bar_ui
                 status_bar = Qt::HBoxLayout.new
-                status_bar.add_widget(start_stop_button =
-                    Qt::PushButton.new("Start Tests", self))
-                connect SIGNAL('started()') do
+                start_stop_button = Qt::PushButton.new("Start Tests", self)
+                status_bar.add_widget(start_stop_button)
+                connect SIGNAL("started()") do
                     start_stop_button.text = "Stop"
                 end
-                connect SIGNAL('stopped()') do
+                connect SIGNAL("stopped()") do
                     start_stop_button.text = "Start"
                 end
 
-                start_stop_button.connect(SIGNAL('clicked()')) do
+                start_stop_button.connect(SIGNAL("clicked()")) do
                     if running?
                         stop
                     else start
@@ -144,11 +158,11 @@ module Syskit
                 status_bar.add_widget(status_label = StateLabel.new(parent: self), 1)
                 status_label.declare_state("STOPPED", :blue)
                 status_label.declare_state("RUNNING", :green)
-                connect SIGNAL('statsChanged()') do
+                connect SIGNAL("statsChanged()") do
                     update_status_label(status_label)
                 end
 
-                return status_bar
+                status_bar
             end
 
             def create_ui
@@ -167,15 +181,25 @@ module Syskit
 
             def update_selected_item_state
                 item = @selected_item
-                if runtime = item.runtime
+                if (runtime = item.runtime)
                     status_text = item.status_text.join("<br/>")
                     if item.finished?
-                        test_result_page.push nil, "Run %i ran for %.01fs: %s" % [item.total_run_count, runtime, status_text], id: 'status'
-                    elsif runtime = item.runtime
-                        test_result_page.push nil, "Run %i currently running %.01fs: %s" % [item.total_run_count, runtime, status_text], id: 'status'
+                        message = format(
+                            "Run %<id>i ran for %<runtime>.01fs: %<result>s",
+                            id: item.total_run_count, runtime: runtime,
+                            result: status_text
+                        )
+                        test_result_page.push(nil, message, id: "status")
+                    elsif (runtime = item.runtime)
+                        message = format(
+                            "Run %<id>i currently running %<runtime>.01fs: %<result>s",
+                            id: item.total_run_count, runtime: runtime,
+                            result: status_text
+                        )
+                        test_result_page.push nil, message, id: "status"
                     end
                 else
-                    test_result_page.push nil, "Never ran", id: 'status'
+                    test_result_page.push nil, "Never ran", id: "status"
                 end
             end
 
@@ -183,27 +207,33 @@ module Syskit
                 @selected_item = item
                 @selected_item_runtime = nil
                 test_result_page.clear
-                if test_file_path = item.slave.name[:path]
+                if (test_file_path = item.slave.name[:path])
                     items = []
-                    items << ['title', 'Test file']
-                    items << ['', test_result_page.link_to(Pathname.new(test_file_path), test_file_path)]
+                    items << ["title", "Test file"]
+                    link = test_result_page.link_to(
+                        Pathname.new(test_file_path), test_file_path
+                    )
+                    items << ["", link]
 
-                    models = (item.slave.name[:models] || Array.new)
-                    if !models.empty?
-                        items << ['title', 'Models']
+                    models = (item.slave.name[:models] || [])
+                    unless models.empty?
+                        items << %w[title Models]
                         models.sort.each do |model_name|
                             begin
                                 model_object = constant(model_name)
                             rescue NameError
-                                items << ['', model_name]
+                                items << ["", model_name]
                                 next
                             end
 
-                            if definition_file = Roby.app.definition_file_for(model_object)
-                                link = test_result_page.link_to(Pathname.new(definition_file), "Open File")
-                                items << ['', "#{model_name} [#{link}]"]
+                            definition_file = Roby.app.definition_file_for(model_object)
+                            if definition_file
+                                link = test_result_page.link_to(
+                                    Pathname.new(definition_file), "Open File"
+                                )
+                                items << ["", "#{model_name} [#{link}]"]
                             else
-                                items << ['', model_name]
+                                items << ["", model_name]
                             end
                         end
                     end
@@ -215,7 +245,9 @@ module Syskit
                             "<li class=\"#{li_class}\">#{text}</li>"
                         end
                     end
-                    test_result_page.push nil, "<ul class='body-header-list'>#{items.join("")}</ul>"
+                    test_result_page.push(
+                        nil, "<ul class='body-header-list'>#{items.join('')}</ul>"
+                    )
                 end
                 update_selected_item_state
 
@@ -224,7 +256,11 @@ module Syskit
                 end
                 item.each_test_result do |r|
                     name = "#{r.test_case_name}::#{r.test_name}"
-                    info = "#{r.skip_count} skips, #{r.failure_count} failures and #{r.assertions} assertions executed in %.3fs" % [r.time]
+                    info = format(
+                        "#{r.skip_count} skips, #{r.failure_count} failures "\
+                        "and #{r.assertions} assertions executed in %<duration>.3fs",
+                        duration: r.time
+                    )
 
                     color = if r.failure_count > 0 then :red
                             elsif r.skip_count > 0 then :orange
@@ -232,7 +268,12 @@ module Syskit
                             end
                     color = SubprocessItem.html_color(color)
                     style = "padding: .1em; background-color: #{color}"
-                    test_result_page.push(nil, "<div class=\"test_result\" style=\"#{style}\">#{MetaRuby::GUI::HTML.escape_html(name)}: #{MetaRuby::GUI::HTML.escape_html(info)}</div>")
+                    test_result_page.push(
+                        nil, "<div class=\"test_result\" style=\"#{style}\">"\
+                             "#{MetaRuby::GUI::HTML.escape_html(name)}: "\
+                             "#{MetaRuby::GUI::HTML.escape_html(info)}"\
+                             "</div>"
+                    )
                     all_exceptions = r.failures.flat_map do |e|
                         discover_exceptions_from_failure(e)
                     end.uniq
@@ -244,20 +285,23 @@ module Syskit
 
             def discover_exceptions_from_failure(failure)
                 if failure.kind_of?(Minitest::UnexpectedError)
-                    return discover_exceptions_from_failure(failure.exception)
+                    return discover_exceptions_from_failure(failure.error)
                 end
 
                 result = [failure]
                 if failure.respond_to?(:original_exceptions)
-                    result.concat failure.original_exceptions.flat_map { |e| discover_exceptions_from_failure(e) }
+                    all_exceptions =
+                        failure.original_exceptions
+                               .flat_map { |e| discover_exceptions_from_failure(e) }
+                    result.concat(all_exceptions)
                 end
                 result.uniq
             end
 
             def update_item_details
-                if selected_item
-                    display_item_details(selected_item)
-                end
+                return unless selected_item
+
+                display_item_details(selected_item)
             end
 
             def running?
@@ -266,6 +310,7 @@ module Syskit
 
             def start
                 return if running?
+
                 @running = true
                 emit statsChanged
                 emit started
@@ -278,11 +323,14 @@ module Syskit
                 emit statsChanged
                 emit stopped
             end
-            slots 'start()', 'stop()'
-            signals 'started()', 'stopped()'
-            signals 'statsChanged()'
+            slots "start()", "stop()"
+            signals "started()", "stopped()"
+            signals "statsChanged()"
 
-            Stats = Struct.new :test_count, :executed_count, :executed_test_count, :run_count, :failure_count, :assertions_count, :skip_count
+            Stats = Struct.new(
+                :test_count, :executed_count, :executed_test_count,
+                :run_count, :failure_count, :assertions_count, :skip_count
+            )
             def stats
                 stats = Stats.new(manager.slave_count, 0, 0, 0, 0, 0, 0)
                 slaves.each_value do |_, slave|
@@ -300,11 +348,16 @@ module Syskit
 
             def update_status_label(status_label)
                 stats = self.stats
-                state_name = if running? then 'RUNNING'
-                             else 'STOPPED'
+                state_name = if running? then "RUNNING"
+                             else "STOPPED"
                              end
                 status_label.update_state(
-                    state_name, text: "#{stats.executed_count} of #{stats.test_count} test files executed, #{stats.run_count} runs, #{stats.skip_count} skips, #{stats.failure_count} failures and #{stats.assertions_count} assertions")
+                    state_name,
+                    text: "#{stats.executed_count} of #{stats.test_count} test files "\
+                          "executed, #{stats.run_count} runs, #{stats.skip_count} "\
+                          "skips, #{stats.failure_count} failures and "\
+                          "#{stats.assertions_count} assertions"
+                )
             end
 
             # Call this after reloading the app so that the list of tests gets
@@ -330,7 +383,10 @@ module Syskit
 
                 def self.html_color(name)
                     color = COLORS[name]
-                    "rgb(%i,%i,%i)" % [color.red, color.green, color.blue]
+                    format(
+                        "rgb(%<r>i,%<g>i,%<b>i)",
+                        r: color.red, g: color.green, b: color.blue
+                    )
                 end
 
                 NEW_SLAVE_BACKGROUND = COLORS[:blue]
@@ -339,7 +395,10 @@ module Syskit
                 SUCCESS_BACKGROUND   = COLORS[:grey]
                 FAILED_BACKGROUND    = COLORS[:red]
 
-                TestResult = Struct.new :file, :test_case_name, :test_name, :skip_count, :failure_count, :failures, :assertions, :time
+                TestResult = Struct.new(
+                    :file, :test_case_name, :test_name, :skip_count,
+                    :failure_count, :failures, :assertions, :time
+                )
 
                 attr_reader :slave
                 attr_reader :name
@@ -356,7 +415,9 @@ module Syskit
                 attr_reader :total_run_count
 
                 # The count of exceptions
-                def exception_count; exceptions.size end
+                def exception_count
+                    exceptions.size
+                end
 
                 def initialize(app, slave)
                     super()
@@ -368,9 +429,10 @@ module Syskit
                     @slave = slave
                     @total_run_count = 0
                     name = (slave.name[:path] || "Robot: #{app.robot_name}")
-                    if base_path = app.find_base_path_for(name)
+                    if (base_path = app.find_base_path_for(name))
                         base_path = base_path.to_s
-                        name = File.basename(base_path) + ":" + name[(base_path.size + 1)..-1]
+                        name = File.basename(base_path) + ":" +
+                               name[(base_path.size + 1)..-1]
                     end
                     @name = name
 
@@ -390,7 +452,7 @@ module Syskit
                     set_data(Qt::Variant.new(pid), SLAVE_PID_ROLE)
                 end
 
-                def slave_pid(pid)
+                def slave_pid
                     data(SLAVE_PID_ROLE).to_int
                 end
 
@@ -403,7 +465,7 @@ module Syskit
                 end
 
                 def finished?
-                    !!@runtime
+                    !!@runtime # rubocop:disable Style/DoubleNegation
                 end
 
                 def start
@@ -428,30 +490,37 @@ module Syskit
                 def finished(slave_exit_status)
                     @slave_exit_status = slave_exit_status
                     @runtime = runtime
-                    if has_failures? || has_exceptions? || slave_failed?
-                        self.background = Qt::Brush.new(Qt::Color.new(FAILED_BACKGROUND))
-                    elsif has_skips?
-                        self.background = Qt::Brush.new(Qt::Color.new(SKIP_BACKGROUND))
-                    elsif has_tested?
-                        self.background = Qt::Brush.new(Qt::Color.new(SUCCESS_BACKGROUND))
-                    else
-                        self.background = Qt::Brush.new(Qt::Color.new(NEW_SLAVE_BACKGROUND))
-                    end
+                    self.background =
+                        if has_failures? || has_exceptions? || slave_failed?
+                            Qt::Brush.new(Qt::Color.new(FAILED_BACKGROUND))
+                        elsif has_skips?
+                            Qt::Brush.new(Qt::Color.new(SKIP_BACKGROUND))
+                        elsif has_tested?
+                            Qt::Brush.new(Qt::Color.new(SUCCESS_BACKGROUND))
+                        else
+                            Qt::Brush.new(Qt::Color.new(NEW_SLAVE_BACKGROUND))
+                        end
+
                     update_text
                 end
 
                 def status_text
                     text = []
                     if has_tested?
-                        text << "#{test_results.size} runs, #{exception_count} exceptions, #{failure_count} failures and #{assertions_count} assertions"
+                        text << "#{test_results.size} runs, #{exception_count} "\
+                                "exceptions, #{failure_count} failures and "\
+                                "#{assertions_count} assertions"
                     end
 
-                    if slave_exit_status && !slave_exit_status.success?
-                        if slave_exit_status.signaled?
-                            text << "Test process terminated with signal #{slave_exit_status.termsig}"
-                        elsif slave_exit_status.exitstatus != 1 || !has_tested? || (exception_count == 0 && failure_count == 0)
-                            text << "Test process finished with exit code #{slave_exit_status.exitstatus}"
-                        end
+                    return text unless slave_exit_status && !slave_exit_status.success?
+
+                    if slave_exit_status.signaled?
+                        text << "Test process terminated with signal "\
+                                "#{slave_exit_status.termsig}"
+                    elsif slave_exit_status.exitstatus != 1 || !has_tested? ||
+                          (exception_count == 0 && failure_count == 0)
+                        text << "Test process finished with exit code "\
+                                "#{slave_exit_status.exitstatus}"
                     end
                     text
                 end
@@ -460,19 +529,16 @@ module Syskit
                     self.text = ([name] + status_text).join("\n")
                 end
 
-                def discovery_start
-                end
+                def discovery_start; end
 
-                def discovery_finished
-                end
+                def discovery_finished; end
 
                 def test_start
                     @has_tested = true
                     update_text
                 end
 
-                def test_finished
-                end
+                def test_finished; end
 
                 def slave_failed?
                     slave_exit_status && !slave_exit_status.success?
@@ -494,8 +560,11 @@ module Syskit
                     @has_tested
                 end
 
-                def add_test_result(file, test_case_name, test_name, failures, assertions, time)
-                    skip_count, failure_count = 0, 0
+                def add_test_result(
+                    file, test_case_name, test_name, failures, assertions, time
+                )
+                    skip_count = 0
+                    failure_count = 0
                     failures.each do |e|
                         if e.kind_of?(Minitest::Skip)
                             skip_count += 1
@@ -505,7 +574,10 @@ module Syskit
                     @skip_count += skip_count
                     @failure_count += failure_count
                     @assertions_count += assertions
-                    test_results << TestResult.new(file, test_case_name, test_name, skip_count, failure_count, failures, assertions, time)
+                    test_results << TestResult.new(
+                        file, test_case_name, test_name, skip_count,
+                        failure_count, failures, assertions, time
+                    )
                     update_text
                 end
 
@@ -518,8 +590,8 @@ module Syskit
                     @failure_count = 0
                     @skip_count = 0
                     @assertions_count = 0
-                    @test_results = Array.new
-                    @exceptions = Array.new
+                    @test_results = []
+                    @exceptions = []
                 end
             end
 
@@ -528,22 +600,22 @@ module Syskit
             # @raise [ArgumentError] if no such slave has been registered with
             #   {#register_slave}
             def item_from_slave(slave)
-                if info = slaves[slave.object_id]
-                    return info[1]
-                else
+                unless (info = slaves[slave.object_id])
                     Kernel.raise ArgumentError, "#{slave} is not registered"
                 end
+
+                info[1]
             end
 
             # Resolves a slave from its PID
             #
             # @raise [ArgumentError] if there is no slave associated to this PID
             def slave_from_pid(pid)
-                if slave = pid_to_slave[pid]
-                    return slave
-                else
+                unless (slave = pid_to_slave[pid])
                     Kernel.raise ArgumentError, "no slave registered for PID #{pid}"
                 end
+
+                slave
             end
 
             # Resolves an item from the slave PID
@@ -574,20 +646,17 @@ module Syskit
             #
             # @param [Integer] pid
             def deregister_slave_pid(pid)
-                if !(slave = pid_to_slave.delete(pid))
-                    Roby.warn "no slave registered for PID #{pid}"
-                end
+                return if pid_to_slave.delete(pid)
+
+                Roby.warn "no slave registered for PID #{pid}"
             end
 
             def process_pending_work
                 process_lock.synchronize do
-                    while !work_queue.empty?
-                        work_queue.shift.call
-                    end
+                    work_queue.shift.call until work_queue.empty?
                     process_sync.signal
                 end
             end
-
 
             def queue_work(&block)
                 process_lock.synchronize do
@@ -616,9 +685,7 @@ module Syskit
                         register_slave_pid(slave)
                         item = item_from_slave(slave)
                         item.start
-                        if selected_item == item
-                            update_item_details
-                        end
+                        update_item_details if selected_item == item
                         emit statsChanged
                     end
                 end
@@ -627,18 +694,14 @@ module Syskit
                         deregister_slave_pid(slave.pid)
                         item = item_from_slave(slave)
                         item.finished(slave.status)
-                        if selected_item == item
-                            update_item_details
-                        end
+                        update_item_details if selected_item == item
                     end
                 end
                 server.on_exception do |pid, exception|
                     queue_work do
                         item = item_from_pid(pid)
                         item.add_exception(exception)
-                        if selected_item == item
-                            update_item_details
-                        end
+                        update_item_details if selected_item == item
                     end
                 end
                 server.on_discovery_start do |pid|
@@ -659,13 +722,14 @@ module Syskit
                         item_from_pid(pid).test_start
                     end
                 end
-                server.on_test_result do |pid, file, test_case_name, test_name, failures, assertions, time|
+                server.on_test_result do |pid, file, test_case_name, test_name,
+                                          failures, assertions, time|
                     queue_work do
                         item = item_from_pid(pid)
-                        item.add_test_result(file, test_case_name, test_name, failures, assertions, time)
-                        if !selected_item || (selected_item == item)
-                            update_item_details
-                        end
+                        item.add_test_result(
+                            file, test_case_name, test_name, failures, assertions, time
+                        )
+                        update_item_details if !selected_item || (selected_item == item)
                         emit statsChanged
                     end
                 end
@@ -680,21 +744,21 @@ module Syskit
             def add_test_slaves
                 tests = app.discover_test_files.map do |path, models|
                     process_id = Hash[path: path]
-                    if !models.empty?
-                        process_id[:models] = models.map(&:name).sort
-                    end
+                    process_id[:models] = models.map(&:name).sort unless models.empty?
                     [path, process_id]
                 end
                 argv_set = app.argv_set.flat_map do |string|
-                    ['--set', string]
+                    ["--set", string]
                 end
 
                 tests.sort_by(&:first).each do |path, process_id|
                     slave = manager.add_slave(
-                        Gem.ruby, '-S', 'roby', 'autotest', '--server', server.server_id.to_s, path,
-                        '-r', app.robot_name,
+                        Gem.ruby, "-S", "roby", "autotest", "--server",
+                        server.server_id.to_s, path,
+                        "-r", app.robot_name,
                         *argv_set,
-                        name: process_id)
+                        name: process_id
+                    )
                     slave.register_files([Pathname.new(path)])
                 end
             end

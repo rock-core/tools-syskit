@@ -1,10 +1,12 @@
-require 'syskit/test/self'
+# frozen_string_literal: true
+
+require "syskit/test/self"
 
 describe Syskit::Coordination::Models::TaskExtension do
     attr_reader :component_m, :action_m
     before do
-        @component_m = Syskit::TaskContext.new_submodel name: 'Task' do
-            output_port 'out', '/double'
+        @component_m = Syskit::TaskContext.new_submodel name: "Task" do
+            output_port "out", "/double"
         end
         component_m.event :monitor_failed
         @action_m = Roby::Actions::Interface.new_submodel
@@ -12,32 +14,32 @@ describe Syskit::Coordination::Models::TaskExtension do
 
     it "can attach data monitoring tables to the action-state" do
         component_m = self.component_m
-        action_m.describe ''
-        _, state_machine = action_m.action_state_machine 'test' do
+        action_m.describe ""
+        _, state_machine = action_m.action_state_machine "test" do
             task = state component_m
-            task.monitor 'thresholding', task.out_port do |value|
+            task.monitor "thresholding", task.out_port do |value|
                 value > 10
             end
 
             start task
         end
-        assert state_machine.tasks.first.data_monitoring_table.find_monitor('thresholding')
+        assert state_machine.tasks.first.data_monitoring_table.find_monitor("thresholding")
     end
 
     it "attaches and activates the tables when the relevant states are started" do
-        action_m.describe('').returns(component_m)
+        action_m.describe("").returns(component_m)
         component_m = self.component_m
         action_m.send(:define_method, :test_task) do
             component_m.as_plan
         end
-        action_m.describe ''
+        action_m.describe ""
         action_m.action_state_machine :test_machine do
             task = state test_task
-            task.monitor('thresholding', task.out_port).
-                trigger_on do |value|
+            task.monitor("thresholding", task.out_port)
+                .trigger_on do |value|
                     value > 10
-                end.
-                emit task.monitor_failed_event
+                end
+                .emit task.monitor_failed_event
             start task
         end
         syskit_stub_configured_deployment(component_m)
@@ -55,11 +57,11 @@ describe Syskit::Coordination::Models::TaskExtension do
         component_m = self.component_m
         recorder = flexmock
         task = nil
-        action_m.describe('').required_arg('arg')
+        action_m.describe("").required_arg("arg")
         action_m.action_state_machine :test_machine do
             task = state component_m
-            task.monitor('thresholding', task.out_port, test_arg: arg).
-                trigger_on do |value|
+            task.monitor("thresholding", task.out_port, test_arg: arg)
+                .trigger_on do |value|
                     recorder.called(test_arg)
                     false
                 end.raise_exception

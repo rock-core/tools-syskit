@@ -1,3 +1,5 @@
+# frozen_string_literal: true
+
 module Syskit
     module Models
         # Used by Composition to define its children. Values returned by
@@ -25,9 +27,10 @@ module Syskit
             # no selection exists for it
             attr_predicate :optional?
 
-            def initialize(composition_model, child_name, models = Set.new, dependency_options = Hash.new,
-                          parent_model = nil)
-                @composition_model, @child_name = composition_model, child_name
+            def initialize(composition_model, child_name, models = Set.new, dependency_options = {},
+                parent_model = nil)
+                @composition_model = composition_model
+                @child_name = child_name
                 super(models)
                 @dependency_options = Roby::TaskStructure::Dependency.validate_options(dependency_options)
                 @parent_model = parent_model
@@ -82,8 +85,8 @@ module Syskit
             def try_resolve_and_bind_child_recursive(root)
                 # Handle a composition child of a composition child
                 if composition_model.respond_to?(:try_resolve_and_bind_child_recursive)
-                    resolved_parent = composition_model.
-                        try_resolve_and_bind_child_recursive(root)
+                    resolved_parent = composition_model
+                                      .try_resolve_and_bind_child_recursive(root)
 
                     try_resolve_and_bind_child(resolved_parent) if resolved_parent
                 else
@@ -125,7 +128,8 @@ module Syskit
             def try_resolve_and_bind_child(composition)
                 if bound = composition_model.try_bind(composition)
                     bound.find_required_composition_child_from_role(
-                        child_name, composition_model)
+                        child_name, composition_model
+                    )
                 end
             end
 
@@ -154,29 +158,48 @@ module Syskit
             # then allows to for instance resolve ports "as if" they were
             # from the service itself.
             #
-            # @param [Syskit::Component] component the component instance
+            # @param [Syskit::Component,Syskit::BoundDataService] component
+            #   the component instance
             # @return [Syskit::Component,Syskit::BoundDataService] the bound
             #   data service.
             # @raise if self cannot be bound to the component, usually because
             #   the component is not the "right" child from the composition
-            def bind(component)
-                compositions = component.each_parent_task.
-                    find_all { |t| t.fullfills?(composition_model) }
-                parent = compositions.
-                    find { |t| component == t.find_child_from_role(child_name) }
-
-                unless parent
-                    if compositions.empty?
-                        raise ArgumentError, "cannot bind #{self} to #{component}: "\
-                            "it is not the child of any #{composition_model} composition"
-                    else
-                        raise ArgumentError, "cannot bind #{self} to #{component}: "\
-                            "it is the child of one or more #{composition_model} compositions, "\
-                            "but not with the role '#{child_name}'"
-                    end
+            def bind(component_or_service)
+                case component_or_service
+                when Syskit::BoundDataService
+                    # We still got to make sure that the service is from the
+                    # "right" child, and that it is actually compatible with
+                    # the child model
+                    bind_resolve_parent(component_or_service.component)
+                    super(component_or_service)
+                else
+                    parent = bind_resolve_parent(component_or_service)
+                    resolve_and_bind_child(composition_model.bind(parent))
                 end
+            end
 
-                resolve_and_bind_child(composition_model.bind(parent))
+            def bind_resolve_parent(component)
+                compositions =
+                    component
+                    .each_parent_task
+                    .find_all { |t| t.fullfills?(composition_model) }
+
+                parent =
+                    compositions
+                    .find { |t| component == t.find_child_from_role(child_name) }
+
+                return parent if parent
+
+                if compositions.empty?
+                    raise ArgumentError,
+                          "cannot bind #{self} to #{component}: it is not the child "\
+                          "of any #{composition_model} composition"
+                else
+                    raise ArgumentError,
+                          "cannot bind #{self} to #{component}: it is the child of "\
+                          "one or more #{composition_model} compositions, but not "\
+                          "with the role '#{child_name}'"
+                end
             end
 
             # The port mappings from this child's parent model to this model
@@ -195,7 +218,7 @@ module Syskit
             #   a Port is given, it has to be a port on a CompositionChild of
             #   the same composition than self
             # @return [Array<Port>] the set of created connections
-            def connect_to(sink, policy = Hash.new)
+            def connect_to(sink, policy = {})
                 Syskit.connect(self, sink, policy)
             end
 
@@ -219,9 +242,9 @@ module Syskit
                     return false
                 end
 
-                cmp_connections = composition_model.
-                    explicit_connections[[child_name, sink_port.component_model.child_name]]
-                cmp_connections.has_key?([source_port.name,sink_port.name])
+                cmp_connections = composition_model
+                                  .explicit_connections[[child_name, sink_port.component_model.child_name]]
+                cmp_connections.key?([source_port.name, sink_port.name])
             end
 
             # (see Component#connect_ports)
@@ -231,6 +254,7 @@ module Syskit
                 elsif other_component.composition_model != composition_model
                     raise ArgumentError, "cannot connect ports of #{self} to ports of #{other_component}: they are children of different composition models"
                 end
+
                 cmp_connections = composition_model.explicit_connections[[child_name, other_component.child_name]]
                 connections.each do |port_pair, policy|
                     cmp_connections[port_pair] = policy
@@ -245,17 +269,19 @@ module Syskit
 
             def state
                 if @state
-                    return @state
+                    @state
                 elsif component_model = models.find { |c| c <= Component }
                     @state = Roby::StateFieldModel.new(component_model.state)
                     @state.__object = self
-                    return @state
+                    @state
                 else
                     raise ArgumentError, "cannot create a state model on elements that are only data services"
                 end
             end
 
-            def to_s; "#{composition_model}.#{child_name}_child[#{super}]" end
+            def to_s
+                "#{composition_model}.#{child_name}_child[#{super}]"
+            end
 
             def pretty_print(pp)
                 pp.text "child #{child_name} of type "
@@ -263,7 +289,6 @@ module Syskit
                 pp.breakable
                 pp.text "of #{composition_model}"
             end
-
 
             def short_name
                 "#{composition_model.short_name}.#{child_name}_child[#{model.short_name}]"
@@ -289,8 +314,9 @@ module Syskit
             attr_reader :existing_ports
 
             def initialize(composition_model, child_name, port_name)
-                @composition_model, @child_name, @port_name =
-                    composition_model, child_name, port_name
+                @composition_model = composition_model
+                @child_name = child_name
+                @port_name = port_name
                 @existing_ports = composition_model.find_child(child_name).each_required_model.map do |child_model|
                     [child_model, child_model.each_input_port.sort_by(&:name), child_model.each_output_port.sort_by(&:name)]
                 end

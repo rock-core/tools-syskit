@@ -1,3 +1,5 @@
+# frozen_string_literal: true
+
 module Syskit
     module RobyApp
         # Representation of a group of ports
@@ -23,7 +25,7 @@ module Syskit
             # Controls whether the ports matching this group should be logged
             # (enabled? == true) or not. See {LoggingConfiguration} for the
             # logging behaviour when a port is matched by multiple groups
-            attr_predicate :enabled? , true
+            attr_predicate :enabled?, true
 
             # Set of deployment models whose ports should match
             #
@@ -67,14 +69,14 @@ module Syskit
             # @overload add(deployment)
             #   @param [Models::Deployment] deployment match any task
             #     which is supported by this deployment
-            #   
+            #
             # @overload add(port)
             #   @param [Models::Port] model match any port matching this model
-            #   
+            #
             # @overload add(name)
             #   @param [String,Regexp,#===] name match any object (deployment, task, port or
             #     type) whose name matches this.
-            #   
+            #
             def add(object)
                 case object
                 when Class
@@ -158,5 +160,3 @@ module Syskit
         end
     end
 end
-
-

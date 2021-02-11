@@ -1,3 +1,5 @@
+# frozen_string_literal: true
+
 module Syskit
     module NetworkGeneration
         # This class embeds the basic handling of computations that need to
@@ -37,12 +39,12 @@ module Syskit
             end
 
             def has_information_for_port?(task, port_name)
-                result.has_key?(task) &&
-                    result[task].has_key?(port_name)
+                result.key?(task) &&
+                    result[task].key?(port_name)
             end
 
             def has_final_information_for_port?(task, port_name)
-                done_ports.has_key?(task) &&
+                done_ports.key?(task) &&
                     done_ports[task].include?(port_name) &&
                     has_information_for_port?(task, port_name)
             end
@@ -64,8 +66,8 @@ module Syskit
             #
             # @raise ArgumentError if there are no information stored for the given port
             def port_info(task, port_name)
-                if result.has_key?(task)
-                    if result[task].has_key?(port_name)
+                if result.key?(task)
+                    if result[task].key?(port_name)
                         return result[task][port_name]
                     end
                 end
@@ -94,7 +96,8 @@ module Syskit
                 attr_reader :mode
 
                 def initialize(ports, mode)
-                    @ports, @mode = ports, mode
+                    @ports = ports
+                    @mode = mode
                 end
 
                 # Called by the algorithm to determine which ports should
@@ -125,18 +128,19 @@ module Syskit
                     end
 
                     if mode == USE_ALL
-                        if !complete
+                        unless complete
                             return []
                         end
-                        return ports, true
+
+                        [ports, true]
                     else
-                        return candidates, complete
+                        [candidates, complete]
                     end
                 end
 
                 def to_s
                     modes = %w{ALL ANY PARTIAL}
-                    "#<Trigger: mode=#{modes[mode]} ports=#{ports.map { |t, p| "#{t}.#{p}" }.sort.join(",")}>"
+                    "#<Trigger: mode=#{modes[mode]} ports=#{ports.map { |t, p| "#{t}.#{p}" }.sort.join(',')}>"
                 end
 
                 def pretty_print(pp)
@@ -150,15 +154,15 @@ module Syskit
                 end
             end
 
-            def reset(tasks = Array.new)
-                @result = Hash.new { |h, k| h[k] = Hash.new }
+            def reset(tasks = [])
+                @result = Hash.new { |h, k| h[k] = {} }
                 # Internal variable that is used to detect whether an iteration
                 # added information
                 @changed = false
                 @done_ports = Hash.new { |h, k| h[k] = Set.new }
-                @triggering_connections  = Hash.new { |h, k| h[k] = Hash.new }
+                @triggering_connections = Hash.new { |h, k| h[k] = {} }
                 @triggering_dependencies = Hash.new { |h, k| h[k] = Set.new }
-                @missing_ports = Hash.new
+                @missing_ports = {}
             end
 
             def propagate(tasks)
@@ -177,7 +181,7 @@ module Syskit
                 # #initial_information can add the required information if it is
                 # available
                 @missing_ports = required_information(tasks)
-                if !@missing_ports.kind_of?(Hash)
+                unless @missing_ports.kind_of?(Hash)
                     raise ArgumentError, "#required_information is supposed to return a Hash, but returned #{@missing_ports}"
                 end
 
@@ -211,9 +215,9 @@ module Syskit
                 debug ""
                 debug "== Propagation"
                 remaining_tasks = tasks.dup
-                while !missing_ports.empty?
-                    remaining_tasks = remaining_tasks.
-                        sort_by { |t| triggering_dependencies[t].size }
+                until missing_ports.empty?
+                    remaining_tasks = remaining_tasks
+                                      .sort_by { |t| triggering_dependencies[t].size }
 
                     @changed = false
                     remaining_tasks.delete_if do |task|
@@ -229,7 +233,7 @@ module Syskit
                                     debug { "propagating information to #{task}.#{port_name}" }
                                     debug { "    complete: #{complete}" }
                                     to_propagate.each do |info|
-                                        debug "    #{info.compact.join(".")}"
+                                        debug "    #{info.compact.join('.')}"
                                     end
                                 end
                                 break
@@ -253,7 +257,7 @@ module Syskit
                         propagate_task(task)
                     end
 
-                    if !@changed
+                    unless @changed
                         break
                     end
                 end
@@ -323,9 +327,10 @@ module Syskit
 
             # Deletes all available information about the specified port
             def remove_port_info(task, port_name)
-                if !@result.has_key?(task)
+                unless @result.key?(task)
                     return
                 end
+
                 task_info = @result[task]
                 task_info.delete(port_name)
                 if task_info.empty?
@@ -335,7 +340,7 @@ module Syskit
 
             # Called when all information on +task+.+port_name+ has been added
             def done_port_info(task, port_name)
-                if !done_ports[task].include?(port_name)
+                unless done_ports[task].include?(port_name)
                     @changed = true
 
                     if has_information_for_port?(task, port_name)
@@ -345,7 +350,7 @@ module Syskit
                     end
 
                     done_ports[task] << port_name
-                    if missing_ports.has_key?(task)
+                    if missing_ports.key?(task)
                         missing_ports[task].delete(port_name)
                         if missing_ports[task].empty?
                             missing_ports.delete(task)
@@ -362,7 +367,7 @@ module Syskit
                             debug "no stored information"
                         end
                     end
-                    @done_at ||= Hash.new
+                    @done_at ||= {}
                     @done_at[[task, port_name]] = caller
                     break
                 end
@@ -395,14 +400,14 @@ module Syskit
             # simply returns a list of ports in +task+ whose connections are
             # triggering.
             def triggering_port_connections(task)
-                result = Hash.new
+                result = {}
                 connections = Set.new
 
                 triggering_inputs(task).each do |port|
                     task.each_concrete_input_connection(port.name) do |from_task, from_port, to_port, _|
                         connections << [from_task, from_port]
                     end
-                    if !connections.empty?
+                    unless connections.empty?
                         result[port.name] = Trigger.new(connections, Trigger::USE_ALL)
                         connections = Set.new
                     end
@@ -439,13 +444,13 @@ module Syskit
             # Maps the tasks stored in the dataflow dynamics information to the
             # ones that +merge_solver+ is pointing to
             def apply_merges(merge_solver)
-                @result = result.map_key do |task, _|
+                @result = result.transform_keys do |task|
                     merge_solver.replacement_for(task)
                 end
-                @missing_ports = missing_ports.map_key do |task, _|
+                @missing_ports = missing_ports.transform_keys do |task|
                     merge_solver.replacement_for(task)
                 end
-                @done_ports = done_ports.map_key do |task, _|
+                @done_ports = done_ports.transform_keys do |task|
                     merge_solver.replacement_for(task)
                 end
             end

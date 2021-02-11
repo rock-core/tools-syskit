@@ -14,6 +14,8 @@
     <depend package="tools/metaruby" />
     <depend package="tools/pocolog" />
 
+    <depend package="ruby2_keywords" />
+
     <depend_optional package="timecop" />
     <depend_optional package="ruby-listen" />
     <depend_optional package="gui/vizkit" />
@@ -21,7 +23,11 @@
     <test_depend package="minitest" />
     <test_depend package="aruba" />
     <test_depend package="flexmock" />
+    <test_depend package="base/orogen/types" />
     <test_depend package="tools/logger" />
     <test_depend package="rack-test" />
+    <test_depend package="rubocop" />
+    <test_depend package="rubocop-rock" />
+    <test_depend package="tools/orogen_syskit_tests" />
 </package>
 

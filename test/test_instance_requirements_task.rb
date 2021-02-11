@@ -1,5 +1,7 @@
-require 'syskit/test/self'
-require './test/fixtures/simple_composition_model'
+# frozen_string_literal: true
+
+require "syskit/test/self"
+require "./test/fixtures/simple_composition_model"
 
 describe Syskit::InstanceRequirementsTask do
     include Syskit::Fixtures::SimpleCompositionModel
@@ -8,7 +10,7 @@ describe Syskit::InstanceRequirementsTask do
 
     attr_reader :stub_t
     before do
-        @stub_t = stub_type '/test_t'
+        @stub_t = stub_type "/test_t"
         create_simple_composition_model
         plan.execution_engine.scheduler.enabled = false
         @handler_ids = Syskit::RobyApp::Plugin.plug_engine_in_roby(plan.execution_engine)
@@ -22,11 +24,11 @@ describe Syskit::InstanceRequirementsTask do
     end
 
     def capture_syskit_current_resolution
-        flexmock(plan).should_receive(:syskit_start_async_resolution).
-            pass_thru do |ret|
-                yield(plan.syskit_current_resolution)
-                ret
-            end
+        flexmock(plan).should_receive(:syskit_start_async_resolution)
+                      .pass_thru do |ret|
+            yield(plan.syskit_current_resolution)
+            ret
+        end
     end
 
     it "finishes with failure if the network resolution failed" do
@@ -35,13 +37,13 @@ describe Syskit::InstanceRequirementsTask do
         resolution = nil
         capture_syskit_current_resolution { |r| resolution = r }
 
-        flexmock(Syskit::NetworkGeneration::Engine).
-            new_instances.should_receive(:resolve_system_network).
-            and_raise(ArgumentError)
+        flexmock(Syskit::NetworkGeneration::Engine)
+            .new_instances.should_receive(:resolve_system_network)
+            .and_raise(ArgumentError)
 
         Roby.logger.level = Logger::FATAL
-        expect_execution { req_task.start! }.
-            to do
+        expect_execution { req_task.start! }
+            .to do
                 have_error_matching Roby::PlanningFailedError
                 emit req_task.failed_event
             end
@@ -56,13 +58,13 @@ describe Syskit::InstanceRequirementsTask do
         resolution = nil
         capture_syskit_current_resolution { |r| resolution = r }
 
-        flexmock(Syskit::NetworkGeneration::Engine).
-            new_instances.should_receive(:apply_system_network_to_plan).
-            and_raise(ArgumentError)
+        flexmock(Syskit::NetworkGeneration::Engine)
+            .new_instances.should_receive(:apply_system_network_to_plan)
+            .and_raise(ArgumentError)
 
         Roby.logger.level = Logger::FATAL
-        expect_execution { req_task.start! }.
-            to do
+        expect_execution { req_task.start! }
+            .to do
                 have_error_matching Roby::PlanningFailedError
                 emit req_task.failed_event
             end
@@ -78,8 +80,8 @@ describe Syskit::InstanceRequirementsTask do
         resolution = nil
         capture_syskit_current_resolution { |r| resolution = r }
 
-        expect_execution { req_task.start! }.
-            to { emit req_task.success_event }
+        expect_execution { req_task.start! }
+            .to { emit req_task.success_event }
         assert resolution.transaction_finalized?
         assert resolution.transaction_committed?
         assert req_task.success?
@@ -102,4 +104,3 @@ describe Syskit::InstanceRequirementsTask do
         end
     end
 end
-

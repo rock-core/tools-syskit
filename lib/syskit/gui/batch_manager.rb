@@ -1,4 +1,6 @@
-require 'syskit/gui/widget_list'
+# frozen_string_literal: true
+
+require "syskit/gui/widget_list"
 
 module Syskit
     module GUI
@@ -7,8 +9,8 @@ module Syskit
                 super(parent)
                 @syskit = syskit
 
-                @actions         = Qt::Widget.new
-                actions_layout  = Qt::HBoxLayout.new(@actions)
+                @actions = Qt::Widget.new
+                actions_layout = Qt::HBoxLayout.new(@actions)
                 @process_btn = Qt::PushButton.new("Process")
                 @cancel_btn  = Qt::PushButton.new("Cancel")
 
@@ -24,8 +26,8 @@ module Syskit
                 end
                 disable_actions
 
-                @start_job = Array.new
-                @drop_job = Array.new
+                @start_job = []
+                @drop_job = []
             end
 
             def process
@@ -44,9 +46,9 @@ module Syskit
                     Roby.display_exception(STDOUT, e)
 
                     Qt::MessageBox.critical(
-                        self, 'Syskit Process Batch',
+                        self, "Syskit Process Batch",
                         "failed to process batch: #{e.message}, "\
-                        'see console output for more details'
+                        "see console output for more details"
                     )
                 end
                 clear
@@ -77,7 +79,7 @@ module Syskit
                 @cancel_btn.enabled = true
             end
 
-            signals 'active(bool)'
+            signals "active(bool)"
 
             def drop_job(job_widget)
                 @drop_job << job_widget.job
@@ -91,23 +93,24 @@ module Syskit
                 enable_actions
             end
 
-            def create_new_job(action_name, arguments = Hash.new)
+            def create_new_job(action_name, arguments = {})
                 action_model = @syskit.actions.find { |m| m.name == action_name }
-                if !action_model
+                unless action_model
                     raise ArgumentError, "no action named #{action_name} found"
                 end
 
                 if action_model.arguments.empty?
-                    start_job(action_name, Hash.new)
+                    start_job(action_name, {})
                     true
                 else
                     formatted_arguments = String.new
                     action_model.arguments.each do |arg|
-                        default_arg     = arguments.fetch(
-                            arg.name.to_sym, arg.default)
-                        has_default_arg = arguments.has_key?(arg.name.to_sym) || !arg.required?
+                        default_arg = arguments.fetch(
+                            arg.name.to_sym, arg.default
+                        )
+                        has_default_arg = arguments.key?(arg.name.to_sym) || !arg.required?
 
-                        if !formatted_arguments.empty?
+                        unless formatted_arguments.empty?
                             formatted_arguments << ",\n"
                         end
                         doc_lines = (arg.doc || "").split("\n")
@@ -165,7 +168,7 @@ module Syskit
             class NewJobDialog < Qt::Dialog
                 attr_reader :editor
 
-                def initialize(parent = nil, text = '')
+                def initialize(parent = nil, text = "")
                     super(parent)
                     resize(800, 600)
 
@@ -181,7 +184,7 @@ module Syskit
                     layout.add_widget editor
 
                     buttons = Qt::DialogButtonBox.new(Qt::DialogButtonBox::Ok | Qt::DialogButtonBox::Cancel)
-                    buttons.connect(SIGNAL('accepted()')) do
+                    buttons.connect(SIGNAL("accepted()")) do
                         begin
                             @error_message.hide
                             @result = Parser.parse(self.text)
@@ -191,7 +194,7 @@ module Syskit
                             @error_message.show
                         end
                     end
-                    buttons.connect(SIGNAL('rejected()')) { reject }
+                    buttons.connect(SIGNAL("rejected()")) { reject }
                     layout.add_widget buttons
                 end
 
@@ -216,7 +219,7 @@ module Syskit
                     end
 
                     def __result
-                        return @method_name, @method_options
+                        [@method_name, @method_options]
                     end
                 end
 
@@ -232,8 +235,6 @@ module Syskit
                     editor.to_plain_text
                 end
             end
-
         end
     end
 end
-

@@ -1,3 +1,5 @@
+# frozen_string_literal: true
+
 module Syskit
     module Models
         # Base type for data service models (DataService, Devices,
@@ -25,6 +27,12 @@ module Syskit
             def initialize(project: Roby.app.default_orogen_project)
                 @orogen_model = OroGen::Spec::TaskContext.new(project)
                 super()
+            end
+
+            def match
+                Queries::DataServiceMatcher.new(
+                    Queries::ComponentMatcher.new.with_model(self)
+                ).with_model(self)
             end
 
             def clear_model
@@ -62,7 +70,9 @@ module Syskit
             #
             #   @return [Hash<DataServiceModel,Hash<String,String>>] the
             #     mappings
-            attribute(:port_mappings) { Hash.new }
+            attribute(:port_mappings) do
+                {}
+            end
 
             # The set of services that this service provides
             def each_fullfilled_model
@@ -95,24 +105,25 @@ module Syskit
             class BlockInstanciator < BasicObject
                 attr_reader :name
                 def initialize(model, name = nil)
+                    unless model.orogen_model
+                        raise InternalError, "no interface for #{model.short_name}"
+                    end
+
                     @model = model
                     @name = name || model.name
                     @orogen_model = model.orogen_model
-
-                    unless @orogen_model
-                        raise InternalError, "no interface for #{model.short_name}"
-                    end
                 end
 
-                def respond_to_missing?(m, include_private)
+                def respond_to_missing?(m, _include_private)
                     @orogen_model.respond_to?(m) ||
                         @model.respond_to?(m)
                 end
 
-                def method_missing(m, *args, &block)
+                ruby2_keywords def method_missing(m, *args, &block) # rubocop:disable Style/MethodMissingSuper, Style/MissingRespondToMissing
                     if @orogen_model.respond_to?(m)
                         @orogen_model.public_send(m, *args, &block)
-                    else @model.public_send(m, *args, &block)
+                    else
+                        @model.public_send(m, *args, &block)
                     end
                 end
             end
@@ -168,48 +179,74 @@ module Syskit
             # Note that if both service_model and self have a port with the same
             # name, this port needs also to be mapped explicitely by providing
             # the 'name' => 'name' mapping in new_port_mappings
-            def provides(service_model, new_port_mappings = Hash.new)
+            def provides(service_model, new_port_mappings = {})
                 # A device can provide either a device or a data service, but
                 # not a combus. Idem for data service: only other data services
                 # can be provided
-                if !kind_of?(service_model.class)
-                    raise ArgumentError, "a #{self.class.name} cannot provide a #{service_model.class.name}. If this is really what you mean, declare #{self.name} as a #{service_model.class.name} first"
+                unless kind_of?(service_model.class)
+                    raise ArgumentError,
+                          "a #{self.class.name} cannot provide a "\
+                          "#{service_model.class.name}. If this is really "\
+                          "what you mean, declare #{name} as a "\
+                          "#{service_model.class.name} first"
                 end
 
-                if parent_models.include?(service_model)
-                    return
-                elsif !service_model.kind_of?(DataServiceModel) # this is probably just a task service
+                return if parent_models.include?(service_model)
+                # this is probably just a Roby task service
+                unless service_model.kind_of?(DataServiceModel)
                     return super(service_model)
                 end
 
                 service_model.each_port do |p|
                     if find_port(p.name) && !new_port_mappings[p.name]
-                        raise SpecError, "port collision: #{self} and #{service_model} both have a port named #{p.name}. If you mean to tell syskit that this is the same port, you must provide the mapping explicitely by adding '#{p.name}' => '#{p.name}' to the provides statement"
-                        new_port_mappings[p.name] ||= p.name
+                        raise SpecError,
+                              "port collision: #{self} and #{service_model} both "\
+                              "have a port named #{p.name}. If you mean to tell "\
+                              "syskit that this is the same port, you must provide "\
+                              "the mapping explicitely by adding "\
+                              "'#{p.name}' => '#{p.name}' to the provides statement"
                     end
                 end
 
                 new_port_mappings.each do |service_name, self_name|
-                    if !(source_port = service_model.find_port(service_name))
-                        raise SpecError, "#{service_name} is not a port of #{service_model.short_name}"
+                    unless (source_port = service_model.find_port(service_name))
+                        raise SpecError,
+                              "#{service_name} is not a port of "\
+                              "#{service_model.name}"
                     end
-                    if !(target_port = find_port(self_name))
-                        raise SpecError, "#{self_name} is not a port of #{short_name}"
+                    unless (target_port = find_port(self_name))
+                        raise SpecError,
+                              "#{self_name} is not a port of #{name}"
                     end
                     if target_port.type != source_port.type
-                        raise SpecError, "invalid port mapping #{service_name} => #{self_name} in #{self.short_name}.provides(#{service_model.short_name}): port #{source_port.name} on #{self.short_name} is of type #{source_port.type.name} and #{target_port.name} on #{service_model.short_name} is of type #{target_port.type.name}"
+                        raise SpecError,
+                              "invalid port mapping #{service_name} => #{self_name} in "\
+                              "#{name}.provides("\
+                              "#{service_model.name}): port #{source_port.name} "\
+                              "on #{name} is of type "\
+                              "#{source_port.type.name} and #{target_port.name} on "\
+                              "#{service_model.name} is of type "\
+                              "#{target_port.type.name}"
                     elsif source_port.class != target_port.class
-                        raise SpecError, "invalid port mapping #{service_name} => #{self_name} in #{self.short_name}.provides(#{service_model.short_name}): port #{source_port.name} on #{self.short_name} is a #{target_port.class.name} and #{target_port.name} on #{service_model.short_name} is of a #{source_port.class.name}"
+                        raise SpecError,
+                              "invalid port mapping #{service_name} => #{self_name} in "\
+                              "#{name}.provides("\
+                              "#{service_model.name}): port #{source_port.name} "\
+                              "on #{name} is a #{target_port.class.name} "\
+                              "and #{target_port.name} on #{service_model.name} "\
+                              "is of a #{source_port.class.name}"
                     end
                 end
 
                 service_model.port_mappings.each do |original_service, mappings|
-                    updated_mappings = Hash.new
+                    updated_mappings = {}
                     mappings.each do |from, to|
                         updated_mappings[from] = new_port_mappings[to] || to
                     end
                     port_mappings[original_service] =
-                        Models.merge_port_mappings(port_mappings[original_service] || Hash.new, updated_mappings)
+                        Models.merge_port_mappings(
+                            port_mappings[original_service] || {}, updated_mappings
+                        )
                 end
 
                 # Now, add the ports that are going to be created because of the
@@ -218,14 +255,18 @@ module Syskit
                     new_port_mappings[p.name] ||= p.name
                 end
                 port_mappings[service_model] =
-                    Models.merge_port_mappings(port_mappings[service_model] || Hash.new, new_port_mappings)
+                    Models.merge_port_mappings(
+                        port_mappings[service_model] || {}, new_port_mappings
+                    )
 
                 # Merging the interface should never raise at this stage. It
                 # should have been validated above.
-                Models.merge_orogen_task_context_models(orogen_model, [service_model.orogen_model], new_port_mappings)
+                Models.merge_orogen_task_context_models(
+                    orogen_model, [service_model.orogen_model], new_port_mappings
+                )
 
                 # For completeness, add port mappings for ourselves
-                port_mappings[self] = Hash.new
+                port_mappings[self] = {}
                 each_port do |p|
                     port_mappings[self][p.name] = p.name
                 end
@@ -239,13 +280,15 @@ module Syskit
 
             # @deprecated use {#placeholder_model} instead
             def proxy_task_model
-                Roby.warn_deprecated "DataService.proxy_task_model is deprecated, use .placeholder_model instead"
+                Roby.warn_deprecated "DataService.proxy_task_model is deprecated, "\
+                                     "use .placeholder_model instead"
                 placeholder_model
             end
 
             # @deprecated use {#create_placeholder_task} instead
             def create_proxy_task
-                Roby.warn_deprecated "DataService.create_proxy_task is deprecated, use .create_placeholder_task instead"
+                Roby.warn_deprecated "DataService.create_proxy_task is deprecated, "\
+                                     "use .create_placeholder_task instead"
                 create_placeholder_task
             end
 
@@ -274,13 +317,15 @@ module Syskit
                 false
             end
 
-            def to_component_model; self end
+            def to_component_model
+                self
+            end
 
             # Delegated call from {Port#connected?}
             #
             # Always returns false as "plain" data service ports cannot be
             # connected
-            def connected?(out_port, in_port)
+            def connected?(_out_port, _in_port)
                 false
             end
 
@@ -290,8 +335,10 @@ module Syskit
             # The returned task instance is obviously an abstract one
             #
             # @return [TaskContext]
-            def instanciate(plan, context = DependencyInjectionContext.new, options = Hash.new, &block)
-                placeholder_model.instanciate(plan, context, options, &block)
+            def instanciate(
+                plan, context = DependencyInjectionContext.new, **options, &block
+            )
+                placeholder_model.instanciate(plan, context, **options, &block)
             end
 
             def pretty_print(pp)
@@ -304,7 +351,7 @@ module Syskit
             # @return [nil,BoundDataService]
             def try_bind(component)
                 component.find_data_service_from_type(self)
-            rescue AmbiguousServiceSelection # rubocop:disable Lint/HandleExceptions
+            rescue AmbiguousServiceSelection # rubocop:disable Lint/SuppressedException
             end
 
             # Binds the data service model on the given task
@@ -342,10 +389,11 @@ module Syskit
 
                 parent_models.each do |parent_m|
                     parent_id = parent_m.object_id.abs
-                    (parent_m.each_input_port.to_a + parent_m.each_output_port.to_a).
-                        each do |parent_p|
-                        io << "  C#{parent_id}:#{parent_p.name} -> C#{id}:#{port_mappings_for(parent_m)[parent_p.name]};"
-                    end
+                    (parent_m.each_input_port.to_a + parent_m.each_output_port.to_a)
+                        .each do |parent_p|
+                            io << "  C#{parent_id}:#{parent_p.name} -> "\
+                                  "C#{id}:#{port_mappings_for(parent_m)[parent_p.name]};"
+                        end
                 end
             end
 
@@ -356,12 +404,16 @@ module Syskit
 
         # Metamodel for all devices
         class DeviceModel < DataServiceModel
-            def setup_submodel(submodel, options = Hash.new, &block)
+            def setup_submodel(submodel, **options, &block)
                 super
+
                 if device_configuration_module
                     submodel.device_configuration_module = Module.new
-                    submodel.device_configuration_module.include(device_configuration_module)
+                    submodel.device_configuration_module
+                            .include(device_configuration_module)
                 end
+
+                nil
             end
 
             attribute(:device_configuration_module)
@@ -398,17 +450,20 @@ module Syskit
                 if device_configuration_module
                     device_instance.extend(device_configuration_module)
                 end
+
+                nil
             end
 
-            def provides(service_model, new_port_mappings = Hash.new)
+            def provides(service_model, new_port_mappings = {})
                 super
 
                 # If the provided model has a device_configuration_module,
                 # include it in our own
                 if service_model.respond_to?(:device_configuration_module) &&
-                    service_model.device_configuration_module
+                   service_model.device_configuration_module
                     self.device_configuration_module ||= Module.new
-                    self.device_configuration_module.include(service_model.device_configuration_module)
+                    self.device_configuration_module
+                        .include(service_model.device_configuration_module)
                 end
             end
 
@@ -417,36 +472,39 @@ module Syskit
                 # concrete task model. So, search for one.
                 #
                 # Get all task models that implement this device
-                Syskit::Component.each_submodel.
-                    find_all { |t| t.fullfills?(self) && !t.abstract? }
+                Syskit::Component
+                    .each_submodel
+                    .find_all { |t| t.fullfills?(self) && !t.abstract? }
             end
 
             def default_driver
                 tasks = find_all_drivers
                 if tasks.size > 1
-                    raise Ambiguous, "#{tasks.map(&:to_s).join(", ")} can all handle '#{self}'"
+                    raise Ambiguous,
+                          "#{tasks.map(&:to_s).join(', ')} can all handle '#{self}'"
                 elsif tasks.empty?
                     raise ArgumentError, "no task can handle devices of type '#{self}'"
                 end
+
                 tasks.first
             end
         end
 
         # Metamodel for all communication busses
         class ComBusModel < DeviceModel
-            def initialize(*args, &block)
+            def initialize(project: Roby.app.default_orogen_project, &block)
                 super
                 @override_policy = true
             end
 
             # Returns whether this bus clients receive messages from the bus
             def client_to_bus?
-                !!client_out_srv
+                client_out_srv
             end
 
             # Retursn whether this bus clients send messages to the bus
             def bus_to_client?
-                !!client_in_srv
+                client_in_srv
             end
 
             attr_reader :bus_base_srv
@@ -475,11 +533,18 @@ module Syskit
             # @param [String,Model<Type>] message_type the type name of the
             #   type that is used by this combus to communicate with the
             #   components it supports
-            def new_submodel(lazy_dispatch: false, override_policy: override_policy?, message_type: self.message_type, **options, &block)
+            def new_submodel(
+                lazy_dispatch: false, override_policy: override_policy?,
+                message_type: self.message_type, **options, &block
+            )
                 super
             end
 
-            def setup_submodel(model, lazy_dispatch: false, override_policy: override_policy?, message_type: self.message_type, **options, &block)
+            def setup_submodel(
+                model,
+                lazy_dispatch: false, override_policy: override_policy?,
+                message_type: self.message_type, **options, &block
+            )
                 if message_type.respond_to?(:to_str)
                     message_type = Roby.app.default_loader.resolve_type(message_type)
                 end
@@ -488,16 +553,22 @@ module Syskit
                 model.lazy_dispatch   = lazy_dispatch
                 model.override_policy = override_policy
                 if !message_type && !model.message_type
-                    raise ArgumentError, "com bus types must either have a message_type or provide another com bus type that does"
+                    raise ArgumentError,
+                          "com bus types must either have a message_type or provide "\
+                          "another com bus type that does"
                 elsif message_type && model.message_type
                     if message_type != model.message_type
-                        raise ArgumentError, "cannot override message types. The current message type of #{model.name} is #{model.message_type}, which might come from another provided com bus"
+                        raise ArgumentError,
+                              "cannot override message types. The current message type "\
+                              "of #{model.name} is #{model.message_type}, which "\
+                              "might come from another provided com bus"
                     end
                 elsif !model.message_type
                     model.message_type = message_type
                 end
 
-                model.attached_device_configuration_module.include(attached_device_configuration_module)
+                model.attached_device_configuration_module
+                     .include(attached_device_configuration_module)
             end
 
             def clear_model
@@ -508,9 +579,7 @@ module Syskit
             # The name of the bus_in_srv dynamic service defined on driver tasks
             def dynamic_service_name
                 name = "com_bus"
-                if self.name
-                    name = "#{name}_#{self.name}"
-                end
+                name = "#{name}_#{self.name}" if self.name
                 name
             end
 
@@ -522,16 +591,18 @@ module Syskit
                 mod.dynamic_service bus_base_srv, as: dynamic_service_name do
                     options = Kernel.validate_options self.options, client_to_bus: nil,
                                                                     bus_to_client: nil
+                    in_srv = mod.find_data_service_from_type(combus_m.bus_in_srv)
                     in_name =
-                        if in_srv = mod.find_data_service_from_type(combus_m.bus_in_srv)
-                            in_srv.port_mappings_for_task['to_bus']
+                        if in_srv
+                            in_srv.port_mappings_for_task["to_bus"]
                         else
                             combus_m.input_name_for(name)
                         end
 
+                    out_srv = mod.find_data_service_from_type(combus_m.bus_out_srv)
                     out_name =
-                        if out_srv = mod.find_data_service_from_type(combus_m.bus_out_srv)
-                            out_srv.port_mappings_for_task['from_bus']
+                        if out_srv
+                            out_srv.port_mappings_for_task["from_bus"]
                         else
                             combus_m.output_name_for(name)
                         end
@@ -540,50 +611,54 @@ module Syskit
                         client_to_bus = options.fetch(:client_to_bus)
                         bus_to_client = options.fetch(:bus_to_client)
                     rescue KeyError
-                        raise ArgumentError, 'you must provide both the client_to_bus '\
-                                             'and bus_to_client option when '\
-                                             'instanciating a com bus dynamic service'
+                        raise ArgumentError, "you must provide both the client_to_bus "\
+                                             "and bus_to_client option when "\
+                                             "instanciating a com bus dynamic service"
                     end
 
                     if client_to_bus && bus_to_client
-                        provides combus_m.bus_srv, 'from_bus' => out_name,
-                                                   'to_bus' => in_name
+                        provides combus_m.bus_srv, "from_bus" => out_name,
+                                                   "to_bus" => in_name
                         component_model.orogen_model
                                        .find_port(in_name)
                                        .needs_reliable_connection
                     elsif client_to_bus
-                        provides combus_m.bus_in_srv, 'to_bus' => in_name
+                        provides combus_m.bus_in_srv, "to_bus" => in_name
                         component_model.orogen_model
                                        .find_port(in_name)
                                        .needs_reliable_connection
                     elsif bus_to_client
-                        provides combus_m.bus_out_srv, 'from_bus' => out_name
+                        provides combus_m.bus_out_srv, "from_bus" => out_name
                     else
-                        raise ArgumentError, 'at least one of bus_to_client or '\
-                                             'client_to_bus must be true'
+                        raise ArgumentError, "at least one of bus_to_client or "\
+                                             "client_to_bus must be true"
                     end
                 end
             end
 
-            def provides(service_model, new_port_mappings = Hash.new)
+            def provides(service_model, new_port_mappings = {})
                 if service_model.respond_to?(:message_type)
-                    if message_type && service_model.message_type && message_type != service_model.message_type
-                        raise ArgumentError, "#{self.name} cannot provide #{service_model.name} as their message type differs (resp. #{message_type} and #{service_model.message_type}"
+                    if message_type && service_model.message_type &&
+                       (message_type != service_model.message_type)
+                        raise ArgumentError,
+                              "#{name} cannot provide #{service_model.name} "\
+                              "as their message type differs (resp. #{message_type} "\
+                              "and #{service_model.message_type}"
                     end
                 end
 
                 super
 
-                if service_model.respond_to?(:message_type) && !message_type
-                    @message_type = service_model.message_type
-                    @bus_base_srv   = service_model.bus_base_srv
-                    @bus_in_srv     = service_model.bus_in_srv
-                    @bus_out_srv    = service_model.bus_out_srv
-                    @bus_srv        = service_model.bus_srv
-                    @client_in_srv  = service_model.client_in_srv
-                    @client_out_srv = service_model.client_out_srv
-                    @client_srv     = service_model.client_srv
-                end
+                return unless service_model.respond_to?(:message_type) && !message_type
+
+                @message_type   = service_model.message_type
+                @bus_base_srv   = service_model.bus_base_srv
+                @bus_in_srv     = service_model.bus_in_srv
+                @bus_out_srv    = service_model.bus_out_srv
+                @bus_srv        = service_model.bus_srv
+                @client_in_srv  = service_model.client_in_srv
+                @client_out_srv = service_model.client_out_srv
+                @client_srv     = service_model.client_srv
             end
 
             # If true, the com bus autoconnection code will override the
@@ -600,19 +675,27 @@ module Syskit
 
             def message_type=(message_type)
                 @message_type = message_type
-                @bus_base_srv = data_service_type 'BusBaseSrv'
-                @bus_in_srv  = data_service_type('BusInSrv') { input_port 'to_bus', message_type }
-                @bus_out_srv = data_service_type('BusOutSrv') { output_port 'from_bus', message_type }
-                @bus_srv     = data_service_type 'BusSrv'
+                @bus_base_srv = data_service_type "BusBaseSrv"
+                @bus_in_srv = data_service_type("BusInSrv") do
+                    input_port "to_bus", message_type
+                end
+                @bus_out_srv = data_service_type("BusOutSrv") do
+                    output_port "from_bus", message_type
+                end
+                @bus_srv = data_service_type "BusSrv"
 
                 bus_in_srv.provides bus_base_srv
                 bus_out_srv.provides bus_base_srv
                 bus_srv.provides bus_in_srv
                 bus_srv.provides bus_out_srv
 
-                @client_in_srv  = data_service_type('ClientInSrv') { input_port 'from_bus', message_type }
-                @client_out_srv = data_service_type('ClientOutSrv') { output_port 'to_bus', message_type }
-                @client_srv     = data_service_type 'ClientSrv'
+                @client_in_srv = data_service_type("ClientInSrv") do
+                    input_port "from_bus", message_type
+                end
+                @client_out_srv = data_service_type("ClientOutSrv") do
+                    output_port "to_bus", message_type
+                end
+                @client_srv = data_service_type "ClientSrv"
                 client_srv.provides client_in_srv
                 client_srv.provides client_out_srv
             end
@@ -636,9 +719,7 @@ module Syskit
             #   device(Type).attach_to(can).can_id(0x10, 0x10)
             #
             def extend_attached_device_configuration(&block)
-                if block
-                    attached_device_configuration_module.class_eval(&block)
-                end
+                attached_device_configuration_module.class_eval(&block) if block
                 self
             end
 
@@ -661,7 +742,6 @@ module Syskit
             end
         end
 
-
         # This module is used to define the methods that allow to define
         # module-based models (data services and friends) on Module
         module ServiceModelsDefinitionDSL
@@ -673,8 +753,12 @@ module Syskit
             #
             # @return [DataServiceModel] the created model
             def data_service_type(name, parent: Syskit::DataService, &block)
-                model = MetaRuby::ModelAsModule.create_and_register_submodel(self, name, parent, &block)
-                model.doc MetaRuby::DSLs.parse_documentation_block(/.*/, "data_service_type")
+                model = MetaRuby::ModelAsModule.create_and_register_submodel(
+                    self, name, parent, &block
+                )
+                model.doc(
+                    MetaRuby::DSLs.parse_documentation_block(/.*/, "data_service_type")
+                )
                 model
             end
 
@@ -684,8 +768,12 @@ module Syskit
             # Device has been included.
             #
             def device_type(name, parent: Syskit::Device, &block)
-                model = MetaRuby::ModelAsModule.create_and_register_submodel(self, name, parent, &block)
-                model.doc MetaRuby::DSLs.parse_documentation_block(/.*/, "device_type")
+                model = MetaRuby::ModelAsModule.create_and_register_submodel(
+                    self, name, parent, &block
+                )
+                model.doc(
+                    MetaRuby::DSLs.parse_documentation_block(/.*/, "device_type")
+                )
                 model
             end
 
@@ -700,7 +788,9 @@ module Syskit
             # The returned value is an instance of DataServiceModel, in which
             # ComBus is included.
             def com_bus_type(name, parent: Syskit::ComBus, **options, &block)
-                model = MetaRuby::ModelAsModule.create_and_register_submodel(self, name, parent, **options, &block)
+                model = MetaRuby::ModelAsModule.create_and_register_submodel(
+                    self, name, parent, **options, &block
+                )
                 model.doc MetaRuby::DSLs.parse_documentation_block(/.*/, "com_bus_type")
                 model
             end
@@ -708,4 +798,3 @@ module Syskit
     end
 end
 Module.include Syskit::Models::ServiceModelsDefinitionDSL
-

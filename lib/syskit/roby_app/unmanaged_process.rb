@@ -1,3 +1,5 @@
+# frozen_string_literal: true
+
 module Syskit
     module RobyApp
         # A class API-compatible with Orocos::Process that represents tasks that
@@ -46,7 +48,9 @@ module Syskit
             # process
             #
             # @return [Boolean]
-            def on_localhost?; host_id == 'localhost' end
+            def on_localhost?
+                host_id == "localhost"
+            end
 
             # The PID of the process in which the tasks run
             #
@@ -75,7 +79,7 @@ module Syskit
             # @param [OroGen::Spec::Deployment] model the deployment model
             # @param [String] host_id a string identifying the place where the
             #   process is expected to be running
-            def initialize(process_manager, name, model, host_id: 'unmanaged_process')
+            def initialize(process_manager, name, model, host_id: "unmanaged_process")
                 @process_manager = process_manager
                 @deployed_tasks = nil
                 @name_service = process_manager.name_service
@@ -89,7 +93,7 @@ module Syskit
             # It spawns a thread that returns once the task got resolved
             #
             # @return [void]
-            def spawn(options = Hash.new)
+            def spawn(options = {})
                 @spawn_start = Time.now
                 @last_warning = Time.now
                 @deployed_tasks = nil
@@ -107,7 +111,7 @@ module Syskit
                 end
             end
 
-            def resolve_all_tasks(cache = Hash.new)
+            def resolve_all_tasks(cache = {})
                 resolved = model.task_activities.map do |t|
                     [t.name, (cache[t.name] ||= name_service.get(t.name))]
                 end
@@ -115,7 +119,7 @@ module Syskit
                 @monitor_thread = Thread.new do
                     monitor
                 end
-                return @deployed_tasks
+                @deployed_tasks
             rescue Orocos::NotFound, Orocos::ComError => e
                 if Time.now - @last_warning > 5
                     Syskit.warn "waiting for unmanaged task: #{e}"
@@ -131,7 +135,7 @@ module Syskit
             #   self
             def task(task_name)
                 if !deployed_tasks
-                    raise RuntimeError, "process not running yet"
+                    raise "process not running yet"
                 elsif task = deployed_tasks[task_name]
                     task
                 else
@@ -143,7 +147,8 @@ module Syskit
             #
             # Helper method to kill a thread
             def terminate_and_join_thread(thread)
-                return if !thread.alive?
+                return unless thread.alive?
+
                 thread.raise TerminateThread
                 begin
                     thread.join
@@ -154,10 +159,10 @@ module Syskit
             # "Kill" this process
             #
             # It shuts down the tasks that are part of it
-            def kill(wait = false)
+            def kill(_wait = false, **)
                 # Announce we're quitting to #monitor_thread. It's used in
                 # #dead? directly if there is no monitoring thread
-                @quitting.set 
+                @quitting.set
             end
 
             # @api private
@@ -167,11 +172,11 @@ module Syskit
             #
             # @param [Float] period polling period in seconds
             def monitor(period: 0.1)
-                while !quitting?
+                until quitting?
                     deployed_tasks.each_value do |task|
                         begin task.ping
                         rescue Orocos::ComError
-                            return
+                            return # rubocop:disable Lint/NonLocalExitFromIterator
                         end
                     end
                     sleep period
@@ -186,17 +191,25 @@ module Syskit
             # Returns true if the process died
             def dead?
                 if monitor_thread
-                    return !monitor_thread.alive?
+                    !monitor_thread.alive?
                 else quitting?
                 end
             end
 
             # Returns true if the tasks have been successfully discovered
-            def ready?; !!deployed_tasks end
+            def ready?
+                !!deployed_tasks
+            end
+
             # True if the process is running. This is an alias for running?
-            def alive?; !dead? end
+            def alive?
+                !dead?
+            end
+
             # True if the process is running. This is an alias for alive?
-            def running?; alive? end
+            def running?
+                alive?
+            end
 
             def join
                 raise NotImplementedError, "UnmanagedProcess#join is not implemented"
@@ -204,4 +217,3 @@ module Syskit
         end
     end
 end
-

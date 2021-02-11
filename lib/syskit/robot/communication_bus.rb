@@ -8,7 +8,7 @@ module Syskit
             attr_reader :attached_devices
 
             def initialize(robot, name, device_model, options,
-                           driver_model, task_arguments)
+                driver_model, task_arguments)
                 super
                 @attached_devices = Set.new
             end

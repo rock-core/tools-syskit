@@ -1,4 +1,6 @@
-require 'syskit/test/self'
+# frozen_string_literal: true
+
+require "syskit/test/self"
 
 module Syskit
     describe Properties do
@@ -6,7 +8,7 @@ module Syskit
         before do
             @property = flexmock(:on, Property)
             @task = flexmock(:on, TaskContext)
-            @properties = Properties.new(task, 'prop' => @property)
+            @properties = Properties.new(task, "prop" => @property)
         end
 
         describe "#each" do
@@ -18,19 +20,19 @@ module Syskit
         end
         describe "#include?" do
             it "returns true for an existing property" do
-                assert properties.include?('prop')
+                assert properties.include?("prop")
             end
             it "returns false for a non-existent property" do
-                refute properties.include?('does_not_exist')
+                refute properties.include?("does_not_exist")
             end
         end
 
         describe "#[]" do
             it "returns an existing property object" do
-                assert_equal property, properties['prop']
+                assert_equal property, properties["prop"]
             end
             it "returns nil for a non-existent property object" do
-                assert_nil properties['does_not_exist']
+                assert_nil properties["does_not_exist"]
             end
         end
 
@@ -68,17 +70,17 @@ module Syskit
                 assert_equal "neither does_not_exist nor raw_does_not_exist are a property of #{task}", exception.message
             end
             it "gets the non-raw value of a property whose name starts with raw_" do
-                properties = Properties.new(task, 'raw_prop' => @property)
+                properties = Properties.new(task, "raw_prop" => @property)
                 property.should_receive(:read).once.and_return(value = flexmock)
                 properties.raw_prop
             end
             it "gets raw value of a property whose name starts with raw_" do
-                properties = Properties.new(task, 'raw_prop' => @property)
+                properties = Properties.new(task, "raw_prop" => @property)
                 property.should_receive(:raw_read).once.and_return(value = flexmock)
                 assert_equal value, properties.raw_raw_prop
             end
             it "sets a property whose name starts with raw_" do
-                properties = Properties.new(task, 'raw_prop' => @property)
+                properties = Properties.new(task, "raw_prop" => @property)
                 property.should_receive(:raw_write).once.with(value = flexmock)
                 assert_equal value, (properties.raw_raw_prop = value)
             end
@@ -103,4 +105,3 @@ module Syskit
         end
     end
 end
-

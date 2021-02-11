@@ -1,3 +1,5 @@
+# frozen_string_literal: true
+
 module Syskit
     module NetworkGeneration
         # Implementation of the algorithms needed to reduce a component network
@@ -37,9 +39,9 @@ module Syskit
                 @event_logger = event_logger
                 @dataflow_graph = plan.task_relation_graph_for(Flows::DataFlow)
                 @dependency_graph = plan.task_relation_graph_for(Roby::TaskStructure::Dependency)
-                @merging_candidates_queries = Hash.new
+                @merging_candidates_queries = {}
                 @task_replacement_graph = Roby::Relations::BidirectionalDirectedAdjacencyGraph.new
-                @resolved_replacements = Hash.new
+                @resolved_replacements = {}
                 @invalid_merges = Set.new
             end
 
@@ -61,6 +63,7 @@ module Syskit
                     if task_replacement_graph.leaf?(replacement)
                         return replacement
                     end
+
                     @resolved_replacements.delete(task)
                 end
 
@@ -70,7 +73,7 @@ module Syskit
                         return to
                     end
                 end
-                return task
+                task
             end
 
             # Registers a replacement in the plan
@@ -114,23 +117,27 @@ module Syskit
                     if merged_task == task
                         raise "trying to merge a task onto itself: #{merged_task}"
                     end
+
                     if task.respond_to?(:merge)
                         task.merge(merged_task)
                     end
                 end
 
-                merged_event_to_event = Hash.new
+                merged_event_to_event = {}
                 event_resolver = ->(e) { merged_task_to_task[e.task].event(e.symbol) }
-                task_replacements = merged_task_to_task.map_value do |merged_task, task|
+                merged_task_to_task.each_key do |merged_task|
                     merged_task.each_event do |ev|
                         merged_event_to_event[ev] = [nil, event_resolver]
                     end
+                end
+
+                task_replacements = merged_task_to_task.transform_values do |task|
                     [task]
                 end
                 plan.replace_subplan(task_replacements, merged_event_to_event)
 
                 merged_task_to_task.each do |merged_task, task|
-                    if !merged_task.transaction_proxy?
+                    unless merged_task.transaction_proxy?
                         plan.remove_task(merged_task)
                     end
                     register_replacement(merged_task, task)
@@ -165,21 +172,21 @@ module Syskit
             @@trace_enabled = false
             @@trace_count = 0
             @@trace_last_phase = 1
-            
+
             def self.trace_next_file(phase)
                 if @@trace_last_phase >= phase
                     @@trace_count += 1
                 end
                 @@trace_last_phase = phase
-                trace_file_pattern % [@@trace_count, phase]
+                format(trace_file_pattern, @@trace_count, phase)
             end
 
             def self.trace_export(plan, phase: 1, highlights: [], **dataflow_options)
-                basename  = trace_next_file(phase)
+                basename = trace_next_file(phase)
                 dataflow = basename + ".dataflow.svg"
                 hierarchy = basename + ".hierarchy.svg"
-                Syskit::Graphviz.new(plan).to_file('dataflow', 'svg', dataflow, highlights: highlights, **dataflow_options)
-                Syskit::Graphviz.new(plan).to_file('hierarchy', 'svg', hierarchy, highlights: highlights)
+                Syskit::Graphviz.new(plan).to_file("dataflow", "svg", dataflow, highlights: highlights, **dataflow_options)
+                Syskit::Graphviz.new(plan).to_file("hierarchy", "svg", hierarchy, highlights: highlights)
                 ::Robot.info "#{self} exported trace plan to #{dataflow} and #{hierarchy}"
             end
 
@@ -207,7 +214,7 @@ module Syskit
                 # Ask the task about intrinsic merge criteria.
                 # Component#can_merge?  should not look at the relation graphs,
                 # only at criteria internal to the tasks.
-                if !can_merge
+                unless can_merge
                     info "rejected: can_merge? returned false"
                     return false
                 end
@@ -225,8 +232,8 @@ module Syskit
             def each_component_merge_candidate(task)
                 # Get the set of candidates. We are checking if the tasks in
                 # this set can be replaced by +task+
-                candidates = plan.find_local_tasks(task.model.concrete_model).
-                    to_a
+                candidates = plan.find_local_tasks(task.model.concrete_model)
+                                 .to_a
                 debug do
                     debug "#{candidates.to_a.size - 1} candidates for #{task}, matching model"
                     debug "  #{task.model.concrete_model}"
@@ -272,10 +279,10 @@ module Syskit
                 end.reverse
 
                 invalid_merges.clear
-                while !queue.empty?
+                until queue.empty?
                     task = queue.shift
                     # 'task' could have been merged already, ignore it
-                    next if !task.plan
+                    next unless task.plan
 
                     each_task_context_merge_candidate(task) do |merged_task|
                         # Try to resolve the merge
@@ -307,11 +314,12 @@ module Syskit
             end
 
             def composition_children_by_role(task)
-                result = Hash.new
+                result = {}
                 task_children_names = task.model.children_names.to_set
                 task.each_out_neighbour_merged(
-                        Roby::TaskStructure::Dependency, intrusive: true).
-                    map do |child_task|
+                    Roby::TaskStructure::Dependency, intrusive: true
+                )
+                    .map do |child_task|
                         dependency_graph.edge_info(task, child_task)[:roles].each do |r|
                             if task_children_names.include?(r)
                                 result[r] = child_task
@@ -322,7 +330,7 @@ module Syskit
             end
 
             def may_merge_compositions?(merged_task, task)
-                if !may_merge_task_contexts?(merged_task, task)
+                unless may_merge_task_contexts?(merged_task, task)
                     return false
                 end
 
@@ -346,7 +354,7 @@ module Syskit
                     end
                 end
 
-                if merged_children.each_value.any? { |t| t.placeholder? }
+                if merged_children.each_value.any?(&:placeholder?)
                     info "rejected: compositions still have unresolved children"
                     return false
                 end
@@ -375,16 +383,16 @@ module Syskit
             def merge_compositions
                 debug "merging compositions"
 
-                queue   = Array.new
-                topsort = Array.new
-                degrees = Hash.new
+                queue   = []
+                topsort = []
+                degrees = {}
                 dependency_graph.each_vertex do |task|
                     d = dependency_graph.out_degree(task)
                     queue << task if d == 0
                     degrees[task] = d
                 end
 
-                while !queue.empty?
+                until queue.empty?
                     task = queue.shift
                     if task.kind_of?(Syskit::Composition)
                         topsort << task
@@ -396,7 +404,8 @@ module Syskit
                 end
 
                 topsort.each do |composition|
-                    next if !composition.plan
+                    next unless composition.plan
+
                     each_composition_merge_candidate(composition) do |merged_composition|
                         apply_merge_group(merged_composition => composition)
                     end
@@ -405,7 +414,7 @@ module Syskit
 
             def resolve_merge(merged_task, task, mappings)
                 mismatched_inputs = log_nest(2) { resolve_input_matching(merged_task, task) }
-                if !mismatched_inputs
+                unless mismatched_inputs
                     # Incompatible inputs
                     return false, mappings
                 end
@@ -440,7 +449,12 @@ module Syskit
                     end
                 end
 
-                return true, mappings
+                [true, mappings]
+            end
+
+            def compatible_policies?(policy, other_policy)
+                policy.empty? || other_policy.empty? ||
+                    (Syskit.update_connection_policy(other_policy, policy) == policy)
             end
 
             # Returns the set of inputs that differ in two given components,
@@ -455,61 +469,96 @@ module Syskit
             #   Otherwise, the set of mismatching inputs is returned, in which
             #   each mismatch is a tuple (port_name,source_port,task_source,target_source).
             def resolve_input_matching(merged_task, task)
-                m_inputs = Hash.new { |h, k| h[k] = Hash.new }
+                return [] if merged_task.equal?(task)
+
+                m_inputs = Hash.new { |h, k| h[k] = {} }
                 merged_task.each_concrete_input_connection do |m_source_task, m_source_port, sink_port, m_policy|
                     m_inputs[sink_port][[m_source_task, m_source_port]] = m_policy
                 end
 
-                mismatched_inputs = []
-                task.each_concrete_input_connection do |source_task, source_port, sink_port, policy|
-                    # If +self+ has no connection on +sink_port+, it is valid
-                    if !m_inputs.has_key?(sink_port)
-                        next
-                    end
+                task.each_concrete_input_connection
+                    .filter_map do |source_task, source_port, sink_port, policy|
+                        # If merged_task has no connection on sink_port, the merge
+                        # is always valid
+                        next unless m_inputs.key?(sink_port)
 
-                    if m_policy = m_inputs[sink_port][[source_task, source_port]]
-                        if !m_policy.empty? && !policy.empty? && (Syskit.update_connection_policy(m_policy, policy) != policy)
-                            debug { "rejected: incompatible policies on #{sink_port}" }
-                            return
-                        end
-                        next
-                    end
+                        port_model = merged_task.model.find_input_port(sink_port)
+                        resolved =
+                            if port_model&.multiplexes?
+                                resolve_multiplexing_input(
+                                    sink_port, source_task, source_port, policy,
+                                    m_inputs[sink_port]
+                                )
+                            else
+                                resolve_input(
+                                    sink_port, source_task, source_port, policy,
+                                    m_inputs[sink_port]
+                                )
+                            end
 
-                    # Different connections, check whether we could multiplex
-                    # them
-                    if (port_model = merged_task.model.find_input_port(sink_port)) && port_model.multiplexes?
-                        next
-                    end
+                        break unless resolved
 
-                    # If we are not multiplexing, there can be only one source
-                    # for merged_task
-                    (m_source_task, m_source_port), m_policy = m_inputs[sink_port].first
-                    if m_source_port != source_port
-                        debug { "rejected: sink #{sink_port} is connected to a port named #{m_source_port} resp. #{source_port}" }
-                        return
+                        resolved unless resolved.empty?
                     end
-                    if !m_policy.empty? && !policy.empty? && (Syskit.update_connection_policy(m_policy, policy) != policy)
-                        debug { "rejected: incompatible policies on #{sink_port}" }
-                        return
-                    end
+            end
 
-                    mismatched_inputs << [sink_port, m_source_task, source_task]
+            def resolve_multiplexing_input(
+                sink_port, source_task, source_port, policy, m_inputs
+            )
+                return [] unless (m_policy = m_inputs[[source_task, source_port]])
+
+                # Already connected to the same task and port, we
+                # just need to check whether the connections are
+                # compatible
+                return [] if compatible_policies?(policy, m_policy)
+
+                debug do
+                    "rejected: incompatible policies on #{sink_port}"
                 end
-                mismatched_inputs
+                nil
+            end
+
+            def resolve_input(
+                sink_port, source_task, source_port, policy, m_inputs
+            )
+                # If we are not multiplexing, there can be only one source
+                # for merged_task
+                (m_source_task, m_source_port), m_policy = m_inputs.first
+
+                if m_source_port != source_port
+                    debug do
+                        "rejected: sink #{sink_port} is connected to a port "\
+                        "named #{m_source_port}, expected #{source_port}"
+                    end
+                    return
+                end
+
+                unless compatible_policies?(policy, m_policy)
+                    debug do
+                        "rejected: incompatible policies on #{sink_port}"
+                    end
+                    return
+                end
+
+                if m_source_task == source_task
+                    []
+                else
+                    [sink_port, m_source_task, source_task]
+                end
             end
 
             def merge_identical_tasks
-                log_timepoint_group_start 'syskit-merge-solver'
+                log_timepoint_group_start "syskit-merge-solver"
                 dataflow_graph.enable_concrete_connection_graph
-                log_timepoint_group 'merge_task_contexts' do
+                log_timepoint_group "merge_task_contexts" do
                     merge_task_contexts
                 end
-                log_timepoint_group 'merge_compositions' do
+                log_timepoint_group "merge_compositions" do
                     merge_compositions
                 end
             ensure
                 dataflow_graph.disable_concrete_connection_graph
-                log_timepoint_group_end 'syskit-merge-solver'
+                log_timepoint_group_end "syskit-merge-solver"
             end
 
             def display_merge_graph(title, merge_graph)

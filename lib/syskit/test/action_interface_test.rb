@@ -1,3 +1,5 @@
+# frozen_string_literal: true
+
 module Syskit
     module Test
         # Base class for testing action interfaces
@@ -7,9 +9,9 @@ module Syskit
 
             def self.subject_syskit_model
                 if @subject_syskit_model
-                    return @subject_syskit_model
+                    @subject_syskit_model
                 elsif desc.kind_of?(Class) && (desc <= Roby::Actions::Interface)
-                    return desc
+                    desc
                 else
                     super
                 end
@@ -43,4 +45,3 @@ module Syskit
         end
     end
 end
-

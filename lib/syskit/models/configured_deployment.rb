@@ -54,7 +54,7 @@ module Syskit
                 model.command_line(
                     process_name, name_mappings,
                     loader: loader,
-                    **filter_command_line_options(options)
+                    **filter_command_line_options(**options)
                 )
             end
 
@@ -110,7 +110,7 @@ module Syskit
             #
             # @return [Syskit::Deployment] a new, properly configured, instance
             #   of {#model}. Usually a {Syskit::Deployment}
-            def new(options = {})
+            def new(**options)
                 options = options.merge(
                     process_name: process_name,
                     name_mappings: name_mappings,
@@ -120,7 +120,7 @@ module Syskit
                 options.delete(:working_directory)
                 options.delete(:output)
                 options.delete(:wait)
-                model.new(options)
+                model.new(**options)
             end
 
             def ==(other)

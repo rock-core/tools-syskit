@@ -1,3 +1,5 @@
+# frozen_string_literal: true
+
 module Syskit
     Flows = Roby::RelationSpace(Component)
 
@@ -72,14 +74,15 @@ module Syskit
         #
         # Computes the concrete connection graph from the DataFlow information
         def compute_concrete_connection_graph
-            current_graph, @concrete_connection_graph = @concrete_connection_graph, nil
+            current_graph = @concrete_connection_graph
+            @concrete_connection_graph = nil
             graph = ConcreteConnectionGraph.new
             each_vertex do |task|
-                next if !task.kind_of?(Syskit::TaskContext)
+                next unless task.kind_of?(Syskit::TaskContext)
 
-                task_to_task = Hash.new
+                task_to_task = {}
                 each_concrete_in_connection(task) do |source_task, source_port, sink_port, policy|
-                    port_to_port = (task_to_task[source_task] ||= Hash.new)
+                    port_to_port = (task_to_task[source_task] ||= {})
                     port_to_port[[source_port, sink_port]] = policy
                 end
 
@@ -107,6 +110,7 @@ module Syskit
                 Syskit.update_connection_policy(old_options, new_options)
             end
         end
+
         # Create new connections between +source_task+ and +sink_task+.
         #
         # +mappings+ is a map from port name pairs to the connection policy
@@ -127,7 +131,7 @@ module Syskit
         ConnectionInPath = Struct.new :source_task, :source_port, :sink_task, :sink_port, :policy
 
         def each_concrete_in_path(task, port = nil)
-            return enum_for(__method__, task, port) if !block_given?
+            return enum_for(__method__, task, port) unless block_given?
 
             each_in_connection(task, port) do |source_task, source_port, sink_port, policy|
                 connection = ConnectionInPath.new(source_task, source_port, task, sink_port, policy)
@@ -152,7 +156,7 @@ module Syskit
         end
 
         def each_concrete_out_path(task, port = nil)
-            return enum_for(__method__, task, port) if !block_given?
+            return enum_for(__method__, task, port) unless block_given?
 
             each_out_connection(task, port) do |source_port, sink_port, sink_task, policy|
                 connection = ConnectionInPath.new(task, source_port, sink_task, sink_port, policy)
@@ -197,11 +201,11 @@ module Syskit
         #
         # @see each_input_connection each_concrete_output_connection
         #   each_output_connection
-        def each_concrete_in_connection(task, port = nil)
-            return enum_for(__method__, task, port) if !block_given?
+        def each_concrete_in_connection(task, port = nil, &block)
+            return enum_for(__method__, task, port) unless block_given?
 
             if concrete_connection_graph
-                return concrete_connection_graph.each_in_connection(task, port, &proc)
+                return concrete_connection_graph.each_in_connection(task, port, &block)
             else
                 each_concrete_in_path(task, port) do |path, aggregated_policy|
                     first_conn = path.first
@@ -235,11 +239,11 @@ module Syskit
         #
         # @see each_concrete_input_connection each_input_connection
         #   each_output_connection
-        def each_concrete_out_connection(task, port = nil)
-            return enum_for(__method__, task, port) if !block_given?
+        def each_concrete_out_connection(task, port = nil, &block)
+            return enum_for(__method__, task, port) unless block
 
             if concrete_connection_graph
-                return concrete_connection_graph.each_out_connection(task, port, &proc)
+                return concrete_connection_graph.each_out_connection(task, port, &block)
             else
                 each_concrete_out_path(task, port) do |path, aggregated_policy|
                     first_conn = path.first
@@ -247,6 +251,7 @@ module Syskit
                     yield(first_conn.source_port, last_conn.sink_port, last_conn.sink_task, aggregated_policy)
                 end
             end
+
             self
         end
 
@@ -262,7 +267,7 @@ module Syskit
             #
             # Raises ArgumentError if no such port can ever exist on +self+
             def ensure_has_output_port(name)
-                if !model.find_output_port(name)
+                unless model.find_output_port(name)
                     raise NotOutputPort, "#{self} has no output port called #{name}"
                 end
             end
@@ -272,7 +277,7 @@ module Syskit
             #
             # Raises ArgumentError if no such port can ever exist on +self+
             def ensure_has_input_port(name)
-                if !model.find_input_port(name)
+                unless model.find_input_port(name)
                     raise NotInputPort, "#{self} has no input port called #{name}"
                 end
             end
@@ -313,11 +318,10 @@ module Syskit
                     dataflow_graph.has_in_connections?(self, port_name)
             end
 
-
             # Tests if +port_name+ is connected to +other_port+ on +other_task+
             def connected_to?(port_name, other_task, other_port)
-                relation_graph_for(Flows::DataFlow).
-                    connected?(self, port_name, other_task, other_port)
+                relation_graph_for(Flows::DataFlow)
+                    .connected?(self, port_name, other_task, other_port)
             end
 
             # Connect a set of ports between +self+ and +target_task+.
@@ -345,8 +349,8 @@ module Syskit
                     ensure_has_output_port(out_port)
                     sink_task.ensure_has_input_port(in_port)
                 end
-                relation_graph_for(Flows::DataFlow).
-                    remove_connections(self, sink_task, mappings)
+                relation_graph_for(Flows::DataFlow)
+                    .remove_connections(self, sink_task, mappings)
             end
 
             def disconnect_port(port_name)
@@ -386,13 +390,13 @@ module Syskit
             # @see each_concrete_input_connection each_concrete_output_connection
             #   each_output_connection
             def each_input_connection(port = nil, &block)
-                relation_graph_for(Flows::DataFlow).
-                    each_in_connection(self, port, &block)
+                relation_graph_for(Flows::DataFlow)
+                    .each_in_connection(self, port, &block)
             end
 
             def each_concrete_input_connection(port = nil, &block)
-                relation_graph_for(Flows::DataFlow).
-                    each_concrete_in_connection(self, port, &block)
+                relation_graph_for(Flows::DataFlow)
+                    .each_concrete_in_connection(self, port, &block)
             end
 
             # Tests if an input port or any input ports is connected to an
@@ -410,8 +414,8 @@ module Syskit
             end
 
             def each_concrete_output_connection(port = nil, &block)
-                relation_graph_for(Flows::DataFlow).
-                    each_concrete_out_connection(self, port, &block)
+                relation_graph_for(Flows::DataFlow)
+                    .each_concrete_out_connection(self, port, &block)
             end
 
             # Tests if an output port or any output ports is connected to an
@@ -435,8 +439,8 @@ module Syskit
             # @yield (see ConnectionGraph#each_out_connection)
             # @yieldparam (see ConnectionGraph#each_out_connection)
             def each_output_connection(port = nil, &block)
-                relation_graph_for(Flows::DataFlow).
-                    each_out_connection(self, port, &block)
+                relation_graph_for(Flows::DataFlow)
+                    .each_out_connection(self, port, &block)
             end
 
             # Returns true if all the declared connections to the inputs of +task+ have been applied.
@@ -448,7 +452,7 @@ module Syskit
                 logger = Runtime::ConnectionManagement
                 each_concrete_input_connection do |source_task, source_port, sink_port, policy|
                     # Our source may not be initialized at all
-                    if !source_task.orocos_task
+                    unless source_task.orocos_task
                         logger.debug do
                             logger.debug "missing input connection because the source task is not ready on port #{sink_port} of"
                             logger.log_pp :debug, self
@@ -466,10 +470,10 @@ module Syskit
 
                     is_connected =
                         ActualDataFlow.has_edge?(source_task.orocos_task, orocos_task) &&
-                        ActualDataFlow.edge_info(source_task.orocos_task, orocos_task).
-                            has_key?([source_port, sink_port])
+                        ActualDataFlow.edge_info(source_task.orocos_task, orocos_task)
+                                      .key?([source_port, sink_port])
 
-                    if !is_connected
+                    unless is_connected
                         logger.debug do
                             logger.debug "missing input connection on port #{sink_port} of"
                             logger.log_pp :debug, self

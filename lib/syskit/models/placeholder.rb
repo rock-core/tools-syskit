@@ -1,3 +1,5 @@
+# frozen_string_literal: true
+
 module Syskit
     module Models
         # @api private
@@ -47,7 +49,8 @@ module Syskit
             end
 
             def each_required_model
-                return enum_for(:each_required_model) if !block_given?
+                return enum_for(:each_required_model) unless block_given?
+
                 if component_model?
                     yield(proxied_component_model)
                 end
@@ -61,8 +64,9 @@ module Syskit
                     return other_model.merge(self)
                 end
 
-                task_model, service_models, other_service_models =
-                    proxied_component_model, proxied_data_service_models, []
+                task_model = proxied_component_model
+                service_models = proxied_data_service_models
+                other_service_models = []
                 if other_model.placeholder?
                     task_model = task_model.merge(other_model.proxied_component_model)
                     other_service_models = other_model.proxied_data_service_models
@@ -100,7 +104,8 @@ module Syskit
             end
 
             def each_port
-                return enum_for(:each_port) if !block_given?
+                return enum_for(:each_port) unless block_given?
+
                 each_output_port { |p| yield(p) }
                 each_input_port { |p| yield(p) }
             end
@@ -122,19 +127,19 @@ module Syskit
             end
 
             def has_port?(name)
-                @input_port_models.has_key?(name.to_s) ||
-                    @output_port_models.has_key?(name.to_s)
+                @input_port_models.key?(name.to_s) ||
+                    @output_port_models.key?(name.to_s)
             end
 
             def update_proxy_mappings
-                @output_port_models = Hash.new
-                @input_port_models = Hash.new
+                @output_port_models = {}
+                @input_port_models = {}
                 each_required_model do |m|
                     m.each_output_port do |port|
-                        (@output_port_models[port.name] ||= Array.new) << port.attach(self)
+                        (@output_port_models[port.name] ||= []) << port.attach(self)
                     end
                     m.each_input_port  do |port|
-                        (@input_port_models[port.name] ||= Array.new) << port.attach(self)
+                        (@input_port_models[port.name] ||= []) << port.attach(self)
                     end
                 end
             end
@@ -146,13 +151,15 @@ module Syskit
             def has_through_method_missing?(m)
                 MetaRuby::DSLs.has_through_method_missing?(
                     self, m,
-                    '_port'.freeze => :has_port?) || super
+                    "_port" => :has_port?
+                ) || super
             end
 
             def find_through_method_missing(m, args)
                 MetaRuby::DSLs.find_through_method_missing(
                     self, m, args,
-                    '_port'.freeze => :find_port) || super
+                    "_port" => :find_port
+                ) || super
             end
 
             include MetaRuby::DSLs::FindThroughMethodMissing
@@ -208,11 +215,11 @@ module Syskit
                     task_model, service_models, =
                         resolve_models_argument(models, component_model: component_model)
 
-                    name_models = service_models.map(&:to_s).sort.join(',')
+                    name_models = service_models.map(&:to_s).sort.join(",")
                     if task_model != Syskit::Component
                         name_models = "#{task_model},#{name_models}"
                     end
-                    model = task_model.specialize(as || ("#{self}<%s>" % [name_models]))
+                    model = task_model.specialize(as || format("#{self}<%s>", name_models))
                     model.abstract
                     model.concrete_model = nil
                     model.include task_extension
@@ -262,7 +269,6 @@ module Syskit
                     end
                 end
 
-
                 # @api private
                 #
                 # Resolves the base task model and set of service models that should be used
@@ -299,6 +305,7 @@ module Syskit
                             if service
                                 raise ArgumentError, "more than one bound data service given: #{service} and #{m}"
                             end
+
                             service = m
                             m.component_model
                         else m
@@ -306,11 +313,11 @@ module Syskit
                     end
                     task_models, service_models = models.partition { |t| t <= Syskit::Component }
                     if task_models.empty?
-                        return Syskit::Component, service_models, service
+                        [Syskit::Component, service_models, service]
                     elsif task_models.size == 1
                         task_model = task_models.first
                         service_models.delete_if { |srv| task_model.fullfills?(srv) }
-                        return task_model, service_models, service
+                        [task_model, service_models, service]
                     else
                         raise ArgumentError, "cannot create a proxy for multiple component models at the same time"
                     end
@@ -318,7 +325,6 @@ module Syskit
             end
             extend Creation
         end
-
     end
 
     # @api private
@@ -342,5 +348,5 @@ module Syskit
     end
 
     # @deprecated has been renamed into Placeholder
-    autoload :PlaceholderTask, 'syskit/models/placeholder_task'
+    autoload :PlaceholderTask, "syskit/models/placeholder_task"
 end

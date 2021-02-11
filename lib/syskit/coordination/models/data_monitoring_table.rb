@@ -1,3 +1,5 @@
+# frozen_string_literal: true
+
 module Syskit
     module Coordination
         module Models
@@ -17,11 +19,11 @@ module Syskit
                 #   obviously match the table's root task model
                 #
                 # @see {attach_to}
-                inherited_attribute(:attachment_point, :attachment_points) { Array.new }
+                inherited_attribute(:attachment_point, :attachment_points) { [] }
 
                 # @return [Array<DataMonitor>] the set of data monitoring
                 #   objects that are defined on this table
-                inherited_attribute(:monitor, :monitors) { Array.new }
+                inherited_attribute(:monitor, :monitors) { [] }
 
                 # Define a new data monitor
                 #
@@ -98,12 +100,14 @@ module Syskit
 
                 def has_through_method_missing?(m)
                     MetaRuby::DSLs.has_through_method_missing?(
-                        root, m, "_port".freeze => :has_port?) || super
+                        root, m, "_port" => :has_port?
+                    ) || super
                 end
 
                 def find_through_method_missing(m, args)
                     MetaRuby::DSLs.find_through_method_missing(
-                        root, m, args, "_port".freeze => :find_port) || super
+                        root, m, args, "_port" => :find_port
+                    ) || super
                 end
 
                 include MetaRuby::DSLs::FindThroughMethodMissing

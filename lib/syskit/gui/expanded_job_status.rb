@@ -1,4 +1,6 @@
-require 'roby/gui/chronicle_widget'
+# frozen_string_literal: true
+
+require "roby/gui/chronicle_widget"
 
 module Syskit
     module GUI
@@ -24,8 +26,8 @@ module Syskit
                 super(parent, auto_resize: false)
 
                 @ui_exception_view = Roby::GUI::ExceptionView.new
-                connect(ui_exception_view, SIGNAL('fileOpenClicked(const QUrl&)'),
-                        self, SIGNAL('fileOpenClicked(const QUrl&)'))
+                connect(ui_exception_view, SIGNAL("fileOpenClicked(const QUrl&)"),
+                        self, SIGNAL("fileOpenClicked(const QUrl&)"))
                 @ui_chronicle = Roby::GUI::ChronicleWidget.new
                 ui_chronicle.show_mode = :in_range
                 ui_chronicle.reverse_sort = true
@@ -35,13 +37,13 @@ module Syskit
                 @job_status = nil
             end
 
-            signals 'fileOpenClicked(const QUrl&)'
+            signals "fileOpenClicked(const QUrl&)"
 
             # Deselect the current job
             #
             # This updates the chronicle to show all tasks
             def deselect
-                disconnect(self, SLOT('exceptionEvent()'))
+                disconnect(self, SLOT("exceptionEvent()"))
                 @job_status = nil
                 ui_chronicle.clear_tasks_info
                 update_exceptions([])
@@ -55,11 +57,11 @@ module Syskit
             # @param [JobStatusDisplay] job_status the job status widget that
             #   represents the job to be selected
             def select(job_status)
-                disconnect(self, SLOT('exceptionEvent()'))
+                disconnect(self, SLOT("exceptionEvent()"))
                 @job_status = job_status
                 ui_chronicle.clear_tasks_info
                 update_exceptions(job_status.exceptions)
-                connect(job_status, SIGNAL('exceptionEvent()'), self, SLOT('exceptionEvent()'))
+                connect(job_status, SIGNAL("exceptionEvent()"), self, SLOT("exceptionEvent()"))
             end
 
             # Add task and job info
@@ -92,7 +94,7 @@ module Syskit
             def exceptionEvent
                 update_exceptions(job_status.exceptions)
             end
-            slots 'exceptionEvent()'
+            slots "exceptionEvent()"
 
             # Update the exception display to display the given exceptions
             def update_exceptions(exceptions)
@@ -107,4 +109,3 @@ module Syskit
         end
     end
 end
-

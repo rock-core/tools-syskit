@@ -1,3 +1,5 @@
+# frozen_string_literal: true
+
 module Syskit
     module Robot
         # A SlaveDeviceInstance represents slave devices, i.e. data services
@@ -45,7 +47,9 @@ module Syskit
                 @service = service
             end
 
-            def task; master_device.task end
+            def task
+                master_device.task
+            end
 
             def period(*args)
                 if args.empty?
@@ -54,6 +58,7 @@ module Syskit
                     super
                 end
             end
+
             def sample_size(*args)
                 if args.empty?
                     super || master_device.sample_size
@@ -61,6 +66,7 @@ module Syskit
                     super
                 end
             end
+
             def burst(*args)
                 if args.empty?
                     super || master_device.burst
@@ -89,4 +95,3 @@ module Syskit
         end
     end
 end
-

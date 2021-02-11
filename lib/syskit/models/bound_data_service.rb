@@ -1,3 +1,5 @@
+# frozen_string_literal: true
+
 module Syskit
     module Models
         # Representation of a data service as provided by a component model
@@ -43,15 +45,30 @@ module Syskit
             # to in the task model
             attr_reader :full_name
 
+            def match
+                Queries::DataServiceMatcher
+                    .new(component_model.match)
+                    .with_name(name)
+                    .with_model(model)
+            end
+
             # True if this service is not a slave service
-            def master?; !@master end
+            def master?
+                !@master
+            end
 
             # True if this is a dynamic service
-            def dynamic?; false end
+            def dynamic?
+                false
+            end
 
-            def to_component_model; component_model.to_component_model end
+            def to_component_model
+                component_model.to_component_model
+            end
 
-            def dependency_injection_names; Array.new end
+            def dependency_injection_names
+                []
+            end
 
             def eql?(other)
                 other.kind_of?(self.class) &&
@@ -64,7 +81,9 @@ module Syskit
                 eql?(other)
             end
 
-            def hash; [self.class, full_name, component_model].hash end
+            def hash
+                [self.class, full_name, component_model].hash
+            end
 
             # The original service from which self has been promoted
             #
@@ -72,8 +91,11 @@ module Syskit
             attr_reader :demoted
 
             def initialize(name, component_model, master, model, port_mappings)
-                @name, @component_model, @master, @model, @port_mappings =
-                    name, component_model, master, model, port_mappings
+                @name = name
+                @component_model = component_model
+                @master = master
+                @model = model
+                @port_mappings = port_mappings
 
                 @full_name =
                     if master
@@ -87,12 +109,12 @@ module Syskit
 
             def initialize_copy(original)
                 super
-                @ports = Hash.new
+                @ports = {}
             end
 
             # (see Component#self_port_to_component_port)
             def self_port_to_component_port(port)
-                return component_model.find_port(port_mappings_for_task[port.name])
+                component_model.find_port(port_mappings_for_task[port.name])
             end
 
             # [Orocos::Spec::TaskContext] the oroGen model for this service's
@@ -103,27 +125,31 @@ module Syskit
 
             def find_output_port(name)
                 name = name.to_str
-                if (mapped = port_mappings_for_task[name]) && (port = component_model.find_output_port(mapped))
-                    ports[name] ||= OutputPort.new(self, port.orogen_model, name)
-                end
+                return unless (mapped_name = port_mappings_for_task[name])
+                return unless (port = component_model.find_output_port(mapped_name))
+
+                ports[name] ||= OutputPort.new(self, port.orogen_model, name)
             end
 
             def find_input_port(name)
                 name = name.to_str
-                if (mapped = port_mappings_for_task[name]) && (port = component_model.find_input_port(mapped))
-                    ports[name] ||= InputPort.new(self, port.orogen_model, name)
-                end
+                return unless (mapped_name = port_mappings_for_task[name])
+                return unless (port = component_model.find_input_port(mapped_name))
+
+                ports[name] ||= InputPort.new(self, port.orogen_model, name)
             end
 
             def each_output_port
-                return enum_for(:each_output_port) if !block_given?
+                return enum_for(:each_output_port) unless block_given?
+
                 orogen_model.each_output_port do |p|
                     yield(find_output_port(p.name))
                 end
             end
 
             def each_input_port
-                return enum_for(:each_input_port) if !block_given?
+                return enum_for(:each_input_port) unless block_given?
+
                 orogen_model.each_input_port do |p|
                     yield(find_input_port(p.name))
                 end
@@ -132,10 +158,12 @@ module Syskit
             # Returns the bound data service object that represents self being
             # attached to a new component model
             def attach(new_component_model, verify: true)
-                if new_component_model == self
-                    return self
-                elsif verify && !new_component_model.fullfills?(component_model)
-                    raise ArgumentError, "cannot attach #{self} on #{new_component_model}: does not fullfill #{component_model}"
+                return self if new_component_model == self
+
+                if verify && !new_component_model.fullfills?(component_model)
+                    raise ArgumentError,
+                          "cannot attach #{self} on #{new_component_model}: "\
+                          "does not fullfill #{component_model}"
                 end
 
                 # NOTE: do NOT use #find_data_service here ! find_data_service
@@ -146,19 +174,17 @@ module Syskit
                 result
             end
 
-            def connect_to(other, policy = Hash.new)
+            def connect_to(other, policy = {})
                 Syskit.connect(self, other, policy)
-            end
-
-            def self_port_to_component_port(port)
-                component_model.find_port(port_mappings_for_task[port.name])
             end
 
             def to_s
                 "#{component_model.short_name}.#{full_name}"
             end
 
-            def inspect; to_s end
+            def inspect
+                to_s
+            end
 
             def short_name
                 "#{component_model.short_name}:#{full_name}"
@@ -208,12 +234,10 @@ module Syskit
 
             # Returns true if self provides all models in models
             def fullfills?(models)
-                if !models.respond_to?(:each)
-                    models = [models]
-                end
+                models = [models] unless models.respond_to?(:each)
                 models.each do |required_m|
                     required_m.each_fullfilled_model do |m|
-                        return false if !self.model.fullfills?(m)
+                        return false unless model.fullfills?(m)
                     end
                 end
                 true
@@ -225,9 +249,7 @@ module Syskit
             def find_port_for_task_port(task_port)
                 task_port_name = task_port.name
                 port_mappings_for_task.each do |service_port_name, port_name|
-                    if port_name == task_port_name
-                        return find_port(service_port_name)
-                    end
+                    return find_port(service_port_name) if port_name == task_port_name
                 end
                 nil
             end
@@ -252,13 +274,14 @@ module Syskit
             #   service_model to the name of a port on {#component_model}
             # @see port_mappings_for_task
             def port_mappings_for(service_model)
-                if !(result = port_mappings[service_model])
-                    raise ArgumentError, "#{service_model} is not provided by #{model.short_name}"
+                unless (result = port_mappings[service_model])
+                    raise ArgumentError,
+                          "#{service_model} is not provided by #{model.short_name}"
                 end
                 result
             end
 
-            def each_data_service(&block)
+            def each_data_service
                 self
             end
 
@@ -283,40 +306,50 @@ module Syskit
             #   that we should bind to. It can itself be a data service
             # @return [Syskit::BoundDataService]
             def bind(task)
-                if task.model == self
-                    # !!! task is a BoundDataService
-                    return task
-                elsif task.model <= component_model # This is stronger than #fullfills?
-                    Syskit::BoundDataService.new(task, self)
-                elsif task.fullfills?(component_model)
-                    # Fullfills, but does not inherit ? component_model may be
-                    # a data service proxies
-                    if component_model.placeholder?
-                        base_model = component_model.superclass
-                        if base_model_srv = base_model.find_data_service(name)
-                            # The data service is from a concrete task model
-                            Syskit::BoundDataService.new(task, base_model_srv)
-                        else
-                            task.find_data_service_from_type(model)
-                        end
-                    # Or maybe we're dealing with dynamic service instanciation
+                return task if task.model == self
+
+                # Shortcut for common case
+                if task.model <= component_model
+                    return Syskit::BoundDataService.new(task, self)
+                end
+
+                unless task.fullfills?(component_model)
+                    raise ArgumentError,
+                          "cannot bind #{self} on #{task}: "\
+                          "does not fullfill #{component_model}"
+                end
+
+                # Fullfills, but does not inherit ? component_model may be
+                # a data service proxies
+                if component_model.placeholder?
+                    base_model = component_model.superclass
+                    if (base_model_srv = base_model.find_data_service(name))
+                        # The data service is from a concrete task model
+                        Syskit::BoundDataService.new(task, base_model_srv)
                     else
-                        resolved = task.find_data_service(name)
-                        if resolved && resolved.model.same_service?(self)
-                            return resolved
-                        else
-                            raise InternalError, "#{component_model} is fullfilled by #{task}, but is not inherited by its model #{task.model}. I didn't manage to resolve this, either as a task-to-placeholder mapping, or as a dynamic service"
-                        end
+                        task.find_data_service_from_type(model)
                     end
+                # Or maybe we're dealing with dynamic service instanciation
                 else
-                    raise ArgumentError, "cannot bind #{self} on #{task}: does not fullfill #{component_model}"
+                    resolved = task.find_data_service(name)
+                    if !resolved || !resolved.model.same_service?(self)
+                        raise InternalError,
+                              "#{component_model} is fullfilled by #{task}, "\
+                              "but is not inherited by its model #{task.model}. "\
+                              "I didn't manage to resolve this, either as a "\
+                              "task-to-placeholder mapping, or as a dynamic service"
+                    end
+
+                    resolved
                 end
             end
 
             # @deprecated use {#bind} instead
             def resolve(task)
-                Roby.warn_deprecated "#{__method__} is deprecated, use "\
+                Roby.warn_deprecated(
+                    "#{__method__} is deprecated, use "\
                     "BoundDataService#bind instead"
+                )
                 bind(task)
             end
 
@@ -324,7 +357,7 @@ module Syskit
             # the given context, and returns the instanciated data service
             #
             # @return [Syskit::BoundDataService]
-            def instanciate(plan, context = DependencyInjectionContext.new, options = Hash.new)
+            def instanciate(plan, context = DependencyInjectionContext.new, options = {})
                 bind(component_model.instanciate(plan, context, options))
             end
 
@@ -339,7 +372,8 @@ module Syskit
             end
 
             def each_required_model
-                return enum_for(:each_required_model) if !block_given?
+                return enum_for(:each_required_model) unless block_given?
+
                 yield(model)
             end
 
@@ -354,21 +388,22 @@ module Syskit
 
             def find_data_service(name)
                 component_model.each_slave_data_service(self) do |slave_m|
-                    if slave_m.name == name
-                        return slave_m
-                    end
+                    return slave_m if slave_m.name == name
                 end
                 nil
             end
 
             def has_through_method_missing?(m)
                 MetaRuby::DSLs.has_through_method_missing?(
-                    self, m, '_srv'.freeze => :has_data_service?) || super
+                    self, m, "_srv" => :has_data_service?
+                ) || super
             end
+
             def find_through_method_missing(m, args)
                 MetaRuby::DSLs.find_through_method_missing(
                     self, m, args,
-                    '_srv'.freeze => :find_data_service) || super
+                    "_srv" => :find_data_service
+                ) || super
             end
 
             # Whether two services are the same service bound to two different interfaces
@@ -391,7 +426,7 @@ module Syskit
             # @param [BoundDataService] other
             # @return [Boolean]
             def same_service?(other)
-                other.demoted == self.demoted
+                other.demoted == demoted
             end
 
             # The selection object that represents self being selected for
@@ -401,21 +436,32 @@ module Syskit
             #   for which self is being selected
             # @return [InstanceSelection]
             def selected_for(requirements)
-                InstanceSelection.new(nil, self.to_instance_requirements, requirements.to_instance_requirements)
+                InstanceSelection.new(
+                    nil, to_instance_requirements,
+                    requirements.to_instance_requirements
+                )
             end
 
             DRoby = Struct.new :name, :component_model, :master, :model do
                 def proxy(peer)
                     component_model = peer.local_object(self.component_model)
-                    if srv = component_model.find_data_service(name)
-                        return srv
+                    if (srv = component_model.find_data_service(name))
+                        srv
                     else
-                        BoundDataService.new(name, component_model, peer.local_object(master), peer.local_object(model), Hash.new)
+                        BoundDataService.new(
+                            name, component_model,
+                            peer.local_object(master), peer.local_object(model),
+                            {}
+                        )
                     end
                 end
             end
+
             def droby_dump(peer)
-                DRoby.new(name, peer.dump(component_model), peer.dump(master), peer.dump(model))
+                DRoby.new(
+                    name, peer.dump(component_model),
+                    peer.dump(master), peer.dump(model)
+                )
             end
         end
     end

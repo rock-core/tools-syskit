@@ -1,6 +1,8 @@
-require 'vizkit'
-require 'Qt4'
-require 'syskit/gui/logging_configuration_item_base'
+# frozen_string_literal: true
+
+require "vizkit"
+require "Qt4"
+require "syskit/gui/logging_configuration_item_base"
 
 module Syskit
     module GUI
@@ -8,11 +10,11 @@ module Syskit
         # in a tree view
         class LoggingGroupsItem < LoggingConfigurationItemBase
             attr_reader :items_name, :items_value
-            def initialize(logging_groups, label = '')
+            def initialize(logging_groups, label = "")
                 super(logging_groups)
 
-                @items_name = Hash.new
-                @items_value = Hash.new
+                @items_name = {}
+                @items_value = {}
 
                 setText label
                 update_groups(logging_groups)
@@ -21,7 +23,7 @@ module Syskit
             # Updates the model according to a new hash
             def update_groups(groups)
                 @current_model.keys.each do |key|
-                    if !groups.key? key
+                    unless groups.key? key
                         group_row = @items_name[key].index.row
                         @items_name[key].clear
                         @items_value[key].clear
@@ -35,7 +37,7 @@ module Syskit
                 @editing_model = deep_copy(groups)
 
                 @current_model.keys.each do |key|
-                    if !@items_name.key? key
+                    unless @items_name.key? key
                         @items_name[key], @items_value[key] = add_conf_item(key)
                         @items_value[key].getter do
                             @editing_model[key].enabled

@@ -1,3 +1,5 @@
+# frozen_string_literal: true
+
 module Syskit
     module Coordination
         module Models
@@ -28,11 +30,11 @@ module Syskit
                 #   block
                 # @param [#call] predicate_block the predicate object. See the
                 #   documentation of {#block}
-                def initialize(data_streams, predicate_block, arguments = Hash.new)
+                def initialize(data_streams, predicate_block, arguments = {})
                     check_arity(predicate_block, data_streams.size)
 
                     @arguments = arguments
-                    @stream_to_index = Hash.new
+                    @stream_to_index = {}
                     data_streams.each_with_index do |s, idx|
                         stream_to_index[s] = idx
                     end
@@ -62,10 +64,11 @@ module Syskit
                 # Called to know whether this predicate matched or not
                 # @return [Boolean]
                 def finalize
-                    return if !has_new_sample?
+                    return unless has_new_sample?
 
-                    if !@full
+                    unless @full
                         return if samples.compact.size != samples.size
+
                         @full = true
                     end
                     @new_samples = false
@@ -73,17 +76,18 @@ module Syskit
                 end
 
                 def respond_to_missing?(m, include_private)
-                    arguments.has_key?(m) || super
+                    arguments.key?(m) || super
                 end
 
                 def method_missing(m, *args)
-                    if arguments.has_key?(m)
-                        if !args.empty?
+                    if arguments.key?(m)
+                        unless args.empty?
                             raise ArgumentError, "#{args.size} provided to #{m}, zero expected"
                         end
+
                         return arguments[m]
                     end
-                    return super
+                    super
                 end
             end
         end

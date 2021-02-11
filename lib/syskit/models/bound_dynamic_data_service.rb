@@ -1,3 +1,5 @@
+# frozen_string_literal: true
+
 module Syskit
     module Models
         # Representation of instanciated dynamic services
@@ -33,5 +35,3 @@ module Syskit
         end
     end
 end
-
-

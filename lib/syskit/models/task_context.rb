@@ -1,6 +1,9 @@
+# frozen_string_literal: true
+
 # Module where all the OroGen task context models get registered
 module OroGen
     extend Syskit::OroGenNamespace
+    Deployments = Syskit::OroGenNamespace::DeploymentNamespace.new
 
     self.syskit_model_constant_registration = true
 end
@@ -45,10 +48,11 @@ module Syskit
 
                 if name = self.name
                     return if name !~ /^OroGen::/
-                    name = name.gsub(/^OroGen::/, '')
+
+                    name = name.gsub(/^OroGen::/, "")
                     begin
                         if constant("::#{name}") == self
-                            spacename = self.spacename.gsub(/^OroGen::/, '')
+                            spacename = self.spacename.gsub(/^OroGen::/, "")
                             constant("::#{spacename}").send(:remove_const, basename)
                         end
                     rescue NameError
@@ -66,9 +70,11 @@ module Syskit
                 orogen_model.each_state(with_superclass: with_superclass) do |name, type|
                     event_name = name.snakecase.downcase.to_sym
                     if type == :toplevel
-                        event event_name, terminal: (name == 'EXCEPTION' || name == 'FATAL_ERROR')
+                        event event_name,
+                              terminal: %w[EXCEPTION FATAL_ERROR].include?(name)
                     else
-                        event event_name, terminal: (type == :exception || type == :fatal_error)
+                        event event_name,
+                              terminal: %i[exception fatal_error].include?(type)
                         if type == :fatal
                             forward event_name => :fatal_error
                         elsif type == :exception
@@ -78,7 +84,7 @@ module Syskit
                         end
                     end
 
-                    self.state_events[name.to_sym] = event_name
+                    state_events[name.to_sym] = event_name
                 end
             end
 
@@ -91,12 +97,13 @@ module Syskit
                 end
 
                 superclass = orogen_model.superclass
-                if !superclass # we are defining a root model
-                    supermodel = self
-                else
-                    supermodel = find_model_by_orogen(superclass) ||
-                        define_from_orogen(superclass, register: register)
-                end
+                supermodel =
+                    if superclass # we are defining a root model
+                        find_model_by_orogen(superclass) ||
+                            define_from_orogen(superclass, register: register)
+                    else
+                        self
+                    end
                 klass = supermodel.new_submodel(orogen_model: orogen_model)
 
                 klass.register_model if register && orogen_model.name
@@ -121,7 +128,7 @@ module Syskit
             # A state_name => event_name mapping that maps the component's
             # state names to the event names that should be emitted when it
             # enters a new state.
-            inherited_attribute(:state_event, :state_events, map: true) { Hash.new }
+            inherited_attribute(:state_event, :state_events, map: true) { {} }
 
             # Create a new TaskContext model
             #
@@ -131,7 +138,7 @@ module Syskit
             # @option options [Orocos::Spec::TaskContext, Orocos::ROS::Spec::Node] orogen_model (nil) the
             #   oroGen model that should be used. If not given, an empty model
             #   is created, possibly with the name given to the method as well.
-            def new_submodel(options = Hash.new, &block)
+            def new_submodel(**options, &block)
                 super
             end
 
@@ -145,14 +152,15 @@ module Syskit
             # @param [String] name an optional name for this submodel
             # @return [void]
             def setup_submodel(submodel,
-                    orogen_model: nil,
-                    orogen_model_name: submodel.name,
-                    **options)
+                orogen_model: nil,
+                orogen_model_name: submodel.name,
+                **options)
 
                 unless orogen_model
                     orogen_model = self.orogen_model.class.new(
                         Roby.app.default_orogen_project, orogen_model_name,
-                        subclasses: self.orogen_model)
+                        subclasses: self.orogen_model
+                    )
                     orogen_model.extended_state_support
                 end
                 submodel.orogen_model = orogen_model
@@ -177,7 +185,7 @@ module Syskit
             #
             # @return [TaskConfigurationManager]
             def configuration_manager
-                if !@configuration_manager
+                unless @configuration_manager
                     if !concrete_model?
                         manager = concrete_model.configuration_manager
                     else
@@ -196,22 +204,27 @@ module Syskit
             # service's orogen model
             def merge_service_model(service_model, port_mappings)
                 Syskit::Models.merge_orogen_task_context_models(
-                    orogen_model, [service_model.orogen_model], port_mappings)
+                    orogen_model, [service_model.orogen_model], port_mappings
+                )
+            end
+
+            def to_deployment_group(name, **options)
+                group = Models::DeploymentGroup.new
+                group.use_deployment(self => name, **options)
+                group
             end
 
             # Return the instance requirement object that runs this task
             # model with the given name
             def deployed_as(name, **options)
-                to_instance_requirements
-                    .use_deployment(self => name, **options)
+                to_instance_requirements.deployed_as(name, **options)
             end
 
             # Return the instance requirement object that will hook onto
             # an otherwise started component of the given name
             # model with the given name
             def deployed_as_unmanaged(name, **options)
-                to_instance_requirements
-                    .use_unmanaged_task(self => name, **options)
+                to_instance_requirements.deployed_as_unmanaged(name, **options)
             end
         end
     end

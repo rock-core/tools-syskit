@@ -1,3 +1,5 @@
+# frozen_string_literal: true
+
 module Syskit
     module Models
         # Representation of a dynamic service registered with
@@ -18,7 +20,10 @@ module Syskit
             attr_predicate :remove_when_unused?
 
             def initialize(component_model, name, service_model, block, addition_requires_reconfiguration: true, remove_when_unused: false)
-                @component_model, @name, @service_model, @block = component_model, name, service_model, block
+                @component_model = component_model
+                @name = name
+                @service_model = service_model
+                @block = block
                 @addition_requires_reconfiguration = addition_requires_reconfiguration
                 @remove_when_unused = remove_when_unused
                 @demoted = self
@@ -68,19 +73,21 @@ module Syskit
                 attr_reader :options
 
                 def initialize(component_model, name, dynamic_service, **options)
-                    @component_model, @name, @dynamic_service, @options =
-                        component_model, name, dynamic_service, options
+                    @component_model = component_model
+                    @name = name
+                    @dynamic_service = dynamic_service
+                    @options = options
                 end
 
                 # Proxy to declare a new argument on the (specialized) component
                 # model
                 #
                 # @param (see Roby::Models::Task#argument)
-                def argument(name, options = Hash.new)
-                    component_model.argument(name, options)
+                def argument(name, **options)
+                    component_model.argument(name, **options)
                 end
 
-                def driver_for(device_model, port_mappings = Hash.new, **options)
+                def driver_for(device_model, port_mappings = {}, **options)
                     dserv = provides(device_model, port_mappings, **options)
                     component_model.argument "#{dserv.name}_dev"
                     dserv
@@ -88,30 +95,41 @@ module Syskit
 
                 # Proxy for component_model#provides which does some sanity
                 # checks
-                def provides(service_model, port_mappings = Hash.new, as: nil, **arguments)
+                def provides(service_model, port_mappings = {}, as: nil, **arguments)
                     if service
-                        raise ArgumentError, "this dynamic service instantiation block already created one new service"
+                        raise ArgumentError,
+                              "this dynamic service instantiation block already "\
+                              "created one new service"
                     end
 
-                    if !service_model.fullfills?(dynamic_service.service_model)
-                        raise ArgumentError, "#{service_model.short_name} does not fullfill the model for the dynamic service #{dynamic_service.name}, #{dynamic_service.service_model.short_name}"
+                    unless service_model.fullfills?(dynamic_service.service_model)
+                        raise ArgumentError,
+                              "#{service_model.short_name} does not fullfill the "\
+                              "model for the dynamic service #{dynamic_service.name}, "\
+                              "#{dynamic_service.service_model.short_name}"
                     end
 
                     if as && as != name
-                        raise ArgumentError, "the as: argument was given (with value #{as}) but it is required to be #{name}. Note that it can be omitted in a dynamic service block"
+                        raise ArgumentError,
+                              "the as: argument was given (with value #{as}) but it "\
+                              "is required to be #{name}. Note that it can be omitted "\
+                              "in a dynamic service block"
                     end
-                    @service = component_model.provides_dynamic(
-                        service_model, port_mappings, as: name,
-                        bound_service_class: BoundDynamicDataService, **arguments)
-                    service.dynamic_service = dynamic_service
-                    service.dynamic_service_options = self.options.dup
-                    service
 
+                    ## WORKAROUND FOR RUBY 2.7
+                    Roby.sanitize_keywords_to_hash(port_mappings, arguments)
+                    @service = component_model.provides_dynamic(
+                        service_model, port_mappings,
+                        as: name,
+                        bound_service_class: BoundDynamicDataService, **arguments
+                    )
+                    service.dynamic_service = dynamic_service
+                    service.dynamic_service_options = options.dup
+                    service
                 rescue InvalidPortMapping => e
                     raise InvalidProvides.new(component_model, service_model, e), "while instanciating the dynamic service #{dynamic_service}: #{e}", e.backtrace
                 end
             end
-
 
             # Instanciates a new bound dynamic service on the underlying
             # component
@@ -123,9 +141,10 @@ module Syskit
             def instanciate(name, **options)
                 instantiator = component_model.create_dynamic_instantiation_context(name, self, **options)
                 instantiator.instance_eval(&block)
-                if !instantiator.service
+                unless instantiator.service
                     raise InvalidDynamicServiceBlock.new(self), "the block #{block} used to instantiate the dynamic service #{name} on #{component_model.short_name} with options #{options} did not provide any service"
                 end
+
                 instantiator.service
             end
 
@@ -135,15 +154,15 @@ module Syskit
             # @return [Hash{String=>String}] the updated port mappings
             def self.update_component_model_interface(component_model, service_model, user_port_mappings)
                 user_port_mappings = user_port_mappings.dup
-                port_mappings = Hash.new
+                port_mappings = {}
                 service_model.each_output_port do |service_port|
-                    port_mappings[service_port.name] = directional_port_mapping(component_model, 'output', service_port, user_port_mappings.delete(service_port.name))
+                    port_mappings[service_port.name] = directional_port_mapping(component_model, "output", service_port, user_port_mappings.delete(service_port.name))
                 end
                 service_model.each_input_port do |service_port|
-                    port_mappings[service_port.name] = directional_port_mapping(component_model, 'input', service_port, user_port_mappings.delete(service_port.name))
+                    port_mappings[service_port.name] = directional_port_mapping(component_model, "input", service_port, user_port_mappings.delete(service_port.name))
                 end
 
-                if !user_port_mappings.empty?
+                unless user_port_mappings.empty?
                     raise Syskit::InvalidPortMapping, "port mappings #{user_port_mappings} do not match either the ports of #{service_model} or the ports of #{component_model}"
                 end
 
@@ -165,19 +184,20 @@ module Syskit
                     end
                 else
                     expected_name = component_model.find_directional_port_mapping(direction, port, nil)
-                    if !expected_name
+                    unless expected_name
                         raise InvalidPortMapping, "no explicit mapping has been given for the service port #{port.name} and no port on #{component_model.short_name} matches. You must give an explicit mapping of the form 'service_port_name' => 'task_port_name' if you expect the port to be dynamically created."
                     end
+
                     return expected_name
                 end
 
                 # Now verify that the rest can be instanciated
-                if !component_model.send("has_dynamic_#{direction}_port?", expected_name, port.type)
+                unless component_model.send("has_dynamic_#{direction}_port?", expected_name, port.type)
                     raise InvalidPortMapping, "there are no dynamic #{direction} ports declared in #{component_model.short_name} that match #{expected_name}:#{port.type_name}"
                 end
-                return expected_name
+
+                expected_name
             end
         end
     end
 end
-

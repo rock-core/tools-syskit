@@ -1,8 +1,10 @@
-require 'syskit/gui/model_browser'
-require 'syskit/gui/page'
-require 'syskit/gui/html_page'
-require 'syskit/gui/component_network_view'
-require 'metaruby/gui/exception_view'
+# frozen_string_literal: true
+
+require "syskit/gui/model_browser"
+require "syskit/gui/page"
+require "syskit/gui/html_page"
+require "syskit/gui/component_network_view"
+require "metaruby/gui/exception_view"
 
 module Syskit
     module GUI
@@ -48,7 +50,7 @@ module Syskit
                 splitter.add_widget exception_view
                 splitter.set_stretch_factor 1, 1
 
-                @apply_btn.connect(SIGNAL('clicked()')) do
+                @apply_btn.connect(SIGNAL("clicked()")) do
                     Roby.app.clear_exceptions
                     Roby.app.reload_models
                     compute
@@ -82,7 +84,7 @@ module Syskit
                 end
                 rendering.render_plan
             end
-            slots 'compute()'
+            slots "compute()"
 
             def self.parse_passes(remaining)
                 passes = []
@@ -95,7 +97,7 @@ module Syskit
                         current << name
                     end
                 end
-                if !current.empty?
+                unless current.empty?
                     passes << current
                 end
                 passes
@@ -110,11 +112,11 @@ module Syskit
                 end
                 passes.each do |actions|
                     requirement_tasks = actions.map do |action_name|
-                        action_name = action_name.gsub(/!$/, '')
+                        action_name = action_name.gsub(/!$/, "")
                         begin
                             _, act = ::Robot.action_from_name(action_name)
                         rescue ArgumentError
-                            act = eval(action_name).to_action
+                            act = eval(action_name).to_action # rubocop:disable Security/Eval
                         end
 
                         # Instanciate the action, and find out if it is actually
@@ -123,6 +125,7 @@ module Syskit
                         if !(planner = task.planning_task) || !planner.respond_to?(:requirements)
                             raise ArgumentError, "#{action_name} is not an action created from a Syskit definition or device"
                         end
+
                         plan.add_mission_task(task)
                         task
                     end
@@ -156,4 +159,3 @@ module Syskit
         end
     end
 end
-

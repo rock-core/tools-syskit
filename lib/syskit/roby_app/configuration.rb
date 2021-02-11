@@ -1,5 +1,7 @@
-require 'orocos/ruby_process_server'
-require 'orocos/remote_processes/client'
+# frozen_string_literal: true
+
+require "orocos/ruby_process_server"
+require "orocos/remote_processes/client"
 module Syskit
     module RobyApp
         # Syskit engine configuration interface
@@ -69,7 +71,7 @@ module Syskit
                 super()
 
                 @app = app
-                @process_servers = Hash.new
+                @process_servers = {}
                 @load_component_extensions = true
                 @redirect_local_process_server = true
                 @reject_ambiguous_deployments = true
@@ -129,7 +131,7 @@ module Syskit
             # @deprecated access {#logs} for logging configuration
             def default_logging_buffer_size=(size)
                 Roby.warn_deprecated "logging configuration has been moved to Syskit.conf.logs (of type LoggingConfiguration)"
-                logs.default_logging_buffer_size=size
+                logs.default_logging_buffer_size = size
             end
 
             # @deprecated access {#logs} for logging configuration
@@ -170,12 +172,12 @@ module Syskit
             # log_dir/local_process_server.txt
             attr_predicate :redirect_local_process_server?, true
 
-
             # @deprecated access {#logs} for logging configuration
             def enable_logging
                 Roby.warn_deprecated "logging configuration has been moved to Syskit.conf.logs (of type LoggingConfiguration)"
                 logs.enable_port_logging
             end
+
             # @deprecated access {#logs} for logging configuration
             def disable_logging
                 Roby.warn_deprecated "logging configuration has been moved to Syskit.conf.logs (of type LoggingConfiguration)"
@@ -254,7 +256,9 @@ module Syskit
             attr_accessor :prefix
 
             # True if deployments are going to be started with a prefix
-            def prefixing?; !!prefix end
+            def prefixing?
+                !!prefix
+            end
 
             # A set of regular expressions that should match the names of the
             # deployments that should not be prefixed even if {#prefix} is set
@@ -314,7 +318,7 @@ module Syskit
                 sim_name = "#{name}-sim"
                 unless process_servers[sim_name]
                     mng = Orocos::RubyTasks::ProcessManager.new(app.default_loader,
-                        task_context_class: Orocos::RubyTasks::StubTaskContext)
+                                                                task_context_class: Orocos::RubyTasks::StubTaskContext)
                     register_process_server(sim_name, mng, "")
                 end
                 process_server_config_for(sim_name)
@@ -326,7 +330,7 @@ module Syskit
             # @return {String=>String} the set of default options that should be
             #   used when starting the given deployment
             def default_run_options(deployment_model)
-                result = Hash.new
+                result = {}
                 if prefix = default_prefix(deployment_model)
                     result["prefix"] = prefix
                 end
@@ -342,13 +346,14 @@ module Syskit
             # @return [String,nil] the prefix that should be used when starting
             #   this deployment, or nil if there should be none
             def default_prefix(deployment_model)
-                return if !prefix
+                return unless prefix
+
                 deployment_name = deployment_model.deployment_name
 
                 exclude = prefix_blacklist.any? do |pattern|
                     pattern === deployment_name
                 end
-                if !exclude
+                unless exclude
                     "#{prefix}_"
                 end
             end
@@ -358,7 +363,8 @@ module Syskit
             # @return [String,nil] the SD domain on which this deployment should
             #   be published, or nil if none
             def default_sd_domain(deployment_model)
-                return if !sd_domain
+                return unless sd_domain
+
                 deployment_name = deployment_model.name
 
                 publish = publish_white_list.any? do |pattern|
@@ -390,11 +396,13 @@ module Syskit
             # @raise [UnknownProcessServer] if no such process server exists
             # @return [ProcessServerConfig]
             def process_server_config_for(name)
-                config = process_servers[name]
-                if config then config
-                else
-                    raise UnknownProcessServer, "there is no registered process server called #{name}"
+                unless (config = process_servers[name])
+                    raise UnknownProcessServer,
+                          "there is no registered process server called #{name}, "\
+                          "existing servers are: #{process_servers.keys.sort.join(', ')}"
                 end
+
+                config
             end
 
             # Returns the process server object named +name+
@@ -417,7 +425,8 @@ module Syskit
             #   as an object that conforms to orocos.rb's process server API
             # @return [void]
             def each_process_server
-                return enum_for(__method__) if !block_given?
+                return enum_for(__method__) unless block_given?
+
                 process_servers.each_value do |config|
                     yield(config.client)
                 end
@@ -441,8 +450,8 @@ module Syskit
                 def wait_termination(timeout = 0)
                     []
                 end
-                def disconnect
-                end
+
+                def disconnect; end
             end
 
             # Call to declare a new process server and add to the set of servers that
@@ -460,52 +469,71 @@ module Syskit
             #   registered with that name
             def connect_to_orocos_process_server(
                 name, host, port: Orocos::RemoteProcesses::DEFAULT_PORT,
-                log_dir: nil, result_dir: nil, host_id: nil)
+                log_dir: nil, result_dir: nil, host_id: nil,
+                name_service: Orocos.name_service
+            )
 
                 if log_dir || result_dir
-                    Syskit.warn "specifying log and/or result dir for remote process servers is deprecated. Use 'syskit process_server' instead of 'orocos_process_server' which will take the log dir information from the environment/configuration"
+                    Syskit.warn(
+                        "specifying log and/or result dir for remote process servers "\
+                        "is deprecated. Use 'syskit process_server' instead of "\
+                        "'orocos_process_server' which will take the log dir "\
+                        "information from the environment/configuration"
+                    )
                 end
 
                 if only_load_models? || (app.simulation? && app.single?)
                     client = ModelOnlyServer.new(app.default_loader)
-                    register_process_server(name, client, app.log_dir, host_id: host_id || 'syskit')
+                    register_process_server(
+                        name, client, app.log_dir, host_id: host_id || "syskit"
+                    )
                     return client
                 elsif app.single?
                     client = Orocos::RemoteProcesses::Client.new(
-                        'localhost', port, root_loader: app.default_loader)
-                    register_process_server(name, client, app.log_dir, host_id: host_id || 'localhost')
+                        "localhost", port, root_loader: app.default_loader
+                    )
+                    register_process_server(
+                        name, client, app.log_dir, host_id: host_id || "localhost"
+                    )
                     return client
                 end
 
-                if local_only? && host != 'localhost'
-                    raise LocalOnlyConfiguration, "in local only mode, one can only connect to process servers on 'localhost' (got #{host})"
+                if local_only? && host != "localhost"
+                    raise LocalOnlyConfiguration,
+                          "in local only mode, one can only connect to process "\
+                          "servers on 'localhost' (got #{host})"
                 elsif process_servers[name]
-                    raise AlreadyConnected, "we are already connected to a process server called #{name}"
+                    raise AlreadyConnected,
+                          "we are already connected to a process server called #{name}"
                 end
 
-                if host =~ /^(.*):(\d+)$/
-                    host = $1
-                    port = Integer($2)
+                if (m = /^(.*):(\d+)$/.match(host))
+                    host = m[1]
+                    port = Integer(m[2])
                 end
 
-                if host == 'localhost'
-                    self.disables_local_process_server = true
-                end
+                self.disables_local_process_server = (host == "localhost")
 
                 client = Orocos::RemoteProcesses::Client.new(
-                    host, port, root_loader: app.default_loader)
-                client.create_log_dir(log_dir, Roby.app.time_tag, Hash['parent' => Roby.app.app_metadata])
+                    host, port,
+                    root_loader: app.default_loader,
+                    name_service: name_service
+                )
+                client.create_log_dir(
+                    log_dir, Roby.app.time_tag,
+                    { "parent" => Roby.app.app_metadata }
+                )
                 register_process_server(name, client, log_dir, host_id: host_id || name)
                 client
             end
 
             ProcessServerConfig = Struct.new :name, :client, :log_dir, :host_id do
                 def on_localhost?
-                    host_id == 'localhost' || host_id == 'syskit'
+                    host_id == "localhost" || host_id == "syskit"
                 end
 
                 def in_process?
-                    host_id == 'syskit'
+                    host_id == "syskit"
                 end
 
                 def loader
@@ -537,7 +565,7 @@ module Syskit
             # @raise ArgumentError if there is no process server with that name
             def remove_process_server(name)
                 ps = process_servers.delete(name)
-                if !ps
+                unless ps
                     raise ArgumentError, "there is no registered process server called #{name}"
                 end
 
@@ -549,29 +577,36 @@ module Syskit
             end
 
             def clear_deployments
-                #Roby.warn_deprecated "conf.clear_deployments is deprecated, use the profile-level deployment API"
+                # Roby.warn_deprecated "conf.clear_deployments is deprecated, use the profile-level deployment API"
                 @deployment_group = Models::DeploymentGroup.new
             end
 
-            def use_ruby_tasks(mappings, on: 'ruby_tasks', remote_task: false)
-                deployment_group.use_ruby_tasks(mappings, on: on,
-                    remote_task: remote_task, process_managers: self)
+            def use_ruby_tasks(mappings, on: "ruby_tasks", remote_task: false)
+                deployment_group.use_ruby_tasks(
+                    mappings, on: on, remote_task: remote_task, process_managers: self
+                )
             end
 
-            def use_unmanaged_task(mappings, on: 'unmanaged_tasks')
-                deployment_group.use_unmanaged_task(mappings, on: on,
-                    process_managers: self)
+            def use_unmanaged_task(mappings, on: "unmanaged_tasks")
+                deployment_group.use_unmanaged_task(
+                    mappings, on: on, process_managers: self
+                )
             end
 
-            def use_deployment(*names, on: 'localhost', **run_options)
-                deployment_group.use_deployment(*names, on: on,
-                    process_managers: self, loader: app.default_loader,
-                    **run_options)
+            def use_deployment(*names, on: "localhost", **run_options)
+                Roby.sanitize_keywords_to_array(names, run_options)
+                deployment_group.use_deployment(
+                    *names, on: on, process_managers: self,
+                            loader: app.default_loader, **run_options
+                )
             end
 
-            def use_deployments_from(*names, on: 'localhost', **run_options)
-                deployment_group.use_deployment(*names, on: on,
-                    process_managers: self, loader: app.default_loader, **run_options)
+            def use_deployments_from(*names, on: "localhost", **run_options)
+                Roby.sanitize_keywords_to_array(names, run_options)
+                deployment_group.use_deployment(
+                    *names, on: on, process_managers: self,
+                            loader: app.default_loader, **run_options
+                )
             end
 
             def register_configured_deployment(configured_deployment)

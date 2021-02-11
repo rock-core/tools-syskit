@@ -1,3 +1,5 @@
+# frozen_string_literal: true
+
 module Syskit
     # Representation of a component port on a component instance.
     #
@@ -11,27 +13,40 @@ module Syskit
         attr_reader :model
         # The component model this port is part of
         attr_reader :component
-        # The port name
-        def name; model.name end
-        # The port type
-        def type; model.type end
 
-        def ==(other_port)
-            other_port.class == self.class &&
-                other_port.model == self.model &&
-                other_port.component == self.component
+        # The port name
+        def name
+            model.name
+        end
+
+        # The port type
+        def type
+            model.type
+        end
+
+        def ==(other)
+            other.class == self.class &&
+                other.model == model &&
+                other.component == component
         end
 
         def initialize(model, component)
-            @model, @component = model, component
+            @model = model
+            @component = component
         end
 
-        def hash; component.hash | name.hash end
+        def hash
+            component.hash | name.hash
+        end
+
         def eql?(other)
             self == other
         end
 
-        def inspect; to_s end
+        def inspect
+            to_s
+        end
+
         def pretty_print(pp)
             pp.text "port #{name} of "
             component.pretty_print(pp)
@@ -44,9 +59,11 @@ module Syskit
         #   InstanceRequirements are not associated with a component port)
         # @return [Port] the resolved port
         def to_component_port
-            if !component.respond_to?(:self_port_to_component_port)
-                raise ArgumentError, "cannot call #to_component_port on ports of #{component}"
+            unless component.respond_to?(:self_port_to_component_port)
+                raise ArgumentError,
+                      "cannot call #to_component_port on ports of #{component}"
             end
+
             component.self_port_to_component_port(self)
         end
 
@@ -72,21 +89,31 @@ module Syskit
         end
 
         # Connects this port to the other given port, using the given policy
-        def connect_to(in_port, policy = Hash.new)
-            out_port = self.to_component_port
+        def connect_to(in_port, policy = {})
+            out_port = to_component_port
             if out_port == self
                 if in_port.respond_to?(:to_component_port)
                     in_port = in_port.to_component_port
                     if !output?
-                        raise WrongPortConnectionDirection.new(self, in_port), "cannot connect #{self} to #{in_port}: #{self} is not an output port"
+                        raise WrongPortConnectionDirection.new(self, in_port),
+                              "cannot connect #{self} to #{in_port}: "\
+                              "#{self} is not an output port"
                     elsif !in_port.input?
-                        raise WrongPortConnectionDirection.new(self, in_port), "cannot connect #{self} to #{in_port}: #{in_port} is not an input port"
+                        raise WrongPortConnectionDirection.new(self, in_port),
+                              "cannot connect #{self} to #{in_port}: "\
+                              "#{in_port} is not an input port"
                     elsif component == in_port.component
-                        raise SelfConnection.new(self, in_port), "cannot connect #{self} to #{in_port}: they are both ports of the same component"
-                    elsif self.type != in_port.type
-                        raise WrongPortConnectionTypes.new(self, in_port), "cannot connect #{self} to #{in_port}: types mismatch"
+                        raise SelfConnection.new(self, in_port),
+                              "cannot connect #{self} to #{in_port}: "\
+                              "they are both ports of the same component"
+                    elsif type != in_port.type
+                        raise WrongPortConnectionTypes.new(self, in_port),
+                              "cannot connect #{self} to #{in_port}: types mismatch"
                     end
-                    component.connect_ports(in_port.component, [name, in_port.name] => policy)
+                    component.connect_ports(
+                        in_port.component,
+                        [name, in_port.name] => policy
+                    )
                 else
                     Syskit.connect self, in_port, policy
                 end
@@ -97,24 +124,23 @@ module Syskit
         end
 
         def disconnect_from(in_port)
-            out_port = self.to_component_port
-            if out_port == self
-                in_port = in_port.to_component_port
-                component.disconnect_ports(in_port.component, [[out_port.name, in_port.name]])
-            else
-                out_port.disconnect_from(in_port)
-            end
+            out_port = to_component_port
+            return out_port.disconnect_from(in_port) if out_port != self
+
+            in_port = in_port.to_component_port
+            component.disconnect_ports(
+                in_port.component, [[out_port.name, in_port.name]]
+            )
         end
 
         def connected_to?(in_port)
-            out_port = self.to_component_port
-            if out_port == self
-                in_port = in_port.to_component_port
-                component.child_object?(in_port.component, Flows::DataFlow) &&
-                    component[in_port.component, Flows::DataFlow].has_key?([out_port.name, in_port.name])
-            else
-                out_port.connected_to?(in_port)
-            end
+            out_port = to_component_port
+            return out_port.connected_to?(in_port) if out_port != self
+
+            in_port = in_port.to_component_port
+            component.child_object?(in_port.component, Flows::DataFlow) &&
+                component[in_port.component, Flows::DataFlow]
+                    .key?([out_port.name, in_port.name])
         end
 
         def new_sample
@@ -123,10 +149,15 @@ module Syskit
 
         # @return [Boolean] true if this is an output port, false otherwise.
         #   The default implementation returns false
-        def output?; false end
+        def output?
+            false
+        end
+
         # @return [Boolean] true if this is an input port, false otherwise.
         #   The default implementation returns false
-        def input?; false end
+        def input?
+            false
+        end
 
         def to_s
             "#{component}.#{name}"
@@ -137,33 +168,41 @@ module Syskit
             false
         end
 
-        def static?; model.orogen_model.static? end
+        def static?
+            model.orogen_model.static?
+        end
     end
 
     class InputPort < Port
         # Enumerates all ports connected to this one
         def each_connection
             port = to_component_port
-            port.component.each_input_connection(port.name) do |out_task, out_port_name, in_port_name, policy|
+            port.component.each_input_connection(
+                port.name
+            ) do |out_task, out_port_name, _, policy|
                 yield(out_task.find_output_port(out_port_name), policy)
             end
             self
         end
 
-        def writer(policy = Hash.new)
+        def writer(policy = {})
             InputWriter.new(self, policy)
         end
 
         # Enumerates all ports connected to this one
         def each_concrete_connection
             port = to_component_port
-            port.component.each_concrete_input_connection(port.name) do |out_task, out_port_name, in_port_name, policy|
+            port.component.each_concrete_input_connection(
+                port.name
+            ) do |out_task, out_port_name, _, policy|
                 yield(out_task.find_output_port(out_port_name), policy)
             end
             self
         end
 
-        def input?; true end
+        def input?
+            true
+        end
     end
 
     class OutputPort < Port
@@ -171,14 +210,16 @@ module Syskit
             OutputReader.new(self)
         end
 
-        def reader(policy = Hash.new)
+        def reader(policy = {})
             OutputReader.new(self, policy)
         end
 
         # Enumerates all ports connected to this one
         def each_connection
             port = to_component_port
-            port.component.each_output_connection(port.name) do |_, in_port_name, in_task, policy|
+            port.component.each_output_connection(
+                port.name
+            ) do |_, in_port_name, in_task, policy|
                 yield(in_task.find_input_port(in_port_name), policy)
             end
             self
@@ -187,13 +228,17 @@ module Syskit
         # Enumerates all ports connected to this one
         def each_concrete_connection
             port = to_component_port
-            port.component.each_concrete_output_connection(port.name) do |_, in_port_name, in_task, policy|
+            port.component.each_concrete_output_connection(
+                port.name
+            ) do |_, in_port_name, in_task, policy|
                 yield(in_task.find_input_port(in_port_name), policy)
             end
             self
         end
 
-        def output?; true end
+        def output?
+            true
+        end
     end
 
     # Base class for output reader/input writer
@@ -211,57 +256,90 @@ module Syskit
         attr_reader :actual_port
         # The connection policy
         attr_reader :policy
+        # The object that actually accesses the remote component's ports
+        attr_reader :orocos_accessor
 
-        def initialize(port, policy = Hash.new)
+        def initialize(port, accessor_method, policy = {})
             @port = port.to_component_port
             @policy = policy
             @disconnected = false
-            schedule_resolution(@port) do |resolved_port, _|
-                @resolved_port = resolved_port
+
+            @execution_engine = nil
+
+            @accessor_method = accessor_method
+            @orocos_accessor = nil
+            @port.component.execute do |component|
+                @execution_engine = component.execution_engine
+                perform_resolution(component, @port) unless @disconnected
             end
         end
 
-        private def schedule_resolution(port)
-            port.component.execute do |component|
-                unless @disconnected
-                    resolved_port = component.find_port(port.name)
-                    unless resolved_port
-                        raise ArgumentError,
-                            "cannot find a port called #{port.name} on #{component}"
-                    end
+        def ready?
+            @orocos_accessor && actual_port.component.running?
+        end
 
-                    @actual_port = resolved_port.to_actual_port
-                    yield(resolved_port, @actual_port) if block_given?
+        def connected?
+            @orocos_accessor&.connected?
+        end
 
-                    if @actual_port.static? || @actual_port.component.setup?
-                        resolve(component, @actual_port)
-                    else
-                        @actual_port.component.execute do
-                            resolve(component, @actual_port)
-                        end
-                    end
+        private def perform_resolution(component, port)
+            resolved_port = component.find_port(port.name)
+            unless resolved_port
+                raise ArgumentError,
+                      "cannot find a port called #{port.name} on #{component}"
+            end
+
+            @actual_port = resolved_port.to_actual_port
+            @resolved_port = resolved_port
+
+            if @actual_port.static? || @actual_port.component.setup?
+                resolve(component, @actual_port)
+            else
+                @actual_port.component.execute do
+                    resolve(component, @actual_port)
                 end
             end
+
+            component.when_finalized do
+                disconnect
+            end
+            @actual_port.component.when_finalized do
+                disconnect
+            end
+        end
+
+        def disconnect
+            @disconnected = true
+            return unless @execution_engine && (accessor = @orocos_accessor)
+
+            p = @execution_engine.promise(description: "disconnect #{self}") do
+                begin accessor.disconnect
+                rescue Orocos::ComError # rubocop:disable Lint/SuppressedException
+                end
+            end
+            p.on_success { @orocos_accessor = nil }.execute
         end
 
         # @api private
         #
         # Resolves the underlying writer object
-        private def resolve(main, port, accessor)
+        protected def resolve(main, port)
             distance = port.component.distance_to_syskit
 
-            resolver = main.promise(description: "#{port}##{accessor} for #{self}") do
-                port.to_orocos_port.public_send(accessor, distance: distance, **policy)
-            end
-            resolver.on_success(description: "#{self}#resolve#ready") do |obj|
-                unless @disconnected
-                    yield(obj)
+            resolver =
+                main.promise(description: "#{port}##{@accessor_method} for #{self}") do
+                    port.to_orocos_port.public_send(
+                        @accessor_method, distance: distance, **policy
+                    )
                 end
+            resolver.on_success(description: "#{self}#resolve#ready") do |obj|
+                @orocos_accessor = obj unless @disconnected
             end
             resolver.on_error(description: "#{self}#resolve#failed") do |error|
                 actual_component = port.component
-                actual_component.execution_engine.
-                    add_error(PortAccessFailure.new(error, actual_component))
+                actual_component
+                    .execution_engine
+                    .add_error(PortAccessFailure.new(error, actual_component))
             end
             resolver.execute
         end
@@ -269,30 +347,19 @@ module Syskit
 
     # A data source for a port attached to a component
     class OutputReader < PortAccessor
+        def initialize(port, policy = {})
+            super(port, :reader, policy)
+        end
+
         # The actual data reader itself
+        #
         # @return [Orocos::OutputReader]
-        attr_reader :reader
+        def reader
+            @orocos_accessor
+        end
 
         def model
             Models::OutputReader.new(port.model, policy)
-        end
-
-        # @api private
-        #
-        # Resolves the underlying reader object
-        def resolve(main, port)
-            super(main, port, :reader) { |r| @reader = r }
-        end
-
-        def disconnect
-            @disconnected = true
-            if actual_reader = self.reader
-                actual_port.component.execution_engine.promise(description: "disconnect #{self}") do
-                    begin actual_reader.disconnect
-                    rescue Orocos::ComError
-                    end
-                end.on_success { @reader = nil }.execute
-            end
         end
 
         # Get a sample that has never been read
@@ -307,7 +374,7 @@ module Syskit
         # @return [Object,nil] the sample, or nil if there are no samples
         #    received on this read that have not already been read
         def read_new(sample = nil)
-            reader.read_new(sample) if reader
+            @orocos_accessor&.read_new(sample)
         end
 
         # Get either a sample that has never been read, or the last read sample
@@ -322,7 +389,7 @@ module Syskit
         # @return [Object,nil] the sample, or nil if there are no samples
         #    received on this read that have not already been read
         def read(sample = nil)
-            reader.read(sample) if reader
+            @orocos_accessor&.read(sample)
         end
 
         # Clear all samples from the reader
@@ -333,63 +400,22 @@ module Syskit
         # new connections are cleared (have no samples) until the writer writes
         # a new sample
         def clear
-            reader.clear if reader
-        end
-
-        # Whether the reader may return a new sample
-        #
-        # It is false if it is not yet connected *and/or* the underlying
-        # component is not yet running.
-        def ready?
-            reader && actual_port.component.running?
-        end
-
-        # Whether the reader is connected to the underlying port
-        #
-        # Output readers in Syskit are resolved asynchronously. As such, they
-        # may be created but not yet connected
-        #
-        # When a port is not connected, {#read}, {#read_new} and {#clear}
-        # are no-ops.
-        def connected?
-            reader && reader.connected?
+            @orocos_accessor&.clear
         end
     end
 
     # A data writer for a port attached to a component
     class InputWriter < PortAccessor
-        # The actual data writer itself
-        # @return [Orocos::InputWriter]
-        attr_reader :writer
+        def initialize(port, policy = {})
+            super(port, :writer, policy)
+        end
+
+        def writer
+            @orocos_accessor
+        end
 
         def model
             Models::InputWriter.new(port.model, policy)
-        end
-
-        def ready?
-            writer && actual_port.component.running?
-        end
-
-        def connected?
-            writer && writer.connected?
-        end
-
-        def disconnect
-            @disconnected = true
-            if actual_writer = self.writer
-                actual_port.component.execution_engine.promise(description: "disconnect #{self}") do
-                    begin actual_writer.disconnect
-                    rescue Orocos::ComError
-                    end
-                end.on_success { @writer = nil }.execute
-            end
-        end
-
-        # @api private
-        #
-        # Resolves the underlying writer object
-        def resolve(main, port)
-            super(main, port, :writer) { |w| @writer = w }
         end
 
         # Write a sample on the associated port

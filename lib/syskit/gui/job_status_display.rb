@@ -1,4 +1,6 @@
-require 'syskit/gui/job_state_label'
+# frozen_string_literal: true
+
+require "syskit/gui/job_state_label"
 module Syskit
     module GUI
         class JobStatusDisplay < Qt::Widget
@@ -20,8 +22,8 @@ module Syskit
                 super(nil)
                 @batch_manager = batch_manager
                 @job = job
-                @exceptions = Array.new
-                @notifications = Hash.new
+                @exceptions = []
+                @notifications = {}
                 @show_actions = true
 
                 create_ui
@@ -34,7 +36,7 @@ module Syskit
                 Roby::Interface::JOB_DROPPED.upcase.to_s,
                 Roby::Interface::JOB_FAILED.upcase.to_s,
                 Roby::Interface::JOB_PLANNING_FAILED.upcase.to_s
-            ]
+            ].freeze
 
             def label
                 "##{job.job_id} #{job.action_name}"
@@ -48,17 +50,17 @@ module Syskit
                 end
 
                 @ui_job_actions = Qt::Widget.new(self)
-                hlayout    = Qt::HBoxLayout.new(ui_job_actions)
+                hlayout = Qt::HBoxLayout.new(ui_job_actions)
                 @actions_buttons = Hash[
-                    'Drop' => Qt::PushButton.new("Drop", self),
-                    'Restart' => Qt::PushButton.new("Restart", self),
+                    "Drop" => Qt::PushButton.new("Drop", self),
+                    "Restart" => Qt::PushButton.new("Restart", self),
                     "Start Again" => Qt::PushButton.new("Start Again", self),
                     "Clear" => Qt::PushButton.new("Clear", self)
                 ]
-                hlayout.add_widget(@ui_drop    = @actions_buttons['Drop'])
-                hlayout.add_widget(@ui_restart = @actions_buttons['Restart'])
-                hlayout.add_widget(@ui_start   = @actions_buttons['Start Again'])
-                hlayout.add_widget(@ui_clear   = @actions_buttons['Clear'])
+                hlayout.add_widget(@ui_drop = @actions_buttons["Drop"])
+                hlayout.add_widget(@ui_restart = @actions_buttons["Restart"])
+                hlayout.add_widget(@ui_start   = @actions_buttons["Start Again"])
+                hlayout.add_widget(@ui_clear   = @actions_buttons["Clear"])
 
                 ui_start.hide
                 ui_clear.hide
@@ -110,7 +112,6 @@ module Syskit
                 self.size = s
             end
 
-
             def enterEvent(event)
                 super
                 if show_actions?
@@ -130,19 +131,20 @@ module Syskit
                 emit clicked
                 event.accept
             end
+
             def mouseReleaseEvent(event)
                 event.accept
             end
-            signals 'clicked()'
+            signals "clicked()"
 
             def connect_to_hooks
-                ui_drop.connect(SIGNAL('clicked()')) do
+                ui_drop.connect(SIGNAL("clicked()")) do
                     @batch_manager.drop_job(self)
                     if @actions_immediate
                         @batch_manager.process
                     end
                 end
-                ui_restart.connect(SIGNAL('clicked()')) do
+                ui_restart.connect(SIGNAL("clicked()")) do
                     arguments = job.action_arguments.dup
                     arguments.delete(:job_id)
                     if @batch_manager.create_new_job(job.action_name, arguments)
@@ -152,7 +154,7 @@ module Syskit
                         end
                     end
                 end
-                ui_start.connect(SIGNAL('clicked()')) do
+                ui_start.connect(SIGNAL("clicked()")) do
                     arguments = job.action_arguments.dup
                     arguments.delete(:job_id)
                     if @batch_manager.create_new_job(job.action_name, arguments)
@@ -161,8 +163,8 @@ module Syskit
                         end
                     end
                 end
-                ui_clear.connect(SIGNAL('clicked()')) do
-                    if !job.active?
+                ui_clear.connect(SIGNAL("clicked()")) do
+                    unless job.active?
                         job.stop
                         emit clearJob
                         true
@@ -173,7 +175,7 @@ module Syskit
                 end
                 job.on_exception do |kind, exception|
                     exceptions << exception.exception
-                    notify('exceptions', "#{exceptions.size} exceptions")
+                    notify("exceptions", "#{exceptions.size} exceptions")
                     emit exceptionEvent
                 end
             end
@@ -183,7 +185,8 @@ module Syskit
                     ui_state.update_state(
                         "#{ui_state.current_state},
                             #{state.upcase}",
-                        color: ui_state.current_color)
+                        color: ui_state.current_color
+                    )
                 else
                     ui_state.update_state(state.upcase)
                 end
@@ -204,13 +207,13 @@ module Syskit
             def notify(key, text)
                 notifications[key] = text
                 ui_notifications.show
-                ui_notifications.text = "<small>#{notifications.values.join(", ")}</small>"
+                ui_notifications.text = "<small>#{notifications.values.join(', ')}</small>"
             end
 
             # Signal emitted when one exception got added at the end of
             # {#exceptions}
-            signals 'exceptionEvent()'
-            signals 'clearJob()'
+            signals "exceptionEvent()"
+            signals "clearJob()"
         end
     end
 end

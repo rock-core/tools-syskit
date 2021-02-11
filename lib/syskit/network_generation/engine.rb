@@ -1,3 +1,5 @@
+# frozen_string_literal: true
+
 module Syskit
     module NetworkGeneration
         # The main deployment algorithm
@@ -71,12 +73,12 @@ module Syskit
             attr_reader :event_logger
 
             def initialize(plan, work_plan: Roby::Transaction.new(plan),
-                           event_logger: plan.event_logger)
+                event_logger: plan.event_logger)
                 @real_plan = plan
                 @work_plan = work_plan
                 @merge_solver = NetworkGeneration::MergeSolver.new(work_plan)
                 @event_logger = event_logger
-                @required_instances = Hash.new
+                @required_instances = {}
             end
 
             # Returns the set of deployments that are available for this network
@@ -93,7 +95,7 @@ module Syskit
                 compute_policies: true,
                 validate_deployed_network: true
             )
-                log_timepoint_group 'deploy_system_network' do
+                log_timepoint_group "deploy_system_network" do
                     deployer = SystemNetworkDeployer.new(
                         work_plan,
                         event_logger: event_logger,
@@ -109,7 +111,7 @@ module Syskit
                 if compute_policies
                     @dataflow_dynamics = DataFlowDynamics.new(work_plan)
                     @port_dynamics = dataflow_dynamics.compute_connection_policies
-                    log_timepoint 'compute_connection_policies'
+                    log_timepoint "compute_connection_policies"
                 end
             end
 
@@ -121,13 +123,13 @@ module Syskit
                 # Finally, we map the deployed network to the currently
                 # running tasks
                 @deployment_tasks, @deployed_tasks =
-                    log_timepoint_group 'finalize_deployed_tasks' do
+                    log_timepoint_group "finalize_deployed_tasks" do
                         finalize_deployed_tasks
                     end
 
                 if @dataflow_dynamics
                     @dataflow_dynamics.apply_merges(merge_solver)
-                    log_timepoint 'apply_merged_to_dataflow_dynamics'
+                    log_timepoint "apply_merged_to_dataflow_dynamics"
                 end
                 Engine.deployment_postprocessing.each do |block|
                     block.call(self, work_plan)
@@ -156,11 +158,11 @@ module Syskit
                 # register_final_network_postprocessing
                 attr_reader :final_network_postprocessing
             end
-            @instanciation_postprocessing = Array.new
-            @instanciated_network_postprocessing = Array.new
-            @system_network_postprocessing = Array.new
-            @deployment_postprocessing = Array.new
-            @final_network_postprocessing = Array.new
+            @instanciation_postprocessing = []
+            @instanciated_network_postprocessing = []
+            @system_network_postprocessing = []
+            @deployment_postprocessing = []
+            @final_network_postprocessing = []
 
             # Registers a system-wide post-processing stage for the instanciation
             # stage. This post-processing block is meant to add new tasks and
@@ -235,9 +237,7 @@ module Syskit
                     end
                 end
 
-                if @dataflow_dynamics
-                    @dataflow_dynamics.apply_merges(merge_solver)
-                end
+                @dataflow_dynamics&.apply_merges(merge_solver)
             end
 
             # Replaces the toplevel tasks (i.e. tasks planned by the
@@ -249,9 +249,9 @@ module Syskit
                     return
                 end
 
-                replacement_filter = Roby::Plan::ReplacementFilter.new.
-                    exclude_relation(Syskit::Flows::DataFlow).
-                    exclude_tasks(work_plan.find_local_tasks(Syskit::Component))
+                replacement_filter = Roby::Plan::ReplacementFilter.new
+                                                                  .exclude_relation(Syskit::Flows::DataFlow)
+                                                                  .exclude_tasks(work_plan.find_local_tasks(Syskit::Component))
 
                 required_instances.each do |req_task, actual_task|
                     placeholder_task = work_plan.wrap_task(req_task.planned_task)
@@ -260,7 +260,7 @@ module Syskit
 
                     if placeholder_task != actual_task
                         work_plan.replace(placeholder_task, actual_task,
-                            filter: replacement_filter)
+                                          filter: replacement_filter)
                         # Need to switch the planning relation as well, it is
                         # not done by #replace
                         placeholder_task.remove_planning_task req_task
@@ -272,14 +272,14 @@ module Syskit
             # Given the network with deployed tasks, this method looks at how we
             # could adapt the running network to the new one
             def finalize_deployed_tasks
-                debug 'finalizing deployed tasks'
+                debug "finalizing deployed tasks"
 
                 used_deployments = work_plan.find_local_tasks(Deployment).to_set
                 used_tasks       = work_plan.find_local_tasks(Component).to_set
-                log_timepoint 'used_tasks'
+                log_timepoint "used_tasks"
 
                 all_tasks = work_plan.find_tasks(Component).to_set
-                log_timepoint 'import_all_tasks_from_plan'
+                log_timepoint "import_all_tasks_from_plan"
                 all_tasks.delete_if do |t|
                     if !t.reusable?
                         debug { "  clearing the relations of the finished task #{t}" }
@@ -291,13 +291,14 @@ module Syskit
                         true
                     end
                 end
-                log_timepoint 'all_tasks_cleanup'
+                log_timepoint "all_tasks_cleanup"
 
                 # Remove connections that are not forwarding connections (e.g.
                 # composition exports)
                 dataflow_graph = work_plan.task_relation_graph_for(Syskit::Flows::DataFlow)
                 all_tasks.each do |t|
                     next if used_tasks.include?(t)
+
                     dataflow_graph.in_neighbours(t).dup.each do |source_t|
                         connections = dataflow_graph.edge_info(source_t, t).dup
                         connections.delete_if do |(source_port, sink_port), policy|
@@ -311,10 +312,11 @@ module Syskit
                         end
                     end
                 end
-                log_timepoint 'dataflow_graph_cleanup'
+                log_timepoint "dataflow_graph_cleanup"
 
                 deployments = work_plan.find_tasks(Syskit::Deployment).not_finished
-                finishing_deployments, existing_deployments = Hash.new, Set.new
+                finishing_deployments = {}
+                existing_deployments = Set.new
                 deployments.each do |task|
                     if task.finishing?
                         finishing_deployments[task.process_name] = task
@@ -322,7 +324,7 @@ module Syskit
                         existing_deployments << task
                     end
                 end
-                log_timepoint 'existing_and_finished_deployments'
+                log_timepoint "existing_and_finished_deployments"
 
                 debug do
                     debug "  Mapping deployments in the network to the existing ones"
@@ -337,15 +339,15 @@ module Syskit
                 reused_deployed_tasks = Set.new
                 selected_deployment_tasks = Set.new
                 used_deployments.each do |deployment_task|
-                    existing_candidates = work_plan.
-                        find_local_tasks(deployment_task.model).
-                        not_finishing.not_finished.to_set
+                    existing_candidates = work_plan
+                                          .find_local_tasks(deployment_task.model)
+                                          .not_finishing.not_finished.to_set
 
                     # Check for the corresponding task in the plan
-                    existing_deployment_tasks = (existing_candidates & existing_deployments).
-                        find_all do |t|
-                            t.process_name == deployment_task.process_name
-                        end
+                    existing_deployment_tasks = (existing_candidates & existing_deployments)
+                                                .find_all do |t|
+                        t.process_name == deployment_task.process_name
+                    end
 
                     debug do
                         debug "  looking to reuse a deployment for #{deployment_task.process_name} (#{deployment_task})"
@@ -367,7 +369,8 @@ module Syskit
                         selected_deployment = existing_deployment_tasks.first
                         new_merged_tasks = adapt_existing_deployment(
                             deployment_task,
-                            selected_deployment)
+                            selected_deployment
+                        )
                         reused_deployed_tasks.merge(new_merged_tasks)
                     end
                     if finishing = finishing_deployments[selected_deployment.process_name]
@@ -375,11 +378,12 @@ module Syskit
                     end
                     selected_deployment_tasks << selected_deployment
                 end
-                log_timepoint 'select_deployments'
+                log_timepoint "select_deployments"
 
                 reused_deployed_tasks = reconfigure_tasks_on_static_port_modification(
-                    reused_deployed_tasks)
-                log_timepoint 'reconfigure_tasks_on_static_port_modification'
+                    reused_deployed_tasks
+                )
+                log_timepoint "reconfigure_tasks_on_static_port_modification"
 
                 debug do
                     debug "#{reused_deployed_tasks.size} tasks reused during deployment"
@@ -392,7 +396,7 @@ module Syskit
                 # This is required to merge the already existing compositions
                 # with the ones in the plan
                 merge_solver.merge_identical_tasks
-                log_timepoint 'merge'
+                log_timepoint "merge"
 
                 [selected_deployment_tasks, reused_deployed_tasks | newly_deployed_tasks]
             end
@@ -411,8 +415,8 @@ module Syskit
                 # the task is always the 'current' one, that is we would pick
                 # the new deployment task and ignore the one that is being
                 # replaced
-                already_setup_tasks = work_plan.find_tasks(Syskit::TaskContext).not_finished.not_finishing.
-                    find_all { |t| deployed_tasks.include?(t) && (t.setting_up? || t.setup?) }
+                already_setup_tasks = work_plan.find_tasks(Syskit::TaskContext).not_finished.not_finishing
+                                               .find_all { |t| deployed_tasks.include?(t) && (t.setting_up? || t.setup?) }
 
                 already_setup_tasks.each do |t|
                     if t.transaction_modifies_static_ports?
@@ -439,8 +443,9 @@ module Syskit
                     t.reusable? && configuration_precedence_graph.leaf?(t.stop_event)
                 end
                 if tasks.size > 1
-                    raise InternalError, "could not find the current task in #{deployed_tasks.map(&:to_s).sort.join(", ")}"
+                    raise InternalError, "could not find the current task in #{deployed_tasks.map(&:to_s).sort.join(', ')}"
                 end
+
                 tasks.first
             end
 
@@ -454,18 +459,19 @@ module Syskit
             #   existing_deployment_task, and some of them might be transaction
             #   proxies.
             def adapt_existing_deployment(deployment_task, existing_deployment_task)
-                orocos_name_to_existing = Hash.new
+                orocos_name_to_existing = {}
                 existing_deployment_task.each_executed_task do |t|
                     next if t.finished?
-                    (orocos_name_to_existing[t.orocos_name] ||= Array.new) << t
+
+                    (orocos_name_to_existing[t.orocos_name] ||= []) << t
                 end
 
                 applied_merges = Set.new
                 deployed_tasks = deployment_task.each_executed_task.to_a
                 deployed_tasks.each do |task|
                     existing_tasks = orocos_name_to_existing[task.orocos_name] ||
-                        Array.new
-                    if !existing_tasks.empty?
+                        []
+                    unless existing_tasks.empty?
                         existing_task = find_current_deployed_task(existing_tasks)
                     end
 
@@ -482,8 +488,8 @@ module Syskit
                         debug { "  creating #{new_task} for #{task} (#{task.orocos_name})" }
                         existing_tasks.each do |previous_task|
                             debug { "  #{new_task} needs to wait for #{existing_task} to finish before reconfiguring" }
-                            parent_task_contexts = previous_task.each_parent_task.
-                                find_all { |t| t.kind_of?(Syskit::TaskContext) }
+                            parent_task_contexts = previous_task.each_parent_task
+                                                                .find_all { |t| t.kind_of?(Syskit::TaskContext) }
                             parent_task_contexts.each do |t|
                                 t.remove_child(previous_task)
                             end
@@ -521,20 +527,22 @@ module Syskit
             end
 
             def compute_system_network(requirement_tasks = Engine.discover_requirement_tasks_from_plan(real_plan),
-                                       garbage_collect: true,
-                                       validate_abstract_network: true,
-                                       validate_generated_network: true)
+                garbage_collect: true,
+                validate_abstract_network: true,
+                validate_generated_network: true)
                 requirement_tasks = requirement_tasks.to_a
                 instance_requirements = requirement_tasks.map(&:requirements)
                 system_network_generator = SystemNetworkGenerator.new(
-                    work_plan, event_logger: event_logger, merge_solver: merge_solver)
+                    work_plan, event_logger: event_logger, merge_solver: merge_solver
+                )
                 toplevel_tasks = system_network_generator.generate(
                     instance_requirements,
                     garbage_collect: garbage_collect,
                     validate_abstract_network: validate_abstract_network,
-                    validate_generated_network: validate_generated_network)
+                    validate_generated_network: validate_generated_network
+                )
 
-                Hash[ requirement_tasks.zip(toplevel_tasks) ]
+                Hash[requirement_tasks.zip(toplevel_tasks)]
             end
 
             # Computes the system network, that is the network that fullfills
@@ -577,7 +585,7 @@ module Syskit
                 )
 
                 if compute_deployments
-                    log_timepoint_group 'compute_deployed_network' do
+                    log_timepoint_group "compute_deployed_network" do
                         compute_deployed_network(
                             default_deployment_group: default_deployment_group,
                             compute_policies: compute_policies,
@@ -612,15 +620,15 @@ module Syskit
             #   for instance). Set it to false to do no special action (i.e.
             #   drop the currently generated plan)
             def resolve(requirement_tasks: Engine.discover_requirement_tasks_from_plan(real_plan),
-                        on_error: self.class.on_error,
-                        default_deployment_group: Syskit.conf.deployment_group,
-                        compute_deployments: true,
-                        compute_policies: true,
-                        garbage_collect: true,
-                        validate_abstract_network: true,
-                        validate_generated_network: true,
-                        validate_deployed_network: true,
-                        validate_final_network: true)
+                on_error: self.class.on_error,
+                default_deployment_group: Syskit.conf.deployment_group,
+                compute_deployments: true,
+                compute_policies: true,
+                garbage_collect: true,
+                validate_abstract_network: true,
+                validate_generated_network: true,
+                validate_deployed_network: true,
+                validate_final_network: true)
 
                 required_instances = resolve_system_network(
                     requirement_tasks,
@@ -630,14 +638,15 @@ module Syskit
                     compute_deployments: compute_deployments,
                     default_deployment_group: default_deployment_group,
                     compute_policies: compute_policies,
-                    validate_deployed_network: validate_deployed_network)
+                    validate_deployed_network: validate_deployed_network
+                )
 
                 apply_system_network_to_plan(
                     required_instances,
                     compute_deployments: compute_deployments,
                     garbage_collect: garbage_collect,
-                    validate_final_network: validate_final_network)
-
+                    validate_final_network: validate_final_network
+                )
             rescue Exception => e
                 handle_resolution_exception(e, on_error: on_error)
                 raise
@@ -645,7 +654,8 @@ module Syskit
 
             def apply_system_network_to_plan(
                 required_instances, compute_deployments: true,
-                garbage_collect: true, validate_final_network: true)
+                garbage_collect: true, validate_final_network: true
+            )
 
                 # Now, deploy the network by matching the available
                 # deployments to the one in the generated network. Note that
@@ -654,18 +664,18 @@ module Syskit
                 # The mapping from this deployed network to the running
                 # tasks is done in #finalize_deployed_tasks
                 if compute_deployments
-                    log_timepoint_group 'apply_deployed_network_to_plan' do
+                    log_timepoint_group "apply_deployed_network_to_plan" do
                         apply_deployed_network_to_plan
                     end
                 end
 
                 apply_merge_to_stored_instances
-                required_instances = required_instances.map_value do |_, task|
+                required_instances = required_instances.transform_values do |task|
                     merge_solver.replacement_for(task)
                 end
-                log_timepoint 'apply_merge_to_stored_instances'
+                log_timepoint "apply_merge_to_stored_instances"
                 fix_toplevel_tasks(required_instances)
-                log_timepoint 'fix_toplevel_tasks'
+                log_timepoint "fix_toplevel_tasks"
 
                 Engine.final_network_postprocessing.each do |block|
                     block.call(self, work_plan)
@@ -677,7 +687,7 @@ module Syskit
                 if garbage_collect && validate_final_network
                     validate_final_network(required_instances, work_plan,
                                            compute_deployments: compute_deployments)
-                    log_timepoint 'validate_final_network'
+                    log_timepoint "validate_final_network"
                 end
 
                 commit_work_plan
@@ -685,7 +695,7 @@ module Syskit
 
             def commit_work_plan
                 work_plan.commit_transaction
-                log_timepoint 'commit_transaction'
+                log_timepoint "commit_transaction"
 
                 # Update the work plan's expected policies
                 if @dataflow_dynamics
@@ -748,23 +758,21 @@ module Syskit
             @@dot_index = 0
             def self.autosave_plan_to_dot(plan, dir = Roby.app.log_dir, prefix: nil, suffix: nil, **dot_options)
                 dot_index = (@@dot_index += 1)
-                dataflow_path = File.join(dir, "syskit-plan-#{prefix}%04i#{suffix}.%s.dot" %
-                                          [dot_index, 'dataflow'])
-                hierarchy_path = File.join(dir, "syskit-plan-#{prefix}%04i#{suffix}.%s.dot" %
-                                           [dot_index, 'hierarchy'])
-                File.open(dataflow_path, 'w') do |io|
+                dataflow_path = File.join(dir, format("syskit-plan-#{prefix}%04i#{suffix}.%s.dot", dot_index, "dataflow"))
+                hierarchy_path = File.join(dir, format("syskit-plan-#{prefix}%04i#{suffix}.%s.dot", dot_index, "hierarchy"))
+                File.open(dataflow_path, "w") do |io|
                     io.write Graphviz.new(plan).dataflow(dot_options)
                 end
-                File.open(hierarchy_path, 'w') do |io|
+                File.open(hierarchy_path, "w") do |io|
                     io.write Graphviz.new(plan).hierarchy(dot_options)
                 end
-                return dataflow_path, hierarchy_path
+                [dataflow_path, hierarchy_path]
             end
 
             # Generate a svg file representing the current state of the
             # deployment
             def to_svg(kind, filename = nil, *additional_args)
-                Graphviz.new(work_plan).to_file(kind, 'svg', filename, *additional_args)
+                Graphviz.new(work_plan).to_file(kind, "svg", filename, *additional_args)
             end
 
             def to_dot_dataflow(remove_compositions = false, excluded_models = Set.new, annotations = ["connection_policy"])
@@ -772,18 +780,20 @@ module Syskit
                 gen.dataflow(remove_compositions, excluded_models, annotations)
             end
 
-            def to_dot(options); to_dot_dataflow(options) end
+            def to_dot(options)
+                to_dot_dataflow(options)
+            end
 
             def pretty_print(pp) # :nodoc:
                 pp.text "-- Tasks"
                 pp.nest(2) do
                     pp.breakable
                     work_plan.each_task do |task|
-                        pp.text "#{task}"
+                        pp.text task.to_s
                         pp.nest(4) do
                             pp.breakable
                             pp.seplist(task.children.to_a) do |t|
-                                pp.text "#{t}"
+                                pp.text t.to_s
                             end
                         end
                         pp.breakable
@@ -795,7 +805,7 @@ module Syskit
                 pp.nest(4) do
                     pp.breakable
                     work_plan.task_relation_graph_for(Flows::DataFlow).each_edge do |from, to, info|
-                        pp.text "#{from}"
+                        pp.text from.to_s
                         pp.breakable
                         pp.text "  => #{to} (#{info})"
                         pp.breakable

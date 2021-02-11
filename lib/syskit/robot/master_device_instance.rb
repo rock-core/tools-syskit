@@ -46,8 +46,9 @@ module Syskit
             # runtime to actually configure the task
             attr_reader :configuration_block
 
-            def initialize(robot, name, device_model, options,
-                           driver_model, task_arguments)
+            def initialize(
+                robot, name, device_model, options, driver_model, task_arguments
+            )
                 @robot = robot
                 @name = name
                 @device_model = device_model
@@ -86,8 +87,8 @@ module Syskit
 
             # @deprecated
             def use_conf(*conf)
-                Roby.warn_deprecated 'MasterDeviceInstance#use_conf is deprecated. '\
-                                     'Use #with_conf instead'
+                Roby.warn_deprecated "MasterDeviceInstance#use_conf is deprecated. "\
+                                     "Use #with_conf instead"
                 with_conf(*conf)
             end
 
@@ -154,13 +155,13 @@ module Syskit
                 end
 
                 if (srv_name = options.delete(:in))
-                    Roby.warn_deprecated 'the in: option of MasterDeviceInstance'\
-                                         '#attach_to has been renamed to bus_to_client'
+                    Roby.warn_deprecated "the in: option of MasterDeviceInstance"\
+                                         "#attach_to has been renamed to bus_to_client"
                     bus_to_client = srv_name
                 end
                 if (srv_name = options.delete(:out))
-                    Roby.warn_deprecated 'the out: option of MasterDeviceInstance'\
-                                         '#attach_to has been renamed to client_to_bus'
+                    Roby.warn_deprecated "the out: option of MasterDeviceInstance"\
+                                         "#attach_to has been renamed to client_to_bus"
                     client_to_bus = srv_name
                 end
                 raise ArgumentError, "unexpected options #{options}" unless options.empty?
@@ -173,7 +174,7 @@ module Syskit
                     @combus_client_in_srv = resolve_combus_client_srv(
                         com_bus.model.client_in_srv,
                         client_srv_name,
-                        com_bus, 'bus_to_client'
+                        com_bus, "bus_to_client"
                     )
                 end
 
@@ -185,7 +186,7 @@ module Syskit
                     @combus_client_out_srv = resolve_combus_client_srv(
                         com_bus.model.client_out_srv,
                         client_srv_name,
-                        com_bus, 'client_to_bus'
+                        com_bus, "client_to_bus"
                     )
                 end
 
@@ -211,7 +212,7 @@ module Syskit
                           "needed to connect to the bus '#{com_bus.name}'. Either "\
                           "disable the #{option_name.gsub('_', '-')} communication "\
                           "by passing #{option_name}: false, or change Driver\'s "\
-                          'definition to provide the data service'
+                          "definition to provide the data service"
                 end
 
                 service
@@ -220,13 +221,13 @@ module Syskit
                     driver_task_model
                     .each_data_service
                     .map { |_, s| s.name if s.fullfills?(srv_model) }
-                    .compact.sort.join(', ')
+                    .compact.sort.join(", ")
 
                 raise ArgumentError,
                       "#{driver_task_model} provides more than one "\
                       "service of type #{srv_model} "\
                       "to connect to the bus \'#{com_bus.name}\'. "\
-                      'Select one explicitely using the bus_to_client '\
+                      "Select one explicitely using the bus_to_client "\
                       "option. Available services: #{possible_services}"
             end
 
@@ -302,7 +303,7 @@ module Syskit
                 return true if slaves[slave_service]
 
                 slave_name = "#{driver_model.full_name}.#{slave_service}"
-                !!task_model.find_data_service(slave_name)
+                task_model.find_data_service(slave_name)
             end
 
             # Gets the required slave device, or creates a dynamic one
@@ -356,13 +357,13 @@ module Syskit
 
             def has_through_method_missing?(m)
                 MetaRuby::DSLs.has_through_method_missing?(
-                    self, m, '_dev' => :has_slave?
+                    self, m, "_dev" => :has_slave?
                 ) || super
             end
 
             def find_through_method_missing(m, args)
                 MetaRuby::DSLs.find_through_method_missing(
-                    self, m, args, '_dev' => :slave
+                    self, m, args, "_dev" => :slave
                 ) || super
             end
 
@@ -381,8 +382,8 @@ module Syskit
             end
 
             # Add arguments to the underlying device driver
-            def with_arguments(arguments = {})
-                requirements.with_arguments(arguments)
+            def with_arguments(**arguments)
+                requirements.with_arguments(**arguments)
                 self
             end
 
@@ -392,9 +393,19 @@ module Syskit
                 self
             end
 
+            # Use the default deployment for this device's driver
+            def deployed_as(*args, **kw)
+                requirements.deployed_as(*args, **kw)
+            end
+
+            # Use an unmanaged task for this device's driver
+            def deployed_as_unmanaged(*args, **kw)
+                requirements.deployed_as_unmanaged(*args, **kw)
+            end
+
             def use_deployments(hints)
-                Roby.warn_deprecated 'MasterDeviceInstance#use_deployments is '\
-                                     'deprecated. Use #prefer_deployed_tasks instead'
+                Roby.warn_deprecated "MasterDeviceInstance#use_deployments is "\
+                                     "deprecated. Use #prefer_deployed_tasks instead"
                 prefer_deployed_tasks(hints)
                 self
             end

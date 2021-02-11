@@ -21,7 +21,7 @@ module Syskit
 
         terminates
 
-        def initialize(options = {})
+        def initialize(**)
             @child_selection = {}
             super
         end
@@ -48,8 +48,8 @@ module Syskit
         #   'sonar' => ['default', 'narrow_window']
         def conf(names)
             if names.size != 1
-                raise ArgumentError, 'unlike with ConfigurationManager, only one '\
-                                        'configuration can be selected on compositions'
+                raise ArgumentError, "unlike with ConfigurationManager, only one "\
+                                        "configuration can be selected on compositions"
             end
 
             result = {}
@@ -60,11 +60,11 @@ module Syskit
             end
 
             unless found_something
-                if names == ['default']
+                if names == ["default"]
                     ConfigurationManager.info \
                         "required default configuration on composition #{task}, "\
                         "but #{task.model.short_name} has no registered "\
-                        'default configurations'
+                        "default configurations"
                     return {}
                 else
                     raise ArgumentError, "#{self} has no declared configuration "\
@@ -75,7 +75,7 @@ module Syskit
         end
 
         # (see Component#post_instanciation_setup)
-        def post_instanciation_setup(arguments)
+        def post_instanciation_setup(**arguments)
             super
             return unless (conf_names = arguments[:conf])
 
@@ -133,21 +133,6 @@ module Syskit
             end
         end
 
-        # Finds the corresponding syskit port
-        # @param [String] the name of the port that should be found
-        # @return [Syskit::Port] the actuar orocos port with the given name
-        # @raises [ArgumentError] if the port does not exist
-        def port_by_name(name)
-            p = find_input_port(name) || find_output_port(name)
-            unless p
-                known_ports = each_port.map(&:name).sort.join(', ')
-                raise ArgumentError, "#{self} has no port called #{name}, known "\
-                                        "ports are: #{known_ports}"
-            end
-
-            p
-        end
-
         # Returns a child from its role, as the composition model tells we
         # should see it
         #
@@ -192,7 +177,7 @@ module Syskit
             selected = find_required_composition_child_from_role(role)
             unless selected
                 raise ArgumentError, "#{role} does not seem to be a proper child "\
-                                     'of this composition'
+                                     "of this composition"
             end
             selected
         end

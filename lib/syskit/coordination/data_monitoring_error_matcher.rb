@@ -1,3 +1,5 @@
+# frozen_string_literal: true
+
 module Syskit
     module Coordination
         class DataMonitoringErrorMatcher < Roby::Queries::LocalizedErrorMatcher
@@ -15,10 +17,10 @@ module Syskit
             end
 
             def ===(exception)
-                return false if !super
+                return false unless super
+
                 exception.monitor.model == monitor
             end
         end
     end
 end
-

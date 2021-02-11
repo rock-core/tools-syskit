@@ -1,0 +1,40 @@
+inherit_from: .rubocop_todo.yml
+
+inherit_gem:
+  rubocop-rock: defaults.yml
+
+inherit_mode:
+  merge:
+  - Exclude
+  - AllowedNames
+
+AllCops:
+  TargetRubyVersion: "2.5"
+
+Style/MultilineMemoization:
+    EnforcedStyle: braces
+
+Style/StderrPuts:
+    Enabled: false
+
+Naming/PredicateName:
+    Enabled: false
+
+Naming/FileName:
+  Exclude:
+    - 'lib/yard-syskit.rb'
+    - 'test/roby_app/app/models/compositions/reload_ruby_task-1.rb'
+    - 'test/roby_app/app/models/compositions/reload_ruby_task-2.rb'
+
+# Lots of false positive because of our class_eval-like blocks like e.g.
+# new_submodel or stub. Propose a change to the cop's code to allow for
+# custom methods before re-enabling
+Lint/NestedMethodDefinition:
+  Enabled: false
+
+Style/AccessModifierDeclarations:
+  Enabled: false
+
+Naming/MethodParameterName:
+  AllowedNames:
+  - as

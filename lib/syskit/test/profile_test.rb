@@ -1,3 +1,5 @@
+# frozen_string_literal: true
+
 module Syskit
     module Test
         # Base class for testing {Actions::Profile}
@@ -7,9 +9,9 @@ module Syskit
 
             def self.subject_syskit_model
                 if @subject_syskit_model
-                    return @subject_syskit_model
+                    @subject_syskit_model
                 elsif desc.kind_of?(Syskit::Actions::Profile)
-                    return desc
+                    desc
                 else
                     super
                 end
@@ -55,15 +57,17 @@ module Syskit
                 def has_through_method_missing?(m)
                     MetaRuby::DSLs.has_through_method_missing?(
                         self, m,
-                        '_def'.freeze => :find_definition,
-                        '_dev'.freeze => :find_device) || super
+                        "_def" => :find_definition,
+                        "_dev" => :find_device
+                    ) || super
                 end
 
                 def find_through_method_missing(m, args)
                     MetaRuby::DSLs.find_through_method_missing(
                         self, m, args,
-                        '_def'.freeze => :find_definition,
-                        '_dev'.freeze => :find_device) || super
+                        "_def" => :find_definition,
+                        "_dev" => :find_device
+                    ) || super
                 end
 
                 include MetaRuby::DSLs::FindThroughMethodMissing

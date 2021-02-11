@@ -1,4 +1,6 @@
-require 'syskit/test/self'
+# frozen_string_literal: true
+
+require "syskit/test/self"
 
 module Syskit
     module NetworkGeneration
@@ -7,18 +9,19 @@ module Syskit
 
             def assert_future_fulfilled(future)
                 result = future.value
-                if !future.fulfilled?
+                unless future.fulfilled?
                     raise future.reason
                 end
+
                 result
             end
 
-            describe '#prepare' do
-                it 'computes the system network in a separate plan' do
+            describe "#prepare" do
+                it "computes the system network in a separate plan" do
                     requirements = Set[flexmock]
                     resolution = subject.prepare(requirements)
                     flexmock(resolution.engine).should_receive(:resolve_system_network)
-                                               .with(requirements, {})
+                                               .with(requirements, any)
                                                .once.and_return(ret = flexmock)
                     resolution.execute
                     assert_equal ret, subject.join
@@ -44,12 +47,12 @@ module Syskit
             describe "#cancel" do
                 it "discards the transaction once the future finishes" do
                     latch = Concurrent::IVar.new
-                    flexmock(Engine).new_instances.should_receive(:resolve_system_network).
-                        and_return { latch.value }
+                    flexmock(Engine).new_instances.should_receive(:resolve_system_network)
+                                    .and_return { latch.value }
                     future = subject.start(Set[flexmock])
                     work_plan = future.engine.work_plan
-                    flexmock(work_plan).should_receive(:discard_transaction).once.
-                        pass_thru
+                    flexmock(work_plan).should_receive(:discard_transaction).once
+                                       .pass_thru
                     subject.cancel
                     latch.set true
                     future.value
@@ -66,9 +69,30 @@ module Syskit
                     resolution = subject.prepare(requirements)
                     engine = flexmock(resolution.engine, :strict)
                     engine.should_receive(:resolve_system_network)
-                          .with(requirements, {}).once.and_return(ret = flexmock)
+                          .with(requirements, any).once.and_return(ret = flexmock)
+
+                    if RUBY_VERSION >= "2.7"
+                        engine.should_receive(:apply_system_network_to_plan).with(ret).once
+                    else
+                        engine.should_receive(:apply_system_network_to_plan).with(ret, {}).once
+                    end
+                    resolution.execute
+                    subject.join
+                    assert subject.finished?
+                    subject.apply
+                end
+
+                it "carries forward options passed to prepare "\
+                   "that are relevant to the apply step" do
+                    requirements = Set[flexmock]
+                    resolution = subject.prepare(
+                        requirements, compute_deployments: false
+                    )
+                    engine = flexmock(resolution.engine, :strict)
+                    engine.should_receive(:resolve_system_network)
+                          .with(requirements, any).once.and_return(ret = flexmock)
                     engine.should_receive(:apply_system_network_to_plan)
-                          .with(ret).once
+                          .with(ret, compute_deployments: false).once
                     resolution.execute
                     subject.join
                     assert subject.finished?

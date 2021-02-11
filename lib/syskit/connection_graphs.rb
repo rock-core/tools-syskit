@@ -1,6 +1,8 @@
+# frozen_string_literal: true
+
 module Syskit
     # (see ConnectionGraph)
-    ActualDataFlow   = ActualDataFlowGraph.new
+    ActualDataFlow = ActualDataFlowGraph.new
     ActualDataFlow.name = "Syskit::ActualDataFlow"
     ActualDataFlow.extend Roby::DRoby::V5::DRobyConstant::Dump
 
@@ -20,11 +22,12 @@ module Syskit
 
         old_fallback = old.delete(:fallback_policy)
         new_fallback = new.delete(:fallback_policy)
-        if old_fallback && new_fallback
-            fallback = update_connection_policy(old_fallback, new_fallback)
-        else
-            fallback = old_fallback || new_fallback
-        end
+        fallback =
+            if old_fallback && new_fallback
+                update_connection_policy(old_fallback, new_fallback)
+            else
+                old_fallback || new_fallback
+            end
 
         old = Orocos::Port.validate_policy(old)
         new = Orocos::Port.validate_policy(new)
@@ -64,21 +67,21 @@ module Syskit
     #   for a given output port
     def self.resolve_connections(output_ports, input_ports)
         Models.debug do
-            Models.debug "resolving connections from #{output_ports.map(&:name).sort.join(",")} to #{input_ports.map(&:name).sort.join(",")}"
+            Models.debug "resolving connections from #{output_ports.map(&:name).sort.join(',')} to #{input_ports.map(&:name).sort.join(',')}"
             break
         end
 
-        result = Array.new
+        result = []
         matched_input_ports = Set.new
 
         # First resolve the exact matches
         remaining_outputs = output_ports.dup
         remaining_outputs.delete_if do |out_port|
-            in_port = input_ports.
-                find do |in_port|
-                    in_port.name == out_port.name &&
-                        in_port.type == out_port.type
-                end
+            in_port = input_ports
+                      .find do |in_port|
+                in_port.name == out_port.name &&
+                    in_port.type == out_port.type
+            end
             if in_port
                 result << [out_port, in_port]
                 matched_input_ports << in_port
@@ -90,11 +93,11 @@ module Syskit
         # we try to resolve them by excluding the ports that had an exact
         # match. This is, by experience, expected behaviour in practice
         remaining_outputs.each do |out_port|
-            candidates = input_ports.
-                find_all { |in_port| in_port.type == out_port.type }
+            candidates = input_ports
+                         .find_all { |in_port| in_port.type == out_port.type }
             if candidates.size > 1
-                filtered_candidates = candidates.
-                    find_all { |p| !matched_input_ports.include?(p) }
+                filtered_candidates = candidates
+                                      .find_all { |p| !matched_input_ports.include?(p) }
                 if filtered_candidates.size == 1
                     candidates = filtered_candidates
                 end
@@ -108,12 +111,12 @@ module Syskit
 
         # Finally, verify that we autoconnect multiple outputs to a single
         # input only if it is a multiplexing port
-        outputs_per_input = Hash.new
+        outputs_per_input = {}
         result.each do |out_port, in_port|
             if outputs_per_input[in_port]
-                if !in_port.multiplexes?
-                    candidates = result.map { |o, i| o if i == in_port }.
-                        compact
+                unless in_port.multiplexes?
+                    candidates = result.map { |o, i| o if i == in_port }
+                                       .compact
                     raise AmbiguousAutoConnection.new(in_port, candidates)
                 end
             end
@@ -124,8 +127,8 @@ module Syskit
             result.each do |out_port, in_port|
                 Models.debug "  #{out_port.name} => #{in_port.name}"
             end
-            if !remaining_outputs.empty?
-                Models.debug "  no matches found for outputs #{remaining_outputs.map(&:name).sort.join(",")}"
+            unless remaining_outputs.empty?
+                Models.debug "  no matches found for outputs #{remaining_outputs.map(&:name).sort.join(',')}"
             end
             break
         end
@@ -162,7 +165,7 @@ module Syskit
 
         connections = resolve_connections(output_ports, input_ports)
         if connections.empty?
-            raise InvalidAutoConnection.new(source, sink) 
+            raise InvalidAutoConnection.new(source, sink)
         end
 
         connections.each do |out_port, in_port|
@@ -172,4 +175,3 @@ module Syskit
         connections
     end
 end
-

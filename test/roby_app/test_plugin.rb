@@ -1,6 +1,8 @@
-require 'syskit/test/self'
-require 'syskit/test/roby_app_helpers'
-require 'syskit/roby_app/process_server'
+# frozen_string_literal: true
+
+require "syskit/test/self"
+require "syskit/test/roby_app_helpers"
+require "syskit/roby_app/process_server"
 
 module Syskit
     module RobyApp
@@ -18,15 +20,16 @@ module Syskit
                     thread = Thread.new do
                         server.listen
                     end
-                    client  = Syskit.conf.connect_to_orocos_process_server(
-                        name, 'localhost', port: server.port)
+                    client = Syskit.conf.connect_to_orocos_process_server(
+                        name, "localhost", port: server.port
+                    )
                     @process_servers << [name, thread, client]
                 end
 
                 attr_reader :server0, :server1
                 before do
                     Syskit.conf.only_load_models = false
-                    @process_servers = Array.new
+                    @process_servers = []
                     @server0 = create_process_server("server0")
                     @server1 = create_process_server("server1")
                 end
@@ -45,27 +48,27 @@ module Syskit
                 end
 
                 it "registers a given deployment model only once" do
-                    Roby.app.using_task_library 'plugin_remote_model_loading'
+                    Roby.app.using_task_library "plugin_remote_model_loading"
 
-                    m0 = Syskit.conf.use_deployment 'plugin_remote_model_loading' => 'm0', on: 'server0'
+                    m0 = Syskit.conf.use_deployment "plugin_remote_model_loading" => "m0", on: "server0"
                     m0 = m0.first
-                    m1 = Syskit.conf.use_deployment 'plugin_remote_model_loading' => 'm1', on: 'server1'
+                    m1 = Syskit.conf.use_deployment "plugin_remote_model_loading" => "m1", on: "server1"
                     m1 = m1.first
 
                     assert_same m0.model.orogen_model, m1.model.orogen_model
                     assert_same OroGen::PluginRemoteModelLoading::Task.orogen_model,
-                        m1.orogen_model.find_task_by_name('m1task').task_model
+                                m1.orogen_model.find_task_by_name("m1task").task_model
                 end
             end
             describe "local process server startup" do
                 before do
-                    Syskit.conf.remove_process_server 'localhost'
+                    Syskit.conf.remove_process_server "localhost"
                 end
 
                 it "starts the process server on an ephemeral port and can connect to it" do
                     Plugin.start_local_process_server
                     client = Plugin.connect_to_local_process_server(Roby.app)
-                    assert_same client, Syskit.conf.process_server_for('localhost')
+                    assert_same client, Syskit.conf.process_server_for("localhost")
                 end
             end
 
@@ -97,19 +100,19 @@ module Syskit
                     model = TaskContext.new_submodel
                     task = syskit_stub_deploy_and_configure(model)
                     plan.add_permanent_task(deployment = task.execution_agent)
-                    expect_execution { plan.unmark_mission_task(task) }.
-                        garbage_collect(true).
-                        to { finalize task }
+                    expect_execution { plan.unmark_mission_task(task) }
+                        .garbage_collect(true)
+                        .to { finalize task }
                     # NOTE: we need to mock the configuration manager AFTER the
                     # model stub, as stubbing protects the original manager
-                    flexmock(model.configuration_manager).should_receive(:reload).once.
-                        and_return(['default'])
-                    flexmock(app).should_receive(:notify).
-                        with('syskit', 'INFO', "task #{task.orocos_name} needs reconfiguration").once
+                    flexmock(model.configuration_manager).should_receive(:reload).once
+                                                         .and_return(["default"])
+                    flexmock(app).should_receive(:notify)
+                                 .with("syskit", "INFO", "task #{task.orocos_name} needs reconfiguration").once
                     app.syskit_reload_config
                     assert_equal [task.orocos_name], deployment.pending_reconfigurations
                     assert_equal [[task.orocos_name], []],
-                        app.syskit_pending_reloaded_configurations
+                                 app.syskit_pending_reloaded_configurations
                 end
                 it "announces specifically if running tasks have had their configuration changed" do
                     model = TaskContext.new_submodel
@@ -117,41 +120,41 @@ module Syskit
                     deployment = task.execution_agent
                     # NOTE: we need to mock the configuration manager AFTER the
                     # model stub, as stubbing protects the original manager
-                    flexmock(model.configuration_manager).should_receive(:reload).once.
-                        and_return(['default'])
-                    flexmock(app).should_receive(:notify).
-                        with('syskit', 'INFO', "task #{task.orocos_name} needs reconfiguration").once
-                    flexmock(app).should_receive(:notify).
-                        with('syskit', 'INFO', "1 running tasks configuration changed. In the shell, use 'redeploy' to trigger reconfiguration.").once
+                    flexmock(model.configuration_manager).should_receive(:reload).once
+                                                         .and_return(["default"])
+                    flexmock(app).should_receive(:notify)
+                                 .with("syskit", "INFO", "task #{task.orocos_name} needs reconfiguration").once
+                    flexmock(app).should_receive(:notify)
+                                 .with("syskit", "INFO", "1 running tasks configuration changed. In the shell, use 'redeploy' to trigger reconfiguration.").once
                     app.syskit_reload_config
                     assert task.needs_reconfiguration?
                     assert_equal [task.orocos_name], deployment.pending_reconfigurations
                     assert_equal [[task.orocos_name], [task.orocos_name]],
-                        app.syskit_pending_reloaded_configurations
+                                 app.syskit_pending_reloaded_configurations
                 end
                 it "ignores models that have never been configured" do
                     model = TaskContext.new_submodel
                     task = syskit_stub_and_deploy(model)
                     deployment = task.execution_agent
-                    flexmock(model.configuration_manager).should_receive(:reload).once.
-                        and_return(['default'])
+                    flexmock(model.configuration_manager).should_receive(:reload).once
+                                                         .and_return(["default"])
                     app.syskit_reload_config
                     refute task.needs_reconfiguration?
                     assert_equal [], deployment.pending_reconfigurations
                     assert_equal [[], []],
-                        app.syskit_pending_reloaded_configurations
+                                 app.syskit_pending_reloaded_configurations
                 end
                 it "does not redeploy the network" do
                     model = TaskContext.new_submodel
                     task = syskit_stub_deploy_and_configure(model)
-                    flexmock(model.configuration_manager).should_receive(:reload).once.
-                        and_return(['default'])
+                    flexmock(model.configuration_manager).should_receive(:reload).once
+                                                         .and_return(["default"])
                     flexmock(Runtime).should_receive(:apply_requirement_modifications).never
                     app.syskit_reload_config
                 end
             end
 
-            describe 'model reloading' do
+            describe "model reloading" do
                 include Test::RobyAppHelpers
 
                 def perform_app_assertion(result)
@@ -160,19 +163,19 @@ module Syskit
                 end
 
                 before do
-                    app_helpers_source_dir File.join(__dir__, 'app')
+                    app_helpers_source_dir File.join(__dir__, "app")
                     gen_app
                 end
 
                 it "reloads and redefines orogen deployments" do
-                    copy_into_app 'models/pack/orogen/reload-1.orogen',
-                        'models/pack/orogen/reload.orogen'
-                    copy_into_app 'config/robots/reload_orogen.rb',
-                        'config/robots/default.rb'
-                    pid = roby_app_spawn 'run', silent: true
+                    copy_into_app "models/pack/orogen/reload-1.orogen",
+                                  "models/pack/orogen/reload.orogen"
+                    copy_into_app "config/robots/reload_orogen.rb",
+                                  "config/robots/default.rb"
+                    pid = roby_app_spawn "run", silent: true
                     interface = assert_roby_app_is_running(pid)
-                    copy_into_app 'models/pack/orogen/reload-2.orogen',
-                        'models/pack/orogen/reload.orogen'
+                    copy_into_app "models/pack/orogen/reload-2.orogen",
+                                  "models/pack/orogen/reload.orogen"
                     perform_app_assertion interface.unit_tests.orogen_deployment_exists?
                     interface.reload_models
                     perform_app_assertion interface.unit_tests.orogen_model_reloaded?
@@ -180,14 +183,14 @@ module Syskit
                 end
 
                 it "reloads and redefines ruby tasks" do
-                    copy_into_app 'models/compositions/reload_ruby_task-1.rb',
-                        'models/compositions/reload_ruby_task.rb'
-                    copy_into_app 'config/robots/reload_ruby_task.rb',
-                        'config/robots/default.rb'
-                    pid = roby_app_spawn 'run', silent: true
+                    copy_into_app "models/compositions/reload_ruby_task-1.rb",
+                                  "models/compositions/reload_ruby_task.rb"
+                    copy_into_app "config/robots/reload_ruby_task.rb",
+                                  "config/robots/default.rb"
+                    pid = roby_app_spawn "run", silent: true
                     interface = assert_roby_app_is_running(pid)
-                    copy_into_app 'models/compositions/reload_ruby_task-2.rb',
-                        'models/compositions/reload_ruby_task.rb'
+                    copy_into_app "models/compositions/reload_ruby_task-2.rb",
+                                  "models/compositions/reload_ruby_task.rb"
                     perform_app_assertion interface.unit_tests.orogen_deployment_exists?
                     interface.reload_models
                     perform_app_assertion interface.unit_tests.orogen_model_reloaded?
@@ -195,14 +198,14 @@ module Syskit
                 end
 
                 it "reloads and redefines unmanaged tasks" do
-                    copy_into_app 'models/pack/orogen/reload-1.orogen',
-                        'models/pack/orogen/reload.orogen'
-                    copy_into_app 'config/robots/reload_unmanaged_task.rb',
-                        'config/robots/default.rb'
-                    pid = roby_app_spawn 'run', silent: true
+                    copy_into_app "models/pack/orogen/reload-1.orogen",
+                                  "models/pack/orogen/reload.orogen"
+                    copy_into_app "config/robots/reload_unmanaged_task.rb",
+                                  "config/robots/default.rb"
+                    pid = roby_app_spawn "run", silent: true
                     interface = assert_roby_app_is_running(pid)
-                    copy_into_app 'models/pack/orogen/reload-2.orogen',
-                        'models/pack/orogen/reload.orogen'
+                    copy_into_app "models/pack/orogen/reload-2.orogen",
+                                  "models/pack/orogen/reload.orogen"
                     perform_app_assertion interface.unit_tests.orogen_deployment_exists?
                     interface.reload_models
                     perform_app_assertion interface.unit_tests.orogen_model_reloaded?

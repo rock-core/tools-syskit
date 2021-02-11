@@ -1,9 +1,11 @@
-require 'roby/standalone'
-require 'syskit/scripts/common'
+# frozen_string_literal: true
+
+require "roby/standalone"
+require "syskit/scripts/common"
 Scripts = Syskit::Scripts
 
-require 'Qt4'
-require 'syskit/gui/orocos_system_builder'
+require "Qt4"
+require "syskit/gui/orocos_system_builder"
 
 parser = OptionParser.new do |opt|
     opt.banner = "Usage: scripts/orocos/instanciate_gui [options] deployments
@@ -14,7 +16,7 @@ Scripts.common_options(parser, true)
 remaining = parser.parse(ARGV)
 
 # We don't need the process server, win some startup time
-Roby.app.using 'syskit'
+Roby.app.using "syskit"
 Roby.app.single
 Syskit.conf.only_load_models = true
 Syskit.conf.disables_local_process_server = true
@@ -32,4 +34,3 @@ error = Scripts.run do
 
     app.exec
 end
-

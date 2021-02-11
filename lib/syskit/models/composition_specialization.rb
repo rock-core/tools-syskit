@@ -1,3 +1,5 @@
+# frozen_string_literal: true
+
 module Syskit
     module Models
         # Representation of a composition specialization
@@ -5,13 +7,15 @@ module Syskit
             # Additional methods that are mixed in composition specialization
             # models. I.e. composition models created by CompositionModel#specialize
             module Extension
-                def is_specialization?; true end
+                def is_specialization?
+                    true
+                end
 
                 # The root composition model in the specialization chain
                 attr_accessor :root_model
                 # The set of definition blocks that have been applied on +self+ in
                 # the process of specializing +root_model+
-                attribute(:definition_blocks) { Array.new }
+                attribute(:definition_blocks) { [] }
 
                 # Returns the model name
                 #
@@ -20,14 +24,14 @@ module Syskit
                 def name
                     return super if root_model == self
 
-                    specializations = self.specialized_children.map do |child_name, child_models|
-                        "#{child_name}.is_a?(#{child_models.map(&:short_name).join(",")})"
+                    specializations = specialized_children.map do |child_name, child_models|
+                        "#{child_name}.is_a?(#{child_models.map(&:short_name).join(',')})"
                     end
 
                     "#{root_model.short_name}/#{specializations}"
                 end
 
-                def setup_submodel(submodel, options = Hash.new)
+                def setup_submodel(submodel, **options)
                     submodel.root_model = submodel
                     super
                 end
@@ -41,7 +45,7 @@ module Syskit
                 # that the block is applied on all specialization models that should
                 # have it applied
                 def apply_specialization_block(block)
-                    if !definition_blocks.include?(block)
+                    unless definition_blocks.include?(block)
                         instance_eval(&block)
                         definition_blocks << block
                     end
@@ -56,7 +60,7 @@ module Syskit
                     applied_specializations.each do |s|
                         merged.merge(s)
                     end
-                    list = list + applied_specializations.to_a
+                    list += applied_specializations.to_a
                     root_model.instanciate_specialization(merged, list)
                 end
             end
@@ -95,9 +99,9 @@ module Syskit
             # this specialization specializes.
             attr_accessor :composition_model
 
-            def initialize(spec = Hash.new, block = nil)
+            def initialize(spec = {}, block = nil)
                 @specialized_children = spec
-                @specialization_blocks = Array.new
+                @specialization_blocks = []
                 if block
                     @specialization_blocks << block
                 end
@@ -117,7 +121,7 @@ module Syskit
 
             def to_s
                 root_name.to_s + "/" + specialized_children.map do |child_name, child_models|
-                    "#{child_name}.is_a?(#{child_models.map(&:short_name).join(",")})"
+                    "#{child_name}.is_a?(#{child_models.map(&:short_name).join(',')})"
                 end.join(",")
             end
 
@@ -132,8 +136,8 @@ module Syskit
             def find_specialization(child_name, model)
                 if selected_models = specialized_children[child_name]
                     if matches = selected_models.find_all { |m| m.fullfills?(model) }
-                        if !matches.empty?
-                            return matches
+                        unless matches.empty?
+                            matches
                         end
                     end
                 end
@@ -238,5 +242,3 @@ module Syskit
         end
     end
 end
-
-

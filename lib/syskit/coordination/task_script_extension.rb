@@ -1,14 +1,16 @@
+# frozen_string_literal: true
+
 module Syskit
     module Coordination
         module TaskScriptExtension
-	    # Waits until this data writer is {InputWriter#ready?}
-	    def wait_until_ready(writer)
-		poll do
-		    if writer.ready?
-			transition!
-		    end
-		end
-	    end
+            # Waits until this data writer is {InputWriter#ready?}
+            def wait_until_ready(writer)
+                poll do
+                    if writer.ready?
+                        transition!
+                    end
+                end
+            end
 
             def respond_to_missing?(m, include_private)
                 if m.to_s =~ /_port$/

@@ -20,7 +20,7 @@ Roby.app.backward_compatible_naming = false
 
 ## Enable Syskit
 
-Roby.app.using 'syskit'
+Roby.app.using "syskit"
 
-require 'roby/schedulers/temporal'
+require "roby/schedulers/temporal"
 Roby.scheduler = Roby::Schedulers::Temporal.new

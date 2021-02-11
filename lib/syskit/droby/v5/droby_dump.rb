@@ -1,3 +1,5 @@
+# frozen_string_literal: true
+
 module Syskit
     module DRoby
         module V5
@@ -110,7 +112,8 @@ module Syskit
                         name,
                         peer.known_siblings_for(self),
                         Roby::DRoby::V5::DRobyModel.dump_supermodel(peer, self),
-                        Roby::DRoby::V5::DRobyModel.dump_provided_models_of(peer, self))
+                        Roby::DRoby::V5::DRobyModel.dump_provided_models_of(peer, self)
+                    )
                 end
             end
 
@@ -123,8 +126,10 @@ module Syskit
                     attr_reader :byte_array
                     attr_reader :type
                     def initialize(byte_array, type)
-                        @byte_array, @type = byte_array, type
+                        @byte_array = byte_array
+                        @type = type
                     end
+
                     def proxy(peer)
                         peer.local_object(type).from_buffer(byte_array)
                     end
@@ -144,6 +149,7 @@ module Syskit
                         @name = name
                         @xml = xml
                     end
+
                     def proxy(peer)
                         if xml
                             reg = Typelib::Registry.from_xml(xml)
@@ -155,7 +161,7 @@ module Syskit
 
                 def droby_dump(peer)
                     peer_registry = peer.object_manager.typelib_registry
-                    if !peer_registry.include?(name)
+                    unless peer_registry.include?(name)
                         reg = registry.minimal(name)
                         xml = reg.to_xml
                         peer_registry.merge(reg)
@@ -167,13 +173,15 @@ module Syskit
             module InstanceRequirementsDumper
                 class DRoby
                     def initialize(name, model, arguments)
-                        @name, @model, @arguments = name, model, arguments
+                        @name = name
+                        @model = model
+                        @arguments = arguments
                     end
 
                     def proxy(peer)
                         requirements = InstanceRequirements.new([peer.local_object(@model)])
                         requirements.name = @name
-                        requirements.with_arguments(@arguments)
+                        requirements.with_arguments(**@arguments)
                         requirements
                     end
                 end
@@ -216,8 +224,7 @@ module Syskit
                     DRoby.new(name, peer.known_siblings_for(self))
                 end
 
-                def clear_owners
-                end
+                def clear_owners; end
             end
 
             module Models
@@ -230,27 +237,32 @@ module Syskit
                         def initialize(name, remote_siblings, arguments, supermodel, provided_models, events,
                             orogen_name, orogen_superclass_name, project_name, project_text, types)
                             super(name, remote_siblings, arguments, supermodel, provided_models, events)
-                            @orogen_name, @orogen_superclass_name, @project_name, @project_text, @types =
-                                orogen_name, orogen_superclass_name, project_name, project_text, types
+                            @orogen_name = orogen_name
+                            @orogen_superclass_name = orogen_superclass_name
+                            @project_name = project_name
+                            @project_text = project_text
+                            @types = types
                         end
 
                         def create_new_proxy_model(peer)
                             @types.each do |type|
                                 peer.register_typelib_model(
-                                    peer.local_object(type))
+                                    peer.local_object(type)
+                                )
                             end
 
                             if @project_text && !peer.has_orogen_project?(@project_name)
                                 peer.add_orogen_project(
-                                    @project_name, @project_text)
+                                    @project_name, @project_text
+                                )
                             end
 
                             if @orogen_name
                                 begin
-                                    orogen_model = peer.
-                                        orogen_task_context_model_from_name(@orogen_name)
-                                    local_model = Syskit::TaskContext.
-                                        define_from_orogen(orogen_model, register: false)
+                                    orogen_model = peer
+                                                   .orogen_task_context_model_from_name(@orogen_name)
+                                    local_model = Syskit::TaskContext
+                                                  .define_from_orogen(orogen_model, register: false)
                                     if name
                                         local_model.name = name
                                     end
@@ -258,10 +270,10 @@ module Syskit
                                 end
                             end
 
-                            if !orogen_model
-                                syskit_supermodel = peer.local_model(self.supermodel)
-                                local_model = syskit_supermodel.
-                                    new_submodel(name: @orogen_name)
+                            unless orogen_model
+                                syskit_supermodel = peer.local_model(supermodel)
+                                local_model = syskit_supermodel
+                                              .new_submodel(name: @orogen_name)
                                 if name
                                     local_model.name = name
                                 end
@@ -274,7 +286,8 @@ module Syskit
                         def unmarshal_dependent_models(peer)
                             @types.each do |type|
                                 peer.register_typelib_model(
-                                    peer.local_object(type))
+                                    peer.local_object(type)
+                                )
                             end
                             super
                         end
@@ -282,26 +295,27 @@ module Syskit
                         def update(peer, local_object, fresh_proxy: false)
                             @types.each do |type|
                                 peer.register_typelib_model(
-                                    peer.local_object(type))
+                                    peer.local_object(type)
+                                )
                             end
                             super
                         end
                     end
 
                     def droby_dump(peer)
-                        types = orogen_model.each_interface_type.
-                            map { |t| peer.dump(t) }
+                        types = orogen_model.each_interface_type
+                                            .map { |t| peer.dump(t) }
 
-                        supermodel = Roby::DRoby::V5::DRobyModel.
-                            dump_supermodel(peer, self)
-                        provided_models = Roby::DRoby::V5::DRobyModel.
-                            dump_provided_models_of(peer, self)
+                        supermodel = Roby::DRoby::V5::DRobyModel
+                                     .dump_supermodel(peer, self)
+                        provided_models = Roby::DRoby::V5::DRobyModel
+                                          .dump_provided_models_of(peer, self)
 
                         orogen_name = orogen_model.name
                         if orogen_model.name && (project_name = orogen_model.project.name)
                             begin
-                                project_text, _ = orogen_model.project.loader.
-                                    project_model_text_from_name(project_name)
+                                project_text, = orogen_model.project.loader
+                                                            .project_model_text_from_name(project_name)
                             rescue OroGen::ProjectNotFound
                             end
                         end
@@ -318,7 +332,8 @@ module Syskit
                             supermodel,
                             provided_models,
                             each_event.map { |_, ev| [ev.symbol, ev.controlable?, ev.terminal?] },
-                            orogen_name, orogen_superclass_name, project_name, project_text, types)
+                            orogen_name, orogen_superclass_name, project_name, project_text, types
+                        )
                     end
                 end
             end

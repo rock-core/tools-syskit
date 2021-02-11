@@ -1,4 +1,6 @@
-require 'syskit/test/self'
+# frozen_string_literal: true
+
+require "syskit/test/self"
 
 describe Syskit::Models do
     describe "is_model?" do
@@ -36,7 +38,7 @@ describe Syskit::Models do
         it "should return true for bound data services" do
             srv_m = Syskit::DataService.new_submodel
             task_m = Syskit::TaskContext.new_submodel
-            task_m.provides srv_m, as: 'test'
+            task_m.provides srv_m, as: "test"
 
             assert Syskit::Models.is_model?(task_m.test_srv)
         end

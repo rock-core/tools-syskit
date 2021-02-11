@@ -1,3 +1,5 @@
+# frozen_string_literal: true
+
 module Syskit
     module Coordination
         module Models
@@ -36,4 +38,3 @@ module Syskit
 end
 
 Roby::Coordination::Models::Task.include Syskit::Coordination::Models::PortHandling
-

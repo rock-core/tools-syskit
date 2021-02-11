@@ -1,3 +1,5 @@
+# frozen_string_literal: true
+
 module Syskit
     module Models
         # Definition of model-level methods for the Component models. See the
@@ -7,13 +9,15 @@ module Syskit
             include MetaRuby::ModelAsClass
             include Syskit::DataService
 
-            def to_component_model; self end
+            def to_component_model
+                self
+            end
 
             # Method that maps data services from this component's parent models
             # to this composition's own
             #
             # It is called as needed when calling {#each_data_service}
-            def promote_data_service(full_name, service)
+            def promote_data_service(_full_name, service)
                 service.attach(self, verify: false)
             end
 
@@ -22,7 +26,7 @@ module Syskit
             #
             # @key_name full_name
             # @return [Hash<String,BoundDataService>]
-            inherited_attribute(:data_service, :data_services, map: true) { Hash.new }
+            inherited_attribute(:data_service, :data_services, map: true) { {} }
 
             # List of modules that should be applied on the underlying
             # {Orocos::RubyTasks::StubTaskContext} when running tests in
@@ -49,12 +53,11 @@ module Syskit
             #
             # @yieldparam [Model<Device>] device_model
             # @return [void]
-            def each_master_driver_service(&block)
-                return enum_for(:each_master_driver_service) if !block_given?
+            def each_master_driver_service
+                return enum_for(:each_master_driver_service) unless block_given?
+
                 each_root_data_service do |srv|
-                    if srv.model < Syskit::Device
-                        yield(srv)
-                    end
+                    yield(srv) if srv.model < Syskit::Device
                 end
             end
 
@@ -63,12 +66,11 @@ module Syskit
             #
             # @yield [Model<ComBus>] com_bus_model
             # @return [void]
-            def each_com_bus_driver_service(&block)
-                return enum_for(:each_com_bus_driver_service) if !block_given?
+            def each_com_bus_driver_service
+                return enum_for(:each_com_bus_driver_service) unless block_given?
+
                 each_root_data_service do |srv|
-                    if srv.model < Syskit::ComBus
-                        yield(srv)
-                    end
+                    yield(srv) if srv.model < Syskit::ComBus
                 end
             end
 
@@ -97,20 +99,18 @@ module Syskit
                     rx = /(^|\.)#{pattern}$/
                     matching_services.delete_if { |service| service.full_name !~ rx }
                 end
+                return matching_services.first if matching_services.size <= 1
 
-                if matching_services.size > 1
-                    main_matching_services = matching_services.
-                        find_all { |service| service.master? }
-
-                    if main_matching_services.size != 1
-                        raise AmbiguousServiceSelection.new(self, target_model, main_matching_services), "there is more than one service of type #{target_model.name} in #{self.name}#{" matching name hint #{pattern}" if pattern}"
-                    end
-                    selected = main_matching_services.first
-                else
-                    selected = matching_services.first
+                master_matching_services = matching_services.find_all(&:master?)
+                if master_matching_services.size == 1
+                    return master_matching_services.first
                 end
 
-                selected
+                pattern_msg += " matching name hint #{pattern}" if pattern
+                raise AmbiguousServiceSelection.new(
+                    self, target_model, master_matching_services
+                ), "there is more than one service of type #{target_model.name} "\
+                   "in #{name}#{pattern_msg}"
             end
 
             # Define a module that should be applied on the underlying
@@ -130,7 +130,7 @@ module Syskit
             end
 
             # Checks if a given component implementation needs to be stubbed
-            def needs_stub?(component)
+            def needs_stub?(_component)
                 false
             end
 
@@ -139,11 +139,14 @@ module Syskit
             #
             # @yield [Models::BoundDataService]
             def each_slave_data_service(master_service)
-                return enum_for(:each_slave_data_service, master_service) if !block_given?
-                each_data_service(nil) do |name, service|
-                    if service.master && (service.master.full_name == master_service.full_name)
-                        yield(service)
-                    end
+                unless block_given?
+                    return enum_for(:each_slave_data_service, master_service)
+                end
+
+                each_data_service(nil) do |_name, service|
+                    next unless (m = service.master)
+
+                    yield(service) if m.full_name == master_service.full_name
                 end
             end
 
@@ -151,12 +154,11 @@ module Syskit
             # services)
             #
             # @yield [Models::BoundDataService]
-            def each_root_data_service(&block)
-                return enum_for(:each_root_data_service) if !block_given?
-                each_data_service(nil) do |name, service|
-                    if service.master?
-                        yield(service)
-                    end
+            def each_root_data_service
+                return enum_for(:each_root_data_service) unless block_given?
+
+                each_data_service(nil) do |_name, service|
+                    yield(service) if service.master?
                 end
             end
 
@@ -164,16 +166,17 @@ module Syskit
             #
             # It creates a new task from the component model using
             # Component.new, adds it to the plan and returns it.
-            def instanciate(plan, context = DependencyInjectionContext.new, task_arguments: Hash.new, **arguments)
-                plan.add(task = new(task_arguments))
+            def instanciate(
+                plan, _context = DependencyInjectionContext.new,
+                task_arguments: {}, **
+            )
+                plan.add(task = new(**task_arguments))
                 task
             end
 
             # The model next in the ancestry chain, or nil if +self+ is root
             def supermodel
-                if superclass.respond_to?(:register_submodel)
-                    return superclass
-                end
+                superclass if superclass.respond_to?(:register_submodel)
             end
 
             # This returns an InstanciatedComponent object that can be used in
@@ -182,10 +185,10 @@ module Syskit
             # For instance,
             #
             #   add(Cmp::CorridorServoing).
-            #       use(Cmp::Odometry.with_arguments('special_behaviour' => true))
+            #       use(Cmp::Odometry.with_arguments(special_behaviour: true))
             #
-            def with_arguments(*spec, &block)
-                InstanceRequirements.new([self]).with_arguments(*spec, &block)
+            def with_arguments(**arguments)
+                InstanceRequirements.new([self]).with_arguments(**arguments)
             end
 
             # Optional dependency injection
@@ -236,31 +239,31 @@ module Syskit
             # only then call #as on the returned BoundDataService object
             def as(service_model)
                 srv = find_data_service_from_type(service_model)
-                if !srv
+                unless srv
                     raise ArgumentError, "no service of #{self} provides #{service_model}"
                 end
-                return srv.as(service_model)
+
+                srv.as(service_model)
             end
 
             # Defined to be compatible, in port mapping code, with the data services
             def port_mappings_for_task
-                Hash.new { |h,k| k }
+                Hash.new { |_h, k| k }
             end
 
             # Defined to be compatible, in port mapping code, with the data services
             def port_mappings_for(model)
-                if model.kind_of?(Class)
-                    if fullfills?(model)
-                        mappings = Hash.new
-                        model.each_port do |port|
-                            mappings[port.name] = port.name
-                        end
-                        mappings
-                    else
-                        raise ArgumentError, "#{model.short_name} is not fullfilled by #{self}"
-                    end
-                else
-                    find_data_service_from_type(model).port_mappings_for_task
+                unless model.kind_of?(Class)
+                    return find_data_service_from_type(model).port_mappings_for_task
+                end
+
+                unless fullfills?(model)
+                    raise ArgumentError,
+                          "#{model.short_name} is not fullfilled by #{self}"
+                end
+
+                model.each_port.each_with_object({}) do |port, mappings|
+                    mappings[port.name] = port.name
                 end
             end
 
@@ -277,9 +280,9 @@ module Syskit
                 candidates = find_all_data_services_from_type(type)
                 if candidates.size > 1
                     raise AmbiguousServiceSelection.new(self, type, candidates),
-                        "multiple services match #{type.short_name} on #{short_name}"
+                          "multiple services match #{type.short_name} on #{short_name}"
                 elsif candidates.size == 1
-                    return candidates.first
+                    candidates.first
                 end
             end
 
@@ -309,9 +312,11 @@ module Syskit
             # @return [Models::Port] a port in which {Port#component_model} is
             #   the "proper" component model that corresponds to self
             def self_port_to_component_port(port)
-                return port
+                port
             end
 
+            # @api private
+            #
             # Compute the port mapping from the interface of 'service' onto the
             # ports of 'self'
             #
@@ -319,55 +324,107 @@ module Syskit
             #
             #   service_interface_port_name => task_model_port_name
             #
-            def compute_port_mappings(service_model, explicit_mappings = Hash.new)
-                normalized_mappings = Hash.new
-                explicit_mappings.each do |from, to|
-                    from = from.to_s if from.kind_of?(Symbol)
-                    to   = to.to_s   if to.kind_of?(Symbol)
-                    if !from.respond_to?(:to_str)
-                        raise ArgumentError, "unexpected value given in port mapping: #{from}, expected a string"
-                    elsif !to.respond_to?(:to_str)
-                        raise ArgumentError, "unexpected value given in port mapping: #{to}, expected a string"
-                    else
-                        normalized_mappings[from] = to
-                    end
-                end
+            # @param [{String=>String}] srv_to_self mapping from a port name in the
+            #   provided service to the port name it should be mapped to on self
+            # @raise InvalidPortMapping
+            def compute_port_mappings(service_model, srv_to_self = {})
+                normalized_srv_to_self =
+                    normalize_port_mappings_argument(service_model, srv_to_self)
 
-                # This is used later to verify that we don't automatically map
-                # two different ports to the same port. It can be done
-                # explicitly, though
-                mapped_to_original = Hash.new { |h, k| h[k] = Array.new }
+                output_srv_to_self = compute_output_port_mappings(
+                    service_model, normalized_srv_to_self
+                )
+                input_srv_to_self = compute_input_port_mappings(
+                    service_model, normalized_srv_to_self
+                )
 
-                result = Hash.new
-                service_model.each_output_port do |port|
-                    if mapped_name = find_directional_port_mapping('output', port, normalized_mappings[port.name])
-                        result[port.name] = mapped_name
-                        mapped_to_original[mapped_name] << port.name
-                    else
-                        raise InvalidPortMapping, "cannot find an equivalent output port for #{port.name}[#{port.type_name}] on #{short_name}"
-                    end
-                end
-                service_model.each_input_port do |port|
-                    if mapped_name = find_directional_port_mapping('input', port, normalized_mappings[port.name])
-                        result[port.name] = mapped_name
-                        mapped_to_original[mapped_name] << port.name
-                    else
-                        raise InvalidPortMapping, "cannot find an equivalent input port for #{port.name}[#{port.type_name}] on #{short_name}"
-                    end
-                end
+                # Note that the keys of 'mapped_input' and 'mapped_output' are this
+                # component's port names. They are therefore guaranteed to have no
+                # coll
+                computed_srv_to_self = output_srv_to_self.merge(input_srv_to_self)
+                check_collisions_in_computed_port_mappings(
+                    computed_srv_to_self, srv_to_self
+                )
+                computed_srv_to_self
+            end
 
-                # Verify that we don't automatically map two different ports to
-                # the same port
-                mapped_to_original.each do |mapped, original|
-                    if original.size > 1
-                        not_explicit = original.find_all { |pname| !normalized_mappings.has_key?(pname) }
-                        if !not_explicit.empty?
-                            raise InvalidPortMapping, "automatic port mapping would map ports #{original.sort.join(", ")} to the same port #{mapped}. I refuse to do this. If you actually mean to do it, provide the mapping #{original.map { |o| "\"#{o}\" => \"#{mapped}\"" }.join(", ")} explicitly"
-                        end
-                    end
-                end
+            def normalize_port_mappings_argument(service_model, srv_to_self)
+                srv_to_self.each_with_object({}) do |(srv_name, self_name), normalized|
+                    srv_name  = srv_name.to_s  if srv_name.kind_of?(Symbol)
+                    self_name = self_name.to_s if self_name.kind_of?(Symbol)
 
-                result
+                    if !srv_name.respond_to?(:to_str)
+                        raise ArgumentError,
+                              "unexpected value given in port mapping: #{srv_name}, "\
+                              "expected a string"
+                    elsif !self_name.respond_to?(:to_str)
+                        raise ArgumentError,
+                              "unexpected value given in port mapping: #{self_name}, "\
+                              "expected a string"
+                    elsif !service_model.find_port(srv_name)
+                        raise InvalidPortMapping,
+                              "#{srv_name} is not a port of #{service_model}"
+                    elsif !find_port(self_name)
+                        raise InvalidPortMapping,
+                              "#{self_name} is not a port of #{self}"
+                    end
+
+                    normalized[srv_name] = self_name
+                end
+            end
+
+            def compute_output_port_mappings(service_model, given_srv_to_self)
+                service_model.each_output_port.each_with_object({}) do |srv_port, mapped|
+                    self_port_name = find_directional_port_mapping(
+                        "output", srv_port, given_srv_to_self[srv_port.name]
+                    )
+                    unless self_port_name
+                        raise InvalidPortMapping,
+                              "cannot find an equivalent output port for "\
+                              "#{srv_port.name}[#{srv_port.type_name}] on #{short_name}"
+                    end
+
+                    mapped[srv_port.name] = self_port_name
+                end
+            end
+
+            def compute_input_port_mappings(service_model, given_srv_to_self)
+                service_model.each_input_port.each_with_object({}) do |srv_port, mapped|
+                    self_port_name = find_directional_port_mapping(
+                        "input", srv_port, given_srv_to_self[srv_port.name]
+                    )
+                    unless self_port_name
+                        raise InvalidPortMapping,
+                              "cannot find an equivalent input port for "\
+                              "#{srv_port.name}[#{srv_port.type_name}] on #{short_name}"
+                    end
+
+                    mapped[srv_port.name] = self_port_name
+                end
+            end
+
+            def check_collisions_in_computed_port_mappings(
+                computed_srv_to_self, given_srv_to_self
+            )
+                self_to_srv = computed_srv_to_self.group_by(&:last)
+                self_to_srv.each do |self_port_name, srv_to_self_for_this|
+                    next if srv_to_self_for_this.size == 1
+                    # Let the user pass everything explicitly if he/she wishes to
+                    next if srv_to_self_for_this.all? { |n, _| given_srv_to_self.key?(n) }
+
+                    srv_port_names = srv_to_self_for_this.map(&:first)
+                    explicit_mapping_s =
+                        srv_port_names
+                        .map { |o| "\"#{o}\" => \"#{self_port_name}\"" }
+                        .join(", ")
+
+                    raise InvalidPortMapping,
+                          "automatic port mapping would map multiple service ports "\
+                          "#{srv_port_names.sort.join(', ')} to the same component port "\
+                          "#{self_port_name}. This is possible, but must be specified "\
+                          "explicitly by passing this mapping: "\
+                          "#{explicit_mapping_s} explicitly"
+                end
             end
 
             # Finds the port of self that should be used for a service port
@@ -389,33 +446,51 @@ module Syskit
             # @raise InvalidPortMapping if expected_name was nil, no port exists
             #   on self with the same name than port and there are multiple ports
             #   with the same type than port
-            def find_directional_port_mapping(direction, port, expected_name)
-                port_name = expected_name || port.name
-                component_port = send("find_#{direction}_port", port_name)
-
-                if component_port && component_port.type == port.type
-                    return port_name
-                elsif expected_name
-                    if !component_port
-                        known_ports = send("each_#{direction}_port").
-                            map { |p| "#{p.name}[#{p.type.name}]" }
-                        raise InvalidPortMapping, "the provided port mapping from #{port.name} to #{port_name} is invalid: #{port_name} is not a #{direction} port in #{short_name}. Known output ports are #{known_ports.sort.join(", ")}"
-                    else
-                        raise InvalidPortMapping, "the provided port mapping from #{port.name} to #{port_name} is invalid: #{port_name} is of type #{component_port.type_name} in #{short_name} and I was expecting #{port.type}"
-                    end
-                end
-
-                candidates = send("each_#{direction}_port").
-                    find_all { |p| p.type == port.type }
-                if candidates.empty?
-                    return
-                elsif candidates.size == 1
-                    return candidates.first.name
+            def find_directional_port_mapping(direction, srv_port, given_self_port_name)
+                if given_self_port_name
+                    find_directional_port_mapping_by_name(
+                        direction, srv_port, given_self_port_name
+                    )
                 else
-                    raise InvalidPortMapping, "there are multiple candidates to map #{port.name}[#{port.type_name}]: #{candidates.map(&:name).sort.join(", ")}"
+                    find_directional_port_mapping_by_type(direction, srv_port)
                 end
             end
 
+            def find_directional_port_mapping_by_name(
+                direction, srv_port, self_port_name
+            )
+                self_port = send("find_#{direction}_port", self_port_name)
+                return self_port_name if self_port&.type == srv_port.type
+
+                if self_port
+                    raise InvalidPortMapping,
+                          "invalid port mapping provided from #{srv_port} to "\
+                          "#{self_port}: type mismatch"
+                else
+                    known_ports = send("each_#{direction}_port")
+                                  .map { |p| "#{p.name}[#{p.type.name}]" }
+                    raise InvalidPortMapping,
+                          "invalid port mapping \"#{srv_port.name}\" => "\
+                          "\"#{self_port_name}\": #{self_port_name} is not a "\
+                          "#{direction} port in #{short_name}. "\
+                          "Known #{direction} ports are #{known_ports.sort.join(', ')}"
+                end
+            end
+
+            def find_directional_port_mapping_by_type(direction, srv_port)
+                srv_port_type = srv_port.type
+                candidates = send("each_#{direction}_port")
+                             .find_all { |p| p.type == srv_port_type }
+                return candidates.first&.name if candidates.size <= 1
+
+                srv_port_name = srv_port.name
+                return srv_port_name if candidates.any? { |p| p.name == srv_port_name }
+
+                raise InvalidPortMapping,
+                      "there are multiple candidates to map "\
+                      "#{srv_port.name}[#{srv_port.type.name}]: "\
+                      "#{candidates.map(&:name).sort.join(', ')}"
+            end
 
             # Declares that this component model will dynamically provide the
             # ports necessary to provide a service model
@@ -429,14 +504,18 @@ module Syskit
             # @param [Hash] port_mappings explicit port mappings needed to
             #   resolve the service's ports  to the task's ports
             # @param [String] as the name of the newly created {BoundDynamicDataService}
-            # @param [BoundDataService,String,nil] slave_of if this service is slave of another,
-            #   the master service
+            # @param [BoundDataService,String,nil] slave_of if this service is slave of
+            #   another, the master service
             # @return [BoundDynamicDataService]
-            def provides_dynamic(service_model, port_mappings = Hash.new, as: nil, slave_of: nil, bound_service_class: BoundDataService)
+            def provides_dynamic(
+                service_model, port_mappings = {},
+                as: nil, slave_of: nil, bound_service_class: BoundDataService
+            )
                 # Do not use #filter_options here, it will transform the
                 # port names into symbols
                 port_mappings = DynamicDataService.update_component_model_interface(
-                    self, service_model, port_mappings)
+                    self, service_model, port_mappings
+                )
                 provides(service_model, port_mappings,
                          as: as,
                          slave_of: slave_of,
@@ -446,7 +525,7 @@ module Syskit
             # Called by the dynamic_service accessors to promote dynamic
             # services from our parent model to the corresponding dynamic
             # services on the child models
-            def promote_dynamic_service(name, dyn)
+            def promote_dynamic_service(_name, dyn)
                 dyn.attach(self)
             end
 
@@ -454,7 +533,7 @@ module Syskit
             #
             # @key_name dynamic_service_name
             # @return [Hash<String,DynamicDataService>]
-            inherited_attribute('dynamic_service', 'dynamic_services', map: true) { Hash.new }
+            inherited_attribute("dynamic_service", "dynamic_services", map: true) { {} }
 
             # Declares that this component model can dynamically extend its
             # interface by adding services of the given type
@@ -484,22 +563,33 @@ module Syskit
             #         # setup the task to create the required service
             #       end
             #     end
-            def dynamic_service(model, as: nil, addition_requires_reconfiguration: true, remove_when_unused: true, **backward, &block)
+            def dynamic_service( # rubocop:disable Metrics/ParameterLists
+                model, as: nil,
+                addition_requires_reconfiguration: true,
+                remove_when_unused: true, **backward, &block
+            )
                 if !as
-                    raise ArgumentError, "no name given to the dynamic service, please provide one with the :as option"
+                    raise ArgumentError,
+                          "no name given to the dynamic service, "\
+                          "please provide one with the :as option"
                 elsif !block_given?
-                    raise ArgumentError, "no block given to #dynamic_service, one must be provided and must call provides()"
+                    raise ArgumentError,
+                          "no block given to #dynamic_service, "\
+                          "one must be provided and must call provides()"
                 end
 
-                if backward.has_key?(:dynamic)
-                    Roby.warn_deprecated "the dynamic argument to #dynamic_service has been renamed into addition_requires_reconfiguration"
+                if backward.key?(:dynamic)
+                    Roby.warn_deprecated "the dynamic argument to #dynamic_service has "\
+                                         "been renamed into "\
+                                         "addition_requires_reconfiguration"
                     addition_requires_reconfiguration = !backward[:dynamic]
                 end
 
                 dynamic_services[as] = DynamicDataService.new(
                     self, as, model, block,
                     addition_requires_reconfiguration: addition_requires_reconfiguration,
-                    remove_when_unused: remove_when_unused)
+                    remove_when_unused: remove_when_unused
+                )
             end
 
             # Enumerates the services that have been created from a dynamic
@@ -507,11 +597,10 @@ module Syskit
             #
             # @yieldparam [DynamicDataService] srv
             def each_required_dynamic_service
-                return enum_for(:each_required_dynamic_service) if !block_given?
+                return enum_for(:each_required_dynamic_service) unless block_given?
+
                 each_data_service do |_, srv|
-                    if srv.dynamic?
-                        yield(srv)
-                    end
+                    yield(srv) if srv.dynamic?
                 end
             end
 
@@ -519,7 +608,7 @@ module Syskit
             # dynamic service
             #
             # @see require_dynamic_service
-            def with_dynamic_service(dynamic_service_name, options = Hash.new)
+            def with_dynamic_service(dynamic_service_name, options = {})
                 model = ensure_model_is_specialized
                 model.require_dynamic_service(dynamic_service_name, options)
                 model
@@ -533,24 +622,33 @@ module Syskit
             # @param dyn_options options passed to the dynamic service block
             #   through {DynamicDataService#instanciate}
             # @return [BoundDynamicDataService] the newly created service
-            def require_dynamic_service(dynamic_service_name, as: nil, **dyn_options)
-                if !as
-                    raise ArgumentError, "no name given, please provide the as: option"
-                end
-                service_name = as.to_s
+            def require_dynamic_service(dynamic_service_name, as:, **dyn_options)
+                service_name = as.to_str
 
-                dyn = find_dynamic_service(dynamic_service_name)
-                if !dyn
-                    raise ArgumentError, "#{short_name} has no dynamic service called #{dynamic_service_name}, available dynamic services are: #{each_dynamic_service.map { |name, _| name }.sort.join(", ")}"
-                end
+                dyn = dynamic_service_by_name(dynamic_service_name)
+                if (srv = find_data_service(service_name))
+                    return srv if srv.fullfills?(dyn.service_model)
 
-                if srv = find_data_service(service_name)
-                    if srv.fullfills?(dyn.service_model)
-                        return srv
-                    else raise ArgumentError, "there is already a service #{service_name}, but it is of type #{srv.model.short_name} while the dynamic service #{dynamic_service_name} expects #{dyn.service_model.short_name}"
-                    end
+                    raise ArgumentError,
+                          "there is already a service #{service_name}, but it is "\
+                          "of type #{srv.model.short_name} while the dynamic "\
+                          "service #{dynamic_service_name} expects "\
+                          "#{dyn.service_model.short_name}"
                 end
                 dyn.instanciate(service_name, **dyn_options)
+            end
+
+            def dynamic_service_by_name(name)
+                dyn = find_dynamic_service(name)
+                return dyn if dyn
+
+                dynamic_service_list =
+                    each_dynamic_service.map { |n, _| n }.sort.join(", ")
+
+                raise ArgumentError,
+                      "#{short_name} has no dynamic service called "\
+                      "#{name}, available dynamic services "\
+                      "are: #{dynamic_service_list}"
             end
 
             # @api private
@@ -562,17 +660,30 @@ module Syskit
             # be evaluated. It allows subclasses to provide specific additional
             # APIs
             def create_dynamic_instantiation_context(name, dynamic_service, **options)
-                DynamicDataService::InstantiationContext.new(self, name, dynamic_service, **options)
+                DynamicDataService::InstantiationContext.new(
+                    self, name, dynamic_service, **options
+                )
             end
 
-            def each_port; end
-            def each_input_port; end
-            def each_output_port; end
+            def each_port
+                []
+            end
+
+            def each_input_port
+                []
+            end
+
+            def each_output_port
+                []
+            end
+
             def find_input_port(name); end
+
             def find_output_port(name); end
+
             def find_port(name); end
 
-            PROVIDES_ARGUMENTS = { as: nil, slave_of: nil }
+            PROVIDES_ARGUMENTS = { as: nil, slave_of: nil }.freeze
 
             # Declares that this component provides the given data service.
             # +model+ can either be the data service constant name (from
@@ -607,90 +718,123 @@ module Syskit
             #     provides Service2, as: 'service2'
             #   end
             #
-            def provides(model, port_mappings = Hash.new, as: nil, slave_of: nil, bound_service_class: BoundDataService)
-                unless model.kind_of?(DataServiceModel)
-                    if model.kind_of?(Roby::Models::TaskServiceModel)
-                        return super(model)
-                    else
-                        raise ArgumentError, "expected a data service model as argument and got #{model}"
-                    end
+            def provides(
+                model, port_mappings = {}, as: nil,
+                slave_of: nil, bound_service_class: BoundDataService
+            )
+                return super(model) if provides_for_task_service?(model, as: as)
+
+                name, full_name, master = provides_resolve_name(
+                    as: as, slave_of: slave_of
+                )
+                provides_validate_possible_overload(model, full_name)
+                master = promote_service_if_needed(master) if master
+
+                service = bound_service_class.new(name, self, master, model, {})
+                provides_compute_port_mappings(service, port_mappings)
+
+                register_bound_data_service(full_name, service)
+                service
+            end
+
+            def provides_for_task_service?(model, as: nil)
+                return if model.kind_of?(DataServiceModel)
+
+                unless model.kind_of?(Roby::Models::TaskServiceModel)
+                    raise ArgumentError,
+                          "expected either a task service model or a data service model "\
+                          "as argument, and got #{model}"
                 end
 
+                if as
+                    raise ArgumentError,
+                          "cannot give a name when providing a task service"
+                end
+                true
+            end
+
+            def provides_resolve_name(as:, slave_of: nil)
                 unless as
-                    raise ArgumentError, "no service name given, please use the as: option"
+                    raise ArgumentError,
+                          "#provides requires a name to be provided through "\
+                          "the 'as' option"
                 end
 
                 name = as.to_str
                 full_name = name
 
-                if master = slave_of
-                    if master.respond_to?(:to_str)
-                        master_srv = find_data_service(master)
-                        if !master_srv
-                            raise ArgumentError, "master data service #{master_source} is not registered on #{self}"
-                        end
-                        master = master_srv
+                if slave_of.respond_to?(:to_str)
+                    master_srv = find_data_service(slave_of)
+                    unless master_srv
+                        raise ArgumentError,
+                              "master data service #{slave_of} is not "\
+                              "registered on #{self}"
                     end
-                    full_name = "#{master.full_name}.#{name}"
+
+                    slave_of = master_srv
                 end
 
+                full_name = "#{slave_of.full_name}.#{name}" if slave_of
+                [name, full_name, slave_of]
+            end
+
+            def provides_validate_possible_overload(model, full_name)
                 # Get the source name and the source model
                 if data_services[full_name]
-                    raise ArgumentError, "there is already a data service named '#{full_name}' defined on '#{short_name}'"
+                    raise ArgumentError,
+                          "there is already a data service named '#{full_name}' "\
+                          "defined on '#{short_name}'"
                 end
 
                 # If a source with the same name exists, verify that the user is
                 # trying to specialize it
-                if has_data_service?(full_name)
-                    parent_type = find_data_service(full_name).model
-                    if !(model <= parent_type)
-                        raise ArgumentError, "#{self} has a data service named #{full_name} of type #{parent_type}, which is not a parent type of #{model}"
-                    end
+                return unless (parent_type = find_data_service(full_name)&.model)
+
+                unless model <= parent_type
+                    raise ArgumentError,
+                          "#{self} has a data service named #{full_name} of type "\
+                          "#{parent_type}, which is not a parent type of #{model}"
                 end
 
-                if master && (master.component_model != self)
-                    data_services[master.full_name] = master.attach(self)
-                end
+                nil
+            end
 
-                begin
-                    new_port_mappings = compute_port_mappings(model, port_mappings)
-                rescue InvalidPortMapping => e
-                    raise InvalidProvides.new(self, model, e), "#{short_name} does not provide the '#{model.name}' service's interface. #{e.message}", e.backtrace
-                end
+            def promote_service_if_needed(service)
+                return service if service.component_model == self
 
-                service = bound_service_class.new(name, self, master, model, Hash.new)
-                service.port_mappings[model] = new_port_mappings
+                data_services[service.full_name] = service.attach(self)
+            end
 
-                # Now, adapt the port mappings from +model+ itself and map
-                # them into +service.port_mappings+
-                Models.update_port_mappings(service.port_mappings, new_port_mappings, model.port_mappings)
+            # @api private
+            #
+            # Compute the port mappings for a newly provided service
+            #
+            # @raise InvalidPortMapping
+            def provides_compute_port_mappings(service, given_srv_to_self = {})
+                service_m = service.model
+                new_port_mappings = compute_port_mappings(service_m, given_srv_to_self)
+                service.port_mappings[service_m] = new_port_mappings
+                Models.update_port_mappings(
+                    service.port_mappings, new_port_mappings, service_m.port_mappings
+                )
+            rescue InvalidPortMapping => e
+                raise InvalidProvides.new(self, service_m, e),
+                      "#{short_name} does not provide the '#{service_m.name}' "\
+                      "service's interface. #{e.message}", e.backtrace
+            end
 
-                # Remove from +arguments+ the items that were port mappings
-                new_port_mappings.each do |from, to|
-                    if port_mappings[from].to_s == to # this was a port mapping !
-                        port_mappings.delete(from)
-                    elsif port_mappings[from.to_sym].to_s == to
-                        port_mappings.delete(from.to_sym)
-                    end
-                end
-                if !port_mappings.empty?
-                    raise InvalidProvides.new(self, model), "invalid port mappings: #{port_mappings} do not match any ports in either #{self} or #{service}"
-                end
-
-                include model
-
+            def register_bound_data_service(full_name, service)
+                include service.model
                 data_services[full_name] = service
 
                 Models.debug do
-                    Models.debug "#{short_name} provides #{model.short_name}"
+                    Models.debug "#{short_name} provides #{service}"
                     Models.debug "port mappings"
                     service.port_mappings.each do |m, mappings|
                         Models.debug "  #{m.short_name}: #{mappings}"
                     end
                     break
                 end
-
-                return service
             end
 
             # Declares that this task context model can be used as a driver for
@@ -699,31 +843,12 @@ module Syskit
             # It will create the corresponding device model if it does not
             # already exist, and return it. See the documentation of
             # Component.data_service for the description of +arguments+
-            def driver_for(model, arguments = Hash.new, &block)
-                dserv = provides(model, arguments)
+            def driver_for(model, port_mappings = {}, **arguments)
+                Roby.sanitize_keywords_to_hash(port_mappings, arguments)
+                dserv = provides(model, port_mappings, **arguments)
                 argument "#{dserv.name}_dev"
                 dserv
             end
-
-            def has_through_method_missing?(m)
-                MetaRuby::DSLs.has_through_method_missing?(
-                    self, m, '_srv'.freeze => :find_data_service) || super
-            end
-
-            def find_through_method_missing(m, args)
-                MetaRuby::DSLs.find_through_method_missing(
-                    self, m, args, '_srv'.freeze => :find_data_service) || super
-            end
-
-            include MetaRuby::DSLs::FindThroughMethodMissing
-
-            def method_missing(m, *args, &block)
-                if m == :orogen_model
-                    raise NoMethodError, "tried to use a method to access an oroGen model, but none exists on #{self}"
-                end
-                super
-            end
-
 
             # Test if the given port is a port of self
             #
@@ -754,11 +879,8 @@ module Syskit
             # Creates a private specialization of the current model
             def specialize(name = nil)
                 klass = create_private_specialization
-                if name
-                    klass.name = name
-                else
-                    klass.name = "#{self.name}{#{self.specialization_counter}}"
-                end
+                klass.name = name ||
+                             "#{self.name}{#{specialization_counter}}"
                 klass.private_specialization = true
                 klass.private_model
                 klass.concrete_model = concrete_model
@@ -766,14 +888,14 @@ module Syskit
             end
 
             def implicit_fullfilled_model
-                if !@implicit_fullfilled_model
+                unless @implicit_fullfilled_model
                     has_abstract = false
                     @implicit_fullfilled_model =
-                            super.find_all do |m|
-                                has_abstract ||= (m == AbstractComponent)
-                                !m.respond_to?(:private_specialization?) ||
-                                    !m.private_specialization?
-                            end
+                        super.find_all do |m|
+                            has_abstract ||= (m == AbstractComponent)
+                            !m.respond_to?(:private_specialization?) ||
+                                !m.private_specialization?
+                        end
                     @implicit_fullfilled_model << AbstractComponent \
                         unless has_abstract
                 end
@@ -787,8 +909,8 @@ module Syskit
             #   Otherwise, returns self.
             def ensure_model_is_specialized
                 if private_specialization?
-                    return self
-                else return specialize
+                    self
+                else specialize
                 end
             end
 
@@ -798,10 +920,7 @@ module Syskit
             # If this model is specialized, returns the most derived model that
             # is non-specialized. Otherwise, returns self.
             def concrete_model
-                if @concrete_model
-                    return @concrete_model
-                else return self
-                end
+                @concrete_model || self
             end
 
             # Returns true if this model is a "true" concrete model or a
@@ -839,11 +958,11 @@ module Syskit
             # @raise [ArgumentError] if task does not fullfill self
             # @see #try_bind
             def bind(object)
-                if component = try_bind(object)
-                    component
-                else
+                unless (component = try_bind(object))
                     raise ArgumentError, "cannot bind #{self} to #{object}"
                 end
+
+                component
             end
 
             # @deprecated use {#bind} instead
@@ -864,31 +983,33 @@ module Syskit
             #
             # Always returns false as "plain" component ports cannot be
             # connected
-            def connected?(out_port, in_port)
+            def connected?(_out_port, _in_port)
                 false
             end
 
             # @api private
             #
             # Cache of models created by {Placeholder}
-            attribute(:placeholder_models) { Hash.new }
+            attribute(:placeholder_models) { {} }
 
             # @api private
             #
             # Find an existing placeholder model based on self for the given
             # service models
             def find_placeholder_model(service_models, placeholder_type = Placeholder)
-                if by_type = placeholder_models[service_models]
-                    by_type[placeholder_type]
-                end
+                return unless (by_type = placeholder_models[service_models])
+
+                by_type[placeholder_type]
             end
 
             # @api private
             #
             # Register a new placeholder model for the given service models and
             # placeholder type
-            def register_placeholder_model(placeholder_m, service_models, placeholder_type = Placeholder)
-                by_type = (placeholder_models[service_models] ||= Hash.new)
+            def register_placeholder_model(
+                placeholder_m, service_models, placeholder_type = Placeholder
+            )
+                by_type = (placeholder_models[service_models] ||= {})
                 by_type[placeholder_type] = placeholder_m
             end
 
@@ -897,13 +1018,11 @@ module Syskit
             # Deregister a placeholder model
             def deregister_placeholder_model(placeholder_m)
                 key = placeholder_m.proxied_data_service_models.to_set
-                if by_type = placeholder_models.delete(key)
-                    by_type.delete_if { |_, m| m == placeholder_m }
-                    if !by_type.empty?
-                        placeholder_models[key] = by_type
-                    end
-                    true
-                end
+                return unless (by_type = placeholder_models.delete(key))
+
+                by_type.delete_if { |_, m| m == placeholder_m }
+                placeholder_models[key] = by_type unless by_type.empty?
+                true
             end
 
             # Clears all registered submodels
@@ -912,9 +1031,7 @@ module Syskit
 
                 if @placeholder_models
                     set.each do |m|
-                        if m.placeholder?
-                            deregister_placeholder_model(m)
-                        end
+                        deregister_placeholder_model(m) if m.placeholder?
                     end
                 end
                 true
@@ -922,13 +1039,15 @@ module Syskit
 
             # @deprecated use {Models::Placeholder.create_for} instead
             def create_proxy_task_model(service_models, as: nil, extension: Placeholder)
-                Roby.warn_deprecated "Component.create_proxy_task_model is deprecated, use Syskit::Models::Placeholder.create_for instead"
+                Roby.warn_deprecated "Component.create_proxy_task_model is deprecated, "\
+                                     "use Syskit::Models::Placeholder.create_for instead"
                 extension.create_for(service_models, component_model: self, as: as)
             end
 
             # @deprecated use {Models::Placeholder.for} instead
             def proxy_task_model(service_models, as: nil, extension: Placeholder)
-                Roby.warn_deprecated "Component.proxy_task_model is deprecated, use Syskit::Models::Placeholder.for instead"
+                Roby.warn_deprecated "Component.proxy_task_model is deprecated, "\
+                                     "use Syskit::Models::Placeholder.for instead"
                 extension.for(service_models, component_model: self, as: as)
             end
 
@@ -960,12 +1079,15 @@ module Syskit
             #
             # @param [String] name the new port's name
             # @param [Orocos::Spec::DynamicInputPort] port the port model, as
-            #   returned for instance by Orocos::Spec::TaskContext#find_dynamic_input_ports
+            #   returned for instance by
+            #   Orocos::Spec::TaskContext#find_dynamic_input_ports
             # @return [Port] the new port's model
             def instanciate_dynamic_input_port(name, type, port)
                 orogen_model = Models.create_orogen_task_context_model
                 orogen_model.input_ports[name] = port.instanciate(name, type)
-                Syskit::Models.merge_orogen_task_context_models(self.orogen_model, [orogen_model])
+                Syskit::Models.merge_orogen_task_context_models(
+                    self.orogen_model, [orogen_model]
+                )
                 find_input_port(name)
             end
 
@@ -973,19 +1095,20 @@ module Syskit
             #
             # @param [String] name the new port's name
             # @param [Orocos::Spec::DynamicOutputPort] port the port model, as
-            #   returned for instance by Orocos::Spec::TaskContext#find_dynamic_output_ports
+            #   returned for instance by
+            #   Orocos::Spec::TaskContext#find_dynamic_output_ports
             # @return [Port] the new port's model
             def instanciate_dynamic_output_port(name, type, port)
                 orogen_model = Models.create_orogen_task_context_model
                 orogen_model.output_ports[name] = port.instanciate(name, type)
-                Syskit::Models.merge_orogen_task_context_models(self.orogen_model, [orogen_model])
+                Syskit::Models.merge_orogen_task_context_models(
+                    self.orogen_model, [orogen_model]
+                )
                 find_output_port(name)
             end
 
             def fullfills?(object)
-                if !object.respond_to?(:each_required_dynamic_service)
-                    return super
-                end
+                return super unless object.respond_to?(:each_required_dynamic_service)
 
                 self_real_model   = concrete_model
                 object_real_model =
@@ -994,27 +1117,20 @@ module Syskit
                     else object
                     end
 
-                if self_real_model == self
-                    return super
-                elsif !self_real_model.fullfills?(object_real_model)
-                    return false
-                elsif !object.respond_to?(:each_required_dynamic_service)
-                    return true
-                end
+                return super if self_real_model == self
+
+                return false if !self_real_model.fullfills?(object_real_model) ||
+                                !object.respond_to?(:each_required_dynamic_service)
 
                 # We've checked the public interface, Verify that we also have all
                 # dynamic services instanciated in 'object'
                 object.each_required_dynamic_service do |object_srv|
                     self_srv = find_data_service(object_srv.name)
-                    if !self_srv
-                        return false
-                    elsif !self_srv.dynamic?
-                        return false
-                    elsif !self_srv.same_service?(object_srv)
-                        return false
-                    end
+                    return false if !self_srv ||
+                                    !self_srv.dynamic? ||
+                                    !self_srv.same_service?(object_srv)
                 end
-                return true
+                true
             end
 
             def can_merge?(target_model)
@@ -1022,39 +1138,55 @@ module Syskit
                 target_real_model = target_model.concrete_model
 
                 if self_real_model != self || target_real_model != target_model
-                    if !self_real_model.can_merge?(target_real_model)
-                        return false
-                    end
+                    return false unless self_real_model.can_merge?(target_real_model)
                 elsif !super
                     return false
                 end
 
                 # Verify that we don't have collisions in the instantiated
                 # dynamic services
-                each_data_service do |_, self_srv|
-                    task_srv = target_model.find_data_service(self_srv.name)
-                    next if !task_srv
+                each_data_service.all? do |_, self_srv|
+                    target_srv = target_model.find_data_service(self_srv.name)
+                    next(true) unless target_srv
 
-                    if task_srv.model != self_srv.model
-                        NetworkGeneration::MergeSolver.debug do
-                            "rejecting #{self}.merge(#{target_model}): dynamic service #{self_srv.name} is of model #{self_srv.model.short_name} on #{self} and of model #{task_srv.model.short_name} on #{target_model}"
-                        end
-                        return false
-                    elsif task_srv.dynamic? && self_srv.dynamic?
-                        if task_srv.dynamic_service_options != self_srv.dynamic_service_options
-                            NetworkGeneration::MergeSolver.debug do
-                                "rejecting #{self}.merge(#{target_model}): dynamic service #{self_srv.name} has options #{task_srv.dynamic_service_options} on self and #{self_srv.dynamic_service_options} on the candidate task"
-                            end
-                            return false
-                        end
-                    elsif task_srv.dynamic? || self_srv.dynamic?
-                        NetworkGeneration::MergeSolver.debug do
-                            "rejecting #{self}.merge(#{target_model}): #{self_srv.name} is a dynamic service on the receiver, but a static one on the target"
-                        end
-                        return false
-                    end
+                    can_merge_service?(self_srv, target_srv)
                 end
-                return true
+            end
+
+            def can_merge_service?(self_srv, target_srv)
+                if target_srv.model != self_srv.model
+                    NetworkGeneration::MergeSolver.debug do
+                        "rejecting #{self_srv}.merge(#{target_srv}): dynamic "\
+                        "service #{self_srv.name} is of model "\
+                        "#{self_srv.model.short_name} on self and of "\
+                        "model #{target_srv.model.short_name} on the candidate task"
+                    end
+                    false
+                elsif target_srv.dynamic? && self_srv.dynamic?
+                    self_srv_options = self_srv.dynamic_service_options
+                    target_srv_options = target_srv.dynamic_service_options
+                    if self_srv_options == target_srv_options
+                        true
+                    else
+                        NetworkGeneration::MergeSolver.debug do
+                            "rejecting #{self_srv}.merge(#{target_srv}): dynamic "\
+                            "service #{self_srv.name} has options "\
+                            "#{target_srv.dynamic_service_options} on self and "\
+                            "#{self_srv.dynamic_service_options} "\
+                            "on the candidate task"
+                        end
+                        false
+                    end
+                elsif target_srv.dynamic? || self_srv.dynamic?
+                    NetworkGeneration::MergeSolver.debug do
+                        "rejecting #{self_srv}.merge(#{target_srv}): "\
+                        "#{self_srv.name} is a dynamic service on self, "\
+                        "but a static one on the candidate task"
+                    end
+                    false
+                else
+                    true
+                end
             end
 
             def apply_missing_dynamic_services_from(from, specialize_if_needed = true)
@@ -1072,9 +1204,11 @@ module Syskit
                                  else self
                                  end
                     missing_services.each do |_, srv|
-                        dynamic_service_options = Hash[as: srv.name].
-                            merge(srv.dynamic_service_options)
-                        base_model.require_dynamic_service srv.dynamic_service.name, dynamic_service_options
+                        dynamic_service_options =
+                            { as: srv.name }.merge(srv.dynamic_service_options)
+                        base_model.require_dynamic_service(
+                            srv.dynamic_service.name, **dynamic_service_options
+                        )
                     end
                     base_model
                 else self
@@ -1090,32 +1224,36 @@ module Syskit
             # placeholder task model will be returned
             def merge(other_model)
                 if other_model.kind_of?(Syskit::Models::BoundDataService)
-                    return other_model.merge(self)
+                    other_model.merge(self)
                 elsif other_model.placeholder?
-                    return other_model.merge(self)
-                end
-
-                if self <= other_model
-                    return self
+                    other_model.merge(self)
+                elsif self <= other_model
+                    self
                 elsif other_model <= self
-                    return other_model
+                    other_model
                 elsif other_model.private_specialization? || private_specialization?
-                    base_model = result = concrete_model.merge(other_model.concrete_model)
+                    base_model = concrete_model.merge(other_model.concrete_model)
                     result = base_model.apply_missing_dynamic_services_from(self, true)
-                    return result.apply_missing_dynamic_services_from(other_model, base_model == result)
+                    result.apply_missing_dynamic_services_from(
+                        other_model, base_model == result
+                    )
 
                 else
-                    raise IncompatibleComponentModels.new(self, other_model), "models #{short_name} and #{other_model.short_name} are not compatible"
+                    raise IncompatibleComponentModels.new(self, other_model),
+                          "models #{short_name} and #{other_model.short_name} "\
+                          "are not compatible"
                 end
             end
 
             def each_required_model
-                return enum_for(:each_required_model) if !block_given?
+                return enum_for(:each_required_model) unless block_given?
+
                 yield(concrete_model)
             end
 
             def selected_for(requirements)
-                InstanceSelection.new(nil, self.to_instance_requirements, requirements.to_instance_requirements)
+                InstanceSelection.new(nil, to_instance_requirements,
+                                      requirements.to_instance_requirements)
             end
 
             def merge_service_model(service_model, port_mappings)
@@ -1123,9 +1261,12 @@ module Syskit
                     self_name = port_mappings[p.name] || p.name
                     self_p = find_input_port(self_name)
                     if !self_p
-                        raise InvalidPortMapping, "#{self} cannot dynamically create ports"
+                        raise InvalidPortMapping,
+                              "#{self} cannot dynamically create ports"
                     elsif p.type != self_p.type
-                        raise InvalidPortMapping, "#{self} already has a port named #{self_name} of type #{self_p.type}, cannot dynamically map #{p} onto it"
+                        raise InvalidPortMapping,
+                              "#{self} already has a port named #{self_name} of type "\
+                              "#{self_p.type}, cannot dynamically map #{p} onto it"
                     end
                 end
 
@@ -1133,11 +1274,114 @@ module Syskit
                     self_name = port_mappings[p.name] || p.name
                     self_p = find_output_port(self_name)
                     if !self_p
-                        raise InvalidPortMapping, "#{self} cannot dynamically create ports"
+                        raise InvalidPortMapping,
+                              "#{self} cannot dynamically create ports"
                     elsif p.type != self_p.type
-                        raise InvalidPortMapping, "#{self} already has a port named #{self_name} of type #{self_p.type}, cannot dynamically map #{p} onto it"
+                        raise InvalidPortMapping,
+                              "#{self} already has a port named #{self_name} of "\
+                              "type #{self_p.type}, cannot dynamically map #{p} onto it"
                     end
                 end
+            end
+
+            def match
+                Queries::ComponentMatcher.new.with_model(self)
+            end
+
+            # The data writers defined on this task, as a mapping from the writer's
+            # registered name to the {DynamicPortBinding::BoundOutputReader} object.
+            #
+            # @key_name full_name
+            # @return [Hash<String,DynamicPortBinding::BoundOutputReader>]
+            inherited_attribute(:data_reader, :data_readers, map: true) do
+                {}
+            end
+
+            # Define an output reader managed by this component
+            #
+            # Define a data reader that will be handled automatically by the Component
+            # object. The reader will be made available through a `#{as}_reader`
+            # accessor
+            #
+            # The port definition may either be a port of this component, a port
+            # of a component child or a {Queries::PortMatcher} to dynamically bind
+            # to ports in the plan based on e.g. data type or service type
+            #
+            # @example create a data reader for a composition child
+            #    data_reader some_child.out_port, as: 'pose'
+            #
+            # @return [DynamicPortBinding::BoundOutputReader]
+            def data_reader(port, as:)
+                port = DynamicPortBinding.create(port)
+                unless port.output?
+                    raise ArgumentError,
+                          "expected an output port, but #{port} seems to be an input"
+                end
+
+                data_readers[as] = port.to_bound_data_accessor(as, self)
+            end
+
+            # The data writers defined on this task, as a mapping from the writer's
+            # registered name to the {DynamicPortBinding::BoundInputWriter} object.
+            #
+            # @key_name full_name
+            # @return [Hash<String,DynamicPortBinding::BoundInputWriter>]
+            inherited_attribute(:data_writer, :data_writers, map: true) do
+                {}
+            end
+
+            # Define an input writer managed by this component
+            #
+            # Define a writer that will be handled automatically by the Component
+            # object. The writer will be made available through a `#{as}_writer`
+            # accessor
+            #
+            # The port definition may either be a port of this component, a port
+            # of a component child or a {Queries::PortMatcher} to dynamically bind
+            # to ports in the plan based on e.g. data type or service type
+            #
+            # @example create a data reader for a composition child
+            #    data_reader some_child.cmd_in_port, as: 'cmd_in'
+            #
+            # @return [DynamicPortBinding::BoundInputWriter]
+            def data_writer(port, as:)
+                port = DynamicPortBinding.create(port)
+                if port.output?
+                    raise ArgumentError,
+                          "expected an input port, but #{port} seems to be an output"
+                end
+
+                data_writers[as] = port.to_bound_data_accessor(as, self)
+            end
+
+            def has_through_method_missing?(name)
+                MetaRuby::DSLs.has_through_method_missing?(
+                    self, name,
+                    "_srv" => :find_data_service,
+                    "_reader" => :find_data_reader,
+                    "_writer" => :find_data_writer
+                ) || super
+            end
+
+            def find_through_method_missing(name, args)
+                MetaRuby::DSLs.find_through_method_missing(
+                    self, name, args,
+                    "_srv" => :find_data_service,
+                    "_reader" => :find_data_reader,
+                    "_writer" => :find_data_writer
+                ) || super
+            end
+
+            include MetaRuby::DSLs::FindThroughMethodMissing
+
+            ruby2_keywords def method_missing(name, *args, &block) # rubocop:disable Style/MissingRespondToMissing
+                if name == :orogen_model
+                    raise NoMethodError,
+                          "tried to use a method to access an oroGen model, "\
+                          "but none exists on #{self}"
+                end
+
+                super
             end
         end
     end

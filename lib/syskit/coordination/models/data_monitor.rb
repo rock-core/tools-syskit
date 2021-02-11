@@ -1,3 +1,5 @@
+# frozen_string_literal: true
+
 module Syskit
     module Coordination
         module Models
@@ -27,7 +29,8 @@ module Syskit
                 attr_reader :emitted_events
 
                 def initialize(name, data_streams)
-                    @name, @data_streams = name, data_streams
+                    @name = name
+                    @data_streams = data_streams
                     @predicate = nil
                     @emitted_events = []
                     @raises = false
@@ -38,7 +41,7 @@ module Syskit
                 #
                 # @return [Syskit::Coordination::DataMonitor]
                 def bind(table)
-                    if !predicate
+                    unless predicate
                         raise ArgumentError, "no predicate defined in #{self}"
                     end
 
@@ -51,7 +54,7 @@ module Syskit
                     emitted_events.each do |ev|
                         monitor.emit(table.instance_for(ev))
                     end
-                    monitor.raises = self.raises?
+                    monitor.raises = raises?
                     monitor
                 end
 
@@ -77,7 +80,7 @@ module Syskit
                 #
                 # @param [#bind] predicate the predicate model object. See
                 #   the description of the {predicate} attribute.
-                # 
+                #
                 # If a block is given, it is a shortcut to using the
                 # DataMonitorPredicateFromBlock. The block will be called with
                 # samples from each of the monitor's data sources, and must
@@ -97,6 +100,7 @@ module Syskit
                     elsif predicate_block
                         predicate = DataMonitorPredicateFromBlock.new(data_streams, predicate_block)
                     end
+
                     @predicate = predicate
                     self
                 end
@@ -108,4 +112,3 @@ module Syskit
         end
     end
 end
-

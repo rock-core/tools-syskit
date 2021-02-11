@@ -1,4 +1,6 @@
-require 'syskit/test/self'
+# frozen_string_literal: true
+
+require "syskit/test/self"
 
 describe Syskit::Coordination::DataMonitor do
     describe "#poll" do
@@ -12,9 +14,9 @@ describe Syskit::Coordination::DataMonitor do
         before do
             @streams = (1..3).map { StreamStub.new }
             @predicate = flexmock
-            @data_monitor = Syskit::Coordination::DataMonitor.
-                new(nil, streams).
-                trigger_on(predicate)
+            @data_monitor = Syskit::Coordination::DataMonitor
+                            .new(nil, streams)
+                            .trigger_on(predicate)
         end
         it "should call #call on the predicate for each new sample and then call #finalize" do
             samples = (1..3).map { flexmock }
@@ -35,10 +37,9 @@ describe Syskit::Coordination::DataMonitor do
         it "should call #trigger if #finalize returns true" do
             root_task = flexmock
             predicate.should_receive(:finalize).once.and_return(true)
-            flexmock(data_monitor).should_receive(:trigger).once.
-                with(root_task)
+            flexmock(data_monitor).should_receive(:trigger).once
+                                  .with(root_task)
             assert data_monitor.poll(root_task)
         end
     end
 end
-
