@@ -22,7 +22,3 @@ coverage/
 
 
 tmp/
-
-lib/syskit/roby_app/log_transfer_server/Gemfile
-lib/syskit/roby_app/log_transfer_server/build_syskit.sh
-syskit-0.1.gem
