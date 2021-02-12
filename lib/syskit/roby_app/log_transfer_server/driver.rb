@@ -8,17 +8,15 @@ module Syskit
         module LogTransferServer
             # Driver for log transfer FTP server
             class Driver
-                def initialize(user, password, account, data_dir)
+                def initialize(user, password, data_dir)
                     @user = user
                     @password = password
-                    @account = account
                     @data_dir = data_dir
                 end
 
                 # Return true if the user should be allowed to log in.
                 # @param user [String]
                 # @param password [String]
-                # @param account [String]
                 # @return [Boolean]
                 #
                 # Depending upon the server's auth_level, some of these parameters
@@ -27,12 +25,10 @@ module Syskit
                 # each auth_level:
                 # * :user (user)
                 # * :password (user, password)
-                # * :account (user, password, account)
 
-                def authenticate(user, password, account)
+                def authenticate(user, password)
                     user == @user &&
-                        (password.nil? || password == @password) &&
-                        (account.nil? || account == @account)
+                        (password.nil? || password == @password)
                 end
 
                 # Return the file system to use for a user.
