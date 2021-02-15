@@ -1,8 +1,5 @@
 # frozen_string_literal: true
 
-# require "ftpd"
-# require "pathname"
-
 module Syskit
     module RobyApp
         module LogTransferServer
