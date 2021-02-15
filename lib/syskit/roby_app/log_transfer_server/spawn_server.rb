@@ -1,10 +1,5 @@
 # frozen_string_literal: true
 
-require "ftpd"
-require "ipaddr"
-
-require "syskit/roby_app/log_transfer_server/driver"
-
 module Syskit
     module RobyApp
         module LogTransferServer

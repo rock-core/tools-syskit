@@ -1,7 +1,4 @@
-# !/usr/bin/env ruby
 # frozen_string_literal: true
-
-require "syskit/roby_app/log_transfer_server/write_only_disk_file_system"
 
 module Syskit
     module RobyApp

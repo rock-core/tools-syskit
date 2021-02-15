@@ -22,3 +22,7 @@ coverage/
 
 
 tmp/
+syskit-0.1.gem
+test/roby_app/spawn_server/Gemfile
+test/roby_app/spawn_server/build_syskit(1).sh
+test/roby_app/spawn_server/testfile
