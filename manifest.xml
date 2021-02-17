@@ -16,9 +16,6 @@
 
     <depend package="ruby2_keywords" />
 
-    <depend package="ftpd" />
-    <depend package="net/ftp" />
-
     <depend_optional package="timecop" />
     <depend_optional package="ruby-listen" />
     <depend_optional package="gui/vizkit" />
