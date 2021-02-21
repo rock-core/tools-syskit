@@ -20,8 +20,8 @@ require "syskit/roby_app/plugin"
 require "syskit/roby_app/single_file_dsl"
 require "syskit/roby_app/unmanaged_process"
 require "syskit/roby_app/unmanaged_tasks_manager"
-require 'syskit/roby_app/remote_processes'
-require 'syskit/roby_app/log_transfer_server'
+require "syskit/roby_app/remote_processes"
+require "syskit/roby_app/log_transfer_server"
 
 module Syskit
     class << self
