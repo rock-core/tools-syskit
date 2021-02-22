@@ -14,6 +14,9 @@
     <depend package="tools/metaruby" />
     <depend package="tools/pocolog" />
 
+    <depend package="ftpd" />
+    <depend package="net-ftp" />
+
     <depend package="ruby2_keywords" />
 
     <depend_optional package="timecop" />

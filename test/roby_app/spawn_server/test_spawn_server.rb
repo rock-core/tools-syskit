@@ -49,6 +49,10 @@ describe Syskit::RobyApp::LogTransferServer::SpawnServer do
         end
     end
 
+    def delete_testfile
+        File.delete(Dir.pwd + "/testfile")
+    end
+
     ### TESTS ###
     describe "#LogTransferServerTests" do     
 
@@ -70,11 +74,13 @@ describe Syskit::RobyApp::LogTransferServer::SpawnServer do
         it "tests file uploads to server" do
             upload_testfile
             assert File.exist?("#{@temp_dir}/testfile"), "Uploaded file doesn't exist."
+            delete_testfile
         end
 
         it "tests upload of file that already exists" do
             upload_testfile
             assert_raises(Net::FTPPermError) {upload_testfile}
+            delete_testfile
         end
 
         it "tests read function blocking of remote repository" do
@@ -88,7 +94,8 @@ describe Syskit::RobyApp::LogTransferServer::SpawnServer do
                 ftp.login(@server.user, @server.password)
                 assert_raises(Net::FTPPermError) { ftp.get("#{@temp_dir}/testfile") }
             end
+            delete_testfile
         end
-
+        
     end
 end
