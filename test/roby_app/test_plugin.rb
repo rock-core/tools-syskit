@@ -2,7 +2,7 @@
 
 require "syskit/test/self"
 require "syskit/test/roby_app_helpers"
-require "syskit/roby_app/process_server"
+require "syskit/roby_app/remote_processes"
 
 module Syskit
     module RobyApp
@@ -14,7 +14,7 @@ module Syskit
                     OroGen::Loaders::RTT.setup_loader(loader)
                     loader.register_orogen_file(File.join(data_dir, "plugin_remote_model_loading.orogen"))
 
-                    server = ProcessServer.new(app, port: 0, loader: loader)
+                    server = RemoteProcesses::Server.new(app, port: 0, loader: loader)
                     server.open
 
                     thread = Thread.new do
@@ -35,8 +35,8 @@ module Syskit
                 end
 
                 after do
-                    capture_log(Orocos::RemoteProcesses::Server, :fatal) do
-                        capture_log(Orocos::RemoteProcesses::Server, :warn) do
+                    capture_log(Syskit::RobyApp::RemoteProcesses::Server, :fatal) do
+                        capture_log(Syskit::RobyApp::RemoteProcesses::Server, :warn) do
                             @process_servers.each do |name, thread, client|
                                 client.close
                                 Syskit.conf.remove_process_server(name)
