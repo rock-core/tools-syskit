@@ -4,7 +4,7 @@ require "orocos/ruby_tasks/process"
 
 module Syskit
     module RobyApp
-        # A class API-compatible with Orocos::RemoteProcesses::Client but that
+        # A class API-compatible with {Syskit::RobyApp::RemoteProcesses::Client} but that
         # handle components started externally to syskit
         class UnmanagedTasksManager
             # Exception raised if one attempts to do name mappings in an

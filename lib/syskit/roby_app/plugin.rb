@@ -563,14 +563,16 @@ module Syskit
 
             def self.connect_to_local_process_server(app)
                 unless @server_pid
-                    raise Orocos::RemoteProcesses::Client::StartupFailed, "#connect_to_local_process_server got called but no process server is being started"
+                    raise Syskit::RobyApp::RemoteProcesses::Client::StartupFailed,
+                          "#connect_to_local_process_server got called but "\
+                          "no process server is being started"
                 end
 
                 # Wait for the server to be ready
                 client = nil
                 until client
                     client =
-                        begin Orocos::RemoteProcesses::Client.new("localhost", @server_port)
+                        begin Syskit::RobyApp::RemoteProcesses::Client.new("localhost", @server_port)
                         rescue Errno::ECONNREFUSED
                             sleep 0.1
                             is_running =
@@ -581,7 +583,8 @@ module Syskit
                                 end
 
                             unless is_running
-                                raise Orocos::RemoteProcesses::Client::StartupFailed, "the local process server failed to start"
+                                raise Syskit::RobyApp::RemoteProcesses::Client::StartupFailed,
+                                      "the local process server failed to start"
                             end
 
                             nil
@@ -591,7 +594,10 @@ module Syskit
                 # Verify that the server is actually ours (i.e. check that there
                 # was not one that was still running)
                 if client.server_pid != @server_pid
-                    raise Orocos::RemoteProcesses::Client::StartupFailed, "failed to start the local process server. It seems that there is one still running as PID #{client.server_pid} (was expecting #{@server_pid})"
+                    raise Syskit::RobyApp::RemoteProcesses::Client::StartupFailed,
+                          "failed to start the local process server. It seems that "\
+                          "there is one still running as PID #{client.server_pid} "\
+                          "(was expecting #{@server_pid})"
                 end
 
                 # Do *not* manage the log directory for that one ...

@@ -8,7 +8,7 @@ module Syskit
             before do
                 @roby_app = Roby::Application.new
                 @conf = Configuration.new(@roby_app)
-                @localhost = flexmock(:on, Orocos::RemoteProcesses::Client)
+                @localhost = flexmock(:on, Syskit::RobyApp::RemoteProcesses::Client)
                 @conf.register_process_server("localhost", @localhost)
                 @unmanaged_tasks = flexmock
                 @conf.register_process_server("unmanaged_tasks", @unmanaged_tasks)

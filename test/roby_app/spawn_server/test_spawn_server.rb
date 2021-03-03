@@ -11,9 +11,9 @@ describe Syskit::RobyApp::LogTransferServer::SpawnServer do
         attr_accessor :user, :password, :certfile_path
 
         def initialize(
-            tgt_dir, 
-            user, 
-            password, 
+            tgt_dir,
+            user,
+            password,
             certfile_path = insecure_certfile_path)
             super
             @user = user
@@ -49,19 +49,19 @@ describe Syskit::RobyApp::LogTransferServer::SpawnServer do
     end
 
     ### TESTS ###
-    describe "#LogTransferServerTests" do     
+    describe "#LogTransferServerTests" do
 
-        before do            
+        before do
             spawn_server
         end
 
         it "tests connection to server" do
             Net::FTP.open(
-                "127.0.0.1", 
-                port: @server.port, 
-                verify_mode: OpenSSL::SSL::VERIFY_PEER, 
+                "127.0.0.1",
+                port: @server.port,
+                verify_mode: OpenSSL::SSL::VERIFY_PEER,
                 ca_file: @server.certfile_path) do |ftp|
-                
+
                 assert ftp.login(@server.user, @server.password), "FTP server doesn't connect."
             end
         end
@@ -81,16 +81,16 @@ describe Syskit::RobyApp::LogTransferServer::SpawnServer do
         it "tests read function blocking of remote repository" do
             upload_testfile
             Net::FTP.open(
-                "127.0.0.1", 
-                port: @server.port, 
-                verify_mode: OpenSSL::SSL::VERIFY_PEER, 
+                "127.0.0.1",
+                port: @server.port,
+                verify_mode: OpenSSL::SSL::VERIFY_PEER,
                 ca_file: @server.certfile_path) do |ftp|
-                
+
                 ftp.login(@server.user, @server.password)
                 assert_raises(Net::FTPPermError) { ftp.get("#{@temp_dir}/testfile") }
             end
             delete_testfile
         end
-        
+
     end
 end
