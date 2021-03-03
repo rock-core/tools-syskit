@@ -1,11 +1,6 @@
 # frozen_string_literal: true
 
-require "minitest/autorun"
-require "minitest/spec"
-
-require "ftpd"
-require "net/ftp"
-
+require "syskit/test"
 require "syskit/roby_app/log_transfer_server"
 
 describe Syskit::RobyApp::LogTransferServer::SpawnServer do

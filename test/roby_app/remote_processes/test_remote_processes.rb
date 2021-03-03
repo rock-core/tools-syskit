@@ -1,7 +1,7 @@
 # frozen_string_literal: true
 
 require "securerandom"
-require "orocos/test"
+require "syskit/test"
 require "syskit/roby_app/remote_processes"
 require "syskit/roby_app/log_transfer_server"
 
