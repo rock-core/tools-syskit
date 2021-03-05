@@ -134,9 +134,16 @@ module Syskit
 
                 INTERNAL_SIGCHLD_TRIGGERED = "S"
 
-                def open
+                def open(fd: nil)
                     Server.info "starting on port #{required_port}"
-                    server = TCPServer.new(nil, required_port)
+
+                    server =
+                        if fd
+                            TCPServer.for_fd(fd)
+                        else
+                            TCPServer.new(nil, required_port)
+                        end
+                    
                     server.fcntl(Fcntl::FD_CLOEXEC, 1)
                     @port = server.addr[1]
 
@@ -358,15 +365,28 @@ module Syskit
                     false
                 end
 
-                def create_log_dir(log_dir, time_tag, metadata = Hash.new)
-                    log_dir     = File.expand_path(log_dir)
-                    Server.debug "  #{log_dir}, time: #{time_tag}"
-                    FileUtils.mkdir_p(log_dir)
-                    File.open(File.join(log_dir, 'time_tag'), 'w') do |io|
-                        io.write(time_tag)
+                def create_log_dir(log_dir, time_tag, metadata = {})
+                    if log_dir
+                        app.log_base_dir = log_dir
                     end
-                    File.open(File.join(log_dir, 'info.yml'), 'w') do |io|
-                        YAML.dump(Hash['time' => time_tag].merge(metadata), io)
+                    if parent_info = metadata["parent"]
+                        if app_name = parent_info["app_name"]
+                            app.app_name = app_name
+                        end
+                        if robot_name = parent_info["robot_name"]
+                            app.robot(robot_name, parent_info["robot_type"] || robot_name)
+                        end
+                    end
+    
+                    app.add_app_metadata(metadata)
+                    app.find_and_create_log_dir(time_tag)
+                    if parent_info = metadata["parent"]
+                        ::Robot.info "created #{app.log_dir} on behalf of"
+                        YAML.dump(parent_info).each_line do |line|
+                            ::Robot.info "  #{line.chomp}"
+                        end
+                    else
+                        ::Robot.info "created #{app.log_dir}"
                     end
                 end
                 
@@ -387,11 +407,8 @@ module Syskit
                 end
 
                 def start_process(name, deployment_name, name_mappings, options)
-                    p = Orocos::Process.new(name, deployment_name,
-                        loader: @loader,
-                        name_mappings: name_mappings)
-                    p.spawn(**self.default_start_options.merge(options))
-                    processes[name] = p
+                    options = Hash[working_directory: app.log_dir].merge(options)
+                    super(name, deployment_name, name_mappings, options)
                 end
 
                 def end_process(p, cleanup: true, hard: false)
