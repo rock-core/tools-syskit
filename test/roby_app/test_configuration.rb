@@ -81,7 +81,7 @@ describe Syskit::RobyApp::Configuration do
             @available_deployment_names = ["deployment"]
 
             set_log_level ::Robot, Logger::FATAL + 1
-            set_log_level Syskit::RobyApp:RemoteProcesses::Server, Logger::FATAL + 1
+            set_log_level Syskit::RobyApp::RemoteProcesses::Server, Logger::FATAL + 1
         end
 
         after do

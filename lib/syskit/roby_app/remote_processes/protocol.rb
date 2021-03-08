@@ -3,7 +3,7 @@
 module Syskit
     module RobyApp
         module RemoteProcesses
-            DEFAULT_PORT = 20202
+            DEFAULT_PORT = 20_202
 
             COMMAND_GET_INFO   = "I"
             COMMAND_GET_PID    = "D"
