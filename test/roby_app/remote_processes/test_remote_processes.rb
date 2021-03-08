@@ -133,7 +133,7 @@ describe Syskit::RobyApp::RemoteProcesses do
                 :wait => true,
                 :oro_logfile => nil, :output => "/dev/null"
             assert process.alive?
-            assert Orocos.get("syskit_tests_empty")
+            assert Orocos.allow_blocking_calls { Orocos.get("syskit_tests_empty") }
         end
 
         it "raises if the deployment does not exist on the remote server" do
@@ -174,7 +174,9 @@ describe Syskit::RobyApp::RemoteProcesses do
         it "kills an already started process" do
             process.kill(true)
             assert_raises Orocos::NotFound do
-                Orocos.get "syskit_tests_empty"
+                Orocos.allow_blocking_calls do
+                    Orocos.get "syskit_tests_empty"
+                end
             end
         end
 
