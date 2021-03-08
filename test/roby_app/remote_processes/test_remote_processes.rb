@@ -1,7 +1,7 @@
 # frozen_string_literal: true
 
 require "securerandom"
-require "syskit/test"
+require "syskit/test/self"
 require "syskit/roby_app/remote_processes"
 require "syskit/roby_app/log_transfer_server"
 
@@ -9,25 +9,19 @@ describe Syskit::RobyApp::RemoteProcesses do
     attr_reader :server
     attr_reader :client
     attr_reader :root_loader
-    attr_reader :temp_dir
-    attr_reader :certificate
-    attr_reader :user
-    attr_reader :password
-    attr_reader :log_transfer_server
-    attr_reader :logfile
 
     class TestLogTransferServer < Syskit::RobyApp::LogTransferServer::SpawnServer
-        include Ftpd::InsecureCertificate
+        def insecure_certfile_path
+            File.join(__dir__, "cert.pem")
+        end
 
-        attr_reader :certfile_path
+        def initialize(target_dir, user, password)
+            @certfile_path = insecure_certfile_path
+            super(target_dir, user, password, @certfile_path)
+        end
 
-        def initialize(
-            tgt_dir,
-            user,
-            password,
-            certfile_path = insecure_certfile_path
-        )
-            super
+        def certificate
+            File.read(@certfile_path)
         end
     end
 
@@ -47,18 +41,12 @@ describe Syskit::RobyApp::RemoteProcesses do
             "localhost",
             server.port,
             :root_loader => root_loader)
+        )
     end
 
     def start_and_connect_to_server
         start_server
         connect_to_server
-    end
-
-    def spawn_log_transfer_server
-        @temp_dir = Ftpd::TempDir.make
-        @user = "test.user"
-        @password = "password123"
-        @log_transfer_server = TestLogTransferServer.new(@temp_dir, @user, @password)
     end
 
     before do
@@ -201,29 +189,41 @@ describe Syskit::RobyApp::RemoteProcesses do
     describe "#upload_log_file" do
         before do
             start_and_connect_to_server
-            spawn_log_transfer_server
-            @logfile = Dir.pwd + "/" + "logfile.log"
-            File.open(logfile, 'wb') do |f|
-                f.write( SecureRandom.random_bytes(5 * 2**20)) # create random 5 MB file
+            @port, @certificate = spawn_log_transfer_server
+            @logfile = File.join(make_tmpdir, "logfile.log")
+            File.open(@logfile, "wb") do |f|
+                f.write(SecureRandom.random_bytes(547)) # create random 5 MB file
             end
         end
 
-        after do
-            File.delete(logfile)
-        end
-
-        it "uploads a log file" do
-            client.upload_log_file("127.0.0.1", log_transfer_server.port, certificate, user, password, logfile)
+        it "uploads a file" do
+            client.upload_log_file(
+                "127.0.0.1",
+                @log_transfer_server.port, @log_transfer_server.certificate,
+                @user, @password, @logfile
+            )
             @server_thread.raise Interrupt
             @server_thread.join
-            assert FileUtils.compare_file(logfile, temp_dir + "/logfile.log")
+            assert FileUtils.compare_file(@logfile, File.join(@temp_dir, "/logfile.log"))
         end
 
-        it "refuses to upload" do
-            client.upload_log_file("127.0.0.1", log_transfer_server.port, certificate, user, password, logfile)
+        it "refuses to overwrite an existing file" do
+            FileUtils.touch File.join(@temp_dir, "logfile.log")
             assert_raises(Syskit::RobyApp::RemoteProcesses::Client::Failed) do
-                client.upload_log_file("127.0.0.1", log_transfer_server.port, certificate, user, password, logfile)
+                client.upload_log_file(
+                    "127.0.0.1",
+                    @log_transfer_server.port, @log_transfer_server.certificate,
+                    @user, @password, @logfile
+                )
             end
+        end
+
+        def spawn_log_transfer_server
+            @temp_dir = Ftpd::TempDir.make
+            @user = "test.user"
+            @password = "password123"
+            @log_transfer_server = TestLogTransferServer.new(@temp_dir, @user, @password)
+            @log_transfer_server.certificate
         end
     end
 end
