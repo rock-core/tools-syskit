@@ -32,9 +32,7 @@ describe Syskit::RobyApp::RemoteProcesses do
     end
 
     def start_server
-        @server = Syskit::RobyApp::RemoteProcesses::Server.new(
-            Syskit::RobyApp::RemoteProcesses::Server::DEFAULT_OPTIONS,
-            0)
+        @server = Syskit::RobyApp::RemoteProcesses::Server.new(@app, port: 0)
         server.open
 
         @server_thread = Thread.new do
@@ -64,6 +62,8 @@ describe Syskit::RobyApp::RemoteProcesses do
     end
 
     before do
+        @app = Roby::Application.new
+        @app.log_dir = make_tmpdir
         @current_log_level = Syskit::RobyApp::RemoteProcesses::Server.logger.level
         Syskit::RobyApp::RemoteProcesses::Server.logger.level = Logger::FATAL + 1
     end

@@ -71,6 +71,8 @@ module Syskit
                 rescue Interrupt
                 end
 
+                # The underlying Roby::Application object we use to resolve paths
+                attr_reader :app
                 # The startup options to be passed to Orocos.run
                 attr_reader :default_start_options
                 # The TCP port we are required to bind to
@@ -104,13 +106,13 @@ module Syskit
                     OroGen::Loaders::RTT.new(Orocos.orocos_target)
                 end
 
-                def initialize(default_start_options = DEFAULT_OPTIONS,
-                            port = DEFAULT_PORT,
-                            loader = self.class.create_pkgconfig_loader)
-
-                    @default_start_options = Kernel.validate_options default_start_options,
-                        :wait => false,
-                        :output => '%m-%p.txt'
+                def initialize(
+                    app,
+                    port: DEFAULT_PORT,
+                    loader: self.class.create_pkgconfig_loader
+                )
+                    @app = app
+                    @default_start_options = { wait: false, output: "%m-%p.txt" }
 
                     @loader = loader
                     @required_port = port
@@ -408,7 +410,14 @@ module Syskit
 
                 def start_process(name, deployment_name, name_mappings, options)
                     options = Hash[working_directory: app.log_dir].merge(options)
-                    super(name, deployment_name, name_mappings, options)
+
+                    p = Orocos::Process.new(
+                        name, deployment_name,
+                        loader: @loader,
+                        name_mappings: name_mappings
+                    )
+                    p.spawn(**default_start_options.merge(options))
+                    processes[name] = p
                 end
 
                 def end_process(p, cleanup: true, hard: false)
