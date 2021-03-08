@@ -12,10 +12,16 @@ module Syskit
                 attr_reader :process_client
                 # A string describing the host. It can be used to check if two processes
                 # are running on the same host
-                def host_id; process_client.host_id end
+                def host_id
+                    process_client.host_id
+                end
+
                 # True if this process is located on the same machine than the ruby
                 # interpreter
-                def on_localhost?; process_client.host == 'localhost' end
+                def on_localhost?
+                    process_client.host == "localhost"
+                end
+
                 # The process ID of this process on the machine of the process server
                 attr_reader :pid
 
@@ -49,21 +55,26 @@ module Syskit
                     process_client.stop(name, wait, cleanup: cleanup, hard: hard)
                 end
 
-                # Wait for the 
+                # Wait for the
                 def join
                     process_client.join(name)
                 end
 
                 # True if the process is running. This is an alias for running?
-                def alive?; @alive end
+                def alive?
+                    @alive
+                end
+
                 # True if the process is running. This is an alias for alive?
-                def running?; @alive end
+                def running?
+                    @alive
+                end
 
                 # Resolve all tasks within the deployment
                 #
                 # A deployment is usually considered ready when all its tasks can be
                 # resolved successfully
-                def resolve_all_tasks(cache = Hash.new)
+                def resolve_all_tasks(cache = {})
                     Orocos::Process.resolve_all_tasks(self, cache) do |task_name|
                         task(task_name)
                     end

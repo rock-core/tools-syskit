@@ -40,7 +40,7 @@ describe Syskit::RobyApp::RemoteProcesses do
         @client = Syskit::RobyApp::RemoteProcesses::Client.new(
             "localhost",
             server.port,
-            :root_loader => root_loader)
+            root_loader: root_loader
         )
     end
 
@@ -75,7 +75,8 @@ describe Syskit::RobyApp::RemoteProcesses do
             client = Syskit::RobyApp::RemoteProcesses::Client.new(
                 "localhost",
                 server.port,
-                :root_loader => root_loader)
+                root_loader: root_loader
+            )
             assert_equal [client.loader], root_loader.loaders
         end
     end
@@ -98,15 +99,15 @@ describe Syskit::RobyApp::RemoteProcesses do
         end
 
         it "knows about the available projects" do
-            assert loader.available_projects.has_key?("orogen_syskit_tests")
+            assert loader.available_projects.key?("orogen_syskit_tests")
         end
 
         it "knows about the available typekits" do
-            assert loader.available_typekits.has_key?("orogen_syskit_tests")
+            assert loader.available_typekits.key?("orogen_syskit_tests")
         end
 
         it "knows about the available deployments" do
-            assert loader.available_deployments.has_key?("syskit_tests_empty")
+            assert loader.available_deployments.key?("syskit_tests_empty")
         end
 
         it "can load a remote project model" do
@@ -128,17 +129,18 @@ describe Syskit::RobyApp::RemoteProcesses do
         end
 
         it "can start a process on the server synchronously" do
-            process = client.start "syskit_tests_empty", "syskit_tests_empty",
-                Hash["syskit_tests_empty" => "syskit_tests_empty"],
-                :wait => true,
-                :oro_logfile => nil, :output => "/dev/null"
+            process = client.start(
+                "syskit_tests_empty", "syskit_tests_empty",
+                { "syskit_tests_empty" => "syskit_tests_empty" },
+                wait: true, oro_logfile: nil, output: "/dev/null"
+            )
             assert process.alive?
-            assert Orocos.allow_blocking_calls { Orocos.get("syskit_tests_empty") }
+            assert(Orocos.allow_blocking_calls { Orocos.get("syskit_tests_empty") })
         end
 
         it "raises if the deployment does not exist on the remote server" do
             assert_raises(OroGen::DeploymentModelNotFound) do
-                client.start "bla", "bla", Hash["sink" => "test"], :wait => true
+                client.start "bla", "bla", Hash["sink" => "test"], wait: true
             end
         end
 
@@ -155,8 +157,10 @@ describe Syskit::RobyApp::RemoteProcesses do
             project    = OroGen::Spec::Project.new(root_loader)
             deployment = project.deployment "syskit_tests_empty"
             root_loader.register_deployment_model(deployment)
-            process = client.start "syskit_tests_empty", "syskit_tests_empty", Hash.new, :wait => true,
-                :oro_logfile => nil, :output => '/dev/null'
+            process = client.start(
+                "syskit_tests_empty", "syskit_tests_empty", {},
+                wait: true, oro_logfile: nil, output: "/dev/null"
+            )
             assert_same deployment, process.model
         end
     end
@@ -165,10 +169,11 @@ describe Syskit::RobyApp::RemoteProcesses do
         attr_reader :process
         before do
             start_and_connect_to_server
-            @process = client.start "syskit_tests_empty", "syskit_tests_empty",
-                Hash["syskit_tests_empty" => "syskit_tests_empty"],
-                :wait => true,
-                :oro_logfile => nil, :output => '/dev/null'
+            @process = client.start(
+                "syskit_tests_empty", "syskit_tests_empty",
+                { "syskit_tests_empty" => "syskit_tests_empty" },
+                wait: true, oro_logfile: nil, output: "/dev/null"
+            )
         end
 
         it "kills an already started process" do
@@ -181,7 +186,7 @@ describe Syskit::RobyApp::RemoteProcesses do
         end
 
         it "gets notified if a remote process dies" do
-            Process.kill 'KILL', process.pid
+            Process.kill "KILL", process.pid
             dead_processes = client.wait_termination
             assert dead_processes[process]
             assert !process.alive?

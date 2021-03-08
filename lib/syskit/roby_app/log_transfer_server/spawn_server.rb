@@ -1,5 +1,7 @@
 # frozen_string_literal: true
 
+require "English"
+
 module Syskit
     module RobyApp
         module LogTransferServer
@@ -20,7 +22,8 @@ module Syskit
                     nat_ip: nil,
                     passive_ports: nil,
                     debug: false,
-                    verbose: false)
+                    verbose: false
+                )
 
                     @debug = debug
                     driver = Driver.new(user, password, tgt_dir)
@@ -51,7 +54,7 @@ module Syskit
                     puts "Interface: #{@server.interface}"
                     puts "Port: #{@server.bound_port}"
                     puts "TLS: #{@server.tls}"
-                    puts "PID: #{$$}"
+                    puts "PID: #{$PROCESS_ID}"
                 end
 
                 def wait_until_stopped

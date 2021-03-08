@@ -28,11 +28,13 @@ module Syskit
                 # @return [(String,String)] the model as text, as well as a path to
                 #   the model file (or nil if there is no such file)
                 def project_model_text_from_name(name)
-                    if text = available_projects[name]
+                    if (text = available_projects[name])
                         return text
-                    else
-                        raise OroGen::ProjectNotFound, "#{client} has no project called #{name}, available projects: #{available_projects.keys.sort.join(", ")}"
                     end
+
+                    raise OroGen::ProjectNotFound,
+                          "#{client} has no project called #{name}, "\
+                          "available projects: #{available_projects.keys.sort.join(', ')}"
                 end
 
                 # Returns the textual representation of a typekit
@@ -42,11 +44,12 @@ module Syskit
                 # @return [(String,String)] the typekit registry as XML and the
                 #   typekit's typelist
                 def typekit_model_text_from_name(name)
-                    if text = available_typekits[name]
+                    if (text = available_typekits[name])
                         return *text
-                    else 
-                        raise OroGen::TypekitNotFound, "#{client} has no typekit called #{name}"
                     end
+
+                    raise OroGen::TypekitNotFound,
+                          "#{client} has no typekit called #{name}"
                 end
 
                 # Tests if a project with that name exists
@@ -54,7 +57,7 @@ module Syskit
                 # @param [String] name the project name
                 # @return [Boolean]
                 def has_project?(name)
-                    available_projects.has_key?(name)
+                    available_projects.key?(name)
                 end
 
                 # Tests if a typekit with that name exists
@@ -62,7 +65,7 @@ module Syskit
                 # @param [String] name the typekit name
                 # @return [Boolean]
                 def has_typekit?(name)
-                    available_typekits.has_key?(name)
+                    available_typekits.key?(name)
                 end
 
                 # Tests if a deployment with that name exists
@@ -70,22 +73,24 @@ module Syskit
                 # @param [String] name the deployment name
                 # @return [Boolean]
                 def has_deployment?(name)
-                    available_deployments.has_key?(name)
+                    available_deployments.key?(name)
                 end
+
                 # Returns the project that defines the given deployment
                 #
                 # @param [String] deployment_name the deployment we are looking for
                 # @return [String,nil]
                 def find_project_from_deployment_name(name)
-                    if project_name = available_deployments[name]
+                    if (project_name = available_deployments[name])
                         return project_name
-                    else 
-                        raise OroGen::DeploymentModelNotFound, "#{client} has no deployment called #{name}"
                     end
+
+                    raise OroGen::DeploymentModelNotFound,
+                          "#{client} has no deployment called #{name}"
                 end
 
                 def each_available_project_name(&block)
-                    return available_projects.each_key(&block)
+                    available_projects.each_key(&block)
                 end
             end
         end

@@ -15,7 +15,9 @@ module Syskit
             #
             # Use {ProcessClient} to access a server
             class Server
-                extend Logger::Root("Syskit::RobyApp::RemoteProcesses::Server", Logger::INFO)
+                extend Logger::Root(
+                    "Syskit::RobyApp::RemoteProcesses::Server", Logger::INFO
+                )
 
                 # Returns a unique directory name as a subdirectory of
                 # +base_dir+, based on +path_spec+. The generated name
@@ -26,7 +28,7 @@ module Syskit
                 #
                 # Shamelessly taken from Roby
                 def self.unique_dirname(base_dir, path_spec, date_tag = nil)
-                    if path_spec =~ /\/$/
+                    if path_spec =~ %r{\/$}
                         basename = ""
                         dirname = path_spec
                     else
@@ -34,24 +36,24 @@ module Syskit
                         dirname  = File.dirname(path_spec)
                     end
 
-                    date_tag ||= Time.now.strftime('%Y%m%d-%H%M')
-                    if basename && !basename.empty?
-                        basename = date_tag + "-" + basename
-                    else
-                        basename = date_tag
-                    end
+                    date_tag ||= Time.now.strftime("%Y%m%d-%H%M")
+                    basename =
+                        if basename && !basename.empty?
+                            date_tag + "-" + basename
+                        else
+                            date_tag
+                        end
 
                     # Check if +basename+ already exists, and if it is the case add a
                     # .x suffix to it
                     full_path = File.expand_path(File.join(dirname, basename), base_dir)
                     base_dir  = File.dirname(full_path)
 
-                    unless File.exists?(base_dir)
-                        FileUtils.mkdir_p(base_dir)
-                    end
+                    FileUtils.mkdir_p(base_dir) unless File.exist?(base_dir)
 
-                    final_path, i = full_path, 0
-                    while File.exists?(final_path)
+                    final_path = full_Path
+                    i = 0
+                    while File.exist?(final_path)
                         i += 1
                         final_path = full_path + ".#{i}"
                     end
@@ -59,16 +61,15 @@ module Syskit
                     final_path
                 end
 
-                DEFAULT_OPTIONS = { :wait => false, :output => '%m-%p.txt' }
+                DEFAULT_OPTIONS = { wait: false, output: "%m-%p.txt" }.freeze
 
                 # Start a standalone process server using the given options and port.
                 # The options are passed to Server.run when a new deployment is started
                 def self.run(options = DEFAULT_OPTIONS, port = DEFAULT_PORT)
                     Orocos.disable_sigchld_handler = true
                     Orocos.initialize
-                    new({ :wait => false }.merge(options), port).exec
-
-                rescue Interrupt
+                    new({ wait: false }.merge(options), port).exec
+                rescue Interrupt # rubocop:disable Lint/SuppressedException
                 end
 
                 # The underlying Roby::Application object we use to resolve paths
@@ -117,16 +118,13 @@ module Syskit
                     @loader = loader
                     @required_port = port
                     @port = nil
-                    @processes = Hash.new
-                    @all_ios = Array.new
-                    @active_threads = Array.new
+                    @processes = {}
+                    @all_ios = []
+                    @active_threads = []
                 end
 
                 def each_client(&block)
-                    clients = @all_ios[2..-1]
-                    if clients
-                        clients.each(&block)
-                    end
+                    @all_ios[2..-1]&.each(&block)
                 end
 
                 def exec
@@ -145,7 +143,7 @@ module Syskit
                         else
                             TCPServer.new(nil, required_port)
                         end
-                    
+
                     server.fcntl(Fcntl::FD_CLOEXEC, 1)
                     @port = server.addr[1]
 
@@ -153,7 +151,7 @@ module Syskit
                     @all_ios.clear
                     @all_ios << server << com_r
 
-                    trap 'SIGCHLD' do
+                    trap "SIGCHLD" do
                         com_w.write INTERNAL_SIGCHLD_TRIGGERED
                     end
                 end
@@ -165,12 +163,14 @@ module Syskit
                     Server.info "process server listening on port #{port}"
                     server_io, com_r = *@all_ios[0, 2]
 
-                    while true
-                        readable_sockets, _ = select(@all_ios, nil, nil)
+                    loop do
+                        readable_sockets, = select(@all_ios, nil, nil)
                         if readable_sockets.include?(server_io)
                             readable_sockets.delete(server_io)
                             client_socket = server_io.accept
-                            client_socket.setsockopt(Socket::IPPROTO_TCP, Socket::TCP_NODELAY, true)
+                            client_socket.setsockopt(
+                                Socket::IPPROTO_TCP, Socket::TCP_NODELAY, true
+                            )
                             client_socket.fcntl(Fcntl::FD_CLOEXEC, 1)
                             Server.debug "new connection: #{client_socket}"
                             @all_ios << client_socket
@@ -182,12 +182,13 @@ module Syskit
                             if cmd == INTERNAL_SIGCHLD_TRIGGERED
                                 process_dead_processes
                             elsif cmd
-                                Server.warn "unknown internal communication code #{cmd.inspect}"
+                                Server.warn "unknown internal communication code "\
+                                            "#{cmd.inspect}"
                             end
                         end
 
                         readable_sockets.each do |socket|
-                            if !handle_command(socket)
+                            unless handle_command(socket)
                                 Server.debug "#{socket} closed or errored"
                                 socket.close
                                 @all_ios.delete(socket)
@@ -197,7 +198,6 @@ module Syskit
                             !thread.alive?
                         end
                     end
-
                 rescue Exception => e
                     unless @active_threads.empty?
                         Server.info "waiting for all uploads to finish"
@@ -215,31 +215,28 @@ module Syskit
                     e.backtrace.each do |line|
                         Server.fatal "  #{line}"
                     end
-
                 ensure
                     quit_and_join
                 end
 
                 def process_dead_processes
-                    while exited = ::Process.wait2(-1, ::Process::WNOHANG)
+                    while (exited = ::Process.wait2(-1, ::Process::WNOHANG))
                         pid, exit_status = *exited
                         process_name, process = processes.find { |_, p| p.pid == pid }
-                        next if !process_name
+                        next unless process_name
 
                         process.dead!(exit_status)
                         processes.delete(process_name)
                         Server.debug "announcing death: #{process_name}"
                         each_client do |socket|
-                            begin
-                                Server.debug "  announcing to #{socket}"
-                                socket.write(EVENT_DEAD_PROCESS)
-                                Marshal.dump([process_name, exit_status], socket)
-                            rescue IOError
-                                Server.debug "  #{socket}: IOError"
-                            end
+                            Server.debug "  announcing to #{socket}"
+                            socket.write(EVENT_DEAD_PROCESS)
+                            Marshal.dump([process_name, exit_status], socket)
+                        rescue IOError
+                            Server.debug "  #{socket}: IOError"
                         end
                     end
-                rescue Errno::ECHILD
+                rescue Errno::ECHILD # rubocop:disable Lint/SuppressedException
                 end
 
                 # Helper method that stops all running processes
@@ -251,16 +248,15 @@ module Syskit
                     end
 
                     each_client do |socket|
-                        begin socket.close
-                        rescue IOError
-                        end
+                        socket.close
+                    rescue IOError # rubocop:disable Lint/SuppressedException
                     end
                 end
 
                 # Helper method that deals with one client request
                 def handle_command(socket) # :nodoc:
                     cmd_code = socket.read(1)
-                    raise EOFError if !cmd_code
+                    raise EOFError unless cmd_code
 
                     if cmd_code == COMMAND_GET_PID
                         Server.debug "#{socket} requested PID"
@@ -273,34 +269,38 @@ module Syskit
                         begin
                             Server.debug "#{socket} requested creating a log directory"
                             log_dir, time_tag, metadata = Marshal.load(socket)
-                            metadata ||= Hash.new # compatible with older clients
-                            if log_dir
-                                log_dir = File.expand_path(log_dir)
-                            end
+                            metadata ||= {} # compatible with older clients
+                            log_dir = File.expand_path(log_dir) if log_dir
                             create_log_dir(log_dir, time_tag, metadata)
                         rescue Interrupt
                             raise
                         rescue Exception => e
-                            Server.warn "failed to create log directory #{log_dir}: #{e.message}"
-                            (e.backtrace || Array.new).each do |line|
+                            Server.warn "failed to create log directory #{log_dir}: "\
+                                        "#{e.message}"
+                            (e.backtrace || []).each do |line|
                                 Server.warn "   #{line}"
                             end
                         end
 
                     elsif cmd_code == COMMAND_START
-                        name, deployment_name, name_mappings, options = Marshal.load(socket)
-                        options ||= Hash.new
-                        Server.debug "#{socket} requested startup of #{name} with #{options} and mappings #{name_mappings}"
+                        name, deployment_name, name_mappings, options =
+                            Marshal.load(socket)
+                        options ||= {}
+                        Server.debug "#{socket} requested startup of #{name} with "\
+                                     "#{options} and mappings #{name_mappings}"
                         begin
-                            p = start_process(name, deployment_name, name_mappings, options)
-                            Server.debug "#{name}, from #{deployment_name}, is started (#{p.pid})"
+                            p = start_process(
+                                name, deployment_name, name_mappings, options
+                            )
+                            Server.debug "#{name}, from #{deployment_name}, "\
+                                         "is started (#{p.pid})"
                             socket.write(RET_STARTED_PROCESS)
                             Marshal.dump(p.pid, socket)
                         rescue Interrupt
                             raise
                         rescue Exception => e
                             Server.warn "failed to start #{name}: #{e.message}"
-                            (e.backtrace || Array.new).each do |line|
+                            (e.backtrace || []).each do |line|
                                 Server.warn "   #{line}"
                             end
                             socket.write(RET_NO)
@@ -316,7 +316,8 @@ module Syskit
                             rescue Interrupt
                                 raise
                             rescue Exception => e
-                                Server.warn "exception raised while calling #{p}#kill(false)"
+                                Server.warn "exception raised while calling "\
+                                            "#{p}#kill(false)"
                                 Server.log_pp(:warn, e)
                                 socket.write(RET_NO)
                             end
@@ -328,16 +329,21 @@ module Syskit
                         quit
                     elsif cmd_code == COMMAND_UPLOAD_LOG
                         begin
-                            host, port, certificate, user, password, localfile = Marshal.load(socket)
-                            Server.debug "#{socket} requested uploading #{localfile} to log transfer FTP server"
+                            host, port, certificate, user, password, localfile =
+                                Marshal.load(socket)
+                            Server.debug "#{socket} requested uploading "\
+                                         "#{localfile} to log transfer FTP server"
                             @active_threads << Thread.new do
                                 Thread.current.abort_on_exception = true
                                 begin
-                                    upload_log(host, port, certificate, user, password, localfile)
+                                    upload_log(
+                                        host, port, certificate, user, password, localfile
+                                    )
                                     Server.info "finished uploading log (#{localfile})"
                                     socket.write(UPLOADED)
                                 rescue Net::FTPPermError => e
-                                    Server.warn "failed to upload log to FTP server: (#{localfile}) #{e.message}"
+                                    Server.warn "failed to upload log to FTP server: "\
+                                                "(#{localfile}) #{e.message}"
                                     socket.write(NOT_UPLOADED)
                                     Marshal.dump(e.message, socket)
                                 end
@@ -345,8 +351,9 @@ module Syskit
                         rescue Interrupt
                             raise
                         rescue Exception => e
-                            Server.warn "failed to upload log to FTP server: (#{localfile}) #{e.message}"
-                            (e.backtrace || Array.new).each do |line|
+                            Server.warn "failed to upload log to FTP server: "\
+                                        "(#{localfile}) #{e.message}"
+                            (e.backtrace || []).each do |line|
                                 Server.warn "   #{line}"
                             end
                         end
@@ -355,6 +362,8 @@ module Syskit
                     true
                 rescue Interrupt
                     raise
+                rescue EOFError
+                    false
                 rescue Exception => e
                     Server.fatal "protocol error on #{socket}: #{e}"
                     Server.fatal "while serving command #{cmd_code}"
@@ -362,27 +371,23 @@ module Syskit
                         Server.fatal "  #{bt}"
                     end
                     false
-
-                rescue EOFError
-                    false
                 end
 
                 def create_log_dir(log_dir, time_tag, metadata = {})
-                    if log_dir
-                        app.log_base_dir = log_dir
-                    end
-                    if parent_info = metadata["parent"]
-                        if app_name = parent_info["app_name"]
+                    app.log_base_dir = log_dir if log_dir
+
+                    if (parent_info = metadata["parent"])
+                        if (app_name = parent_info["app_name"])
                             app.app_name = app_name
                         end
-                        if robot_name = parent_info["robot_name"]
+                        if (robot_name = parent_info["robot_name"])
                             app.robot(robot_name, parent_info["robot_type"] || robot_name)
                         end
                     end
-    
+
                     app.add_app_metadata(metadata)
                     app.find_and_create_log_dir(time_tag)
-                    if parent_info = metadata["parent"]
+                    if (parent_info = metadata["parent"])
                         ::Robot.info "created #{app.log_dir} on behalf of"
                         YAML.dump(parent_info).each_line do |line|
                             ::Robot.info "  #{line.chomp}"
@@ -391,21 +396,24 @@ module Syskit
                         ::Robot.info "created #{app.log_dir}"
                     end
                 end
-                
+
                 def build_system_info
-                    available_projects = Hash.new
-                    available_typekits = Hash.new
-                    available_deployments = Hash.new
+                    available_projects = {}
+                    available_typekits = {}
+                    available_deployments = {}
                     loader.each_available_project_name do |name|
-                        available_projects[name] = loader.project_model_text_from_name(name)
+                        available_projects[name] =
+                            loader.project_model_text_from_name(name)
                     end
                     loader.each_available_typekit_name do |name|
-                        available_typekits[name] = loader.typekit_model_text_from_name(name)
+                        available_typekits[name] =
+                            loader.typekit_model_text_from_name(name)
                     end
                     loader.each_available_deployment_name do |name|
-                        available_deployments[name] = loader.find_project_from_deployment_name(name)
+                        available_deployments[name] =
+                            loader.find_project_from_deployment_name(name)
                     end
-                    return available_projects, available_deployments, available_typekits
+                    [available_projects, available_deployments, available_typekits]
                 end
 
                 def start_process(name, deployment_name, name_mappings, options)
@@ -420,8 +428,8 @@ module Syskit
                     processes[name] = p
                 end
 
-                def end_process(p, cleanup: true, hard: false)
-                    p.kill(false, cleanup: cleanup, hard: hard)
+                def end_process(process, cleanup: true, hard: false)
+                    process.kill(false, cleanup: cleanup, hard: hard)
                 end
 
                 def quit
@@ -430,16 +438,15 @@ module Syskit
 
                 def upload_log(host, port, certificate, user, password, localfile)
                     Net::FTP.open(
-                                host,
-                                port: port,
-                                verify_mode: OpenSSL::SSL::VERIFY_PEER,
-                                ca_file: certificate
-                            ) do |ftp|
+                        host,
+                        port: port,
+                        verify_mode: OpenSSL::SSL::VERIFY_PEER,
+                        ca_file: certificate
+                    ) do |ftp|
                         ftp.login(user, password)
                         lf = File.open(localfile)
                         ftp.storbinary("STOR #{File.basename(localfile)}",
-                                       lf,
-                                       Net::FTP::DEFAULT_BLOCKSIZE)
+                                       lf, Net::FTP::DEFAULT_BLOCKSIZE)
                     end
                 end
             end

@@ -25,7 +25,8 @@ module Syskit
 
                 def write(ftp_path, stream)
                     if Pathname.new(@data_dir + ftp_path).exist?
-                        raise Ftpd::PermanentFileSystemError, "Can't upload: File already exists"
+                        raise Ftpd::PermanentFileSystemError,
+                              "Can't upload: File already exists"
                     end
 
                     write_file ftp_path, stream, "wb"

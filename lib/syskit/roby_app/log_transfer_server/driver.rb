@@ -32,7 +32,7 @@ module Syskit
                 # @param user [String]
                 # @return A file system driver
 
-                def file_system(user)
+                def file_system(_user)
                     WriteOnlyDiskFileSystem.new(@data_dir)
                 end
             end
