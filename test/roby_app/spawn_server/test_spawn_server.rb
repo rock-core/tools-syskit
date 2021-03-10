@@ -63,6 +63,30 @@ describe Syskit::RobyApp::LogTransferServer::SpawnServer do
             end
         end
 
+        it "incorrect user tests connection to server" do
+            Net::FTP.open(
+                "127.0.0.1",
+                port: @server.port,
+                verify_mode: OpenSSL::SSL::VERIFY_PEER,
+                ca_file: @server.certfile_path
+            ) do |ftp|
+                assert_raises(Net::FTPPermError) { ftp.login("user", @server.password) }
+                    "Incorrect user"
+            end
+        end
+
+        it "incorrect password tests connection to server" do
+            Net::FTP.open(
+                "127.0.0.1",
+                port: @server.port,
+                verify_mode: OpenSSL::SSL::VERIFY_PEER,
+                ca_file: @server.certfile_path
+            ) do |ftp|
+                assert_raises(Net::FTPPermError) { ftp.login(@server.user, "password") }
+                    "Incorrect Password"
+            end
+        end
+
         it "tests file uploads to server" do
             upload_testfile
             assert File.exist?("#{@temp_dir}/testfile"), "Uploaded file doesn't exist."
