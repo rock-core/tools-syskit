@@ -71,7 +71,6 @@ describe Syskit::RobyApp::LogTransferServer::SpawnServer do
                 ca_file: @server.certfile_path
             ) do |ftp|
                 assert_raises(Net::FTPPermError) { ftp.login("user", @server.password) }
-                    "Incorrect user"
             end
         end
 
@@ -83,7 +82,6 @@ describe Syskit::RobyApp::LogTransferServer::SpawnServer do
                 ca_file: @server.certfile_path
             ) do |ftp|
                 assert_raises(Net::FTPPermError) { ftp.login(@server.user, "password") }
-                    "Incorrect Password"
             end
         end
 
