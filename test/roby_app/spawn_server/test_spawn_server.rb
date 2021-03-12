@@ -24,8 +24,8 @@ describe Syskit::RobyApp::LogTransferServer::SpawnServer do
     end
 
     def upload_log(host, port, certificate, user, password, localfile) # rubocop:disable Metrics/ParameterLists
-        Net::FTP.open(host, port: port, verify_mode: OpenSSL::SSL::VERIFY_PEER,
-                            ca_file: certificate) do |ftp|
+        Net::FTP.open(host, port: port, ssl: {verify_mode: OpenSSL::SSL::VERIFY_PEER,
+                            ca_file: certificate}) do |ftp|
             ftp.login(user, password)
             File.open(localfile) do |lf|
                 ftp.storbinary("STOR #{File.basename(localfile)}",
@@ -51,12 +51,23 @@ describe Syskit::RobyApp::LogTransferServer::SpawnServer do
             spawn_server
         end
 
+        # WARNING: For debugging purposes only
+        # While debugging this code, the tests methods create files for
+        # testing. When executing in error, the code for deleting them
+        # may not do so.
+        # This 'after' method may optmize the clearing of these undesired files
+
+        # after do
+        #     File.delete("test_cert.pem")
+        #     File.delete("testfile")
+        # end
+
         it "tests connection to server" do
             Net::FTP.open(
                 "127.0.0.1",
                 port: @server.port,
-                verify_mode: OpenSSL::SSL::VERIFY_PEER,
-                ca_file: @server.certfile_path
+                ssl: {verify_mode: OpenSSL::SSL::VERIFY_PEER,
+                ca_file: @server.certfile_path}
             ) do |ftp|
                 assert ftp.login(@server.user, @server.password),
                        "FTP server doesn't connect."
@@ -67,8 +78,8 @@ describe Syskit::RobyApp::LogTransferServer::SpawnServer do
             Net::FTP.open(
                 "127.0.0.1",
                 port: @server.port,
-                verify_mode: OpenSSL::SSL::VERIFY_PEER,
-                ca_file: @server.certfile_path
+                ssl: {verify_mode: OpenSSL::SSL::VERIFY_PEER,
+                ca_file: @server.certfile_path}
             ) do |ftp|
                 assert_raises(Net::FTPPermError) { ftp.login("user", @server.password) }
             end
@@ -78,11 +89,29 @@ describe Syskit::RobyApp::LogTransferServer::SpawnServer do
             Net::FTP.open(
                 "127.0.0.1",
                 port: @server.port,
-                verify_mode: OpenSSL::SSL::VERIFY_PEER,
-                ca_file: @server.certfile_path
+                ssl: {verify_mode: OpenSSL::SSL::VERIFY_PEER,
+                ca_file: @server.certfile_path}
             ) do |ftp|
                 assert_raises(Net::FTPPermError) { ftp.login(@server.user, "password") }
             end
+        end
+
+        it "incorrect certificate tests connection to server" do
+            test_cert = OpenSSL::X509::Certificate.new
+            key = OpenSSL::PKey::RSA.new 2048
+            test_cert.public_key = key.public_key
+            File.open("test_cert.pem", "wb") {|f| f.print test_cert.to_pem}
+
+            Net::FTP.open(
+                "127.0.0.1",
+                port: @server.port,
+                ssl: {verify_mode: OpenSSL::SSL::VERIFY_PEER,
+                ca_file: "test_cert.pem"}
+            ) do |ftp|
+                assert_raises(Net::FTPPermError) { ftp.login(@server.user, "password") }
+            end
+
+            File.delete("test_cert.pem")
         end
 
         it "tests file uploads to server" do
@@ -102,13 +131,14 @@ describe Syskit::RobyApp::LogTransferServer::SpawnServer do
             Net::FTP.open(
                 "127.0.0.1",
                 port: @server.port,
-                verify_mode: OpenSSL::SSL::VERIFY_PEER,
-                ca_file: @server.certfile_path
+                ssl: {verify_mode: OpenSSL::SSL::VERIFY_PEER,
+                ca_file: @server.certfile_path}
             ) do |ftp|
                 ftp.login(@server.user, @server.password)
                 assert_raises(Net::FTPPermError) { ftp.get("#{@temp_dir}/testfile") }
             end
             delete_testfile
         end
+
     end
 end
