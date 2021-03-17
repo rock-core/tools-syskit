@@ -61,6 +61,4 @@ end
 
 tmp_root_ca = TmpRootCA.new
 
-#puts tmp_root_ca.root_key
-
-puts Time.new.to_i
+puts tmp_root_ca.cert
