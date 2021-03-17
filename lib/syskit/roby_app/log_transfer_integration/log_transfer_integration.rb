@@ -19,12 +19,12 @@ class TmpRootCA
         @root_key = OpenSSL::PKey::RSA.new 2048 # the CA's public/private key
         @root_ca = OpenSSL::X509::Certificate.new
         @root_ca.version = 2 # cf. RFC 5280 - to make it a "v3" certificate
-        @root_ca.serial = 1000
+        @root_ca.serial = Time.new.to_i # Capture second value number and turns to integer
         @root_ca.subject = OpenSSL::X509::Name.parse "/DC=org/DC=ruby-lang/CN=Ruby CA"
         @root_ca.issuer = @root_ca.subject # root CA's are "self-signed"
         @root_ca.public_key = @root_key.public_key
         @root_ca.not_before = Time.now
-        @root_ca.not_after = @root_ca.not_before + 10 * 365 * 24 * 60 * 60 # 10 years validity
+        @root_ca.not_after = @root_ca.not_before + 100 * 365 * 24 * 60 * 60 # 100 years validity
         ef = OpenSSL::X509::ExtensionFactory.new
         ef.subject_certificate = @root_ca
         ef.issuer_certificate = @root_ca
@@ -43,12 +43,12 @@ class TmpRootCA
         key = OpenSSL::PKey::RSA.new 2048
         @cert = OpenSSL::X509::Certificate.new
         @cert.version = 2
-        @cert.serial = 1000
+        @cert.serial = Time.new.to_i # Capture second value number and turns to integer
         @cert.subject = OpenSSL::X509::Name.parse "/DC=org/DC=ruby-lang/CN=Ruby certificate"
         @cert.issuer = @root_ca.subject # root CA is the issuer
         @cert.public_key = key.public_key
         @cert.not_before = Time.now
-        @cert.not_after = @cert.not_before + 1 * 24 * 60 * 60 # 24h validity
+        @cert.not_after = @cert.not_before + 1 * 365 * 24 * 60 * 60 # 1 year validity
         ef = OpenSSL::X509::ExtensionFactory.new
         ef.subject_certificate = @cert
         ef.issuer_certificate = root_ca
@@ -61,4 +61,6 @@ end
 
 tmp_root_ca = TmpRootCA.new
 
-puts tmp_root_ca.ca_password
+#puts tmp_root_ca.root_key
+
+puts Time.new.to_i
