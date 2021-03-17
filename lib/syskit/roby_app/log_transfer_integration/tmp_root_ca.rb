@@ -60,5 +60,8 @@ class TmpRootCA
 end
 
 tmp_root_ca = TmpRootCA.new
+root_ca2 = TmpRootCA.new
 
-puts tmp_root_ca.cert
+# Verification of Certificate and Root CA Public Key
+puts tmp_root_ca.cert.verify(root_ca2.root_key)         # False
+puts tmp_root_ca.cert.verify(tmp_root_ca.root_key)      # True
