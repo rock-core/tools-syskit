@@ -3,6 +3,7 @@
 require "securerandom"
 require "syskit/test/self"
 require "syskit/roby_app/remote_processes"
+require "syskit/roby_app/remote_processes/server"
 require "syskit/roby_app/log_transfer_server"
 
 describe Syskit::RobyApp::RemoteProcesses do
@@ -11,17 +12,12 @@ describe Syskit::RobyApp::RemoteProcesses do
     attr_reader :root_loader
 
     class TestLogTransferServer < Syskit::RobyApp::LogTransferServer::SpawnServer
-        def insecure_certfile_path
-            File.join(__dir__, "cert.pem")
-        end
+        attr_reader :certfile_path
 
         def initialize(target_dir, user, password)
-            @certfile_path = insecure_certfile_path
-            super(target_dir, user, password, @certfile_path)
-        end
-
-        def certificate
-            File.read(@certfile_path)
+            @certfile_path = File.join(__dir__, "cert.crt")
+            private_cert = File.join(__dir__, "cert-private.crt")
+            super(target_dir, user, password, private_cert)
         end
     end
 
@@ -261,6 +257,20 @@ describe Syskit::RobyApp::RemoteProcesses do
             assert_match(/File already exists/, result.message)
         end
 
+        it "fails on an invalid certificate" do
+            certfile_path = File.join(__dir__, "invalid-cert.crt")
+            client.log_upload_file(
+                "localhost", @port, File.read(certfile_path),
+                @user, @password, @logfile
+            )
+
+            state = wait_for_upload_completion
+            result = state.each_result.first
+            assert_equal @logfile, result.file
+            refute result.success?
+            assert_match(/certificate verify failed/, result.message)
+        end
+
         def spawn_log_transfer_server
             @temp_serverdir = make_tmpdir
             @user = "test.user"
@@ -268,7 +278,7 @@ describe Syskit::RobyApp::RemoteProcesses do
             @log_transfer_server = TestLogTransferServer.new(
                 @temp_serverdir, @user, @password
             )
-            @log_transfer_server.certificate
+            [@log_transfer_server.port, File.read(@log_transfer_server.certfile_path)]
         end
 
         def wait_for_upload_completion(poll_period: 0.01, timeout: 1)

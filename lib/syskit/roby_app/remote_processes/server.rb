@@ -425,16 +425,21 @@ module Syskit
                     :host, :port, :certificate, :user, :password, :file
                 ) do
                     def apply
-                        Net::FTP.open(
-                            host,
-                            port: port,
-                            verify_mode: OpenSSL::SSL::VERIFY_PEER,
-                            ca_file: certificate
-                        ) do |ftp|
-                            ftp.login(user, password)
-                            File.open(file) do |io|
-                                ftp.storbinary("STOR #{File.basename(file)}",
-                                               io, Net::FTP::DEFAULT_BLOCKSIZE)
+                        Tempfile.create do |cert_io|
+                            cert_io.write certificate
+                            cert_io.flush
+
+                            Net::FTP.open(
+                                host,
+                                port: port,
+                                ssl: { verify_mode: OpenSSL::SSL::VERIFY_PEER,
+                                       ca_file: cert_io.path }
+                            ) do |ftp|
+                                ftp.login(user, password)
+                                File.open(file) do |file_io|
+                                    ftp.storbinary("STOR #{File.basename(file)}",
+                                                   file_io, Net::FTP::DEFAULT_BLOCKSIZE)
+                                end
                             end
                         end
                         LogUploadState::Result.new(file, true, nil)
