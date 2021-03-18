@@ -8,8 +8,11 @@ describe Syskit::RobyApp::LogTransferServer::SpawnServer do
         attr_accessor :user, :password, :certfile_path
 
         def initialize(target_dir, user, password)
-            @certfile_path = File.join(__dir__, "..", "remote_processes", "cert.pem")
-            super(target_dir, user, password, @certfile_path)
+            @certfile_path = File.join(__dir__, "..", "remote_processes", "cert.crt")
+            private_key_path = File.join(
+                __dir__, "..", "remote_processes", "cert-private.crt"
+            )
+            super(target_dir, user, password, private_key_path)
             @user = user
             @password = password
         end
@@ -23,9 +26,18 @@ describe Syskit::RobyApp::LogTransferServer::SpawnServer do
         @server = TestServer.new(@temp_serverdir, @user, @password)
     end
 
-    def upload_log(host, port, certificate, user, password, localfile) # rubocop:disable Metrics/ParameterLists
-        Net::FTP.open(host, port: port, ssl: {verify_mode: OpenSSL::SSL::VERIFY_PEER,
-                            ca_file: certificate}) do |ftp|
+    def ftp_open(certfile_path: @server.certfile_path, &block)
+        Net::FTP.open(
+            "localhost",
+            port: @server.port,
+            ssl: { verify_mode: OpenSSL::SSL::VERIFY_PEER, verify_hostname: false,
+                   ca_file: certfile_path },
+            &block
+        )
+    end
+
+    def upload_log(user, password, localfile, certfile_path: @server.certfile_path)
+        ftp_open(certfile_path: certfile_path) do |ftp|
             ftp.login(user, password)
             File.open(localfile) do |lf|
                 ftp.storbinary("STOR #{File.basename(localfile)}",
@@ -36,8 +48,7 @@ describe Syskit::RobyApp::LogTransferServer::SpawnServer do
 
     def upload_testfile
         File.open(File.join(@temp_srcdir, "testfile"), "w+") do |tf|
-            upload_log("127.0.0.1", @server.port, @server.certfile_path,
-                       @server.user, @server.password, tf)
+            upload_log(@server.user, @server.password, tf)
         end
     end
 
@@ -48,77 +59,54 @@ describe Syskit::RobyApp::LogTransferServer::SpawnServer do
             @temp_srcdir = make_tmpdir
         end
 
-        it "tests connection to server" do
-            Net::FTP.open(
-                "127.0.0.1",
-                port: @server.port,
-                ssl: {verify_mode: OpenSSL::SSL::VERIFY_PEER,
-                ca_file: @server.certfile_path}
-            ) do |ftp|
-                assert ftp.login(@server.user, @server.password),
-                       "FTP server doesn't connect."
+        it "logs in successfully with the correct user and password" do
+            ftp_open do |ftp|
+                # Raises on error
+                ftp.login(@server.user, @server.password)
             end
         end
 
-        it "incorrect user tests connection to server" do
-            Net::FTP.open(
-                "127.0.0.1",
-                port: @server.port,
-                ssl: {verify_mode: OpenSSL::SSL::VERIFY_PEER,
-                ca_file: @server.certfile_path}
-            ) do |ftp|
+        it "rejects an invalid user" do
+            ftp_open do |ftp|
                 assert_raises(Net::FTPPermError) { ftp.login("user", @server.password) }
             end
         end
 
-        it "incorrect password tests connection to server" do
-            Net::FTP.open(
-                "127.0.0.1",
-                port: @server.port,
-                ssl: {verify_mode: OpenSSL::SSL::VERIFY_PEER,
-                ca_file: @server.certfile_path}
-            ) do |ftp|
+        it "rejects an invalid password" do
+            ftp_open do |ftp|
                 assert_raises(Net::FTPPermError) { ftp.login(@server.user, "password") }
             end
         end
 
-        it "incorrect certificate tests connection to server" do
-            test_cert = OpenSSL::X509::Certificate.new
-            key = OpenSSL::PKey::RSA.new 2048
-            test_cert.public_key = key.public_key
-            File.open("test_cert.pem", "wb") {|f| f.print test_cert.to_pem}
+        it "refuses to connect if the server's certificate is unexpected" do
+            invalid_certfile_path = File.join(
+                __dir__, "..", "remote_processes", "invalid-cert.crt"
+            )
 
-            Net::FTP.open(
-                "127.0.0.1",
-                port: @server.port,
-                ssl: {verify_mode: OpenSSL::SSL::VERIFY_PEER,
-                ca_file: "test_cert.pem"}
-            ) do |ftp|
-                assert_raises(Net::FTPPermError) { ftp.login(@server.user, "password") }
+            e = assert_raises(OpenSSL::SSL::SSLError) do
+                ftp_open(certfile_path: invalid_certfile_path)
             end
-
+            assert_match(/certificate verify failed/, e.message)
         end
 
-        it "tests file uploads to server" do
+        it "uploads a file to the server's directory" do
             upload_testfile
-            assert File.exist?("#{@temp_dir}/testfile"), "Uploaded file doesn't exist."
+            assert File.exist?("#{@temp_serverdir}/testfile"),
+                   "cannot find the expected upload"
         end
 
-        it "tests upload of file that already exists" do
+        it "refuses to upload a file that already exists" do
             upload_testfile
             assert_raises(Net::FTPPermError) { upload_testfile }
         end
 
-        it "tests read function blocking of remote repository" do
+        it "refuses to GET a file" do
             upload_testfile
-            Net::FTP.open(
-                "127.0.0.1",
-                port: @server.port,
-                ssl: {verify_mode: OpenSSL::SSL::VERIFY_PEER,
-                ca_file: @server.certfile_path}
-            ) do |ftp|
+            ftp_open do |ftp|
                 ftp.login(@server.user, @server.password)
-                assert_raises(Net::FTPPermError) { ftp.get("#{@temp_dir}/testfile") }
+                assert_raises(Net::FTPPermError) do
+                    ftp.get("#{@temp_serverdir}/testfile")
+                end
             end
         end
     end
