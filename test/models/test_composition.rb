@@ -589,6 +589,12 @@ describe Syskit::Models::Composition do
                 assert_equal ["conf1"], cmp.test_child.conf
             end
 
+            it "accepts an empty array as configuration" do
+                @cmp_m.overload "test", @task_m.with_conf("conf1")
+                cmp = @cmp_m.instanciate(plan, task_arguments: { conf: [] })
+                assert_equal ["conf1"], cmp.test_child.conf
+            end
+
             it "applies a simple configuration to a task child" do
                 syskit_stub_conf @task_m, "conf1"
                 @cmp_m.conf "conf1", @cmp_m.test_child => %w[default conf1]

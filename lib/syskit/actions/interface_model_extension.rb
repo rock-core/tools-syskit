@@ -31,7 +31,8 @@ module Syskit
             def use_profile_tags(used_profile)
                 tag_map = {}
                 used_profile.each_tag do |tag|
-                    tagged_models = [*tag.proxied_data_service_models]
+                    tagged_models =
+                        [tag.proxied_component_model, *tag.proxied_data_service_models]
                     tag_map[tag.tag_name] = profile.tag(tag.tag_name, *tagged_models)
                 end
                 tag_map

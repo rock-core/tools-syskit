@@ -296,6 +296,16 @@ describe Syskit::Actions::InterfaceModelExtension do
             action_m.use_profile_tags profile_m
             assert action_m.profile.t_tag.fullfills?(srv_m)
         end
+
+        it "properly handles a tags' proxied component model" do
+            action_m = Roby::Actions::Interface.new_submodel
+            profile_m = Syskit::Actions::Profile.new
+            task_m = Syskit::Component.new_submodel
+            profile_m.tag "t", task_m
+
+            action_m.use_profile_tags profile_m
+            assert action_m.profile.t_tag.fullfills?(task_m)
+        end
     end
 
     describe "overloading of definitions by actions" do
