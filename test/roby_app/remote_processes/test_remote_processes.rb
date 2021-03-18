@@ -203,15 +203,24 @@ describe Syskit::RobyApp::RemoteProcesses do
             end
         end
 
+        after do
+            if @server_thread.alive?
+                @server_thread.raise Interrupt
+                @server_thread.join
+            end
+        end
+
         it "uploads a file" do
             client.upload_log_file(
                 "127.0.0.1",
                 @log_transfer_server.port, @log_transfer_server.certificate,
                 @user, @password, @logfile
             )
-            @server_thread.raise Interrupt
-            @server_thread.join
-            assert FileUtils.compare_file(@logfile, File.join(@temp_dir, "/logfile.log"))
+
+            path = File.join(@temp_serverdir, "logfile.log"))
+            assert_eventually("the file was uploaded") do
+                File.exist?(path) && File.read(path) == File.read(@logfile)
+            end
         end
 
         it "refuses to overwrite an existing file" do
@@ -226,11 +235,27 @@ describe Syskit::RobyApp::RemoteProcesses do
         end
 
         def spawn_log_transfer_server
-            @temp_dir = Ftpd::TempDir.make
+            @temp_serverdir = make_tmpdir
             @user = "test.user"
             @password = "password123"
-            @log_transfer_server = TestLogTransferServer.new(@temp_dir, @user, @password)
+            @log_transfer_server = TestLogTransferServer.new(
+                @temp_serverdir, @user, @password
+            )
             @log_transfer_server.certificate
+        end
+
+        def assert_eventually(message = nil, poll_period: 0.01, timeout: 1)
+            deadline = Time.now + timeout
+            until yield
+                if Time.now > deadline
+                    if message
+                        flunk("timed out while waiting for #{message}")
+                    else
+                        flunk("timed out")
+                    end
+                end
+                sleep poll_period
+            end
         end
     end
 end
