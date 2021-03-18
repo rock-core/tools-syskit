@@ -193,7 +193,7 @@ describe Syskit::RobyApp::RemoteProcesses do
         end
     end
 
-    describe "#upload_log_file" do
+    describe "#log_upload_file" do
         before do
             start_and_connect_to_server
             @port, @certificate = spawn_log_transfer_server
@@ -204,34 +204,61 @@ describe Syskit::RobyApp::RemoteProcesses do
         end
 
         after do
-            if @server_thread.alive?
+            if @server_thread&.alive?
                 @server_thread.raise Interrupt
                 @server_thread.join
             end
         end
 
         it "uploads a file" do
-            client.upload_log_file(
-                "127.0.0.1",
-                @log_transfer_server.port, @log_transfer_server.certificate,
+            path = File.join(@temp_serverdir, "logfile.log")
+            refute File.exist?(path)
+            client.log_upload_file(
+                "localhost", @port, @certificate,
                 @user, @password, @logfile
             )
+            assert_upload_succeeds
+            assert_equal File.read(path), File.read(@logfile)
+        end
 
-            path = File.join(@temp_serverdir, "logfile.log"))
-            assert_eventually("the file was uploaded") do
-                File.exist?(path) && File.read(path) == File.read(@logfile)
-            end
+        it "rejects a wrong user" do
+            client.log_upload_file(
+                "localhost", @port, @certificate,
+                "somethingsomething", @password, @logfile
+            )
+
+            state = wait_for_upload_completion
+            result = state.each_result.first
+            assert_equal @logfile, result.file
+            refute result.success?
+            assert_match(/Login incorrect/, result.message)
+        end
+
+        it "rejects a wrong password" do
+            client.log_upload_file(
+                "localhost", @port, @certificate,
+                @user, "somethingsomething", @logfile
+            )
+
+            state = wait_for_upload_completion
+            result = state.each_result.first
+            assert_equal @logfile, result.file
+            refute result.success?
+            assert_match(/Login incorrect/, result.message)
         end
 
         it "refuses to overwrite an existing file" do
-            FileUtils.touch File.join(@temp_dir, "logfile.log")
-            assert_raises(Syskit::RobyApp::RemoteProcesses::Client::Failed) do
-                client.upload_log_file(
-                    "127.0.0.1",
-                    @log_transfer_server.port, @log_transfer_server.certificate,
-                    @user, @password, @logfile
-                )
-            end
+            FileUtils.touch File.join(@temp_serverdir, "logfile.log")
+            client.log_upload_file(
+                "localhost", @port, @certificate,
+                @user, @password, @logfile
+            )
+
+            state = wait_for_upload_completion
+            result = state.each_result.first
+            assert_equal @logfile, result.file
+            refute result.success?
+            assert_match(/File already exists/, result.message)
         end
 
         def spawn_log_transfer_server
@@ -244,17 +271,23 @@ describe Syskit::RobyApp::RemoteProcesses do
             @log_transfer_server.certificate
         end
 
-        def assert_eventually(message = nil, poll_period: 0.01, timeout: 1)
+        def wait_for_upload_completion(poll_period: 0.01, timeout: 1)
             deadline = Time.now + timeout
-            until yield
+            loop do
                 if Time.now > deadline
-                    if message
-                        flunk("timed out while waiting for #{message}")
-                    else
-                        flunk("timed out")
-                    end
+                    flunk("timed out while waiting for upload completion")
                 end
+
+                state = client.log_upload_state
+                return state if state.pending_count == 0
+
                 sleep poll_period
+            end
+        end
+
+        def assert_upload_succeeds
+            wait_for_upload_completion.each_result do |r|
+                flunk("upload failed: #{r.message}") unless r.success?
             end
         end
     end

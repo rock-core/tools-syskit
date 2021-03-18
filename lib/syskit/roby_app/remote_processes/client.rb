@@ -226,18 +226,27 @@ module Syskit
                     @death_queue.push Marshal.load(socket)
                 end
 
-                def upload_log_file(host, port, certificate, user, password, localfile)
-                    socket.write(COMMAND_UPLOAD_LOG)
+                # Initiate the upload of a file from the remote process server
+                #
+                # The transfer is asynchronous, use {#upload_state} to track the
+                # upload progress
+                def log_upload_file(host, port, certificate, user, password, localfile)
+                    socket.write(COMMAND_LOG_UPLOAD_FILE)
                     Marshal.dump(
                         [host, port, certificate, user, password, localfile], socket
                     )
 
-                    reply = socket.read(1)
-                    return unless reply == NOT_UPLOADED
+                    wait_for_ack
+                end
 
-                    msg = Marshal.load(socket)
-                    raise Failed,
-                          "failed to upload log to FTP server: (#{localfile}) #{msg}"
+                # Query the current state of log upload
+                #
+                # @return [UploadState]
+                def log_upload_state
+                    socket.write(COMMAND_LOG_UPLOAD_STATE)
+
+                    wait_for_ack
+                    Marshal.load(socket)
                 end
 
                 # Waits for processes to terminate. +timeout+ is the number of

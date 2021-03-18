@@ -5,6 +5,9 @@ require "fcntl"
 require "net/ftp"
 require "orocos"
 
+require "concurrent/atomic/atomic_reference"
+require "syskit/roby_app/remote_processes/log_upload_state"
+
 module Syskit
     module RobyApp
         module RemoteProcesses
@@ -120,7 +123,10 @@ module Syskit
                     @port = nil
                     @processes = {}
                     @all_ios = []
-                    @active_threads = []
+                    @log_upload_current = Concurrent::AtomicReference.new
+                    @log_upload_command_queue = Queue.new
+                    @log_upload_results_queue = Queue.new
+                    @log_upload_thread = Thread.new { log_upload_main }
                 end
 
                 def each_client(&block)
@@ -194,17 +200,8 @@ module Syskit
                                 @all_ios.delete(socket)
                             end
                         end
-                        @active_threads.delete_if do |thread|
-                            !thread.alive?
-                        end
                     end
                 rescue Exception => e
-                    unless @active_threads.empty?
-                        Server.info "waiting for all uploads to finish"
-                    end
-                    @active_threads.each(&:join)
-                    @active_threads = []
-
                     if e.class == Interrupt # normal procedure
                         Server.fatal "process server exited normally"
                         return
@@ -251,6 +248,9 @@ module Syskit
                         socket.close
                     rescue IOError # rubocop:disable Lint/SuppressedException
                     end
+
+                    @log_upload_command_queue << nil
+                    @log_upload_thread.join
                 end
 
                 # Helper method that deals with one client request
@@ -327,36 +327,21 @@ module Syskit
                         end
                     elsif cmd_code == COMMAND_QUIT
                         quit
-                    elsif cmd_code == COMMAND_UPLOAD_LOG
-                        begin
-                            host, port, certificate, user, password, localfile =
-                                Marshal.load(socket)
-                            Server.debug "#{socket} requested uploading "\
-                                         "#{localfile} to log transfer FTP server"
-                            @active_threads << Thread.new do
-                                Thread.current.abort_on_exception = true
-                                begin
-                                    upload_log(
-                                        host, port, certificate, user, password, localfile
-                                    )
-                                    Server.info "finished uploading log (#{localfile})"
-                                    socket.write(UPLOADED)
-                                rescue Net::FTPPermError => e
-                                    Server.warn "failed to upload log to FTP server: "\
-                                                "(#{localfile}) #{e.message}"
-                                    socket.write(NOT_UPLOADED)
-                                    Marshal.dump(e.message, socket)
-                                end
-                            end
-                        rescue Interrupt
-                            raise
-                        rescue Exception => e
-                            Server.warn "failed to upload log to FTP server: "\
-                                        "(#{localfile}) #{e.message}"
-                            (e.backtrace || []).each do |line|
-                                Server.warn "   #{line}"
-                            end
-                        end
+                    elsif cmd_code == COMMAND_LOG_UPLOAD_FILE
+                        host, port, certificate, user, password, localfile =
+                            Marshal.load(socket)
+                        Server.debug "#{socket} requested uploading of #{localfile}"
+                        @log_upload_command_queue <<
+                            Upload.new(
+                                host, port, certificate,
+                                user, password, localfile
+                            )
+
+                        socket.write(RET_YES)
+                    elsif cmd_code == COMMAND_LOG_UPLOAD_STATE
+                        state = log_upload_state
+                        socket.write RET_YES
+                        socket.write Marshal.dump(state)
                     end
 
                     true
@@ -436,18 +421,51 @@ module Syskit
                     raise Interrupt
                 end
 
-                def upload_log(host, port, certificate, user, password, localfile)
-                    Net::FTP.open(
-                        host,
-                        port: port,
-                        verify_mode: OpenSSL::SSL::VERIFY_PEER,
-                        ca_file: certificate
-                    ) do |ftp|
-                        ftp.login(user, password)
-                        lf = File.open(localfile)
-                        ftp.storbinary("STOR #{File.basename(localfile)}",
-                                       lf, Net::FTP::DEFAULT_BLOCKSIZE)
+                Upload = Struct.new(
+                    :host, :port, :certificate, :user, :password, :file
+                ) do
+                    def apply
+                        Net::FTP.open(
+                            host,
+                            port: port,
+                            verify_mode: OpenSSL::SSL::VERIFY_PEER,
+                            ca_file: certificate
+                        ) do |ftp|
+                            ftp.login(user, password)
+                            File.open(file) do |io|
+                                ftp.storbinary("STOR #{File.basename(file)}",
+                                               io, Net::FTP::DEFAULT_BLOCKSIZE)
+                            end
+                        end
+                        LogUploadState::Result.new(file, true, nil)
+                    rescue Exception => e
+                        LogUploadState::Result.new(file, false, e.message)
                     end
+                end
+
+                def log_upload_main
+                    while (transfer = @log_upload_command_queue.pop)
+                        @log_upload_current.set(transfer)
+                        @log_upload_results_queue << transfer.apply
+                        @log_upload_current.set(nil)
+                    end
+                end
+
+                def log_upload_state
+                    results = []
+                    loop do
+                        results << @log_upload_results_queue.pop(true)
+                    rescue ThreadError
+                        break
+                    end
+
+                    # This count is not exact. However, it's designed to show
+                    # at least one transfer if there are some. I.e. the only
+                    # case where pending == 0 is when there is truly nothing to
+                    # be done
+                    pending = @log_upload_command_queue.size
+                    pending += 1 if @log_upload_current.get
+                    LogUploadState.new(pending, results)
                 end
             end
         end
