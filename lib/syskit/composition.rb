@@ -47,9 +47,13 @@ module Syskit
         #   'monitoring' => ['default', 'narrow_window'],
         #   'sonar' => ['default', 'narrow_window']
         def conf(names)
+            return {} if names.empty?
+
             if names.size != 1
-                raise ArgumentError, "unlike with ConfigurationManager, only one "\
-                                        "configuration can be selected on compositions"
+                raise ArgumentError,
+                      "unlike with ConfigurationManager, only one configuration can "\
+                      "be selected on compositions. Attempted to select #{names} on "\
+                      "#{self}"
             end
 
             result = {}
