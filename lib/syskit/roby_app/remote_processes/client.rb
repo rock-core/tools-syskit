@@ -128,6 +128,9 @@ module Syskit
                 class TimeoutError < RuntimeError
                 end
 
+                class ComError < RuntimeError
+                end
+
                 def wait_for_answer(timeout: @response_timeout)
                     loop do
                         unless select([socket], [], [], timeout)
@@ -136,7 +139,7 @@ module Syskit
                         end
 
                         unless (reply = socket.read(1))
-                            raise Orocos::ComError,
+                            raise ComError,
                                   "failed to read from process server #{self}"
                         end
 
