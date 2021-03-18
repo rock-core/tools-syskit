@@ -2,6 +2,7 @@
 
 require "roby"
 require "syskit/roby_app/remote_processes"
+require "syskit/roby_app/remote_processes/server"
 
 require "optparse"
 
