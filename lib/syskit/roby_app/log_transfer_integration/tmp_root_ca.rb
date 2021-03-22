@@ -87,12 +87,12 @@ def generate_code(number)
     Array.new(number) { charset.sample }.join
 end
 
-data_to_compress = generate_code(200)
-puts "Pre-compression data: #{data_to_compress}"
-puts "Pre-compression data size: #{data_to_compress.size}"
-compressed_data = compress_data(data_to_compress)
-puts "Post-compression data: #{compressed_data}"
-puts "Post-compression data size: #{compressed_data.size}"
-uncompressed_data = uncompress(compressed_data)
-puts "Uncompressed data: #{uncompressed_data}"
-puts "Uncompression data size: #{uncompressed_data.size}"
+# data_to_compress = generate_code(200)
+# puts "Pre-compression data: #{data_to_compress}"
+# puts "Pre-compression data size: #{data_to_compress.size}"
+# compressed_data = compress_data(data_to_compress)
+# puts "Post-compression data: #{compressed_data}"
+# puts "Post-compression data size: #{compressed_data.size}"
+# uncompressed_data = uncompress(compressed_data)
+# puts "Uncompressed data: #{uncompressed_data}"
+# puts "Uncompression data size: #{uncompressed_data.size}"

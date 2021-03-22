@@ -1,6 +1,7 @@
 # frozen_string_literal: true
 
 require "ftpd"
+require "net/ftp"
 require "ipaddr"
 require "pathname"
 

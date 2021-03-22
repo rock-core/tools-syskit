@@ -98,7 +98,7 @@ describe Syskit::RobyApp::LogTransferServer::SpawnServer do
         it "uploads a file to the server's directory" do
             upload_testfile
             assert File.exist?("#{@temp_serverdir}/testfile"),
-                   "cannot find the expected upload"
+                "cannot find the expected upload"
         end
 
         it "refuses to upload a file that already exists" do
@@ -114,6 +114,7 @@ describe Syskit::RobyApp::LogTransferServer::SpawnServer do
                     ftp.get("#{@temp_serverdir}/testfile")
                 end
             end
+            File.delete("testfile")
         end
     end
 end
