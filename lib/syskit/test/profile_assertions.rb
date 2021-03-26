@@ -11,6 +11,7 @@ module Syskit
         module ProfileAssertions
             include NetworkManipulation
 
+            # Exceptions raised by failed assertions
             class ProfileAssertionFailed < Roby::ExceptionBase
                 attr_reader :actions
 
@@ -43,13 +44,15 @@ module Syskit
                 elsif arg.respond_to?(:flat_map)
                     arg.flat_map { |a| Actions(a) }
                 else
-                    raise ArgumentError, "expected an action or a collection of actions, but got #{arg}"
+                    raise ArgumentError,
+                          "expected an action or a collection of actions, but got "\
+                          "#{arg} of class #{arg.class}"
                 end
             end
 
             # Like #Actions, but expands coordination models into their
             # consistuent actions
-            def AtomicActions(arg, &block)
+            def AtomicActions(arg)
                 Actions(arg).flat_map do |action|
                     expand_coordination_models(action)
                 end
@@ -62,13 +65,14 @@ module Syskit
             # @param [Array<Roby::Actions::Action>] actions that
             #   should be ignored. Actions are compared on the basis of their
             #   model (arguments do not count)
-            def BulkAssertAtomicActions(arg, exclude: [], &block)
+            def BulkAssertAtomicActions(arg, exclude: [])
                 exclude = Actions(exclude).map(&:model)
                 skipped_actions = []
                 actions = AtomicActions(arg).find_all do |action|
                     if exclude.include?(action.model)
                         false
-                    elsif !action.kind_of?(Actions::Action) && action.has_missing_required_arg?
+                    elsif !action.kind_of?(Actions::Action) &&
+                          action.has_missing_required_arg?
                         skipped_actions << action
                         false
                     else
@@ -94,7 +98,8 @@ module Syskit
                 action_or_profile = subject_syskit_model,
                 message: "%s is not self contained", exclude: [], **instanciate_options
             )
-                actions, skipped_actions = BulkAssertAtomicActions(action_or_profile, exclude: exclude)
+                actions, skipped_actions =
+                    BulkAssertAtomicActions(action_or_profile, exclude: exclude)
                 unless skipped_actions.empty?
                     flunk "could not validate #{skipped_actions.size} non-Syskit "\
                           "actions: #{skipped_actions.map(&:name).sort.join(', ')}, "\
@@ -121,8 +126,8 @@ module Syskit
                 still_abstract = plan.find_local_tasks(Syskit::Component)
                                      .abstract.to_set
                 still_abstract &= plan.compute_useful_tasks([task])
-                tags, other = still_abstract.partition do |task|
-                    task.class <= Actions::Profile::Tag
+                tags, other = still_abstract.partition do |abstract_task|
+                    abstract_task.class <= Actions::Profile::Tag
                 end
 
                 reference_profile = subject_syskit_model
@@ -130,8 +135,8 @@ module Syskit
                     reference_profile = reference_profile.profile
                 end
 
-                tags_from_other = tags.find_all do |task|
-                    task.class.profile != reference_profile
+                tags_from_other = tags.find_all do |tag|
+                    tag.class.profile != reference_profile
                 end
 
                 if !other.empty?
@@ -158,7 +163,7 @@ module Syskit
 
                 plan.unmark_mission_task(task)
                 expect_execution.garbage_collect(true).to_run
-            rescue Exception => e
+            rescue Minitest::Assertion, StandardError => e
                 raise ProfileAssertionFailed.new(action, e), e.message, e.backtrace
             end
 
@@ -182,9 +187,13 @@ module Syskit
             #
             # If called without argument, it tests the spec's context profile
             def assert_can_instanciate(action_or_profile = subject_syskit_model, exclude: [])
-                actions, skipped_actions = BulkAssertAtomicActions(action_or_profile, exclude: exclude)
+                actions, skipped_actions =
+                    BulkAssertAtomicActions(action_or_profile, exclude: exclude)
                 unless skipped_actions.empty?
-                    flunk "could not validate #{skipped_actions.size} non-Syskit actions: #{skipped_actions.map(&:name).sort.join(', ')}, pass them to the 'exclude' argumet to #{__method__}"
+                    skipped_actions_s = skipped_actions.map(&:name).sort.join(", ")
+                    flunk "could not validate #{skipped_actions.size} non-Syskit "\
+                          "actions: #{skipped_actions_s}, pass them to the 'exclude' "\
+                          "argument to #{__method__}"
                 end
 
                 actions.each do |action|
@@ -212,20 +221,20 @@ module Syskit
             # deployed (e.g. if some components do not have a corresponding
             # deployment)
             def assert_can_instanciate_together(*actions)
-                if actions.empty?
-                    actions = subject_syskit_model
-                end
+                actions = subject_syskit_model if actions.empty?
                 self.assertions += 1
                 syskit_deploy(AtomicActions(actions),
                               compute_policies: false,
                               compute_deployments: false)
-            rescue Exception => e
+            rescue Minitest::Assertion, StandardError => e
                 raise ProfileAssertionFailed.new(actions, e), e.message
             end
 
             # Spec-style call for {#assert_can_instanciate_together}
             #
-            # @example verify that all definitions of a profile can be instanciated all at the same time
+            # @example verify that all definitions of a profile can be instanciated
+            #     all at the same time
+            #
             #   describe MyBundle::Profiles::MyProfile do
             #     it { can_instanciate_together }
             #   end
@@ -237,15 +246,13 @@ module Syskit
             #
             # Given an action, returns the list of atomic actions it refers to
             def expand_coordination_models(action)
-                if action.model.respond_to?(:coordination_model)
-                    actions = action.model.coordination_model.each_task.flat_map do |coordination_task|
-                        if coordination_task.respond_to?(:action)
-                            expand_coordination_models(coordination_task.action)
-                        end
-                    end.compact
-                else
-                    [action]
-                end
+                return [action] unless action.model.respond_to?(:coordination_model)
+
+                action.model.coordination_model.each_task.flat_map do |coordination_task|
+                    if coordination_task.respond_to?(:action)
+                        expand_coordination_models(coordination_task.action)
+                    end
+                end.compact
             end
 
             # Tests that the following syskit-generated actions can be deployed,
@@ -259,9 +266,13 @@ module Syskit
             #
             # If called without argument, it tests the spec's context profile
             def assert_can_deploy(action_or_profile = subject_syskit_model, exclude: [])
-                actions, skipped_actions = BulkAssertAtomicActions(action_or_profile, exclude: exclude)
+                actions, skipped_actions =
+                    BulkAssertAtomicActions(action_or_profile, exclude: exclude)
                 unless skipped_actions.empty?
-                    flunk "could not validate #{skipped_actions.size} non-Syskit actions: #{skipped_actions.map(&:name).sort.join(', ')}, pass them to the 'exclude' argument to #{__method__}"
+                    skipped_actions_s = skipped_actions.map(&:name).sort.join(", ")
+                    flunk "could not validate #{skipped_actions.size} "\
+                          "non-Syskit actions: #{skipped_actions_s}, pass them to the "\
+                          "'exclude' argument to #{__method__}"
                 end
 
                 actions.each do |action|
@@ -286,20 +297,21 @@ module Syskit
             # It is stronger (and therefore includes)
             # {assert_can_instanciate_together}
             def assert_can_deploy_together(*actions)
-                if actions.empty?
-                    actions = subject_syskit_model
-                end
+                actions = subject_syskit_model if actions.empty?
                 self.assertions += 1
                 syskit_deploy(AtomicActions(actions),
                               compute_policies: true,
                               compute_deployments: true)
-            rescue Exception => e
+            rescue Minitest::Assertion, StandardError => e
                 raise ProfileAssertionFailed.new(actions, e), e.message
             end
 
             # Spec-style call for {#assert_can_deploy_together}
             #
-            # @example verify that all definitions of a profile can be deployed at the same time
+            # @example
+            #   # verify that all definitions of a profile can be deployed at
+            #   # the same time
+            #
             #   describe MyBundle::Profiles::MyProfile do
             #     it { can_deploy_together }
             #   end
@@ -317,9 +329,7 @@ module Syskit
             # It is stronger (and therefore includes)
             # {assert_can_deploy_together}
             def assert_can_configure_together(*actions)
-                if actions.empty?
-                    actions = subject_syskit_model
-                end
+                actions = subject_syskit_model if actions.empty?
                 self.assertions += 1
                 roots = assert_can_deploy_together(*AtomicActions(actions))
                 # assert_can_deploy_together has one of its idiotic return
@@ -330,12 +340,14 @@ module Syskit
                 task_contexts = tasks.find_all { |t| t.kind_of?(Syskit::TaskContext) }
                                      .each do |task_context|
                     unless task_context.plan
-                        raise ProfileAssertionFailed.new(actions, nil), "#{task_context} got garbage-collected before it got configured"
+                        raise ProfileAssertionFailed.new(actions, nil),
+                              "#{task_context} got garbage-collected before "\
+                              "it got configured"
                     end
                 end
                 syskit_configure(task_contexts)
                 roots
-            rescue Exception => e
+            rescue Minitest::Assertion, StandardError => e
                 raise ProfileAssertionFailed.new(actions, e), e.message
             end
 

@@ -107,7 +107,6 @@ Layout/LineLength:
     - 'lib/syskit/task_configuration_manager.rb'
     - 'lib/syskit/task_context.rb'
     - 'lib/syskit/test/base.rb'
-    - 'lib/syskit/test/profile_assertions.rb'
     - 'lib/syskit/test/profile_test.rb'
     - 'lib/syskit/test/ruby_task_context_test.rb'
     - 'lib/syskit/test/self.rb'
@@ -294,7 +293,6 @@ Lint/RescueException:
     - 'lib/syskit/runtime/update_deployment_states.rb'
     - 'lib/syskit/task_context.rb'
     - 'lib/syskit/test/base.rb'
-    - 'lib/syskit/test/profile_assertions.rb'
     - 'lib/syskit/test/self.rb'
 
 # Offense count: 11
@@ -307,7 +305,6 @@ Lint/ShadowingOuterLocalVariable:
     - 'lib/syskit/gui/runtime_state.rb'
     - 'lib/syskit/models/deployment.rb'
     - 'lib/syskit/models/specialization_manager.rb'
-    - 'lib/syskit/test/profile_assertions.rb'
     - 'test/models/test_specialization_manager.rb'
 
 # Offense count: 16
@@ -386,7 +383,6 @@ Lint/UnusedMethodArgument:
     - 'lib/syskit/test/base.rb'
     - 'lib/syskit/test/execution_expectations.rb'
     - 'lib/syskit/test/network_manipulation.rb'
-    - 'lib/syskit/test/profile_assertions.rb'
     - 'test/test_deployment.rb'
 
 # Offense count: 184
@@ -407,7 +403,6 @@ Lint/UselessAssignment:
     - 'lib/syskit/scripts/ide.rb'
     - 'lib/syskit/scripts/instanciate.rb'
     - 'lib/syskit/scripts/instanciate_gui.rb'
-    - 'lib/syskit/test/profile_assertions.rb'
     - 'test/actions/test_interface_model_extension.rb'
     - 'test/coordination/test_data_monitoring_table.rb'
     - 'test/coordination/test_task_script.rb'
@@ -944,7 +939,6 @@ Style/Documentation:
     - 'lib/syskit/test/execution_expectations.rb'
     - 'lib/syskit/test/flexmock_extension.rb'
     - 'lib/syskit/test/network_manipulation.rb'
-    - 'lib/syskit/test/profile_assertions.rb'
     - 'lib/syskit/test/ruby_task_context_test.rb'
     - 'lib/syskit/test/self.rb'
     - 'lib/syskit/test/spec.rb'
@@ -1057,7 +1051,6 @@ Style/GuardClause:
     - 'lib/syskit/test/action_interface_test.rb'
     - 'lib/syskit/test/action_test.rb'
     - 'lib/syskit/test/component_test.rb'
-    - 'lib/syskit/test/profile_assertions.rb'
     - 'lib/syskit/test/profile_test.rb'
     - 'lib/syskit/test/task_context_test.rb'
     - 'lib/yard-syskit.rb'
@@ -1161,7 +1154,6 @@ Style/IfUnlessModifier:
     - 'lib/syskit/task_context.rb'
     - 'lib/syskit/test/base.rb'
     - 'lib/syskit/test/flexmock_extension.rb'
-    - 'lib/syskit/test/profile_assertions.rb'
     - 'lib/syskit/test/self.rb'
     - 'lib/yard-syskit.rb'
     - 'test/network_generation/test_async.rb'
@@ -1227,7 +1219,6 @@ Style/RedundantBegin:
     - 'lib/syskit/runtime/connection_management.rb'
     - 'lib/syskit/shell_interface.rb'
     - 'lib/syskit/task_context.rb'
-    - 'lib/syskit/test/profile_assertions.rb'
     - 'lib/syskit/test/self.rb'
     - 'test/coordination/test_task_script.rb'
     - 'test/models/test_composition.rb'
