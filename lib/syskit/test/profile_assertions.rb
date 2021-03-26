@@ -102,11 +102,15 @@ module Syskit
                 end
 
                 actions.each do |act|
-                    syskit_assert_action_is_self_contained(act, **instanciate_options)
+                    syskit_assert_action_is_self_contained(
+                        act, message: message, **instanciate_options
+                    )
                 end
             end
 
-            def syskit_assert_action_is_self_contained(action, **instanciate_options)
+            def syskit_assert_action_is_self_contained(
+                action, message: "%s is not self contained", **instanciate_options
+            )
                 self.assertions += 1
                 syskit_engine = Syskit::NetworkGeneration::Engine.new(plan)
                 task = syskit_deploy(
