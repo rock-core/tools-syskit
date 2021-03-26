@@ -1,7 +1,7 @@
 # frozen_string_literal: true
 
 require "syskit/test/self"
-require "syskit/roby_app/process_server"
+require "syskit/roby_app/remote_processes"
 
 describe Syskit::RobyApp::Configuration do
     describe "#use_deployment" do
@@ -81,7 +81,7 @@ describe Syskit::RobyApp::Configuration do
             @available_deployment_names = ["deployment"]
 
             set_log_level ::Robot, Logger::FATAL + 1
-            set_log_level Orocos::RemoteProcesses::Server, Logger::FATAL + 1
+            set_log_level Syskit::RobyApp::RemoteProcesses::Server, Logger::FATAL + 1
         end
 
         after do
@@ -150,7 +150,7 @@ describe Syskit::RobyApp::Configuration do
             @server_loader.should_receive(:each_available_project_name)
                           .and_return { @available_project_names }
 
-            @server = Syskit::RobyApp::ProcessServer.new(
+            @server = Syskit::RobyApp::RemoteProcesses::Server.new(
                 Roby.app, port: 0, loader: @server_loader
             )
             flexmock(@server)

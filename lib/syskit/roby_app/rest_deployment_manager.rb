@@ -178,7 +178,7 @@ module Syskit
             # Whether the given deployment is an oroGen deployment
             def orogen_deployment?(deployment)
                 manager = @conf.process_server_config_for(deployment.process_server_name)
-                manager.client.kind_of?(Orocos::RemoteProcesses::Client)
+                manager.client.kind_of?(Syskit::RobyApp::RemoteProcesses::Client)
             end
 
             # Returns the command line needed to start the given deployment with the given spawn options

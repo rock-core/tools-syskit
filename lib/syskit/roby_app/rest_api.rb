@@ -70,7 +70,7 @@ module Syskit
                 end
 
                 PROCESS_SERVER_TYPES = Hash[
-                    Orocos::RemoteProcesses::Client => "orocos",
+                    Syskit::RobyApp::RemoteProcesses::Client => "orocos",
                     UnmanagedTasksManager => "unmanaged"
                 ]
 

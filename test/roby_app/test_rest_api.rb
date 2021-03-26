@@ -104,8 +104,10 @@ module Syskit
                         @configured_deployments = []
                         flexmock(Syskit.conf.deployment_group).should_receive(:each_configured_deployment)
                                                               .and_return { @configured_deployments }
-                        Syskit.conf.register_process_server("localhost",
-                                                            flexmock(:on, Orocos::RemoteProcesses::Client))
+                        Syskit.conf.register_process_server(
+                            "localhost",
+                            flexmock(:on, Syskit::RobyApp::RemoteProcesses::Client)
+                        )
                         Syskit.conf.register_process_server("unmanaged_tasks",
                                                             flexmock(:on, UnmanagedTasksManager))
                         Syskit.conf.register_process_server("something_else",
