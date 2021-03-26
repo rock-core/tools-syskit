@@ -43,6 +43,8 @@ module Syskit
                     [arg.to_action]
                 elsif arg.respond_to?(:flat_map)
                     arg.flat_map { |a| Actions(a) }
+                elsif arg.respond_to?(:to_instance_requirements)
+                    Actions::Model::Action.new(arg)
                 else
                     raise ArgumentError,
                           "expected an action or a collection of actions, but got "\
@@ -98,12 +100,9 @@ module Syskit
                 action_or_profile = subject_syskit_model,
                 message: "%s is not self contained", exclude: [], **instanciate_options
             )
-                actions, skipped_actions =
-                    BulkAssertAtomicActions(action_or_profile, exclude: exclude)
-                unless skipped_actions.empty?
-                    flunk "could not validate #{skipped_actions.size} non-Syskit "\
-                          "actions: #{skipped_actions.map(&:name).sort.join(', ')}, "\
-                          "pass them to the 'exclude' argumet to #{__method__}"
+                actions = validate_actions(action_or_profile, exclude: exclude) do |skip|
+                    flunk "could not validate some non-Syskit actions: "\
+                          "#{skip}, pass them to the 'exclude' argument to #{__method__}"
                 end
 
                 actions.each do |act|
@@ -186,19 +185,25 @@ module Syskit
             # {#assert_can_instanciate_together}
             #
             # If called without argument, it tests the spec's context profile
-            def assert_can_instanciate(action_or_profile = subject_syskit_model, exclude: [])
-                actions, skipped_actions =
-                    BulkAssertAtomicActions(action_or_profile, exclude: exclude)
-                unless skipped_actions.empty?
-                    skipped_actions_s = skipped_actions.map(&:name).sort.join(", ")
-                    flunk "could not validate #{skipped_actions.size} non-Syskit "\
-                          "actions: #{skipped_actions_s}, pass them to the 'exclude' "\
+            def assert_can_instanciate(
+                action_or_profile = subject_syskit_model,
+                exclude: [], together_with: []
+            )
+                actions = validate_actions(action_or_profile, exclude: exclude) do |skip|
+                    flunk "could not validate some non-Syskit actions: "\
+                          "#{skip}, pass them to the 'exclude' argument to #{__method__}"
+                end
+
+                together_with = validate_actions(together_with) do |skip|
+                    flunk "could not validate some non-Syskit actions given to "\
+                          "`together_with`: #{skip}, pass them to the 'exclude' "\
                           "argument to #{__method__}"
                 end
 
                 actions.each do |action|
-                    task = assert_can_instanciate_together(action)
-                    plan.unmark_mission_task(task)
+                    tasks = assert_can_instanciate_together(action, *together_with)
+                    Array(tasks).each { |t| plan.unmark_mission_task(t) }
+                    yield(action, tasks, together_with: together_with) if block_given?
                     expect_execution.garbage_collect(true).to_run
                 end
             end
@@ -209,8 +214,10 @@ module Syskit
             #   describe MyBundle::Profiles::MyProfile do
             #     it { can_instanciate }
             #   end
-            def can_instanciate(action_or_profile = subject_syskit_model)
-                assert_can_instanciate(action_or_profile)
+            def can_instanciate(
+                action_or_profile = subject_syskit_model, together_with: []
+            )
+                assert_can_instanciate(action_or_profile, together_with: together_with)
             end
 
             # Tests that the given syskit-generated actions can be instanciated
@@ -265,19 +272,25 @@ module Syskit
             # {#assert_can_deploy_together}
             #
             # If called without argument, it tests the spec's context profile
-            def assert_can_deploy(action_or_profile = subject_syskit_model, exclude: [])
-                actions, skipped_actions =
-                    BulkAssertAtomicActions(action_or_profile, exclude: exclude)
-                unless skipped_actions.empty?
-                    skipped_actions_s = skipped_actions.map(&:name).sort.join(", ")
-                    flunk "could not validate #{skipped_actions.size} "\
-                          "non-Syskit actions: #{skipped_actions_s}, pass them to the "\
-                          "'exclude' argument to #{__method__}"
+            def assert_can_deploy(
+                action_or_profile = subject_syskit_model,
+                exclude: [], together_with: []
+            )
+                actions = validate_actions(action_or_profile, exclude: exclude) do |skip|
+                    flunk "could not validate some non-Syskit actions: "\
+                          "#{skip}, pass them to the 'exclude' argument to #{__method__}"
+                end
+
+                together_with = validate_actions(together_with) do |skip|
+                    flunk "could not validate some non-Syskit actions given to "\
+                          "`together_with` #{skip}, pass them to the 'exclude' "\
+                          "argument to #{__method__}"
                 end
 
                 actions.each do |action|
-                    task = assert_can_deploy_together(action)
-                    plan.unmark_mission_task(task)
+                    task = assert_can_deploy_together(action, *together_with)
+                    yield(action, tasks, together_with: together_with) if block_given?
+                    Array(task).each { |t| plan.unmark_mission_task(t) }
                     expect_execution.garbage_collect(true).to_run
                 end
             end
@@ -288,8 +301,8 @@ module Syskit
             #   describe MyBundle::Profiles::MyProfile do
             #     it { can_deploy }
             #   end
-            def can_deploy(action_or_profile = subject_syskit_model)
-                assert_can_deploy(action_or_profile)
+            def can_deploy(action_or_profile = subject_syskit_model, together_with: [])
+                assert_can_deploy(action_or_profile, together_with: together_with)
             end
 
             # Tests that the given syskit-generated actions can be deployed together
@@ -354,6 +367,15 @@ module Syskit
             # Spec-style call for {#assert_can_configure_together}
             def can_configure_together(*actions)
                 assert_can_configure_together(*actions)
+            end
+
+            # @api private
+            def validate_actions(action_or_profile, exclude: [])
+                actions, skipped =
+                    BulkAssertAtomicActions(action_or_profile, exclude: exclude)
+                yield skipped.map(&:name).sort.join(", ") unless skipped.empty?
+
+                actions
             end
         end
     end

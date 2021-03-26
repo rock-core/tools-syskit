@@ -62,6 +62,11 @@ module Syskit
                         e.message
                     )
                 end
+
+                it "handles plain instance requirements" do
+                    @test_profile.tag "test", @srv_m
+                    assert_is_self_contained(@cmp_m.use(@srv_m => @test_profile.test_tag))
+                end
             end
 
             describe "assert_can_instanciate" do
@@ -119,6 +124,21 @@ module Syskit
                         /cannot find a concrete implementation.*profile:Other.test_tag/m,
                         e.message
                     )
+                end
+
+                it "handles plain instance requirements" do
+                    assert_can_instanciate(@cmp_m.use(@srv_m => @task_m))
+                end
+
+                it "allows deploying together with the actions or profile" do
+                    @task_m.argument :bla
+                    @test_profile.define "test", @cmp_m.use(@srv_m => @task_m)
+                    assert_can_instanciate(
+                        @test_profile, together_with: @task_m.with_arguments(bla: 9)
+                    ) do
+                        t = plan.find_tasks(@cmp_m).first.test_child
+                        assert_equal 9, t.bla
+                    end
                 end
             end
 
@@ -192,6 +212,24 @@ module Syskit
                     assert_match(
                         /cannot find a concrete implementation.*profile:Other.test_tag/m,
                         e.message
+                    )
+                end
+
+                it "handles plain instance requirements" do
+                    assert_can_deploy(
+                        @cmp_m
+                        .to_instance_requirements
+                        .use_deployment(@deployment_m)
+                        .use(@srv_m => @task_m)
+                    )
+                end
+
+                it "allows deploying together with the actions or profile" do
+                    @test_profile.define("test", @cmp_m.use(@srv_m => @task_m))
+                    assert_can_deploy(
+                        @test_profile.test_def,
+                        together_with: @task_m.to_instance_requirements
+                                              .use_deployment(@deployment_m)
                     )
                 end
             end
