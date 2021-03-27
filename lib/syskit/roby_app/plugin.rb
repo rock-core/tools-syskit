@@ -152,13 +152,14 @@ module Syskit
                 # Log Transfer FTP Server spawned during Application#setup
                 tmp_root_ca = TmpRootCA.new
 
-                user = "process_server"
-                password = tmp_root_ca.ca_password
-                cert = tmp_root_ca.cert_filepath
-                private_cert = tmp_root_ca.signed_cert_filepath
-
-                start_local_log_transfer_server(app.log_dir, user, password, private_cert)                
+                start_local_log_transfer_server(
+                    app.log_dir, 
+                    user: tmp_root_ca.ca_user, 
+                    password: tmp_root_ca.ca_password, 
+                    certificate: tmp_root_ca.signed_cert_filepath
+                )
             end
+
 
             def self.start_local_log_transfer_server(tgt_dir, user, password, certificate)
                 @log_transfer_server = Syskit::RobyApp::LogTransferServer::SpawnServer.new(tgt_dir, user, password, certificate)

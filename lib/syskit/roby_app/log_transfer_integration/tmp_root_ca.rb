@@ -7,13 +7,13 @@ require "orocos/remote_processes/server"
 require 'securerandom'
 
 class TmpRootCA
-    attr_reader :root_key, :cert, :cert_filepath, :signed_cert_filepath, :ca_password
+    attr_reader :root_key, :cert, :cert_filepath, :signed_cert_filepath, :ca_password, :ca_user
 
     def initialize
         create_root_ca
         create_certificate
         sign_certificate
-        generate_password 
+        generate_password_and_user
     end
 
     def create_root_ca
@@ -69,5 +69,6 @@ class TmpRootCA
 
     def generate_password
         @ca_password = SecureRandom.base64(15)
+        @user = "process server"
     end
 end
