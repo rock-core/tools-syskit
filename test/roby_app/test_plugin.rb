@@ -213,10 +213,6 @@ module Syskit
                 end
             end
 
-            describe "Spawn Server at Setup" do
-                
-            end
-
         end
     end
 end
