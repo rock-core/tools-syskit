@@ -149,22 +149,17 @@ module Syskit
                 rtt_core_model = app.default_loader.task_model_from_name("RTT::TaskContext")
                 Syskit::TaskContext.define_from_orogen(rtt_core_model, register: true)
 
-                # ###################### FTP Spawn Server ######################
-                # tmp_root_ca = TmpRootCA.new
+                # Log Transfer FTP Server spawned during Application#setup
+                tmp_root_ca = TmpRootCA.new
 
-                # # Create Hash for passing to PS password and certificate
-                # ps_log_transfer_data = Hash[ 
-                #     certifica: tmp_root_ca.cert,
-                #     password: tmp_root_ca.ca_password
-                # ]
+                user = "process_server"
+                password = tmp_root_ca.ca_password
+                cert = tmp_root_ca.cert_filepath
+                private_cert = tmp_root_ca.signed_cert_filepath
 
-                # # Create equal Hash in Process Server code to
-                # # store Certificate and Password
-                
-                # start_local_log_transfer_server(app.log_dir, user, password, certificate)
+                start_local_log_transfer_server(app.log_dir, user, password, private_cert)                
             end
 
-            
             def self.start_local_log_transfer_server(tgt_dir, user, password, certificate)
                 @log_transfer_server = Syskit::RobyApp::LogTransferServer::SpawnServer.new(tgt_dir, user, password, certificate)
             end

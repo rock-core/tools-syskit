@@ -212,6 +212,11 @@ module Syskit
                     perform_app_assertion interface.unit_tests.orogen_deployment_exists?
                 end
             end
+
+            describe "Spawn Server at Setup" do
+                
+            end
+
         end
     end
 end
