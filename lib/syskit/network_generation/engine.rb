@@ -178,8 +178,12 @@ module Syskit
             #
             # Postprocessing stages that configures the task(s) automatically
             # should be registered with #register_system_network_postprocessing
+            #
+            # @yieldparam [SystemNetworkGenerator] generator
+            # @yieldparam [Roby::Transaction] plan
             def self.register_instanciation_postprocessing(&block)
                 instanciation_postprocessing << block
+                Roby.disposable { instanciation_postprocessing.delete(block) }
             end
 
             # Registers a system-wide post-processing stage for augmenting the
@@ -189,8 +193,12 @@ module Syskit
             #
             # Postprocessing stages that configures the task(s) automatically
             # should be registered with #register_system_network_postprocessing
+            #
+            # @yieldparam [SystemNetworkGenerator] generator
+            # @yieldparam [Roby::Transaction] plan
             def self.register_instanciated_network_postprocessing(&block)
                 instanciated_network_postprocessing << block
+                Roby.disposable { instanciated_network_postprocessing.delete(block) }
             end
 
             # Registers a system-wide post-processing stage for the system
@@ -201,8 +209,12 @@ module Syskit
             #
             # Postprocessing stages that change the task graph should be
             # registered with #register_instanciation_postprocessing
+            #
+            # @yieldparam [SystemNetworkGenerator] generator
+            # @yieldparam [Roby::Transaction] plan
             def self.register_system_network_postprocessing(&block)
                 system_network_postprocessing << block
+                Roby.disposable { system_network_postprocessing.delete(block) }
             end
 
             # Registers a system-wide post-processing stage for the deployed
@@ -214,14 +226,22 @@ module Syskit
             #
             # Postprocessing stages that change the task graph should be
             # registered with #register_instanciation_postprocessing
+            #
+            # @yieldparam [Engine] engine
+            # @yieldparam [Roby::Transaction] plan
             def self.register_deployment_postprocessing(&block)
                 deployment_postprocessing << block
+                Roby.disposable { deployment_postprocessing.delete(block) }
             end
 
             # Registers a system-wide post-processing stage for the final
             # network. This is the last stage before the last validation
+            #
+            # @yieldparam [Engine] engine
+            # @yieldparam [Roby::Transaction] plan
             def self.register_final_network_postprocessing(&block)
                 final_network_postprocessing << block
+                Roby.disposable { final_network_postprocessing.delete(block) }
             end
 
             # Updates the tasks stored in {#dataflow_dynamics} with the tasks

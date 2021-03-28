@@ -813,6 +813,36 @@ module Syskit
                     end
                 end
             end
+
+            describe "the hooks" do
+                before do
+                    task_m = Syskit::TaskContext.new_submodel
+                    deployment_m = syskit_stub_deployment_model(task_m)
+
+                    @task_m =
+                        task_m
+                        .to_instance_requirements
+                        .use_deployment(deployment_m)
+                end
+                %w[instanciation_postprocessing instanciated_network_postprocessing
+                   system_network_postprocessing deployment_postprocessing
+                   final_network_postprocessing].each do |name|
+                    it "calls #{name}" do
+                        mock = flexmock
+                        Engine.send("register_#{name}") { mock.call }
+                        mock.should_receive(:call).once
+                        plan.add_mission_task(@task_m)
+                        syskit_run_planner_with_full_deployment { deploy_current_plan }
+                    end
+                    it "returns a disposable that deregisters #{name}" do
+                        mock = flexmock
+                        Engine.send("register_#{name}") { mock.call }.dispose
+                        mock.should_receive(:call).never
+                        plan.add_mission_task(@task_m)
+                        syskit_run_planner_with_full_deployment { deploy_current_plan }
+                    end
+                end
+            end
         end
 
         class EngineTestStubDeployment < Roby::Task
