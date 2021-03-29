@@ -693,6 +693,10 @@ module Syskit
                 commit_work_plan
             end
 
+            def discard_work_plan
+                work_plan.discard_transaction
+            end
+
             def commit_work_plan
                 work_plan.commit_transaction
                 log_timepoint "commit_transaction"
