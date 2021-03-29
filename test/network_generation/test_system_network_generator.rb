@@ -42,6 +42,15 @@ module Syskit
                     assert_equal [[task_m, AbstractComponent], Hash[arg: 10]],
                                  task.fullfilled_model
                 end
+                it "only sets the arguments that are meaningful to the task" do
+                    task_m = Syskit::TaskContext.new_submodel
+                    task_m.argument :arg
+                    task = subject.instanciate(
+                        [task_m.with_arguments(arg: 10, other: 20)]
+                    ).first
+                    assert_equal [[task_m, AbstractComponent], Hash[arg: 10]],
+                                 task.fullfilled_model
+                end
                 it "use the arguments as filtered by the task in #fullfilled_model" do
                     task_m = Syskit::TaskContext.new_submodel
                     task_m.argument :arg

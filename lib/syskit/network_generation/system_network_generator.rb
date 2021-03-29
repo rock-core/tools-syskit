@@ -102,17 +102,13 @@ module Syskit
                     # #static_garbage_collect to cleanup #plan.
                     plan.add_permanent_task(task)
 
-                    fullfilled_task_m, fullfilled_modules, fullfilled_args =
+                    fullfilled_task_m, fullfilled_modules, req_args =
                         requirements.fullfilled_model
-                    fullfilled_args =
-                        fullfilled_args.each_key.each_with_object({}) do |arg_name, h|
-                            if task.arguments.set?(arg_name)
-                                h[arg_name] = task.arguments[arg_name]
-                            end
-                        end
+                    meaningful_args = task.meaningful_arguments.dup
+                    meaningful_args.delete_if { |k, _| !req_args.key?(k) }
 
                     task.fullfilled_model = [
-                        fullfilled_task_m, fullfilled_modules, fullfilled_args
+                        fullfilled_task_m, fullfilled_modules, meaningful_args
                     ]
                     log_timepoint "task-#{i}"
                     task
