@@ -230,7 +230,7 @@ module Syskit
                 end
 
                 Engine.system_network_postprocessing.each do |block|
-                    block.call(self)
+                    block.call(self, plan)
                 end
                 log_timepoint "postprocessing"
 
