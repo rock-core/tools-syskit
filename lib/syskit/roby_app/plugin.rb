@@ -160,6 +160,15 @@ module Syskit
                 )
             end
 
+            def self.send_file_transfer_command(name, password, certificate, tmp_root_ca)
+                if process_servers[name]
+                    client = Syskit::RobyApp::RemoteProcesses::Client.new(
+                            host: process_server[name].host_id, 
+                            port: @log_transfer_server.port)
+                else
+                    raise ArgumentError, "there is no process server registered as #{name}"
+                end
+            end
 
             def self.start_local_log_transfer_server(tgt_dir, user, password, certificate)
                 @log_transfer_server = Syskit::RobyApp::LogTransferServer::SpawnServer.new(tgt_dir, user, password, certificate)
