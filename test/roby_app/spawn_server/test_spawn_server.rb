@@ -2,6 +2,7 @@
 
 require "syskit/test/self"
 require "syskit/roby_app/log_transfer_server"
+require "net/ftp"
 
 describe Syskit::RobyApp::LogTransferServer::SpawnServer do
     class TestServer < Syskit::RobyApp::LogTransferServer::SpawnServer
@@ -57,6 +58,11 @@ describe Syskit::RobyApp::LogTransferServer::SpawnServer do
         before do
             spawn_server
             @temp_srcdir = make_tmpdir
+        end
+
+        after do
+            @server.stop
+            @server.join
         end
 
         it "logs in successfully with the correct user and password" do
