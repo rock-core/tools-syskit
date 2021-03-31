@@ -204,6 +204,10 @@ describe Syskit::RobyApp::RemoteProcesses do
                 @server_thread.raise Interrupt
                 @server_thread.join
             end
+
+            puts "CLOSING" if @log_transfer_server
+            @log_transfer_server&.stop
+            @log_transfer_server&.join
         end
 
         it "uploads a file" do

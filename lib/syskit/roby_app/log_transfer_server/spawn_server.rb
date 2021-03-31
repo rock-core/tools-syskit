@@ -48,6 +48,14 @@ module Syskit
                     wait_until_stopped
                 end
 
+                def stop
+                    @server.stop
+                end
+
+                def join
+                    @server.join
+                end
+
                 private
 
                 def display_connection_info
