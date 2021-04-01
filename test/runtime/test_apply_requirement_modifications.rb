@@ -109,7 +109,7 @@ module Syskit
                 assert_exception_can_be_pretty_printed(requirement_task.failed_event.last.context.first)
             end
 
-            def assert_resolution_cancelled
+            def assert_resolution_cancelled # rubocop:disable Metrics/AbcSize
                 flexmock(plan.syskit_current_resolution)
                     .should_receive(:cancel).at_least.once
                     .pass_thru
