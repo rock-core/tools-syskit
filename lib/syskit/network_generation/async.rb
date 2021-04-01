@@ -52,17 +52,6 @@ module Syskit
                     @engine = Engine.new(plan, event_logger: event_logger)
                     super(**options, &block)
                 end
-
-                def cancel
-                    add_observer do
-                        plan.execution_engine.once do
-                            unless engine.work_plan.finalized?
-                                engine.work_plan.discard_transaction
-                            end
-                        end
-                    end
-                    super
-                end
             end
 
             ENGINE_OPTIONS_CARRIED_TO_APPLY_SYSTEM_NETWORK = %I[
@@ -70,11 +59,15 @@ module Syskit
             ].freeze
 
             def prepare(requirement_tasks = default_requirement_tasks, **resolver_options)
+                if @future
+                    raise InvalidState,
+                          "calling Async#prepare while a generation is in progress"
+                end
+
                 @apply_system_network_options = resolver_options.slice(
                     *ENGINE_OPTIONS_CARRIED_TO_APPLY_SYSTEM_NETWORK
                 )
 
-                @future&.cancel
                 # Resolver is used within the block ... don't assign directly to @future
                 resolver = Resolution.new(plan, event_logger, requirement_tasks,
                                           executor: thread_pool) do
@@ -103,11 +96,16 @@ module Syskit
             end
 
             def cancel
+                @cancelled = true
                 future.cancel
             end
 
             def finished?
-                future.fulfilled? || future.rejected?
+                future.complete?
+            end
+
+            def complete?
+                future.complete?
             end
 
             def join
@@ -117,20 +115,42 @@ module Syskit
                 result
             end
 
+            def cancelled?
+                @cancelled
+            end
+
+            class InvalidState < RuntimeError; end
+
+            # Apply the result of the generation
+            #
+            # @return [Boolean] true if the result has been applied, and false
+            #   if the generation was cancelled
             def apply
+                unless future.complete?
+                    raise InvalidState,
+                          "attempting to call Async#apply while processing "\
+                          "is in progress"
+                end
+
                 engine = future.engine
-                if future.fulfilled?
+                if @cancelled
+                    engine.discard_work_plan
+                    false
+                elsif future.fulfilled?
                     required_instances = future.value
                     begin
                         engine.apply_system_network_to_plan(
                             required_instances, **@apply_system_network_options
                         )
+                        true
                     rescue ::Exception => e
                         engine.handle_resolution_exception(e, on_error: Engine.on_error)
                         raise e
                     end
                 else
-                    engine.handle_resolution_exception(e, on_error: Engine.on_error)
+                    engine.handle_resolution_exception(
+                        future.reason, on_error: Engine.on_error
+                    )
                     raise future.reason
                 end
             end

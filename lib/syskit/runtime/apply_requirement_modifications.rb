@@ -53,8 +53,6 @@ module Syskit
             # Cancels the currently running resolution
             def syskit_cancel_async_resolution
                 syskit_current_resolution.cancel
-                syskit_current_resolution_keepalive.discard_transaction
-                @syskit_current_resolution = nil
             end
 
             # True if the async part of the current resolution is finished
@@ -77,8 +75,16 @@ module Syskit
 
             # Wait for the current running resolution to finish, and apply it on
             # the plan
+            #
+            # It is a no-op in case there are no current resolutions. Moreover,
+            # cancelled resolutions are discarded and apply_requirement_modifications
+            # is called again
             def syskit_join_current_resolution
-                syskit_current_resolution.join
+                begin
+                    syskit_current_resolution&.join
+                rescue Concurrent::CancelledOperationError # rubocop:disable Lint/SuppressedException
+                end
+
                 Runtime.apply_requirement_modifications(self)
             end
 
@@ -96,7 +102,7 @@ module Syskit
                     find_tasks(Syskit::InstanceRequirementsTask).running
 
                 begin
-                    syskit_current_resolution.apply
+                    return unless syskit_current_resolution.apply
                 ensure
                     syskit_current_resolution_keepalive.discard_transaction
                     @syskit_current_resolution = nil
@@ -119,9 +125,9 @@ module Syskit
             end
         end
 
-        def self.apply_requirement_modifications(plan,
-            force: false,
-            requirement_tasks: nil)
+        def self.apply_requirement_modifications(
+            plan, force: false, requirement_tasks: nil
+        )
             if plan.syskit_has_async_resolution?
                 # We're already running a resolution, make sure it is not
                 # obsolete
@@ -129,9 +135,10 @@ module Syskit
                     requirement_tasks || NetworkGeneration::Engine
                                          .discover_requirement_tasks_from_plan(plan)
                 )
-                if !valid
-                    plan.syskit_cancel_async_resolution
-                elsif plan.syskit_finished_async_resolution?
+
+                plan.syskit_cancel_async_resolution unless valid
+
+                if plan.syskit_finished_async_resolution?
                     plan.syskit_apply_async_resolution_results
                     return
                 end
