@@ -22,12 +22,11 @@ describe Syskit::RobyApp::RemoteProcesses do
     end
 
     def start_server
+        raise "server already started" if @server
+
         @server = Syskit::RobyApp::RemoteProcesses::Server.new(@app, port: 0)
         server.open
-
-        @server_thread = Thread.new do
-            server.listen
-        end
+        @server_thread = Thread.new { server.listen }
     end
 
     def connect_to_server
@@ -53,10 +52,11 @@ describe Syskit::RobyApp::RemoteProcesses do
     end
 
     after do
-        if @server_thread
+        if @server_thread&.alive?
             @server_thread.raise Interrupt
             @server_thread.join
         end
+        @server&.close
 
         if @current_log_level
             Syskit::RobyApp::RemoteProcesses::Server.logger.level = @current_log_level
@@ -200,12 +200,6 @@ describe Syskit::RobyApp::RemoteProcesses do
         end
 
         after do
-            if @server_thread&.alive?
-                @server_thread.raise Interrupt
-                @server_thread.join
-            end
-
-            puts "CLOSING" if @log_transfer_server
             @log_transfer_server&.stop
             @log_transfer_server&.join
         end

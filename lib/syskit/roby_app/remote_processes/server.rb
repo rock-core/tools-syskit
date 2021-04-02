@@ -135,7 +135,12 @@ module Syskit
 
                 def exec
                     open
-                    listen
+
+                    begin
+                        listen
+                    ensure
+                        close
+                    end
                 end
 
                 INTERNAL_SIGCHLD_TRIGGERED = "S"
@@ -153,13 +158,19 @@ module Syskit
                     server.fcntl(Fcntl::FD_CLOEXEC, 1)
                     @port = server.addr[1]
 
-                    com_r, com_w = IO.pipe
+                    com_r, @com_w = IO.pipe
                     @all_ios.clear
                     @all_ios << server << com_r
 
                     trap "SIGCHLD" do
-                        com_w.write INTERNAL_SIGCHLD_TRIGGERED
+                        @com_w.write INTERNAL_SIGCHLD_TRIGGERED
                     end
+                end
+
+                def close
+                    @com_w.close
+                    @all_ios.each(&:close)
+                    trap("SIGCHLD", "DEFAULT")
                 end
 
                 # Main server loop. This will block and only return when CTRL+C is hit.
@@ -431,6 +442,7 @@ module Syskit
 
                             Net::FTP.open(
                                 host,
+                                private_data_connection: false,
                                 port: port,
                                 ssl: { verify_mode: OpenSSL::SSL::VERIFY_PEER,
                                        ca_file: cert_io.path }
