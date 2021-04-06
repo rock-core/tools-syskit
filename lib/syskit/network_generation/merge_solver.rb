@@ -18,7 +18,7 @@ module Syskit
             # The dataflow graph for {#plan}
             attr_reader :dataflow_graph
 
-            # The dataflow graph for {#plan}
+            # The dependency graph for {#plan}
             attr_reader :dependency_graph
 
             # A graph that holds all replacements done during resolution
@@ -386,7 +386,7 @@ module Syskit
                 queue   = []
                 topsort = []
                 degrees = {}
-                dependency_graph.each_vertex do |task|
+                plan.each_task do |task|
                     d = dependency_graph.out_degree(task)
                     queue << task if d == 0
                     degrees[task] = d
