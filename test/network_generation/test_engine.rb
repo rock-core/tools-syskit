@@ -590,6 +590,14 @@ module Syskit
                     assert !diff, diff.to_s
                 end
 
+                it "does not change anything if asked to deploy an empty "\
+                   "composition twice" do
+                    composition_m = Syskit::Composition.new_submodel(name: "Cmp")
+                    cmp1 = syskit_deploy(composition_m)
+                    cmp2 = syskit_deploy(composition_m)
+                    assert_same cmp1, cmp2
+                end
+
                 it "applies connections from compositions to the final plan" do
                     task_model = Syskit::TaskContext.new_submodel do
                         output_port "out", "/double"
