@@ -150,13 +150,13 @@ module Syskit
                 Syskit::TaskContext.define_from_orogen(rtt_core_model, register: true)
 
                 # Log Transfer FTP Server spawned during Application#setup
-                tmp_root_ca = TmpRootCA.new
+                start_tmp_root_ca
 
                 start_local_log_transfer_server(
                     app.log_dir,
-                    user: tmp_root_ca.ca_user,
-                    password: tmp_root_ca.ca_password,
-                    certificate: tmp_root_ca.signed_cert_filepath
+                    @tmp_root_ca.ca_user,
+                    @tmp_root_ca.ca_password,
+                    @tmp_root_ca.signed_cert_filepath
                 )
             end
 
@@ -179,6 +179,10 @@ module Syskit
                 else
                     raise ArgumentError, "there is no process server registered as #{name}"
                 end
+            end
+
+            def self.start_tmp_root_ca
+                @tmp_root_ca = TmpRootCA.new
             end
 
             def self.start_local_log_transfer_server(tgt_dir, user, password, certificate)

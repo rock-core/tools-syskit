@@ -53,22 +53,22 @@ class TmpRootCA
         @cert.add_extension(ef.create_extension("subjectKeyIdentifier","hash",false))
         @cert.sign(@root_key, OpenSSL::Digest::SHA256.new)
 
-        @cert_filepath = File.join(__dir__, "log_transfer_integration", "cert.crt")
+        @cert_filepath = File.join(__dir__, "cert.crt")
         File.open(@cert_filepath, "w+") do |f|
             f.print cert
         end
     end
 
     def sign_certificate
-        @signed_cert_filepath = File.join(__dir__, "log_transfer_integration", "signed_cert.crt")
+        @signed_cert_filepath = File.join(__dir__, "signed_cert.crt")
         File.open(@signed_cert_filepath, "w+") do |f|
             f.print @root_key
             f.print @cert
         end
     end
 
-    def generate_password
+    def generate_password_and_user
         @ca_password = SecureRandom.base64(15)
-        @user = "process server"
+        @ca_user = "process server"
     end
 end
