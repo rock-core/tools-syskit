@@ -189,6 +189,10 @@ module Syskit
                 @tmp_root_ca = nil
             end
 
+            def self.has_tmp_root_ca?
+                @tmp_root_ca
+            end
+
             def self.start_local_log_transfer_server(tgt_dir, user, password, certificate)
                 @log_transfer_server = Syskit::RobyApp::LogTransferServer::SpawnServer.new(tgt_dir, user, password, certificate)
             end
@@ -196,6 +200,11 @@ module Syskit
             def self.stop_local_log_transfer_server
                 @log_transfer_server = nil
             end
+
+            def self.has_log_transfer_server?
+                @log_transfer_server
+            end
+
 
             # Hook called by the main application in Application#setup after
             # the main setup hooks have been called

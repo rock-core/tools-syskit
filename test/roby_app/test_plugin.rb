@@ -213,6 +213,21 @@ module Syskit
                 end
             end
 
+            describe "Temporary Root CA" do
+                before do
+                    Plugin.start_tmp_root_ca
+                end
+
+                after do
+                    Plugin.stop_tmp_root_ca
+                end
+                
+                it "has TmpRootCA been initialized" do
+                    assert_instance_of TmpRootCA, Plugin.has_tmp_root_ca?
+                end
+                
+            end
+
         end
     end
 end
