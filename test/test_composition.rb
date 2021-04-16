@@ -228,15 +228,13 @@ describe Syskit::Composition do
             assert_equal [cmp.test_child.test_child], dataflow_graph.modified_tasks.to_a
         end
 
-        it "generates an error if adding a connection involving a non-existent child" do
+        it "adds a connection even if it involves a non-existent child" do
             cmp.remove_child cmp.test_child
-            assert_raises(Roby::NoSuchChild) do
-                cmp.out_port.connect_to task.in_port
-            end
+            cmp.out_port.connect_to task.in_port
         end
-        it "generates an error if adding a connection involving a non-existent grandchild" do
+        it "adds a connection involving a non-existent grandchild" do
             cmp.test_child.remove_child cmp.test_child.test_child
-            assert_raises(Roby::NoSuchChild) { cmp.out_port.connect_to task.in_port }
+            cmp.out_port.connect_to task.in_port
         end
         it "registers the child in modified_tasks when a child is removed" do
             cmp.out_port.connect_to task.in_port
@@ -307,6 +305,31 @@ describe Syskit::Composition do
             cmp.test_child.remove_child grandchild
             cmp.out_port.disconnect_from task.in_port
             assert !cmp.out_port.connected_to?(task.in_port)
+        end
+
+        it "handles having one of its children replaced by an abstract deployment" do
+            cmp_m = Syskit::Composition.new_submodel
+            cmp_m.add @task_m.with_arguments(name: "c1"), as: "c1"
+            cmp_m.add @task_m.with_arguments(name: "c2"), as: "c2"
+            cmp_m.c1_child.connect_to cmp_m.c2_child
+            cmp_m.c2_child.connect_to cmp_m.c1_child
+            cmp_m.export cmp_m.c2_child.out_port
+            cmp_m.export cmp_m.c1_child.in_port
+
+            root_cmp_m = Syskit::Composition.new_submodel
+            root_cmp_m.add cmp_m, as: "c0"
+            root_cmp_m.export root_cmp_m.c0_child.in_port
+            root_cmp_m.export root_cmp_m.c0_child.out_port
+
+            root_cmp = syskit_stub_deploy_configure_and_start(root_cmp_m)
+            plan.replace(root_cmp.child_from_role("c0"), cmp_m.as_plan)
+            run_planners root_cmp
+            syskit_configure_and_start(root_cmp.c0_child)
+
+            sample =
+                expect_execution { syskit_write root_cmp.c0_child.c2_child.out_port, 42 }
+                .to { have_one_new_sample root_cmp.out_port }
+            assert_equal 42, sample
         end
     end
 
