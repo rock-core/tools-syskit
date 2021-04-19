@@ -154,9 +154,9 @@ module Syskit
 
                 start_local_log_transfer_server(
                     app.log_dir,
-                    @tmp_root_ca.ca_user,
-                    @tmp_root_ca.ca_password,
-                    @tmp_root_ca.signed_cert_filepath
+                    @user,
+                    @password,
+                    @signed_cert
                 )
             end
 
@@ -164,7 +164,7 @@ module Syskit
                 # Checks if said process server exists and is connected
                 if process_servers[name]
                     # Establishes communication with said process server
-                    client = Syskit::RobyApp::RemoteProcesses::Client.new(
+                    client = Syskit.conf.process_server_for(name).new(
                             host: process_server[name].host_id,
                             port: @server_port)
                     # Commands method log_upload_file from said process server
@@ -183,6 +183,9 @@ module Syskit
 
             def self.start_tmp_root_ca
                 @tmp_root_ca = TmpRootCA.new
+                @user = @tmp_root_ca.ca_user
+                @password = @tmp_root_ca.ca_password
+                @signed_cert = @tmp_root_ca.signed_cert_filepath
             end
 
             def self.stop_tmp_root_ca
