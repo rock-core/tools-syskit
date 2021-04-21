@@ -150,13 +150,13 @@ module Syskit
                 Syskit::TaskContext.define_from_orogen(rtt_core_model, register: true)
 
                 # Log Transfer FTP Server spawned during Application#setup
-                start_tmp_root_ca
+                tmp_root_ca = TmpRootCA.new
 
                 start_local_log_transfer_server(
                     app.log_dir,
-                    @user,
-                    @password,
-                    @signed_cert
+                    tmp_root_ca.ca_user,
+                    tmp_root_ca.ca_password,
+                    tmp_root_ca.signed_cert
                 )
             end
 
@@ -164,16 +164,14 @@ module Syskit
                 # Checks if said process server exists and is connected
                 if process_servers[name]
                     # Establishes communication with said process server
-                    client = Syskit.conf.process_server_for(name).new(
-                            host: process_server[name].host_id,
-                            port: @server_port)
+                    client = Syskit.conf.process_server_for(name)
                     # Commands method log_upload_file from said process server
                     client.log_upload_file(
-                        host: "localhost", 
-                        port: @log_transfer_port.port, 
-                        certificate: tmp_root_ca.cert_filepath, 
-                        user: tmp_root_ca.ca_user, 
-                        password: tmp_root_ca.ca_password, 
+                        host: "localhost",
+                        port: @log_transfer_port.port,
+                        certificate: tmp_root_ca.cert_filepath,
+                        user: tmp_root_ca.ca_user,
+                        password: tmp_root_ca.ca_password,
                         localfile: logfile
                     )
                 else
@@ -181,33 +179,22 @@ module Syskit
                 end
             end
 
-            def self.start_tmp_root_ca
-                @tmp_root_ca = TmpRootCA.new
-                @user = @tmp_root_ca.ca_user
-                @password = @tmp_root_ca.ca_password
-                @signed_cert = @tmp_root_ca.signed_cert_filepath
-            end
-
-            def self.stop_tmp_root_ca
-                @tmp_root_ca = nil
-            end
-
-            def self.has_tmp_root_ca?
-                @tmp_root_ca
-            end
-
-            def self.start_local_log_transfer_server(tgt_dir, user, password, certificate)
-                @log_transfer_server = Syskit::RobyApp::LogTransferServer::SpawnServer.new(tgt_dir, user, password, certificate)
+            def self.start_local_log_transfer_server(tgt_dir, user, password, certificate_path)
+                log_transfer_server = Syskit::RobyApp::LogTransferServer::SpawnServer.new(
+                    tgt_dir,
+                    user,
+                    password,
+                    certificate_path
+                )
             end
 
             def self.stop_local_log_transfer_server
-                @log_transfer_server = nil
+                log_transfer_server.stop
             end
 
-            def self.has_log_transfer_server?
-                @log_transfer_server
+            def self.has_log_transfer_server
+                log_transfer_server
             end
-
 
             # Hook called by the main application in Application#setup after
             # the main setup hooks have been called
@@ -937,7 +924,6 @@ module Syskit
                 require "syskit/roby_app/rest_api"
                 rest_api.mount REST_API => "/syskit"
             end
-
         end
     end
 end
