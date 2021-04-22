@@ -42,7 +42,7 @@ module Syskit
             #
             # Implementation of the {#have_no_new_sample} predicate
             class HaveNoNewSample < Roby::Test::ExecutionExpectations::Maintain
-                def initialize(reader, at_least_during, description, backtrace)
+                def initialize(reader, at_least, description, backtrace)
                     @reader = reader
                     orocos_reader = ExecutionExpectations.resolve_orocos_reader(reader)
                     block = proc do
@@ -54,7 +54,7 @@ module Syskit
                             true
                         end
                     end
-                    super(at_least_during, block, description, backtrace)
+                    super(at_least, block, description, backtrace)
                 end
 
                 def explain_unachievable(propagation_info)
@@ -91,10 +91,15 @@ module Syskit
             # @param [Float] at_least_during no samples should arrive for at
             #   least that many seconds. This is a minimum.
             # @return [nil]
-            def have_no_new_sample(reader, at_least_during: 0, backtrace: caller(1))
+            def have_no_new_sample(
+                reader, at_least_during: nil, at_least_until: nil, backtrace: caller(1)
+            )
+                at_least_during = 0 unless at_least_during || at_least_until
                 description = "#{reader} should not have received a new sample"
                 add_expectation(
-                    HaveNoNewSample.new(reader, at_least_during, description, backtrace)
+                    HaveNoNewSample.new(
+                        reader, at_least_during || at_least_until, description, backtrace
+                    )
                 )
             end
 

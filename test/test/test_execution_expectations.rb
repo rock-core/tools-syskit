@@ -245,6 +245,11 @@ module Syskit
                         .timeout(0.01)
                         .to { have_no_new_sample task.in_port }
                 end
+                it "validates if a sample is not received until an event is emitted" do
+                    plan.add(generator = Roby::EventGenerator.new)
+                    expect_execution { generator.emit }
+                        .to { have_no_new_sample task.in_port, at_least_until: generator }
+                end
                 it "fails if the task does emit a new sample" do
                     e = assert_raises(Roby::Test::ExecutionExpectations::Unmet) do
                         expect_execution { syskit_write task.in_port, 10 }
