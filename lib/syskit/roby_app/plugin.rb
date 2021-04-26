@@ -186,6 +186,7 @@ module Syskit
                     password,
                     certificate_path
                 )
+                log_transfer_server
             end
 
             def self.stop_local_log_transfer_server
