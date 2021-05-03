@@ -35,6 +35,7 @@ module Syskit
         #   loaded models. In addition, a text notification is sent to inform
         #   a shell user
         module Plugin
+            attr_accessor :log_transfer_ip
             # Hook called by the main application in Application#load_base_config
             def self.load_base_config(app)
                 options = app.options
@@ -167,7 +168,7 @@ module Syskit
                     client = Syskit.conf.process_server_for(name)
                     # Commands method log_upload_file from said process server
                     client.log_upload_file(
-                        host: "localhost",
+                        host: log_transfer_ip,
                         port: @log_transfer_port.port,
                         certificate: tmp_root_ca.cert_filepath,
                         user: tmp_root_ca.ca_user,
@@ -195,6 +196,10 @@ module Syskit
 
             def self.has_log_transfer_server
                 log_transfer_server
+            end
+
+            def self.cleanup(app)
+                app.stop_local_log_transfer_server
             end
 
             # Hook called by the main application in Application#setup after
