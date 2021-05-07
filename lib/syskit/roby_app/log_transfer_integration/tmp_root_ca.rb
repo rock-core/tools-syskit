@@ -20,7 +20,8 @@ module Syskit
                     @cert = create_cert(@root_ca, @root_key)
                     @certificate = write_certificate(@cert)
                     @signed_certificate = write_signed_certificate(@root_key, @cert)
-                    generate_password_and_user
+                    @ca_password = SecureRandom.base64(15)
+                    @ca_user = "process server"
                 end
 
                 # Establishes initial steps in creating a certificate
@@ -129,12 +130,14 @@ module Syskit
                     end
                     signed_cert_filepath
                 end
-
-                def generate_password_and_user
-                    @ca_password = SecureRandom.base64(15)
-                    @ca_user = "process server"
-                end
             end
         end
     end
 end
+
+tmp = Syskit::RobyApp::LogTransferIntegration::TmpRootCA.new
+
+puts tmp.ca_password
+puts tmp.ca_user
+puts tmp.signed_certificate
+puts tmp.certificate

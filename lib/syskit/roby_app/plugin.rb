@@ -35,7 +35,6 @@ module Syskit
         #   loaded models. In addition, a text notification is sent to inform
         #   a shell user
         module Plugin
-            attr_accessor :log_transfer_ip
             # Hook called by the main application in Application#load_base_config
             def self.load_base_config(app)
                 options = app.options
@@ -151,15 +150,17 @@ module Syskit
                 Syskit::TaskContext.define_from_orogen(rtt_core_model, register: true)
 
                 # Log Transfer FTP Server spawned during Application#setup
-                tmp_root_ca = TmpRootCA.new
+                tmp_root_ca = Syskit::RobyApp::LogTransferIntegration::TmpRootCA.new
 
                 start_local_log_transfer_server(
                     app.log_dir,
                     tmp_root_ca.ca_user,
                     tmp_root_ca.ca_password,
-                    tmp_root_ca.signed_cert
+                    tmp_root_ca.signed_certificate
                 )
             end
+
+            attr_accessor :log_transfer_ip
 
             def self.send_file_transfer_command(name, tmp_root_ca, logfile)
                 # Checks if said process server exists and is connected
@@ -170,7 +171,7 @@ module Syskit
                     client.log_upload_file(
                         host: log_transfer_ip,
                         port: @log_transfer_port.port,
-                        certificate: tmp_root_ca.cert_filepath,
+                        certificate: tmp_root_ca.certificate,
                         user: tmp_root_ca.ca_user,
                         password: tmp_root_ca.ca_password,
                         localfile: logfile
@@ -181,25 +182,16 @@ module Syskit
             end
 
             def self.start_local_log_transfer_server(tgt_dir, user, password, certificate_path)
-                log_transfer_server = Syskit::RobyApp::LogTransferServer::SpawnServer.new(
+                Syskit::RobyApp::LogTransferServer::SpawnServer.new(
                     tgt_dir,
                     user,
                     password,
                     certificate_path
                 )
-                log_transfer_server
             end
 
             def self.stop_local_log_transfer_server
-                log_transfer_server.stop
-            end
-
-            def self.has_log_transfer_server
-                log_transfer_server
-            end
-
-            def self.cleanup(app)
-                app.stop_local_log_transfer_server
+                start_local_log_transfer_server.stop
             end
 
             # Hook called by the main application in Application#setup after
@@ -233,6 +225,7 @@ module Syskit
 
                 disconnect_all_process_servers
                 stop_local_process_server
+                stop_local_log_transfer_server
             end
 
             # Hook called by the main application to prepare for execution
