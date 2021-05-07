@@ -150,7 +150,7 @@ module Syskit
                 Syskit::TaskContext.define_from_orogen(rtt_core_model, register: true)
 
                 # Log Transfer FTP Server spawned during Application#setup
-                tmp_root_ca = Syskit::RobyApp::LogTransferIntegration::TmpRootCA.new
+                tmp_root_ca = LogTransferIntegration::TmpRootCA.new
 
                 start_local_log_transfer_server(
                     app.log_dir,
@@ -182,7 +182,7 @@ module Syskit
             end
 
             def self.start_local_log_transfer_server(tgt_dir, user, password, certificate_path)
-                Syskit::RobyApp::LogTransferServer::SpawnServer.new(
+                log_transfer_server = LogTransferServer::SpawnServer.new(
                     tgt_dir,
                     user,
                     password,
@@ -191,7 +191,7 @@ module Syskit
             end
 
             def self.stop_local_log_transfer_server
-                start_local_log_transfer_server.stop
+                log_transfer_server.stop
             end
 
             # Hook called by the main application in Application#setup after

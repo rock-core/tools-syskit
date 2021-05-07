@@ -134,10 +134,3 @@ module Syskit
         end
     end
 end
-
-tmp = Syskit::RobyApp::LogTransferIntegration::TmpRootCA.new
-
-puts tmp.ca_password
-puts tmp.ca_user
-puts tmp.signed_certificate
-puts tmp.certificate
