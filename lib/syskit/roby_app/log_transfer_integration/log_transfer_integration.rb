@@ -1,5 +1,7 @@
 # frozen_string_literal: true
 
+require "syskit/roby_app/log_transfer_server"
+
 require "orocos"
 require "orocos/remote_processes"
 require "orocos/remote_processes/server"
@@ -9,6 +11,19 @@ require "securerandom"
 module Syskit
     module RobyApp
         module LogTransferIntegration
+            
+            # SpawnServer subclass especified for Local Process Server integration
+            class LocalLogTransferServer < Syskit::RobyApp::LogTransferServer::SpawnServer
+                attr_accessor :user, :password, :certfile_path
+
+                def initialize(target_dir, user, password, certfile_path)
+                    super(target_dir, user, password, certfile_path)
+                    @user = user
+                    @password = password
+                    @certfile_path = certfile_path
+                end
+            end
+
             # Service to create a Temporary Root Certificate Authority
             class TmpRootCA
                 attr_reader :root_key, :certificate, :signed_certificate,
@@ -114,7 +129,8 @@ module Syskit
 
                 # Write created Certificate to file
                 def write_certificate(cert)
-                    cert_filepath = File.join(__dir__, "cert.crt")
+                    cert_filepath = File.join(__dir__,
+                        "..", "log_transfer_integration", "cert.crt")
                     File.open(cert_filepath, "w+") do |f|
                         f.print cert
                     end
@@ -123,7 +139,8 @@ module Syskit
 
                 # Write created Certificate to file signed with a key
                 def write_signed_certificate(root_key, cert)
-                    signed_cert_filepath = File.join(__dir__, "signed_cert.crt")
+                    signed_cert_filepath = File.join(__dir__, 
+                        "..", "log_transfer_integration", "signed_cert.crt")
                     File.open(signed_cert_filepath, "w+") do |f|
                         f.print root_key
                         f.print cert

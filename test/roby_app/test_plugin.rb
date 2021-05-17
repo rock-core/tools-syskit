@@ -213,19 +213,129 @@ module Syskit
                 end
             end
 
-            describe "Temporary Root CA" do
+            describe "Local Log Transfer Server" do
+
+                def pre_config_server
+                    @app = Roby::Application.new
+                    @app.log_dir = make_tmpdir
+                    @current_log_level = RemoteProcesses::Server.logger.level
+                    RemoteProcesses::Server.logger.level = Logger::FATAL + 1
+                end
+
+                def start_server
+                    raise "server already started" if @server
+                    @server = RemoteProcesses::Server.new(@app, port: 0)
+                    server.open
+                    @server_thread = Thread.new { server.listen }
+                end
+
+                def connect_to_server
+                    @root_loader = OroGen::Loaders::Aggregate.new
+                    OroGen::Loaders::RTT.setup_loader(root_loader)
+                    @client = RemoteProcesses::Client.new(
+                        "localhost",
+                        server.port,
+                        root_loader: root_loader
+                    )
+                end
+            
+                def start_and_connect_to_server
+                    start_server
+                    connect_to_server
+                end
+
+                def start_process_server(name, host)
+                    @ps_log_dir = make_tmpdir
+                    @client.create_log_dir(
+                        @ps_log_dir, Roby.app.time_tag,
+                        { "parent" => Roby.app.app_metadata }
+                    )
+                    Configuration.register_process_server(name, @client, log_dir, host_id: name)
+                end
+
+                def create_process_server(name)
+                    # Clearing Orocos load
+                    Orocos.clear
+                    app = Roby::Application.new
+                    loader = OroGen::Loaders::Files.new
+                    OroGen::Loaders::RTT.setup_loader(loader)
+                    loader.register_orogen_file(File.join(data_dir, "plugin_remote_model_loading.orogen"))
+
+                    server = RemoteProcesses::Server.new(app, port: 0, loader: loader)
+                    server.open
+
+                    thread = Thread.new do
+                        server.listen
+                    end
+
+                    client = Syskit.conf.connect_to_orocos_process_server(
+                        name, "localhost", port: server.port
+                    )
+
+                    @process_servers << [name, thread, client]
+                    
+                    @ps_log_dir = make_tmpdir
+                    client.create_log_dir(
+                        @ps_log_dir, Roby.app.time_tag,
+                        { "parent" => Roby.app.app_metadata }
+                    )
+                end
+
+                def close_process_servers
+                    @process_servers.each do |name, thread, client|
+                        client.close
+                        Syskit.conf.remove_process_server(name)
+                        thread.raise Interrupt
+                        thread.join
+                    end
+                end
+                
+                def create_test_file(ps_log_dir)
+                    logfile = File.join(ps_log_dir, "logfile.log")
+                    File.open(logfile, "wb") do |f|
+                        # create random 5 MB file
+                        f.write(SecureRandom.random_bytes(547))
+                    end
+                    logfile
+                end
+
+                def start_local_transfer_server(tmp_root_ca)
+                    @tmp_server_dir = make_tmpdir
+                    @user = "test.user"
+                    @password = "password123"
+                    @log_transfer_server = LogTransferIntegration::LocalLogTransferServer.new(
+                        @tmp_server_dir, @user, @password,
+                        tmp_root_ca.signed_certificate
+                    )
+                end
+
                 before do
-                    Plugin.start_tmp_root_ca
+                    # Initializing Process Server
+                    # # pre_config_server
+                    # # start_and_connect_to_server
+                    # # start_process_server("test_ps", "localhost")
+                    Syskit.conf.only_load_models = false
+                    @process_servers = []
+                    @test_ps = create_process_server("test_ps")
+                    # Initilizing Log Transfer Server
+                    @test_root_ca = LogTransferIntegration::TmpRootCA.new
+                    start_local_transfer_server(@test_root_ca)
                 end
 
                 after do
-                    Plugin.stop_tmp_root_ca
+                    @log_transfer_server.stop
+                    @log_transfer_server.join
+                    close_process_servers
                 end
-                
-                it "has TmpRootCA been initialized" do
-                    assert_instance_of TmpRootCA, Plugin.has_tmp_root_ca?
+
+                it "uploads file from Process Server" do
+                    @ps_logfile = create_test_file(@ps_log_dir)
+                    path = File.join(@tmp_server_dir, "logfile.log")
+                    refute File.exist?(path)
+                    Plugin.send_file_transfer_command("test_ps", @ps_logfile)
+                    assert_equal File.read(path), File.read(@ps_logfile)
                 end
-                
+
             end
 
         end

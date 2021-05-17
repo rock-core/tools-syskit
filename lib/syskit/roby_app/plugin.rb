@@ -1,6 +1,6 @@
 # frozen_string_literal: true
 
-require "syskit/roby_app/log_transfer_integration/tmp_root_ca"
+require "syskit/roby_app/log_transfer_integration/log_transfer_integration"
 
 class Module
     def backward_compatible_constant(old_name, new_constant, file)
@@ -24,6 +24,16 @@ end
 
 module Syskit
     module RobyApp
+
+        attr_accessor :log_transfer_ip, :log_transfer_port,
+        :log_transfer_certificate, :log_transfer_user,
+        :log_transfer_password
+
+        def self.config_log_transfer_ip
+            ip = Socket.ip_adress_list.detect{|intf| intf.ipv4_private?}
+            @log_transfer_ip = ip.ip_address
+        end
+
         # This gets mixed in Roby::Application when the orocos plugin is loaded.
         # It adds the configuration facilities needed to plug-in orogen projects
         # in Roby.
@@ -150,48 +160,44 @@ module Syskit
                 Syskit::TaskContext.define_from_orogen(rtt_core_model, register: true)
 
                 # Log Transfer FTP Server spawned during Application#setup
-                tmp_root_ca = LogTransferIntegration::TmpRootCA.new
+                @tmp_root_ca = LogTransferIntegration::TmpRootCA.new
+                start_local_log_transfer_server(app.log_dir, @tmp_root_ca)
+                config_log_transfer(app)
+            end
 
-                start_local_log_transfer_server(
-                    app.log_dir,
+            def self.send_file_transfer_command(name, logfile)
+                # Establishes communication with said process server
+                client = Syskit.conf.process_server_for(name)
+                # Commands method log_upload_file from said process server
+                client.log_upload_file(
+                    host: @log_transfer_ip,
+                    port: @log_transfer_port,
+                    certificate: @log_transfer_certificate,
+                    user: @log_transfer_user,
+                    password: @log_transfer_password,
+                    localfile: logfile
+                )
+            end
+
+            def self.config_log_transfer(app)
+                @log_transfer_port = @log_transfer_server.port
+                @log_transfer_certificate = @tmp_root_ca.certificate
+                @log_transfer_user = @tmp_root_ca.ca_user
+                @log_transfer_password = @tmp_root_ca.ca_password
+            end
+
+            def self.start_local_log_transfer_server(tgt_dir, tmp_root_ca)
+                @log_transfer_server = Syskit::RobyApp::LogTransferIntegration::LocalLogTransferServer.new(
+                    tgt_dir,
                     tmp_root_ca.ca_user,
                     tmp_root_ca.ca_password,
                     tmp_root_ca.signed_certificate
                 )
             end
 
-            attr_accessor :log_transfer_ip
-
-            def self.send_file_transfer_command(name, tmp_root_ca, logfile)
-                # Checks if said process server exists and is connected
-                if process_servers[name]
-                    # Establishes communication with said process server
-                    client = Syskit.conf.process_server_for(name)
-                    # Commands method log_upload_file from said process server
-                    client.log_upload_file(
-                        host: log_transfer_ip,
-                        port: @log_transfer_port.port,
-                        certificate: tmp_root_ca.certificate,
-                        user: tmp_root_ca.ca_user,
-                        password: tmp_root_ca.ca_password,
-                        localfile: logfile
-                    )
-                else
-                    raise ArgumentError, "there is no process server registered as #{name}"
-                end
-            end
-
-            def self.start_local_log_transfer_server(tgt_dir, user, password, certificate_path)
-                log_transfer_server = LogTransferServer::SpawnServer.new(
-                    tgt_dir,
-                    user,
-                    password,
-                    certificate_path
-                )
-            end
-
             def self.stop_local_log_transfer_server
-                log_transfer_server.stop
+                @log_transfer_server.stop
+                @log_transfer_server.join
             end
 
             # Hook called by the main application in Application#setup after
