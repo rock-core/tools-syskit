@@ -331,26 +331,18 @@ module Syskit
 
                 before do
                     # Initializing Process Server
-                    # # pre_config_server
-                    # # start_and_connect_to_server
-                    # # start_process_server("test_ps", "localhost")
                     Syskit.conf.only_load_models = false
                     @process_servers = []
                     create_process_server("test_ps")
-                    # Initilizing Log Transfer Server
-                    @test_root_ca = LogTransferIntegration::TmpRootCA.new
-                    start_local_transfer_server(@test_root_ca)
                 end
 
                 after do
-                    @log_transfer_server.stop
-                    @log_transfer_server.join
                     close_process_servers
                 end
 
                 it "uploads file from Process Server" do
                     @ps_logfile = create_test_file(@ps_log_dir)
-                    path = File.join(@tmp_server_dir, "logfile.log")
+                    path = File.join(app.log_dir, "logfile.log")
                     refute File.exist?(path)
                     @client = Plugin.send_file_transfer_command("test_ps", @ps_logfile)
                     assert_upload_succeeds

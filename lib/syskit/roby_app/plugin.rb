@@ -24,7 +24,6 @@ end
 
 module Syskit
     module RobyApp
-
         attr_accessor :log_transfer_ip
         attr_accessor :log_transfer_port
         attr_accessor :log_transfer_certificate
@@ -160,7 +159,6 @@ module Syskit
                 @tmp_root_ca = LogTransferIntegration::TmpRootCA.new
                 start_local_log_transfer_server(app.log_dir, @tmp_root_ca)
                 config_log_transfer
-                config_log_transfer_ip
             end
 
             def self.send_file_transfer_command(name, logfile)
@@ -171,7 +169,7 @@ module Syskit
                 client.log_upload_file(
                     @log_transfer_ip,
                     @log_transfer_port,
-                    @log_transfer_certificate,
+                    File.read(@log_transfer_certificate),
                     @log_transfer_user,
                     @log_transfer_password,
                     logfile
@@ -184,9 +182,6 @@ module Syskit
                 @log_transfer_certificate = @tmp_root_ca.certificate
                 @log_transfer_user = @tmp_root_ca.ca_user
                 @log_transfer_password = @tmp_root_ca.ca_password
-            end
-
-            def self.config_log_transfer_ip
                 ip = Socket.ip_address_list.detect(&:ipv4_private?)
                 @log_transfer_ip = ip.ip_address
             end
