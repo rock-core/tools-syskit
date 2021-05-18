@@ -25,14 +25,11 @@ end
 module Syskit
     module RobyApp
 
-        attr_accessor :log_transfer_ip, :log_transfer_port,
-        :log_transfer_certificate, :log_transfer_user,
-        :log_transfer_password
-
-        def self.config_log_transfer_ip
-            ip = Socket.ip_adress_list.detect{|intf| intf.ipv4_private?}
-            @log_transfer_ip = ip.ip_address
-        end
+        attr_accessor :log_transfer_ip
+        attr_accessor :log_transfer_port
+        attr_accessor :log_transfer_certificate
+        attr_accessor :log_transfer_user
+        attr_accessor :log_transfer_password
 
         # This gets mixed in Roby::Application when the orocos plugin is loaded.
         # It adds the configuration facilities needed to plug-in orogen projects
@@ -162,28 +159,36 @@ module Syskit
                 # Log Transfer FTP Server spawned during Application#setup
                 @tmp_root_ca = LogTransferIntegration::TmpRootCA.new
                 start_local_log_transfer_server(app.log_dir, @tmp_root_ca)
-                config_log_transfer(app)
+                config_log_transfer
+                config_log_transfer_ip
             end
 
             def self.send_file_transfer_command(name, logfile)
                 # Establishes communication with said process server
                 client = Syskit.conf.process_server_for(name)
+
                 # Commands method log_upload_file from said process server
                 client.log_upload_file(
-                    host: @log_transfer_ip,
-                    port: @log_transfer_port,
-                    certificate: @log_transfer_certificate,
-                    user: @log_transfer_user,
-                    password: @log_transfer_password,
-                    localfile: logfile
+                    @log_transfer_ip,
+                    @log_transfer_port,
+                    @log_transfer_certificate,
+                    @log_transfer_user,
+                    @log_transfer_password,
+                    logfile
                 )
+                client
             end
 
-            def self.config_log_transfer(app)
+            def self.config_log_transfer
                 @log_transfer_port = @log_transfer_server.port
                 @log_transfer_certificate = @tmp_root_ca.certificate
                 @log_transfer_user = @tmp_root_ca.ca_user
                 @log_transfer_password = @tmp_root_ca.ca_password
+            end
+
+            def self.config_log_transfer_ip
+                ip = Socket.ip_address_list.detect(&:ipv4_private?)
+                @log_transfer_ip = ip.ip_address
             end
 
             def self.start_local_log_transfer_server(tgt_dir, tmp_root_ca)

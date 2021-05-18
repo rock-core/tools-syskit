@@ -214,7 +214,6 @@ module Syskit
             end
 
             describe "Local Log Transfer Server" do
-
                 def pre_config_server
                     @app = Roby::Application.new
                     @app.log_dir = make_tmpdir
@@ -224,6 +223,7 @@ module Syskit
 
                 def start_server
                     raise "server already started" if @server
+
                     @server = RemoteProcesses::Server.new(@app, port: 0)
                     server.open
                     @server_thread = Thread.new { server.listen }
@@ -238,7 +238,7 @@ module Syskit
                         root_loader: root_loader
                     )
                 end
-            
+
                 def start_and_connect_to_server
                     start_server
                     connect_to_server
@@ -273,7 +273,7 @@ module Syskit
                     )
 
                     @process_servers << [name, thread, client]
-                    
+
                     @ps_log_dir = make_tmpdir
                     client.create_log_dir(
                         @ps_log_dir, Roby.app.time_tag,
@@ -289,7 +289,7 @@ module Syskit
                         thread.join
                     end
                 end
-                
+
                 def create_test_file(ps_log_dir)
                     logfile = File.join(ps_log_dir, "logfile.log")
                     File.open(logfile, "wb") do |f|
@@ -309,6 +309,26 @@ module Syskit
                     )
                 end
 
+                def wait_for_upload_completion(poll_period: 0.01, timeout: 1)
+                    deadline = Time.now + timeout
+                    loop do
+                        if Time.now > deadline
+                            flunk("timed out while waiting for upload completion")
+                        end
+
+                        state = @client.log_upload_state
+                        return state if state.pending_count == 0
+
+                        sleep poll_period
+                    end
+                end
+
+                def assert_upload_succeeds
+                    wait_for_upload_completion.each_result do |r|
+                        flunk("upload failed: #{r.message}") unless r.success?
+                    end
+                end
+
                 before do
                     # Initializing Process Server
                     # # pre_config_server
@@ -316,7 +336,7 @@ module Syskit
                     # # start_process_server("test_ps", "localhost")
                     Syskit.conf.only_load_models = false
                     @process_servers = []
-                    @test_ps = create_process_server("test_ps")
+                    create_process_server("test_ps")
                     # Initilizing Log Transfer Server
                     @test_root_ca = LogTransferIntegration::TmpRootCA.new
                     start_local_transfer_server(@test_root_ca)
@@ -332,12 +352,11 @@ module Syskit
                     @ps_logfile = create_test_file(@ps_log_dir)
                     path = File.join(@tmp_server_dir, "logfile.log")
                     refute File.exist?(path)
-                    Plugin.send_file_transfer_command("test_ps", @ps_logfile)
+                    @client = Plugin.send_file_transfer_command("test_ps", @ps_logfile)
+                    assert_upload_succeeds
                     assert_equal File.read(path), File.read(@ps_logfile)
                 end
-
             end
-
         end
     end
 end
