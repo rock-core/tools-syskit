@@ -29,14 +29,15 @@ module Syskit
                 attr_reader :root_key, :certificate, :signed_certificate,
                             :ca_password, :ca_user
 
-                def initialize
+                def initialize(cert_dir)
                     @root_key = OpenSSL::PKey::RSA.new 2048 # the CA's public/private key
                     @root_ca = create_root_ca(@root_key)
                     @cert = create_cert(@root_ca, @root_key)
-                    @certificate = write_certificate(@cert)
-                    @signed_certificate = write_signed_certificate(@root_key, @cert)
                     @ca_password = SecureRandom.base64(15)
                     @ca_user = "process server"
+                    create_tmp_cert_dir(cert_dir)
+                    @certificate = write_certificate(@cert)
+                    @signed_certificate = write_signed_certificate(@root_key, @cert)
                 end
 
                 # Establishes initial steps in creating a certificate
@@ -127,10 +128,18 @@ module Syskit
                     cert
                 end
 
+                def create_tmp_cert_dir(cert_dir)
+                    @tmp_cert_dir = File.join(cert_dir, "tmp_cert_dir_#{Roby.app.time_tag}")
+                    Dir.mkdir(@tmp_cert_dir)
+                end
+
+                def delete_tmp_cert_dir
+                    FileUtils.rm_rf(@tmp_cert_dir)
+                end
+
                 # Write created Certificate to file
                 def write_certificate(cert)
-                    cert_filepath = File.join(__dir__,
-                        "..", "log_transfer_integration", "cert.crt")
+                    cert_filepath = File.join(@tmp_cert_dir, "cert.crt")
                     File.open(cert_filepath, "w+") do |f|
                         f.print cert
                     end
@@ -139,8 +148,7 @@ module Syskit
 
                 # Write created Certificate to file signed with a key
                 def write_signed_certificate(root_key, cert)
-                    signed_cert_filepath = File.join(__dir__, 
-                        "..", "log_transfer_integration", "signed_cert.crt")
+                    signed_cert_filepath = File.join(@tmp_cert_dir, "signed_cert.crt")
                     File.open(signed_cert_filepath, "w+") do |f|
                         f.print root_key
                         f.print cert

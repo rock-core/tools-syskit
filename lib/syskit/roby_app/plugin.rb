@@ -156,7 +156,7 @@ module Syskit
                 Syskit::TaskContext.define_from_orogen(rtt_core_model, register: true)
 
                 # Log Transfer FTP Server spawned during Application#setup
-                @tmp_root_ca = LogTransferIntegration::TmpRootCA.new
+                @tmp_root_ca = LogTransferIntegration::TmpRootCA.new(app.log_dir)
                 start_local_log_transfer_server(app.log_dir, @tmp_root_ca)
                 config_log_transfer
             end
@@ -200,6 +200,10 @@ module Syskit
                 @log_transfer_server.join
             end
 
+            def self.clean_tmp_cert_dir
+                @tmp_root_ca.delete_tmp_cert_dir
+            end
+
             # Hook called by the main application in Application#setup after
             # the main setup hooks have been called
             def self.require_models(app)
@@ -231,6 +235,7 @@ module Syskit
 
                 disconnect_all_process_servers
                 stop_local_process_server
+                clean_tmp_cert_dir
                 stop_local_log_transfer_server
             end
 
