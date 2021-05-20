@@ -755,4 +755,38 @@ module Syskit
             assert_equal task.in_port, reader.resolved_accessor.port
         end
     end
+
+    describe "synthetic tests" do
+        it "ignores composition ports that can't be resolved to an actual port" do
+            child_task_m = Syskit::TaskContext.new_submodel do
+                output_port "out", "/double"
+            end
+            child_cmp_m = Syskit::Composition.new_submodel do
+                add child_task_m, as: "test"
+                export test_child.out_port
+            end
+            cmp_m = Syskit::Composition.new_submodel do
+                add child_cmp_m, as: "test"
+                export test_child.out_port
+            end
+
+            reader_task_m = Syskit::Composition.new_submodel do
+                data_reader cmp_m.match.out_port, as: "test"
+            end
+
+            plan.add(cmp = cmp_m.as_plan)
+            reader_task = syskit_stub_deploy_configure_and_start(reader_task_m)
+            reader_task.test_reader.update
+            refute reader_task.test_reader.valid?
+
+            deployed_cmp = run_planners cmp
+            execute { plan.remove_task(cmp) }
+            reader_task.test_reader.update
+            assert reader_task.test_reader.valid?
+
+            plan.replace(deployed_cmp.test_child, child_cmp_m.as_plan)
+            reader_task.test_reader.update
+            refute reader_task.test_reader.valid?
+        end
+    end
 end
