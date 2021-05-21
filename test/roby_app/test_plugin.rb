@@ -216,8 +216,6 @@ module Syskit
             describe "Local Log Transfer Server" do
 
                 before do
-                    # Initializing Process Server
-                    Syskit.conf.only_load_models = false
                     @process_servers = []
                     register_process_server("test_ps")
                 end
