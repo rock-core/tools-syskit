@@ -1,6 +1,6 @@
 # frozen_string_literal: true
 
-require "syskit/roby_app/log_transfer_integration/log_transfer_integration"
+require "syskit/roby_app/tmp_root_ca"
 
 class Module
     def backward_compatible_constant(old_name, new_constant, file)
@@ -162,7 +162,7 @@ module Syskit
             end
 
             def self.setup_local_log_transfer_server(app)
-                @tmp_root_ca = LogTransferIntegration::TmpRootCA.new(log_transfer_ip)
+                @tmp_root_ca = TmpRootCA.new(log_transfer_ip)
                 start_local_log_transfer_server(app.log_dir, @tmp_root_ca)
                 config_log_transfer
             end
@@ -186,15 +186,15 @@ module Syskit
             def self.config_log_transfer
                 @log_transfer_port = @log_transfer_server.port
                 @log_transfer_certificate = @tmp_root_ca.certificate
-                @log_transfer_user = @tmp_root_ca.ca_user
-                @log_transfer_password = @tmp_root_ca.ca_password
+                @log_transfer_user = @log_transfer_server.user
+                @log_transfer_password = @log_transfer_server.password
             end
 
             def self.start_local_log_transfer_server(tgt_dir, tmp_root_ca)
-                @log_transfer_server = Syskit::RobyApp::LogTransferIntegration::LocalLogTransferServer.new(
+                @log_transfer_server = Syskit::RobyApp::LogTransferServer::SpawnServer.new(
                     tgt_dir,
-                    tmp_root_ca.ca_user,
-                    tmp_root_ca.ca_password,
+                    "process server",
+                    SecureRandom.base64(15),
                     tmp_root_ca.private_certificate_path
                 )
             end
