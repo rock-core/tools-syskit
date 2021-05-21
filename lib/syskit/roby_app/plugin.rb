@@ -24,12 +24,6 @@ end
 
 module Syskit
     module RobyApp
-        attr_accessor :log_transfer_ip
-        attr_accessor :log_transfer_port
-        attr_accessor :log_transfer_certificate
-        attr_accessor :log_transfer_user
-        attr_accessor :log_transfer_password
-
         # This gets mixed in Roby::Application when the orocos plugin is loaded.
         # It adds the configuration facilities needed to plug-in orogen projects
         # in Roby.
@@ -41,6 +35,14 @@ module Syskit
         #   loaded models. In addition, a text notification is sent to inform
         #   a shell user
         module Plugin
+            class << self
+                attr_accessor :log_transfer_ip
+                attr_accessor :log_transfer_port
+                attr_accessor :log_transfer_certificate
+                attr_accessor :log_transfer_user
+                attr_accessor :log_transfer_password
+            end
+
             # Hook called by the main application in Application#load_base_config
             def self.load_base_config(app)
                 options = app.options
@@ -156,7 +158,11 @@ module Syskit
                 Syskit::TaskContext.define_from_orogen(rtt_core_model, register: true)
 
                 # Log Transfer FTP Server spawned during Application#setup
-                @tmp_root_ca = LogTransferIntegration::TmpRootCA.new(app.log_dir)
+                setup_local_log_transfer_server(app) if log_transfer_ip
+            end
+
+            def self.setup_local_log_transfer_server(app)
+                @tmp_root_ca = LogTransferIntegration::TmpRootCA.new(log_transfer_ip)
                 start_local_log_transfer_server(app.log_dir, @tmp_root_ca)
                 config_log_transfer
             end
@@ -169,7 +175,7 @@ module Syskit
                 client.log_upload_file(
                     @log_transfer_ip,
                     @log_transfer_port,
-                    File.read(@log_transfer_certificate),
+                    @log_transfer_certificate,
                     @log_transfer_user,
                     @log_transfer_password,
                     logfile
@@ -182,8 +188,6 @@ module Syskit
                 @log_transfer_certificate = @tmp_root_ca.certificate
                 @log_transfer_user = @tmp_root_ca.ca_user
                 @log_transfer_password = @tmp_root_ca.ca_password
-                ip = Socket.ip_address_list.detect(&:ipv4_private?)
-                @log_transfer_ip = ip.ip_address
             end
 
             def self.start_local_log_transfer_server(tgt_dir, tmp_root_ca)
@@ -191,17 +195,14 @@ module Syskit
                     tgt_dir,
                     tmp_root_ca.ca_user,
                     tmp_root_ca.ca_password,
-                    tmp_root_ca.signed_certificate
+                    tmp_root_ca.private_certificate_path
                 )
             end
 
             def self.stop_local_log_transfer_server
-                @log_transfer_server.stop
-                @log_transfer_server.join
-            end
-
-            def self.clean_tmp_cert_dir
-                @tmp_root_ca.delete_tmp_cert_dir
+                @log_transfer_server&.stop
+                @log_transfer_server&.join
+                @tmp_root_ca&.dispose
             end
 
             # Hook called by the main application in Application#setup after
@@ -235,7 +236,6 @@ module Syskit
 
                 disconnect_all_process_servers
                 stop_local_process_server
-                clean_tmp_cert_dir
                 stop_local_log_transfer_server
             end
 

@@ -214,14 +214,17 @@ module Syskit
             end
 
             describe "Local Log Transfer Server" do
-
                 before do
+                    @server_threads = []
                     @process_servers = []
                     register_process_server("test_ps")
+                    Plugin.log_transfer_ip = "127.0.0.1"
+                    Plugin.setup_local_log_transfer_server(Roby.app)
                 end
 
                 after do
                     close_process_servers
+                    Plugin.log_transfer_ip = nil
                 end
 
                 it "uploads file from Process Server" do
@@ -234,25 +237,18 @@ module Syskit
                 end
 
                 def register_process_server(name)
-                    # Clearing Orocos load
-                    Orocos.clear
-                    app = Roby::Application.new
-                    loader = OroGen::Loaders::Files.new
-                    OroGen::Loaders::RTT.setup_loader(loader)
-                    loader.register_orogen_file(File.join(data_dir, "plugin_remote_model_loading.orogen"))
-
-                    server = RemoteProcesses::Server.new(app, port: 0, loader: loader)
+                    server = RemoteProcesses::Server.new(app, port: 0)
                     server.open
 
-                    thread = Thread.new do
-                        server.listen
-                    end
+                    thread = Thread.new { server.listen }
+                    @server_threads << thread
 
                     client = Syskit.conf.connect_to_orocos_process_server(
-                        name, "localhost", port: server.port
+                        name, "localhost",
+                        port: server.port,
+                        model_only_server: false
                     )
-
-                    @process_servers << [name, thread, client]
+                    @process_servers << [name, client]
 
                     @ps_log_dir = make_tmpdir
                     client.create_log_dir(
@@ -262,9 +258,11 @@ module Syskit
                 end
 
                 def close_process_servers
-                    @process_servers.each do |name, thread, client|
+                    @process_servers.each do |name, client|
                         client.close
                         Syskit.conf.remove_process_server(name)
+                    end
+                    @server_threads.each do |thread|
                         thread.raise Interrupt
                         thread.join
                     end
