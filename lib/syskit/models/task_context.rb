@@ -210,7 +210,7 @@ module Syskit
 
             def to_deployment_group(name, **options)
                 group = Models::DeploymentGroup.new
-                group.use_deployment(self => name, **options)
+                group.use_deployment(concrete_model => name, **options)
                 group
             end
 

@@ -48,10 +48,28 @@ module Syskit
                     common_behavior(self)
                 end
 
+                describe "called on a specialized submodel" do
+                    before do
+                        @ir = @task_m.specialize.deployed_as("test")
+                    end
+
+                    common_behavior(self)
+                end
+
                 describe "called on InstanceRequirements" do
                     before do
                         @ir = Syskit::InstanceRequirements
                               .new([@task_m])
+                              .deployed_as("test")
+                    end
+
+                    common_behavior(self)
+                end
+
+                describe "called on InstanceRequirements for a specialized submodel" do
+                    before do
+                        @ir = Syskit::InstanceRequirements
+                              .new([@task_m.specialize])
                               .deployed_as("test")
                     end
 
