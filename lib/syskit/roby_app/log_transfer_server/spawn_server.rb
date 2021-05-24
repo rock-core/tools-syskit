@@ -24,7 +24,6 @@ module Syskit
                     debug: false,
                     verbose: false
                 )
-
                     @debug = debug
                     driver = Driver.new(user, password, tgt_dir)
                     server = Ftpd::FtpServer.new(driver)
@@ -40,6 +39,9 @@ module Syskit
                     @server = server
                     @server.start
                     @port = @server.bound_port
+                    @user = user
+                    @password = password
+                    @certfile_path = certfile_path
                     display_connection_info if verbose
                 end
 
