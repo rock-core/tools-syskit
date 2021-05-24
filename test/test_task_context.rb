@@ -1365,16 +1365,18 @@ module Syskit
                 end
             end
         end
-        describe "#configure" do
+        describe "configuration" do
             it "applies the selected configuration" do
                 task_m = TaskContext.new_submodel name: "Task" do
                     property "v", "/int"
                 end
                 task = syskit_stub_and_deploy(task_m.with_conf("my", "conf"))
-                flexmock(task.model.configuration_manager).should_receive(:conf)
-                                                          .with(%w[my conf], true)
-                                                          .once
-                                                          .and_return("v" => 10)
+                flexmock(task.model.configuration_manager)
+                    .should_receive(:conf)
+                    .with(%w[my conf], true)
+                    .once
+                    .and_return("v" => 10)
+
                 syskit_configure(task)
                 Orocos.allow_blocking_calls do
                     assert_equal 10, task.orocos_task.v
