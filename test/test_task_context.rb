@@ -1125,18 +1125,97 @@ module Syskit
                 end
             end
 
-            def deploy_task(**arguments)
-                task_m = @task_m.with_arguments(**arguments)
-                                .deployed_as(name, on: "stubs")
+            describe "handling of dynamic services" do
+                before do
+                    srv_m = DataService.new_submodel
+                    srv2_m = DataService.new_submodel
+                    @task_m = RubyTaskContext.new_submodel(name: "Test")
+                    @task_m.dynamic_service srv_m, as: "test" do
+                        provides srv_m, as: name
+                    end
+                    @task_m.dynamic_service srv_m, as: "test_alt" do
+                        provides srv_m, as: name
+                    end
+                    @task_m.dynamic_service srv2_m, as: "test2" do
+                        provides srv2_m, as: name
+                    end
+
+                    test1_m = @task_m.specialize
+                    test1_m.require_dynamic_service "test", as: "test1"
+                    warmup(test1_m) { |task| syskit_configure(task) }
+                end
+
+                it "does not reconfigure a task whose list of dynamic services "\
+                   "did not change" do
+                    # NOTE: we explicitly re-specialize the model. From syskit's
+                    # perspective the two specialized models are equivalent
+                    test2_m = @task_m.specialize
+                    test2_m.require_dynamic_service "test", as: "test1"
+                    task = deploy_task(test2_m)
+                    task.orocos_task.should_receive(:cleanup).never
+                    syskit_configure(task)
+                end
+
+                it "reconfigures a task if two dynamic services have the same model "\
+                   "and name, but not arguments" do
+                    # NOTE: we explicitly re-specialize the model. From syskit's
+                    # perspective the two specialized models are equivalent
+                    test2_m = @task_m.specialize
+                    test2_m.require_dynamic_service "test", as: "test1", some: "arg"
+                    task = deploy_task(test2_m)
+                    task.orocos_task.should_receive(:cleanup).once.pass_thru
+                    syskit_configure(task)
+                end
+
+                it "reconfigures a task if two dynamic services have the same name "\
+                   "and model, but from a different dynamic service" do
+                    # NOTE: we explicitly re-specialize the model. From syskit's
+                    # perspective the two specialized models are equivalent
+                    test2_m = @task_m.specialize
+                    test2_m.require_dynamic_service "test_alt", as: "test1"
+                    task = deploy_task(test2_m)
+                    task.orocos_task.should_receive(:cleanup).once.pass_thru
+                    syskit_configure(task)
+                end
+
+                it "reconfigures a task if two dynamic services have the same name "\
+                   "but the model differs" do
+                    # NOTE: we explicitly re-specialize the model. From syskit's
+                    # perspective the two specialized models are equivalent
+                    test2_m = @task_m.specialize
+                    test2_m.require_dynamic_service "test2", as: "test1"
+                    task = deploy_task(test2_m)
+                    task.orocos_task.should_receive(:cleanup).once.pass_thru
+                    syskit_configure(task)
+                end
+
+                it "reconfigures a task whose list of dynamic services changed" do
+                    # NOTE: it is up to the deployment algorithm to decide whether
+                    # tasks have their list of dynamic services changed.
+                    #
+                    # At the point of the task's configuration, this decision
+                    # has been made The reconfiguration logic should just follow
+                    # it
+                    test2_m = @task_m.specialize
+                    test2_m.require_dynamic_service "test", as: "test2"
+                    task = deploy_task(test2_m)
+                    task.orocos_task.should_receive(:cleanup).once.pass_thru
+                    syskit_configure(task)
+                end
+            end
+
+            def deploy_task(model = @task_m, **arguments)
+                task_m = model.with_arguments(**arguments)
+                              .deployed_as(name, on: "stubs")
                 task = syskit_deploy(task_m)
                 flexmock(task)
                 flexmock(task.orocos_task)
                 task
             end
 
-            def warmup
+            def warmup(model = @task_m, **arguments)
                 # Warm things up
-                task = deploy_task
+                task = deploy_task(model, **arguments)
                 yield(task)
                 expect_execution { plan.make_useless(task) }
                     .garbage_collect(true).to { finalize task }

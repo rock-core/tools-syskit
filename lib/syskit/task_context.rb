@@ -592,7 +592,7 @@ module Syskit
         # you are doing
         def setup_successful!
             execution_agent.update_current_configuration(
-                orocos_name, model, conf.dup, each_required_dynamic_service.to_set
+                orocos_name, model, conf.dup, each_required_dynamic_service.map(&:model).to_set
             )
             execution_agent.finished_configuration(orocos_name)
 
@@ -714,7 +714,7 @@ module Syskit
 
                 needs_reconfiguration = needs_reconfiguration? ||
                     execution_agent.configuration_changed?(
-                        orocos_name, conf, each_required_dynamic_service.to_set
+                        orocos_name, conf, each_required_dynamic_service.map(&:model).to_set
                     ) ||
                     self.properties.each.any?(&:needs_commit?)
 

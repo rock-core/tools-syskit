@@ -554,8 +554,14 @@ module Syskit
         # The currently applied configuration for the given task
         def configuration_changed?(orocos_name, conf, dynamic_services)
             current = remote_task_handles[orocos_name].current_configuration
-            current.conf != conf ||
-                current.dynamic_services != dynamic_services.to_set
+            return true if current.conf != conf
+
+            current_services = current.dynamic_services.group_by(&:name)
+            dynamic_services.each do |srv|
+                return true unless (current_srv = current_services.delete(srv.name))
+                return true unless current_srv.first.same_service?(srv)
+            end
+            false
         end
 
         # @api private
