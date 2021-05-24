@@ -66,11 +66,9 @@ module Syskit
             remote_handles.default_properties.each do |p, p_value|
                 syskit_p = property(p.name)
                 syskit_p.remote_property = p
-                syskit_p.update_remote_value(p_value)
+                syskit_p.update_remote_value(p_value&.dup)
                 syskit_p.update_log_metadata(p.log_metadata)
-                unless syskit_p.has_value?
-                    syskit_p.write(p_value)
-                end
+                syskit_p.write(p_value&.dup) unless syskit_p.has_value?
             end
         end
 

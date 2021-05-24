@@ -499,7 +499,7 @@ module Syskit
                 state_reader, state_getter = create_state_access(remote_task, distance: distance_to_syskit)
                 properties = remote_task.property_names.map do |p_name|
                     p = remote_task.raw_property(p_name)
-                    [p, p.raw_read]
+                    [p, p.raw_read.freeze]
                 end
                 current_configuration = CurrentTaskConfiguration.new(nil, [], Set.new)
                 RemoteTaskHandles.new(remote_task, state_reader, state_getter, properties, false, current_configuration)

@@ -1531,16 +1531,39 @@ module Syskit
             attr_reader :double_t, :task_m, :task
             before do
                 @double_t = double_t = stub_type "/double"
-                @task_m = TaskContext.new_submodel do
+                @task_m = RubyTaskContext.new_submodel do
                     property "test", double_t
+                    property "test_v", "/std/vector</double>"
                 end
-                @task = task_m.new
+                @task = syskit_deploy(task_m.deployed_as(name, on: "stubs"))
             end
 
             it "creates all properties at initialization time" do
                 assert(p = task.property("test"))
                 assert_equal "test", p.name
                 assert_same double_t, p.type
+            end
+
+            it "initializes the property value(s) using the task's default" do
+                syskit_start_execution_agents(@task)
+                remote_value = Orocos.allow_blocking_calls { @task.orocos_task.test }
+
+                assert(p = task.property("test"))
+                assert_equal remote_value, p.value
+                assert_equal remote_value, p.remote_value
+            end
+
+            it "disassociates the default value from the property's" do
+                syskit_start_execution_agents(@task)
+                task.properties.test_v << 10
+
+                expect_execution { plan.make_useless(task) }
+                    .garbage_collect(true)
+                    .to { finalize task }
+
+                task = syskit_deploy(task_m.deployed_as(name, on: "stubs"))
+                assert task.property("test_v").value.empty?
+                assert task.property("test_v").remote_value.empty?
             end
 
             it "uses the intermediate type as property type" do
