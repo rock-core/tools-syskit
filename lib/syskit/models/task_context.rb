@@ -130,6 +130,33 @@ module Syskit
             # enters a new state.
             inherited_attribute(:state_event, :state_events, map: true) { {} }
 
+            # Determine whether this component's configuration should use the
+            # {#update_properties} mechanism
+            #
+            # @see https://www.rock-robotics.org/rock-and-syskit/deprecations/update_properties.html
+            def use_update_properties?
+                return @use_update_properties unless @use_update_properties.nil?
+
+                @use_update_properties = compute_use_update_properties
+            end
+
+            # @api private
+            #
+            # Compute {#use_update_properties?}
+            #
+            # The actual method is memoizing the result
+            def compute_use_update_properties
+                return true if Roby.app.syskit_use_update_properties?
+
+                update_properties = instance_method(:update_properties)
+                return true if update_properties.owner != Syskit::TaskContext
+
+                configure = instance_method(:configure)
+                return true if configure.owner == Syskit::TaskContext
+
+                false
+            end
+
             # Create a new TaskContext model
             #
             # @option options [String] name (nil) forcefully set a name for the model.

@@ -712,6 +712,8 @@ module Syskit
                     syskit_p.update_remote_value(remote_value)
                 end
 
+                update_properties if model.use_update_properties?
+
                 needs_reconfiguration = needs_reconfiguration? ||
                     execution_agent.configuration_changed?(
                         orocos_name, conf, each_required_dynamic_service.to_set
@@ -742,6 +744,7 @@ module Syskit
         # (see Component#perform_setup)
         def perform_setup(promise)
             prepare_for_setup(promise)
+
             # This calls #configure
             super(promise)
 
@@ -1019,14 +1022,14 @@ module Syskit
             state_reader.pause if state_reader.respond_to?(:pause)
         end
 
-        # Default implementation of the configure method.
+        # Default implementation of the update_properties method.
         #
         # This default implementation takes its configuration from
         # State.config.task_name, where +task_name+ is the CORBA task name
         # (i.e. the global name of the task).
         #
         # It then sets the task properties using the values found there
-        def configure
+        def update_properties
             # First, set configuration from the configuration files
             # Note: it can only set properties
             if model.configuration_manager.apply(self, override: true)
@@ -1059,6 +1062,13 @@ module Syskit
                     actual_property.write(property_override.read)
                 end
             end
+
+            super if defined? super
+        end
+
+        # Default implementation of the configure method
+        def configure
+            update_properties unless model.use_update_properties?
 
             super if defined? super
         end

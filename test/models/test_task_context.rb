@@ -591,4 +591,38 @@ describe Syskit::Models::TaskContext do
             common_behavior(self)
         end
     end
+
+    # Control of the update_properties backward-compatible behavior
+    describe "#use_update_properties?" do
+        it "returns true for a plain submodel of TaskContext" do
+            assert Syskit::TaskContext.new_submodel.use_update_properties?
+        end
+
+        it "returns false if the submodel defines #configure" do
+            task_m = Syskit::TaskContext.new_submodel
+            task_m.class_eval do
+                def configure; end
+            end
+            refute task_m.use_update_properties?
+        end
+
+        it "returns true if the submodel defines #update_properties" do
+            task_m = Syskit::TaskContext.new_submodel
+            task_m.class_eval do
+                def update_properties; end
+            end
+            assert task_m.use_update_properties?
+        end
+
+        it "returns true if the submodel defines both #configure and "\
+           "#update_properties" do
+            task_m = Syskit::TaskContext.new_submodel
+            task_m.class_eval do
+                def update_properties; end
+
+                def configure; end
+            end
+            assert task_m.use_update_properties?
+        end
+    end
 end

@@ -873,7 +873,147 @@ module Syskit
                     assert_includes(
                         messages,
                         "not reconfiguring #{task}: the task is already configured "\
-                        "as required",
+                        "as required"
+                    )
+                end
+                it "reconfigures a task with non-default configuration" do
+                    # This is essentially a bug, enshrined in a unit test. Fixing
+                    # that required a non-obvious, non-backward-compatible fix
+                    #
+                    # See https://www.rock-robotics.org/rock-and-syskit/deprecations/update_properties.html
+                    @task_m.define_method :configure do
+                        super()
+                        properties.config = 10
+                    end
+                    warmup_to_configure
+
+                    task = deploy_task
+                    task.orocos_task.should_receive(:cleanup).once.pass_thru
+                    messages = capture_log(task, :info) { syskit_configure(task) }
+                    assert_includes(messages, "cleaning up #{task}")
+                end
+                it "reconfigures a task whose properties need to be updated" do
+                    warmup_to_configure
+
+                    task = deploy_task
+                    task.orocos_task.should_receive(:cleanup).once.pass_thru
+                    Orocos.allow_blocking_calls { task.orocos_task.config = 10 }
+                    messages = capture_log(task, :info) { syskit_configure(task) }
+                    assert_includes messages, "cleaning up #{task}"
+                end
+                it "reconfigures a task which is explicitly marked as needing to" do
+                    warmup_to_configure
+
+                    task = deploy_task
+                    task.needs_reconfiguration!
+                    messages = capture_log(task, :info) { syskit_configure(task) }
+                    assert_includes messages, "cleaning up #{task}"
+                end
+                it "reconfigures a task which was previously explicitly "\
+                   "marked as needing to" do
+                    warmup_to_configure(&:needs_reconfiguration!)
+
+                    task = deploy_task
+                    messages = capture_log(task, :info) { syskit_configure(task) }
+                    assert_includes messages, "cleaning up #{task}"
+                end
+                it "reconfigures if the state is STOPPED but the task "\
+                   "has never been configured by Syskit" do
+                    task = deploy_task
+                    syskit_start_execution_agents(task)
+                    Orocos.allow_blocking_calls { task.orocos_task.configure }
+
+                    flexmock(task.orocos_task).should_receive(:cleanup).once.ordered
+                    task.should_receive(:clean_dynamic_port_connections).once.ordered
+                    capture_log(task, :info) { syskit_configure(task) }
+                end
+                it "reconfigures if the selected configuration changed" do
+                    syskit_stub_conf(@task_m, "test")
+                    warmup_to_configure
+
+                    task = deploy_task(conf: %w[default test])
+                    task.orocos_task.should_receive(:cleanup).once
+                    capture_log(task, :info) { syskit_configure(task) }
+                end
+                it "reconfigures if the properties have been changed" do
+                    warmup_to_configure
+
+                    task = deploy_task
+                    def task.configure
+                        super
+                        properties.config = 10
+                    end
+
+                    task.orocos_task.should_receive(:cleanup).once.ordered
+                    capture_log(task, :info) { syskit_configure(task) }
+                end
+            end
+
+            describe "with #update_properties" do
+                attr_reader :task_m
+                before do
+                    @task_m = RubyTaskContext.new_submodel(name: name.upcase) do
+                        property "config", "/double", 0
+                    end
+                    flexmock(@task_m, use_update_properties?: true)
+                end
+
+                it "resets an exception state" do
+                    warmup_to_exception
+
+                    task = syskit_deploy(task_m.deployed_as(name, on: "stubs"))
+                    flexmock(task.orocos_task)
+                        .should_receive(:reset_exception)
+                        .once.ordered.pass_thru
+                    flexmock(task)
+                        .should_receive(:clean_dynamic_port_connections)
+                        .once.ordered.pass_thru
+
+                    messages = capture_log(task, :info) { syskit_configure(task) }
+                    assert_includes(
+                        messages,
+                        "reconfiguring #{task}: the task was in exception state"
+                    )
+                end
+                it "does not cleanup a never-configured task" do
+                    task = deploy_task
+                    syskit_start_execution_agents(task)
+                    flexmock(task.orocos_task).should_receive(:cleanup).never
+                    messages = capture_log(task, :info) { syskit_configure(task) }
+                    assert_includes messages, "setting up #{task}"
+                end
+                it "does not reconfigure a task whose configuration has not changed" do
+                    warmup_to_configure
+
+                    task = deploy_task
+                    task.orocos_task.should_receive(:cleanup).never
+                    task.should_receive(:clean_dynamic_port_connections).never
+                    messages = capture_log(task, :info) { syskit_configure(task) }
+                    assert_includes(
+                        messages,
+                        "not reconfiguring #{task}: the task is already configured "\
+                        "as required"
+                    )
+                end
+                it "does no reconfigure a task with an unchanged but "\
+                   "non-default configuration" do
+                    # This is a regression test. The pre-update_properties world
+                    # would reconfigure a task if its configuration was non-default
+                    #
+                    # The fix was to introduce update_properties
+                    @task_m.define_method :update_properties do
+                        super()
+                        properties.config = 10
+                    end
+                    warmup_to_configure
+
+                    task = deploy_task
+                    task.orocos_task.should_receive(:cleanup).never
+                    messages = capture_log(task, :info) { syskit_configure(task) }
+                    assert_includes(
+                        messages,
+                        "not reconfiguring #{task}: the task is already configured "\
+                        "as required"
                     )
                 end
                 it "reconfigures a task whose properties need to be updated" do
