@@ -218,20 +218,20 @@ module Syskit
                     @server_threads = []
                     @process_servers = []
                     register_process_server("test_ps")
-                    Plugin.log_transfer_ip = "127.0.0.1"
-                    Plugin.setup_local_log_transfer_server(Roby.app)
+                    app.log_transfer_ip = "127.0.0.1"
+                    app.setup_local_log_transfer_server
                 end
 
                 after do
                     close_process_servers
-                    Plugin.log_transfer_ip = nil
+                    app.log_transfer_ip = nil
                 end
 
                 it "uploads file from Process Server" do
                     @ps_logfile = create_test_file(@ps_log_dir)
                     path = File.join(app.log_dir, "logfile.log")
                     refute File.exist?(path)
-                    @client = Plugin.send_file_transfer_command("test_ps", @ps_logfile)
+                    @client = app.send_file_transfer_command("test_ps", @ps_logfile)
                     assert_upload_succeeds
                     assert_equal File.read(path), File.read(@ps_logfile)
                 end

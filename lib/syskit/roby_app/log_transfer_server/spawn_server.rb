@@ -5,9 +5,14 @@ require "English"
 module Syskit
     module RobyApp
         module LogTransferServer
+            class Ftpd::Server
+                def server_thread
+                    @server_thread
+                end
+            end
             # Class responsible for spawning an FTP server for transfering logs
             class SpawnServer
-                attr_reader :port, :user, :password, :certfile_path
+                attr_reader :port
 
                 # tgt_dir must be an absolute path
                 def initialize(
@@ -39,9 +44,6 @@ module Syskit
                     @server = server
                     @server.start
                     @port = @server.bound_port
-                    @user = user
-                    @password = password
-                    @certfile_path = certfile_path
                     display_connection_info if verbose
                 end
 
