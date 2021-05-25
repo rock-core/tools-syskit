@@ -250,6 +250,10 @@ module Syskit
                     )
                     @process_servers << [name, client]
 
+                    config_log_dir(client)
+                end
+
+                def config_log_dir(client)
                     @ps_log_dir = make_tmpdir
                     client.create_log_dir(
                         @ps_log_dir, Roby.app.time_tag,
@@ -296,7 +300,6 @@ module Syskit
                         flunk("upload failed: #{r.message}") unless r.success?
                     end
                 end
-
             end
         end
     end

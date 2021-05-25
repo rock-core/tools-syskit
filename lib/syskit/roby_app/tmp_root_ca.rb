@@ -36,26 +36,31 @@ module Syskit
             def create_self_signed_certificate(server_ip, key)
                 certificate = OpenSSL::X509::Certificate.new
                 lifespan = 365 * 24 * 60 * 60
-                certificate.version = 2
-                certificate.serial = Time.new.to_i
-
-                subject = OpenSSL::X509::Name.parse("/CN=#{server_ip}")
-                certificate.subject = subject
-                certificate.issuer = subject
+                config_certificate(server_ip, certificate)
                 certificate.public_key = key.public_key
-
                 now = Time.now
                 certificate.not_before = now
                 certificate.not_after = now + lifespan
+                add_extensions(server_ip, certificate)
+                certificate.sign(key, OpenSSL::Digest::SHA256.new)
+                certificate
+            end
 
+            def config_certificate(server_ip, certificate)
+                certificate.version = 2
+                certificate.serial = Time.new.to_i
+                subject = OpenSSL::X509::Name.parse("/CN=#{server_ip}")
+                certificate.subject = subject
+                certificate.issuer = subject
+            end
+
+            def add_extensions(server_ip, certificate)
                 ef = OpenSSL::X509::ExtensionFactory.new
                 ef.subject_certificate = certificate
                 ef.issuer_certificate = certificate
                 certificate.add_extension(
                     ef.create_extension("subjectAltName", "IP:#{server_ip}", false)
                 )
-                certificate.sign(key, OpenSSL::Digest::SHA256.new)
-                certificate
             end
 
             # Write created Certificate to file signed with a key

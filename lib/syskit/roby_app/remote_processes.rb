@@ -1,4 +1,5 @@
 # frozen_string_literal: true
+
 require "syskit/roby_app/remote_processes/server"
 require "syskit/roby_app/remote_processes/client"
 require "syskit/roby_app/remote_processes/loader"
