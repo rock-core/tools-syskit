@@ -2,14 +2,17 @@
 
 require "English"
 
+module Ftpd
+    # Base class of Ftpd::FtpServer
+    # Used here to get the server_thread status
+    class Server
+        attr_reader :server_thread
+    end
+end
+
 module Syskit
     module RobyApp
         module LogTransferServer
-            class Ftpd::Server
-                def server_thread
-                    @server_thread
-                end
-            end
             # Class responsible for spawning an FTP server for transfering logs
             class SpawnServer
                 attr_reader :port
@@ -58,6 +61,10 @@ module Syskit
 
                 def join
                     @server.join
+                end
+
+                def stopped?
+                    @server.server_thread.stop?
                 end
 
                 private

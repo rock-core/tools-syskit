@@ -190,7 +190,6 @@ module Syskit
             end
 
             def start_local_log_transfer_server(tgt_dir, tmp_root_ca)
-                @stopped = false
                 @log_transfer_server = Syskit::RobyApp::LogTransferServer::SpawnServer.new(
                     tgt_dir,
                     log_transfer_user,
@@ -200,11 +199,10 @@ module Syskit
             end
 
             def stop_local_log_transfer_server
-                if @log_transfer_server && !@stopped
+                if @log_transfer_server && !@log_transfer_server.stopped?
                     @log_transfer_server&.stop
                     @log_transfer_server&.join
                     @tmp_root_ca&.dispose
-                    @stopped = true
                 end
             end
 
