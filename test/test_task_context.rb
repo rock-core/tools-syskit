@@ -1353,12 +1353,12 @@ module Syskit
                 it "calls the task's configure method if the task's state is PRE_OPERATIONAL" do
                     orocos_task.should_receive(:rtt_state).and_return(:PRE_OPERATIONAL)
                     orocos_task.should_receive(:configure).once.ordered
-                    setup_task(expected_messages: ["applied configuration [\"default\"] to #{task.orocos_name}", "setting up #{task}"])
+                    setup_task(expected_messages: ["setting up #{task}"])
                 end
                 it "does not call the task's configure method if the task's state is not PRE_OPERATIONAL" do
                     orocos_task.should_receive(:rtt_state).and_return(:STOPPED)
                     orocos_task.should_receive(:configure).never
-                    setup_task(expected_messages: ["applied configuration [\"default\"] to #{task.orocos_name}", "#{task} was already configured"])
+                    setup_task(expected_messages: ["#{task} was already configured"])
                 end
                 it "does not call the task's configure method if the user-provided configure method raises" do
                     task.should_receive(:configure).and_raise(error_m)
