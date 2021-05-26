@@ -236,6 +236,10 @@ module Syskit
                     assert_equal File.read(path), File.read(ps_logfile)
                 end
 
+                it "raises when tries to spawn server while there is already a server running" do
+                    assert_raises(RuntimeError) { app.setup_local_log_transfer_server }
+                end
+
                 def register_process_server(name)
                     server = RemoteProcesses::Server.new(app, port: 0)
                     server.open
