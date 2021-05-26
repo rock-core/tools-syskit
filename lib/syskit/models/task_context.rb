@@ -151,8 +151,11 @@ module Syskit
                 # Find where is update_properties defined, exclusing modules
                 # Modules are assumed to be "behind-the-scene" extensions, such
                 # as plugins, that should not affect the decision
+                #
+                # TODO: use method_defined?(name, false) when we drop support
+                # TODO: for 2.5
                 this = self
-                until this.method_defined?(:update_properties, false)
+                until this.instance_methods(false).include?(:update_properties)
                     this = this.superclass
                 end
                 return true if this != Syskit::TaskContext
