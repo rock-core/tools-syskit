@@ -228,12 +228,12 @@ module Syskit
                 end
 
                 it "uploads file from Process Server" do
-                    @ps_logfile = create_test_file(@ps_log_dir)
+                    ps_logfile = create_test_file(@ps_log_dir)
                     path = File.join(app.log_dir, "logfile.log")
                     refute File.exist?(path)
-                    @client = app.send_file_transfer_command("test_ps", @ps_logfile)
-                    assert_upload_succeeds
-                    assert_equal File.read(path), File.read(@ps_logfile)
+                    client = app.send_file_transfer_command("test_ps", ps_logfile)
+                    assert_upload_succeeds(client)
+                    assert_equal File.read(path), File.read(ps_logfile)
                 end
 
                 def register_process_server(name)
@@ -281,22 +281,22 @@ module Syskit
                     logfile
                 end
 
-                def wait_for_upload_completion(poll_period: 0.01, timeout: 1)
+                def wait_for_upload_completion(client, poll_period: 0.01, timeout: 1)
                     deadline = Time.now + timeout
                     loop do
                         if Time.now > deadline
                             flunk("timed out while waiting for upload completion")
                         end
 
-                        state = @client.log_upload_state
+                        state = client.log_upload_state
                         return state if state.pending_count == 0
 
                         sleep poll_period
                     end
                 end
 
-                def assert_upload_succeeds
-                    wait_for_upload_completion.each_result do |r|
+                def assert_upload_succeeds(client)
+                    wait_for_upload_completion(client).each_result do |r|
                         flunk("upload failed: #{r.message}") unless r.success?
                     end
                 end

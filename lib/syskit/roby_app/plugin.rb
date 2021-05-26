@@ -156,9 +156,15 @@ module Syskit
             end
 
             def setup_local_log_transfer_server
-                @tmp_root_ca = TmpRootCA.new(log_transfer_ip)
+                @log_transfer_user = "process server"
                 @log_transfer_password = SecureRandom.base64(15)
-                start_local_log_transfer_server(log_dir, @tmp_root_ca)
+
+                tmp_root_ca = TmpRootCA.new(log_transfer_ip)
+                @log_transfer_certificate = tmp_root_ca.certificate
+
+                start_local_log_transfer_server(log_dir, @log_transfer_user, @log_transfer_password, tmp_root_ca.private_certificate_path)
+
+                @log_transfer_port = @log_transfer_server.port
             end
 
             def send_file_transfer_command(name, logfile)
@@ -168,41 +174,33 @@ module Syskit
                 # Commands method log_upload_file from said process server
                 client.log_upload_file(
                     log_transfer_ip,
-                    log_transfer_port,
-                    log_transfer_certificate,
-                    log_transfer_user,
+                    @log_transfer_port,
+                    @log_transfer_certificate,
+                    @log_transfer_user,
                     @log_transfer_password,
                     logfile
                 )
                 client
             end
 
-            def log_transfer_port
-                @log_transfer_server.port
-            end
+            def start_local_log_transfer_server(tgt_dir, user, password, private_certificate_path)
+                if @log_transfer_server
+                    raise "log transfer server is already started"
+                end
 
-            def log_transfer_certificate
-                @tmp_root_ca.certificate
-            end
-
-            def log_transfer_user
-                "process server"
-            end
-
-            def start_local_log_transfer_server(tgt_dir, tmp_root_ca)
                 @log_transfer_server = Syskit::RobyApp::LogTransferServer::SpawnServer.new(
                     tgt_dir,
-                    log_transfer_user,
-                    @log_transfer_password,
-                    tmp_root_ca.private_certificate_path
+                    user,
+                    password,
+                    private_certificate_path
                 )
             end
 
             def stop_local_log_transfer_server
-                if @log_transfer_server && !@log_transfer_server.stopped?
+                if @log_transfer_server
                     @log_transfer_server&.stop
                     @log_transfer_server&.join
-                    @tmp_root_ca&.dispose
+                    @log_transfer_server = nil
                 end
             end
 

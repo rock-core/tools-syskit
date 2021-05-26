@@ -2,14 +2,6 @@
 
 require "English"
 
-module Ftpd
-    # Base class of Ftpd::FtpServer
-    # Used here to get the server_thread status
-    class Server
-        attr_reader :server_thread
-    end
-end
-
 module Syskit
     module RobyApp
         module LogTransferServer
@@ -61,10 +53,6 @@ module Syskit
 
                 def join
                     @server.join
-                end
-
-                def stopped?
-                    @server.server_thread.stop?
                 end
 
                 private
