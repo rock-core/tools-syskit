@@ -729,37 +729,6 @@ module Syskit
             end
         end
 
-        describe "runtime state tracking" do
-            attr_reader :orocos_task
-            before do
-                @orocos_task = Orocos.allow_blocking_calls do
-                    Orocos::RubyTasks::TaskContext.new "#{Process.pid}-test"
-                end
-                process.should_receive(:resolve_all_tasks)
-                       .and_return("mapped_task_name" => orocos_task)
-                expect_execution { deployment_task.start! }
-                    .to { emit deployment_task.ready_event }
-            end
-            after do
-                orocos_task.dispose
-            end
-
-            describe "current configuration" do
-                it "returns true if the configuration list differs" do
-                    deployment_task.update_current_configuration("mapped_task_name", nil, ["test"], Set.new)
-                    assert deployment_task.configuration_changed?("mapped_task_name", ["other"], Set.new)
-                end
-                it "returns true if the set of dynamic services differ" do
-                    deployment_task.update_current_configuration("mapped_task_name", nil, ["test"], Set[1])
-                    assert deployment_task.configuration_changed?("mapped_task_name", ["test"], Set[2])
-                end
-                it "returns false if both the configuration and the set of dynamic services are identical" do
-                    deployment_task.update_current_configuration("mapped_task_name", nil, ["test"], Set[1])
-                    refute deployment_task.configuration_changed?("mapped_task_name", ["test"], Set[1])
-                end
-            end
-        end
-
         describe "#mark_changed_configuration_as_non_reusable" do
             before do
                 @task_m = Syskit::TaskContext.new_submodel

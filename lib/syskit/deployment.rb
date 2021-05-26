@@ -499,7 +499,7 @@ module Syskit
                 state_reader, state_getter = create_state_access(remote_task, distance: distance_to_syskit)
                 properties = remote_task.property_names.map do |p_name|
                     p = remote_task.raw_property(p_name)
-                    [p, p.raw_read]
+                    [p, p.raw_read.freeze]
                 end
                 current_configuration = CurrentTaskConfiguration.new(nil, [], Set.new)
                 RemoteTaskHandles.new(remote_task, state_reader, state_getter, properties, false, current_configuration)
@@ -554,8 +554,14 @@ module Syskit
         # The currently applied configuration for the given task
         def configuration_changed?(orocos_name, conf, dynamic_services)
             current = remote_task_handles[orocos_name].current_configuration
-            current.conf != conf ||
-                current.dynamic_services != dynamic_services.to_set
+            return true if current.conf != conf
+
+            current_services = current.dynamic_services.group_by(&:name)
+            dynamic_services.each do |srv|
+                return true unless (current_srv = current_services.delete(srv.name))
+                return true unless current_srv.first.same_service?(srv)
+            end
+            false
         end
 
         # @api private
