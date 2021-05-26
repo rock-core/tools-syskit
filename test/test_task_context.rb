@@ -1622,7 +1622,6 @@ module Syskit
                 @double_t = double_t = stub_type "/double"
                 @task_m = RubyTaskContext.new_submodel do
                     property "test", double_t
-                    property "test_v", "/std/vector</double>"
                 end
                 @task = syskit_deploy(task_m.deployed_as(name, on: "stubs"))
             end
@@ -1643,7 +1642,11 @@ module Syskit
             end
 
             it "disassociates the default value from the property's" do
-                syskit_start_execution_agents(@task)
+                task_m = RubyTaskContext.new_submodel do
+                    property "test_v", "/std/vector</double>"
+                end
+                task = syskit_deploy(task_m.deployed_as(name, on: "stubs"))
+                syskit_start_execution_agents(task)
                 task.properties.test_v << 10
 
                 expect_execution { plan.make_useless(task) }
