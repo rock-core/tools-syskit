@@ -166,6 +166,10 @@ module Syskit
             end
 
             def send_file_transfer_command(name, logfile)
+                unless @log_transfer_server
+                    raise "log transfer server is not started"
+                end
+
                 # Establishes communication with said process server
                 client = Syskit.conf.process_server_for(name)
 

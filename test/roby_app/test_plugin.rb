@@ -219,7 +219,6 @@ module Syskit
                     @process_servers = []
                     register_process_server("test_ps")
                     app.log_transfer_ip = "127.0.0.1"
-                    app.setup_local_log_transfer_server
                 end
 
                 after do
@@ -227,7 +226,13 @@ module Syskit
                     app.log_transfer_ip = nil
                 end
 
+                it "raises if tries to spawn server when there is already a server running" do
+                    app.setup_local_log_transfer_server
+                    assert_raises(RuntimeError) { app.setup_local_log_transfer_server }
+                end
+
                 it "uploads file from Process Server" do
+                    app.setup_local_log_transfer_server
                     ps_logfile = create_test_file(@ps_log_dir)
                     path = File.join(app.log_dir, "logfile.log")
                     refute File.exist?(path)
@@ -236,8 +241,11 @@ module Syskit
                     assert_equal File.read(path), File.read(ps_logfile)
                 end
 
-                it "raises when tries to spawn server while there is already a server running" do
-                    assert_raises(RuntimeError) { app.setup_local_log_transfer_server }
+                it "raises if tries to upload when there is no server running" do
+                    ps_logfile = create_test_file(@ps_log_dir)
+                    path = File.join(app.log_dir, "logfile.log")
+                    refute File.exist?(path)
+                    assert_raises(RuntimeError) { app.send_file_transfer_command("test_ps", ps_logfile) }
                 end
 
                 def register_process_server(name)
