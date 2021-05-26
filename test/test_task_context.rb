@@ -833,9 +833,10 @@ module Syskit
             describe "without #update_properties" do
                 attr_reader :task_m
                 before do
-                    @task_m = RubyTaskContext.new_submodel(name: name.upcase) do
-                        property "config", "/double", 0
-                    end
+                    @task_m =
+                        RubyTaskContext.new_submodel(name: "#{class_name}##{name}") do
+                            property "config", "/double", 0
+                        end
                     flexmock(@task_m, use_update_properties?: false)
                 end
 
@@ -850,7 +851,7 @@ module Syskit
                         .should_receive(:clean_dynamic_port_connections)
                         .once.ordered.pass_thru
 
-                    messages = capture_log(task, :info) { syskit_configure(task) }
+                    messages = configure_task_with_capture(task)
                     assert_includes(
                         messages,
                         "reconfiguring #{task}: the task was in exception state"
@@ -860,7 +861,7 @@ module Syskit
                     task = deploy_task
                     syskit_start_execution_agents(task)
                     flexmock(task.orocos_task).should_receive(:cleanup).never
-                    messages = capture_log(task, :info) { syskit_configure(task) }
+                    messages = configure_task_with_capture(task)
                     assert_includes messages, "setting up #{task}"
                 end
                 it "does not reconfigure a task whose configuration has not changed" do
@@ -869,7 +870,7 @@ module Syskit
                     task = deploy_task
                     task.orocos_task.should_receive(:cleanup).never
                     task.should_receive(:clean_dynamic_port_connections).never
-                    messages = capture_log(task, :info) { syskit_configure(task) }
+                    messages = configure_task_with_capture(task)
                     assert_includes(
                         messages,
                         "not reconfiguring #{task}: the task is already configured "\
@@ -889,8 +890,8 @@ module Syskit
 
                     task = deploy_task
                     task.orocos_task.should_receive(:cleanup).once.pass_thru
-                    messages = capture_log(task, :info) { syskit_configure(task) }
-                    assert_includes(messages, "cleaning up #{task}")
+                    messages = configure_task_with_capture(task)
+                    assert_includes messages, "cleaning up #{task}"
                 end
                 it "reconfigures a task whose properties need to be updated" do
                     warmup_to_configure
@@ -898,7 +899,7 @@ module Syskit
                     task = deploy_task
                     task.orocos_task.should_receive(:cleanup).once.pass_thru
                     Orocos.allow_blocking_calls { task.orocos_task.config = 10 }
-                    messages = capture_log(task, :info) { syskit_configure(task) }
+                    messages = configure_task_with_capture(task)
                     assert_includes messages, "cleaning up #{task}"
                 end
                 it "reconfigures a task which is explicitly marked as needing to" do
@@ -906,7 +907,7 @@ module Syskit
 
                     task = deploy_task
                     task.needs_reconfiguration!
-                    messages = capture_log(task, :info) { syskit_configure(task) }
+                    messages = configure_task_with_capture(task)
                     assert_includes messages, "cleaning up #{task}"
                 end
                 it "reconfigures a task which was previously explicitly "\
@@ -914,7 +915,7 @@ module Syskit
                     warmup_to_configure(&:needs_reconfiguration!)
 
                     task = deploy_task
-                    messages = capture_log(task, :info) { syskit_configure(task) }
+                    messages = configure_task_with_capture(task)
                     assert_includes messages, "cleaning up #{task}"
                 end
                 it "reconfigures if the state is STOPPED but the task "\
@@ -925,7 +926,7 @@ module Syskit
 
                     flexmock(task.orocos_task).should_receive(:cleanup).once.ordered
                     task.should_receive(:clean_dynamic_port_connections).once.ordered
-                    capture_log(task, :info) { syskit_configure(task) }
+                    configure_task_with_capture(task)
                 end
                 it "reconfigures if the selected configuration changed" do
                     syskit_stub_conf(@task_m, "test")
@@ -933,7 +934,7 @@ module Syskit
 
                     task = deploy_task(conf: %w[default test])
                     task.orocos_task.should_receive(:cleanup).once
-                    capture_log(task, :info) { syskit_configure(task) }
+                    configure_task_with_capture(task)
                 end
                 it "reconfigures if the properties have been changed" do
                     warmup_to_configure
@@ -945,7 +946,14 @@ module Syskit
                     end
 
                     task.orocos_task.should_receive(:cleanup).once.ordered
-                    capture_log(task, :info) { syskit_configure(task) }
+                    configure_task_with_capture(task)
+                end
+
+                def configure_task_with_capture(task)
+                    capture_log(task, :info) do
+                        # Capture deprecation warnings
+                        capture_log(task, :warn) { syskit_configure(task) }
+                    end
                 end
             end
 
@@ -1223,14 +1231,14 @@ module Syskit
 
             def warmup_to_configure
                 warmup do |task|
-                    syskit_configure(task)
+                    capture_log(task, :warn) { syskit_configure(task) }
                     yield(task) if block_given?
                 end
             end
 
             def warmup_to_exception
                 warmup do |task|
-                    syskit_configure_and_start(task)
+                    capture_log(task, :warn) { syskit_configure_and_start(task) }
                     Orocos.allow_blocking_calls { task.orocos_task.exception }
                     expect_execution.to { emit task.stop_event }
                 end

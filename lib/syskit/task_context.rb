@@ -710,7 +710,17 @@ module Syskit
                     syskit_p.update_remote_value(remote_value)
                 end
 
-                update_properties if model.use_update_properties?
+                if model.use_update_properties?
+                    freeze_delayed_arguments
+                    update_properties
+                else
+                    warn "#{model.concrete_model} does not define "\
+                         "the #update_properties method, but does define"
+                    warn "#configure. It will be needlessly reconfigured when "\
+                         "stopped."
+                    warn "See https://www.rock-robotics.org/rock-and-syskit/"\
+                         "deprecations/update_properties.html"
+                end
 
                 needs_reconfiguration = needs_reconfiguration? ||
                     execution_agent.configuration_changed?(
