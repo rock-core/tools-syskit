@@ -163,8 +163,6 @@ module Syskit
                 @log_transfer_certificate = tmp_root_ca.certificate
 
                 start_local_log_transfer_server(log_dir, @log_transfer_user, @log_transfer_password, tmp_root_ca.private_certificate_path)
-
-                @log_transfer_port = @log_transfer_server.port
             end
 
             def send_file_transfer_command(name, logfile)
@@ -174,7 +172,7 @@ module Syskit
                 # Commands method log_upload_file from said process server
                 client.log_upload_file(
                     log_transfer_ip,
-                    @log_transfer_port,
+                    @log_transfer_server.port,
                     @log_transfer_certificate,
                     @log_transfer_user,
                     @log_transfer_password,
@@ -198,8 +196,8 @@ module Syskit
 
             def stop_local_log_transfer_server
                 if @log_transfer_server
-                    @log_transfer_server&.stop
-                    @log_transfer_server&.join
+                    @log_transfer_server.stop
+                    @log_transfer_server.join
                     @log_transfer_server = nil
                 end
             end
