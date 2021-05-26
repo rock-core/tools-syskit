@@ -600,17 +600,22 @@ describe Syskit::Models::TaskContext do
 
         it "returns false if the submodel defines #configure" do
             task_m = Syskit::TaskContext.new_submodel
-            task_m.class_eval do
-                def configure; end
-            end
+            task_m.class_eval { def configure; end }
+            refute task_m.use_update_properties?
+        end
+
+        it "ignores an update_properties methods defined by a module injected in "\
+           "the hierarchy" do
+            task_m = Syskit::TaskContext.new_submodel
+            task_m.class_eval { def configure; end }
+            mod = Module.new { def update_properties; end }
+            task_m.prepend mod
             refute task_m.use_update_properties?
         end
 
         it "returns true if the submodel defines #update_properties" do
             task_m = Syskit::TaskContext.new_submodel
-            task_m.class_eval do
-                def update_properties; end
-            end
+            task_m.class_eval { def update_properties; end }
             assert task_m.use_update_properties?
         end
 

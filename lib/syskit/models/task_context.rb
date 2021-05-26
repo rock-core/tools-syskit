@@ -148,9 +148,18 @@ module Syskit
             def compute_use_update_properties
                 return true if Roby.app.syskit_use_update_properties?
 
-                update_properties = instance_method(:update_properties)
-                return true if update_properties.owner != Syskit::TaskContext
+                # Find where is update_properties defined, exclusing modules
+                # Modules are assumed to be "behind-the-scene" extensions, such
+                # as plugins, that should not affect the decision
+                this = self
+                until this.method_defined?(:update_properties, false)
+                    this = this.superclass
+                end
+                return true if this != Syskit::TaskContext
 
+                # For configure, we use the old behavior as soon as we find
+                # a configure, even if a plugin might have defined. It's
+                # the conservative thing to do
                 configure = instance_method(:configure)
                 return true if configure.owner == Syskit::TaskContext
 
