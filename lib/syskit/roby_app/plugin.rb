@@ -158,11 +158,9 @@ module Syskit
             def setup_local_log_transfer_server
                 @log_transfer_user = "process server"
                 @log_transfer_password = SecureRandom.base64(15)
+                @tmp_root_ca = TmpRootCA.new(log_transfer_ip)
 
-                tmp_root_ca = TmpRootCA.new(log_transfer_ip)
-                @log_transfer_certificate = tmp_root_ca.certificate
-
-                start_local_log_transfer_server(log_dir, @log_transfer_user, @log_transfer_password, tmp_root_ca.private_certificate_path)
+                start_local_log_transfer_server(log_dir, @log_transfer_user, @log_transfer_password, @tmp_root_ca.private_certificate_path)
             end
 
             def send_file_transfer_command(name, logfile)
@@ -177,7 +175,7 @@ module Syskit
                 client.log_upload_file(
                     log_transfer_ip,
                     @log_transfer_server.port,
-                    @log_transfer_certificate,
+                    @tmp_root_ca.certificate,
                     @log_transfer_user,
                     @log_transfer_password,
                     logfile
@@ -204,6 +202,7 @@ module Syskit
                     @log_transfer_server.join
                     @log_transfer_server = nil
                 end
+                @tmp_root_ca&.dispose
             end
 
             # Hook called by the main application in Application#setup after
