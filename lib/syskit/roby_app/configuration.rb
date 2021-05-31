@@ -471,9 +471,9 @@ module Syskit
             def connect_to_orocos_process_server(
                 name, host, port: Syskit::RobyApp::RemoteProcesses::DEFAULT_PORT,
                 log_dir: nil, result_dir: nil, host_id: nil,
-                name_service: Orocos.name_service
+                name_service: Orocos.name_service,
+                model_only_server: only_load_models? || (app.simulation? && app.single?)
             )
-
                 if log_dir || result_dir
                     Syskit.warn(
                         "specifying log and/or result dir for remote process servers "\
@@ -483,7 +483,7 @@ module Syskit
                     )
                 end
 
-                if only_load_models? || (app.simulation? && app.single?)
+                if model_only_server
                     client = ModelOnlyServer.new(app.default_loader)
                     register_process_server(
                         name, client, app.log_dir, host_id: host_id || "syskit"

@@ -1,5 +1,7 @@
 # frozen_string_literal: true
 
+require "syskit/roby_app/tmp_root_ca"
+
 class Module
     def backward_compatible_constant(old_name, new_constant, file)
         msg = "  #{name}::#{old_name} has been renamed to #{new_constant} and is now in #{file}"
@@ -34,6 +36,7 @@ module Syskit
         #   a shell user
         module Plugin
             attr_writer :syskit_use_update_properties
+            attr_accessor :log_transfer_ip
 
             # Assume all component models have been migrated to use update_properties
             #
@@ -155,6 +158,59 @@ module Syskit
 
                 rtt_core_model = app.default_loader.task_model_from_name("RTT::TaskContext")
                 Syskit::TaskContext.define_from_orogen(rtt_core_model, register: true)
+
+                # Log Transfer FTP Server spawned during Application#setup
+                app.setup_local_log_transfer_server if app.log_transfer_ip
+            end
+
+            def setup_local_log_transfer_server
+                @log_transfer_user = "process server"
+                @log_transfer_password = SecureRandom.base64(15)
+                @tmp_root_ca = TmpRootCA.new(log_transfer_ip)
+
+                start_local_log_transfer_server(log_dir, @log_transfer_user, @log_transfer_password, @tmp_root_ca.private_certificate_path)
+            end
+
+            def send_file_transfer_command(name, logfile)
+                unless @log_transfer_server
+                    raise "log transfer server is not started"
+                end
+
+                # Establishes communication with said process server
+                client = Syskit.conf.process_server_for(name)
+
+                # Commands method log_upload_file from said process server
+                client.log_upload_file(
+                    log_transfer_ip,
+                    @log_transfer_server.port,
+                    @tmp_root_ca.certificate,
+                    @log_transfer_user,
+                    @log_transfer_password,
+                    logfile
+                )
+                client
+            end
+
+            def start_local_log_transfer_server(tgt_dir, user, password, private_certificate_path)
+                if @log_transfer_server
+                    raise "log transfer server is already started"
+                end
+
+                @log_transfer_server = Syskit::RobyApp::LogTransferServer::SpawnServer.new(
+                    tgt_dir,
+                    user,
+                    password,
+                    private_certificate_path
+                )
+            end
+
+            def stop_local_log_transfer_server
+                if @log_transfer_server
+                    @log_transfer_server.stop
+                    @log_transfer_server.join
+                    @log_transfer_server = nil
+                end
+                @tmp_root_ca&.dispose
             end
 
             # Hook called by the main application in Application#setup after
@@ -188,6 +244,7 @@ module Syskit
 
                 disconnect_all_process_servers
                 stop_local_process_server
+                app.stop_local_log_transfer_server
             end
 
             # Hook called by the main application to prepare for execution

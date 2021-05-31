@@ -24,7 +24,6 @@ module Syskit
                     debug: false,
                     verbose: false
                 )
-
                     @debug = debug
                     driver = Driver.new(user, password, tgt_dir)
                     server = Ftpd::FtpServer.new(driver)
