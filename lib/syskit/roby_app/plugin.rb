@@ -35,7 +35,15 @@ module Syskit
         #   loaded models. In addition, a text notification is sent to inform
         #   a shell user
         module Plugin
+            attr_writer :syskit_use_update_properties
             attr_accessor :log_transfer_ip
+
+            # Assume all component models have been migrated to use update_properties
+            #
+            # See https://www.rock-robotics.org/rock-and-syskit/deprecations/update_properties.html
+            def syskit_use_update_properties?
+                @syskit_use_update_properties
+            end
 
             # Hook called by the main application in Application#load_base_config
             def self.load_base_config(app)

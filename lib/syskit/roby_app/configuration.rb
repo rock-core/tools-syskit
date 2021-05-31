@@ -404,7 +404,9 @@ module Syskit
                 config
             end
 
-            # Returns the process server object named +name+
+            # @deprecated use process_server_config_for(name).client instead
+            #
+            # Returns the process server client for the process server named +name+
             #
             # @param (see #process_server_config_for)
             # @raise (see #process_server_config_for)

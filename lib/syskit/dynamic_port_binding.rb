@@ -297,6 +297,13 @@ module Syskit
             def update
                 port = @matcher.each_in_plan(@plan).first
                 port&.to_actual_port
+                # Whenever a replacement happens, or before we have deployed a
+                # task, the ports won't be resolvable because children are not
+                # there yet
+                #
+                # Ignore the port when it happens. This is consistent with the
+                # data reader's purpose
+            rescue Roby::NoSuchChild # rubocop:disable Lint/SuppressedException
             end
 
             def self.instanciate(task, model)

@@ -130,6 +130,45 @@ module Syskit
             # enters a new state.
             inherited_attribute(:state_event, :state_events, map: true) { {} }
 
+            # Determine whether this component's configuration should use the
+            # {#update_properties} mechanism
+            #
+            # @see https://www.rock-robotics.org/rock-and-syskit/deprecations/update_properties.html
+            def use_update_properties?
+                return @use_update_properties unless @use_update_properties.nil?
+
+                @use_update_properties = compute_use_update_properties
+            end
+
+            # @api private
+            #
+            # Compute {#use_update_properties?}
+            #
+            # The actual method is memoizing the result
+            def compute_use_update_properties
+                return true if Roby.app.syskit_use_update_properties?
+
+                # Find where is update_properties defined, exclusing modules
+                # Modules are assumed to be "behind-the-scene" extensions, such
+                # as plugins, that should not affect the decision
+                #
+                # TODO: use method_defined?(name, false) when we drop support
+                # TODO: for 2.5
+                this = self
+                until this.instance_methods(false).include?(:update_properties)
+                    this = this.superclass
+                end
+                return true if this != Syskit::TaskContext
+
+                # For configure, we use the old behavior as soon as we find
+                # a configure, even if a plugin might have defined. It's
+                # the conservative thing to do
+                configure = instance_method(:configure)
+                return true if configure.owner == Syskit::TaskContext
+
+                false
+            end
+
             # Create a new TaskContext model
             #
             # @option options [String] name (nil) forcefully set a name for the model.
@@ -210,7 +249,7 @@ module Syskit
 
             def to_deployment_group(name, **options)
                 group = Models::DeploymentGroup.new
-                group.use_deployment(self => name, **options)
+                group.use_deployment(concrete_model => name, **options)
                 group
             end
 
