@@ -47,7 +47,9 @@ module Syskit
                     orocos_reader = ExecutionExpectations.resolve_orocos_reader(reader)
                     block = proc do
                         sample = orocos_reader.read_new
-                        if sample && (!@predicate || @predicate.call(sample))
+                        if sample.nil?
+                            true
+                        elsif !@predicate || @predicate.call(sample)
                             @received_sample = sample
                             false
                         else
@@ -114,11 +116,12 @@ module Syskit
                     )
 
                     block = proc do
-                        if (sample = orocos_reader.read_new)
-                            if !@predicate || @predicate.call(sample)
-                                @received_samples << sample
-                                @received_samples.size == count
-                            end
+                        sample = orocos_reader.read_new
+                        if sample.nil?
+                            false
+                        elsif !@predicate || @predicate.call(sample)
+                            @received_samples << sample
+                            @received_samples.size == count
                         end
                     end
                     description = proc do
