@@ -76,6 +76,9 @@ module Syskit
             # @return [Models::DeploymentGroup]
             attr_reader :deployment_group
 
+            # Period in seconds for triggering log rotation and transfer
+            attr_accessor :log_rotation_period
+
             # Controls whether the orogen types should be exported as Ruby
             # constants
             #

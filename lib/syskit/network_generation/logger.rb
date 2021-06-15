@@ -82,6 +82,18 @@ module Syskit
                 end
             end
 
+            @@logfile_indexes = {}
+
+            def self.default_log_file_name(name)
+                name[/.*(?=_[L|l]ogger)/] || name
+            end
+
+            def self.setup_default_logger(logger, log_file_name: default_log_file_name(logger.orocos_name))
+                index = (@@logfile_indexes[log_file_name] ||= -1) + 1
+                @@logfile_indexes[log_file_name] = index
+                logger.properties.file = "#{log_file_name}.#{index}.log"
+            end
+
             def self.logger_dynamic_port
                 if @logger_dynamic_port
                     return @logger_dynamic_port

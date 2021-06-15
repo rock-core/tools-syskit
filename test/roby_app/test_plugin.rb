@@ -287,7 +287,6 @@ module Syskit
                 def create_test_file(ps_log_dir)
                     logfile = File.join(ps_log_dir, "logfile.log")
                     File.open(logfile, "wb") do |f|
-                        # create random 5 MB file
                         f.write(SecureRandom.random_bytes(547))
                     end
                     logfile
@@ -311,6 +310,43 @@ module Syskit
                     wait_for_upload_completion(client).each_result do |r|
                         flunk("upload failed: #{r.message}") unless r.success?
                     end
+                end
+            end
+
+            describe "Log Rotation" do
+                before do
+                    Syskit.conf.log_rotation_period = nil
+                    @app = Roby::Application.new(plan: plan)
+
+                    task_m = Syskit::TaskContext.new_submodel
+                    task_m.provides Syskit::LoggerService
+                    @task = syskit_stub_deploy_configure_and_start(task_m)
+
+                    @logfile = []
+                    2.times { @logfile << create_test_file(make_tmpdir) }
+
+                    @rotated_logs = {}
+                    flexmock(@task).should_receive(:rotate_log)
+                                  .explicitly.and_return(@logfile)
+                    @app.rotate_logs(@rotated_logs)
+                end
+
+                it "rotates log" do
+                    assert_equal @rotated_logs[@task.execution_agent.arguments[:on]], @logfile
+                end
+
+                it "verifies single process error in remote process server" do
+                    @rotated_logs.each do |key, value|
+                        assert(value.length() > 1, "identified single process per process server")
+                    end
+                end
+
+                def create_test_file(ps_log_dir)
+                    logfile = File.join(ps_log_dir, "logfile.log")
+                    File.open(logfile, "wb") do |f|
+                        f.write(SecureRandom.random_bytes(547))
+                    end
+                    logfile
                 end
             end
         end

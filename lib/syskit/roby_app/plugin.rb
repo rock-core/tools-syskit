@@ -251,6 +251,18 @@ module Syskit
             # Hook called by the main application to prepare for execution
             def self.prepare(app)
                 @handler_ids = plug_engine_in_roby(app.execution_engine)
+
+                @log_upload_command_queue = Queue.new
+                @log_upload_thread = Thread.new { 
+                    app.log_upload_main(@log_upload_command_queue)
+                }
+                @rotated_logs = {}
+
+                if Syskit.conf.log_rotation_period
+                    app.execution_engine.every(Syskit.conf.log_rotation_period) do
+                        app.rotate_logs(@rotated_logs)
+                    end
+                end
             end
 
             # Hook called by the main application to undo what {.prepare} did
@@ -265,6 +277,9 @@ module Syskit
                     unplug_engine_from_roby(@handler_ids.values, app.execution_engine)
                     @handler_ids = nil
                 end
+
+                @log_upload_command_queue << nil
+                @log_upload_thread.join
             end
 
             def default_loader
@@ -949,6 +964,51 @@ module Syskit
             def self.setup_rest_interface(app, rest_api)
                 require "syskit/roby_app/rest_api"
                 rest_api.mount REST_API => "/syskit"
+            end
+
+            def get_running_agents(syskit_task)
+                agents = []
+                plan.find_tasks(syskit_task).running.each do |task|
+                    agents << task.execution_agent.arguments[:on]
+                end
+                agents&=agents
+                agents
+            end
+
+            def rotate_logs(rotated_logs)
+                agents = get_running_agents(Syskit::LoggerService)
+                for agent in agents
+                    agent_logs = []
+                    plan.find_tasks(Syskit::LoggerService).running.each do |task|
+                        if task.execution_agent.arguments[:on] == agent
+                            task.rotate_log.each {|logfile| agent_logs << logfile}
+                        end
+                    end
+                    rotated_logs[agent] = agent_logs
+                end
+            end
+
+            def upload_rotated_logs(log_upload_command_queue, rotated_logs)
+                rotated_logs.each do |process_server_name, log_file_name|
+                    process_server = Syskit.conf.process_servers[process_server_name]
+                    if !process_server.in_process? && !process_server.on_localhost?
+                        log_upload_command_queue << Upload.new(process_server_name, log_file_name)
+                    end
+                end
+            end
+
+            def log_upload_main(log_upload_command_queue)
+                while (transfer = log_upload_command_queue.pop)
+                    transfer.apply
+                end
+            end
+
+            Upload = Struct.new(
+                :process_server_name, :file
+            ) do
+                def apply
+                    send_file_transfer_command(process_server_name, file)
+                end
             end
         end
     end

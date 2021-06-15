@@ -1,7 +1,7 @@
 # frozen_string_literal: true
 
 require "syskit/test/self"
-require "./test/fixtures/simple_composition_model"
+#require "./test/fixtures/simple_composition_model"
 
 describe Syskit::NetworkGeneration::LoggerConfigurationSupport do
     attr_reader :syskit_engine
@@ -260,6 +260,28 @@ describe Syskit::NetworkGeneration::LoggerConfigurationSupport do
                 logger.orocos_task.create_input_port "task.state", "/int32_t"
                 syskit_configure(logger)
             end
+        end
+    end
+
+    describe "#setup_default_logger" do
+        it "increments index in log file name at each call" do
+            logger = deployment.task "deployment_Logger"
+
+            assert_nil(logger.properties.file)
+
+            Syskit::NetworkGeneration::LoggerConfigurationSupport.setup_default_logger(logger)
+
+            assert_equal(
+                "deployment.0.log",
+                logger.properties.file
+            )
+
+            Syskit::NetworkGeneration::LoggerConfigurationSupport.setup_default_logger(logger)
+
+            assert_equal(
+                "deployment.1.log",
+                logger.properties.file
+            )
         end
     end
 end

@@ -65,6 +65,7 @@ require "syskit/remote_state_getter"
 require "syskit/deployment"
 require "syskit/bound_data_service"
 require "syskit/dynamic_port_binding"
+require "syskit/logger_service"
 
 # Queries
 require "syskit/queries/abstract_component_base"
