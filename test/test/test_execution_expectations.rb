@@ -70,6 +70,17 @@ module Syskit
                     end
                     assert_equal ["bla"], expectation.backtrace
                 end
+                it "passes for sample that is 'false'" do
+                    task_m = Syskit::RubyTaskContext.new_submodel do
+                        output_port "out", "/bool"
+                    end
+                    use_ruby_tasks task_m => "testbool", on: "stubs"
+                    @task = syskit_deploy_configure_and_start(task_m)
+
+                    value = expect_execution { syskit_write task.out_port, false }
+                            .to { have_one_new_sample task.out_port }
+                    assert_equal false, value
+                end
             end
 
             describe "#have_one_new_sample.matching" do
@@ -89,6 +100,18 @@ module Syskit
                                      .matching { |i| i == 10 }
                              end
                     assert_equal 10, sample
+                end
+                it "allows tuning the reading buffer size" do
+                    default_size =
+                        ExecutionExpectations::HaveNewSamples::DEFAULT_BUFFER_SIZE
+                    samples = (0...(default_size + 1)).to_a
+                    expect_execution { syskit_write task.out_port, *samples }
+                        .to do
+                            have_one_new_sample(
+                                task.out_port,
+                                buffer_size: default_size + 1
+                            ).matching { |v| v >= default_size }
+                        end
                 end
                 it "accepts a data reader as input and uses its policy" do
                     reader = task.out_port.reader(type: :buffer, size: 10)
@@ -184,6 +207,18 @@ module Syskit
                     end
                     assert_equal ["bla"], expectation.backtrace
                 end
+                it "passes for samples that are 'false'" do
+                    task_m = Syskit::RubyTaskContext.new_submodel do
+                        output_port "out", "/bool"
+                    end
+                    use_ruby_tasks task_m => "testbool", on: "stubs"
+                    @task = syskit_deploy_configure_and_start(task_m)
+
+                    value =
+                        expect_execution { syskit_write task.out_port, *([false] * 5) }
+                        .to { have_new_samples task.out_port, 5 }
+                    assert_equal [false] * 5, value
+                end
             end
 
             describe "#have_new_samples.matching" do
@@ -202,6 +237,18 @@ module Syskit
                     value = expect_execution { syskit_write task.out_port, 1, 2, 3 }
                             .to { have_new_samples(reader, 1).matching(&:odd?) }
                     assert_equal [3], value
+                end
+                it "allows tuning the reading buffer size" do
+                    default_size =
+                        ExecutionExpectations::HaveNewSamples::DEFAULT_BUFFER_SIZE
+                    samples = (0...(default_size + 5)).to_a
+                    expect_execution { syskit_write task.out_port, *samples }
+                        .to do
+                            have_new_samples(
+                                task.out_port,
+                                5, buffer_size: default_size + 5
+                            ).matching { |v| v >= default_size }
+                        end
                 end
                 it "fails if the task does not emit enough matching samples" do
                     e = assert_raises(Roby::Test::ExecutionExpectations::Unmet) do
@@ -236,6 +283,18 @@ module Syskit
                         end
                     end
                     assert_equal ["bla"], expectation.backtrace
+                end
+                it "passes for samples that are 'false'" do
+                    task_m = Syskit::RubyTaskContext.new_submodel do
+                        output_port "out", "/bool"
+                    end
+                    use_ruby_tasks task_m => "testbool", on: "stubs"
+                    @task = syskit_deploy_configure_and_start(task_m)
+
+                    flipflop = [true, false, true, false, true]
+                    value = expect_execution { syskit_write task.out_port, *flipflop }
+                            .to { have_new_samples(task.out_port, 2).matching(&:!) }
+                    assert_equal [false] * 2, value
                 end
             end
 
@@ -280,6 +339,18 @@ module Syskit
                     end
                     assert_equal ["bla"], expectation.backtrace
                 end
+                it "fails if receiving 'false'" do
+                    task_m = Syskit::RubyTaskContext.new_submodel do
+                        output_port "out", "/bool"
+                    end
+                    use_ruby_tasks task_m => "testbool", on: "stubs"
+                    @task = syskit_deploy_configure_and_start(task_m)
+
+                    assert_raises(Roby::Test::ExecutionExpectations::Unmet) do
+                        expect_execution { syskit_write task.out_port, false }
+                            .to { have_no_new_sample task.out_port }
+                    end
+                end
             end
 
             describe "#have_no_new_sample.matching" do
@@ -293,6 +364,20 @@ module Syskit
                     expect_execution { syskit_write task.in_port, 10 }
                         .timeout(0.01)
                         .to { have_no_new_sample(task.in_port).matching { |s| s != 10 } }
+                end
+                it "allows tuning the reading buffer size" do
+                    default_size =
+                        ExecutionExpectations::HaveNoNewSample::DEFAULT_BUFFER_SIZE
+                    samples = (0...(default_size + 1)).to_a
+                    assert_raises(Roby::Test::ExecutionExpectations::Unmet) do
+                        expect_execution { syskit_write task.out_port, *samples }
+                            .to do
+                                have_no_new_sample(
+                                    task.out_port,
+                                    buffer_size: default_size + 1
+                                ).matching { |v| v >= default_size }
+                            end
+                    end
                 end
                 it "fails if the task emits a sample that matches the predicate" do
                     e = assert_raises(Roby::Test::ExecutionExpectations::Unmet) do
@@ -334,6 +419,19 @@ module Syskit
                             end
                     end
                     assert_equal ["bla"], expectation.backtrace
+                end
+                it "handles 'false' samples well" do
+                    task_m = Syskit::RubyTaskContext.new_submodel do
+                        output_port "out", "/bool"
+                    end
+                    use_ruby_tasks task_m => "testbool", on: "stubs"
+                    @task = syskit_deploy_configure_and_start(task_m)
+
+                    flipflop = [true, false, true, false, true]
+                    assert_raises(Roby::Test::ExecutionExpectations::Unmet) do
+                        expect_execution { syskit_write task.out_port, *flipflop }
+                            .to { have_no_new_sample(task.out_port).matching(&:!) }
+                    end
                 end
             end
         end
