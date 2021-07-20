@@ -987,20 +987,29 @@ module Syskit
             kill_execution_agent_if_alone
         end
 
+        # @api private
+        #
+        # Kill this task's execution agent if self is the only non-utility task
+        # it currently supports
+        #
+        # "Utility" tasks are tasks that are there in support of the overall
+        # Syskit system, such as e.g. loggers
+        #
+        # @return [Boolean] true if the agent is either already finished, finalized
+        #   or if the method stopped it. false if the agent is present and running
+        #   and the task could not terminate it
         def kill_execution_agent_if_alone
-            if execution_agent
-                not_loggers = execution_agent
-                              .each_executed_task
-                              .find_all { |t| !Roby.app.syskit_utility_component?(t) }
-                if not_loggers.size == 1
-                    plan.unmark_permanent_task(execution_agent)
-                    if execution_agent.running?
-                        execution_agent.stop!
-                        return true
-                    end
-                end
-            end
-            false
+            return true unless execution_agent
+
+            not_loggers =
+                execution_agent
+                .each_executed_task
+                .find_all { |t| !Roby.app.syskit_utility_component?(t) }
+            return false unless not_loggers.size == 1
+
+            plan.unmark_permanent_task(execution_agent)
+            execution_agent.stop! if execution_agent.running?
+            true
         end
 
         event :aborted, terminal: true do |_context|

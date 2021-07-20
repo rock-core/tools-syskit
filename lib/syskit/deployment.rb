@@ -187,15 +187,12 @@ module Syskit
             base_syskit_task_model = deployed_model_by_orogen_model(
                 orogen_task_deployment_model
             )
-            if syskit_task_model
-                unless syskit_task_model <= base_syskit_task_model
-                    raise ArgumentError,
-                          "incompatible explicit selection of task model "\
-                          "#{syskit_task_model} for the model of #{mapped_name} "\
-                          " in #{self}"
-                end
-            else
-                syskit_task_model = base_syskit_task_model
+            syskit_task_model ||= base_syskit_task_model
+            unless syskit_task_model <= base_syskit_task_model
+                raise ArgumentError,
+                      "incompatible explicit selection of task model "\
+                      "#{syskit_task_model} for the model of #{mapped_name} "\
+                      " in #{self}"
             end
 
             plan.add(task = syskit_task_model.new(orocos_name: mapped_name))

@@ -46,7 +46,9 @@ module Syskit
                 Roby.app.app_dir = nil
                 Roby.app.search_path.clear
                 Roby.app.filter_backtraces = false
-                ENV["ROBY_PLUGIN_PATH"] = File.expand_path(File.join(File.dirname(__FILE__), "..", "roby_app", "register_plugin.rb"))
+                ENV["ROBY_PLUGIN_PATH"] = File.expand_path(
+                    File.join(__dir__, "..", "roby_app", "register_plugin.rb")
+                )
                 Roby.app.using "syskit", force: true
                 Syskit.conf.export_types = false
                 Syskit.conf.disables_local_process_server = true
@@ -58,18 +60,21 @@ module Syskit
                 unless Orocos.initialized?
                     Orocos.allow_blocking_calls { Orocos.initialize }
                 end
-                execution_engine.scheduler = Roby::Schedulers::Temporal.new(true, true, plan)
+                execution_engine.scheduler =
+                    Roby::Schedulers::Temporal.new(true, true, plan)
                 execution_engine.scheduler.enabled = false
 
                 @robot = Syskit::Robot::RobotDefinition.new
 
                 @syskit_handler_ids = {}
-                @syskit_handler_ids[:deployment_states] = execution_engine
-                                                          .add_propagation_handler(type: :external_events,
-                                                                                   &Runtime.method(:update_deployment_states))
-                @syskit_handler_ids[:task_states] = execution_engine
-                                                    .add_propagation_handler(type: :external_events,
-                                                                             &Runtime.method(:update_task_states))
+                @syskit_handler_ids[:deployment_states] =
+                    execution_engine.add_propagation_handler(
+                        type: :external_events, &Runtime.method(:update_deployment_states)
+                    )
+                @syskit_handler_ids[:task_states] =
+                    execution_engine.add_propagation_handler(
+                        type: :external_events, &Runtime.method(:update_task_states)
+                    )
                 plug_connection_management
                 unplug_apply_requirement_modifications
 
@@ -78,34 +83,45 @@ module Syskit
                 end
 
                 Syskit.conf.register_process_server(
-                    "stubs", Orocos::RubyTasks::ProcessManager.new(
-                                 Roby.app.default_loader,
-                                 task_context_class: Orocos::RubyTasks::StubTaskContext
-                             ), "", host_id: "syskit"
+                    "stubs",
+                    Orocos::RubyTasks::ProcessManager.new(
+                        Roby.app.default_loader,
+                        task_context_class: Orocos::RubyTasks::StubTaskContext
+                    ), "", host_id: "syskit"
                 )
-                Syskit.conf.logs.create_configuration_log(File.join(app.log_dir, "properties"))
+                Syskit.conf.logs.create_configuration_log(
+                    File.join(app.log_dir, "properties")
+                )
 
                 Orocos.forbid_blocking_calls
             end
 
             def plug_apply_requirement_modifications
-                @syskit_handler_ids[:apply_requirement_modifications] ||= execution_engine
-                                                                          .add_propagation_handler(type: :propagation, late: true,
-                                                                                                   &Runtime.method(:apply_requirement_modifications))
+                @syskit_handler_ids[:apply_requirement_modifications] ||=
+                    execution_engine.add_propagation_handler(
+                        type: :propagation, late: true,
+                        &Runtime.method(:apply_requirement_modifications)
+                    )
             end
 
             def unplug_apply_requirement_modifications
-                execution_engine.remove_propagation_handler(@syskit_handler_ids.delete(:apply_requirement_modifications))
+                execution_engine.remove_propagation_handler(
+                    @syskit_handler_ids.delete(:apply_requirement_modifications)
+                )
             end
 
             def plug_connection_management
-                @syskit_handler_ids[:connection_management] ||= execution_engine
-                                                                .add_propagation_handler(type: :propagation, late: true,
-                                                                                         &Runtime::ConnectionManagement.method(:update))
+                @syskit_handler_ids[:connection_management] ||=
+                    execution_engine.add_propagation_handler(
+                        type: :propagation, late: true,
+                        &Runtime::ConnectionManagement.method(:update)
+                    )
             end
 
             def unplug_connection_management
-                execution_engine.remove_propagation_handler(@syskit_handler_ids.delete(:connection_management))
+                execution_engine.remove_propagation_handler(
+                    @syskit_handler_ids.delete(:connection_management)
+                )
             end
 
             def teardown
@@ -116,7 +132,9 @@ module Syskit
                 super
             ensure
                 if @syskit_handler_ids && execution_engine
-                    Syskit::RobyApp::Plugin.unplug_engine_from_roby(@syskit_handler_ids.values, execution_engine)
+                    Syskit::RobyApp::Plugin.unplug_engine_from_roby(
+                        @syskit_handler_ids.values, execution_engine
+                    )
                 end
             end
 
@@ -130,36 +148,35 @@ module Syskit
                     end
                 end
                 expected = Syskit::Models::Placeholder.for(proxied_models)
-                if srv
-                    expected = srv.attach(expected)
-                end
-                assert_equal expected, result, "#{result} was expected to be a proxy model for #{models} (#{expected})"
+                expected = srv.attach(expected) if srv
+                assert_equal(
+                    expected, result, "#{result} was expected to be a proxy model for "\
+                                      "#{models} (#{expected})"
+                )
             end
 
+            # Implementation of class-level handling of tests
             module ClassExtension
+                # 'it' block that will pretty-print Syskit exceptions
                 def it(*args, &block)
                     super(*args) do
-                        begin
-                            instance_eval(&block)
-                        rescue Exception => e
-                            if e.class.name =~ /Syskit|Roby/
-                                pp e
-                            end
-                            raise
-                        end
+                        instance_eval(&block)
+                    rescue StandardError => e
+                        pp e if e.class.name =~ /Syskit|Roby/
+                        raise
                     end
                 end
             end
 
             def data_service_type(name, &block)
-                DataService.new_submodel(:name => name, &block)
+                DataService.new_submodel(name: name, &block)
             end
         end
     end
 end
 
-module Minitest
-    class Test
+module Minitest # :nodoc:
+    class Test # :nodoc:
         include Syskit::Test::Self
     end
 end
