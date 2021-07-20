@@ -722,7 +722,7 @@ module Syskit
             # to kill or cleanly stop the deployment. We basically assume
             # 'kill' if some executed tasks are still in the plan (meaning it's
             # not being stopped through garbage collection)
-            if each_executed_task.any? { true }
+            if each_executed_task.any? { |t| !t.finished? }
                 stop_kill(promise, remote_task_handles)
             else
                 stop_cleanly(promise, remote_task_handles)

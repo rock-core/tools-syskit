@@ -514,6 +514,16 @@ module Syskit
                     expect_execution { deployment_task.stop! }
                         .to { emit deployment_task.stop_event }
                 end
+                it "does attempt to gracefully shutdown the deployment "\
+                   "if present tasks are finished" do
+                    task = deployment_task.task("mapped_task_name")
+                    syskit_configure_and_start(task)
+                    expect_execution { task.stop! }.to { emit task.stop_event }
+                    process.should_receive(:kill).once
+                           .with(false, cleanup: false, hard: false).pass_thru
+                    expect_execution { deployment_task.stop! }
+                        .to { emit deployment_task.stop_event }
+                end
                 it "does not cleanup and hard-kills the process if "\
                    "the kill event is called" do
                     orocos_task.should_receive(:rtt_state).never
