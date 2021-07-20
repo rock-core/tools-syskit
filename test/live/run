@@ -1,0 +1,6 @@
+#! /bin/sh
+
+dir=$(mktemp -d)
+syskit gen app "$dir/app"
+syskit orogen-test --workdir "$dir/app" --logs="$dir/app/logs" "$@"
+rm -rf $dir

@@ -38,10 +38,18 @@ Rake::TestTask.new("test:core") do |t|
     test_files = test_files
                  .exclude("test/ros/**/*.rb")
                  .exclude("test/gui/**/*.rb")
+                 .exclude("test/live/**/*.rb")
     t.test_files = test_files
     t.warning = false
 end
 
+task "test:live" do
+    tests = Dir.enum_for(:glob, "test/live/test_*.rb").to_a
+    unless system(File.join("test", "live", "run"), *tests)
+        $stderr.puts "live tests failed"
+        exit 1
+    end
+end
 Rake::TestTask.new("test:gui") do |t|
     t.libs << "."
     t.libs << "lib"
@@ -51,7 +59,7 @@ Rake::TestTask.new("test:gui") do |t|
     t.warning = false
 end
 
-task "test" => ["test:gui", "test:core"]
+task "test" => ["test:gui", "test:core", "test:live"]
 
 if USE_RUBOCOP
     begin
