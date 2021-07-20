@@ -383,7 +383,7 @@ module Syskit
                                  selected_deployments.to_a
                 end
 
-                it "clears the deployments that are not in the plan" do
+                it "ignores existing deployments that are not needed by the network" do
                     deployment_m = create_deployment_model(task_count: 1)
                     add_deployment_and_tasks(plan, deployment_m, %w[task0])
 
@@ -392,12 +392,10 @@ module Syskit
                     assert selected_deployments.empty?
                 end
 
-                it "creates a new deployment if it is added to the plan" do
-                    deployment_m = create_deployment_model(task_count: 1)
-                    add_deployment_and_tasks(plan, deployment_m, %w[task0])
-                    deployment_m2 = create_deployment_model(task_count: 2)
+                it "creates a new deployment if needed" do
+                    deployment = create_deployment_model(task_count: 2)
                     required_deployment, =
-                        add_deployment_and_tasks(work_plan, deployment_m2, %w[task0 task1])
+                        add_deployment_and_tasks(work_plan, deployment, %w[task0 task1])
 
                     selected_deployments, selected_deployed_tasks =
                         syskit_engine.finalize_deployed_tasks
@@ -408,7 +406,8 @@ module Syskit
                     end
                 end
 
-                it "updates an existing deployment, proxying the existing tasks and creating new ones" do
+                it "updates an existing deployment, proxying the existing "\
+                   "tasks and creating new ones" do
                     deployment_m = create_deployment_model(task_count: 3)
                     existing_deployment, (task0, task1) =
                         add_deployment_and_tasks(plan, deployment_m, %w[task0 task1])

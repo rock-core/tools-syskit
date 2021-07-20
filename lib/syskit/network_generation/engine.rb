@@ -340,14 +340,16 @@ module Syskit
                 end
                 log_timepoint "dataflow_graph_cleanup"
 
+                # Import all non-finished deployments from the actual plan into
+                # the work plan, and sort them into either finishing or running
                 deployments = work_plan.find_tasks(Syskit::Deployment).not_finished
                 finishing_deployments = {}
-                existing_deployments = Set.new
+                existing_deployments = {}
                 deployments.each do |task|
                     if task.finishing?
                         finishing_deployments[task.process_name] = task
                     elsif !used_deployments.include?(task)
-                        existing_deployments << task
+                        (existing_deployments[task.process_name] ||= []) << task
                     end
                 end
                 log_timepoint "existing_and_finished_deployments"
@@ -366,15 +368,9 @@ module Syskit
                 reused_deployed_tasks = Set.new
                 selected_deployment_tasks = Set.new
                 used_deployments.each do |deployment_task|
-                    existing_candidates = work_plan
-                                          .find_local_tasks(deployment_task.model)
-                                          .not_finishing.not_finished.to_set
-
                     # Check for the corresponding task in the plan
-                    existing_deployment_tasks = (existing_candidates & existing_deployments)
-                                                .find_all do |t|
-                        t.process_name == deployment_task.process_name
-                    end
+                    existing_deployment_tasks =
+                        existing_deployments[deployment_task.process_name]
 
                     debug do
                         debug "  looking to reuse a deployment for "\
@@ -386,7 +382,7 @@ module Syskit
                         break
                     end
 
-                    if existing_deployment_tasks.empty?
+                    if !existing_deployment_tasks
                         debug do
                             "  deployment #{deployment_task.process_name} is not yet "\
                             "represented in the plan"
