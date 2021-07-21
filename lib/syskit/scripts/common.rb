@@ -168,13 +168,14 @@ module Syskit
 
         def self.generate_output(display_options = {})
             default_exclude = []
-            if defined? OroGen::Logger::Logger
-                default_exclude << OroGen::Logger::Logger
-            end
-            display_options = Kernel.validate_options display_options,
-                                                      :remove_compositions => false,
-                                                      :excluded_models => default_exclude.to_set,
-                                                      :annotations => Set.new
+            logger_m = Syskit::TaskContext.find_model_from_orogen_name("logger::Logger")
+            default_exclude << logger_m if logger_m
+            display_options = Kernel.validate_options(
+                display_options,
+                remove_compositions: false,
+                excluded_models: default_exclude.to_set,
+                annotations: Set.new
+            )
 
             # Now output them
             case output_type

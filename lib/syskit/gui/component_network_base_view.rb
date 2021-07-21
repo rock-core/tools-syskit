@@ -344,10 +344,14 @@ module Syskit
                 when %r{/show_all_ports}
                     config[:show_all_ports] = new_state
                 when %r{/show_logger}
-                    if new_state
-                        config[:excluded_models].delete(OroGen::Logger::Logger)
-                    else
-                        config[:excluded_models] << OroGen::Logger::Logger
+                    logger_m = Syskit::TaskContext
+                               .find_model_from_orogen_name("logger::Logger")
+                    if logger_m
+                        if new_state
+                            config[:excluded_models].delete(logger_m)
+                        else
+                            config[:excluded_models] << logger_m
+                        end
                     end
                 when %r{/zoom}
                     config[:zoom] += 0.1

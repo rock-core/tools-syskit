@@ -368,9 +368,9 @@ module Syskit
             end
 
             def syskit_utility_component?(task_context)
-                if defined?(OroGen::Logger::Logger)
-                    task_context.kind_of?(OroGen::Logger::Logger)
-                end
+                @syskit_logger_m ||= Syskit::TaskContext
+                                     .find_model_from_orogen_name("logger::Logger")
+                task_context.kind_of?(@syskit_logger_m) if @syskit_logger_m
             end
 
             # Load the component extension file associated with this an oroGen
