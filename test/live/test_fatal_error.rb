@@ -63,11 +63,8 @@ module Syskit
                            e.each_execution_exception.first.exception
         end
 
-        it "auto-restarts deployments with fatal/quarantined tasks "\
+        it "auto-restarts deployments with a task in FATAL_ERROR "\
            "if configured to do so" do
-            # Make sure we let the deployer restart the deployment. Can't mock
-            # opportunistic_recovery_from_quarantine as it is needed for the
-            # method to work.
             Syskit.conf.auto_restart_deployments_with_quarantined_task_contexts = true
 
             trigger_fatal_error
@@ -85,6 +82,57 @@ module Syskit
             assert @task2.finished?
             assert plan.find_tasks.with_arguments(orocos_name: "#{Process.pid}b")
                        .running.first
+        end
+
+        it "does not auto-restart the deployment if the tasks "\
+           "in FATAL_ERROR are not involved in the new network" do
+            Syskit.conf.auto_restart_deployments_with_quarantined_task_contexts = true
+
+            trigger_fatal_error
+
+            new_task = syskit_deploy(@task2_m)
+            assert_same @task2, new_task
+        end
+
+        it "auto-restarts deployments with a quarantined task "\
+           "if configured to do so" do
+            Syskit.conf.auto_restart_deployments_with_quarantined_task_contexts = true
+
+            @task.quarantined!
+
+            # DO NOT use syskit_configure_and_start, it forcefully starts the execution
+            # agent, which does not work here.
+            new_task = syskit_deploy(@task_m)
+
+            refute_equal @deployment, new_task.execution_agent
+            assert_equal "#{Process.pid}a", new_task.orocos_name
+            expect_execution
+                .scheduler(true).garbage_collect(true)
+                .to do
+                    emit task.aborted_event
+                    emit new_task.start_event
+                end
+
+            # Make sure task2 got restarted too
+            assert @task2.finished?
+            assert plan.find_tasks.with_arguments(orocos_name: "#{Process.pid}b")
+                       .running.first
+        end
+
+        it "does not auto-restart the deployment if quarantined "\
+           "tasks are not involved in the new network" do
+            Syskit.conf.auto_restart_deployments_with_quarantined_task_contexts = true
+
+            @task.quarantined!
+
+            new_task = syskit_deploy(@task2_m)
+            assert_same @task2, new_task
+            # Kill the deployment ourselves to avoid warnings on teardown
+            expect_execution { task.execution_agent.stop! }
+                .to do
+                    emit task.aborted_event
+                    emit task2.aborted_event
+                end
         end
 
         it "kills the deployment if the only non-utility tasks are in quarantine" do

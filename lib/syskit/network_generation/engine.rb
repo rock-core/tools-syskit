@@ -383,6 +383,12 @@ module Syskit
                 end
 
                 if usable
+                    usable, not_reusable = validate_usable_deployment(
+                        required, usable, not_reusable
+                    )
+                end
+
+                if usable
                     newly_deployed_tasks = []
                     reused_deployed_tasks = adapt_existing_deployment(required, usable)
                     selected = usable
@@ -395,6 +401,50 @@ module Syskit
 
                 selected.should_start_after(not_reusable.stop_event) if not_reusable
                 [selected, newly_deployed_tasks, reused_deployed_tasks]
+            end
+
+            # Validate that the usable deployment we found is actually usable
+            #
+            # @see existing_deployment_needs_restart?
+            def validate_usable_deployment(required, usable, non_reusable)
+                # Check if the existing deployment would need to be restarted
+                # because of quarantine/fatal error tasks
+                needs_restart = existing_deployment_needs_restart?(required, usable)
+                return [usable, non_reusable] unless needs_restart
+
+                # non_reusable_deployment should be nil here. There should not
+                # be one if the usable deployment is running, and it is running
+                # since existing_deployment_needs_restart?  can't return true
+                # for a pending deployment
+                return [nil, usable] unless non_reusable
+
+                raise InternalError,
+                      "non-nil non_reusable_deployment found in #{__method__} while "\
+                      "existing_deployment_needs_restart? returned true"
+            end
+
+            # Do deeper 'usability' checks for an existing deployment found for
+            # a required one
+            #
+            # In some cases (quarantined tasks, FATAL_ERROR), an existing deployment
+            # that seem reusable actually cannot. This check is dependent on which
+            # task contexts are needed, which cannot be done within Deployment#reusable?
+            #
+            # @param [Syskit::Deployment] required the deployment part of the network
+            #   being deployed
+            # @param [Syskit::Deployment] existing the deployment part of the running
+            #   plan that is being considered
+            def existing_deployment_needs_restart?(required, existing)
+                restart_enabled =
+                    Syskit.conf.auto_restart_deployments_with_quarantined_task_contexts?
+                return unless restart_enabled
+                return unless existing.has_fatal_errors? || existing.has_quarantines?
+
+                required.each_executed_task do |t|
+                    return true if existing.task_context_in_fatal?(t.orocos_name)
+                    return true if existing.task_context_quarantined?(t.orocos_name)
+                end
+                false
             end
 
             # Import the component objects that are already in the main plan

@@ -48,6 +48,7 @@ module Syskit
             super
 
             @has_fatal_errors = false
+            @has_quarantines = false
             @quit_ready_event_monitor = Concurrent::Event.new
             @remote_task_handles = {}
             self.spawn_options = {} unless spawn_options
@@ -523,7 +524,7 @@ module Syskit
         RemoteTaskHandles = Struct.new(
             :handle, :state_reader, :state_getter, :default_properties,
             :configuring, :current_configuration, :needs_reconfiguration,
-            :in_fatal
+            :in_fatal, :quarantined
         )
 
         # @api private
@@ -562,8 +563,6 @@ module Syskit
             remote_task_handles[orocos_name.to_str].in_fatal = true
         end
 
-        # @api private
-        #
         # Tests whether a given task context is in FATAL_ERROR
         def task_context_in_fatal?(orocos_name)
             return false unless ready?
@@ -576,20 +575,26 @@ module Syskit
             @has_fatal_errors
         end
 
+        # @api private
+        #
+        # Declare that the given task has become quarantined
+        def register_task_context_quarantined(orocos_name)
+            @has_quarantines = true
+            remote_task_handles[orocos_name.to_str].quarantined = true
+        end
+
+        # Tests whether a given task context is quarantined
+        def task_context_quarantined?(orocos_name)
+            return false unless ready?
+
+            remote_task_handles[orocos_name.to_str].quarantined
+        end
+
         # Whether some components of this deployment are quarantined
         #
         # This happens when they fail to stop
-        def has_quarantined_task_contexts?
-            each_executed_task.any?(&:quarantined?)
-        end
-
-        # Whether this deployment should be reused in newly generated networks
-        def reusable?
-            if Syskit.conf.auto_restart_deployments_with_quarantined_task_contexts?
-                return false if has_quarantined_task_contexts? || has_fatal_errors?
-            end
-
-            super
+        def has_quarantines?
+            @has_quarantines
         end
 
         # @api private
@@ -869,7 +874,7 @@ module Syskit
         #   or if the method stopped it. false if the agent is present and running
         #   and the task could not terminate it
         def opportunistic_recovery_from_quarantine
-            return unless has_fatal_errors? || has_quarantined_task_contexts?
+            return unless has_fatal_errors? || has_quarantines?
 
             each_executed_task do |t|
                 next if t.quarantined?

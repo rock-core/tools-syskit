@@ -1054,6 +1054,7 @@ module Syskit
         def quarantined!(reason: nil)
             super
 
+            execution_agent.register_task_context_quarantined(orocos_name)
             execution_agent.opportunistic_recovery_from_quarantine
         end
 
