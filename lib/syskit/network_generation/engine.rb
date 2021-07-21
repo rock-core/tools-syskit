@@ -2,6 +2,8 @@
 
 module Syskit
     module NetworkGeneration
+        # @api private
+        #
         # The main deployment algorithm
         #
         # Engine instances are the objects that actually get deployment
@@ -300,6 +302,109 @@ module Syskit
                 used_tasks       = work_plan.find_local_tasks(Component).to_set
                 log_timepoint "used_tasks"
 
+                import_existing_tasks(used_tasks)
+                log_timepoint "dataflow_graph_cleanup"
+                finishing_deployments, existing_deployments =
+                    import_existing_deployments(used_deployments)
+                log_timepoint "existing_and_finished_deployments"
+
+                debug do
+                    debug "  Mapping deployments in the network to the existing ones"
+                    debug "    Network deployments:"
+                    used_deployments.each { |dep| debug "      #{dep}" }
+                    debug "    Existing deployments:"
+                    existing_deployments
+                        .values.flatten.each { |dep| debug "      #{dep}" }
+                    break
+                end
+
+                newly_deployed_tasks = Set.new
+                reused_deployed_tasks = Set.new
+                selected_deployment_tasks = Set.new
+                used_deployments.each do |deployment_task|
+                    # Check for the corresponding task in the plan
+                    process_name = deployment_task.process_name
+                    existing_deployment_tasks = existing_deployments[process_name] || []
+
+                    if existing_deployment_tasks.size > 1
+                        raise InternalError,
+                              "more than one task for #{process_name} "\
+                              "present in the plan: #{existing_deployment_tasks}"
+                    end
+
+                    selected, new, reused = handle_required_deployment(
+                        deployment_task,
+                        existing_deployment_tasks.first,
+                        finishing_deployments[process_name]
+                    )
+                    newly_deployed_tasks.merge(new)
+                    reused_deployed_tasks.merge(reused)
+                    selected_deployment_tasks << selected
+                end
+                log_timepoint "select_deployments"
+
+                reused_deployed_tasks =
+                    reconfigure_tasks_on_static_port_modification(reused_deployed_tasks)
+                log_timepoint "reconfigure_tasks_on_static_port_modification"
+
+                debug do
+                    debug "#{reused_deployed_tasks.size} tasks reused during deployment"
+                    reused_deployed_tasks.each do |t|
+                        debug "  #{t}"
+                    end
+                    break
+                end
+
+                # This is required to merge the already existing compositions
+                # with the ones in the plan
+                merge_solver.merge_identical_tasks
+                log_timepoint "merge"
+
+                [selected_deployment_tasks, reused_deployed_tasks | newly_deployed_tasks]
+            end
+
+            # Process a single deployment in {#finalize_deployed_tasks}
+            #
+            # @param [Syskit::Deployment] required the deployment task, part of
+            #   the new network
+            # @param [Syskit::Deployment,nil] usable usable deployment candidate
+            #   found in the running plan
+            # @param [Syskit::Deployment,nil] not_reusable deployment instance found
+            #   in the running plan, matching required, but not reusable. Both usable
+            #   and not_reusable may be non-nil if usable is pending. It is not possible
+            #   otherwise (can't have the same deployment running twice)
+            def handle_required_deployment(required, usable, not_reusable)
+                debug do
+                    debug "  looking to reuse a deployment for "\
+                            "#{required.process_name} (#{required})"
+                    debug "  candidate: #{usable}"
+                    debug "  not reusable deployment: #{not_reusable}"
+                    break
+                end
+
+                if usable
+                    newly_deployed_tasks = []
+                    reused_deployed_tasks = adapt_existing_deployment(required, usable)
+                    selected = usable
+                else
+                    # Nothing to do, we leave the plan as it is
+                    newly_deployed_tasks = required.each_executed_task
+                    reused_deployed_tasks = []
+                    selected = required
+                end
+
+                selected.should_start_after(not_reusable.stop_event) if not_reusable
+                [selected, newly_deployed_tasks, reused_deployed_tasks]
+            end
+
+            # Import the component objects that are already in the main plan
+            #
+            # The graphs are modified to handle the deployment of the network
+            # being generated
+            #
+            # @param [Array<Syskit::Component>] used_tasks the tasks that are part of the
+            #   new network
+            def import_existing_tasks(used_tasks)
                 all_tasks = work_plan.find_tasks(Component).to_set
                 log_timepoint "import_all_tasks_from_plan"
                 all_tasks.delete_if do |t|
@@ -338,11 +443,13 @@ module Syskit
                         end
                     end
                 end
-                log_timepoint "dataflow_graph_cleanup"
+            end
 
-                # Import all non-finished deployments from the actual plan into
-                # the work plan, and sort them into either finishing or running
+            # Import all non-finished deployments from the actual plan into the
+            # work plan, and sort them into those we can use and those we can't
+            def import_existing_deployments(used_deployments)
                 deployments = work_plan.find_tasks(Syskit::Deployment).not_finished
+
                 finishing_deployments = {}
                 existing_deployments = {}
                 deployments.each do |task|
@@ -352,84 +459,8 @@ module Syskit
                         (existing_deployments[task.process_name] ||= []) << task
                     end
                 end
-                log_timepoint "existing_and_finished_deployments"
 
-                debug do
-                    debug "  Mapping deployments in the network to the existing ones"
-                    debug "    Network deployments:"
-                    used_deployments.each { |dep| debug "      #{dep}" }
-                    debug "    Existing deployments:"
-                    existing_deployments
-                        .values.flatten.each { |dep| debug "      #{dep}" }
-                    break
-                end
-
-                newly_deployed_tasks = Set.new
-                reused_deployed_tasks = Set.new
-                selected_deployment_tasks = Set.new
-                used_deployments.each do |deployment_task|
-                    # Check for the corresponding task in the plan
-                    existing_deployment_tasks =
-                        existing_deployments[deployment_task.process_name]
-
-                    debug do
-                        debug "  looking to reuse a deployment for "\
-                              "#{deployment_task.process_name} (#{deployment_task})"
-                        debug "  #{existing_deployment_tasks.size} candidates:"
-                        existing_deployment_tasks.each do |candidate_task|
-                            debug "    #{candidate_task}"
-                        end
-                        break
-                    end
-
-                    if !existing_deployment_tasks
-                        debug do
-                            "  deployment #{deployment_task.process_name} is not yet "\
-                            "represented in the plan"
-                        end
-                        # Nothing to do, we leave the plan as it is
-                        newly_deployed_tasks.merge(deployment_task.each_executed_task)
-                        selected_deployment = deployment_task
-                    elsif existing_deployment_tasks.size != 1
-                        raise InternalError,
-                              "more than one task for #{deployment_task.process_name} "\
-                              "present in the plan: #{existing_deployment_tasks}"
-                    else
-                        selected_deployment = existing_deployment_tasks.first
-                        new_merged_tasks = adapt_existing_deployment(
-                            deployment_task,
-                            selected_deployment
-                        )
-                        reused_deployed_tasks.merge(new_merged_tasks)
-                    end
-
-                    finishing = finishing_deployments[selected_deployment.process_name]
-                    if finishing
-                        selected_deployment.should_start_after finishing.stop_event
-                    end
-                    selected_deployment_tasks << selected_deployment
-                end
-                log_timepoint "select_deployments"
-
-                reused_deployed_tasks = reconfigure_tasks_on_static_port_modification(
-                    reused_deployed_tasks
-                )
-                log_timepoint "reconfigure_tasks_on_static_port_modification"
-
-                debug do
-                    debug "#{reused_deployed_tasks.size} tasks reused during deployment"
-                    reused_deployed_tasks.each do |t|
-                        debug "  #{t}"
-                    end
-                    break
-                end
-
-                # This is required to merge the already existing compositions
-                # with the ones in the plan
-                merge_solver.merge_identical_tasks
-                log_timepoint "merge"
-
-                [selected_deployment_tasks, reused_deployed_tasks | newly_deployed_tasks]
+                [finishing_deployments, existing_deployments]
             end
 
             # After the deployment phase, we check whether some static ports are
