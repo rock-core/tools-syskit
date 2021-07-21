@@ -12,13 +12,17 @@ module Syskit
             # @return [Roby::Application]
             attr_reader :app
             # If true, we will load the component-specific code in
-            # tasks/orocos/. It is true by default
+            # tasks/orogen/. It is true by default
             attr_predicate :load_component_extensions, true
+            # Whether missing task libraries or typekits should be ignored
+            #
             # If true, files that raise an error during task library or type
             # import will be ignored. This is usually used on "root" bundles
             # (e.g. the Rock bundle) to have the benefit of GUIs like
             # system_model even though some typekits/task libraries are not
             # present
+            #
+            # The default is false
             attr_predicate :ignore_missing_orogen_projects_during_load, true
             # The set of process servers registered so far
             #
