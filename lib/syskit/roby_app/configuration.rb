@@ -34,6 +34,12 @@ module Syskit
             # Controls whether the orogen types should be exported as Ruby
             # constants
             attr_predicate :export_types?, true
+            # Controls whether Syskit should restart deployments that have components
+            # in FATAL_ERROR, or that failed to stop
+            #
+            # The default is false for historical reasons. We strongly recommend turning
+            # this on globally
+            attr_predicate :auto_restart_deployments_with_quarantined_task_contexts?, true
 
             # Data logging configuration
             #
@@ -85,6 +91,7 @@ module Syskit
                 @ignore_load_errors = false
                 @buffer_size_margin = 0.1
                 @use_only_model_pack = false
+                @auto_restart_deployments_with_quarantined_task_contexts = false
                 clear
 
                 self.export_types = true

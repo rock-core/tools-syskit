@@ -583,6 +583,15 @@ module Syskit
             each_executed_task.any?(&:quarantined?)
         end
 
+        # Whether this deployment should be reused in newly generated networks
+        def reusable?
+            if Syskit.conf.auto_restart_deployments_with_quarantined_task_contexts?
+                return false if has_quarantined_task_contexts? || has_fatal_errors?
+            end
+
+            super
+        end
+
         # @api private
         #
         # The currently applied configuration for the given task

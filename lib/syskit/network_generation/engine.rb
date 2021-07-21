@@ -453,7 +453,7 @@ module Syskit
                 finishing_deployments = {}
                 existing_deployments = {}
                 deployments.each do |task|
-                    if task.finishing?
+                    if !task.reusable?
                         finishing_deployments[task.process_name] = task
                     elsif !used_deployments.include?(task)
                         (existing_deployments[task.process_name] ||= []) << task
