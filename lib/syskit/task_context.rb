@@ -62,6 +62,8 @@ module Syskit
             @orocos_task       = remote_handles.handle
             @orocos_task.model = model.orogen_model
             @state_reader      = remote_handles.state_reader
+            @remote_state_getter = RemoteStateGetter.new(@orocos_task)
+            @pending_exception_states = []
 
             remote_handles.default_properties.each do |p, p_value|
                 syskit_p = property(p.name)
@@ -512,16 +514,56 @@ module Syskit
         def update_orogen_state
             @state_sample ||= state_reader.new_sample
             result, v = state_reader.read_with_result(@state_sample, false)
-            if !result
+
+            unless @pending_exception_states.empty?
+                return update_orogen_state_in_exception(v)
+            end
+
+            unless result
                 unless state_reader.connected?
                     fatal "terminating #{self}, its state reader "\
                           "#{state_reader} is disconnected"
                     aborted!
                 end
+                return
+            end
+
+            return unless v
+
+            if orocos_task.exception_state?(v)
+                # See comment in #update_orogen_state_in_exception
+                @pending_exception_states << v
+                if @remote_state_getter.started?
+                    @remote_state_getter.resume
+                else
+                    @remote_state_getter.start
+                end
                 nil
-            elsif v
+            else
                 @last_orogen_state = @orogen_state
                 @orogen_state = v
+            end
+        end
+
+        # @api private
+        #
+        # Wait for confirmation of the component shutdown once we received an
+        # exception state
+        #
+        # The exception states are received *before* the actual transition happened,
+        # while the RTT component reports the state *after*. By synchronizing on the
+        # RTT state, we make sure that the component is actually stopped *and* that
+        # catch other state transitions, such as FATAL_ERROR
+        def update_orogen_state_in_exception(v)
+            @pending_exception_states << v if v
+            if %I[EXCEPTION FATAL_ERROR].include?(@remote_state_getter.read)
+                @remote_state_getter.pause
+                @last_orogen_state = @orogen_state
+                @orogen_state = @pending_exception_states.shift
+            elsif !@remote_state_getter.connected?
+                fatal "terminating #{self}, its remote state reader "\
+                        "#{@remote_state_getter} failed"
+                aborted!
             end
         end
 

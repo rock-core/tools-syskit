@@ -61,6 +61,10 @@ module Syskit
             resume
         end
 
+        def started?
+            @poll_thread
+        end
+
         # The internal polling loop
         def poll_loop
             # Analysis to avoid deadlocking in {#wait}
