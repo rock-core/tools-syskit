@@ -539,12 +539,6 @@ module Syskit
             state || state_reader.read
         end
 
-        # Whether this task context will ever be configurable
-        def will_never_setup?(state = nil)
-            state ||= read_current_state
-            state == :FATAL_ERROR
-        end
-
         CONFIGURABLE_RTT_STATES = %I[STOPPED PRE_OPERATIONAL].freeze
 
         # Returns true if this component needs to be setup by calling the
@@ -1034,32 +1028,7 @@ module Syskit
         forward exception: :failed
         forward fatal_error: :failed
         on :fatal_error do |_event|
-            kill_execution_agent_if_alone
-        end
-
-        # @api private
-        #
-        # Kill this task's execution agent if self is the only non-utility task
-        # it currently supports
-        #
-        # "Utility" tasks are tasks that are there in support of the overall
-        # Syskit system, such as e.g. loggers
-        #
-        # @return [Boolean] true if the agent is either already finished, finalized
-        #   or if the method stopped it. false if the agent is present and running
-        #   and the task could not terminate it
-        def kill_execution_agent_if_alone
-            return true unless execution_agent
-
-            not_loggers =
-                execution_agent
-                .each_executed_task
-                .find_all { |t| !Roby.app.syskit_utility_component?(t) }
-            return false unless not_loggers.size == 1
-
-            plan.unmark_permanent_task(execution_agent)
-            execution_agent.stop! if execution_agent.running?
-            true
+            execution_agent.register_task_context_in_fatal(orocos_name)
         end
 
         event :aborted, terminal: true do |_context|
@@ -1082,9 +1051,16 @@ module Syskit
             interrupt!
         end
 
+        def quarantined!(reason: nil)
+            super
+
+            execution_agent.opportunistic_recovery_from_quarantine
+        end
+
         on :stop do |_event|
             info "stopped #{self}"
             state_reader.pause if state_reader.respond_to?(:pause)
+            execution_agent.opportunistic_recovery_from_quarantine
         end
 
         # Default implementation of the update_properties method.

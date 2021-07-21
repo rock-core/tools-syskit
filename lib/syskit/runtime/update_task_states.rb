@@ -41,19 +41,7 @@ module Syskit
             return unless task.meets_configurationg_precedence_constraints?
 
             task.freeze_delayed_arguments
-            if task.will_never_setup?
-                unless task.kill_execution_agent_if_alone
-                    task.failed_to_start!(
-                        Roby::CommandFailed.new(
-                            InternalError.exception(
-                                "#{task} reports that it cannot be configured "\
-                                "(FATAL_ERROR ?)"
-                            ),
-                            task.start_event
-                        )
-                    )
-                end
-            elsif task.ready_for_setup?
+            if task.ready_for_setup?
                 task.setup.execute
             else
                 scheduler.report_holdoff("did not configure, not ready for setup", task)

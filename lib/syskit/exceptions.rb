@@ -1038,4 +1038,18 @@ module Syskit
             failure_point.pretty_print(pp)
         end
     end
+
+    class TaskContextInFatal < Roby::ExceptionBase
+        def initialize(deployment, name)
+            super()
+
+            @deployment = deployment
+            @name = name
+        end
+
+        def pretty_print(pp)
+            pp.text "attempting to use component in FATAL_ERROR: #{@name} from "
+            @deployment.pretty_print(pp)
+        end
+    end
 end

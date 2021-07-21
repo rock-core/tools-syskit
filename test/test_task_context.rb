@@ -595,29 +595,11 @@ module Syskit
                     .and_return([Orocos::OLD_DATA, state = Object.new])
                 assert_equal state, task.update_orogen_state
             end
-        end
-
-        describe "#will_never_setup?" do
-            before do
-                plan.add(@task = TaskContext.new)
-            end
-            it "returns false if the provided state is not FATAL_ERROR" do
-                refute @task.will_never_setup?(:BLA)
-            end
-            it "returns true if the provided state is FATAL_ERROR" do
-                assert @task.will_never_setup?(:FATAL_ERROR)
-            end
-            it "returns false if no state is given and read_current_state "\
-                "returns something else than FATAL_ERROR" do
-                flexmock(@task).should_receive(:read_current_state)
-                               .and_return(:BLA)
-                refute @task.will_never_setup?
-            end
-            it "returns true if no state is given and read_current_state "\
-                "returns FATAL_ERROR" do
-                flexmock(@task).should_receive(:read_current_state)
-                               .and_return(:FATAL_ERROR)
-                assert @task.will_never_setup?
+            it "emits the exception event when transitioned to exception" do
+                task = syskit_stub_deploy_configure_and_start(@task_m, remote_task: false)
+                puts task.orocos_task.class
+                expect_execution { task.orocos_task.exception }
+                    .to { emit task.exception_event }
             end
         end
 

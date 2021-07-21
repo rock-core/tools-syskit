@@ -169,11 +169,6 @@ module Syskit
             object.add_syskit_configuration_precedence(start_event)
         end
 
-        # Whether this task context will ever configurable
-        def will_never_setup?
-            false
-        end
-
         def meets_configurationg_precedence_constraints?
             waiting_precedence_relation =
                 start_event

@@ -58,11 +58,12 @@ module Syskit
             @process = ProcessFixture.new(process_server)
             process_server.tasks["mapped_task_name"] = process
             @log_dir = flexmock("log_dir")
-            @process_server_config = Syskit.conf.register_process_server("fixture", process_server, log_dir)
-            plan.add_permanent_task(
-                @deployment_task = deployment_m
-                .new(process_name: "mapped_task_name", on: "fixture", name_mappings: Hash["task" => "mapped_task_name"])
-            )
+            @process_server_config =
+                Syskit.conf.register_process_server("fixture", process_server, log_dir)
+            @deployment_task = deployment_m
+                               .new(process_name: "mapped_task_name", on: "fixture",
+                                    name_mappings: { "task" => "mapped_task_name" })
+            plan.add_permanent_task(@deployment_task)
 
             flexmock(process_server)
             flexmock(process)
@@ -170,16 +171,21 @@ module Syskit
                 deployment_task.task("mapped_task_name")
             end
             it "does not do runtime initialization if it is not yet ready" do
-                flexmock(Syskit::TaskContext).new_instances.should_receive(:initialize_remote_handles).never
+                flexmock(Syskit::TaskContext)
+                    .new_instances.should_receive(:initialize_remote_handles).never
+
                 deployment_task.should_receive(:ready?).and_return(false)
                 deployment_task.task("mapped_task_name")
             end
             it "does runtime initialization if it is already ready" do
                 task = flexmock(task_m.new)
                 flexmock(task_m).should_receive(:new).and_return(task)
-                deployment_task.should_receive(:remote_task_handles)
-                               .and_return("mapped_task_name" => (remote_handles = Object.new))
-                task.should_receive(:initialize_remote_handles).with(remote_handles).once
+
+                remote_handle = flexmock(in_fatal: false)
+                deployment_task
+                    .should_receive(:remote_task_handles)
+                    .and_return("mapped_task_name" => remote_handle)
+                task.should_receive(:initialize_remote_handles).with(remote_handle).once
                 deployment_task.should_receive(:ready?).and_return(true)
                 deployment_task.task("mapped_task_name")
             end

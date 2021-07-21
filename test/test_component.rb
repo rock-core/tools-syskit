@@ -456,12 +456,6 @@ describe Syskit::Component do
         end
     end
 
-    describe "#will_never_setup?" do
-        it "returns false" do
-            refute Syskit::Component.new.will_never_setup?
-        end
-    end
-
     describe "#ready_for_setup?" do
         it "returns true on a blank task" do
             assert Syskit::Component.new.ready_for_setup?

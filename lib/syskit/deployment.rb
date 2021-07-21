@@ -47,6 +47,7 @@ module Syskit
         def initialize(**options)
             super
 
+            @has_fatal_errors = false
             @quit_ready_event_monitor = Concurrent::Event.new
             @remote_task_handles = {}
             self.spawn_options = {} unless spawn_options
@@ -182,8 +183,21 @@ module Syskit
             orogen_task_deployment_model,
             syskit_task_model, scheduler_task, auto_conf: false
         )
-
             mapped_name = name_mappings[orogen_task_deployment_model.name]
+            if ready?
+                unless (remote_handles = remote_task_handles[mapped_name])
+                    raise InternalError,
+                          "no remote handle describing #{mapped_name} in #{self}"\
+                          "(got #{remote_task_handles.keys.sort.join(', ')})"
+                end
+            end
+
+            if task_context_in_fatal?(mapped_name)
+                raise TaskContextInFatal.new(self, mapped_name),
+                      "trying to create task for FATAL_ERROR component #{mapped_name} "\
+                      "from #{self}"
+            end
+
             base_syskit_task_model = deployed_model_by_orogen_model(
                 orogen_task_deployment_model
             )
@@ -203,16 +217,7 @@ module Syskit
             end
 
             task.orogen_model = orogen_task_deployment_model
-            if ready?
-                if (remote_task = remote_task_handles[mapped_name])
-                    task.initialize_remote_handles(remote_task)
-                else
-                    raise InternalError,
-                          "no remote handle describing #{mapped_name} "\
-                          "in #{self} for #{task} "\
-                          "(got #{remote_task_handles.keys.sort.join(', ')})"
-                end
-            end
+            task.initialize_remote_handles(remote_handles) if remote_handles
             auto_select_conf(task) if auto_conf
             task
         end
@@ -517,7 +522,8 @@ module Syskit
         # back-and-forth between the remote task and the local process
         RemoteTaskHandles = Struct.new(
             :handle, :state_reader, :state_getter, :default_properties,
-            :configuring, :current_configuration, :needs_reconfiguration
+            :configuring, :current_configuration, :needs_reconfiguration,
+            :in_fatal
         )
 
         # @api private
@@ -544,6 +550,37 @@ module Syskit
         # Declare that the given task is being configured
         def finished_configuration(orocos_name)
             remote_task_handles[orocos_name].configuring = false
+        end
+
+        # @api private
+        #
+        # Declare that the given task transitioned to FATAL_ERROR
+        #
+        # This will trigger sanity checks if attempting to spawn it again
+        def register_task_context_in_fatal(orocos_name)
+            @has_fatal_errors = true
+            remote_task_handles[orocos_name.to_str].in_fatal = true
+        end
+
+        # @api private
+        #
+        # Tests whether a given task context is in FATAL_ERROR
+        def task_context_in_fatal?(orocos_name)
+            return false unless ready?
+
+            remote_task_handles[orocos_name.to_str].in_fatal
+        end
+
+        # Whether some components of this deployment are in FATAL
+        def has_fatal_errors?
+            @has_fatal_errors
+        end
+
+        # Whether some components of this deployment are quarantined
+        #
+        # This happens when they fail to stop
+        def has_quarantined_task_contexts?
+            each_executed_task.any?(&:quarantined?)
         end
 
         # @api private
@@ -809,6 +846,41 @@ module Syskit
         #   from orocosrb's process server infrastructure
         def self.deployment_by_process(process)
             all_deployments.fetch(process)
+        end
+
+        # @api private
+        #
+        # Kill this task's execution agent if self is the only non-utility task
+        # it currently supports
+        #
+        # "Utility" tasks are tasks that are there in support of the overall
+        # Syskit system, such as e.g. loggers
+        #
+        # @return [Boolean] true if the agent is either already finished, finalized
+        #   or if the method stopped it. false if the agent is present and running
+        #   and the task could not terminate it
+        def opportunistic_recovery_from_quarantine
+            return unless has_fatal_errors? || has_quarantined_task_contexts?
+
+            each_executed_task do |t|
+                next if t.quarantined?
+                next if t.finished?
+                next if Roby.app.syskit_utility_component?(t)
+
+                return
+            end
+
+            # Avoid generating an error.
+            each_executed_task do |t|
+                plan.unmark_permanent_task(t)
+            end
+            plan.unmark_permanent_task(self)
+
+            # We aren't really so sure about the overall state of things.
+            #
+            # What could be stopped cleanly has been stopped cleanly (not
+            # cleaned up, but stopped). Kill the process to avoid further damage
+            kill! if running?
         end
     end
 end
