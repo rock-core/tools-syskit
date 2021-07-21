@@ -705,8 +705,10 @@ module Syskit
             remote_task_handles = stop_prepare
             promise = self.promise(description: "#{self}#kill")
             stop_kill(promise, remote_task_handles)
-            stop_event.achieve_asynchronously(promise, emit_on_success: false)
+            kill_event.achieve_asynchronously(promise, emit_on_success: false)
         end
+
+        forward kill: :failed
 
         ##
         # method: stop!
@@ -714,20 +716,16 @@ module Syskit
         # Stops all tasks that are running on top of this deployment, and
         # kill the deployment
         event :stop do |_context|
-            remote_task_handles = stop_prepare
-            promise = self.promise(description: "#{self}#stop")
-
             # This is a heuristic added after the introduction of the kill
             # event command. It's meant to guess whether the caller is trying
             # to kill or cleanly stop the deployment. We basically assume
             # 'kill' if some executed tasks are still in the plan (meaning it's
             # not being stopped through garbage collection)
-            if each_executed_task.any? { |t| !t.finished? }
-                stop_kill(promise, remote_task_handles)
-            else
-                stop_cleanly(promise, remote_task_handles)
-            end
+            return kill! if each_executed_task.any? { |t| !t.finished? }
 
+            remote_task_handles = stop_prepare
+            promise = self.promise(description: "#{self}#stop")
+            stop_cleanly(promise, remote_task_handles)
             stop_event.achieve_asynchronously(promise, emit_on_success: false)
         end
 
@@ -778,6 +776,8 @@ module Syskit
         # +result+ is the Process::Status object describing how this process
         # finished.
         def dead!(result)
+            kill_event.emit if kill_event.pending?
+
             if history.find(&:terminal?)
                 # Do nothing. A terminal event already happened, so we don't
                 # need to tell what kind of end this is for the system

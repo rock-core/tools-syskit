@@ -1091,13 +1091,12 @@ module Syskit
             def stop_and_collect_execution_agents(*tasks)
                 expect_execution do
                     tasks.each { |t| t.execution_agent.stop! }
-                end.to do
+                end.garbage_collect(true).to do
                     tasks.each do |t|
-                        emit t.execution_agent.stop_event
+                        emit t.execution_agent.kill_event
                         emit t.aborted_event
                     end
                 end
-                expect_execution.garbage_collect(true).to_run
             end
         end
     end

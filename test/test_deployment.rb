@@ -502,7 +502,10 @@ module Syskit
                     process.should_receive(:kill).once
                            .with(false, cleanup: false, hard: false).pass_thru
                     expect_execution { deployment_task.stop! }
-                        .to { emit deployment_task.stop_event }
+                        .to do
+                            emit deployment_task.stop_event
+                            not_emit deployment_task.kill_event
+                        end
                 end
                 it "does not attempt to cleanup if some tasks have a representation in "\
                    "the plan" do
@@ -512,7 +515,10 @@ module Syskit
                     process.should_receive(:kill).once
                            .with(false, cleanup: false, hard: true).pass_thru
                     expect_execution { deployment_task.stop! }
-                        .to { emit deployment_task.stop_event }
+                        .to do
+                            emit deployment_task.stop_event
+                            emit deployment_task.kill_event
+                        end
                 end
                 it "does attempt to gracefully shutdown the deployment "\
                    "if present tasks are finished" do
@@ -522,7 +528,10 @@ module Syskit
                     process.should_receive(:kill).once
                            .with(false, cleanup: false, hard: false).pass_thru
                     expect_execution { deployment_task.stop! }
-                        .to { emit deployment_task.stop_event }
+                        .to do
+                            emit deployment_task.stop_event
+                            not_emit deployment_task.kill_event
+                        end
                 end
                 it "does not cleanup and hard-kills the process if "\
                    "the kill event is called" do
@@ -531,7 +540,10 @@ module Syskit
                     process.should_receive(:kill).once
                            .with(false, cleanup: false, hard: true).pass_thru
                     expect_execution { deployment_task.kill! }
-                        .to { emit deployment_task.stop_event }
+                        .to do
+                            emit deployment_task.stop_event
+                            emit deployment_task.kill_event
+                        end
                 end
                 it "ignores com errors with the tasks" do
                     orocos_task.should_receive(:cleanup).and_raise(Orocos::ComError)
