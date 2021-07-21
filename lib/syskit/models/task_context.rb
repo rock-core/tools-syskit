@@ -254,6 +254,12 @@ module Syskit
             end
 
             # Return the instance requirement object that runs this task
+            # model with the given deployment
+            def deploy_with(*names, **options)
+                to_instance_requirements.use_deployment(*names, **options)
+            end
+
+            # Return the instance requirement object that runs this task
             # model with the given name
             def deployed_as(name, **options)
                 to_instance_requirements.deployed_as(name, **options)

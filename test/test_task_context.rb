@@ -2211,5 +2211,48 @@ module Syskit
                 end
             end
         end
+
+        describe "deployment shortcuts" do
+            before do
+                Syskit.conf.register_process_server(
+                    "unmanaged_tasks", RobyApp::UnmanagedTasksManager.new
+                )
+
+                Roby.app.using_task_library "orogen_syskit_tests"
+                @task_m = TaskContext.find_model_from_orogen_name(
+                    "orogen_syskit_tests::Empty"
+                )
+            end
+            after do
+                Syskit.conf.remove_process_server("unmanaged_tasks")
+            end
+
+            it "allows to declare a 'default' deployment" do
+                name = "#{Process.pid}#{name}"
+                task = syskit_deploy(@task_m.deployed_as(name))
+                assert_equal name, task.orocos_name
+            end
+
+            it "allows to declare an unmanaged deployment" do
+                name = "#{Process.pid}#{name}"
+                task = syskit_deploy(@task_m.deployed_as_unmanaged(name))
+                assert_equal "unmanaged_tasks", task.execution_agent.arguments[:on]
+                assert_equal name, task.orocos_name
+            end
+
+            it "allows to use a specific deployment without prefix" do
+                task = syskit_deploy(
+                    @task_m.deploy_with("syskit_fatal_error_recovery_test")
+                )
+                assert_equal "b", task.orocos_name
+            end
+
+            it "allows to use a specific deployment with prefix" do
+                task = syskit_deploy(
+                    @task_m.deploy_with("syskit_fatal_error_recovery_test" => Process.pid)
+                )
+                assert_equal "#{Process.pid}b", task.orocos_name
+            end
+        end
     end
 end
