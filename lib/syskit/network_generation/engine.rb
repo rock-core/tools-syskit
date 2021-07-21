@@ -436,7 +436,7 @@ module Syskit
             #   plan that is being considered
             def existing_deployment_needs_restart?(required, existing)
                 restart_enabled =
-                    Syskit.conf.auto_restart_deployments_with_quarantined_task_contexts?
+                    Syskit.conf.auto_restart_deployments_with_quarantines?
                 return unless restart_enabled
                 return unless existing.has_fatal_errors? || existing.has_quarantines?
 

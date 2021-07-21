@@ -13,7 +13,7 @@ Roby.app.backward_compatible_naming = false
 
 # Automatically restart deployments that have components either in FATAL_ERROR,
 # or that failed to stop
-Syskit.conf.auto_restart_deployments_with_quarantined_task_contexts = true
+Syskit.conf.auto_restart_deployments_with_quarantines = true
 
 # Set the module's name. It is normally inferred from the app name, and the app
 # name is inferred from the base directory name (e.g. an app located in

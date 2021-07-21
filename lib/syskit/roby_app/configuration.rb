@@ -39,7 +39,7 @@ module Syskit
             #
             # The default is false for historical reasons. We strongly recommend turning
             # this on globally
-            attr_predicate :auto_restart_deployments_with_quarantined_task_contexts?, true
+            attr_predicate :auto_restart_deployments_with_quarantines?, true
 
             # Data logging configuration
             #
@@ -91,7 +91,7 @@ module Syskit
                 @ignore_load_errors = false
                 @buffer_size_margin = 0.1
                 @use_only_model_pack = false
-                @auto_restart_deployments_with_quarantined_task_contexts = false
+                @auto_restart_deployments_with_quarantines = false
                 clear
 
                 self.export_types = true
