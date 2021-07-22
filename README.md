@@ -16,6 +16,27 @@ Kit (http://rock-robotics.org). Have a look there, and in particular to [the
 tutorials](http://rock-robotics.org/documentation/system_management_tutorials)
 and the [reference documentation](http://rock-robotics.org/documentation/system)
 
+## Contributions
+
+Contributions are very welcome. We follow the [conventional commits
+convention](https://www.conventionalcommits.org/) to format our commit messages,
+with the following types:
+
+- fix
+- feat
+- doc
+- perf
+- test
+- chore
+
+and scopes:
+
+- runtime: runtime code
+- models: modelling code
+- net_gen: network generation
+- test: Syskit's own unit test
+- app: all tooling facing the app developer (e.g. tests, cli, ...)
+
 ## LICENSE
 This work is licensed under the LGPLv2 or later license.
 
