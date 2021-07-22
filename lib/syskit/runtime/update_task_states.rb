@@ -70,8 +70,6 @@ module Syskit
             end
 
             warn_state_reader_overrun(state_count)
-        rescue Orocos::CORBA::ComError => e
-            task.aborted_event.emit e
         end
 
         def self.warn_state_reader_overrun(state_count)
