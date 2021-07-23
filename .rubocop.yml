@@ -44,3 +44,7 @@ Security/MarshalLoad:
   Exclude:
   - lib/syskit/roby_app/remote_processes/server.rb
   - lib/syskit/roby_app/remote_processes/client.rb
+
+Style/MultilineBlockChain:
+  Exclude:
+  - test/**/test_*.rb
