@@ -1055,13 +1055,21 @@ module Syskit
             super
 
             execution_agent.register_task_context_quarantined(orocos_name)
-            execution_agent.opportunistic_recovery_from_quarantine
+            if Syskit.conf.opportunistic_recovery_from_quarantine?
+                execution_agent.opportunistic_recovery_from_quarantine
+            end
+
+            nil
         end
 
         on :stop do |_event|
             info "stopped #{self}"
             state_reader.pause if state_reader.respond_to?(:pause)
-            execution_agent.opportunistic_recovery_from_quarantine
+            if Syskit.conf.opportunistic_recovery_from_quarantine?
+                execution_agent.opportunistic_recovery_from_quarantine
+            end
+
+            nil
         end
 
         # Default implementation of the update_properties method.
