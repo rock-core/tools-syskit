@@ -10,6 +10,8 @@ module Syskit
         def self.update_task_states(plan) # :nodoc:
             scheduler = plan.execution_engine.scheduler
             plan.find_tasks(Syskit::TaskContext).not_finished.each do |task|
+                next if task.failed_to_start?
+
                 handle_single_task_state_update(scheduler, task)
             end
         end

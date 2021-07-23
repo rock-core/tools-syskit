@@ -199,6 +199,9 @@ module Syskit
                     "garbage collected but not yet finalized"
                 end
                 return false
+            elsif failed_to_start?
+                debug { "#{self} not ready for setup: failed to start" }
+                return false
             elsif !fully_instanciated?
                 debug { "#{self} not ready for setup: not fully instanciated" }
                 return false
