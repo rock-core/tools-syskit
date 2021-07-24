@@ -429,11 +429,13 @@ module Syskit
                     .timeout(0).to { not_emit task.stop_event }
                 assert task.finishing?
             end
-            it "emits interrupt and aborted if orocos_task#stop raises ComError" do
+            it "is quarantined if orocos_task#stop raises ComError" do
                 orocos_task.should_receive(:stop).and_raise(Orocos::ComError)
                 expect_execution { task.stop! }
                     .to do
-                        emit task.aborted_event, task.interrupt_event
+                        quarantine task
+                        ignore_errors_from(have_error_matching(Roby::EmissionFailed))
+                        emit task.aborted_event
                     end
             end
             it "emits interrupt if orocos_task#stop raises StateTransitionFailed "\

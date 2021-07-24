@@ -768,11 +768,18 @@ module Syskit
         # kill the deployment
         event :stop do |_context|
             # This is a heuristic added after the introduction of the kill
-            # event command. It's meant to guess whether the caller is trying
-            # to kill or cleanly stop the deployment. We basically assume
-            # 'kill' if some executed tasks are still in the plan (meaning it's
-            # not being stopped through garbage collection)
-            return kill! if each_executed_task.any? { |t| !t.finished? }
+            # event command. It's meant to guess whether we should kill or cleanly
+            # stop the deployment.
+            #
+            # The assumption is that:
+            # - if there are fatal errors, we aren't sure about the state of all
+            #   tasks, and we might even have some state transitions still being
+            #   processed.
+            # - if there are running tasks, we either aren't going through the
+            #   normal, GC-based teardown process or we have quarantined tasks
+            #   that haven't stopped.
+            has_running_tasks = each_executed_task.any? { |t| !t.finished? }
+            return kill! if has_running_tasks || has_fatal_errors? || has_quarantines?
 
             remote_task_handles = stop_prepare
             promise = self.promise(description: "#{self}#stop")

@@ -23,7 +23,7 @@ module Syskit
             return unless handle_task_state_updates?(scheduler, task)
 
             handle_task_configuration(scheduler, task) unless task.setup?
-            return if !task.running? && !task.starting? || task.aborted_event.pending?
+            return if !task.running? && !task.starting?
 
             handle_task_runtime_states(task)
         end
