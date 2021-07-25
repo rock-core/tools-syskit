@@ -519,7 +519,7 @@ module Syskit
             @state_sample ||= state_reader.new_sample
             result, v = state_reader.read_with_result(@state_sample, false)
 
-            unless @pending_exception_states.empty?
+            if @exception_transition_deadline
                 return update_orogen_state_in_exception(v)
             end
 
@@ -536,6 +536,8 @@ module Syskit
 
             if orocos_task.exception_state?(v)
                 # See comment in #update_orogen_state_in_exception
+                @exception_transition_deadline =
+                    Time.now + Syskit.conf.exception_transition_timeout
                 @pending_exception_states << v
                 if @remote_state_getter.started?
                     @remote_state_getter.resume
@@ -559,6 +561,8 @@ module Syskit
         # RTT state, we make sure that the component is actually stopped *and* that
         # catch other state transitions, such as FATAL_ERROR
         def update_orogen_state_in_exception(v)
+            quarantined! if Time.now > @exception_transition_deadline
+
             @pending_exception_states << v if v
             if %I[EXCEPTION FATAL_ERROR].include?(@remote_state_getter.read)
                 @remote_state_getter.pause

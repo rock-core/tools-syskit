@@ -245,16 +245,63 @@ module Syskit
             end
 
             describe "#exception" do
-                it "waits for a long call to finish" do
+                before do
+                    @task.properties.hook = "exception"
                 end
 
-                it "quarantines a task whose call timed out" do
+                after do
+                    cleanup_running_tasks
                 end
 
-                it "stops the task if the stop eventually works" do
+                it "waits for a long exception transition to finish" do
+                    @task.properties.time = 1
+                    Syskit.conf.exception_transition_timeout = 2
+                    syskit_configure_and_start(@task)
+                    expect_execution.to { emit task.exception_event }
+                    refute @deployment.task_context_in_fatal?(@task.orocos_name)
                 end
 
-                it "handles the task being killed in the middle of a long call" do
+                it "quarantines a task whose transition to exception timed out" do
+                    @task.properties.time = 10
+                    Syskit.conf.exception_transition_timeout = 1
+                    syskit_configure_and_start(@task)
+
+                    expect_execution.timeout(5).to do
+                        quarantine task
+                    end
+                    refute @deployment.task_context_in_fatal?(@task.orocos_name)
+                end
+
+                it "stops the task when it does stop" do
+                    @task.properties.time = 4
+                    Syskit.conf.exception_transition_timeout = 1
+                    syskit_configure_and_start(@task)
+
+                    expect_execution
+                        .timeout(1.5).join_all_waiting_work(false)
+                        .to { quarantine task }
+                    expect_execution.to { emit task.exception_event }
+                    refute @deployment.task_context_in_fatal?(@task.orocos_name)
+                end
+
+                it "handles the task being killed in the middle of a long transition" do
+                    @task.properties.time = 10
+                    Syskit.conf.exception_transition_timeout = 2
+                    syskit_configure_and_start(task)
+
+                    start = Time.now
+                    killed = false
+                    expect_execution.join_all_waiting_work(false).to do
+                        poll do
+                            if !killed && (Time.now - start) > 1
+                                killed = true
+                                task.execution_agent.kill!
+                            end
+                        end
+                        ignore_errors_from quarantine(task)
+                        emit task.aborted_event
+                        emit deployment.stop_event
+                    end
                 end
             end
 

@@ -46,6 +46,11 @@ module Syskit
             # The default is false for historical reasons. We strongly recommend turning
             # this on globally
             attr_predicate :auto_restart_deployments_with_quarantines?, true
+            # How long Syskit will allow a component to take to transition to EXCEPTION
+            #
+            # This usually includes the time needed to stop and cleanup. The default
+            # is 20s
+            attr_accessor :exception_transition_timeout
 
             # Data logging configuration
             #
@@ -99,6 +104,7 @@ module Syskit
                 @use_only_model_pack = false
                 @opportunistic_recovery_from_quarantine = true
                 @auto_restart_deployments_with_quarantines = false
+                @exception_transition_timeout = 20.0
                 clear
 
                 self.export_types = true
