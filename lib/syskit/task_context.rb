@@ -517,13 +517,13 @@ module Syskit
         # task using the values read from the state reader
         def update_orogen_state
             @state_sample ||= state_reader.new_sample
-            result, v = state_reader.read_with_result(@state_sample, false)
+            new_read, state = state_reader.read_with_result(@state_sample, false)
 
             if @exception_transition_deadline
-                return update_orogen_state_in_exception(v)
+                return update_orogen_state_in_exception(state)
             end
 
-            unless result
+            unless new_read
                 unless state_reader.connected?
                     fatal "terminating #{self}, its state reader "\
                           "#{state_reader} is disconnected"
@@ -532,13 +532,13 @@ module Syskit
                 return
             end
 
-            return unless v
+            return unless state
 
-            if orocos_task.exception_state?(v)
+            if orocos_task.exception_state?(state)
                 # See comment in #update_orogen_state_in_exception
                 @exception_transition_deadline =
                     Time.now + Syskit.conf.exception_transition_timeout
-                @pending_exception_states << v
+                @pending_exception_states << state
                 if @remote_state_getter.started?
                     @remote_state_getter.resume
                 else
@@ -547,7 +547,7 @@ module Syskit
                 nil
             else
                 @last_orogen_state = @orogen_state
-                @orogen_state = v
+                @orogen_state = state
             end
         end
 
@@ -560,10 +560,10 @@ module Syskit
         # while the RTT component reports the state *after*. By synchronizing on the
         # RTT state, we make sure that the component is actually stopped *and* that
         # catch other state transitions, such as FATAL_ERROR
-        def update_orogen_state_in_exception(v)
+        def update_orogen_state_in_exception(state)
             quarantined! if Time.now > @exception_transition_deadline
 
-            @pending_exception_states << v if v
+            @pending_exception_states << state if state
             if %I[EXCEPTION FATAL_ERROR].include?(@remote_state_getter.read)
                 @remote_state_getter.pause
                 @last_orogen_state = @orogen_state
