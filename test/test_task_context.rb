@@ -380,18 +380,18 @@ module Syskit
             it "emits the start event once the state reader reported the RUNNING state" do
                 FlexMock.use(task.state_reader) do |state_reader|
                     state = nil
-                    state_reader.should_receive(:read_with_result)
+                    state_reader.should_receive(:read_new)
                                 .and_return do
                         s = state
-                        state = [Orocos::OLD_DATA, nil]
+                        state = nil
                         s
                     end
                     execute { task.start! }
                     refute task.running?
-                    state = [Orocos::NEW_DATA, :RUNNING]
+                    state = :RUNNING
                     expect_execution.to { emit task.start_event }
                     # Just to shut up sanity checks with state events
-                    state = [Orocos::NEW_DATA, :STOPPED]
+                    state = :STOPPED
                     expect_execution.to { emit task.stop_event }
                 end
             end
@@ -541,51 +541,37 @@ module Syskit
                 flexmock(task.state_reader)
             end
 
+            # NOTE: handling of errors related to the state readers is done
+            # in live/test_state_reader_disconnection.rb
+
             it "is provided a connected state reader by its execution agent" do
                 syskit_start_execution_agents(task)
                 assert task.state_reader.connected?
             end
-            it "emits :aborted if the state reader got disconnected" do
-                task = syskit_stub_deploy_configure_and_start(TaskContext.new_submodel)
-                setting_up = task.instance_variable_get(:@setting_up)
-                assert(!setting_up || setting_up.complete?)
-                task.update_orogen_state
-                Orocos.allow_blocking_calls do
-                    task.state_reader.disconnect
-                end
-                orocos_task = task.orocos_task
-
-                expect_execution { task.update_orogen_state }
-                    .to { emit task.aborted_event }
-                Orocos.allow_blocking_calls do
-                    assert_equal :STOPPED, orocos_task.rtt_state
-                end
-            end
             it "sets orogen_state with the new state" do
-                task.state_reader.should_receive(:read_with_result)
-                    .and_return([Orocos::NEW_DATA, state = Object.new])
+                task.state_reader.should_receive(:read_new)
+                    .and_return(state = Object.new)
                 task.update_orogen_state
                 assert_equal state, task.orogen_state
             end
             it "updates last_orogen_state with the current state" do
-                task.state_reader.should_receive(:read_with_result)
-                    .and_return([Orocos::NEW_DATA, last_state = Object.new])
-                    .and_return([Orocos::NEW_DATA, Object.new])
+                task.state_reader.should_receive(:read_new)
+                    .and_return(last_state = Object.new)
+                    .and_return(Object.new)
                 task.update_orogen_state
                 task.update_orogen_state
                 assert_equal last_state, task.last_orogen_state
             end
             it "returns nil if no new state has been received" do
-                task.state_reader.should_receive(:read_with_result)
-                    .and_return { Orocos::OLD_DATA }
+                task.state_reader.should_receive(:read_new)
                 assert !task.update_orogen_state
             end
             it "does not change the last and current states if no new states "\
                 "have been received" do
-                task.state_reader.should_receive(:read_with_result)
-                    .and_return([Orocos::NEW_DATA, last_state = Object.new])
-                    .and_return([Orocos::NEW_DATA, state = Object.new])
-                    .and_return([Orocos::OLD_DATA, nil])
+                task.state_reader.should_receive(:read_new)
+                    .and_return(last_state = Object.new)
+                    .and_return(state = Object.new)
+                    .and_return(nil)
                 task.update_orogen_state
                 task.update_orogen_state
                 assert !task.update_orogen_state
@@ -593,13 +579,12 @@ module Syskit
                 assert_equal state, task.orogen_state
             end
             it "returns the new state if there is one" do
-                task.state_reader.should_receive(:read_with_result)
-                    .and_return([Orocos::OLD_DATA, state = Object.new])
+                task.state_reader.should_receive(:read_new)
+                    .and_return(state = Object.new)
                 assert_equal state, task.update_orogen_state
             end
             it "emits the exception event when transitioned to exception" do
                 task = syskit_stub_deploy_configure_and_start(@task_m, remote_task: false)
-                puts task.orocos_task.class
                 expect_execution { task.orocos_task.exception }
                     .to { emit task.exception_event }
             end

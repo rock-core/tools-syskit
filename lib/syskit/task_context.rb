@@ -66,7 +66,7 @@ module Syskit
             @orocos_task       = remote_handles.handle
             @orocos_task.model = model.orogen_model
             @state_reader      = remote_handles.state_reader
-            @remote_state_getter = RemoteStateGetter.new(@orocos_task)
+            @remote_state_getter = remote_handles.state_getter
             @pending_exception_states = []
 
             remote_handles.default_properties.each do |p, p_value|
@@ -513,23 +513,16 @@ module Syskit
         # @return [Orocos::TaskContext::StateReader]
         attr_reader :state_reader
 
+        # @api private
+        #
         # Called at each cycle to update the orogen_state attribute for this
         # task using the values read from the state reader
         def update_orogen_state
             @state_sample ||= state_reader.new_sample
-            new_read, state = state_reader.read_with_result(@state_sample, false)
+            state = state_reader.read_new(@state_sample)
 
             if @exception_transition_deadline
                 return update_orogen_state_in_exception(state)
-            end
-
-            unless new_read
-                unless state_reader.connected?
-                    fatal "terminating #{self}, its state reader "\
-                          "#{state_reader} is disconnected"
-                    aborted!
-                end
-                return
             end
 
             return unless state
@@ -539,15 +532,49 @@ module Syskit
                 @exception_transition_deadline =
                     Time.now + Syskit.conf.exception_transition_timeout
                 @pending_exception_states << state
-                if @remote_state_getter.started?
-                    @remote_state_getter.resume
-                else
-                    @remote_state_getter.start
-                end
+                @remote_state_getter.resume_or_start
                 nil
             else
                 @last_orogen_state = @orogen_state
                 @orogen_state = state
+            end
+        end
+
+        # @api private
+        #
+        # Handle having our state reader be disconnected
+        def validate_state_reader_connected
+            return if state_reader.connected?
+
+            queue_last_chance_to_stop if running? && !stop_event.pending?
+            quarantined!
+
+            # Have we already degraded to using RemoteStateGetter ?
+            # Do NOT use quarantined?. It can mean other things.
+            if @state_reader == @remote_state_getter
+                # We already had degraded to the remote state getter ... there's
+                # nothing more we can do
+                #
+                # At least tell the system to not expect a state transition
+                # if we were starting or stopping the component. Configure
+                # does its own call to rtt_state, it will figure out what is
+                # going on
+                error = Roby::QuarantinedTaskError.new(self)
+                if start_event.pending?
+                    failed_to_start!(error)
+                elsif stop_event.pending?
+                    stop_event.emit_failed(Roby::EmissionFailed.new(error, stop_event))
+                end
+            else
+                # Switch to the remote state getter to at least figure out
+                # in which toplevel state we are. The component is unusable
+                # as is, but we can finish whatever transition it is doing
+                # (and stop it cleanly)
+                fatal "putting #{self} in quarantine, its state reader "\
+                    "#{state_reader} got disconnected"
+
+                @state_reader = @remote_state_getter
+                @remote_state_getter.resume_or_start
             end
         end
 
@@ -565,13 +592,14 @@ module Syskit
 
             @pending_exception_states << state if state
             if %I[EXCEPTION FATAL_ERROR].include?(@remote_state_getter.read)
-                @remote_state_getter.pause
                 @last_orogen_state = @orogen_state
                 @orogen_state = @pending_exception_states.shift
             elsif !@remote_state_getter.connected?
-                fatal "terminating #{self}, its remote state reader "\
-                        "#{@remote_state_getter} failed"
-                aborted!
+                fatal "putting #{self} in quarantine, its remote state reader "\
+                      "#{@remote_state_getter} failed during exception handling"
+                quarantined!
+                # Don't stop like in #handle_state_reader_disconnection, the component
+                # is currently transitioning to exception, a.k.a. already stopping
             end
         end
 
@@ -1084,15 +1112,12 @@ module Syskit
             execution_agent.register_task_context_in_fatal(orocos_name)
         end
 
-        event :aborted, terminal: true do |_context|
-            if execution_agent&.running? && !execution_agent.finishing?
-                aborted_event.achieve_asynchronously(description: "aborting #{self}") do
-                    orocos_task.stop(false)
-                rescue StandardError # rubocop:disable Lint/SuppressedException
-                end
-            else
-                aborted_event.emit
-            end
+        def queue_last_chance_to_stop
+            stop_event.pending = true
+            promise(description: "aborting #{self}") do
+                orocos_task.stop(false)
+            rescue StandardError # rubocop:disable Lint/SuppressedException
+            end.execute
         end
 
         on :aborted do |event|
@@ -1117,7 +1142,8 @@ module Syskit
 
         on :stop do |_event|
             info "stopped #{self}"
-            state_reader.pause if state_reader.respond_to?(:pause)
+            @remote_state_getter.pause if @remote_state_getter.started?
+
             if Syskit.conf.opportunistic_recovery_from_quarantine?
                 execution_agent.opportunistic_recovery_from_quarantine
             end

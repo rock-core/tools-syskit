@@ -720,10 +720,7 @@ module Syskit
         # Called asynchronously to initialize the {RemoteTaskHandles} object
         # once and for all
         def create_state_access(remote_task, distance: TaskContext::D_UNKNOWN)
-            state_getter = RemoteStateGetter.new(
-                remote_task,
-                initial_state: remote_task.rtt_state
-            )
+            state_getter = RemoteStateGetter.new(remote_task)
 
             if remote_task.model.extended_state_support?
                 state_port = remote_task.raw_port("state")

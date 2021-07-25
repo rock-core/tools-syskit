@@ -160,9 +160,20 @@ module Syskit
         end
 
         # Read a new state change
-        def read_new
-            if new_state = state_queue.pop(true)
+        def read_new(_sample = nil)
+            if (new_state = state_queue.pop(true))
                 @last_read_state = new_state
+            end
+        rescue ThreadError
+        end
+
+        # Read and return whether there was a new sample
+        def read_with_result(_sample, copy_old_data = false)
+            if (new_state = state_queue.pop(true))
+                @last_read_state = new_state
+                [true, @last_read_state]
+            else
+                [false, (@last_read_state if copy_old_data)]
             end
         rescue ThreadError
         end
@@ -192,6 +203,16 @@ module Syskit
             validate_thread_running
 
             run_event.set
+        end
+
+        # Either {#start} the getter if it is not running yet, or resume it if
+        # it is paused
+        def resume_or_start
+            if @poll_thread
+                resume
+            else
+                start
+            end
         end
 
         # Stop polling completely

@@ -11,6 +11,7 @@ module Syskit
             scheduler = plan.execution_engine.scheduler
             plan.find_tasks(Syskit::TaskContext).not_finished.each do |task|
                 next if task.failed_to_start?
+                next unless handle_task_state_updates?(scheduler, task)
 
                 handle_single_task_state_update(scheduler, task)
             end
@@ -20,7 +21,7 @@ module Syskit
         #
         # Handle state changes for a single task
         def self.handle_single_task_state_update(scheduler, task)
-            return unless handle_task_state_updates?(scheduler, task)
+            task.validate_state_reader_connected
 
             handle_task_configuration(scheduler, task) unless task.setup?
             return if !task.running? && !task.starting?
@@ -81,10 +82,12 @@ module Syskit
             )
         end
 
-        # Check if the task is in a state that allow us to process its state updates
+        # Check if the task is in a state that allow us to process its state
+        # updates
         #
-        # Of notice, we stop looking at tasks when we know the underlying process is
-        # being killed. It has caused some deep freeze in OmniORB in the past.
+        # Of notice, we stop looking at tasks when we know the underlying
+        # process is being killed. It has caused some deep freeze in OmniORB in
+        # the past.
         def self.handle_task_state_updates?(scheduler, task)
             execution_agent = task.execution_agent
 
