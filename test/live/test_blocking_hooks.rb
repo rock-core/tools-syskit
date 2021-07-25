@@ -178,7 +178,7 @@ module Syskit
                         poll do
                             task.execution_agent.kill! if (Time.now - start) > 1
                         end
-                        quarantine task
+                        ignore_errors_from quarantine(task)
                         emit task.aborted_event
                         emit deployment.stop_event
                     end
@@ -237,7 +237,7 @@ module Syskit
                         poll do
                             task.execution_agent.kill! if (Time.now - start) > 1
                         end
-                        quarantine task
+                        ignore_errors_from quarantine(task)
                         emit task.aborted_event
                         emit deployment.stop_event
                     end
