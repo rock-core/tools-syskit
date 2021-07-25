@@ -761,16 +761,20 @@ module Syskit
 
                 it "removes connections when the source deployment is stopped" do
                     stop_and_collect_execution_agents(source)
-                    flexmock(ConnectionManagement).new_instances.should_receive(:warn)
-                                                  .with(/error while disconnecting|I am assuming that the disconnection is actually effective/)
+                    flexmock(ConnectionManagement)
+                        .new_instances.should_receive(:warn)
+                        .with(Regexp.new("error while disconnecting|I am assuming that "\
+                                         "the disconnection is actually effective"))
                     ConnectionManagement.update(plan)
                     assert_is_disconnected(source_alive: false)
                 end
 
                 it "removes connections when the sink deployment is stopped" do
                     stop_and_collect_execution_agents(sink)
-                    flexmock(ConnectionManagement).new_instances.should_receive(:warn)
-                                                  .with(/error while disconnecting|I am assuming that the disconnection is actually effective/)
+                    flexmock(ConnectionManagement)
+                        .new_instances.should_receive(:warn)
+                        .with(Regexp.new("error while disconnecting|I am assuming that "\
+                                         "the disconnection is actually effective"))
                     ConnectionManagement.update(plan)
                     assert_is_disconnected(sink_alive: false)
                 end
