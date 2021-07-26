@@ -68,6 +68,8 @@ module Syskit
             def make_state_events
                 with_superclass = !supermodel || !supermodel.respond_to?(:orogen_model) || (supermodel.orogen_model != orogen_model.superclass)
                 orogen_model.each_state(with_superclass: with_superclass) do |name, type|
+                    next if name == "PRE_OPERATIONAL"
+
                     event_name = name.snakecase.downcase.to_sym
                     if type == :toplevel
                         event event_name,
