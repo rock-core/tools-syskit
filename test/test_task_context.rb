@@ -2026,14 +2026,16 @@ module Syskit
                         syskit_configure_and_start(task)
                         mock_remote_property.should_receive(:write)
                                             .pass_thru { barrier.wait }
-                        task.properties.test = 42
                     end
 
-                    def wait_until_promise_stops_on_barrier
-                        expect_execution.join_all_waiting_work(false).to { achieve { barrier.number_waiting == 1 } }
+                    def wait_until_promise_stops_on_barrier(barrier = @barrier, &block)
+                        expect_execution(&block)
+                            .join_all_waiting_work(false)
+                            .to { achieve { barrier.number_waiting == 1 } }
                     end
 
                     it "waits for the last active property commit to finish before emitting the stop event of an interruption" do
+                        task.properties.test = 42
                         wait_until_promise_stops_on_barrier
                         expect_execution { task.stop! }.join_all_waiting_work(false).to { achieve { task.orogen_state == :STOPPED } }
                         assert task.finishing?
@@ -2042,6 +2044,7 @@ module Syskit
                     end
 
                     it "waits for the last active property commit to finish before emitting a stop event triggered by a state change" do
+                        task.properties.test = 42
                         wait_until_promise_stops_on_barrier
                         Orocos.allow_blocking_calls { task.orocos_task.stop }
                         expect_execution.join_all_waiting_work(false).to { achieve { task.finishing? } }
@@ -2050,6 +2053,7 @@ module Syskit
                     end
 
                     it "waits for the last active property commit to finish before emitting an exception event" do
+                        task.properties.test = 42
                         wait_until_promise_stops_on_barrier
                         Orocos.allow_blocking_calls { task.orocos_task.local_ruby_task.exception }
                         expect_execution.join_all_waiting_work(false).to { achieve { task.finishing? } }
@@ -2057,12 +2061,24 @@ module Syskit
                         expect_execution.to { emit task.exception_event }
                     end
 
-                    it "does nothing when executing a pending promise while the task was stopped in the meantime" do
-                        original_remote_value = task.property("test").remote_value
-                        expect_execution { task.stop! }.to { emit task.stop_event }
-                        assert_equal original_remote_value, task.test_property.remote_value
-                        assert_equal original_remote_value,
-                                     Orocos.allow_blocking_calls { task.orocos_task.test }
+                    it "does not do anything in the property update promise if the "\
+                       "task got in the meantime in a state in which it would not use "\
+                       "the update" do
+                        task.properties.test = 21
+                        wait_until_promise_stops_on_barrier
+                        barrier.wait
+                        execute_one_cycle
+
+                        flexmock(task).should_receive(:commit_properties).once.pass_thru
+                        task.properties.test = 42
+
+                        flexmock(task).should_receive(:would_use_property_update?)
+                                      .and_return(false)
+                        execute_one_cycle
+                        assert_equal 21, task.test_property.remote_value
+                        actual_property_value =
+                            Orocos.allow_blocking_calls { task.orocos_task.test }
+                        assert_equal 21, actual_property_value
                     end
                 end
 

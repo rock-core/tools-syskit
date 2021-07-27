@@ -353,7 +353,8 @@ module Syskit
         event :properties_updated
 
         def would_use_property_update?
-            pending? || starting? || (running? && !finishing?)
+            !garbage? &&
+                (pending? || starting? || (running? && !finishing?))
         end
 
         # @api private
@@ -413,9 +414,7 @@ module Syskit
             promise = self.promise(description: "promise:#{self}#commit_properties")
         )
             promise.on_success(description: "#{self}#commit_properties#init") do
-                if finalized? || garbage? || finishing? || finished?
-                    []
-                else
+                if would_use_property_update?
                     # NOTE: {#queue_property_update_if_needed}, is a
                     # *delayed* property commit. It attempts at doing one
                     # batched write for many writes from Property#write.
@@ -435,29 +434,32 @@ module Syskit
                     # task's start event.
                     @has_pending_property_updates = !(starting? || running?)
 
-                    each_property.map do |p|
-                        [p, p.value.dup] if p.needs_commit?
-                    end.compact
+                    each_property
+                        .map { |p| [p, p.value.dup] if p.needs_commit? }
+                        .compact
+                else
+                    []
                 end
             end
             promise.then(description: "#{self}#commit_properties#write") do |properties|
                 properties.map do |p, p_value|
                     p.remote_property.write(p_value)
-                    [Time.now, p, nil]
+                    [Time.now, p, p_value, nil]
                 rescue ::Exception => e # rubocop:disable Lint/RescueException
-                    [Time.now, p, e]
-                end.compact
+                    [Time.now, p, nil, e]
+                end
             end
             promise.on_success(
                 description: "#{self}#commit_properties#update_log"
             ) do |result|
-                result.map do |timestamp, property, error|
+                result.map do |timestamp, property, value, error|
                     if error
                         execution_engine.add_error(
                             PropertyUpdateError.new(error, property)
                         )
+                        nil
                     else
-                        property.update_remote_value(property.value)
+                        property.update_remote_value(value)
                         property.update_log(timestamp)
                         property
                     end
