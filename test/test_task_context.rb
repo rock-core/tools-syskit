@@ -531,8 +531,8 @@ module Syskit
         describe "#update_orogen_state" do
             attr_reader :task, :orocos_task
             before do
-                task_m = TaskContext.new_submodel
-                task = syskit_stub_and_deploy(task_m)
+                @task_m = TaskContext.new_submodel
+                task = syskit_stub_and_deploy(@task_m)
                 @task = flexmock(task)
                 syskit_start_execution_agents(task)
                 @orocos_task = flexmock(task.orocos_task)
@@ -1645,7 +1645,7 @@ module Syskit
                 task_m = RubyTaskContext.new_submodel do
                     property "test_v", "/std/vector</double>"
                 end
-                task = syskit_deploy(task_m.deployed_as(name, on: "stubs"))
+                task = syskit_deploy(task_m.deployed_as("#{name}-vector", on: "stubs"))
                 syskit_start_execution_agents(task)
                 task.properties.test_v << 10
 
@@ -1653,7 +1653,7 @@ module Syskit
                     .garbage_collect(true)
                     .to { finalize task }
 
-                task = syskit_deploy(task_m.deployed_as(name, on: "stubs"))
+                task = syskit_deploy(task_m.deployed_as("#{name}-vector", on: "stubs"))
                 assert task.property("test_v").value.empty?
                 assert task.property("test_v").remote_value.empty?
             end

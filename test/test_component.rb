@@ -466,6 +466,13 @@ describe Syskit::Component do
         it "returns true on a blank task" do
             assert Syskit::Component.new.ready_for_setup?
         end
+        it "returns false if the task failed to start" do
+            plan.add(component = Syskit::Component.new)
+            execute do
+                component.failed_to_start!(RuntimeError.exception("something"))
+            end
+            refute component.ready_for_setup?
+        end
         it "returns false if there are unfullfilled syskit configuration precedence links" do
             plan.add(component = Syskit::Component.new)
             component.should_configure_after(event = Roby::EventGenerator.new)
