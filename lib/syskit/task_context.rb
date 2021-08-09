@@ -30,6 +30,10 @@ module Syskit
         root_model
         abstract
 
+        # @!method execution_agent
+        #
+        # @return [Deployment]
+
         # The task's configuration, as a list of registered configurations
         # for the underlying task context
         #
@@ -62,6 +66,8 @@ module Syskit
             @orocos_task       = remote_handles.handle
             @orocos_task.model = model.orogen_model
             @state_reader      = remote_handles.state_reader
+            @remote_state_getter = remote_handles.state_getter
+            @pending_exception_states = []
 
             remote_handles.default_properties.each do |p, p_value|
                 syskit_p = property(p.name)
@@ -347,7 +353,8 @@ module Syskit
         event :properties_updated
 
         def would_use_property_update?
-            pending? || starting? || (running? && !finishing?)
+            !garbage? &&
+                (pending? || starting? || (running? && !finishing?))
         end
 
         # @api private
@@ -407,9 +414,7 @@ module Syskit
             promise = self.promise(description: "promise:#{self}#commit_properties")
         )
             promise.on_success(description: "#{self}#commit_properties#init") do
-                if finalized? || garbage? || finishing? || finished?
-                    []
-                else
+                if would_use_property_update?
                     # NOTE: {#queue_property_update_if_needed}, is a
                     # *delayed* property commit. It attempts at doing one
                     # batched write for many writes from Property#write.
@@ -429,29 +434,32 @@ module Syskit
                     # task's start event.
                     @has_pending_property_updates = !(starting? || running?)
 
-                    each_property.map do |p|
-                        [p, p.value.dup] if p.needs_commit?
-                    end.compact
+                    each_property
+                        .map { |p| [p, p.value.dup] if p.needs_commit? }
+                        .compact
+                else
+                    []
                 end
             end
             promise.then(description: "#{self}#commit_properties#write") do |properties|
                 properties.map do |p, p_value|
                     p.remote_property.write(p_value)
-                    [Time.now, p, nil]
+                    [Time.now, p, p_value, nil]
                 rescue ::Exception => e # rubocop:disable Lint/RescueException
-                    [Time.now, p, e]
-                end.compact
+                    [Time.now, p, nil, e]
+                end
             end
             promise.on_success(
                 description: "#{self}#commit_properties#update_log"
             ) do |result|
-                result.map do |timestamp, property, error|
+                result.map do |timestamp, property, value, error|
                     if error
                         execution_engine.add_error(
                             PropertyUpdateError.new(error, property)
                         )
+                        nil
                     else
-                        property.update_remote_value(property.value)
+                        property.update_remote_value(value)
                         property.update_log(timestamp)
                         property
                     end
@@ -507,21 +515,93 @@ module Syskit
         # @return [Orocos::TaskContext::StateReader]
         attr_reader :state_reader
 
+        # @api private
+        #
         # Called at each cycle to update the orogen_state attribute for this
         # task using the values read from the state reader
         def update_orogen_state
             @state_sample ||= state_reader.new_sample
-            result, v = state_reader.read_with_result(@state_sample, false)
-            if !result
-                unless state_reader.connected?
-                    fatal "terminating #{self}, its state reader "\
-                          "#{state_reader} is disconnected"
-                    aborted!
-                end
+            state = state_reader.read_new(@state_sample)
+
+            if @exception_transition_deadline
+                return update_orogen_state_in_exception(state)
+            end
+
+            return unless state
+
+            if orocos_task.exception_state?(state)
+                # See comment in #update_orogen_state_in_exception
+                @exception_transition_deadline =
+                    Time.now + Syskit.conf.exception_transition_timeout
+                @pending_exception_states << state
+                @remote_state_getter.resume_or_start
                 nil
-            elsif v
+            else
                 @last_orogen_state = @orogen_state
-                @orogen_state = v
+                @orogen_state = state
+            end
+        end
+
+        # @api private
+        #
+        # Handle having our state reader be disconnected
+        def validate_state_reader_connected
+            return if state_reader.connected?
+
+            queue_last_chance_to_stop if running? && !stop_event.pending?
+            quarantined!
+
+            # Have we already degraded to using RemoteStateGetter ?
+            # Do NOT use quarantined?. It can mean other things.
+            if @state_reader == @remote_state_getter
+                # We already had degraded to the remote state getter ... there's
+                # nothing more we can do
+                #
+                # At least tell the system to not expect a state transition
+                # if we were starting or stopping the component. Configure
+                # does its own call to rtt_state, it will figure out what is
+                # going on
+                error = Roby::QuarantinedTaskError.new(self)
+                if start_event.pending?
+                    failed_to_start!(error)
+                elsif stop_event.pending?
+                    stop_event.emit_failed(Roby::EmissionFailed.new(error, stop_event))
+                end
+            else
+                # Switch to the remote state getter to at least figure out
+                # in which toplevel state we are. The component is unusable
+                # as is, but we can finish whatever transition it is doing
+                # (and stop it cleanly)
+                fatal "putting #{self} in quarantine, its state reader "\
+                    "#{state_reader} got disconnected"
+
+                @state_reader = @remote_state_getter
+                @remote_state_getter.resume_or_start
+            end
+        end
+
+        # @api private
+        #
+        # Wait for confirmation of the component shutdown once we received an
+        # exception state
+        #
+        # The exception states are received *before* the actual transition happened,
+        # while the RTT component reports the state *after*. By synchronizing on the
+        # RTT state, we make sure that the component is actually stopped *and* that
+        # catch other state transitions, such as FATAL_ERROR
+        def update_orogen_state_in_exception(state)
+            quarantined! if Time.now > @exception_transition_deadline
+
+            @pending_exception_states << state if state
+            if %I[EXCEPTION FATAL_ERROR].include?(@remote_state_getter.read)
+                @last_orogen_state = @orogen_state
+                @orogen_state = @pending_exception_states.shift
+            elsif !@remote_state_getter.connected?
+                fatal "putting #{self} in quarantine, its remote state reader "\
+                      "#{@remote_state_getter} failed during exception handling"
+                quarantined!
+                # Don't stop like in #handle_state_reader_disconnection, the component
+                # is currently transitioning to exception, a.k.a. already stopping
             end
         end
 
@@ -537,12 +617,6 @@ module Syskit
                 state = new_state
             end
             state || state_reader.read
-        end
-
-        # Whether this task context will ever be configurable
-        def will_never_setup?(state = nil)
-            state ||= read_current_state
-            state == :FATAL_ERROR
         end
 
         CONFIGURABLE_RTT_STATES = %I[STOPPED PRE_OPERATIONAL].freeze
@@ -843,6 +917,10 @@ module Syskit
 
         # (see Component#setup_failed!)_
         def setup_failed!(exception)
+            unless exception.kind_of?(Orocos::StateTransitionFailed)
+                execution_agent.register_task_context_in_fatal(orocos_name)
+            end
+
             execution_agent.finished_configuration(orocos_name)
             super
         end
@@ -885,6 +963,11 @@ module Syskit
                 orocos_task.start(false)
             end
             start_event.achieve_asynchronously(promise, emit_on_success: false)
+            promise.on_error do |exception|
+                unless exception.kind_of?(Orocos::StateTransitionFailed)
+                    execution_agent.register_task_context_in_fatal(orocos_name)
+                end
+            end
         end
 
         # Handle a state transition by emitting the relevant events
@@ -962,12 +1045,11 @@ module Syskit
         def stop_orocos_task
             orocos_task.stop(false)
             nil
-        rescue Orocos::ComError
-            # We actually aborted. Notify the callback so that it emits
-            # interrupt and stop
-            :aborted
         rescue Orocos::StateTransitionFailed
-            # Use #rtt_state as it has no problem with asynchronous
+            # Could be that we already have stopped, for instance because there
+            # was a race between the component and Syskit
+            #
+            # Use #rtt_state to verify as it has no problem with asynchronous
             # communication, unlike the port-based state updates.
             state = orocos_task.rtt_state
             raise if state == :RUNNING
@@ -975,6 +1057,7 @@ module Syskit
             Runtime.debug do
                 "in the interrupt event, StateTransitionFailed: task.state == #{state}"
             end
+
             # Nothing to do, the poll block will finalize the task
             nil
         end
@@ -983,19 +1066,13 @@ module Syskit
         event :interrupt do |_context|
             info "interrupting #{self}"
 
-            if !orocos_task # already killed
-                interrupt_event.emit
-                aborted_event.emit
-            elsif execution_agent && !execution_agent.finishing?
+            if execution_agent && !execution_agent.finishing?
                 promise =
                     execution_engine.promise(description: "promise:#{self}#interrupt") do
                         stop_orocos_task
                     end
-                promise.on_success(description: "#{self}#interrupt#done") do |result|
-                    if result == :aborted
-                        interrupt_event.emit
-                        aborted_event.emit
-                    end
+                promise.on_error(description: "#{self}#interrupt#error") do |error|
+                    quarantined! unless error.kind_of?(Orocos::StateTransitionFailed)
                 end
 
                 interrupt_event.achieve_asynchronously(promise, emit_on_success: false)
@@ -1034,43 +1111,15 @@ module Syskit
         forward exception: :failed
         forward fatal_error: :failed
         on :fatal_error do |_event|
-            kill_execution_agent_if_alone
+            execution_agent.register_task_context_in_fatal(orocos_name)
         end
 
-        # @api private
-        #
-        # Kill this task's execution agent if self is the only non-utility task
-        # it currently supports
-        #
-        # "Utility" tasks are tasks that are there in support of the overall
-        # Syskit system, such as e.g. loggers
-        #
-        # @return [Boolean] true if the agent is either already finished, finalized
-        #   or if the method stopped it. false if the agent is present and running
-        #   and the task could not terminate it
-        def kill_execution_agent_if_alone
-            return true unless execution_agent
-
-            not_loggers =
-                execution_agent
-                .each_executed_task
-                .find_all { |t| !Roby.app.syskit_utility_component?(t) }
-            return false unless not_loggers.size == 1
-
-            plan.unmark_permanent_task(execution_agent)
-            execution_agent.stop! if execution_agent.running?
-            true
-        end
-
-        event :aborted, terminal: true do |_context|
-            if execution_agent&.running? && !execution_agent.finishing?
-                aborted_event.achieve_asynchronously(description: "aborting #{self}") do
-                    orocos_task.stop(false)
-                rescue StandardError # rubocop:disable Lint/SuppressedException
-                end
-            else
-                aborted_event.emit
-            end
+        def queue_last_chance_to_stop
+            stop_event.pending = true
+            promise(description: "aborting #{self}") do
+                orocos_task.stop(false)
+            rescue StandardError # rubocop:disable Lint/SuppressedException
+            end.execute
         end
 
         on :aborted do |event|
@@ -1082,9 +1131,26 @@ module Syskit
             interrupt!
         end
 
+        def quarantined!(reason: nil)
+            super
+
+            execution_agent.register_task_context_quarantined(orocos_name)
+            if Syskit.conf.opportunistic_recovery_from_quarantine?
+                execution_agent.opportunistic_recovery_from_quarantine
+            end
+
+            nil
+        end
+
         on :stop do |_event|
             info "stopped #{self}"
-            state_reader.pause if state_reader.respond_to?(:pause)
+            @remote_state_getter.pause if @remote_state_getter.started?
+
+            if Syskit.conf.opportunistic_recovery_from_quarantine?
+                execution_agent.opportunistic_recovery_from_quarantine
+            end
+
+            nil
         end
 
         # Default implementation of the update_properties method.

@@ -34,6 +34,23 @@ module Syskit
             # Controls whether the orogen types should be exported as Ruby
             # constants
             attr_predicate :export_types?, true
+            # Controls whether Syskit should kill deployments that have a component
+            # in FATAL_ERROR or quarantined (e.g. failed to stop) when there are no
+            # other components running on it
+            #
+            # The default is true
+            attr_predicate :opportunistic_recovery_from_quarantine?, true
+            # Controls whether Syskit should restart deployments that have components
+            # in FATAL_ERROR, or that failed to stop
+            #
+            # The default is false for historical reasons. We strongly recommend turning
+            # this on globally
+            attr_predicate :auto_restart_deployments_with_quarantines?, true
+            # How long Syskit will allow a component to take to transition to EXCEPTION
+            #
+            # This usually includes the time needed to stop and cleanup. The default
+            # is 20s
+            attr_accessor :exception_transition_timeout
 
             # Data logging configuration
             #
@@ -85,6 +102,9 @@ module Syskit
                 @ignore_load_errors = false
                 @buffer_size_margin = 0.1
                 @use_only_model_pack = false
+                @opportunistic_recovery_from_quarantine = true
+                @auto_restart_deployments_with_quarantines = false
+                @exception_transition_timeout = 20.0
                 clear
 
                 self.export_types = true

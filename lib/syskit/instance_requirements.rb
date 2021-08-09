@@ -1244,13 +1244,17 @@ module Syskit
             to_action_model.new
         end
 
-        # Return the instance requirement object that runs this task
-        # model with the given name
         # Request to run this task model with the given name
         def deployed_as(name, **options)
             use_deployment_group(
                 model.to_deployment_group(name, **options)
             )
+            self
+        end
+
+        # Deploy the network represented by self using the given deployment(s)
+        def deploy_with(*names, **options)
+            use_deployment(*names, **options)
             self
         end
 

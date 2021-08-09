@@ -68,6 +68,8 @@ module Syskit
             def make_state_events
                 with_superclass = !supermodel || !supermodel.respond_to?(:orogen_model) || (supermodel.orogen_model != orogen_model.superclass)
                 orogen_model.each_state(with_superclass: with_superclass) do |name, type|
+                    next if name == "PRE_OPERATIONAL"
+
                     event_name = name.snakecase.downcase.to_sym
                     if type == :toplevel
                         event event_name,
@@ -251,6 +253,12 @@ module Syskit
                 group = Models::DeploymentGroup.new
                 group.use_deployment(concrete_model => name, **options)
                 group
+            end
+
+            # Return the instance requirement object that runs this task
+            # model with the given deployment
+            def deploy_with(*names, **options)
+                to_instance_requirements.use_deployment(*names, **options)
             end
 
             # Return the instance requirement object that runs this task

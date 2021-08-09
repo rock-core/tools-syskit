@@ -26,6 +26,10 @@ describe Syskit::Models::TaskContext do
         it "resolves toplevel events" do
             assert_equal :exception, Syskit::TaskContext.find_state_event(:EXCEPTION)
         end
+
+        it "does not define an event for PRE_OPERATIONAL" do
+            assert_nil Syskit::TaskContext.find_state_event(:PRE_OPERATIONAL)
+        end
     end
 
     describe "specialized models" do

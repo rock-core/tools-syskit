@@ -252,7 +252,10 @@ module Syskit
                     Server.warn "stopping process server"
                     processes.each_value do |p|
                         Server.warn "killing #{p.name}"
-                        p.kill
+                        # Kill the process hard. If there are still processes,
+                        # it means that the normal cleanup procedure did not
+                        # work.  Not the time to call stop or whatnot
+                        p.kill(false, cleanup: false, hard: true)
                     end
 
                     each_client do |socket|

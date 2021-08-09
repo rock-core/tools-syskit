@@ -380,18 +380,18 @@ module Syskit
             it "emits the start event once the state reader reported the RUNNING state" do
                 FlexMock.use(task.state_reader) do |state_reader|
                     state = nil
-                    state_reader.should_receive(:read_with_result)
+                    state_reader.should_receive(:read_new)
                                 .and_return do
                         s = state
-                        state = [Orocos::OLD_DATA, nil]
+                        state = nil
                         s
                     end
                     execute { task.start! }
                     refute task.running?
-                    state = [Orocos::NEW_DATA, :RUNNING]
+                    state = :RUNNING
                     expect_execution.to { emit task.start_event }
                     # Just to shut up sanity checks with state events
-                    state = [Orocos::NEW_DATA, :STOPPED]
+                    state = :STOPPED
                     expect_execution.to { emit task.stop_event }
                 end
             end
@@ -429,11 +429,13 @@ module Syskit
                     .timeout(0).to { not_emit task.stop_event }
                 assert task.finishing?
             end
-            it "emits interrupt and aborted if orocos_task#stop raises ComError" do
+            it "is quarantined if orocos_task#stop raises ComError" do
                 orocos_task.should_receive(:stop).and_raise(Orocos::ComError)
                 expect_execution { task.stop! }
                     .to do
-                        emit task.aborted_event, task.interrupt_event
+                        quarantine task
+                        ignore_errors_from(have_error_matching(Roby::EmissionFailed))
+                        emit task.aborted_event
                     end
             end
             it "emits interrupt if orocos_task#stop raises StateTransitionFailed "\
@@ -539,51 +541,37 @@ module Syskit
                 flexmock(task.state_reader)
             end
 
+            # NOTE: handling of errors related to the state readers is done
+            # in live/test_state_reader_disconnection.rb
+
             it "is provided a connected state reader by its execution agent" do
                 syskit_start_execution_agents(task)
                 assert task.state_reader.connected?
             end
-            it "emits :aborted if the state reader got disconnected" do
-                task = syskit_stub_deploy_configure_and_start(TaskContext.new_submodel)
-                setting_up = task.instance_variable_get(:@setting_up)
-                assert(!setting_up || setting_up.complete?)
-                task.update_orogen_state
-                Orocos.allow_blocking_calls do
-                    task.state_reader.disconnect
-                end
-                orocos_task = task.orocos_task
-
-                expect_execution { task.update_orogen_state }
-                    .to { emit task.aborted_event }
-                Orocos.allow_blocking_calls do
-                    assert_equal :STOPPED, orocos_task.rtt_state
-                end
-            end
             it "sets orogen_state with the new state" do
-                task.state_reader.should_receive(:read_with_result)
-                    .and_return([Orocos::NEW_DATA, state = Object.new])
+                task.state_reader.should_receive(:read_new)
+                    .and_return(state = Object.new)
                 task.update_orogen_state
                 assert_equal state, task.orogen_state
             end
             it "updates last_orogen_state with the current state" do
-                task.state_reader.should_receive(:read_with_result)
-                    .and_return([Orocos::NEW_DATA, last_state = Object.new])
-                    .and_return([Orocos::NEW_DATA, Object.new])
+                task.state_reader.should_receive(:read_new)
+                    .and_return(last_state = Object.new)
+                    .and_return(Object.new)
                 task.update_orogen_state
                 task.update_orogen_state
                 assert_equal last_state, task.last_orogen_state
             end
             it "returns nil if no new state has been received" do
-                task.state_reader.should_receive(:read_with_result)
-                    .and_return { Orocos::OLD_DATA }
+                task.state_reader.should_receive(:read_new)
                 assert !task.update_orogen_state
             end
             it "does not change the last and current states if no new states "\
                 "have been received" do
-                task.state_reader.should_receive(:read_with_result)
-                    .and_return([Orocos::NEW_DATA, last_state = Object.new])
-                    .and_return([Orocos::NEW_DATA, state = Object.new])
-                    .and_return([Orocos::OLD_DATA, nil])
+                task.state_reader.should_receive(:read_new)
+                    .and_return(last_state = Object.new)
+                    .and_return(state = Object.new)
+                    .and_return(nil)
                 task.update_orogen_state
                 task.update_orogen_state
                 assert !task.update_orogen_state
@@ -591,33 +579,14 @@ module Syskit
                 assert_equal state, task.orogen_state
             end
             it "returns the new state if there is one" do
-                task.state_reader.should_receive(:read_with_result)
-                    .and_return([Orocos::OLD_DATA, state = Object.new])
+                task.state_reader.should_receive(:read_new)
+                    .and_return(state = Object.new)
                 assert_equal state, task.update_orogen_state
             end
-        end
-
-        describe "#will_never_setup?" do
-            before do
-                plan.add(@task = TaskContext.new)
-            end
-            it "returns false if the provided state is not FATAL_ERROR" do
-                refute @task.will_never_setup?(:BLA)
-            end
-            it "returns true if the provided state is FATAL_ERROR" do
-                assert @task.will_never_setup?(:FATAL_ERROR)
-            end
-            it "returns false if no state is given and read_current_state "\
-                "returns something else than FATAL_ERROR" do
-                flexmock(@task).should_receive(:read_current_state)
-                               .and_return(:BLA)
-                refute @task.will_never_setup?
-            end
-            it "returns true if no state is given and read_current_state "\
-                "returns FATAL_ERROR" do
-                flexmock(@task).should_receive(:read_current_state)
-                               .and_return(:FATAL_ERROR)
-                assert @task.will_never_setup?
+            it "emits the exception event when transitioned to exception" do
+                task = syskit_stub_deploy_configure_and_start(@task_m, remote_task: false)
+                expect_execution { task.orocos_task.exception }
+                    .to { emit task.exception_event }
             end
         end
 
@@ -2057,14 +2026,16 @@ module Syskit
                         syskit_configure_and_start(task)
                         mock_remote_property.should_receive(:write)
                                             .pass_thru { barrier.wait }
-                        task.properties.test = 42
                     end
 
-                    def wait_until_promise_stops_on_barrier
-                        expect_execution.join_all_waiting_work(false).to { achieve { barrier.number_waiting == 1 } }
+                    def wait_until_promise_stops_on_barrier(barrier = @barrier, &block)
+                        expect_execution(&block)
+                            .join_all_waiting_work(false)
+                            .to { achieve { barrier.number_waiting == 1 } }
                     end
 
                     it "waits for the last active property commit to finish before emitting the stop event of an interruption" do
+                        task.properties.test = 42
                         wait_until_promise_stops_on_barrier
                         expect_execution { task.stop! }.join_all_waiting_work(false).to { achieve { task.orogen_state == :STOPPED } }
                         assert task.finishing?
@@ -2073,6 +2044,7 @@ module Syskit
                     end
 
                     it "waits for the last active property commit to finish before emitting a stop event triggered by a state change" do
+                        task.properties.test = 42
                         wait_until_promise_stops_on_barrier
                         Orocos.allow_blocking_calls { task.orocos_task.stop }
                         expect_execution.join_all_waiting_work(false).to { achieve { task.finishing? } }
@@ -2081,6 +2053,7 @@ module Syskit
                     end
 
                     it "waits for the last active property commit to finish before emitting an exception event" do
+                        task.properties.test = 42
                         wait_until_promise_stops_on_barrier
                         Orocos.allow_blocking_calls { task.orocos_task.local_ruby_task.exception }
                         expect_execution.join_all_waiting_work(false).to { achieve { task.finishing? } }
@@ -2088,12 +2061,25 @@ module Syskit
                         expect_execution.to { emit task.exception_event }
                     end
 
-                    it "does nothing when executing a pending promise while the task was stopped in the meantime" do
-                        original_remote_value = task.property("test").remote_value
-                        expect_execution { task.stop! }.to { emit task.stop_event }
-                        assert_equal original_remote_value, task.test_property.remote_value
-                        assert_equal original_remote_value,
-                                     Orocos.allow_blocking_calls { task.orocos_task.test }
+                    it "does not do anything in the property update promise if the "\
+                       "task got in the meantime in a state in which it would not use "\
+                       "the update" do
+                        task.properties.test = 21
+                        wait_until_promise_stops_on_barrier
+                        barrier.wait
+                        expect_execution.to_run
+                        assert_equal 21, task.test_property.remote_value
+
+                        flexmock(task).should_receive(:commit_properties).once.pass_thru
+                        task.properties.test = 42
+
+                        flexmock(task).should_receive(:would_use_property_update?)
+                                      .and_return(false)
+                        expect_execution.to_run
+                        assert_equal 21, task.test_property.remote_value
+                        actual_property_value =
+                            Orocos.allow_blocking_calls { task.orocos_task.test }
+                        assert_equal 21, actual_property_value
                     end
                 end
 
@@ -2209,6 +2195,49 @@ module Syskit
                         assert_process_events_does_not_block
                     end
                 end
+            end
+        end
+
+        describe "deployment shortcuts" do
+            before do
+                Syskit.conf.register_process_server(
+                    "unmanaged_tasks", RobyApp::UnmanagedTasksManager.new
+                )
+
+                Roby.app.using_task_library "orogen_syskit_tests"
+                @task_m = TaskContext.find_model_from_orogen_name(
+                    "orogen_syskit_tests::Empty"
+                )
+            end
+            after do
+                Syskit.conf.remove_process_server("unmanaged_tasks")
+            end
+
+            it "allows to declare a 'default' deployment" do
+                name = "#{Process.pid}#{name}"
+                task = syskit_deploy(@task_m.deployed_as(name))
+                assert_equal name, task.orocos_name
+            end
+
+            it "allows to declare an unmanaged deployment" do
+                name = "#{Process.pid}#{name}"
+                task = syskit_deploy(@task_m.deployed_as_unmanaged(name))
+                assert_equal "unmanaged_tasks", task.execution_agent.arguments[:on]
+                assert_equal name, task.orocos_name
+            end
+
+            it "allows to use a specific deployment without prefix" do
+                task = syskit_deploy(
+                    @task_m.deploy_with("syskit_fatal_error_recovery_test")
+                )
+                assert_equal "b", task.orocos_name
+            end
+
+            it "allows to use a specific deployment with prefix" do
+                task = syskit_deploy(
+                    @task_m.deploy_with("syskit_fatal_error_recovery_test" => Process.pid)
+                )
+                assert_equal "#{Process.pid}b", task.orocos_name
             end
         end
     end
