@@ -2067,14 +2067,15 @@ module Syskit
                         task.properties.test = 21
                         wait_until_promise_stops_on_barrier
                         barrier.wait
-                        execute_one_cycle
+                        expect_execution.to_run
+                        assert_equal 21, task.test_property.remote_value
 
                         flexmock(task).should_receive(:commit_properties).once.pass_thru
                         task.properties.test = 42
 
                         flexmock(task).should_receive(:would_use_property_update?)
                                       .and_return(false)
-                        execute_one_cycle
+                        expect_execution.to_run
                         assert_equal 21, task.test_property.remote_value
                         actual_property_value =
                             Orocos.allow_blocking_calls { task.orocos_task.test }
