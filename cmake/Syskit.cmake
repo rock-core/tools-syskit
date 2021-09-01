@@ -56,4 +56,7 @@ function(syskit_orogen_tests NAME)
         COMMAND syskit orogen-test ${testfiles} --workdir ${workdir}/bundle
                        -- ${__minitest_args}
     )
+    set_tests_properties(${NAME} PROPERTIES
+        ENVIRONMENT ROBY_BASE_LOG_DIR
+    )
 endfunction()
