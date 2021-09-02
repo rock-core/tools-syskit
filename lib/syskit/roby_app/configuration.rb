@@ -12,25 +12,22 @@ module Syskit
             # @return [Roby::Application]
             attr_reader :app
             # If true, we will load the component-specific code in
-            # tasks/orocos/. It is true by default
+            # tasks/orogen/. It is true by default
             attr_predicate :load_component_extensions, true
+            # Whether missing task libraries or typekits should be ignored
+            #
             # If true, files that raise an error during task library or type
             # import will be ignored. This is usually used on "root" bundles
             # (e.g. the Rock bundle) to have the benefit of GUIs like
             # system_model even though some typekits/task libraries are not
             # present
+            #
+            # The default is false
             attr_predicate :ignore_missing_orogen_projects_during_load, true
-            # If true, files that raise an error will be ignored. This is
-            # usually used on "root" bundles (e.g. the Rock bundle) to have the
-            # benefit of GUIs like browse even though some files have
-            # errors
-            attr_predicate :ignore_load_errors, true
             # The set of process servers registered so far
+            #
             # @return [Hash<String,ProcessServerConfig>]
             attr_reader :process_servers
-            # Controls whether models from the installed components should be
-            # used or not
-            attr_predicate :use_only_model_pack?, true
             # Controls whether the orogen types should be exported as Ruby
             # constants
             attr_predicate :export_types?, true
@@ -51,6 +48,11 @@ module Syskit
             # This usually includes the time needed to stop and cleanup. The default
             # is 20s
             attr_accessor :exception_transition_timeout
+
+            # @deprecated Unused, kept here for historical reasons
+            attr_predicate :ignore_load_errors, true
+            # @deprecated Unused, kept here for historical reasons
+            attr_predicate :use_only_model_pack?, true
 
             # Data logging configuration
             #
@@ -99,9 +101,7 @@ module Syskit
                 @prefix_blacklist = []
                 @sd_publish_list = []
                 @ignore_missing_orogen_projects_during_load = false
-                @ignore_load_errors = false
                 @buffer_size_margin = 0.1
-                @use_only_model_pack = false
                 @opportunistic_recovery_from_quarantine = true
                 @auto_restart_deployments_with_quarantines = false
                 @exception_transition_timeout = 20.0
