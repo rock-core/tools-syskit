@@ -206,8 +206,8 @@ module Syskit
             unless syskit_task_model <= base_syskit_task_model
                 raise ArgumentError,
                       "incompatible explicit selection of task model "\
-                      "#{syskit_task_model} for the model of #{mapped_name} "\
-                      " in #{self}"
+                      "#{syskit_task_model} for the model of #{mapped_name} in #{self}, "\
+                      "expected #{base_syskit_task_model} or one of its subclasses"
             end
 
             plan.add(task = syskit_task_model.new(orocos_name: mapped_name))
