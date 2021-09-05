@@ -15,11 +15,11 @@ Roby.app.backward_compatible_naming = false
 # or that failed to stop
 Syskit.conf.auto_restart_deployments_with_quarantines = true
 
-# Disable old-style type export (using constants)
-Syskit.conf.export_types = false
+# Set to false to disable old-style type export (using constants)
+Syskit.conf.export_types = true
 
-# Disable old-style task model export (using constants)
-OroGen.syskit_model_constant_registration = false
+# Set to false to disable old-style task model export (using constants)
+OroGen.syskit_model_constant_registration = true
 
 # Set the module's name. It is normally inferred from the app name, and the app
 # name is inferred from the base directory name (e.g. an app located in
