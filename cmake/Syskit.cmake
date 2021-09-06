@@ -68,6 +68,6 @@ function(syskit_orogen_tests NAME)
                        -- ${__minitest_args}
     )
     set_tests_properties(${NAME} PROPERTIES
-        ENVIRONMENT ROBY_BASE_LOG_DIR
+        ENVIRONMENT ROBY_BASE_LOG_DIR=${ROCK_TEST_LOG_DIR}
     )
 endfunction()
