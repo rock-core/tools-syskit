@@ -1,3 +1,5 @@
+option(OROGEN_TEST_VERBOSE "Whether orogen tests (using Syskit) should be given the -v option, showing each test as they are executed" OFF)
+
 # Run tests in test/ using Syskit
 #
 # If test/ has a bundle/ folder, the tests are run within this bundle's context.
@@ -6,8 +8,13 @@
 function(syskit_orogen_tests NAME)
     set(workdir ${CMAKE_CURRENT_BINARY_DIR})
     set(mode FILES)
+    set(VERBOSE ${OROGEN_TEST_VERBOSE})
     foreach(arg ${ARGN})
-        if (arg STREQUAL "FILES")
+        # VERBOSE is a variable and is deferenced by default. Prefix with x to
+        # disambiguate
+        if ("x${arg}" STREQUAL "xVERBOSE")
+            set(VERBOSE ON)
+        elseif (arg STREQUAL "FILES")
             set(mode FILES)
         elseif (arg STREQUAL "WORKING_DIRECTORY")
             set(mode WORKING_DIRECTORY)
@@ -49,6 +56,10 @@ function(syskit_orogen_tests NAME)
             --junit-filename=${ROCK_TEST_LOG_DIR}/report.junit.xml
             --junit-jenkins
         )
+    endif()
+
+    if (VERBOSE)
+        list(APPEND __minitest_args -v)
     endif()
 
     add_test(
