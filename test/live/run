@@ -1,6 +1,15 @@
 #! /bin/sh -e
 
-dir=$(mktemp -d)
+if test -n "$SYSKIT_LIVE_TEST_LOG_DIR"; then
+    dir=$SYSKIT_LIVE_TEST_LOG_DIR
+else
+    dir=$(mktemp -d)
+fi
+
 syskit gen app "$dir/app"
+ROBY_BASE_LOG_DIR="$dir/app/logs"
 syskit orogen-test --workdir "$dir/app" "$@"
-rm -rf $dir
+
+if test -z "$SYSKIT_LIVE_TEST_LOG_DIR"; then
+    rm -rf $dir
+fi
