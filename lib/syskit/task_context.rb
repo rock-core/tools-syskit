@@ -1142,9 +1142,20 @@ module Syskit
             nil
         end
 
+        def ensure_remote_state_getter_stopped
+            return unless @remote_state_getter.started?
+
+            @remote_state_getter.pause
+        rescue RemoteStateGetter::InvalidRuntimeStateError
+            # The state getter might have been disconnected in the meantime,
+            # because the deployment is getting killed
+            raise if @remote_state_getter.connected?
+        end
+
         on :stop do |_event|
             info "stopped #{self}"
-            @remote_state_getter.pause if @remote_state_getter.started?
+
+            ensure_remote_state_getter_stopped
 
             if Syskit.conf.opportunistic_recovery_from_quarantine?
                 execution_agent.opportunistic_recovery_from_quarantine

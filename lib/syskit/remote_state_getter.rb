@@ -15,9 +15,10 @@ module Syskit
         # The last read state
         attr_reader :last_read_state
 
-        # Exception raised when an operation that requires the getter to be
-        # started is called
-        class NotYetStarted < RuntimeError; end
+        # Exception raised if the current getter's state is invalid for an operation
+        class InvalidRuntimeStateError < RuntimeError; end
+        # @deprecated
+        class NotYetStarted < InvalidRuntimeStateError; end
 
         def initialize(orocos_task, initial_state: nil, period: 0.02)
             @orocos_task = orocos_task
@@ -106,13 +107,15 @@ module Syskit
             validate_thread_running
 
             if !@run_event.set?
-                raise ThreadError, "error calling or within #wait: #{self} is paused"
+                raise InvalidRuntimeStateError,
+                      "error calling or within #wait: #{self} is paused"
             elsif (error = @poll_thread_error.value)
                 raise error,
                       "error calling or within #wait: #{self}'s poll thread quit "\
                       "with #{error.message}", (error.backtrace + caller)
             elsif @exit_condition.set?
-                raise ThreadError, "error calling or within #wait: #{self} is quitting"
+                raise InvalidRuntimeStateError,
+                      "error calling or within #wait: #{self} is quitting"
             end
         end
 
@@ -179,7 +182,15 @@ module Syskit
         def pause
             validate_thread_running
 
-            @run_event.reset
+            @wait_sync.synchronize do
+                if @exit_condition.set?
+                    raise InvalidRuntimeStateError,
+                          "cannot call #pause, #{self} is quitting"
+                end
+
+                @run_event.reset
+                @wait_signal.broadcast
+            end
         end
 
         # @api private
@@ -215,8 +226,10 @@ module Syskit
         def disconnect
             # This order ensures that {#poll_thread} will quit immediately if it
             # was paused
-            @exit_condition.set
-            @run_event.set
+            @wait_sync.synchronize do
+                @exit_condition.set
+                @run_event.set
+            end
         end
 
         # Wait for the poll thread to finish after a {#disconnect}

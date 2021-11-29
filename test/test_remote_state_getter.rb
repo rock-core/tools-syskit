@@ -140,7 +140,7 @@ module Syskit
 
             it "raises if the getter is paused" do
                 getter.pause
-                e = assert_raises(ThreadError) do
+                e = assert_raises(RemoteStateGetter::InvalidRuntimeStateError) do
                     getter.wait
                 end
                 assert_match /error calling.*is paused/, e.message
@@ -167,7 +167,8 @@ module Syskit
 
             it "raises if the poll thread quits while waiting" do
                 assert_interrupts_wait(
-                    ThreadError, /error calling.*is quitting/
+                    RemoteStateGetter::InvalidRuntimeStateError,
+                    /error calling.*is quitting/
                 ) do |_, getter|
                     getter.disconnect
                 end
@@ -175,7 +176,7 @@ module Syskit
 
             it "raises if the poll thread has quit or is quitting" do
                 getter.disconnect
-                e = assert_raises(ThreadError) do
+                e = assert_raises(RemoteStateGetter::InvalidRuntimeStateError) do
                     getter.wait
                 end
                 assert_match /error calling.*is quitting/, e.message
@@ -199,6 +200,14 @@ module Syskit
                 getter.pause
                 Thread.pass until getter.asleep?
             end
+
+            it "refuses to pause the polling thread if it is being stopped" do
+                getter.disconnect
+                assert_raises(RemoteStateGetter::InvalidRuntimeStateError) do
+                    getter.pause
+                end
+            end
+
             it "allows to resume polling" do
                 getter.pause
                 getter.resume
