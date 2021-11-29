@@ -21,6 +21,13 @@ module Syskit
         end
 
         after do
+            # This will "flush" all the pending waiting work
+            #
+            # Since we are killing stuff in the middle of execution, we
+            # do expect some errors to show up. Sometimes. Othertimes,
+            # the error will be reported by an EmissionFailed on `interrupt`
+            plan.execution_engine.join_all_waiting_work
+
             Orocos::CORBA.connect_timeout = @orig_connect_timeout
             Orocos::CORBA.call_timeout = @orig_call_timeout
             Syskit.conf.opportunistic_recovery_from_quarantine =
@@ -71,7 +78,7 @@ module Syskit
                     expect_execution.scheduler(true).join_all_waiting_work(false).to do
                         poll do
                             if task.setting_up? && (Time.now - start) > 1
-                                task.execution_agent.kill!
+                                kill_agent_once_in_poll(task)
                             end
                         end
                         fail_to_start task
@@ -111,7 +118,7 @@ module Syskit
                     expect_execution.scheduler(true).join_all_waiting_work(false).to do
                         poll do
                             if task.start_event.pending? && (Time.now - start) > 1
-                                task.execution_agent.kill!
+                                kill_agent_once_in_poll(task)
                             end
                         end
                         fail_to_start task
@@ -176,9 +183,13 @@ module Syskit
                     start = Time.now
                     expect_execution { task.stop! }.join_all_waiting_work(false).to do
                         poll do
-                            task.execution_agent.kill! if (Time.now - start) > 1
+                            kill_agent_once_in_poll(task) if (Time.now - start) > 1
                         end
                         ignore_errors_from quarantine(task)
+                        ignore_errors_from have_error_matching(
+                            Roby::EmissionFailed
+                            .match.with_origin(task.interrupt_event)
+                        )
                         emit task.aborted_event
                         emit deployment.stop_event
                     end
@@ -235,9 +246,13 @@ module Syskit
                     start = Time.now
                     expect_execution { task.stop! }.join_all_waiting_work(false).to do
                         poll do
-                            task.execution_agent.kill! if (Time.now - start) > 1
+                            kill_agent_once_in_poll(task) if (Time.now - start) > 1
                         end
                         ignore_errors_from quarantine(task)
+                        ignore_errors_from have_error_matching(
+                            Roby::EmissionFailed
+                            .match.with_origin(task.interrupt_event)
+                        )
                         emit task.aborted_event
                         emit deployment.stop_event
                     end
@@ -290,13 +305,9 @@ module Syskit
                     syskit_configure_and_start(task)
 
                     start = Time.now
-                    killed = false
                     expect_execution.join_all_waiting_work(false).to do
                         poll do
-                            if !killed && (Time.now - start) > 1
-                                killed = true
-                                task.execution_agent.kill!
-                            end
+                            kill_agent_once_in_poll(task) if (Time.now - start) > 1
                         end
                         ignore_errors_from quarantine(task)
                         emit task.aborted_event
@@ -334,11 +345,11 @@ module Syskit
                     expect_execution.scheduler(true).join_all_waiting_work(false).to do
                         poll do
                             if task.setting_up? && (Time.now - start) > 1
-                                task.execution_agent.kill!
+                                kill_agent_once_in_poll(task)
                             end
                         end
                         fail_to_start task
-                        emit deployment.stop_event
+                        emit deployment.kill_event
                     end
                 end
 
@@ -382,7 +393,7 @@ module Syskit
                     expect_execution.scheduler(true).join_all_waiting_work(false).to do
                         poll do
                             if task.setting_up? && (Time.now - start) > 1
-                                task.execution_agent.kill!
+                                kill_agent_once_in_poll(task)
                             end
                         end
                         fail_to_start task
@@ -452,6 +463,13 @@ module Syskit
                 plan.unmark_permanent_task(logger)
                 plan.remove_task(logger)
             end
+        end
+
+        def kill_agent_once_in_poll(task)
+            return unless (agent = task.execution_agent)
+            return if agent.kill_event.pending?
+
+            agent.kill!
         end
     end
 end
