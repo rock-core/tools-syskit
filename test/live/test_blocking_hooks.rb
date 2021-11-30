@@ -82,7 +82,7 @@ module Syskit
                             end
                         end
                         fail_to_start task
-                        emit deployment.stop_event
+                        emit deployment.kill_event
                     end
                 end
             end
@@ -122,7 +122,7 @@ module Syskit
                             end
                         end
                         fail_to_start task
-                        emit deployment.stop_event
+                        emit deployment.kill_event
                     end
                 end
             end
@@ -191,7 +191,7 @@ module Syskit
                             .match.with_origin(task.interrupt_event)
                         )
                         emit task.aborted_event
-                        emit deployment.stop_event
+                        emit deployment.kill_event
                     end
                 end
             end
@@ -254,7 +254,7 @@ module Syskit
                             .match.with_origin(task.interrupt_event)
                         )
                         emit task.aborted_event
-                        emit deployment.stop_event
+                        emit deployment.kill_event
                     end
                 end
             end
@@ -311,7 +311,7 @@ module Syskit
                         end
                         ignore_errors_from quarantine(task)
                         emit task.aborted_event
-                        emit deployment.stop_event
+                        emit deployment.kill_event
                     end
                 end
             end
@@ -397,7 +397,7 @@ module Syskit
                             end
                         end
                         fail_to_start task
-                        emit deployment.stop_event
+                        emit deployment.kill_event
                     end
                 end
 
@@ -444,9 +444,9 @@ module Syskit
 
             executed_tasks =
                 deployment.each_executed_task.find_all(&:running?)
-            expect_execution { deployment.stop! }
+            expect_execution { deployment.kill! }
                 .to do
-                    emit deployment.stop_event
+                    emit deployment.kill_event
                     executed_tasks.each { |t| emit t.aborted_event }
                 end
         end
