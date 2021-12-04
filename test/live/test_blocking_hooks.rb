@@ -14,6 +14,8 @@ module Syskit
                 Syskit.conf.opportunistic_recovery_from_quarantine?
             @orig_auto_restart_flag =
                 Syskit.conf.auto_restart_deployments_with_quarantines?
+            @orig_exception_transition_timeout =
+                Syskit.conf.exception_transition_timeout
 
             Orocos::CORBA.connect_timeout = 100
             Syskit.conf.opportunistic_recovery_from_quarantine = false
@@ -34,6 +36,8 @@ module Syskit
                 @orig_opportunistic_recovery
             Syskit.conf.auto_restart_deployments_with_quarantines =
                 @orig_auto_restart_flag
+            Syskit.conf.exception_transition_timeout =
+                @orig_exception_transition_timeout
         end
 
         describe "system handling of blocking hooks" do
