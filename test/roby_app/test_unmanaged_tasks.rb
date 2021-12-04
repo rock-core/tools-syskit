@@ -31,9 +31,7 @@ module Syskit
             end
 
             def create_unmanaged_task
-                if @unmanaged_task
-                    raise ArgumentError, "unmanaged task already created"
-                end
+                raise ArgumentError, "unmanaged task already created" if @unmanaged_task
 
                 @unmanaged_task = Orocos.allow_blocking_calls do
                     Orocos::RubyTasks::TaskContext.from_orogen_model(
@@ -97,18 +95,25 @@ module Syskit
                     .to { emit deployment_task.stop_event }
             end
 
-            it "aborts the execution agent if the monitor thread fails in unexpected ways" do
+            it "aborts the execution agent if the monitor thread fails "\
+               "in unexpected ways" do
                 make_deployment_ready
 
                 process_died = capture_log(deployment_task, :warn) do
-                    background_thread_died = capture_log(deployment_task.orocos_process, :fatal) do
-                        expect_execution { deployment_task.orocos_process.monitor_thread.raise RuntimeError }
-                            .to { emit deployment_task.failed_event }
-                    end
-                    assert_equal ["assuming #{deployment_task.orocos_process} died because the background thread died with",
+                    background_thread_died =
+                        capture_log(deployment_task.orocos_process, :fatal) do
+                            expect_execution do
+                                deployment_task
+                                    .orocos_process.monitor_thread
+                                    .raise RuntimeError
+                            end.to { emit deployment_task.failed_event }
+                        end
+                    assert_equal ["assuming #{deployment_task.orocos_process} died "\
+                                  "because the background thread died with",
                                   "RuntimeError (RuntimeError)"], background_thread_died
                 end
-                assert_equal ["unmanaged_deployment_test unexpectedly died on process server unmanaged_tasks"],
+                assert_equal ["unmanaged_deployment_test unexpectedly died "\
+                              "on process server unmanaged_tasks"],
                              process_died
             end
 
@@ -117,7 +122,10 @@ module Syskit
                 process = deployment_task.orocos_process
                 process_manager = process.process_manager
                 begin
-                    flexmock(process).should_receive(:verify_threads_state).and_raise(RuntimeError)
+                    flexmock(process).should_receive(dead?: true)
+                    flexmock(process)
+                        .should_receive(:verify_threads_state)
+                        .and_raise(RuntimeError)
                     capture_log(process, :fatal) do
                         assert_equal [process], process_manager.wait_termination(0).to_a
                         assert_equal Set[], process_manager.wait_termination(0)
@@ -138,7 +146,8 @@ module Syskit
                         assert deployment_task.orocos_process.dead?
                     end.to { emit deployment_task.failed_event }
                 end
-                assert_equal ["unmanaged_deployment_test unexpectedly died on process server unmanaged_tasks"],
+                assert_equal ["unmanaged_deployment_test unexpectedly died on "\
+                              "process server unmanaged_tasks"],
                              messages
             end
 

@@ -93,7 +93,7 @@ module Syskit
             # @param [Hash] options additional spawn options. This is provided
             #   for compatibility with the process server API, but is ignored
             # @return [UnmanagedProcess]
-            def start(name, deployment_name = name, name_mappings = {}, prefix: nil, **options)
+            def start(name, deployment_name = name, name_mappings = {}, prefix: nil, **_)
                 model = if deployment_name.respond_to?(:to_str)
                             loader.deployment_model_from_name(deployment_name)
                         else deployment_name
@@ -107,7 +107,8 @@ module Syskit
                 name_mappings = prefix_mappings.merge(name_mappings)
                 name_mappings.each do |from, to|
                     if from != to
-                        raise NameMappingsForbidden, "cannot do name mapping in unmanaged processes"
+                        raise NameMappingsForbidden,
+                              "cannot do name mapping in unmanaged processes"
                     end
                 end
 
@@ -130,23 +131,23 @@ module Syskit
             #
             # Returns a hash that maps deployment names to the Status
             # object that represents their exit status.
-            def wait_termination(timeout = nil)
+            def wait_termination(_timeout = nil)
                 # Verify that the monitor threads are in a good state, and
                 # gather the ones that are actually dead
                 dead_processes = Set.new
                 processes.delete_if do |_, process|
+                    next unless process.dead?
+
+                    dead_processes << process
                     begin
                         process.verify_threads_state
-                    rescue Exception => e
-                        process.fatal "assuming #{process} died because the background thread died with"
+                    rescue Exception => e # rubocop:disable Lint/RescueException
+                        process.fatal "assuming #{process} died because the background "\
+                                      "thread died with"
                         Roby.log_exception(e, process, :fatal)
-                        dead_processes << process
                     end
 
-                    if process.dead?
-                        dead_processes << process
-                    end
-                    dead_processes.include?(process)
+                    true
                 end
                 dead_processes
             end
@@ -156,9 +157,7 @@ module Syskit
             # The call does not block until the process has quit. You will have to
             # call #wait_termination to wait for the process end.
             def stop(world_name)
-                if w = processes[world_name]
-                    w.kill
-                end
+                processes[world_name]&.kill
             end
         end
     end

@@ -70,7 +70,8 @@ module Syskit
             # It is spawned the first time {#wait_running} returns true
             attr_reader :monitor_thread
 
-            # Creates a new object managing the tasks that represent a single unmanaged process
+            # Creates a new object managing the tasks that represent a single
+            # unmanaged process
             #
             # @param [nil,#dead_deployment] process_manager the process manager
             #   which created this process. If non-nil, its #dead_deployment method
@@ -93,7 +94,7 @@ module Syskit
             # It spawns a thread that returns once the task got resolved
             #
             # @return [void]
-            def spawn(options = {})
+            def spawn(_options = {})
                 @spawn_start = Time.now
                 @last_warning = Time.now
                 @deployed_tasks = nil
@@ -106,9 +107,7 @@ module Syskit
             # exception that terminated it, or a RuntimeError if no exceptions
             # have been raised (which should not be possible)
             def verify_threads_state
-                if monitor_thread && !monitor_thread.alive?
-                    monitor_thread.join
-                end
+                monitor_thread.join if monitor_thread && !monitor_thread.alive?
             end
 
             def resolve_all_tasks(cache = {})
@@ -134,13 +133,12 @@ module Syskit
             # @raise [ArgumentError] if the name is not the name of a task on
             #   self
             def task(task_name)
-                if !deployed_tasks
-                    raise "process not running yet"
-                elsif task = deployed_tasks[task_name]
-                    task
-                else
+                raise "process not running yet" unless deployed_tasks
+                unless (task = deployed_tasks[task_name])
                     raise ArgumentError, "#{task_name} is not a task of #{self}"
                 end
+
+                task
             end
 
             # @api private
@@ -152,7 +150,7 @@ module Syskit
                 thread.raise TerminateThread
                 begin
                     thread.join
-                rescue TerminateThread
+                rescue TerminateThread # rubocop:disable Lint/SuppressedException
                 end
             end
 
@@ -174,10 +172,9 @@ module Syskit
             def monitor(period: 0.1)
                 until quitting?
                     deployed_tasks.each_value do |task|
-                        begin task.ping
-                        rescue Orocos::ComError
-                            return # rubocop:disable Lint/NonLocalExitFromIterator
-                        end
+                        task.ping
+                    rescue Orocos::ComError
+                        return # rubocop:disable Lint/NonLocalExitFromIterator
                     end
                     sleep period
                 end
@@ -198,7 +195,7 @@ module Syskit
 
             # Returns true if the tasks have been successfully discovered
             def ready?
-                !!deployed_tasks
+                deployed_tasks
             end
 
             # True if the process is running. This is an alias for running?
