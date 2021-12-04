@@ -117,7 +117,10 @@ module Syskit
                 process = deployment_task.orocos_process
                 process_manager = process.process_manager
                 begin
-                    flexmock(process).should_receive(:verify_threads_state).and_raise(RuntimeError)
+                    flexmock(process).should_receive(dead?: true)
+                    flexmock(process)
+                        .should_receive(:verify_threads_state)
+                        .and_raise(RuntimeError)
                     capture_log(process, :fatal) do
                         assert_equal [process], process_manager.wait_termination(0).to_a
                         assert_equal Set[], process_manager.wait_termination(0)

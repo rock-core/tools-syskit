@@ -135,18 +135,18 @@ module Syskit
                 # gather the ones that are actually dead
                 dead_processes = Set.new
                 processes.delete_if do |_, process|
+                    next unless process.dead?
+
+                    dead_processes << process
                     begin
                         process.verify_threads_state
                     rescue Exception => e
-                        process.fatal "assuming #{process} died because the background thread died with"
+                        process.fatal "assuming #{process} died because the background "\
+                                      "thread died with"
                         Roby.log_exception(e, process, :fatal)
-                        dead_processes << process
                     end
 
-                    if process.dead?
-                        dead_processes << process
-                    end
-                    dead_processes.include?(process)
+                    true
                 end
                 dead_processes
             end
