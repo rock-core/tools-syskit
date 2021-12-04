@@ -73,7 +73,7 @@ module Syskit
             end
 
             it "does not auto-restart the deployment if the tasks "\
-            "in FATAL_ERROR are not involved in the new network" do
+               "in FATAL_ERROR are not involved in the new network" do
                 Syskit.conf.auto_restart_deployments_with_quarantines = true
 
                 trigger_fatal_error(@task)
@@ -83,10 +83,11 @@ module Syskit
             end
 
             it "auto-restarts deployments with a quarantined task "\
-            "if configured to do so" do
+               "if configured to do so" do
                 Syskit.conf.auto_restart_deployments_with_quarantines = true
 
                 @task.quarantined!
+                plan.unmark_mission_task(@task) # avoids QuarantinedTaskError
 
                 # DO NOT use syskit_configure_and_start, it forcefully starts
                 # the execution agent, which does not work here.
@@ -108,10 +109,11 @@ module Syskit
             end
 
             it "does not auto-restart the deployment if quarantined "\
-            "tasks are not involved in the new network" do
+               "tasks are not involved in the new network" do
                 Syskit.conf.auto_restart_deployments_with_quarantines = true
 
                 @task.quarantined!
+                plan.unmark_mission_task(@task) # avoid QuarantinedTaskError
 
                 new_task = syskit_deploy(@task2_m)
                 assert_same @task2, new_task
@@ -128,6 +130,8 @@ module Syskit
                     task.quarantined!
                     task2.quarantined!
                 end.to do
+                    quarantine task
+                    quarantine task2
                     emit task.aborted_event
                     emit task2.aborted_event
                     emit deployment.kill_event
