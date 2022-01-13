@@ -21,7 +21,7 @@ module Syskit
         #
         # Handle state changes for a single task
         def self.handle_single_task_state_update(scheduler, task)
-            task.validate_state_reader_connected
+            return unless task.validate_state_reader_connected
 
             handle_task_configuration(scheduler, task) unless task.setup?
             return if !task.running? && !task.starting?

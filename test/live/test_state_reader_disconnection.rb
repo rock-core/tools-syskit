@@ -73,6 +73,7 @@ module Syskit
             it "does nothing more if the remote getter is lost as well" do
                 mock_disconnected_remote_state_getter
                 expect_execution { task.state_reader.disconnect }
+                    .join_all_waiting_work(false)
                     .to do
                         quarantine task
                         fail_to_start task
@@ -107,7 +108,11 @@ module Syskit
                 # Inhibit the stop call ... or we have a race
                 flexmock(task).should_receive(:queue_last_chance_to_stop)
                 expect_execution { task.state_reader.disconnect }
+                    .join_all_waiting_work(false)
                     .to { quarantine task }
+
+                sleep 2.5
+                expect_execution.to { not_emit task.stop_event }
 
                 deployment_kill
             end
@@ -131,7 +136,11 @@ module Syskit
             it "does nothing more if the remote getter is lost as well" do
                 mock_disconnected_remote_state_getter
                 expect_execution { task.state_reader.disconnect }
+                    .join_all_waiting_work(false)
                     .to { quarantine task }
+
+                sleep 2.5
+                expect_execution.to { not_emit task.stop_event }
 
                 deployment_kill
             end
@@ -155,7 +164,11 @@ module Syskit
             it "does nothing more if the remote getter is lost as well" do
                 mock_disconnected_remote_state_getter
                 expect_execution { task.state_reader.disconnect }
+                    .join_all_waiting_work(false)
                     .to { quarantine task }
+
+                sleep 2.5
+                expect_execution.to { not_emit task.stop_event }
 
                 deployment_kill
             end
@@ -169,10 +182,12 @@ module Syskit
                 synchronize_on_sleep(task, execute: -> { task.start! })
             end
 
-            it "goes into quarantine" do
+            it "goes into quarantine and processes the exception normally" do
                 mock_disconnected_remote_state_getter
-                expect_execution.to { quarantine(task) }
-                deployment_kill
+                expect_execution.join_all_waiting_work(false).to { quarantine(task) }
+
+                sleep 2.5
+                expect_execution.to { emit task.stop_event }
             end
         end
 
