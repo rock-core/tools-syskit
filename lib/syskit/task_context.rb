@@ -546,7 +546,7 @@ module Syskit
         #
         # Handle having our state reader be disconnected
         def validate_state_reader_connected
-            return if state_reader.connected?
+            return true if state_reader.connected?
 
             queue_last_chance_to_stop if running? && !stop_event.pending?
             quarantined!
@@ -567,6 +567,8 @@ module Syskit
                 elsif stop_event.pending?
                     stop_event.emit_failed(Roby::EmissionFailed.new(error, stop_event))
                 end
+
+                false
             else
                 # Switch to the remote state getter to at least figure out
                 # in which toplevel state we are. The component is unusable
@@ -577,6 +579,8 @@ module Syskit
 
                 @state_reader = @remote_state_getter
                 @remote_state_getter.resume_or_start
+
+                true
             end
         end
 
