@@ -197,7 +197,7 @@ module Syskit
                 if child_task.kind_of?(TaskContext)
                     return false unless child_task.orocos_task
                 elsif child_task.kind_of?(Component) && child_task.start_event.root?
-                    return false unless child_task.executable?
+                    return false if child_task.pending? && !child_task.executable?
                 end
             end
             true
