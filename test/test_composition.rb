@@ -340,6 +340,22 @@ describe Syskit::Composition do
             assert cmp.setup?
         end
 
+        it "is compatible with using another composition to achieve start" do
+            starter_cmp_m = Syskit::Composition.new_submodel
+            cmp_m = Syskit::Composition.new_submodel do
+                add starter_cmp_m, as: "starter", success: [:success]
+                event :start do |_context|
+                    start_event.achieve_with starter_child.success_event
+                end
+            end
+
+            cmp = syskit_stub_deploy_and_configure(cmp_m)
+            execute { cmp.start! }
+            syskit_start(cmp.starter_child)
+            expect_execution { cmp.starter_child.success_event.emit }
+                .to { emit cmp.start_event }
+        end
+
         # Test for a regression where the #all_inputs_connected? test that is
         # specific to TaskContext was also applied to compositions
         it "can go through it even if it has input ports" do
