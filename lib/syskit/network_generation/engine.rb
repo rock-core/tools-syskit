@@ -917,7 +917,7 @@ module Syskit
                                       dot_index, mode)
 
                     path = File.join(dir, basename)
-                    File.open(dataflow_path, "w") do |io|
+                    File.open(path, "w") do |io|
                         io.write Graphviz.new(plan).send(mode, dot_options)
                     end
                     path
