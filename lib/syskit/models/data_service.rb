@@ -24,8 +24,8 @@ module Syskit
                 model
             end
 
-            def initialize(project: Roby.app.default_orogen_project)
-                @orogen_model = OroGen::Spec::TaskContext.new(project)
+            def initialize(project: Models.create_orogen_project)
+                @orogen_model = Models.create_orogen_task_context_model(project: project)
                 super()
             end
 
@@ -492,7 +492,7 @@ module Syskit
 
         # Metamodel for all communication busses
         class ComBusModel < DeviceModel
-            def initialize(project: Roby.app.default_orogen_project, &block)
+            def initialize(project: Models.create_orogen_project, &block)
                 super
                 @override_policy = true
             end

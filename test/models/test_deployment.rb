@@ -30,24 +30,24 @@ module Syskit
         end
 
         def test_define_from_orogen
-            orogen_deployment = Orocos::Spec::Deployment.new
-            orogen_task = OroGen::Spec::TaskContext.new(app.default_orogen_project)
+            orogen_deployment = Models.create_orogen_deployment_model
+            orogen_task = Models.create_orogen_task_context_model
             orogen_deployment.task "task", orogen_task
             model = Syskit::Deployment.define_from_orogen orogen_deployment, register: false
             assert_same model.orogen_model, orogen_deployment
         end
 
         def test_define_from_orogen_does_not_register_anonymous_deployment
-            orogen_deployment = Orocos::Spec::Deployment.new
-            orogen_task = OroGen::Spec::TaskContext.new(app.default_orogen_project)
+            orogen_deployment = Models.create_orogen_deployment_model
+            orogen_task = Models.create_orogen_task_context_model
             orogen_deployment.task "task", orogen_task
             flexmock(::Deployments).should_receive(:const_set).never
             Syskit::Deployment.define_from_orogen orogen_deployment, register: true
         end
 
         def test_define_from_orogen_can_register_named_deployments
-            orogen_deployment = Orocos::Spec::Deployment.new(nil, "motor_controller")
-            orogen_task = OroGen::Spec::TaskContext.new(app.default_orogen_project)
+            orogen_deployment = Models.create_orogen_deployment_model("motor_controller")
+            orogen_task = Models.create_orogen_task_context_model
             orogen_deployment.task "task", orogen_task
             model = Syskit::Deployment.define_from_orogen orogen_deployment, register: true
             assert_same model, Deployments::MotorController
