@@ -102,17 +102,18 @@ module Syskit
             orogen_model.worstcase_trigger_latency = latency
         end
 
+        # @param [OroGen::Spec::TaskDeployment] orogen_model runtime model for this task
         def initialize(orogen_model: nil, **arguments)
             super(**arguments)
 
             @orogen_model =
                 orogen_model ||
-                Orocos::Spec::TaskDeployment.new(nil, model.orogen_model)
+                OroGen::Spec::TaskDeployment.new(nil, model.orogen_model)
 
             properties = {}
             property_overrides = {}
             model.orogen_model.each_property do |p|
-                type = Roby.app.default_loader.intermediate_type_for(p.type)
+                type = self.class.orogen_model.loader.intermediate_type_for(p.type)
                 properties[p.name] = LiveProperty.new(self, p.name, type)
                 property_overrides[p.name] = Property.new(p.name, type)
             end
