@@ -87,7 +87,7 @@ module Syskit
                     return @logger_dynamic_port
                 end
 
-                ports = find_logger_model.orogen_model.dynamic_ports.find_all { |p| !p.type && p.kind_of?(Orocos::Spec::InputPort) }
+                ports = find_logger_model.orogen_model.dynamic_ports.find_all { |p| !p.type && p.kind_of?(OroGen::Spec::InputPort) }
                 if ports.size > 1
                     raise InternalError, "oroGen's logger::Logger task should have only one catch-all dynamic input port"
                 elsif ports.empty?

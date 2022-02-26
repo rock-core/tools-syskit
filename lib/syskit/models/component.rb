@@ -432,7 +432,7 @@ module Syskit
             #
             # @param [String] direction it is 'input' or 'output' and
             #   caracterizes the direction of port
-            # @param [Orocos::Spec::Port] port the port to be mapped
+            # @param [OroGen::Spec::Port] port the port to be mapped
             # @param [String,nil] expected_name if not nil, it is an explicitly
             #   given port name for the component port
             #
@@ -1078,9 +1078,9 @@ module Syskit
             # Adds a new port to this model based on a known dynamic port
             #
             # @param [String] name the new port's name
-            # @param [Orocos::Spec::DynamicInputPort] port the port model, as
+            # @param [OroGen::Spec::DynamicInputPort] port the port model, as
             #   returned for instance by
-            #   Orocos::Spec::TaskContext#find_dynamic_input_ports
+            #   OroGen::Spec::TaskContext#find_dynamic_input_ports
             # @return [Port] the new port's model
             def instanciate_dynamic_input_port(name, type, port)
                 orogen_model = Models.create_orogen_task_context_model
@@ -1094,9 +1094,9 @@ module Syskit
             # Adds a new port to this model based on a known dynamic port
             #
             # @param [String] name the new port's name
-            # @param [Orocos::Spec::DynamicOutputPort] port the port model, as
+            # @param [OroGen::Spec::DynamicOutputPort] port the port model, as
             #   returned for instance by
-            #   Orocos::Spec::TaskContext#find_dynamic_output_ports
+            #   OroGen::Spec::TaskContext#find_dynamic_output_ports
             # @return [Port] the new port's model
             def instanciate_dynamic_output_port(name, type, port)
                 orogen_model = Models.create_orogen_task_context_model

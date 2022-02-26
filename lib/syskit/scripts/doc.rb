@@ -73,7 +73,7 @@ class Page < MetaRuby::GUI::HTML::Page
     end
 
     def link_to(object, text = nil)
-        if object.kind_of?(Orocos::Spec::TaskContext)
+        if object.kind_of?(OroGen::Spec::TaskContext)
             link_to(Syskit::TaskContext.find_model_from_orogen_name(object.name), text)
 
         elsif object.kind_of?(Class) && (object <= Typelib::Type)
