@@ -3,6 +3,8 @@
 module Syskit
     module DRoby
         module V5
+            VERSION = 1
+
             class Loader < OroGen::Loaders::Base
                 class Project < OroGen::Loaders::Project
                     def using_task_library(*, **); end
@@ -46,12 +48,38 @@ module Syskit
             end
 
             module ObjectManagerExtension
+                def use_global_loader=(flag)
+                    if @orogen_loader
+                        return if flag == @use_global_loader
 
+                        raise ArgumentError,
+                              "cannot change use_global_loader after the loader has "\
+                              "been created"
+                    end
+
+                    @orogen_loader =
+                        if flag
+                            Roby.app.default_loader
+                        else
+                            Loader.new
+                        end
+                    @use_global_loader = flag
+                end
+
+                # Use Roby.app.loader instead of the local loader for pre-v1 logs
+                def use_global_loader?
+                    @use_global_loader
+                end
 
                 # The orogen loader on which we define orogen models transmitted by
                 # our peer
                 def orogen_loader
-                    @orogen_loader ||= Loader.new
+                    unless @orogen_loader
+                        @use_global_loader = false
+                        @orogen_loader = Loader.new
+                    end
+
+                    @orogen_loader
                 end
 
                 # The typelib registry on which we define types transmitted by
@@ -265,9 +293,11 @@ module Syskit
                             @project_name = project_name
                             @project_text = project_text
                             @types = types
+                            @version = VERSION
                         end
 
                         def create_new_proxy_model(peer)
+                            peer.object_manager.use_global_loader = @version.nil?
 
                             register_types(peer)
 
@@ -317,6 +347,7 @@ module Syskit
                         end
 
                         def unmarshal_dependent_models(peer)
+                            peer.object_manager.use_global_loader = @version.nil?
                             register_types(peer)
 
                             super
