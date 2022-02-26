@@ -208,6 +208,7 @@ module Syskit
 
                 def droby_dump(peer)
                     peer_registry = peer.object_manager.typelib_registry
+
                     unless peer_registry.include?(name)
                         reg = registry.minimal(name)
                         xml = reg.to_xml
@@ -297,10 +298,6 @@ module Syskit
                         end
 
                         def create_new_proxy_model(peer)
-                            peer.object_manager.use_global_loader = @version.nil?
-
-                            register_types(peer)
-
                             unless (local_model = resolve_exact_orogen_model(peer))
                                 syskit_supermodel = peer.local_model(supermodel)
                                 local_model = syskit_supermodel
@@ -354,7 +351,7 @@ module Syskit
                         end
 
                         def update(peer, local_object, fresh_proxy: false)
-                            register_types(peer)
+                            register_types(peer) unless fresh_proxy
 
                             super
                         end
