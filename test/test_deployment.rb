@@ -50,7 +50,7 @@ module Syskit
 
         before do
             @task_m = TaskContext.new_submodel
-            orogen_model = Orocos::Spec::Deployment.new(Orocos.default_loader, "deployment")
+            orogen_model = Models.create_orogen_deployment_model("deployment")
             @orogen_deployed_task = orogen_model.task "task", task_m.orogen_model
             @deployment_m = Deployment.new_submodel(orogen_model: orogen_model)
 
@@ -95,7 +95,7 @@ module Syskit
 
         describe "#initialize" do
             it "uses the model name as default deployment name" do
-                model = Orocos::Spec::Deployment.new(nil, "test")
+                model = Models.create_orogen_deployment_model("test")
                 deployment_m = Deployment.new_submodel(orogen_model: model)
                 deployment = deployment_m.new
                 deployment.freeze_delayed_arguments
@@ -203,7 +203,7 @@ module Syskit
                         event :ready
                     end
 
-                    orogen_model = Orocos::Spec::Deployment.new(Orocos.default_loader, "deployment")
+                    orogen_model = Models.create_orogen_deployment_model("deployment")
                     orogen_master = orogen_model.task "master", task_m.orogen_model
                     orogen_slave = orogen_model.task "slave", task_m.orogen_model
                     orogen_slave.slave_of(orogen_master)

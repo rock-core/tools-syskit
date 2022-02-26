@@ -290,10 +290,6 @@ module Syskit
                 @ros_loader ||= OroGen::ROS::Loader.new(default_loader)
             end
 
-            def default_orogen_project
-                @default_orogen_project ||= OroGen::Spec::Project.new(default_loader)
-            end
-
             # A set of task libraries that should be imported when the application
             # gets reloaded
             #

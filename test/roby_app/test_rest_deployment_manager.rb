@@ -13,13 +13,10 @@ module Syskit
                 @unmanaged_tasks = flexmock
                 @conf.register_process_server("unmanaged_tasks", @unmanaged_tasks)
 
-                @orogen_task_m = OroGen::Spec::TaskContext.new(
-                    @roby_app.default_orogen_project, "test::Task"
-                )
+                @orogen_task_m = Models.create_orogen_task_context_model("test::Task")
                 @task_m = Syskit::TaskContext.new_submodel(orogen_model: @orogen_task_m)
-                @orogen_deployment_m = OroGen::Spec::Deployment.new(
-                    @roby_app.default_orogen_project, "test_deployment"
-                )
+                @orogen_deployment_m =
+                    Models.create_orogen_deployment_model("test_deployment")
                 @orogen_deployment_m.task "test_task", @orogen_task_m
                 @deployment_m = Syskit::Deployment.define_from_orogen(@orogen_deployment_m)
 
