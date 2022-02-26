@@ -253,9 +253,13 @@ module Syskit
                     class DRoby < Roby::DRoby::V5::Models::TaskDumper::DRoby
                         attr_reader :orogen_name
 
-                        def initialize(name, remote_siblings, arguments, supermodel, provided_models, events,
-                            orogen_name, orogen_superclass_name, project_name, project_text, types)
-                            super(name, remote_siblings, arguments, supermodel, provided_models, events)
+                        def initialize(
+                            name, remote_siblings, arguments, supermodel, provided_models,
+                            events, orogen_name, orogen_superclass_name, project_name,
+                            project_text, types
+                        )
+                            super(name, remote_siblings, arguments,
+                                  supermodel, provided_models, events)
                             @orogen_name = orogen_name
                             @orogen_superclass_name = orogen_superclass_name
                             @project_name = project_name
@@ -337,8 +341,10 @@ module Syskit
                         orogen_name = orogen_model.name
                         if orogen_model.name && (project_name = orogen_model.project.name)
                             begin
-                                project_text, = orogen_model.project.loader
-                                                            .project_model_text_from_name(project_name)
+                                project_text, =
+                                    orogen_model
+                                    .project.loader
+                                    .project_model_text_from_name(project_name)
                             rescue OroGen::ProjectNotFound
                             end
                         end
@@ -355,7 +361,8 @@ module Syskit
                             supermodel,
                             provided_models,
                             each_event.map { |_, ev| [ev.symbol, ev.controlable?, ev.terminal?] },
-                            orogen_name, orogen_superclass_name, project_name, project_text, types
+                            orogen_name, orogen_superclass_name, project_name, project_text,
+                            types
                         )
                     end
                 end
