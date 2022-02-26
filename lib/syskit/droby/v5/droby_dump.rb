@@ -366,36 +366,38 @@ module Syskit
                         [Roby.app.default_loader.intermediate_type_for(type)]
                     end
 
+                    Project = Struct.new :name, :text, :types
 
-                    def droby_dump(peer)
+                    # Return the marshallable information about an orogen project
+                    #
+                    # This is the information that is needed to un-marshal it. It
+                    # It returns nil if there is no usable information about this project
+                    def droby_dump_project(peer, project)
+                        if project.name
+                            begin
+                                text, = project
+                                        .loader.project_model_text_from_name(project.name)
+                            rescue OroGen::ProjectNotFound
+                            end
+                        end
+
                         types =
-                            orogen_model
-                            .project.self_tasks.each_value
-                            .map { |t| t.each_interface_type.to_a }
+                            project
+                            .self_tasks.each_value.map { |t| t.each_interface_type.to_a }
                             .flatten.uniq
                             .flat_map { |t| [t] + TaskContextDumper.related_types_for(t) }
-
                         types = types.map { |t| peer.dump(t) }
+                        Project.new(project.name, text, types)
+                    end
+
+                    def droby_dump(peer)
+                        project_dump = droby_dump_project(peer, orogen_model.project)
 
                         supermodel = Roby::DRoby::V5::DRobyModel
                                      .dump_supermodel(peer, self)
                         provided_models = Roby::DRoby::V5::DRobyModel
                                           .dump_provided_models_of(peer, self)
-
-                        orogen_name = orogen_model.name
-                        if orogen_model.name && (project_name = orogen_model.project.name)
-                            begin
-                                project_text, =
-                                    orogen_model
-                                    .project.loader
-                                    .project_model_text_from_name(project_name)
-                            rescue OroGen::ProjectNotFound
-                            end
-                        end
-
-                        if orogen_model.superclass
-                            orogen_superclass_name = orogen_model.superclass.name
-                        end
+                        orogen_superclass_name = orogen_model.superclass&.name
 
                         peer.register_model(self)
                         DRoby.new(
@@ -405,8 +407,8 @@ module Syskit
                             supermodel,
                             provided_models,
                             each_event.map { |_, ev| [ev.symbol, ev.controlable?, ev.terminal?] },
-                            orogen_name, orogen_superclass_name, project_name, project_text,
-                            types
+                            orogen_model.name, orogen_superclass_name,
+                            project_dump.name, project_dump.text, project_dump.types
                         )
                     end
                 end
