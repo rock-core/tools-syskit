@@ -329,9 +329,22 @@ module Syskit
                         end
                     end
 
+                    def self.related_types_for(type)
+                        return [] unless type.contains_opaques?
+
+                        [Roby.app.default_loader.intermediate_type_for(type)]
+                    end
+
+
                     def droby_dump(peer)
-                        types = orogen_model.each_interface_type
-                                            .map { |t| peer.dump(t) }
+                        types =
+                            orogen_model
+                            .project.self_tasks.each_value
+                            .map { |t| t.each_interface_type.to_a }
+                            .flatten.uniq
+                            .flat_map { |t| [t] + TaskContextDumper.related_types_for(t) }
+
+                        types = types.map { |t| peer.dump(t) }
 
                         supermodel = Roby::DRoby::V5::DRobyModel
                                      .dump_supermodel(peer, self)
