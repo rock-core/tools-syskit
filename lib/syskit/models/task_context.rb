@@ -195,11 +195,13 @@ module Syskit
             def setup_submodel(submodel,
                 orogen_model: nil,
                 orogen_model_name: submodel.name,
+                loader: Roby.app.default_loader,
                 **options)
 
                 unless orogen_model
+                    project = OroGen::Spec::Project.new(loader)
                     orogen_model = self.orogen_model.class.new(
-                        Roby.app.default_orogen_project, orogen_model_name,
+                        project, orogen_model_name,
                         subclasses: self.orogen_model
                     )
                     orogen_model.extended_state_support
