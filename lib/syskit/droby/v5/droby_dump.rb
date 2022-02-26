@@ -382,8 +382,8 @@ module Syskit
                         end
 
                         types =
-                            project
-                            .self_tasks.each_value.map { |t| t.each_interface_type.to_a }
+                            (project.self_tasks.values + [orogen_model])
+                            .map { |t| t.each_interface_type.to_a }
                             .flatten.uniq
                             .flat_map { |t| [t] + TaskContextDumper.related_types_for(t) }
                         types = types.map { |t| peer.dump(t) }
