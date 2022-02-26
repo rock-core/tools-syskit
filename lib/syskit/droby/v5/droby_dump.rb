@@ -3,6 +3,20 @@
 module Syskit
     module DRoby
         module V5
+            class Loader < OroGen::Loaders::Base
+                class Project < OroGen::Loaders::Project
+                    def using_task_library(*, **); end
+                end
+
+                def project_model_from_text(text, name: nil, path: nil)
+                    project = OroGen::Spec::Project.new(root_loader)
+                    project.typekit = OroGen::Spec::Typekit.new(root_loader, name)
+                    Project.new(project).__eval__(path, text)
+                    register_project_model(project)
+                    project
+                end
+            end
+
             module MarshalExtension
                 def has_orogen_project?(project_name)
                     object_manager.has_orogen_project?(project_name)
@@ -20,8 +34,10 @@ module Syskit
                     object_manager.register_orogen_model(local_model, remote_siblings)
                 end
 
-                def register_typelib_model(type)
-                    object_manager.register_typelib_model(type)
+                def register_typelib_model(type, interface_type:)
+                    object_manager.register_typelib_model(
+                        type, interface_type: interface_type
+                    )
                 end
 
                 def find_local_orogen_model(droby)
@@ -30,14 +46,17 @@ module Syskit
             end
 
             module ObjectManagerExtension
+
+
+                # The orogen loader on which we define orogen models transmitted by
+                # our peer
+                def orogen_loader
+                    @orogen_loader ||= Loader.new
+                end
+
                 # The typelib registry on which we define types transmitted by
                 # our peer
                 attribute(:typelib_registry) { Typelib::Registry.new }
-
-                # The loader used to register models transmitted by our peer
-                def orogen_loader
-                    Roby.app.default_loader
-                end
 
                 def has_orogen_project?(project_name)
                     orogen_loader.has_project?(project_name)
@@ -63,8 +82,8 @@ module Syskit
                     end
                 end
 
-                def register_typelib_model(type)
-                    orogen_loader.register_type_model(type)
+                def register_typelib_model(type, interface_type:)
+                    orogen_loader.register_type_model(type, interface_type)
                 end
             end
 
@@ -249,32 +268,10 @@ module Syskit
                         end
 
                         def create_new_proxy_model(peer)
-                            @types.each do |type|
-                                peer.register_typelib_model(
-                                    peer.local_object(type)
-                                )
-                            end
 
-                            if @project_text && !peer.has_orogen_project?(@project_name)
-                                peer.add_orogen_project(
-                                    @project_name, @project_text
-                                )
-                            end
+                            register_types(peer)
 
-                            if @orogen_name
-                                begin
-                                    orogen_model = peer
-                                                   .orogen_task_context_model_from_name(@orogen_name)
-                                    local_model = Syskit::TaskContext
-                                                  .define_from_orogen(orogen_model, register: false)
-                                    if name
-                                        local_model.name = name
-                                    end
-                                rescue OroGen::TaskModelNotFound
-                                end
-                            end
-
-                            unless orogen_model
+                            unless (local_model = resolve_exact_orogen_model(peer))
                                 syskit_supermodel = peer.local_model(supermodel)
                                 local_model = syskit_supermodel
                                               .new_submodel(name: @orogen_name)
@@ -287,21 +284,47 @@ module Syskit
                             local_model
                         end
 
-                        def unmarshal_dependent_models(peer)
-                            @types.each do |type|
-                                peer.register_typelib_model(
-                                    peer.local_object(type)
-                                )
+                        def register_types(peer)
+                            return unless @types
+
+                            @types.each do |t|
+                                t = peer.local_object(t)
+                                peer.register_typelib_model(t, interface_type: true)
                             end
+                        end
+
+                        def resolve_exact_orogen_model(peer)
+                            if @project_text && !peer.has_orogen_project?(@project_name)
+                                peer.add_orogen_project(@project_name, @project_text)
+                            end
+
+                            return unless @orogen_name
+                            return unless peer.has_orogen_project?(@project_name)
+
+                            begin
+                                orogen_model =
+                                    peer
+                                    .orogen_task_context_model_from_name(@orogen_name)
+                            rescue OroGen::TaskModelNotFound
+                                return
+                            end
+
+                            local_model =
+                                Syskit::TaskContext
+                                .define_from_orogen(orogen_model, register: false)
+                            local_model.name = name if name
+                            local_model
+                        end
+
+                        def unmarshal_dependent_models(peer)
+                            register_types(peer)
+
                             super
                         end
 
                         def update(peer, local_object, fresh_proxy: false)
-                            @types.each do |type|
-                                peer.register_typelib_model(
-                                    peer.local_object(type)
-                                )
-                            end
+                            register_types(peer)
+
                             super
                         end
                     end
