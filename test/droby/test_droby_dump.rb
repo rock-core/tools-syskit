@@ -183,12 +183,14 @@ module Syskit
             end
 
             it "return an already received oroGen model" do
+                task_m = TaskContext.new_submodel
                 assert_same droby_transfer(task_m).orogen_model,
                             droby_transfer(task_m).orogen_model
             end
 
             it "return an already existing oroGen/Syskit model pair" do
-                assert_same droby_transfer(task_m)
+                task_m = TaskContext.new_submodel
+                assert_same droby_transfer(task_m),
                             droby_transfer(task_m)
             end
 
