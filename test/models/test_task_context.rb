@@ -261,8 +261,9 @@ module Syskit # :nodoc:
             it "calls new_submodel to create the new model" do
                 model = TaskContext.new_submodel
                 orogen = OroGen::Spec::TaskContext.new(app.default_orogen_project)
-                flexmock(OroGen::RTT::TaskContext).should_receive(:new_submodel)
-                                                .with(orogen_model: orogen).once.and_return(model)
+                flexmock(OroGen::RTT::TaskContext)
+                    .should_receive(:new_submodel)
+                    .with(orogen_model: orogen).once.and_return(model)
                 assert_same model, TaskContext.define_from_orogen(orogen)
             end
 
@@ -304,8 +305,9 @@ module Syskit # :nodoc:
 
             it "creates the model from the superclass if it does not exist" do
                 orogen_parent = OroGen::Spec::TaskContext.new(app.default_orogen_project)
-                orogen = OroGen::Spec::TaskContext.new(app.default_orogen_project,
-                                                    subclasses: orogen_parent)
+                orogen = OroGen::Spec::TaskContext.new(
+                    app.default_orogen_project, subclasses: orogen_parent
+                )
                 parent_model = TaskContext.new_submodel
                 flexmock(TaskContext)
                     .should_receive(:define_from_orogen).with(orogen, register: false)
@@ -321,8 +323,9 @@ module Syskit # :nodoc:
                 orogen_parent = OroGen::Spec::TaskContext.new(app.default_orogen_project)
                 parent_model = TaskContext.define_from_orogen(orogen_parent)
 
-                orogen = OroGen::Spec::TaskContext.new(app.default_orogen_project,
-                                                    subclasses: orogen_parent)
+                orogen = OroGen::Spec::TaskContext.new(
+                    app.default_orogen_project, subclasses: orogen_parent
+                )
                 flexmock(TaskContext)
                     .should_receive(:define_from_orogen).with(orogen)
                     .pass_thru
