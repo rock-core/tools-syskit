@@ -5,8 +5,6 @@ require "syskit/gui/ide"
 require "syskit/scripts/common"
 require "vizkit"
 
-Roby.app.require_app_dir
-
 load_all = false
 runtime_mode = nil
 runtime_only = false
@@ -40,9 +38,9 @@ parser = OptionParser.new do |opt|
 end
 options = {}
 Roby::Application.host_options(parser, options)
-Roby.app.guess_app_dir unless runtime_only
 Syskit::Scripts.common_options(parser, true)
 remaining = parser.parse(ARGV)
+Roby.app.require_app_dir unless runtime_only
 
 # We don't need the process server, win some startup time
 Roby.app.using "syskit"
