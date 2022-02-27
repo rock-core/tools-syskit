@@ -20,6 +20,12 @@ module Syskit
             end
 
             module MarshalExtension
+                def initialize(*, **)
+                    super
+
+                    @registered_projects = []
+                end
+
                 def has_orogen_project?(project_name)
                     object_manager.has_orogen_project?(project_name)
                 end
@@ -44,6 +50,14 @@ module Syskit
 
                 def find_local_orogen_model(droby)
                     find_local_model(droby, name: "orogen::" + droby.orogen_name)
+                end
+
+                def registered_orogen_project?(project)
+                    @registered_projects.include?(project)
+                end
+
+                def register_orogen_project(project)
+                    @registered_projects << project
                 end
             end
 
@@ -370,7 +384,9 @@ module Syskit
                     # This is the information that is needed to un-marshal it. It
                     # It returns nil if there is no usable information about this project
                     def droby_dump_project(peer, project)
-                        if project.name
+                        if peer.registered_orogen_project?(project)
+                            return Project.new(nil, nil, [])
+                        elsif project.name
                             begin
                                 text, = project
                                         .loader.project_model_text_from_name(project.name)

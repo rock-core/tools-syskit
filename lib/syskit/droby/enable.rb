@@ -9,7 +9,7 @@ Typelib::Type.include Syskit::DRoby::V5::TypelibTypeDumper
 Typelib::Type.extend Syskit::DRoby::V5::TypelibTypeModelDumper
 
 Roby::DRoby::ObjectManager.include Syskit::DRoby::V5::ObjectManagerExtension
-Roby::DRoby::Marshal.include Syskit::DRoby::V5::MarshalExtension
+Roby::DRoby::Marshal.prepend Syskit::DRoby::V5::MarshalExtension
 
 Syskit::InstanceRequirements.include Syskit::DRoby::V5::InstanceRequirementsDumper
 Syskit::Models::ComBusModel.include Syskit::DRoby::V5::ComBusDumper
