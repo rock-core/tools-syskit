@@ -117,7 +117,7 @@ module Syskit
                 component_model.find_port(port_mappings_for_task[port.name])
             end
 
-            # [Orocos::Spec::TaskContext] the oroGen model for this service's
+            # [OroGen::Spec::TaskContext] the oroGen model for this service's
             # interface
             def orogen_model
                 model.orogen_model

@@ -3,7 +3,7 @@
 module Syskit
     module Models
         # Mixin used to define common methods to enumerate ports on objects that
-        # have an attribute #orogen_model of type Orocos::Spec::TaskContext
+        # have an attribute #orogen_model of type OroGen::Spec::TaskContext
         module PortAccess
             # [Hash{String => Syskit::Models::Port}] a mapping from a port name
             # to the corresponding Models::Port instance

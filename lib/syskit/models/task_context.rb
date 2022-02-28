@@ -176,7 +176,7 @@ module Syskit
             # @option options [String] name (nil) forcefully set a name for the model.
             #   This is only useful for "anonymous" models, i.e. models that are
             #   never assigned in the Ruby constant hierarchy
-            # @option options [Orocos::Spec::TaskContext, Orocos::ROS::Spec::Node] orogen_model (nil) the
+            # @option options [OroGen::Spec::TaskContext, Orocos::ROS::Spec::Node] orogen_model (nil) the
             #   oroGen model that should be used. If not given, an empty model
             #   is created, possibly with the name given to the method as well.
             def new_submodel(**options, &block)

@@ -44,7 +44,7 @@ module Syskit
 
             # Creates a new deployment model
             #
-            # @option options [Orocos::Spec::Deployment] orogen_model the oroGen
+            # @option options [OroGen::Spec::Deployment] orogen_model the oroGen
             #   model for this deployment
             # @option options [String] name the model name, for anonymous model.
             #   It is usually not necessary to provide it.
@@ -67,7 +67,7 @@ module Syskit
             # Creates a subclass of Deployment that represents the given
             # deployment
             #
-            # @param [Orocos::Spec::Deployment] orogen_model the oroGen
+            # @param [OroGen::Spec::Deployment] orogen_model the oroGen
             #   deployment model
             #
             # @option options [Boolean] register (false) if true, and if the

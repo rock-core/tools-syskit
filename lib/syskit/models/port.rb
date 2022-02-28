@@ -11,7 +11,7 @@ module Syskit
         class Port
             # @return [ComponentModel] The component model this port is part of
             attr_reader :component_model
-            # @return [Orocos::Spec::Port] The port model
+            # @return [OroGen::Spec::Port] The port model
             attr_reader :orogen_model
             # @return [String] The port name on +component_model+. It can be
             #   different from orogen_model.name, as the port could be imported
@@ -21,7 +21,7 @@ module Syskit
             attr_reader :type
 
             # @param [#instanciate] component_model the component model
-            # @param [Orocos::Spec::Port] orogen_model the oroGen port model
+            # @param [OroGen::Spec::Port] orogen_model the oroGen port model
             # @param [String] name the port name if it is different than the
             #   name in 'orogen_model'
             def initialize(component_model, orogen_model, name = orogen_model.name)
