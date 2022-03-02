@@ -113,15 +113,12 @@ module Syskit
                         Syskit.conf.register_process_server("something_else",
                                                             flexmock)
 
-                        orogen_task_m = OroGen::Spec::TaskContext.new(
-                            Roby.app.default_orogen_project, "test::Task"
-                        )
+                        orogen_task_m =
+                            Models.create_orogen_task_context_model("test::Task")
                         @syskit_task_m = Syskit::TaskContext.define_from_orogen(
                             orogen_task_m
                         )
-                        orogen_deployment_m = OroGen::Spec::Deployment.new(
-                            nil, "test_deployment"
-                        )
+                        orogen_deployment_m = Models.create_orogen_deployment_model("test_deployment")
                         orogen_deployment_m.task "test_task", orogen_task_m
                         @deployment_m = Syskit::Deployment.define_from_orogen(orogen_deployment_m)
                     end

@@ -3,7 +3,29 @@
 module Syskit
     module DRoby
         module V5
+            VERSION = 1
+
+            class Loader < OroGen::Loaders::Base
+                class Project < OroGen::Loaders::Project
+                    def using_task_library(*, **); end
+                end
+
+                def project_model_from_text(text, name: nil, path: nil)
+                    project = OroGen::Spec::Project.new(root_loader)
+                    project.typekit = OroGen::Spec::Typekit.new(root_loader, name)
+                    Project.new(project).__eval__(path, text)
+                    register_project_model(project)
+                    project
+                end
+            end
+
             module MarshalExtension
+                def initialize(*, **)
+                    super
+
+                    @registered_projects = []
+                end
+
                 def has_orogen_project?(project_name)
                     object_manager.has_orogen_project?(project_name)
                 end
@@ -20,24 +42,63 @@ module Syskit
                     object_manager.register_orogen_model(local_model, remote_siblings)
                 end
 
-                def register_typelib_model(type)
-                    object_manager.register_typelib_model(type)
+                def register_typelib_model(type, interface_type:)
+                    object_manager.register_typelib_model(
+                        type, interface_type: interface_type
+                    )
                 end
 
                 def find_local_orogen_model(droby)
                     find_local_model(droby, name: "orogen::" + droby.orogen_name)
                 end
+
+                def registered_orogen_project?(project)
+                    @registered_projects.include?(project)
+                end
+
+                def register_orogen_project(project)
+                    @registered_projects << project
+                end
             end
 
             module ObjectManagerExtension
+                def use_global_loader=(flag)
+                    if @orogen_loader
+                        return if flag == @use_global_loader
+
+                        raise ArgumentError,
+                              "cannot change use_global_loader after the loader has "\
+                              "been created"
+                    end
+
+                    @orogen_loader =
+                        if flag
+                            Roby.app.default_loader
+                        else
+                            Loader.new
+                        end
+                    @use_global_loader = flag
+                end
+
+                # Use Roby.app.loader instead of the local loader for pre-v1 logs
+                def use_global_loader?
+                    @use_global_loader
+                end
+
+                # The orogen loader on which we define orogen models transmitted by
+                # our peer
+                def orogen_loader
+                    unless @orogen_loader
+                        @use_global_loader = false
+                        @orogen_loader = Loader.new
+                    end
+
+                    @orogen_loader
+                end
+
                 # The typelib registry on which we define types transmitted by
                 # our peer
                 attribute(:typelib_registry) { Typelib::Registry.new }
-
-                # The loader used to register models transmitted by our peer
-                def orogen_loader
-                    Roby.app.default_loader
-                end
 
                 def has_orogen_project?(project_name)
                     orogen_loader.has_project?(project_name)
@@ -63,8 +124,8 @@ module Syskit
                     end
                 end
 
-                def register_typelib_model(type)
-                    orogen_loader.register_type_model(type)
+                def register_typelib_model(type, interface_type:)
+                    orogen_loader.register_type_model(type, interface_type)
                 end
             end
 
@@ -161,6 +222,7 @@ module Syskit
 
                 def droby_dump(peer)
                     peer_registry = peer.object_manager.typelib_registry
+
                     unless peer_registry.include?(name)
                         reg = registry.minimal(name)
                         xml = reg.to_xml
@@ -246,35 +308,11 @@ module Syskit
                             @project_name = project_name
                             @project_text = project_text
                             @types = types
+                            @version = VERSION
                         end
 
                         def create_new_proxy_model(peer)
-                            @types.each do |type|
-                                peer.register_typelib_model(
-                                    peer.local_object(type)
-                                )
-                            end
-
-                            if @project_text && !peer.has_orogen_project?(@project_name)
-                                peer.add_orogen_project(
-                                    @project_name, @project_text
-                                )
-                            end
-
-                            if @orogen_name
-                                begin
-                                    orogen_model = peer
-                                                   .orogen_task_context_model_from_name(@orogen_name)
-                                    local_model = Syskit::TaskContext
-                                                  .define_from_orogen(orogen_model, register: false)
-                                    if name
-                                        local_model.name = name
-                                    end
-                                rescue OroGen::TaskModelNotFound
-                                end
-                            end
-
-                            unless orogen_model
+                            unless (local_model = resolve_exact_orogen_model(peer))
                                 syskit_supermodel = peer.local_model(supermodel)
                                 local_model = syskit_supermodel
                                               .new_submodel(name: @orogen_name)
@@ -287,48 +325,92 @@ module Syskit
                             local_model
                         end
 
-                        def unmarshal_dependent_models(peer)
-                            @types.each do |type|
-                                peer.register_typelib_model(
-                                    peer.local_object(type)
-                                )
+                        def register_types(peer)
+                            return unless @types
+
+                            @types.each do |t|
+                                t = peer.local_object(t)
+                                peer.register_typelib_model(t, interface_type: true)
                             end
+                        end
+
+                        def resolve_exact_orogen_model(peer)
+                            if @project_text && !peer.has_orogen_project?(@project_name)
+                                peer.add_orogen_project(@project_name, @project_text)
+                            end
+
+                            return unless @orogen_name
+                            return unless peer.has_orogen_project?(@project_name)
+
+                            begin
+                                orogen_model =
+                                    peer
+                                    .orogen_task_context_model_from_name(@orogen_name)
+                            rescue OroGen::TaskModelNotFound
+                                return
+                            end
+
+                            local_model =
+                                Syskit::TaskContext
+                                .define_from_orogen(orogen_model, register: false)
+                            local_model.name = name if name
+                            local_model
+                        end
+
+                        def unmarshal_dependent_models(peer)
+                            peer.object_manager.use_global_loader = @version.nil?
+                            register_types(peer)
+
                             super
                         end
 
                         def update(peer, local_object, fresh_proxy: false)
-                            @types.each do |type|
-                                peer.register_typelib_model(
-                                    peer.local_object(type)
-                                )
-                            end
+                            register_types(peer) unless fresh_proxy
+
                             super
                         end
                     end
 
+                    def self.related_types_for(type)
+                        return [] unless type.contains_opaques?
+
+                        [Roby.app.default_loader.intermediate_type_for(type)]
+                    end
+
+                    Project = Struct.new :name, :text, :types
+
+                    # Return the marshallable information about an orogen project
+                    #
+                    # This is the information that is needed to un-marshal it. It
+                    # It returns nil if there is no usable information about this project
+                    def droby_dump_project(peer, project)
+                        if peer.registered_orogen_project?(project)
+                            return Project.new(nil, nil, [])
+                        elsif project.name
+                            begin
+                                text, = project
+                                        .loader.project_model_text_from_name(project.name)
+                            rescue OroGen::ProjectNotFound
+                            end
+                        end
+
+                        types =
+                            (project.self_tasks.values + [orogen_model])
+                            .map { |t| t.each_interface_type.to_a }
+                            .flatten.uniq
+                            .flat_map { |t| [t] + TaskContextDumper.related_types_for(t) }
+                        types = types.map { |t| peer.dump(t) }
+                        Project.new(project.name, text, types)
+                    end
+
                     def droby_dump(peer)
-                        types = orogen_model.each_interface_type
-                                            .map { |t| peer.dump(t) }
+                        project_dump = droby_dump_project(peer, orogen_model.project)
 
                         supermodel = Roby::DRoby::V5::DRobyModel
                                      .dump_supermodel(peer, self)
                         provided_models = Roby::DRoby::V5::DRobyModel
                                           .dump_provided_models_of(peer, self)
-
-                        orogen_name = orogen_model.name
-                        if orogen_model.name && (project_name = orogen_model.project.name)
-                            begin
-                                project_text, =
-                                    orogen_model
-                                    .project.loader
-                                    .project_model_text_from_name(project_name)
-                            rescue OroGen::ProjectNotFound
-                            end
-                        end
-
-                        if orogen_model.superclass
-                            orogen_superclass_name = orogen_model.superclass.name
-                        end
+                        orogen_superclass_name = orogen_model.superclass&.name
 
                         peer.register_model(self)
                         DRoby.new(
@@ -338,8 +420,8 @@ module Syskit
                             supermodel,
                             provided_models,
                             each_event.map { |_, ev| [ev.symbol, ev.controlable?, ev.terminal?] },
-                            orogen_name, orogen_superclass_name, project_name, project_text,
-                            types
+                            orogen_model.name, orogen_superclass_name,
+                            project_dump.name, project_dump.text, project_dump.types
                         )
                     end
                 end
