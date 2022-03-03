@@ -5,6 +5,20 @@ module Syskit
         module V5
             VERSION = 1
 
+            # Global control for {ObjectManager#rebuild_orogen_models?}
+            #
+            # Changes apply only to object managers created after the change was done
+            def self.rebuild_orogen_models=(flag)
+                @rebuild_orogen_models = flag
+            end
+
+            # Global control for {ObjectManager#rebuild_orogen_models?}
+            #
+            # Changes apply only to object managers created after the change was done
+            def self.rebuild_orogen_models?
+                @rebuild_orogen_models
+            end
+
             class Loader < OroGen::Loaders::Base
                 class Project < OroGen::Loaders::Project
                     def using_task_library(*, **); end
@@ -62,6 +76,12 @@ module Syskit
             end
 
             module ObjectManagerExtension
+                def initialize(*, **)
+                    super
+
+                    @rebuild_orogen_models = V5.rebuild_orogen_models?
+                end
+
                 def use_global_loader=(flag)
                     if @orogen_loader
                         return if flag == @use_global_loader
@@ -83,6 +103,20 @@ module Syskit
                 # Use Roby.app.loader instead of the local loader for pre-v1 logs
                 def use_global_loader?
                     @use_global_loader
+                end
+
+                # Control whether we rebuild orogen models or not
+                #
+                # Disabling this helps with older log files that can't be loaded
+                # anymore because they have incompatible types. Newer logs do not
+                # have this issue.
+                def rebuild_orogen_models=(flag)
+                    @rebuild_orogen_models = flag
+                end
+
+                # Whether we try to rebuild orogen models or not
+                def rebuild_orogen_models?
+                    @rebuild_orogen_models
                 end
 
                 # The orogen loader on which we define orogen models transmitted by
@@ -337,6 +371,8 @@ module Syskit
                         end
 
                         def resolve_exact_orogen_model(peer)
+                            return unless peer.object_manager.rebuild_orogen_models?
+
                             if @project_text && !peer.has_orogen_project?(@project_name)
                                 peer.add_orogen_project(@project_name, @project_text)
                             end

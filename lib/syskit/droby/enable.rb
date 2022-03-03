@@ -8,7 +8,7 @@ Orocos::TaskContext.extend Roby::DRoby::V5::DRobyConstant::Dump
 Typelib::Type.include Syskit::DRoby::V5::TypelibTypeDumper
 Typelib::Type.extend Syskit::DRoby::V5::TypelibTypeModelDumper
 
-Roby::DRoby::ObjectManager.include Syskit::DRoby::V5::ObjectManagerExtension
+Roby::DRoby::ObjectManager.prepend Syskit::DRoby::V5::ObjectManagerExtension
 Roby::DRoby::Marshal.prepend Syskit::DRoby::V5::MarshalExtension
 
 Syskit::InstanceRequirements.include Syskit::DRoby::V5::InstanceRequirementsDumper
