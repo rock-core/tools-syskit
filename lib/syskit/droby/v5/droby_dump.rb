@@ -314,8 +314,10 @@ module Syskit
                         def create_new_proxy_model(peer)
                             unless (local_model = resolve_exact_orogen_model(peer))
                                 syskit_supermodel = peer.local_model(supermodel)
-                                local_model = syskit_supermodel
-                                              .new_submodel(name: @orogen_name)
+                                local_model =
+                                    syskit_supermodel
+                                    .new_submodel(name: @orogen_name,
+                                                  extended_state_support: false)
                                 if name
                                     local_model.name = name
                                 end

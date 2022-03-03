@@ -192,9 +192,11 @@ module Syskit
             #
             # @param [String] name an optional name for this submodel
             # @return [void]
-            def setup_submodel(submodel,
+            def setup_submodel(
+                submodel,
                 orogen_model: nil,
                 orogen_model_name: submodel.name,
+                extended_state_support: true,
                 loader: Roby.app.default_loader,
                 **options)
 
@@ -204,7 +206,7 @@ module Syskit
                         project, orogen_model_name,
                         subclasses: self.orogen_model
                     )
-                    orogen_model.extended_state_support
+                    orogen_model.extended_state_support if extended_state_support
                 end
                 submodel.orogen_model = orogen_model
                 super
