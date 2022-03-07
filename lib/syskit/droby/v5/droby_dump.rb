@@ -78,7 +78,7 @@ module Syskit
             end
 
             module ObjectManagerExtension
-                def initialize(*, **)
+                def initialize(*)
                     super
 
                     @rebuild_orogen_models = V5.rebuild_orogen_models?
