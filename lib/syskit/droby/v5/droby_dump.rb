@@ -5,6 +5,8 @@ module Syskit
         module V5
             VERSION = 1
 
+            @rebuild_orogen_models = true
+
             # Global control for {ObjectManager#rebuild_orogen_models?}
             #
             # Changes apply only to object managers created after the change was done
@@ -76,7 +78,7 @@ module Syskit
             end
 
             module ObjectManagerExtension
-                def initialize(*, **)
+                def initialize(*)
                     super
 
                     @rebuild_orogen_models = V5.rebuild_orogen_models?

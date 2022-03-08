@@ -192,13 +192,14 @@ module Syskit
             #
             # @param [String] name an optional name for this submodel
             # @return [void]
-            def setup_submodel(
+            def setup_submodel( # rubocop:disable Metrics/ParameterLists
                 submodel,
                 orogen_model: nil,
                 orogen_model_name: submodel.name,
                 extended_state_support: true,
                 loader: Roby.app.default_loader,
-                **options)
+                **options
+            )
 
                 unless orogen_model
                     project = OroGen::Spec::Project.new(loader)
