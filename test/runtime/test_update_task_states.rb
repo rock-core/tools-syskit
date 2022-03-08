@@ -41,6 +41,28 @@ module Syskit
                 flexmock(task).should_receive(:setup).never
                 Syskit::Runtime.update_task_states(plan)
             end
+
+            it "warns about receiving too many state changes" do
+                syskit_configure_and_start(@task)
+
+                state_changes = %I[RUNNING RUNTIME_ERROR] *
+                                Deployment::STATE_READER_BUFFER_SIZE
+                expected = []
+                expected <<
+                    "got #{state_changes.size} state updates for #{@task}, we might "\
+                    "have lost some state updates in the process. Received:"
+                state_changes.each { |s| expected << "  #{s}" }
+
+                flexmock(@task).should_receive(:update_orogen_state)
+                               .and_return { state_changes.shift }
+                messages = []
+                flexmock(Runtime)
+                    .should_receive(:warn)
+                    .and_return { |msg| messages << msg }
+
+                Runtime.handle_task_runtime_states(@task)
+                assert_equal expected, messages
+            end
         end
     end
 end
