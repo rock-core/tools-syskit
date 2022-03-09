@@ -15,6 +15,75 @@ module Syskit
                 @cmp_m.add @srv_m, as: "test"
             end
 
+            describe "Actions" do
+                include ProfileAssertions
+
+                before do
+                    @profile_m = Syskit::Actions::Profile.new
+                    @profile_m.define "test", @cmp_m
+                    @interface_m = Roby::Actions::Interface.new_submodel
+                    @interface_m.use_profile @profile_m
+                end
+
+                it "resolves an instance requirements action" do
+                    assert_equal [@interface_m.test_def], Actions(@interface_m.test_def)
+                end
+
+                it "resolves a method action that returns a task with "\
+                   "a coordination model" do
+                    task_m = Roby::Task.new_submodel
+                    @interface_m.class_eval do
+                        describe("act").returns(task_m)
+                        define_method :act do
+                            root = task_m.new
+                            action_state_machine(root) do
+                                start task(test_def)
+                            end
+                            root
+                        end
+                    end
+
+                    assert_equal [@interface_m.test_def], Actions(@interface_m.act)
+                end
+
+                it "resolves a method action that returns a task with children "\
+                   "that are itself method actions" do
+                    task_m = Roby::Task.new_submodel
+                    @interface_m.class_eval do
+                        describe("act").returns(task_m)
+                        define_method :act do
+                            root = task_m.new
+                            root.depends_on model.act2
+                            root
+                        end
+
+                        describe("act2").returns(task_m)
+                        define_method :act2 do
+                            root = task_m.new
+                            root.depends_on test_def
+                            root
+                        end
+                    end
+
+                    assert_equal [@interface_m.test_def], Actions(@interface_m.act)
+                end
+
+                it "resolves a method action that returns a task with children "\
+                   "that are themselves instance requirement tasks" do
+                    @interface_m.class_eval do
+                        task_m = Roby::Task.new_submodel
+                        describe("act").returns(task_m)
+                        define_method :act do
+                            root = task_m.new
+                            root.depends_on test_def
+                            root
+                        end
+                    end
+
+                    assert_equal [@interface_m.test_def], Actions(@interface_m.act)
+                end
+            end
+
             describe "assert_is_self_contained" do
                 include ProfileAssertions
 

@@ -31,6 +31,26 @@ module Syskit
                 end
             end
 
+            def resolve_actions_from_plan(task)
+                actions = []
+                queue = [task]
+                until queue.empty?
+                    t = queue.shift
+                    queue.concat t.children
+                    actions.concat expand_task_coordination_models(t)
+
+                    next unless (planner = t.planning_task)
+
+                    if planner.respond_to?(:requirements)
+                        actions << planner.requirements.to_action
+                    elsif planner.respond_to?(:action_model)
+                        actions << planner.action_model.new(planner.action_arguments)
+                    end
+                end
+
+                actions
+            end
+
             # Validates an argument that can be an action, an action collection
             # (e.g. a profile) or an array of action, and normalizes it into an
             # array of actions
@@ -38,9 +58,21 @@ module Syskit
             # @raise [ArgumentError] if the argument is invalid
             def Actions(arg)
                 if arg.respond_to?(:each_action)
-                    arg.each_action.map(&:to_action)
+                    arg.each_action.flat_map do |a|
+                        Actions(a.to_action)
+                    end
                 elsif arg.respond_to?(:to_action)
-                    [arg.to_action]
+                    arg = arg.to_action
+                    unless arg.model.kind_of?(Roby::Actions::Models::MethodAction)
+                        return [arg]
+                    end
+
+                    plan = Roby::Plan.new
+                    task = arg.instanciate(plan)
+
+                    # Now find the new actions
+                    resolve_actions_from_plan(task)
+                        .flat_map { |a| Actions(a) }
                 elsif arg.respond_to?(:flat_map)
                     arg.flat_map { |a| Actions(a) }
                 elsif arg.respond_to?(:to_instance_requirements)
@@ -56,7 +88,7 @@ module Syskit
             # consistuent actions
             def AtomicActions(arg)
                 Actions(arg).flat_map do |action|
-                    expand_coordination_models(action)
+                    expand_action_coordination_models(action)
                 end
             end
 
@@ -252,14 +284,27 @@ module Syskit
             # @api private
             #
             # Given an action, returns the list of atomic actions it refers to
-            def expand_coordination_models(action)
+            def expand_action_coordination_models(action)
                 return [action] unless action.model.respond_to?(:coordination_model)
 
-                action.model.coordination_model.each_task.flat_map do |coordination_task|
+                expand_coordination_model(action.model.coordination_model)
+            end
+
+            def expand_coordination_model(coordination_model)
+                coordination_model.each_task.flat_map do |coordination_task|
                     if coordination_task.respond_to?(:action)
-                        expand_coordination_models(coordination_task.action)
+                        expand_action_coordination_models(coordination_task.action)
                     end
                 end.compact
+            end
+
+            # @api private
+            #
+            # Given an action, returns the list of atomic actions it refers to
+            def expand_task_coordination_models(task)
+                task.each_coordination_object.flat_map do |c|
+                    expand_coordination_model(c.model)
+                end
             end
 
             # Tests that the following syskit-generated actions can be deployed,
