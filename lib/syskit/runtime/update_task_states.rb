@@ -56,10 +56,10 @@ module Syskit
             handled_this_cycle = []
 
             state = nil
-            state_count = 0
+            received_states = []
             while (!state || task.orocos_task.runtime_state?(state)) &&
                   (new_state = task.update_orogen_state)
-                state_count += 1
+                received_states << new_state
 
                 # Returns nil if we have a communication problem. In this
                 # case, #update_orogen_state will have emitted the right
@@ -70,16 +70,18 @@ module Syskit
                 end
             end
 
-            warn_state_reader_overrun(state_count)
+            warn_state_reader_overrun(task, received_states)
         end
 
-        def self.warn_state_reader_overrun(state_count)
+        def self.warn_state_reader_overrun(task, received_states)
+            state_count = received_states.size
             return if state_count < Deployment::STATE_READER_BUFFER_SIZE
 
             Runtime.warn(
                 "got #{state_count} state updates for #{task}, we might "\
-                "have lost some state updates in the process"
+                "have lost some state updates in the process. Received:"
             )
+            received_states.each { |s| Runtime.warn "  #{s}" }
         end
 
         # Check if the task is in a state that allow us to process its state
