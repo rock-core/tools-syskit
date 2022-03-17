@@ -127,7 +127,7 @@ module Syskit
             option :robot, aliases: "r", type: :string, default: nil,
                            desc: "the robot name for robot-specific scaffolding"
             def ruby_task(name)
-                gen_common("ruby_task", name, "compositions", "Compositions")
+                gen_common("ruby_task", name, "tasks", "Tasks")
             end
 
             desc "srv NAME", "generate a new data service"
