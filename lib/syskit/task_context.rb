@@ -69,6 +69,8 @@ module Syskit
             @remote_state_getter = remote_handles.state_getter
             @pending_exception_states = []
 
+            @calculated_dynamics = {}
+
             remote_handles.default_properties.each do |p, p_value|
                 syskit_p = property(p.name)
                 syskit_p.remote_property = p
@@ -102,6 +104,21 @@ module Syskit
             orogen_model.worstcase_trigger_latency = latency
         end
 
+        # @api private
+        #
+        # Set the dynamics calculated during the deployment
+        attr_writer :trigger_information
+
+        # Trigger calculations performed during deployment
+        def task_trigger_information
+            @trigger_information[nil]
+        end
+
+        # Trigger calculations for a single port
+        def find_port_trigger_information(name)
+            @trigger_information[name.to_str]
+        end
+
         # @param [OroGen::Spec::TaskDeployment] orogen_model runtime model for this task
         def initialize(orogen_model: nil, **arguments)
             super(**arguments)
@@ -109,6 +126,7 @@ module Syskit
             @orogen_model =
                 orogen_model ||
                 OroGen::Spec::TaskDeployment.new(nil, model.orogen_model)
+            @trigger_information = {}
 
             properties = {}
             property_overrides = {}

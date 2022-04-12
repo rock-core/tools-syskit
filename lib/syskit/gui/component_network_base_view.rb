@@ -170,8 +170,21 @@ module Syskit
                 main_plan ||= Roby::Plan.new
                 main_plan.add(original_task = model.as_plan)
                 base_task = original_task.as_service
-                engine = Syskit::NetworkGeneration::Engine.new(main_plan)
-                engine.resolve_system_network([base_task.task.planning_task])
+                begin
+                    engine = Syskit::NetworkGeneration::Engine.new(main_plan)
+                    engine.resolve_system_network([base_task.task.planning_task])
+                rescue RuntimeError
+                    engine = Syskit::NetworkGeneration::Engine.new(main_plan)
+                    engine.resolve_system_network(
+                        [base_task.task.planning_task],
+                        validate_abstract_network: false,
+                        validate_generated_network: false,
+                        validate_deployed_network: false
+                    )
+                end
+
+                NetworkGeneration::LoggerConfigurationSupport
+                    .add_logging_to_network(engine, engine.work_plan)
                 base_task.task
             ensure
                 if engine && engine.work_plan.respond_to?(:commit_transaction)
