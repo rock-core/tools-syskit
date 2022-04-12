@@ -510,9 +510,7 @@ module Syskit
                     )
                     return client
                 elsif app.single?
-                    client = Syskit::RobyApp::RemoteProcesses::Client.new(
-                        "localhost", port, root_loader: app.default_loader
-                    )
+                    client = process_server_for("localhost")
                     register_process_server(
                         name, client, app.log_dir, host_id: host_id || "localhost"
                     )
