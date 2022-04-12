@@ -150,6 +150,7 @@ module Syskit
 
                 if start_local_process_server
                     start_local_process_server(redirect: Syskit.conf.redirect_local_process_server?)
+                    @local_process_server_client = create_local_process_server_client(app)
                     connect_to_local_process_server(app)
                 else
                     fake_client = Configuration::ModelOnlyServer.new(app.default_loader)
@@ -623,7 +624,7 @@ module Syskit
                 @server_pid
             end
 
-            def self.connect_to_local_process_server(app)
+            def self.create_local_process_server_client(app)
                 unless @server_pid
                     raise Syskit::RobyApp::RemoteProcesses::Client::StartupFailed,
                           "#connect_to_local_process_server got called but "\
@@ -662,6 +663,12 @@ module Syskit
                           "(was expecting #{@server_pid})"
                 end
 
+                client
+            end
+
+            def self.connect_to_local_process_server(app)
+                client = create_local_process_server_client(app)
+
                 # Do *not* manage the log directory for that one ...
                 Syskit.conf.register_process_server("localhost", client, app.log_dir)
                 client
@@ -672,12 +679,15 @@ module Syskit
             def self.stop_local_process_server
                 return unless has_local_process_server?
 
-                ::Process.kill("INT", @server_pid)
+                @local_process_server_client.quit_server
+
                 begin
                     ::Process.waitpid(@server_pid)
                     @server_pid = nil
                 rescue Errno::ESRCH
                 end
+
+                @local_process_server_client.disconnect
             end
 
             # Disconnects from all process servers
