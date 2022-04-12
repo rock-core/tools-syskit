@@ -113,6 +113,9 @@ module Syskit
                 if compute_policies
                     @dataflow_dynamics = DataFlowDynamics.new(work_plan)
                     @port_dynamics = dataflow_dynamics.compute_connection_policies
+                    @dataflow_dynamics.result.each do |task, dynamics|
+                        task.trigger_information = dynamics
+                    end
                     log_timepoint "compute_connection_policies"
                 end
 
