@@ -141,6 +141,7 @@ module Syskit
             end
 
             def pretty_print(pp)
+                pp.text "sample_size: #{sample_size}"
                 pp.seplist(triggers) do |tr|
                     pp.text "(#{tr.name}): #{tr.period} #{tr.sample_count}"
                 end

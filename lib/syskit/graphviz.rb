@@ -377,6 +377,8 @@ module Syskit
 
                 source_task.each_concrete_output_connection do |source_port, sink_port, sink_task, _|
                     key = [source_task, source_port, sink_task, sink_port]
+                    next if policy_annotations[key]
+
                     if (task_policies = policy_graph[[source_task, sink_task]])
                         policy = task_policies[[source_port, sink_port]]
                     end
@@ -405,14 +407,16 @@ module Syskit
         def add_trigger_annotations
             plan.find_local_tasks(TaskContext).each do |task|
                 task.model.each_port do |p|
-                    if (dyn = task.port_dynamics[p.name])
+                    if (dyn = task.find_port_trigger_information(p.name))
                         ann = dyn.triggers.map do |tr|
                             "#{tr.name}[p=#{tr.period},s=#{tr.sample_count}]"
                         end
+                        port_annotations[[task, p.name]]["Sample Size"] =
+                            [dyn.sample_size.to_s]
                         port_annotations[[task, p.name]]["Triggers"].concat(ann)
                     end
                 end
-                if (dyn = task.dynamics)
+                if (dyn = task.task_trigger_information)
                     ann = dyn.triggers.map do |tr|
                         "#{tr.name}[p=#{tr.period},s=#{tr.sample_count}]"
                     end
