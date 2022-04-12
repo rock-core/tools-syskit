@@ -172,6 +172,8 @@ module Syskit
                 base_task = original_task.as_service
                 engine = Syskit::NetworkGeneration::Engine.new(main_plan)
                 engine.resolve_system_network([base_task.task.planning_task])
+                NetworkGeneration::LoggerConfigurationSupport
+                    .add_logging_to_network(engine, engine.work_plan)
                 base_task.task
             ensure
                 if engine && engine.work_plan.respond_to?(:commit_transaction)

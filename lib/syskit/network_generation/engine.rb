@@ -119,6 +119,9 @@ module Syskit
                     log_timepoint "compute_connection_policies"
                 end
 
+                @deployment_tasks = work_plan.find_local_tasks(Deployment).to_set
+                @deployed_tasks = work_plan.find_local_tasks(Component).to_set
+
                 nil
             end
 
