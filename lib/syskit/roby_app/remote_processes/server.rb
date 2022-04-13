@@ -180,7 +180,8 @@ module Syskit
                     Server.info "process server listening on port #{port}"
                     server_io, com_r = *@all_ios[0, 2]
 
-                    loop do
+                    @quit = false
+                    until @quit
                         readable_sockets, = select(@all_ios, nil, nil)
                         if readable_sockets.include?(server_io)
                             readable_sockets.delete(server_io)
@@ -270,7 +271,7 @@ module Syskit
                 # Helper method that deals with one client request
                 def handle_command(socket) # :nodoc:
                     cmd_code = socket.read(1)
-                    raise EOFError unless cmd_code
+                    return false unless cmd_code
 
                     if cmd_code == COMMAND_GET_PID
                         Server.debug "#{socket} requested PID"
@@ -432,7 +433,7 @@ module Syskit
                 end
 
                 def quit
-                    raise Interrupt
+                    @quit = true
                 end
 
                 Upload = Struct.new(
