@@ -280,9 +280,10 @@ module Syskit
                         Server.debug "#{socket} requested system information"
                         Marshal.dump(build_system_info, socket)
                     elsif cmd_code == COMMAND_CREATE_LOG
+                        Server.debug "#{socket} requested creating a log directory"
+                        log_dir, time_tag, metadata = Marshal.load(socket)
+
                         begin
-                            Server.debug "#{socket} requested creating a log directory"
-                            log_dir, time_tag, metadata = Marshal.load(socket)
                             metadata ||= {} # compatible with older clients
                             log_dir = File.expand_path(log_dir) if log_dir
                             create_log_dir(log_dir, time_tag, metadata)
