@@ -168,9 +168,9 @@ module Syskit
                 end
 
                 def close
+                    trap("SIGCHLD", "DEFAULT")
                     @com_w.close
                     @all_ios.each(&:close)
-                    trap("SIGCHLD", "DEFAULT")
                 end
 
                 # Main server loop. This will block and only return when CTRL+C is hit.
