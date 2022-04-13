@@ -160,6 +160,12 @@ module Syskit
 
         describe V5::Models::TaskContextDumper do
             before do
+                @__rebuild_orogen_models = Syskit::DRoby::V5.rebuild_orogen_models?
+                Syskit::DRoby::V5.rebuild_orogen_models = true
+            end
+
+            after do
+                Syskit::DRoby::V5.rebuild_orogen_models = @__rebuild_orogen_models
             end
 
             it "dumps the orogen model and rebuilds the model on the other side" do
