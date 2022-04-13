@@ -213,12 +213,11 @@ module Syskit
                             end
                         end
                     end
-                rescue Exception => e
-                    if e.class == Interrupt # normal procedure
-                        Server.fatal "process server exited normally"
-                        return
-                    end
 
+                    Server.fatal "process server exited normally"
+                rescue Interrupt
+                    Server.fatal "process server exited after SIGINT"
+                rescue Exception => e
                     Server.fatal "process server exited because of unhandled exception"
                     Server.fatal "#{e.message} #{e.class}"
                     e.backtrace.each do |line|
@@ -241,8 +240,8 @@ module Syskit
                             Server.debug "  announcing to #{socket}"
                             socket.write(EVENT_DEAD_PROCESS)
                             Marshal.dump([process_name, exit_status], socket)
-                        rescue IOError
-                            Server.debug "  #{socket}: IOError"
+                        rescue SystemCallError, IOError => e
+                            Server.debug "  #{socket}: #{e}"
                         end
                     end
                 rescue Errno::ECHILD # rubocop:disable Lint/SuppressedException
@@ -261,7 +260,7 @@ module Syskit
 
                     each_client do |socket|
                         socket.close
-                    rescue IOError # rubocop:disable Lint/SuppressedException
+                    rescue SystemCallError, IOError # rubocop:disable Lint/SuppressedException
                     end
 
                     @log_upload_command_queue << nil
