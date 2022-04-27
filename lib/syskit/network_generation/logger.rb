@@ -82,15 +82,26 @@ module Syskit
                 end
             end
 
-            @@logfile_indexes = {}
-
+            # From the orogen name "${logger_name}_Logger", removes the sufix "_Logger"
             def self.default_log_file_name(name)
                 name[/.*(?=_[L|l]ogger)/] || name
             end
 
-            def self.setup_default_logger(logger, log_file_name: default_log_file_name(logger.orocos_name))
-                index = (@@logfile_indexes[log_file_name] ||= -1) + 1
-                @@logfile_indexes[log_file_name] = index
+            def self.compute_next_log_index(previous_file)
+                unless previous_file
+                    return 0
+                end
+
+                next_index = previous_file[/.*(.[0-9]+.log)/, 1][/[0-9]+/].to_i + 1
+
+                next_index
+            end
+
+            def self.setup_default_logger(logger, logger_name: logger.orocos_name)
+                index = compute_next_log_index(logger.properties.file)
+
+                log_file_name = default_log_file_name(logger_name)
+
                 logger.properties.file = "#{log_file_name}.#{index}.log"
             end
 
