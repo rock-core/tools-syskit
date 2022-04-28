@@ -253,14 +253,13 @@ module Syskit
                 @handler_ids = plug_engine_in_roby(app.execution_engine)
 
                 @log_upload_command_queue = Queue.new
-                @log_upload_thread = Thread.new { 
+                @log_upload_thread = Thread.new {
                     app.log_upload_main(@log_upload_command_queue)
                 }
-                @rotated_logs = {}
 
                 if Syskit.conf.log_rotation_period
                     app.execution_engine.every(Syskit.conf.log_rotation_period) do
-                        app.rotate_logs(@rotated_logs)
+                        app.rotate_logs
                     end
                 end
             end
@@ -966,25 +965,10 @@ module Syskit
                 rest_api.mount REST_API => "/syskit"
             end
 
-            def get_running_agents(syskit_task)
-                agents = []
-                plan.find_tasks(syskit_task).running.each do |task|
-                    agents << task.execution_agent.arguments[:on]
-                end
-                agents&=agents
-                agents
-            end
-
-            def rotate_logs(rotated_logs)
-                agents = get_running_agents(Syskit::LoggerService)
-                for agent in agents
-                    agent_logs = []
-                    plan.find_tasks(Syskit::LoggerService).running.each do |task|
-                        if task.execution_agent.arguments[:on] == agent
-                            task.rotate_log.each {|logfile| agent_logs << logfile}
-                        end
-                    end
-                    rotated_logs[agent] = agent_logs
+            def rotate_logs
+                plan.find_tasks(Syskit::LoggerService).running.each_with_object({}) do |task, rotated_logs|
+                    process_server_name = task.execution_agent.arguments[:on]
+                    (rotated_logs[process_server_name] ||= []).concat(task.rotate_log)
                 end
             end
 

@@ -328,7 +328,7 @@ module Syskit
                     @rotated_logs = {}
                     flexmock(@task).should_receive(:rotate_log)
                                   .explicitly.and_return(@logfile)
-                    @app.rotate_logs(@rotated_logs)
+                    @app.rotate_logs
                 end
 
                 it "rotates log" do
