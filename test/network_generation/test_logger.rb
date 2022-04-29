@@ -1,7 +1,6 @@
 # frozen_string_literal: true
 
 require "syskit/test/self"
-#require "./test/fixtures/simple_composition_model"
 
 describe Syskit::NetworkGeneration::LoggerConfigurationSupport do
     attr_reader :syskit_engine
@@ -282,6 +281,27 @@ describe Syskit::NetworkGeneration::LoggerConfigurationSupport do
                 "deployment.1.log",
                 logger.properties.file
             )
+        end
+    end
+
+    describe "#upload_log" do
+        it "sents log file to its respective process_server if not on localhost" do
+            app = Roby::Application.new(plan: plan)
+
+            process_server = Syskit.conf.process_server_config_for("stubs")
+
+            flexmock(process_server)
+                .should_receive(:in_process?)
+                .and_return(false)
+                .should_receive(:on_localhost?)
+                .and_return(false)
+
+            flexmock(app)
+                .should_receive(:send_file_transfer_command)
+                .with("stubs", "old_log_before_rotation.log")
+                .once
+
+            app.upload_rotated_logs({ "stubs" => ["old_log_before_rotation.log"] })
         end
     end
 end
