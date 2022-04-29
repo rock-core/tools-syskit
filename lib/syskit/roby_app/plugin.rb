@@ -244,7 +244,7 @@ module Syskit
                 end
 
                 disconnect_all_process_servers
-                stop_local_process_server
+                stop_local_process_server(app)
                 app.stop_local_log_transfer_server
             end
 
@@ -676,9 +676,10 @@ module Syskit
 
             # Stop the process server started by start_local_process_server if
             # one is running
-            def self.stop_local_process_server
+            def self.stop_local_process_server(app)
                 return unless has_local_process_server?
 
+                @local_process_server_client ||= create_local_process_server_client(app)
                 @local_process_server_client.quit_server
 
                 begin
@@ -688,6 +689,7 @@ module Syskit
                 end
 
                 @local_process_server_client.disconnect
+                @local_process_server_client = nil
             end
 
             # Disconnects from all process servers
