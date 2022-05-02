@@ -281,6 +281,15 @@ describe Syskit::NetworkGeneration::LoggerConfigurationSupport do
                 "deployment.1.log",
                 logger.properties.file
             )
+
+            logger.properties.file = "deployment.10.log"
+
+            Syskit::NetworkGeneration::LoggerConfigurationSupport.setup_default_logger(logger)
+
+            assert_equal(
+                "deployment.11.log",
+                logger.properties.file
+            )
         end
     end
 
