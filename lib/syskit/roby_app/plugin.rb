@@ -252,14 +252,10 @@ module Syskit
             def self.prepare(app)
                 @handler_ids = plug_engine_in_roby(app.execution_engine)
 
-                @log_upload_command_queue = Queue.new
-                @log_upload_thread = Thread.new {
-                    app.log_upload_main(@log_upload_command_queue)
-                }
-
                 if Syskit.conf.log_rotation_period
                     app.execution_engine.every(Syskit.conf.log_rotation_period) do
-                        app.rotate_logs
+                        rotated_logs = app.rotate_logs
+                        app.upload_rotated_logs(rotated_logs)
                     end
                 end
             end
@@ -276,9 +272,6 @@ module Syskit
                     unplug_engine_from_roby(@handler_ids.values, app.execution_engine)
                     @handler_ids = nil
                 end
-
-                @log_upload_command_queue << nil
-                @log_upload_thread.join
             end
 
             def default_loader
@@ -967,31 +960,20 @@ module Syskit
 
             def rotate_logs
                 plan.find_tasks(Syskit::LoggerService).running.each_with_object({}) do |task, rotated_logs|
-                    process_server_name = task.execution_agent.arguments[:on]
+                    process_server_name = task.log_server_name
                     (rotated_logs[process_server_name] ||= []).concat(task.rotate_log)
                 end
             end
 
-            def upload_rotated_logs(log_upload_command_queue, rotated_logs)
-                rotated_logs.each do |process_server_name, log_file_name|
-                    process_server = Syskit.conf.process_servers[process_server_name]
+            def upload_rotated_logs(rotated_logs)
+                rotated_logs.each do |process_server_name, logs|
+                    process_server = Syskit.conf.process_server_config_for(process_server_name)
+
                     if !process_server.in_process? && !process_server.on_localhost?
-                        log_upload_command_queue << Upload.new(process_server_name, log_file_name)
+                        logs.each do |log_filename|
+                            send_file_transfer_command(process_server_name, log_filename)
+                        end
                     end
-                end
-            end
-
-            def log_upload_main(log_upload_command_queue)
-                while (transfer = log_upload_command_queue.pop)
-                    transfer.apply
-                end
-            end
-
-            Upload = Struct.new(
-                :process_server_name, :file
-            ) do
-                def apply
-                    send_file_transfer_command(process_server_name, file)
                 end
             end
         end
