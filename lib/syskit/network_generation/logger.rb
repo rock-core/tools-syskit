@@ -83,7 +83,7 @@ module Syskit
             end
 
             def self.default_log_file_name(logger)
-                unless logger.properties.file
+                if logger.properties.file.nil? || logger.properties.file.empty?
                     return logger.orocos_name.sub(/_[L|l]ogger/, "")
                 end
 
@@ -91,7 +91,7 @@ module Syskit
             end
 
             def self.compute_next_log_index(previous_file)
-                unless previous_file
+                if previous_file.nil? || previous_file.empty?
                     return 0
                 end
 
