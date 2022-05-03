@@ -82,9 +82,12 @@ module Syskit
                 end
             end
 
-            # From the orogen name "${logger_name}_Logger", removes the sufix "_Logger"
-            def self.default_log_file_name(name)
-                name[/.*(?=_[L|l]ogger)/] || name
+            def self.default_log_file_name(logger)
+                unless logger.properties.file
+                    return logger.orocos_name.sub(/_[L|l]ogger/, "")
+                end
+
+                logger.properties.file[/.*(?=\.[0-9]+.log)/]
             end
 
             def self.compute_next_log_index(previous_file)
@@ -97,12 +100,11 @@ module Syskit
                 next_index
             end
 
-            def self.setup_default_logger(logger, logger_name: logger.orocos_name)
+            def self.setup_default_logger(logger)
                 index = compute_next_log_index(logger.properties.file)
+                file_name = default_log_file_name(logger)
 
-                log_file_name = default_log_file_name(logger_name)
-
-                logger.properties.file = "#{log_file_name}.#{index}.log"
+                logger.properties.file = "#{file_name}.#{index}.log"
             end
 
             def self.logger_dynamic_port
