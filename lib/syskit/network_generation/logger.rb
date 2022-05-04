@@ -65,46 +65,10 @@ module Syskit
             def configure
                 super
 
-                if default_logger?
-                    deployment = execution_agent
-                    process = deployment.orocos_process
-                    process.setup_default_logger(
-                        self,
-                        log_file_name: process.default_log_file_name(orocos_task.basename),
-                        log_dir: deployment.log_dir,
-                        remote: !deployment.on_localhost?
-                    )
-                end
-
                 each_input_connection do |source_task, source_port_name, sink_port_name, policy|
                     source_port = source_task.find_output_port(source_port_name)
                     create_logging_port(sink_port_name, source_task, source_port)
                 end
-            end
-
-            def self.default_log_file_name(logger)
-                if logger.properties.file.nil? || logger.properties.file.empty?
-                    return logger.orocos_name.sub(/_[L|l]ogger/, "")
-                end
-
-                logger.properties.file[/.*(?=\.[0-9]+.log)/]
-            end
-
-            def self.compute_next_log_index(previous_file)
-                if previous_file.nil? || previous_file.empty?
-                    return 0
-                end
-
-                next_index = previous_file[/.*(.[0-9]+.log)/, 1][/[0-9]+/].to_i + 1
-
-                next_index
-            end
-
-            def self.setup_default_logger(logger)
-                index = compute_next_log_index(logger.properties.file)
-                file_name = default_log_file_name(logger)
-
-                logger.properties.file = "#{file_name}.#{index}.log"
             end
 
             def self.logger_dynamic_port

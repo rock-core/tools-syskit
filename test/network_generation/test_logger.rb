@@ -262,37 +262,6 @@ describe Syskit::NetworkGeneration::LoggerConfigurationSupport do
         end
     end
 
-    describe "#setup_default_logger" do
-        it "increments index in log file name at each call" do
-            logger = deployment.task "deployment_Logger"
-
-            assert_nil(logger.properties.file)
-
-            Syskit::NetworkGeneration::LoggerConfigurationSupport.setup_default_logger(logger)
-
-            assert_equal(
-                "deployment.0.log",
-                logger.properties.file
-            )
-
-            Syskit::NetworkGeneration::LoggerConfigurationSupport.setup_default_logger(logger)
-
-            assert_equal(
-                "deployment.1.log",
-                logger.properties.file
-            )
-
-            logger.properties.file = "deployment.10.log"
-
-            Syskit::NetworkGeneration::LoggerConfigurationSupport.setup_default_logger(logger)
-
-            assert_equal(
-                "deployment.11.log",
-                logger.properties.file
-            )
-        end
-    end
-
     describe "#upload_log" do
         it "sents log file to its respective process_server if not on localhost" do
             app = Roby::Application.new(plan: plan)
