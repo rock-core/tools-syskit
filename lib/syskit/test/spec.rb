@@ -19,7 +19,7 @@ module Syskit
                     loader, task_context_class: Orocos::RubyTasks::StubTaskContext
                 )
                 Syskit.conf.register_process_server(
-                    "stubs", stub_manager, "", host_id: "syskit"
+                    "stubs", stub_manager, nil, host_id: "syskit"
                 )
 
                 super
