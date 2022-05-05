@@ -370,21 +370,37 @@ module Syskit
             elsif @logger_task&.reusable?
                 @logger_task
             elsif (logger_name = self.logger_name)
-                @logger_task = each_executed_task
-                               .find { |t| t.orocos_name == logger_name }
-
-                @logger_task ||= (
-                    begin
-                        task(logger_name)
-                        # Automatic setup by
-                        # {NetworkGeneration::LoggerConfigurationSupport}
-                    rescue ArgumentError
+                logger_task = each_executed_task
+                              .find { |t| t.orocos_name == logger_name }
+                @logger_task =
+                    if logger_task&.fullfills?(LoggerService)
+                        logger_task
+                    else
+                        instanciate_default_logger_task(logger_name)
                     end
-                )
 
                 @logger_task&.default_logger = true
                 @logger_task
             end
+        end
+
+        # Instanciates a new default logger
+        #
+        # @return [Syskit::TaskContext,nil] the instanciated task, or nil if
+        #   no matching task can be found in this deployment
+        def instanciate_default_logger_task(logger_name)
+            begin
+                orogen_model = deployed_orogen_model_by_name(logger_name)
+            rescue ArgumentError # Does not exist
+                return
+            end
+
+            syskit_model = deployed_model_by_orogen_model(orogen_model)
+            return unless syskit_model.fullfills?(LoggerService)
+
+            # Automatic setup by
+            # {NetworkGeneration::LoggerConfigurationSupport}
+            task(logger_name)
         end
 
         # How "far" this process is from the Syskit process
