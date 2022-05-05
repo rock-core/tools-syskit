@@ -71,35 +71,20 @@ module Syskit
                 end
             end
 
-            def self.logger_dynamic_port
-                if @logger_dynamic_port
-                    return @logger_dynamic_port
-                end
-
-                ports = find_logger_model.orogen_model.dynamic_ports.find_all { |p| !p.type && p.kind_of?(OroGen::Spec::InputPort) }
+            def self.logger_dynamic_port_of(task_model)
+                ports = task_model.orogen_model.each_dynamic_input_port
+                                  .find_all { |p| !p.type }
                 if ports.size > 1
-                    raise InternalError, "oroGen's logger::Logger task should have only one catch-all dynamic input port"
+                    raise InternalError,
+                          "valid logger task contexts should have only one catch-all "\
+                          "dynamic input port, #{task_model} got #{ports.size}"
                 elsif ports.empty?
-                    raise InternalError, "oroGen's logger::Logger task should have one catch-all dynamic input port, and has none"
+                    raise InternalError,
+                          "valid logger task contexts should have one catch-all "\
+                          "dynamic input port, and #{task_model} has none"
                 end
 
-                @logger_dynamic_port = ports.first
-            end
-
-            def self.find_logger_model
-                TaskContext.find_model_from_orogen_name "logger::Logger"
-            end
-
-            def self.setup_logger_model(logger_model)
-                unless logger_model <= LoggerConfigurationSupport
-                    logger_model.include LoggerConfigurationSupport
-                    logger_model.stub do
-                        def createLoggingPort(port_name, port_type, metadata)
-                            create_input_port(port_name, port_type)
-                            true
-                        end
-                    end
-                end
+                ports.first
             end
 
             # Configures each running deployment's logger, based on the
@@ -109,10 +94,6 @@ module Syskit
             # between each component's port and the logger
             def self.add_logging_to_network(engine, work_plan)
                 return unless engine.dataflow_dynamics
-
-                return unless (logger_model = find_logger_model)
-
-                setup_logger_model(logger_model)
 
                 fallback_policy = Hash[
                     type: :buffer,
@@ -128,7 +109,7 @@ module Syskit
                     deployment.each_executed_task do |t|
                         if t.finishing? || t.finished?
                             next
-                        elsif t.kind_of?(logger_model)
+                        elsif t.fullfills?(LoggerService)
                             next
                         elsif !engine.deployed_tasks.include?(t)
                             next
@@ -146,7 +127,9 @@ module Syskit
                     end
 
                     unless (logger_task = deployment.logger_task)
-                        warn "deployment #{deployment.process_name} has no logger (default logger name would be #{deployment.process_name}_Logger))"
+                        warn "deployment #{deployment.process_name} has no usable "\
+                             "logger (default logger name would be "\
+                             "#{deployment.process_name}_Logger))"
                         next
                     end
                     logger_task = work_plan[deployment.logger_task]
@@ -197,7 +180,7 @@ module Syskit
                                     )
                                     logger_task.instanciate_dynamic_input_port(
                                         outin_port_names[1], out_port.type,
-                                        logger_dynamic_port
+                                        logger_dynamic_port_of(logger_task.model)
                                     )
                                 end
 
