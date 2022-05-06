@@ -255,7 +255,7 @@ module Syskit
                 if Syskit.conf.log_rotation_period
                     app.execution_engine.every(Syskit.conf.log_rotation_period) do
                         rotated_logs = app.rotate_logs
-                        app.upload_rotated_logs(rotated_logs)
+                        app.upload_rotated_logs(rotated_logs) if Syskit.conf.log_upload?
                     end
                 end
             end

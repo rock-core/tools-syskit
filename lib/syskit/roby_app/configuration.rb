@@ -77,7 +77,21 @@ module Syskit
             attr_reader :deployment_group
 
             # Period in seconds for triggering log rotation and transfer
+            #
+            # This is considered experimental, and is disabled by default
+            #
+            # @return [Number] the rotation in seconds, or nil if rotation is
+            #   disabled altogether
             attr_accessor :log_rotation_period
+
+            # Whether the rotated logs should be uploaded to Syskit's local log dir
+            #
+            # This is considered experimental, and is disabled by default
+            def log_upload?
+                @log_upload
+            end
+
+            attr_writer :log_upload
 
             # Controls whether the orogen types should be exported as Ruby
             # constants
@@ -108,6 +122,10 @@ module Syskit
                 @opportunistic_recovery_from_quarantine = true
                 @auto_restart_deployments_with_quarantines = false
                 @exception_transition_timeout = 20.0
+
+                @log_rotation_period = nil
+                @log_upload = false
+
                 clear
 
                 self.export_types = true
