@@ -4,6 +4,7 @@ module Syskit
     class InternalError < RuntimeError; end
     class ConfigError < RuntimeError; end
     class SpecError < RuntimeError; end
+    class InvalidReadOnlyOperation < RuntimeError; end
 
     class Ambiguous < SpecError; end
 
