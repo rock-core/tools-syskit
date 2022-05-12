@@ -5,7 +5,7 @@ module Syskit
         module V5
             VERSION = 1
 
-            @rebuild_orogen_models = true
+            @rebuild_orogen_models = false
 
             # Global control for {ObjectManager#rebuild_orogen_models?}
             #
