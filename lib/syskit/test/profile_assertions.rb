@@ -266,7 +266,7 @@ module Syskit
                               compute_policies: false,
                               compute_deployments: false)
             rescue Minitest::Assertion, StandardError => e
-                raise ProfileAssertionFailed.new(actions, e), e.message
+                raise ProfileAssertionFailed.new(actions, e), e.message, e.backtrace
             end
 
             # Spec-style call for {#assert_can_instanciate_together}
@@ -361,7 +361,7 @@ module Syskit
                               compute_policies: true,
                               compute_deployments: true)
             rescue Minitest::Assertion, StandardError => e
-                raise ProfileAssertionFailed.new(actions, e), e.message
+                raise ProfileAssertionFailed.new(actions, e), e.message, e.backtrace
             end
 
             # Spec-style call for {#assert_can_deploy_together}
@@ -406,7 +406,7 @@ module Syskit
                 syskit_configure(task_contexts)
                 roots
             rescue Minitest::Assertion, StandardError => e
-                raise ProfileAssertionFailed.new(actions, e), e.message
+                raise ProfileAssertionFailed.new(actions, e), e.message, e.backtrace
             end
 
             # Spec-style call for {#assert_can_configure_together}
