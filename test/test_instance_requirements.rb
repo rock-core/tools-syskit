@@ -363,7 +363,10 @@ describe Syskit::InstanceRequirements do
             task_m = Syskit::TaskContext.new_submodel { provides Syskit::DataService.new_submodel, as: "srv" }
             assert_raises(ArgumentError) { req.select_service(task_m.srv_srv) }
         end
-        it "accepts selecting services from placeholder tasks if the set of models in the task matches the set of models in the instance requirements" do
+
+        it "accepts selecting services from placeholder tasks "\
+           "if the set of models in the task matches the set of models "\
+           "in the instance requirements" do
             srv_m  = Syskit::DataService.new_submodel
             task_m = srv_m.placeholder_model
 
@@ -373,6 +376,22 @@ describe Syskit::InstanceRequirements do
             assert_equal srv, req.service
             instanciated = req.instanciate(plan)
             assert_equal srv, instanciated.model
+        end
+
+        it "accepts a service selection expressed as an InstanceRequirements" do
+            srv_m  = Syskit::DataService.new_submodel
+            task_m = Syskit::TaskContext.new_submodel do
+                argument :key
+                provides srv_m, as: "test"
+            end
+
+            req = Syskit::InstanceRequirements.new([task_m])
+            srv = task_m.with_arguments(key: 10).test_srv
+            srv.name = "name" # closer to the original bug, which was a Definition
+            req_srv = req.select_service(srv)
+
+            assert_equal task_m.test_srv, req_srv.model
+            assert_equal({ key: 10 }, req_srv.arguments)
         end
     end
 
