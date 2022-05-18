@@ -282,7 +282,9 @@ module Syskit
                 raise ArgumentError, "#{service} is not a service of #{self}"
             end
 
-            if service.component_model.placeholder?
+            if service.kind_of?(InstanceRequirements)
+                merge(service)
+            elsif service.component_model.placeholder?
                 if srv = base_model.find_data_service_from_type(service.model)
                     @base_model = srv
                     @model = srv.attach(model)
