@@ -60,6 +60,23 @@ describe Syskit::NetworkGeneration::LoggerConfigurationSupport do
                               ["out2", "task.out2"] => {}], @dataflow_graph.edge_info(task, logger)
         end
 
+        it "marks the loggers as permanent" do
+            logger = @deployment.task("deployment_Logger")
+            Syskit::NetworkGeneration::LoggerConfigurationSupport
+                .add_logging_to_network(syskit_engine, plan)
+
+            assert plan.permanent_task?(logger)
+        end
+
+        it "does not mark a logger as permanent if it is unused" do
+            logger = @deployment.task("deployment_Logger")
+            flexmock(deployment).should_receive(log_port?: false)
+            Syskit::NetworkGeneration::LoggerConfigurationSupport
+                .add_logging_to_network(syskit_engine, plan)
+
+            refute plan.permanent_task?(logger)
+        end
+
         it "sets default_logger?" do
             logger = deployment.task "deployment_Logger"
             Syskit::NetworkGeneration::LoggerConfigurationSupport
