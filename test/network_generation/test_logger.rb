@@ -28,6 +28,7 @@ describe Syskit::NetworkGeneration::LoggerConfigurationSupport do
         flexmock(syskit_engine)
         syskit_engine.should_receive(:dataflow_dynamics).and_return(dataflow)
         syskit_engine.should_receive(:deployment_tasks).and_return([deployment])
+                     .by_default
         syskit_engine.should_receive(:deployed_tasks).and_return([@task])
                      .by_default
 
@@ -113,6 +114,46 @@ describe Syskit::NetworkGeneration::LoggerConfigurationSupport do
             Syskit::NetworkGeneration::LoggerConfigurationSupport
                 .add_logging_to_network(syskit_engine, plan)
             refute @dataflow_graph.has_edge?(task, logger)
+        end
+
+        it "cleans up connections while sharing a logger across deployments" do
+            deployment2 = syskit_stub_deployment("deployment2", deployment_m)
+            task2 = deployment2.task "task"
+            syskit_engine.should_receive(:deployment_tasks)
+                         .and_return([@deployment, deployment2])
+            syskit_engine.should_receive(:deployed_tasks)
+                         .and_return([@task, task2])
+
+            logger = deployment.task "deployment_Logger"
+            deployment2.logger_task = logger
+
+            Syskit::NetworkGeneration::LoggerConfigurationSupport
+                .add_logging_to_network(syskit_engine, plan)
+
+            flexmock(deployment).should_receive(log_port?: false)
+            flexmock(deployment2).should_receive(log_port?: false)
+            Syskit::NetworkGeneration::LoggerConfigurationSupport
+                .add_logging_to_network(syskit_engine, plan)
+            refute @dataflow_graph.has_edge?(task, logger)
+            refute @dataflow_graph.has_edge?(task2, logger)
+        end
+
+        it "sets up logging while sharing a logger across deployments" do
+            deployment2 = syskit_stub_deployment("deployment2", deployment_m)
+            task2 = deployment2.task "task"
+            syskit_engine.should_receive(:deployment_tasks)
+                         .and_return([@deployment, deployment2])
+            syskit_engine.should_receive(:deployed_tasks)
+                         .and_return([@task, task2])
+
+            logger = deployment.task "deployment_Logger"
+            deployment2.logger_task = logger
+
+            Syskit::NetworkGeneration::LoggerConfigurationSupport
+                .add_logging_to_network(syskit_engine, plan)
+
+            assert @dataflow_graph.has_edge?(task, logger)
+            assert @dataflow_graph.has_edge?(task2, logger)
         end
 
         it "leaves connections to tasks that are not part of the final plan alone" do

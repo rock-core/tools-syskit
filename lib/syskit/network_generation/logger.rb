@@ -130,7 +130,6 @@ module Syskit
                     size: Syskit.conf.logs.default_logging_buffer_size
                 ]
 
-                seen_loggers = Set.new
                 engine.deployment_tasks.each do |deployment|
                     next unless deployment.plan
 
@@ -165,12 +164,10 @@ module Syskit
                     # Disconnect current log connections, we're going to
                     # reestablish the ones we want later on. We leave other
                     # connections as-is
-                    unless seen_loggers.include?(logger_task)
-                        dataflow = work_plan.task_relation_graph_for(Flows::DataFlow)
-                        deployment.each_executed_task do |t|
-                            if engine.deployed_tasks.include?(t)
-                                dataflow.remove_relation(t, logger_task)
-                            end
+                    dataflow = work_plan.task_relation_graph_for(Flows::DataFlow)
+                    deployment.each_executed_task do |t|
+                        if engine.deployed_tasks.include?(t)
+                            dataflow.remove_relation(t, logger_task)
                         end
                     end
 
