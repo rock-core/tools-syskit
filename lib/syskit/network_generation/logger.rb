@@ -130,7 +130,7 @@ module Syskit
                     size: Syskit.conf.logs.default_logging_buffer_size
                 ]
 
-                seen_loggers = Set.new
+                required_loggers = []
                 engine.deployment_tasks.each do |deployment|
                     next unless deployment.plan
 
@@ -165,16 +165,16 @@ module Syskit
                     # Disconnect current log connections, we're going to
                     # reestablish the ones we want later on. We leave other
                     # connections as-is
-                    unless seen_loggers.include?(logger_task)
-                        dataflow = work_plan.task_relation_graph_for(Flows::DataFlow)
-                        deployment.each_executed_task do |t|
-                            if engine.deployed_tasks.include?(t)
-                                dataflow.remove_relation(t, logger_task)
-                            end
+                    dataflow = work_plan.task_relation_graph_for(Flows::DataFlow)
+                    deployment.each_executed_task do |t|
+                        if engine.deployed_tasks.include?(t)
+                            dataflow.remove_relation(t, logger_task)
                         end
                     end
 
                     next if required_logging_ports.empty?
+
+                    required_loggers << logger_task
 
                     # Make sure that the tasks are started after the logger was
                     # started
@@ -224,18 +224,9 @@ module Syskit
 
                 # Finally, select 'default' as configuration for all
                 # remaining tasks that do not have a 'conf' argument set
-                work_plan.find_local_tasks(logger_model)
-                         .each do |task|
-                    unless task.arguments[:conf]
-                        task.arguments[:conf] = ["default"]
-                    end
-                end
-
-                # Mark as permanent any currently running logger
-                work_plan.find_tasks(logger_model)
-                         .not_finished
-                         .to_a.each do |t|
-                    work_plan.add_permanent_task(t)
+                required_loggers.each do |task|
+                    task.arguments[:conf] = ["default"] unless task.arguments[:conf]
+                    work_plan.add_permanent_task(task)
                 end
             end
         end
