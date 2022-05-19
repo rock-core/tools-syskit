@@ -47,6 +47,7 @@ Roby.app.using "syskit"
 Syskit.conf.only_load_models = true
 Syskit.conf.disables_local_process_server = true
 Roby.app.ignore_all_load_errors = true
+Roby.app.development_mode = false
 
 direct_files, model_names = remaining.partition do |arg|
     File.file?(arg)
