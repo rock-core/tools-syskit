@@ -19,9 +19,11 @@ module Syskit
             #   name in {#model} to the name this task should have while running
             attr_reader :name_mappings
 
+            attr_reader :read_only
+
             def initialize(
                 process_server_name, model, name_mappings = {},
-                process_name = model.name, spawn_options = {}
+                process_name = model.name, spawn_options = {}, read_only = false
             )
                 default_mappings =
                     model
@@ -35,6 +37,7 @@ module Syskit
                 @name_mappings       = default_mappings.merge(name_mappings)
                 @process_name        = process_name
                 @spawn_options       = spawn_options
+                @read_only           = read_only
             end
 
             # @api private
@@ -115,7 +118,8 @@ module Syskit
                     process_name: process_name,
                     name_mappings: name_mappings,
                     spawn_options: spawn_options,
-                    on: process_server_name
+                    on: process_server_name,
+                    read_only: read_only
                 )
                 options.delete(:working_directory)
                 options.delete(:output)

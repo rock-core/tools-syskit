@@ -308,7 +308,7 @@ module Syskit
             # Declare tasks that are going to be started by some other process,
             # but whose tasks are going to be integrated in the syskit network
             def use_unmanaged_task(
-                mappings, on: "unmanaged_tasks", process_managers: Syskit.conf
+                mappings, on: "unmanaged_tasks", process_managers: Syskit.conf, read_only: false
             )
                 # Verify that the process manager exists
                 process_managers.process_server_config_for(on)
@@ -353,7 +353,8 @@ module Syskit
 
                     configured_deployment =
                         Models::ConfiguredDeployment
-                        .new(on, deployment_model, { name => name }, name, {})
+                        .new(on, deployment_model, { name => name }, name, {},
+                             read_only: read_only)
                     register_configured_deployment(configured_deployment)
                     configured_deployment
                 end
