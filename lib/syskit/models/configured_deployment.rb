@@ -134,7 +134,8 @@ module Syskit
                     process_name == other.process_name &&
                     model == other.model &&
                     spawn_options == other.spawn_options &&
-                    name_mappings == other.name_mappings
+                    name_mappings == other.name_mappings &&
+                    read_only == other.read_only
             end
 
             def hash
