@@ -32,6 +32,7 @@ module Syskit
         argument :spawn_options, default: nil
         argument :ready_polling_period, default: 0.1
         argument :logger_task, default: nil
+        argument :read_only, default: []
 
         # The underlying process object
         attr_reader :orocos_process
@@ -210,7 +211,12 @@ module Syskit
                       "expected #{base_syskit_task_model} or one of its subclasses"
             end
 
-            plan.add(task = syskit_task_model.new(orocos_name: mapped_name))
+            is_read_only_model = read_only.any? do |m|
+                mapped_name.include?(m)
+            end
+            plan.add(task = syskit_task_model
+                            .new(orocos_name: mapped_name, read_only: is_read_only_model)
+            )
             task.executed_by self
             if scheduler_task
                 task.depends_on scheduler_task, role: "scheduler"

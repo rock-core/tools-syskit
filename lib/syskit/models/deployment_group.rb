@@ -307,8 +307,10 @@ module Syskit
 
             # Declare tasks that are going to be started by some other process,
             # but whose tasks are going to be integrated in the syskit network
-            def use_unmanaged_task(
-                mappings, on: "unmanaged_tasks", process_managers: Syskit.conf, read_only: false
+            def use_unmanaged_task(mappings,
+                                   on: "unmanaged_tasks",
+                                   process_managers: Syskit.conf,
+                                   read_only: false
             )
                 # Verify that the process manager exists
                 process_managers.process_server_config_for(on)
@@ -351,10 +353,11 @@ module Syskit
                             task name, orogen_model
                         end
 
+                    read_only_model = read_only ? [name] : []
                     configured_deployment =
                         Models::ConfiguredDeployment
                         .new(on, deployment_model, { name => name }, name, {},
-                             read_only: read_only)
+                             read_only_model)
                     register_configured_deployment(configured_deployment)
                     configured_deployment
                 end
@@ -397,6 +400,7 @@ module Syskit
                 simulation: Roby.app.simulation?,
                 loader: nil,
                 process_managers: Syskit.conf,
+                read_only: false,
                 **run_options
             )
                 deployment_spec = {}
@@ -460,10 +464,11 @@ module Syskit
                         process_managers.default_run_options(model)
                     )
 
+                    read_only_model = read_only ? [name] : []
                     configured_deployment =
                         Models::ConfiguredDeployment
                         .new(process_server_config.name, model, name_mappings, name,
-                             spawn_options)
+                             spawn_options, read_only_model)
                     register_configured_deployment(configured_deployment)
                     configured_deployment
                 end

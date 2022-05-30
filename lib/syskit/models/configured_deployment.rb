@@ -18,12 +18,13 @@ module Syskit
             # @return [Hash] the name mappings, e.g. the mapping from a task
             #   name in {#model} to the name this task should have while running
             attr_reader :name_mappings
-
+            # @return [Array] the tasks related to this deployment supposed to be set as
+            #   read only
             attr_reader :read_only
 
             def initialize(
                 process_server_name, model, name_mappings = {},
-                process_name = model.name, spawn_options = {}, read_only = false
+                process_name = model.name, spawn_options = {}, read_only = []
             )
                 default_mappings =
                     model
