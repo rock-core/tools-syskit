@@ -335,6 +335,21 @@ module Syskit
                     end
                     assert_equal "#{task_m} is not a ruby task model", e.message
                 end
+
+                it "sets the configured deployment as read_only" do
+                    expected = ConfiguredDeployment.new(
+                        "test-mng", deployment_m, Hash["task" => "test"],
+                        "test", Hash[task_context_class: Orocos::RubyTasks::TaskContext],
+                        ["test"]
+                    )
+                    flexmock(group).should_receive(:register_configured_deployment)
+                                   .once
+                    configured_deployment = group.use_ruby_tasks(
+                        Hash[task_m => "test"], on: "test-mng", process_managers: conf,
+                        read_only: true
+                    )
+                    assert_equal [expected], configured_deployment
+                end
             end
 
             describe "#use_unmanaged_task" do
@@ -423,6 +438,13 @@ module Syskit
                     end
                     assert_equal "expected a mapping from a task context model to "\
                         "a name, but got #{task_m}", e.message
+                end
+                it "sets the configured deployment as read_only" do
+                    configured_deployment = group.use_unmanaged_task(
+                        Hash[task_m => "test"], on: "test-mng", process_managers: conf,
+                        read_only: true
+                    )
+                    assert_equal ["test"], configured_deployment.first.read_only
                 end
             end
 
@@ -600,6 +622,13 @@ module Syskit
                         "a component by type, as e.g. use_deployment "\
                         "OroGen.xsens_imu.Task => 'imu'",
                                  e.message
+                end
+                it "sets the configured deployment as read_only" do
+                    configured_deployment = group.use_deployment(
+                        Hash[task_m => "test"], on: "test-mng", process_managers: conf,
+                        read_only: true
+                    )
+                    assert_equal ["test"], configured_deployment.first.read_only
                 end
             end
 

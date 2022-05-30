@@ -262,10 +262,11 @@ module Syskit
             #   be used
             # @param process_managers the object that maintains the set of
             #   process managers
+            # @param [Boolean] read_only sets the deployed tasks as read_only
             # @return [[ConfiguredDeployment]]
             def use_ruby_tasks(
                 mappings, remote_task: false, on: "ruby_tasks",
-                process_managers: Syskit.conf
+                process_managers: Syskit.conf, read_only: false
             )
                 # Verify that the process manager exists
                 process_managers.process_server_config_for(on)
@@ -295,11 +296,13 @@ module Syskit
                     end
 
                 mappings.map do |task_model, name|
+                    read_only_model = read_only ? [name] : []
                     deployment_model = task_model.deployment_model
                     configured_deployment =
                         Models::ConfiguredDeployment
                         .new(on, deployment_model, { "task" => name }, name,
-                             task_context_class: task_context_class)
+                             {task_context_class: task_context_class},
+                             read_only_model)
                     register_configured_deployment(configured_deployment)
                     configured_deployment
                 end

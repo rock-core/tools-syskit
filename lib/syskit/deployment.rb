@@ -211,7 +211,7 @@ module Syskit
                       "expected #{base_syskit_task_model} or one of its subclasses"
             end
 
-            is_read_only_model = read_only.any? do |m|
+            is_read_only_model = read_only.to_a.any? do |m|
                 mapped_name.include?(m)
             end
             plan.add(task = syskit_task_model
