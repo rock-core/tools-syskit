@@ -284,8 +284,8 @@ module Syskit
             #
             # Computes a configured deployment suitable to deploy the given task model
             def stub_configured_deployment(
-                task_model = nil, task_name = default_stub_name, remote_task: false,
-                &block
+                task_model = nil, task_name = default_stub_name, read_only = [],
+                remote_task: false, &block
             )
                 deployment_model = stub_deployment_model(task_model, task_name, &block)
 
@@ -299,7 +299,7 @@ module Syskit
 
                 Models::ConfiguredDeployment.new(
                     "stubs", deployment_model, { task_name => task_name }, task_name,
-                    Hash[task_context_class: task_context_class]
+                    Hash[task_context_class: task_context_class], read_only
                 )
             end
 

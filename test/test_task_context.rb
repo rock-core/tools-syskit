@@ -2271,7 +2271,7 @@ module Syskit
                     .to { emit task.start_event }
             end
 
-            it "does not emit start" \
+            it "does not emit start " \
             "if the task is started while the component is not running" do
                 task = @task
 
@@ -2295,7 +2295,7 @@ module Syskit
                 end.to { emit task.start_event }
             end
 
-            it "does not emit interrupted" \
+            it "does not emit interrupted " \
             "if the task is stopped while the component is running" do
                 task = @task
                 Orocos.allow_blocking_calls { task.orocos_task.start(false) }

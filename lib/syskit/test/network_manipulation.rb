@@ -770,7 +770,6 @@ module Syskit
                 as: syskit_default_stub_name(model),
                 remote_task: syskit_stub_resolves_remote_tasks?, &block
             )
-
                 root = syskit_stub_and_deploy(
                     model, remote_task: remote_task, &block
                 )
