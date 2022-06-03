@@ -215,8 +215,7 @@ module Syskit
                 mapped_name.include?(m)
             end
             plan.add(task = syskit_task_model
-                            .new(orocos_name: mapped_name, read_only: is_read_only_model)
-            )
+                            .new(orocos_name: mapped_name, read_only: is_read_only_model))
             task.executed_by self
             if scheduler_task
                 task.depends_on scheduler_task, role: "scheduler"

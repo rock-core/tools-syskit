@@ -348,7 +348,8 @@ module Syskit
                 read_only_task_name = task.read_only? ? [as] : []
                 task_m = task.concrete_model
                 deployment_model = @stubs.stub_configured_deployment(
-                    task_m, as, read_only_task_name, remote_task: remote_task)
+                    task_m, as, read_only_task_name, remote_task: remote_task
+                )
                 stub_conf(task_m, *task.arguments[:conf])
                 task.plan.add(deployer = deployment_model.new)
                 deployed_task = deployer.instanciate_all_tasks.first

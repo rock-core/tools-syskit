@@ -345,7 +345,9 @@ module Syskit
                     flexmock(group).should_receive(:register_configured_deployment)
                                    .once
                     configured_deployment = group.use_ruby_tasks(
-                        Hash[task_m => "test"], on: "test-mng", process_managers: conf,
+                        Hash[task_m => "test"],
+                        on: "test-mng",
+                        process_managers: conf,
                         read_only: true
                     )
                     assert_equal [expected], configured_deployment
@@ -441,7 +443,9 @@ module Syskit
                 end
                 it "sets the configured deployment as read_only" do
                     configured_deployment = group.use_unmanaged_task(
-                        Hash[task_m => "test"], on: "test-mng", process_managers: conf,
+                        Hash[task_m => "test"],
+                        on: "test-mng",
+                        process_managers: conf,
                         read_only: true
                     )
                     assert_equal ["test"], configured_deployment.first.read_only
@@ -625,7 +629,9 @@ module Syskit
                 end
                 it "sets the configured deployment as read_only" do
                     configured_deployment = group.use_deployment(
-                        Hash[task_m => "test"], on: "test-mng", process_managers: conf,
+                        Hash[task_m => "test"],
+                        on: "test-mng",
+                        process_managers: conf,
                         read_only: true
                     )
                     assert_equal ["test"], configured_deployment.first.read_only

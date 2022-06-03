@@ -22,6 +22,7 @@ module Syskit
             #   read only
             attr_reader :read_only
 
+            # rubocop:disable Metrics/ParameterLists
             def initialize(
                 process_server_name, model, name_mappings = {},
                 process_name = model.name, spawn_options = {}, read_only = []
@@ -40,6 +41,7 @@ module Syskit
                 @spawn_options       = spawn_options
                 @read_only           = read_only
             end
+            # rubocop:enable Metrics/ParameterLists
 
             # @api private
             #
@@ -128,6 +130,7 @@ module Syskit
                 model.new(**options)
             end
 
+            # rubocop:disable Metrics/CyclomaticComplexity, Metrics/AbcSize
             def ==(other)
                 return unless other.kind_of?(ConfiguredDeployment)
 
@@ -138,6 +141,7 @@ module Syskit
                     name_mappings == other.name_mappings &&
                     read_only == other.read_only
             end
+            # rubocop:enable Metrics/CyclomaticComplexity, Metrics/AbcSize
 
             def hash
                 [process_name, model].hash

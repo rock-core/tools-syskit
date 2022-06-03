@@ -118,7 +118,6 @@ module Syskit
                 flexmock(process_server_config).should_receive(:host_id).and_return(host_id = flexmock)
                 assert_equal host_id, task.host_id
             end
-
         end
 
         describe "#pid" do
