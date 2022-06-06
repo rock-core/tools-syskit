@@ -44,6 +44,8 @@ module Syskit
         # The name of the remote task context, i.e. the name under which it
         # can be resolved by Orocos.name_service
         argument :orocos_name
+        # Wether the task is set only for read operations
+        argument :read_only, default: false
 
         # [Orocos::TaskContext,Orocos::ROS::Node] the underlying remote task
         # context object. It is set only when the task context's deployment
@@ -70,6 +72,8 @@ module Syskit
             @pending_exception_states = []
 
             @calculated_dynamics = {}
+
+            return ready_to_start! if read_only?
 
             remote_handles.default_properties.each do |p, p_value|
                 syskit_p = property(p.name)
@@ -161,6 +165,13 @@ module Syskit
         # *and* all its inputs are connected
         def executable?
             @executable || (@ready_to_start && super)
+        end
+
+        # Whether this task context is read_only
+        #
+        # By default, its false
+        def read_only?
+            read_only
         end
 
         # Whether the task should be kept in plan
@@ -384,6 +395,15 @@ module Syskit
         # general property update structure, all property updates happening
         # in a single execution cycle will be committed together.
         def queue_property_update_if_needed
+            if read_only?
+                property = each_property.map { |p| p if p.needs_commit? }
+                                        .first
+
+                raise InvalidReadOnlyOperation,
+                      "attempting to write on property '#{property.name}',"\
+                      "but it's a 'read_only' Task"
+            end
+
             unless would_use_property_update?
                 raise InvalidState,
                       "attempting to queue a property update on a finished "\
@@ -693,7 +713,7 @@ module Syskit
         #  end
         #
         def setup?
-            @setup
+            read_only? || @setup
         end
 
         def ready_to_start!
@@ -913,7 +933,9 @@ module Syskit
                 properties_updated_in_configure =
                     properties.each.any?(&:needs_commit?)
             end
+
             commit_properties(promise)
+
             promise.then(description: "#{self}#perform_setup#orocos_task.configure") do
                 state = orocos_task.rtt_state
                 if properties_updated_in_configure && state != :PRE_OPERATIONAL
@@ -955,6 +977,9 @@ module Syskit
         # configured and started.
         event :start do |_context|
             info "starting #{self}"
+
+            return if read_only?
+
             @last_orogen_state = nil
 
             state_reader.resume if state_reader.respond_to?(:resume)
@@ -1151,7 +1176,9 @@ module Syskit
 
         # Interrupts the execution of this task context
         event :stop do |_context|
-            interrupt!
+            return interrupt! unless read_only?
+
+            stop_event.emit
         end
 
         def quarantined!(reason: nil)

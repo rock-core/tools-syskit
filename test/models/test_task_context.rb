@@ -362,7 +362,7 @@ module Syskit # :nodoc:
 
             it "passes the :task_arguments option as arguments to the newly created task" do
                 task = task_model.instanciate(plan, DependencyInjectionContext.new, task_arguments: { conf: ["default"] })
-                assert_equal Hash[conf: ["default"]], task.arguments
+                assert_equal Hash[conf: ["default"], read_only: Roby::DefaultArgument.new(false)], task.arguments
             end
             it "sets the fullfilled model properly" do
                 arguments = Hash[conf: ["default"]]
