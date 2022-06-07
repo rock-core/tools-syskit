@@ -296,13 +296,13 @@ module Syskit
                     end
 
                 mappings.map do |task_model, name|
-                    read_only_model = read_only ? [name] : []
+                    read_only_deployment = read_only ? [name] : []
                     deployment_model = task_model.deployment_model
                     configured_deployment =
                         Models::ConfiguredDeployment
                         .new(on, deployment_model, { "task" => name }, name,
                              { task_context_class: task_context_class },
-                             read_only_model)
+                             read_only: read_only_deployment)
                     register_configured_deployment(configured_deployment)
                     configured_deployment
                 end
@@ -353,11 +353,11 @@ module Syskit
                             task name, orogen_model
                         end
 
-                    read_only_model = read_only ? [name] : []
+                    read_only_deployment = read_only ? [name] : []
                     configured_deployment =
                         Models::ConfiguredDeployment
                         .new(on, deployment_model, { name => name }, name, {},
-                             read_only_model)
+                             read_only: read_only_deployment)
                     register_configured_deployment(configured_deployment)
                     configured_deployment
                 end
@@ -464,11 +464,11 @@ module Syskit
                         process_managers.default_run_options(model)
                     )
 
-                    read_only_model = read_only ? [deployment_name] : []
+                    read_only_deployment = read_only ? [deployment_name] : []
                     configured_deployment =
                         Models::ConfiguredDeployment
                         .new(process_server_config.name, model, name_mappings, name,
-                             spawn_options, read_only_model)
+                             spawn_options, read_only: read_only_deployment)
                     register_configured_deployment(configured_deployment)
                     configured_deployment
                 end
