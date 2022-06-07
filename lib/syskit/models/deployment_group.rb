@@ -464,7 +464,7 @@ module Syskit
                         process_managers.default_run_options(model)
                     )
 
-                    read_only_model = read_only ? [name] : []
+                    read_only_model = read_only ? [deployment_name] : []
                     configured_deployment =
                         Models::ConfiguredDeployment
                         .new(process_server_config.name, model, name_mappings, name,
