@@ -25,7 +25,7 @@ module Syskit
             # rubocop:disable Metrics/ParameterLists
             def initialize(
                 process_server_name, model, name_mappings = {},
-                process_name = model.name, spawn_options = {}, read_only = []
+                process_name = model.name, spawn_options = {}, read_only: []
             )
                 default_mappings =
                     model
