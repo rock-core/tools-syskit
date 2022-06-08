@@ -1006,13 +1006,16 @@ module Syskit
         #
         # @return [Syskit::Component]
         def as_plan(**arguments)
+            subplan_args = arguments.slice(:job_id)
+            arguments.delete(:job_id)
+
             if arguments.empty?
                 req = self
             else
                 req = dup
                 req.with_arguments(**arguments)
             end
-            Syskit::InstanceRequirementsTask.subplan(req, **arguments)
+            Syskit::InstanceRequirementsTask.subplan(req, **subplan_args)
         end
 
         def to_s
