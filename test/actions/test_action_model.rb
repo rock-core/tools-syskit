@@ -86,14 +86,17 @@ describe Syskit::Actions::Models::Action do
             task = action_m.plan_pattern(job_id: 20, test: 10)
             assert_equal 20, task.planning_task.job_id
         end
+        it "does not pass the job ID argument to the placeholder task" do
+            task = action_m.plan_pattern(job_id: 20, test: 10)
+            refute task.arguments.set?(:job_id)
+        end
         it "does not pass the job ID argument to the action" do
             task = action_m.plan_pattern(job_id: 20, test: 10)
             assert_equal Hash[test: 10], task.planning_task.action_arguments
         end
         it "does not set the job ID at all if not given" do
             task = action_m.plan_pattern
-            # Will raise if already set, even if set to nil
-            task.planning_task.job_id = 10
+            refute task.planning_task.arguments.set?(:job_id)
         end
     end
 

@@ -616,6 +616,23 @@ describe Syskit::InstanceRequirements do
             ir.as_plan(foo: 10)
             assert_nil ir.arguments[:foo]
         end
+
+        it "does not set job_id if it is not given" do
+            @task_m.argument :foo
+            ir = Syskit::InstanceRequirements.new([@task_m])
+            task = ir.as_plan(foo: 10)
+            refute task.arguments.set?(:job_id)
+            refute task.planning_task.arguments.set?(:job_id)
+        end
+
+        it "keeps job_id to itself, not passing it to the underlying task" do
+            @task_m.argument :foo
+            ir = Syskit::InstanceRequirements.new([@task_m])
+            task = ir.as_plan(job_id: 20, foo: 10)
+            refute task.arguments.set?(:job_id)
+            assert_equal 10, task.arguments[:foo]
+            assert_equal 20, task.planning_task.job_id
+        end
     end
 
     describe "#as" do
