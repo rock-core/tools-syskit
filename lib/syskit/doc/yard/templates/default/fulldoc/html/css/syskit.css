@@ -1,0 +1,5 @@
+#ports table { border-collapse: collapse; }
+#ports table th, #ports table td { border: 1px solid #ccc; padding: 8px; padding-right: 17px; }
+#ports table tr:nth-child(odd) { background: #eee; }
+#ports table tr:nth-child(even) { background: #fff; }
+#ports table th{ background: #fff; }

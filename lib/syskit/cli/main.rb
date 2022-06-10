@@ -2,11 +2,15 @@
 
 require "roby/cli/main"
 require "syskit/cli/gen_main"
+require "syskit/cli/doc_main"
 
 module Syskit
     module CLI
         class Main < Roby::CLI::Main
             subcommand "gen", GenMain
+
+            desc "doc [TARGET_DIR]", "generate documentation"
+            subcommand "doc", DocMain
 
             desc "orogen-test",
                  "run Syskit script(s) aimed at unit-testing an oroGen project",
