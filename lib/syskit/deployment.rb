@@ -211,11 +211,11 @@ module Syskit
                       "expected #{base_syskit_task_model} or one of its subclasses"
             end
 
-            is_read_only_model = read_only.to_a.any? do |m|
-                mapped_name.include?(m)
-            end
+            # Read only might be nil in some situations, that's why it's necessary to
+            # ensure this operation is done in an Array
+            is_read_only_task = read_only.to_a.include?(mapped_name)
             plan.add(task = syskit_task_model
-                            .new(orocos_name: mapped_name, read_only: is_read_only_model))
+                            .new(orocos_name: mapped_name, read_only: is_read_only_task))
             task.executed_by self
             if scheduler_task
                 task.depends_on scheduler_task, role: "scheduler"

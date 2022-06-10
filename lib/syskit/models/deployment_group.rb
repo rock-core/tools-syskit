@@ -262,7 +262,10 @@ module Syskit
             #   be used
             # @param process_managers the object that maintains the set of
             #   process managers
-            # @param [Boolean] read_only sets the deployed tasks as read_only
+            # @param [Boolean|#===] read_only set the deployment or some of the deployed
+            #   tasks as read only. To set the whole deployment as read only, one should
+            #   pass read_only: true. To set some tasks, pass a regex that matches the
+            #   deployed task names. Defaults to false.
             # @return [[ConfiguredDeployment]]
             def use_ruby_tasks(
                 mappings, remote_task: false, on: "ruby_tasks",
@@ -296,13 +299,12 @@ module Syskit
                     end
 
                 mappings.map do |task_model, name|
-                    read_only_deployment = read_only ? [name] : []
                     deployment_model = task_model.deployment_model
                     configured_deployment =
                         Models::ConfiguredDeployment
                         .new(on, deployment_model, { "task" => name }, name,
                              { task_context_class: task_context_class },
-                             read_only: read_only_deployment)
+                             read_only: read_only)
                     register_configured_deployment(configured_deployment)
                     configured_deployment
                 end
@@ -310,6 +312,11 @@ module Syskit
 
             # Declare tasks that are going to be started by some other process,
             # but whose tasks are going to be integrated in the syskit network
+            #
+            # @param [Boolean|#===] read_only set the deployment or some of the deployed
+            #   tasks as read only. To set the whole deployment as read only, one should
+            #   pass read_only: true. To set some tasks, pass a regex that matches the
+            #   deployed task names. Defaults to false.
             def use_unmanaged_task(mappings,
                 on: "unmanaged_tasks", process_managers: Syskit.conf, read_only: false)
                 # Verify that the process manager exists
@@ -353,11 +360,10 @@ module Syskit
                             task name, orogen_model
                         end
 
-                    read_only_deployment = read_only ? [name] : []
                     configured_deployment =
                         Models::ConfiguredDeployment
                         .new(on, deployment_model, { name => name }, name, {},
-                             read_only: read_only_deployment)
+                             read_only: read_only)
                     register_configured_deployment(configured_deployment)
                     configured_deployment
                 end
@@ -392,6 +398,10 @@ module Syskit
             #
             # @option options [String] :on (localhost) the name of the process
             #   server on which this deployment should be started
+            # @param [Boolean|#===] read_only set the deployment or some of the deployed
+            #   tasks as read only. To set the whole deployment as read only, one should
+            #   pass read_only: true. To set some tasks, pass a regex that matches the
+            #   deployed task names. Defaults to false.
             #
             # @return [Array<Deployment>]
             def use_deployment(
@@ -464,11 +474,10 @@ module Syskit
                         process_managers.default_run_options(model)
                     )
 
-                    read_only_deployment = read_only ? [deployment_name] : []
                     configured_deployment =
                         Models::ConfiguredDeployment
                         .new(process_server_config.name, model, name_mappings, name,
-                             spawn_options, read_only: read_only_deployment)
+                             spawn_options, read_only: read_only)
                     register_configured_deployment(configured_deployment)
                     configured_deployment
                 end

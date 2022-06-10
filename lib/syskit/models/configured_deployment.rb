@@ -22,10 +22,11 @@ module Syskit
             #   read only
             attr_reader :read_only
 
-            # rubocop:disable Metrics/ParameterLists
+            # rubocop: disable Metrics/ParameterLists
             def initialize(
                 process_server_name, model, name_mappings = {},
-                process_name = model.name, spawn_options = {}, read_only: []
+                process_name = model.name, spawn_options = {}, read_only: false,
+                **spawn_options_kw
             )
                 default_mappings =
                     model
@@ -38,10 +39,33 @@ module Syskit
                 @model               = model
                 @name_mappings       = default_mappings.merge(name_mappings)
                 @process_name        = process_name
-                @spawn_options       = spawn_options
-                @read_only           = read_only
+                @spawn_options       = spawn_options.merge(spawn_options_kw)
+                @read_only           = resolve_read_only(read_only, @name_mappings)
             end
-            # rubocop:enable Metrics/ParameterLists
+            # rubocop: enable Metrics/ParameterLists
+
+            # @api private
+            #
+            # Resolves the read_only argument into an Array of task names to be set as
+            # read_only.
+            #
+            # @return [Array<String>]
+            def resolve_read_only(read_only, mappings)
+                non_logger_names = mappings.values.reject { |name| /_Logger$/ === name }
+                return non_logger_names if read_only == true
+                return [] unless read_only
+
+                read_only = [read_only] unless read_only.kind_of?(Array)
+                selection = non_logger_names.select do |task_name|
+                    read_only.any? { |task_name_pattern| task_name_pattern === task_name }
+                end
+                if selection.empty? && !read_only.empty?
+                    raise ArgumentError,
+                          "#{read_only} is not a valid deployed task name or pattern. "\
+                          "The valid deployed task names are #{non_logger_names}."
+                end
+                selection
+            end
 
             # @api private
             #

@@ -340,7 +340,7 @@ module Syskit
                     expected = ConfiguredDeployment.new(
                         "test-mng", deployment_m, Hash["task" => "test"],
                         "test", Hash[task_context_class: Orocos::RubyTasks::TaskContext],
-                        ["test"]
+                        read_only: ["test"]
                     )
                     flexmock(group).should_receive(:register_configured_deployment)
                                    .once
@@ -351,6 +351,85 @@ module Syskit
                         read_only: true
                     )
                     assert_equal [expected], configured_deployment
+                end
+
+                it "sets the configured deployment as read_only using the task name" do
+                    expected = ConfiguredDeployment.new(
+                        "test-mng", deployment_m, Hash["task" => "test"],
+                        "test", Hash[task_context_class: Orocos::RubyTasks::TaskContext],
+                        read_only: ["test"]
+                    )
+                    flexmock(group).should_receive(:register_configured_deployment)
+                                   .once
+                    configured_deployment = group.use_ruby_tasks(
+                        Hash[task_m => "test"],
+                        on: "test-mng",
+                        process_managers: conf,
+                        read_only: ["test"]
+                    )
+                    assert_equal [expected], configured_deployment
+                end
+
+                it "sets the configured deployment as read only when using a pattern" do
+                    expected = ConfiguredDeployment.new(
+                        "test-mng", deployment_m, Hash["task" => "test_task_name"],
+                        "test_task_name",
+                        Hash[task_context_class: Orocos::RubyTasks::TaskContext],
+                        read_only: ["test_task_name"]
+                    )
+                    flexmock(group).should_receive(:register_configured_deployment)
+                                   .once
+                    configured_deployment = group.use_ruby_tasks(
+                        Hash[task_m => "test_task_name"],
+                        on: "test-mng",
+                        process_managers: conf,
+                        read_only: [/test/]
+                    )
+                    assert_equal [expected], configured_deployment
+                end
+
+                it "sets the configured deployment as read_only using a pattern array" do
+                    second_task_m = Syskit::RubyTaskContext.new_submodel
+                    flexmock(second_task_m).should_receive(:deployment_model)
+                                           .and_return(deployment_m)
+
+                    expected = [ConfiguredDeployment.new(
+                        "test-mng", deployment_m, Hash["task" => "test_task_name"],
+                        "test_task_name",
+                        Hash[task_context_class: Orocos::RubyTasks::TaskContext],
+                        read_only: ["test_task_name"]
+                    ), ConfiguredDeployment.new(
+                        "test-mng", deployment_m, Hash["task" => "empty_task"],
+                        "empty_task",
+                        Hash[task_context_class: Orocos::RubyTasks::TaskContext],
+                        read_only: ["empty_task"]
+                    )]
+                    flexmock(group).should_receive(:register_configured_deployment)
+                                   .twice
+                    configured_deployment = group.use_ruby_tasks(
+                        Hash[task_m => "test_task_name", second_task_m => "empty_task"],
+                        on: "test-mng",
+                        process_managers: conf,
+                        read_only: [/test/, /empty/]
+                    )
+
+                    assert_equal expected, configured_deployment
+                end
+
+                it "raises when trying to use an invalid task name pattern as read only" do
+                    e = assert_raises(ArgumentError) do
+                        group.use_ruby_tasks(
+                            Hash[task_m => "test_task_name"],
+                            on: "test-mng",
+                            process_managers: conf,
+                            read_only: [/wrong_name/]
+                        )
+                    end
+                    assert_equal(
+                        "#{[/wrong_name/]} is not a valid deployed task name or "\
+                        "pattern. The valid deployed task names are "\
+                        "[\"test_task_name\"].", e.message
+                    )
                 end
             end
 
@@ -449,6 +528,59 @@ module Syskit
                         read_only: true
                     )
                     assert_equal ["test"], configured_deployment.first.read_only
+                end
+
+                it "sets the configured deployment as read_only using the task name" do
+                    configured_deployment = group.use_unmanaged_task(
+                        Hash[task_m => "test"],
+                        on: "test-mng",
+                        process_managers: conf,
+                        read_only: "test"
+                    )
+                    assert_equal ["test"], configured_deployment.first.read_only
+                end
+
+                it "sets the configured deployment as read_only using a pattern array" do
+                    second_task_m = Syskit::TaskContext.new_submodel(
+                        name: "Empty test", orogen_model_name: "orogen_syskit_tests::Empty"
+                    )
+
+                    configured_deployment = group.use_unmanaged_task(
+                        Hash[task_m => "test_task", second_task_m => "empty_task"],
+                        on: "test-mng",
+                        process_managers: conf,
+                        read_only: [/^test/, /empty/]
+                    )
+                    assert_equal ["test_task"],
+                                 configured_deployment.first.read_only
+                    assert_equal ["empty_task"],
+                                 configured_deployment[1].read_only
+                end
+
+                it "sets the configured deployment as read_only using a pattern" do
+                    configured_deployment = group.use_unmanaged_task(
+                        Hash[task_m => "test_task"],
+                        on: "test-mng",
+                        process_managers: conf,
+                        read_only: [/test/]
+                    )
+                    assert_equal ["test_task"], configured_deployment.first.read_only
+                end
+
+                it "raises when using an invalid task name as read only pattern" do
+                    e = assert_raises(ArgumentError) do
+                        group.use_unmanaged_task(
+                            Hash[task_m => "test_task"],
+                            on: "test-mng",
+                            process_managers: conf,
+                            read_only: [/invalid_test_name/]
+                        )
+                    end
+                    assert_equal(
+                        "#{[/invalid_test_name/]} is not a valid deployed task name or "\
+                        "pattern. The valid deployed task names are "\
+                        "[\"test_task\"].", e.message
+                    )
                 end
             end
 
@@ -635,6 +767,63 @@ module Syskit
                         read_only: true
                     )
                     assert_equal ["test"], configured_deployment.first.read_only
+                end
+
+                it "sets the configured deployment as read_only using the task name" do
+                    configured_deployment = group.use_deployment(
+                        Hash[task_m => "test"],
+                        on: "test-mng",
+                        process_managers: conf,
+                        read_only: "test"
+                    )
+                    assert_equal ["test"], configured_deployment.first.read_only
+                end
+
+                it "sets the configured deployment as read_only using a pattern" do
+                    configured_deployment = group.use_deployment(
+                        Hash[task_m => "test_task_name"],
+                        on: "test-mng",
+                        process_managers: conf,
+                        read_only: /task_name/
+                    )
+                    assert_equal ["test_task_name"], configured_deployment.first.read_only
+                end
+
+                it "sets the configured deployment as read_only using an array of patterns" do
+                    second_task_m = Syskit::TaskContext.new_submodel(
+                        orogen_model_name: "orogen_syskit_tests::Empty"
+                    )
+                    flexmock(loader)
+                        .should_receive(:deployment_model_from_name)
+                        .with(OroGen::Spec::Project
+                              .default_deployment_name("orogen_syskit_tests::Empty"))
+                        .and_return(deployment_m.orogen_model)
+                    configured_deployment = group.use_deployment(
+                        Hash[task_m => "first_task", second_task_m => "empty_task"],
+                        on: "test-mng",
+                        process_managers: conf,
+                        read_only: [/^empty/, /task$/]
+                    )
+                    assert_equal %w[first_task],
+                                 configured_deployment.first.read_only
+                    assert_equal %w[empty_task],
+                                 configured_deployment[1].read_only
+                end
+
+                it "raises when using an invalid task name as read only pattern" do
+                    e = assert_raises(ArgumentError) do
+                        group.use_deployment(
+                            Hash[task_m => "test_task_name"],
+                            on: "test-mng",
+                            process_managers: conf,
+                            read_only: /invalid_task_name/
+                        )
+                    end
+                    assert_equal(
+                        "#{[/invalid_task_name/]} is not a valid deployed task name or "\
+                        "pattern. The valid deployed task names are "\
+                        "[\"test_task_name\"].", e.message
+                    )
                 end
             end
 
