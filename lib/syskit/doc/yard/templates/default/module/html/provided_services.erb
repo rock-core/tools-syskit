@@ -6,12 +6,12 @@
 <% else %>
     <table>
     <thead><th>Model</th><th>Mappings</th></thead>
-    <% @services.each do |model_name, mappings| %>
+    <% @services.each do |desc| %>
         <tr>
-        <td><%= linkify(model_name) %></td>
+        <td><%= linkify(desc['model']) %></td>
         <td>
             <dl>
-                <% mappings.each do |service_port, task_port| %>
+                <% desc['mappings'].each do |service_port, task_port| %>
                 <dt><%= service_port %></dt><dd><%= task_port %></dd>
                 <% end %>
             </dl>

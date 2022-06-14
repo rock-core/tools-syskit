@@ -111,21 +111,13 @@ module Syskit
                     next if provided_service_m == service_m
 
                     mappings = service_m.port_mappings_for(provided_service_m)
-                    [provided_service_m.name, mappings]
+                    { "model" => provided_service_m.name, "mappings" => mappings }
                 end
                 { "ports" => ports, "provided_services" => services.compact }
             end
 
             def self.composition_model_description(composition_m)
                 component_model_description(composition_m)
-            end
-
-            def self.list_ports(model)
-                model.each_port.map do |p|
-                    { "name" => p.name, "type" => p.type.name,
-                      "direction" => p.output? ? "out" : "in",
-                      "doc" => p.doc }
-                end
             end
 
             # Save data at the canonical path for the given model
@@ -257,9 +249,18 @@ module Syskit
                         port_mappings.delete_if do |from, to|
                             from == to
                         end
-                        [m.name, port_mappings]
+                        { "model" => m.name, "mappings" => port_mappings }
                     end
-                    [service_name, provided_services]
+                    { "name" => service_name, "model" => service.model.name,
+                      "provided_services" => provided_services }
+                end
+            end
+
+            def self.list_ports(model)
+                model.each_port.map do |p|
+                    { "name" => p.name, "type" => p.type.name,
+                      "direction" => p.output? ? "out" : "in",
+                      "doc" => p.doc }
                 end
             end
 
