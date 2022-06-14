@@ -50,6 +50,22 @@ module Syskit
             end
         end
 
+        class SyskitExtendModelHandler < ::YARD::Handlers::Ruby::Base
+            handles method_call(:extend_model)
+
+            def process
+                name = statement.parameters.source
+                return unless (name_match = /^OroGen\.(\w+)\.(\w+)$/.match(name))
+
+                orogen = ModuleObject.new(:root, "OroGen")
+                namespace_m = ModuleObject.new(orogen, name_match[1])
+                task_m = ClassObject.new(namespace_m, name_match[2])
+                if (block = statement.block)
+                    parse_block(block.children.first, namespace: task_m)
+                end
+            end
+        end
+
         class DataServiceProvidesHandler < ::YARD::Handlers::Ruby::MixinHandler
             handles method_call(:provides)
             namespace_only
