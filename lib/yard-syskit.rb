@@ -26,10 +26,7 @@ module Syskit
             return unless (root_path = syskit_doc_output_path)
 
             path = name.split("::").inject(root_path, &:/).sub_ext(".yml")
-            unless path.exist?
-                puts "no data in #{path} for #{name}"
-                return
-            end
+            return unless path.exist?
 
             Metadata.load path
         end
@@ -46,6 +43,8 @@ module Syskit
                 classname = statement[0].source.gsub(/\s/, "")
                 klass = ::YARD::CodeObjects::ClassObject.new(namespace, classname)
                 klass[:syskit] = YARD.load_metadata_for(klass.path)
+                YARD.define_services_accessors(klass)
+                YARD.define_ports_accessors(klass)
                 klass
             end
         end
@@ -165,24 +164,24 @@ module Syskit
             task_m.superclass = "Syskit::TaskContext"
             task_m[:syskit] = YARD.load_metadata_for(task_m.path)
 
-            define_task_context_model_ports(task_m)
-            define_task_context_model_services(task_m)
+            define_services_accessors(task_m)
+            define_ports_accessors(task_m)
 
             task_m
         end
 
-        def self.define_task_context_model_services(task_m)
-            task_m[:syskit].bound_services&.each do |desc|
+        def self.define_services_accessors(component_m)
+            component_m[:syskit].bound_services&.each do |desc|
                 method_name = "#{desc['name']}_srv"
 
-                method = ::YARD::CodeObjects::MethodObject.new(task_m, method_name)
+                method = ::YARD::CodeObjects::MethodObject.new(component_m, method_name)
                 method.docstring.replace(<<~DESC)
                     #{desc['doc']}
 
                     @return [Syskit::BoundDataService<#{desc['model']}>]
                 DESC
 
-                method = CodeObjects::MethodObject.new(task_m, method_name, :class)
+                method = CodeObjects::MethodObject.new(component_m, method_name, :class)
                 method.docstring.replace(<<~DESC)
                     #{desc['doc']}
 
@@ -191,20 +190,20 @@ module Syskit
             end
         end
 
-        def self.define_task_context_model_ports(task_m)
-            task_m[:syskit].ports&.each do |port_description|
+        def self.define_ports_accessors(component_m)
+            component_m[:syskit].ports&.each do |port_description|
                 port_t = PORT_DIRECTION_TO_CLASS.fetch(port_description["direction"])
 
                 method_name = "#{port_description['name']}_port"
 
-                method = ::YARD::CodeObjects::MethodObject.new(task_m, method_name)
+                method = ::YARD::CodeObjects::MethodObject.new(component_m, method_name)
                 method.docstring.replace(<<~DESC)
                     #{port_description['doc']}
 
                     @return [Syskit::#{port_t}<#{port_description['type']}>]
                 DESC
 
-                method = CodeObjects::MethodObject.new(task_m, method_name, :class)
+                method = CodeObjects::MethodObject.new(component_m, method_name, :class)
                 method.docstring.replace(<<~DESC)
                     #{port_description['doc']}
 
