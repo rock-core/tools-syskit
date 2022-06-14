@@ -1,3 +1,7 @@
+# frozen_string_literal: true
+
+require "syskit"
+
 module Syskit
     module CLI
         module Doc
@@ -21,12 +25,27 @@ module Syskit
             def self.save_model(target_path, m)
                 case m
                 when Syskit::Actions::Profile
+                when Syskit::Models::DataServiceModel
+                    save_data_service_model(target_path, m)
                 when Class
                     if m <= Syskit::Composition
                         save_composition_model(target_path, m)
                     end
                 else
                 end
+            end
+
+            def self.save_data_service_model(target_path, service_m)
+                task = Syskit::Models::Placeholder.for([service_m]).new
+                interface = render_plan(task.plan, "dataflow")
+                interface_path =
+                    save(target_path, service_m, ".interface.svg", interface)
+
+                description = service_model_description(service_m)
+                description = description.merge(
+                    { "graphs" => { "interface" => interface_path.to_s, } }
+                )
+                save target_path, service_m, ".yml", YAML.dump(description)
             end
 
             def self.save_composition_model(target_path, composition_m)
@@ -56,18 +75,36 @@ module Syskit
             end
 
             def self.component_model_description(component_m)
-                ports = component_m.each_port.map do |p|
-                    { "name" => p.name, "type" => p.type.name,
-                      "direction" => p.output? ? "out" : "in",
-                      "doc" => p.doc }
-                end
+                ports = list_ports(component_m)
                 services = list_bound_services(component_m)
                 task_model_description(component_m)
-                    .merge({ "ports" => ports, "services" => services })
+                    .merge({ "ports" => ports, "bound_services" => services })
+            end
+
+            ROOT_SERVICE_MODELS = [Syskit::DataService, Syskit::Device].freeze
+
+            def self.service_model_description(service_m)
+                ports = list_ports(service_m)
+                services = service_m.each_fullfilled_model.map do |provided_service_m|
+                    next if ROOT_SERVICE_MODELS.include?(provided_service_m)
+                    next if provided_service_m == service_m
+
+                    mappings = service_m.port_mappings_for(provided_service_m)
+                    [provided_service_m.name, mappings]
+                end
+                { "ports" => ports, "provided_services" => services.compact }
             end
 
             def self.composition_model_description(composition_m)
                 component_model_description(composition_m)
+            end
+
+            def self.list_ports(model)
+                model.each_port.map do |p|
+                    { "name" => p.name, "type" => p.type.name,
+                      "direction" => p.output? ? "out" : "in",
+                      "doc" => p.doc }
+                end
             end
 
             # Save data at the canonical path for the given model

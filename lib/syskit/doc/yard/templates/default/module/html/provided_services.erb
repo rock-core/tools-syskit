@@ -1,0 +1,23 @@
+<div id="services">
+<h2>Services</h2>
+
+<% if @services.empty? %>
+    No provided services
+<% else %>
+    <table>
+    <thead><th>Model</th><th>Mappings</th></thead>
+    <% @services.each do |model_name, mappings| %>
+        <tr>
+        <td><%= linkify(model_name) %></td>
+        <td>
+            <dl>
+                <% mappings.each do |service_port, task_port| %>
+                <dt><%= service_port %></dt><dd><%= task_port %></dd>
+                <% end %>
+            </dl>
+        </td>
+        </tr>
+    <% end %>
+    </table>
+</div>
+<% end %>

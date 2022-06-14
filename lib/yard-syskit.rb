@@ -95,9 +95,8 @@ module Syskit
                     parse_block(block.children.first, namespace: klass)
                 end
 
-            rescue Exception
-                puts caller.join("\n  ")
-                raise
+                klass[:syskit] = YARD.load_metadata_for(klass.path)
+                klass
             end
         end
 
@@ -162,8 +161,12 @@ module Syskit
                 @data = data
             end
 
-            def services
-                @data["services"] || []
+            def provided_services
+                @data["provided_services"] || []
+            end
+
+            def bound_services
+                @data["bound_services"] || []
             end
 
             def ports
@@ -176,6 +179,10 @@ module Syskit
 
             def dataflow_graph_path
                 @data.dig("graphs", "dataflow")
+            end
+
+            def interface_graph_path
+                @data.dig("graphs", "interface")
             end
 
             # Load data from a file
