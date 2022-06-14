@@ -2,7 +2,7 @@
 
 def init
     super
-    sections.place(:ports, :bound_services, :dataflow, :hierarchy).before(:constant_summary)
+    sections.place(:bound_services, :dataflow, :hierarchy).before(:constant_summary)
 end
 
 def bound_services
@@ -10,13 +10,6 @@ def bound_services
     return unless (@services = object.syskit.bound_services)
 
     erb(:bound_services)
-end
-
-def ports
-    return unless object[:syskit]
-    return unless (@ports = object.syskit.ports)
-
-    erb(:ports)
 end
 
 def dataflow

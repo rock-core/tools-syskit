@@ -159,15 +159,15 @@ module Syskit
             end
 
             def provided_services
-                @data["provided_services"] || []
+                @data["provided_services"]
             end
 
             def bound_services
-                @data["bound_services"] || []
+                @data["bound_services"]
             end
 
             def ports
-                @data["ports"] || []
+                @data["ports"]
             end
 
             def hierarchy_graph_path
