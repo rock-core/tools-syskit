@@ -22,6 +22,7 @@ module Syskit
             def networks(target_path)
                 MetaRuby.keep_definition_location = true
                 roby_app_configure
+                roby_autoload_orogen_projects
 
                 target_path = Pathname.new(target_path).expand_path
                 FileUtils.mkdir_p target_path
@@ -47,6 +48,18 @@ module Syskit
 
                     roby_app_configure_robot
                     roby_app.setup
+                end
+
+                def roby_autoload_orogen_projects
+                    (models_path / "orogen").glob("*.rb").each do |extension_file|
+                        project_name = extension_file.sub_ext("").basename.to_s
+                        if roby_app.default_loader.has_project?(project_name)
+                            begin
+                                roby_app.using_task_library project_name
+                            rescue StandardError # rubocop:disable Lint/SuppressedException
+                            end
+                        end
+                    end
                 end
 
                 def roby_app_configure_robot
