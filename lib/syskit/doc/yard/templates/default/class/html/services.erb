@@ -11,7 +11,7 @@
         <thead><th>Model</th><th>Mappings</th></thead>
         <% provided.each do |model_name, mappings| %>
             <tr>
-            <td><%= model_name %></td>
+            <td><%= linkify(model_name) %></td>
             <td>
                 <dl>
                     <% mappings.each do |service_port, task_port| %>
