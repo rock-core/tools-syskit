@@ -46,9 +46,6 @@ module Syskit
                 classname = statement[0].source.gsub(/\s/, "")
                 klass = ::YARD::CodeObjects::ClassObject.new(namespace, classname)
                 klass[:syskit] = YARD.load_metadata_for(klass.path)
-                if klass[:syskit]
-                    puts "LOADED #{klass.path}"
-                end
                 klass
             end
         end
