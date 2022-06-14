@@ -162,6 +162,10 @@ module Syskit
                 @data = data
             end
 
+            def services
+                @data["services"] || []
+            end
+
             def ports
                 @data["ports"] || []
             end

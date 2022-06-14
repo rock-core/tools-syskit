@@ -1,0 +1,27 @@
+<div id="services">
+<h2>Services</h2>
+
+<% if @services.empty? %>
+    No services
+<% else %>
+    <% @services.each do |name, provided| %>
+        <h3><%= name %></h3>
+
+        <table>
+        <thead><th>Model</th><th>Mappings</th></thead>
+        <% provided.each do |model_name, mappings| %>
+            <tr>
+            <td><%= model_name %></td>
+            <td>
+                <dl>
+                    <% mappings.each do |service_port, task_port| %>
+                    <dt><%= service_port %></dt><dd><%= task_port %></dd>
+                    <% end %>
+                </dl>
+            </td>
+            </tr>
+        <% end %>
+        </table>
+    <% end %>
+</div>
+<% end %>

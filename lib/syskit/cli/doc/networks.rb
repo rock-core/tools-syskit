@@ -61,8 +61,9 @@ module Syskit
                       "direction" => p.output? ? "out" : "in",
                       "doc" => p.doc }
                 end
+                services = list_bound_services(component_m)
                 task_model_description(component_m)
-                    .merge({ "ports" => ports })
+                    .merge({ "ports" => ports, "services" => services })
             end
 
             def self.composition_model_description(composition_m)
@@ -180,31 +181,28 @@ module Syskit
 
             # List the services provided by a component
             #
-            # @param [Component] task the component
-            def self.list_provided_services(task)
-                services = []
-                task.model.each_data_service.sort_by(&:first).each do |service_name, service|
+            # @param [Component] component_m the component model
+            def self.list_bound_services(component_m)
+                component_m.each_data_service.sort_by(&:first)
+                           .map do |service_name, service|
                     model_hierarchy =
                         service
                         .model.ancestors
                         .find_all do |m|
                             m.kind_of?(Syskit::Models::DataServiceModel) &&
-                                m != Syskit::DataService &&
-                                m != Syskit::Device &&
-                                m != task.model
+                                !ROOT_SERVICE_MODELS.include?(m) &&
+                                m != component_m
                         end
 
-                    provided_services = []
-                    model_hierarchy.each do |m|
+                    provided_services = model_hierarchy.map do |m|
                         port_mappings = service.port_mappings_for(m).dup
                         port_mappings.delete_if do |from, to|
                             from == to
                         end
-                        provided_services << [m, port_mappings]
+                        [m.name, port_mappings]
                     end
-                    services << [service_name, provided_services]
+                    [service_name, provided_services]
                 end
-                services
             end
 
             def self.render_plan(plan, graph_kind, typelib_resolver: nil, **graphviz_options)
