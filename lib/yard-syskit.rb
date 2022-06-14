@@ -117,10 +117,22 @@ module Syskit
             handles method_call(:using_task_library)
 
             def process
+                project_name = call_params[0]
                 orogen_m = ModuleObject.new(namespace, "::OroGen")
-                project_m = ModuleObject.new(orogen_m, call_params[0].camelcase(:upper))
+                project_m = ModuleObject.new(orogen_m, project_name)
                 register project_m
-                project_m.docstring.replace("Created by Syskit to represent the #{call_params[0]} oroGen project")
+                project_m.docstring.replace(
+                    "Created by Syskit to represent the #{call_params[0]} oroGen project"
+                )
+
+                return unless (root_path = YARD.syskit_doc_output_path)
+
+                project_path = root_path / "OroGen" / project_name
+                project_path.glob("*.yml").each do |task_yml|
+                    task_m = ClassObject.new(project_m, task_yml.sub_ext("").basename.to_s)
+                    task_m.superclass = "Syskit::TaskContext"
+                    task_m[:syskit] = YARD.load_metadata_for(task_m.path)
+                end
             end
         end
 

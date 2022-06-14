@@ -30,6 +30,10 @@ module Syskit
                 when Class
                     if m <= Syskit::Composition
                         save_composition_model(target_path, m)
+                    elsif m <= Syskit::RubyTaskContext
+                        save_ruby_task_context_model(target_path, m)
+                    elsif m <= Syskit::TaskContext
+                        save_task_context_model(target_path, m)
                     end
                 else
                 end
@@ -65,6 +69,23 @@ module Syskit
                     }
                 )
                 save target_path, composition_m, ".yml", YAML.dump(description)
+            end
+
+            def self.save_ruby_task_context_model(target_path, task_m)
+                save_task_context_model(target_path, task_m)
+            end
+
+            def self.save_task_context_model(target_path, task_m)
+                task = task_m.new
+                interface = render_plan(task.plan, "dataflow")
+                interface_path =
+                    save(target_path, task_m, ".interface.svg", interface)
+
+                description = component_model_description(task_m)
+                description = description.merge(
+                    { "graphs" => { "interface" => interface_path.to_s } }
+                )
+                save target_path, task_m, ".yml", YAML.dump(description)
             end
 
             def self.task_model_description(task_m)
@@ -122,7 +143,7 @@ module Syskit
                     return
                 end
 
-                components = name.split("::")
+                components = name.split(/::|\./)
                 target_path = components.inject(root_path, &:/)
                 target_path.dirname.mkpath
 
