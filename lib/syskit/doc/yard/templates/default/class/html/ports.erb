@@ -1,6 +1,9 @@
 <div id="ports">
 <h2>Ports</h2>
 
+<% if @ports.empty? %>
+No ports
+<% else %>
 <table>
 <thead><th>Port</th><th>Direction</th><th>Type</th><th>Description</th></thead>
 
@@ -14,3 +17,4 @@
 <% end %>
 </table>
 </div>
+<% end %>
