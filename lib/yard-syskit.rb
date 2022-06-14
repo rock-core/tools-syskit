@@ -57,9 +57,9 @@ module Syskit
                 name = statement.parameters.source
                 return unless (name_match = /^OroGen\.(\w+)\.(\w+)$/.match(name))
 
-                orogen = ModuleObject.new(:root, "OroGen")
-                namespace_m = ModuleObject.new(orogen, name_match[1])
-                task_m = ClassObject.new(namespace_m, name_match[2])
+                _, tasks = YARD.define_orogen_project(name_match[1])
+                return unless (task_m = tasks[name_match[2]])
+
                 if (block = statement.block)
                     parse_block(block.children.first, namespace: task_m)
                 end
@@ -133,48 +133,83 @@ module Syskit
             handles method_call(:using_task_library)
 
             def process
-                project_name = call_params[0]
-                orogen_m = ModuleObject.new(namespace, "::OroGen")
-                project_m = ModuleObject.new(orogen_m, project_name)
-                register project_m
-                project_m.docstring.replace(
-                    "Created by Syskit to represent the #{call_params[0]} oroGen project"
-                )
-
-                return unless (root_path = YARD.syskit_doc_output_path)
-
-                project_path = root_path / "OroGen" / project_name
-                project_path.glob("*.yml").each do |task_yml|
-                    task_m = ClassObject.new(project_m, task_yml.sub_ext("").basename.to_s)
-                    task_m.superclass = "Syskit::TaskContext"
-                    task_m[:syskit] = YARD.load_metadata_for(task_m.path)
-                end
+                YARD.define_orogen_project(call_params[0])
             end
         end
 
-        class OroGenHandler < YARD::Handlers::Ruby::ClassHandler
-            handles :class
-            namespace_only
+        PORT_DIRECTION_TO_CLASS = {
+            "in" => "InputPort",
+            "out" => "OutputPort"
+        }.freeze
 
-            def self.handles?(node)
-                return unless super
+        def self.define_orogen_project(project_name)
+            orogen_m = ::YARD::CodeObjects::ModuleObject.new(:root, "::OroGen")
+            project_m = ::YARD::CodeObjects::ModuleObject.new(orogen_m, project_name)
+            project_m.docstring.replace(
+                "Created by Syskit to represent the #{project_name} oroGen project"
+            )
 
-                node.class_name.namespace[0] == "OroGen"
+            return unless (root_path = YARD.syskit_doc_output_path)
+
+            project_path = root_path / "OroGen" / project_name
+            tasks = project_path.glob("*.yml").each_with_object({}) do |task_yml, h|
+                task_name = task_yml.sub_ext("").basename.to_s
+                h[task_name] = define_task_context_model(project_m, task_name)
             end
 
-            def process
-                path = statement.class_name.source.split("::")
-                orogen_m = ModuleObject.new(namespace, "::OroGen")
-                ModuleObject.new(orogen_m, path[1])
-                super
-            end
+            [project_m, tasks]
+        end
 
-            def parse_superclass(statement)
-                # We assume that all classes in OroGen have Syskit::TaskContext
-                # as superclass by default
-                statement ||= ::YARD.parse_string("Syskit::TaskContext")
-                                    .enumerator.first
-                super(statement)
+        def self.define_task_context_model(project_m, task_name)
+            task_m = ::YARD::CodeObjects::ClassObject.new(project_m, task_name)
+            task_m.superclass = "Syskit::TaskContext"
+            task_m[:syskit] = YARD.load_metadata_for(task_m.path)
+
+            define_task_context_model_ports(task_m)
+            define_task_context_model_services(task_m)
+
+            task_m
+        end
+
+        def self.define_task_context_model_services(task_m)
+            task_m[:syskit].bound_services&.each do |desc|
+                method_name = "#{desc['name']}_srv"
+
+                method = ::YARD::CodeObjects::MethodObject.new(task_m, method_name)
+                method.docstring.replace(<<~DESC)
+                    #{desc['doc']}
+
+                    @return [Syskit::BoundDataService<#{desc['model']}>]
+                DESC
+
+                method = CodeObjects::MethodObject.new(task_m, method_name, :class)
+                method.docstring.replace(<<~DESC)
+                    #{desc['doc']}
+
+                    @return [Syskit::Models::BoundDataService<#{desc['model']}>]
+                DESC
+            end
+        end
+
+        def self.define_task_context_model_ports(task_m)
+            task_m[:syskit].ports&.each do |port_description|
+                port_t = PORT_DIRECTION_TO_CLASS.fetch(port_description["direction"])
+
+                method_name = "#{port_description['name']}_port"
+
+                method = ::YARD::CodeObjects::MethodObject.new(task_m, method_name)
+                method.docstring.replace(<<~DESC)
+                    #{port_description['doc']}
+
+                    @return [Syskit::#{port_t}<#{port_description['type']}>]
+                DESC
+
+                method = CodeObjects::MethodObject.new(task_m, method_name, :class)
+                method.docstring.replace(<<~DESC)
+                    #{port_description['doc']}
+
+                    @return [Syskit::Models::#{port_t}<#{port_description['type']}>]
+                DESC
             end
         end
 

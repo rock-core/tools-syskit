@@ -9,7 +9,7 @@ No ports
 
 <% @ports.each do |p| %>
     <tr>
-    <td><%= p["name"] %></td>
+    <td><%= linkify("#{p["name"]}_port", p["name"]) %></td>
     <td><%= p["direction"] %></td>
     <td><%= p["type"] %></td>
     <td><%= p["doc"] %></td>
