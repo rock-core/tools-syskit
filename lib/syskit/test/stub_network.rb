@@ -345,10 +345,9 @@ module Syskit
             def stub_deployment(
                 task, remote_task: false, as: task.orocos_name || default_stub_name
             )
-                read_only_task_name = task.read_only? ? [as] : []
                 task_m = task.concrete_model
                 deployment_model = @stubs.stub_configured_deployment(
-                    task_m, as, remote_task: remote_task, read_only: read_only_task_name
+                    task_m, as, remote_task: remote_task, read_only: task.read_only?
                 )
                 stub_conf(task_m, *task.arguments[:conf])
                 task.plan.add(deployer = deployment_model.new)

@@ -32,7 +32,8 @@ module Syskit
         argument :spawn_options, default: nil
         argument :ready_polling_period, default: 0.1
         argument :logger_task, default: nil
-        argument :read_only, default: []
+        argument :logger_name, default: nil
+        argument :read_only, default: nil
 
         # The underlying process object
         attr_reader :orocos_process
@@ -52,6 +53,7 @@ module Syskit
             @has_quarantines = false
             @quit_ready_event_monitor = Concurrent::Event.new
             @remote_task_handles = {}
+            self.read_only = [] unless read_only
             self.spawn_options = {} unless spawn_options
             self.name_mappings = {} unless name_mappings
             model.each_default_name_mapping do |k, v|
@@ -211,9 +213,7 @@ module Syskit
                       "expected #{base_syskit_task_model} or one of its subclasses"
             end
 
-            # Read only might be nil in some situations, that's why it's necessary to
-            # ensure this operation is done in an Array
-            is_read_only_task = read_only.to_a.include?(mapped_name)
+            is_read_only_task = read_only.include?(mapped_name)
             plan.add(task = syskit_task_model
                             .new(orocos_name: mapped_name, read_only: is_read_only_task))
             task.executed_by self
@@ -356,6 +356,10 @@ module Syskit
             process_server_config.log_dir
         end
 
+        def logger_name
+            arguments[:logger_name] || ("#{process_name}_Logger" if process_name)
+        end
+
         # Returns this deployment's logger
         #
         # @return [TaskContext,nil] either the logging task, or nil if this
@@ -365,8 +369,7 @@ module Syskit
                 @logger_task = arguments[:logger_task]
             elsif @logger_task&.reusable?
                 @logger_task
-            elsif process_name
-                logger_name = "#{process_name}_Logger"
+            elsif (logger_name = self.logger_name)
                 @logger_task = each_executed_task
                                .find { |t| t.orocos_name == logger_name }
 

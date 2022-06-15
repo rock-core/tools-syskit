@@ -538,8 +538,7 @@ module Syskit
                     .find_tasks(Syskit::TaskContext).not_finished.not_finishing
                     .find_all { |t| !t.read_only? }
                     .find_all do |t|
-                        deployed_tasks.include?(t) &&
-                            (t.setting_up? || t.setup?)
+                        deployed_tasks.include?(t) && (t.setting_up? || t.setup?)
                     end
 
                 already_setup_tasks.each do |t|

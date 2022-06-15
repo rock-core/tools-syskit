@@ -21,12 +21,14 @@ module Syskit
             # @return [Array] the tasks related to this deployment supposed to be set as
             #   read only
             attr_reader :read_only
+            # @return [String] the name of the logger to override the default logger name.
+            attr_reader :logger_name
 
             # rubocop: disable Metrics/ParameterLists
             def initialize(
                 process_server_name, model, name_mappings = {},
                 process_name = model.name, spawn_options = {}, read_only: false,
-                **spawn_options_kw
+                logger_name: nil, **spawn_options_kw
             )
                 default_mappings =
                     model
@@ -41,6 +43,7 @@ module Syskit
                 @process_name        = process_name
                 @spawn_options       = spawn_options.merge(spawn_options_kw)
                 @read_only           = resolve_read_only(read_only, @name_mappings)
+                @logger_name         = logger_name
             end
             # rubocop: enable Metrics/ParameterLists
 
@@ -146,7 +149,8 @@ module Syskit
                     name_mappings: name_mappings,
                     spawn_options: spawn_options,
                     on: process_server_name,
-                    read_only: read_only
+                    read_only: read_only,
+                    logger_name: logger_name
                 )
                 options.delete(:working_directory)
                 options.delete(:output)
@@ -154,7 +158,7 @@ module Syskit
                 model.new(**options)
             end
 
-            # rubocop:disable Metrics/CyclomaticComplexity, Metrics/AbcSize
+            # rubocop:disable Metrics/CyclomaticComplexity, Metrics/PerceivedComplexity, Metrics/AbcSize
             def ==(other)
                 return unless other.kind_of?(ConfiguredDeployment)
 
@@ -163,9 +167,10 @@ module Syskit
                     model == other.model &&
                     spawn_options == other.spawn_options &&
                     name_mappings == other.name_mappings &&
-                    read_only == other.read_only
+                    read_only == other.read_only &&
+                    logger_name == other.logger_name
             end
-            # rubocop:enable Metrics/CyclomaticComplexity, Metrics/AbcSize
+            # rubocop:enable Metrics/CyclomaticComplexity, Metrics/PerceivedComplexity, Metrics/AbcSize
 
             def hash
                 [process_name, model].hash

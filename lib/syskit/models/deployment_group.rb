@@ -262,10 +262,10 @@ module Syskit
             #   be used
             # @param process_managers the object that maintains the set of
             #   process managers
-            # @param [Boolean|#===] read_only set the deployment or some of the deployed
-            #   tasks as read only. To set the whole deployment as read only, one should
-            #   pass read_only: true. To set some tasks, pass a regex that matches the
-            #   deployed task names. Defaults to false.
+            # @param [Boolean|#===|Array<#===>] read_only set the deployment or some of
+            # the deployed tasks as read only. To set the whole deployment as read only,
+            # one should pass read_only: true. To set some tasks, pass a regex that
+            # matches the deployed task names. Defaults to false.
             # @return [[ConfiguredDeployment]]
             def use_ruby_tasks(
                 mappings, remote_task: false, on: "ruby_tasks",
@@ -313,10 +313,10 @@ module Syskit
             # Declare tasks that are going to be started by some other process,
             # but whose tasks are going to be integrated in the syskit network
             #
-            # @param [Boolean|#===] read_only set the deployment or some of the deployed
-            #   tasks as read only. To set the whole deployment as read only, one should
-            #   pass read_only: true. To set some tasks, pass a regex that matches the
-            #   deployed task names. Defaults to false.
+            # @param [Boolean|#===|Array<#===>] read_only set the deployment or some of
+            # the deployed tasks as read only. To set the whole deployment as read only,
+            # one should pass read_only: true. To set some tasks, pass a regex that
+            # matches the deployed task names. Defaults to false.
             def use_unmanaged_task(mappings,
                 on: "unmanaged_tasks", process_managers: Syskit.conf, read_only: false)
                 # Verify that the process manager exists
@@ -411,6 +411,7 @@ module Syskit
                 loader: nil,
                 process_managers: Syskit.conf,
                 read_only: false,
+                logger_name: nil,
                 **run_options
             )
                 deployment_spec = {}
@@ -477,7 +478,7 @@ module Syskit
                     configured_deployment =
                         Models::ConfiguredDeployment
                         .new(process_server_config.name, model, name_mappings, name,
-                             spawn_options, read_only: read_only)
+                             spawn_options, read_only: read_only, logger_name: logger_name)
                     register_configured_deployment(configured_deployment)
                     configured_deployment
                 end
