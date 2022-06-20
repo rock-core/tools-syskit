@@ -206,6 +206,38 @@ describe Syskit::NetworkGeneration::LoggerConfigurationSupport do
             Syskit::NetworkGeneration::LoggerConfigurationSupport
                 .add_logging_to_network(syskit_engine, plan)
         end
+
+        describe "#logger_name" do
+            before do
+                Syskit.conf.logs.enable_port_logging
+            end
+
+            after do
+                Syskit.conf.logs.disable_port_logging
+            end
+
+            it "allows to specify a nonstandard logger name" do
+                Roby.app.using_task_library "orogen_syskit_tests"
+                logger_m = Syskit::TaskContext.find_model_from_orogen_name(
+                    "logger::Logger"
+                )
+
+                task_m = OroGen.orogen_syskit_tests.Empty.to_instance_requirements
+                task_m.use_deployment(
+                    OroGen::Deployments.syskit_test_nonstandard_logger_name,
+                    logger_name: "nonstandard_logger_name"
+                )
+
+                syskit_run_planner_with_full_deployment(stub: false) do
+                    run_planners(task_m)
+                end
+
+                logger_task = plan.find_tasks(logger_m).to_a
+                assert_equal 1, logger_task.size
+                assert_equal "nonstandard_logger_name",
+                             logger_task.first.orocos_name
+            end
+        end
     end
 
     describe "#configure" do

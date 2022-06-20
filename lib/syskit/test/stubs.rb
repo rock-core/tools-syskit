@@ -57,12 +57,14 @@ module Syskit
             #   available
             # @return [Models::ConfiguredDeployment] the configured deployment
             def stub_deployment_model(
-                task_model = nil, name = default_stub_name, register: true, &block
+                task_model = nil, name = default_stub_name, logger_name: nil,
+                register: true, &block
             )
                 task_model = task_model&.to_component_model
                 process_server = Syskit.conf.process_server_for("stubs")
 
-                deployment_model = Deployment.new_submodel(name: name) do
+                deployment_model = Deployment.new_submodel(name: name,
+                                                           logger_name: logger_name) do
                     task(name, task_model.orogen_model) if task_model
                     instance_eval(&block) if block
                 end
@@ -283,9 +285,10 @@ module Syskit
             # @api private
             #
             # Computes a configured deployment suitable to deploy the given task model
+            # rubocop:disable Metrics/ParameterLists
             def stub_configured_deployment(
-                task_model = nil, task_name = default_stub_name, remote_task: false,
-                &block
+                task_model = nil, task_name = default_stub_name,
+                remote_task: false, read_only: [], logger_name: nil, &block
             )
                 deployment_model = stub_deployment_model(task_model, task_name, &block)
 
@@ -299,9 +302,11 @@ module Syskit
 
                 Models::ConfiguredDeployment.new(
                     "stubs", deployment_model, { task_name => task_name }, task_name,
-                    Hash[task_context_class: task_context_class]
+                    Hash[task_context_class: task_context_class],
+                    read_only: read_only, logger_name: logger_name
                 )
             end
+            # rubocop:enable Metrics/ParameterLists
 
             def stub_abstract_component_model(component_m)
                 component_m.new_submodel(name: "#{component_m.name}-stub")

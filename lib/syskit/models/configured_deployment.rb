@@ -18,10 +18,17 @@ module Syskit
             # @return [Hash] the name mappings, e.g. the mapping from a task
             #   name in {#model} to the name this task should have while running
             attr_reader :name_mappings
+            # @return [Array] the tasks related to this deployment supposed to be set as
+            #   read only
+            attr_reader :read_only
+            # @return [String] the name of the logger to override the default logger name.
+            attr_reader :logger_name
 
+            # rubocop: disable Metrics/ParameterLists
             def initialize(
                 process_server_name, model, name_mappings = {},
-                process_name = model.name, spawn_options = {}
+                process_name = model.name, spawn_options = {}, read_only: false,
+                logger_name: nil, **spawn_options_kw
             )
                 default_mappings =
                     model
@@ -34,7 +41,33 @@ module Syskit
                 @model               = model
                 @name_mappings       = default_mappings.merge(name_mappings)
                 @process_name        = process_name
-                @spawn_options       = spawn_options
+                @spawn_options       = spawn_options.merge(spawn_options_kw)
+                @read_only           = resolve_read_only(read_only, @name_mappings)
+                @logger_name         = logger_name
+            end
+            # rubocop: enable Metrics/ParameterLists
+
+            # @api private
+            #
+            # Resolves the read_only argument into an Array of task names to be set as
+            # read_only.
+            #
+            # @return [Array<String>]
+            def resolve_read_only(read_only, mappings)
+                non_logger_names = mappings.values.reject { |name| /_Logger$/ === name }
+                return non_logger_names if read_only == true
+                return [] unless read_only
+
+                read_only = [read_only] unless read_only.kind_of?(Array)
+                selection = non_logger_names.select do |task_name|
+                    read_only.any? { |task_name_pattern| task_name_pattern === task_name }
+                end
+                if selection.empty? && !read_only.empty?
+                    raise ArgumentError,
+                          "#{read_only} is not a valid deployed task name or pattern. "\
+                          "The valid deployed task names are #{non_logger_names}."
+                end
+                selection
             end
 
             # @api private
@@ -115,7 +148,9 @@ module Syskit
                     process_name: process_name,
                     name_mappings: name_mappings,
                     spawn_options: spawn_options,
-                    on: process_server_name
+                    on: process_server_name,
+                    read_only: read_only,
+                    logger_name: logger_name
                 )
                 options.delete(:working_directory)
                 options.delete(:output)
@@ -123,6 +158,7 @@ module Syskit
                 model.new(**options)
             end
 
+            # rubocop:disable Metrics/CyclomaticComplexity, Metrics/PerceivedComplexity, Metrics/AbcSize
             def ==(other)
                 return unless other.kind_of?(ConfiguredDeployment)
 
@@ -130,8 +166,11 @@ module Syskit
                     process_name == other.process_name &&
                     model == other.model &&
                     spawn_options == other.spawn_options &&
-                    name_mappings == other.name_mappings
+                    name_mappings == other.name_mappings &&
+                    read_only == other.read_only &&
+                    logger_name == other.logger_name
             end
+            # rubocop:enable Metrics/CyclomaticComplexity, Metrics/PerceivedComplexity, Metrics/AbcSize
 
             def hash
                 [process_name, model].hash

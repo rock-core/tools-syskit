@@ -347,7 +347,7 @@ module Syskit
             )
                 task_m = task.concrete_model
                 deployment_model = @stubs.stub_configured_deployment(
-                    task_m, as, remote_task: remote_task
+                    task_m, as, remote_task: remote_task, read_only: task.read_only?
                 )
                 stub_conf(task_m, *task.arguments[:conf])
                 task.plan.add(deployer = deployment_model.new)

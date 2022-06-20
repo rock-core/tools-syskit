@@ -197,6 +197,21 @@ module Syskit
                     deployment_task.task("mapped_task_name")
                 end
             end
+
+            it "sets task as not read_only by default" do
+                task = deployment_task.task("mapped_task_name")
+                assert_equal false, task.read_only
+            end
+
+            it "sets task as read_only" do
+                deployment_task =
+                    deployment_m.new(process_name: "mapped_task_name", on: "fixture",
+                                     name_mappings: { "task" => "mapped_task_name" },
+                                     read_only: ["mapped_task_name"])
+                task = deployment_task.task("mapped_task_name")
+                assert_equal true, task.read_only
+            end
+
             describe "slave tasks" do
                 before do
                     @task_m = TaskContext.new_submodel do
