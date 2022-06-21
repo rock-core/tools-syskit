@@ -46,7 +46,7 @@ module Syskit
                     Syskit.conf.only_load_models = true
 
                     roby_app_configure_robot
-                    roby_app.setup
+                    roby_app.setup_for_minimal_tooling
                 end
 
                 def roby_autoload_orogen_projects
