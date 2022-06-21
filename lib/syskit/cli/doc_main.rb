@@ -16,6 +16,9 @@ module Syskit
                    aliases: "r", type: :string, default: "default",
                    desc: "robot configuration to document"
             option :only_robot, type: :boolean, default: true
+            option :exclude,
+                   type: :array, default: [],
+                   desc: "list of path patterns to exclude from documentation"
             def gen(target_path)
                 MetaRuby.keep_definition_location = true
                 roby_app_configure
@@ -78,9 +81,14 @@ module Syskit
                 def each_model_file_for_robot
                     return enum_for(:each_model_file_for_robot) unless block_given?
 
+                    exclude = options[:exclude] || []
                     Doc.each_model_file_for_robot(
                         models_path, robot_names, robots: roby_app.robots
-                    ) { |path| yield(path) }
+                    ) do |path|
+                        next if exclude.any? { |pattern| path.fnmatch?(pattern) }
+
+                        yield(path)
+                    end
                 end
 
                 def require_model_files(paths)
