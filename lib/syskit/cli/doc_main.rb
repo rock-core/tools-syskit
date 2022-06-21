@@ -2,7 +2,7 @@
 
 require "roby/cli/exceptions"
 require "syskit/cli/doc/each_model_file"
-require "syskit/cli/doc/networks"
+require "syskit/cli/doc/gen"
 
 module Syskit
     module CLI
@@ -10,16 +10,13 @@ module Syskit
         class DocMain < Thor
             namespace :doc
 
-            desc "networks TARGET_PATH",
-                 "generate SVGs for anything that is a Syskit network"
+            desc "gen TARGET_PATH",
+                 "generate data to be used by the YARD plugin to augment documentation"
             option :robot,
                    aliases: "r", type: :string, default: "default",
                    desc: "robot configuration to document"
             option :only_robot, type: :boolean, default: true
-            option :common_path,
-                   type: :string, default: nil,
-                   desc: "path to common models for symlinking"
-            def networks(target_path)
+            def gen(target_path)
                 MetaRuby.keep_definition_location = true
                 roby_app_configure
                 roby_autoload_orogen_projects
@@ -29,8 +26,7 @@ module Syskit
 
                 paths = each_model_file_for_robot.to_a
                 require_model_files(paths)
-                Doc.generate_network_graphs(roby_app, paths, target_path)
-
+                Doc.generate(roby_app, paths, target_path)
             ensure
                 Roby.app.cleanup
             end

@@ -4,12 +4,13 @@ require "syskit"
 
 module Syskit
     module CLI
+        # Functionality for the `syskit doc gen` command
         module Doc
             # Generate the network graph for the model defined in a given path
             #
             # It is saved under the target path, in a folder that matches the
             # namespace (the same way YARD does)
-            def self.generate_network_graphs(app, required_paths, target_path)
+            def self.generate(app, required_paths, target_path)
                 required_paths = required_paths.map(&:to_s).to_set
                 models = app.each_model.find_all do |m|
                     if (location = app.definition_file_for(m))
@@ -22,20 +23,22 @@ module Syskit
                 end
             end
 
-            def self.save_model(target_path, m)
-                case m
-                when Syskit::Actions::Profile
+            # Save metadata related to a given model
+            #
+            # @param [Pathname] target_path the root of the documentation output path
+            # @param model the model to export
+            def self.save_model(target_path, model)
+                case model
                 when Syskit::Models::DataServiceModel
-                    save_data_service_model(target_path, m)
+                    save_data_service_model(target_path, model)
                 when Class
-                    if m <= Syskit::Composition
-                        save_composition_model(target_path, m)
-                    elsif m <= Syskit::RubyTaskContext
-                        save_ruby_task_context_model(target_path, m)
-                    elsif m <= Syskit::TaskContext
-                        save_task_context_model(target_path, m)
+                    if model <= Syskit::Composition
+                        save_composition_model(target_path, model)
+                    elsif model <= Syskit::RubyTaskContext
+                        save_ruby_task_context_model(target_path, model)
+                    elsif model <= Syskit::TaskContext
+                        save_task_context_model(target_path, model)
                     end
-                else
                 end
             end
 
@@ -47,7 +50,7 @@ module Syskit
 
                 description = service_model_description(service_m)
                 description = description.merge(
-                    { "graphs" => { "interface" => interface_path.to_s, } }
+                    { "graphs" => { "interface" => interface_path.to_s } }
                 )
                 save target_path, service_m, ".yml", YAML.dump(description)
             end
@@ -105,15 +108,19 @@ module Syskit
             ROOT_SERVICE_MODELS = [Syskit::DataService, Syskit::Device].freeze
 
             def self.service_model_description(service_m)
+                services = service_model_provided_models(service_m)
                 ports = list_ports(service_m)
-                services = service_m.each_fullfilled_model.map do |provided_service_m|
+                { "ports" => ports, "provided_services" => services.compact }
+            end
+
+            def self.service_model_provided_models(service_m, mapping_to: service_m)
+                service_m.each_fullfilled_model.map do |provided_service_m|
                     next if ROOT_SERVICE_MODELS.include?(provided_service_m)
                     next if provided_service_m == service_m
 
-                    mappings = service_m.port_mappings_for(provided_service_m)
+                    mappings = mapping_to.port_mappings_for(provided_service_m)
                     { "model" => provided_service_m.name, "mappings" => mappings }
                 end
-                { "ports" => ports, "provided_services" => services.compact }
             end
 
             def self.composition_model_description(composition_m)
@@ -180,31 +187,41 @@ module Syskit
             #   generate the network, if nil a new plan object is created
             # @return [Roby::Task] the toplevel task that represents the
             #   deployed model
-            def self.compute_deployed_network(model, main_plan = nil)
-                main_plan ||= Roby::Plan.new
+            def self.compute_deployed_network(model, main_plan = Roby::Plan.new)
                 main_plan.add(original_task = model.as_plan)
                 base_task = original_task.as_service
-                begin
-                    engine = Syskit::NetworkGeneration::Engine.new(main_plan)
-                    engine.resolve_system_network([base_task.task.planning_task])
-                rescue RuntimeError
-                    engine = Syskit::NetworkGeneration::Engine.new(main_plan)
-                    engine.resolve_system_network(
-                        [base_task.task.planning_task],
-                        validate_abstract_network: false,
-                        validate_generated_network: false,
-                        validate_deployed_network: false
-                    )
-                end
+                resolve_system_network(base_task.task.planning_task)
 
-                NetworkGeneration::LoggerConfigurationSupport
-                    .add_logging_to_network(engine, engine.work_plan)
                 base_task.task
             ensure
                 if engine && engine.work_plan.respond_to?(:commit_transaction)
                     engine.commit_work_plan
                     main_plan.remove_task(original_task)
                 end
+            end
+
+            # Resolve the system network of a given task
+            #
+            # It attempts to generate a network in case of errors too, by disabling
+            # validation
+            #
+            # @return [Boolean] true if an error ocurred, false otherwise
+            def self.resolve_system_network(planning_task)
+                engine = Syskit::NetworkGeneration::Engine.new(planning_task.plan)
+                engine.resolve_system_network([planning_task])
+                true
+            rescue RuntimeError
+                engine = Syskit::NetworkGeneration::Engine.new(planning_task.plan)
+                engine.resolve_system_network(
+                    [planning_task],
+                    validate_abstract_network: false,
+                    validate_generated_network: false,
+                    validate_deployed_network: false
+                )
+                false
+            ensure
+                NetworkGeneration::LoggerConfigurationSupport
+                    .add_logging_to_network(engine, engine.work_plan)
             end
 
             # Instanciate a model
@@ -227,6 +244,10 @@ module Syskit
                 )
                 main_plan.add(task)
                 task
+            rescue StandardError => e
+                Roby.warn "could not instanciate #{model}"
+                Roby.log_exception_with_backtrace(e, Roby, :warn)
+                requirements.model.new
             end
 
             # List the services provided by a component
@@ -235,22 +256,9 @@ module Syskit
             def self.list_bound_services(component_m)
                 component_m.each_data_service.sort_by(&:first)
                            .map do |service_name, service|
-                    model_hierarchy =
-                        service
-                        .model.ancestors
-                        .find_all do |m|
-                            m.kind_of?(Syskit::Models::DataServiceModel) &&
-                                !ROOT_SERVICE_MODELS.include?(m) &&
-                                m != component_m
-                        end
+                    provided_services =
+                        service_model_provided_models(service.model, mapping_to: service)
 
-                    provided_services = model_hierarchy.map do |m|
-                        port_mappings = service.port_mappings_for(m).dup
-                        port_mappings.delete_if do |from, to|
-                            from == to
-                        end
-                        { "model" => m.name, "mappings" => port_mappings }
-                    end
                     { "name" => service_name, "model" => service.model.name,
                       "provided_services" => provided_services }
                 end
@@ -264,11 +272,19 @@ module Syskit
                 end
             end
 
-            def self.render_plan(plan, graph_kind, typelib_resolver: nil, **graphviz_options)
+            # Generate a SVG of the a certain graph from a plan
+            #
+            # @param [Roby::Plan] the plan to generate the SVG for
+            # @param [String] graph_kind either hierarchy or dataflow
+            # @return [String]
+            def self.render_plan(
+                plan, graph_kind, typelib_resolver: nil, **graphviz_options
+            )
                 begin
                     svg_io = Tempfile.open(graph_kind)
-                    Syskit::Graphviz.new(plan, self, typelib_resolver: typelib_resolver)
-                                    .to_file(graph_kind, "svg", svg_io, **graphviz_options)
+                    Syskit::Graphviz
+                        .new(plan, self, typelib_resolver: typelib_resolver)
+                        .to_file(graph_kind, "svg", svg_io, **graphviz_options)
                     svg_io.flush
                     svg_io.rewind
                     svg = svg_io.read
@@ -283,19 +299,6 @@ module Syskit
                 # are not properly escaped to &lt; and &gt;
                 svg = svg.gsub(/xlink:href="[^"]+"/) do |match|
                     match.gsub("<", "&lt;").gsub(">", "&gt;")
-                end
-
-                begin
-                    match = /svg width=\"(\d+)(\w+)\" height=\"(\d+)(\w+)\"/.match(svg)
-                    if match
-                        width, w_unit, height, h_unit = *match.captures
-                        width = Float(width) * 0.6
-                        height = Float(height) * 0.6
-                        svg = match.pre_match +
-                              "svg width=\"#{width}#{w_unit}\" "\
-                              "height=\"#{height}#{h_unit}\"" + match.post_match
-                    end
-                rescue ArgumentError # rubocop:disable Lint/SuppressedException
                 end
 
                 svg
