@@ -27,8 +27,10 @@ module Syskit
             #
             # @param [Pathname] target_path the root of the documentation output path
             # @param model the model to export
-            def self.save_model(target_path, model)
+            def self.save_model(target_path, model) # rubocop:disable Metrics/CyclomaticComplexity
                 case model
+                when Syskit::Actions::Profile
+                    save_profile_model(target_path, model)
                 when Syskit::Models::DataServiceModel
                     save_data_service_model(target_path, model)
                 when Class
@@ -40,6 +42,58 @@ module Syskit
                         save_task_context_model(target_path, model)
                     end
                 end
+            end
+
+            def self.save_profile_model(target_path, profile_m)
+                definitions_path = path_for_model(target_path, profile_m)
+                definitions_path.mkpath
+
+                definitions = profile_m.each_resolved_definition.map do |profile_def|
+                    { "name" => profile_def.name }.merge(
+                        save_profile_definition(definitions_path, profile_def)
+                    )
+                end
+
+                profile_info = { "definitions" => definitions }
+                save(target_path, profile_m, ".yml", YAML.dump(profile_info))
+            end
+
+            # Save data for a given profile definition within a profile
+            #
+            # @param [Pathname] target_path the profile-specific path into which
+            #   the definition information should be saved
+            # @param [Actions::Profile::Definition] profile_def
+            def self.save_profile_definition(target_path, profile_def)
+                task = compute_system_network(
+                    profile_def,
+                    validate_abstract_network: false,
+                    validate_generated_network: false
+                )
+
+                hierarchy_path, dataflow_path =
+                    save_profile_definition_graphs(target_path, task, profile_def)
+
+                {
+                    "name" => profile_def.name,
+                    "doc" => profile_def.doc,
+                    "model" => profile_def.model.name,
+                    "graphs" => {
+                        "hierarchy" => hierarchy_path.to_s,
+                        "dataflow" => dataflow_path.to_s
+                    }
+                }
+            end
+
+            def self.save_profile_definition_graphs(target_path, task, profile_def)
+                hierarchy = render_plan(task.plan, "hierarchy")
+                dataflow = render_plan(task.plan, "dataflow")
+
+                hierarchy_path = (target_path / "#{profile_def.name}.hierarchy.svg")
+                hierarchy_path.write(hierarchy)
+                dataflow_path = (target_path / "#{profile_def.name}.dataflow.svg")
+                dataflow_path.write(dataflow)
+
+                [hierarchy_path, dataflow_path]
             end
 
             def self.save_data_service_model(target_path, service_m)
@@ -120,11 +174,26 @@ module Syskit
 
                     mappings = mapping_to.port_mappings_for(provided_service_m)
                     { "model" => provided_service_m.name, "mappings" => mappings }
-                end
+                end.compact
             end
 
             def self.composition_model_description(composition_m)
                 component_model_description(composition_m)
+            end
+
+            # Compute the base path to be used to save data for a given model
+            #
+            # @param [Pathname] root_path
+            # @param {#name} model
+            def self.path_for_model(root_path, model)
+                name = model.name
+                unless name
+                    puts "ignoring model #{model} as its name is invalid"
+                    return
+                end
+
+                components = name.split(/::|\./)
+                components.inject(root_path, &:/)
             end
 
             # Save data at the canonical path for the given model
@@ -136,14 +205,8 @@ module Syskit
             # @return [Pathname,nil] full path to the saved data, or nil if the method
             #   could not save anything
             def self.save(root_path, model, suffix, data)
-                name = model.name
-                unless name
-                    puts "ignoring model #{model} as its name is invalid"
-                    return
-                end
+                return unless (target_path = path_for_model(root_path, model))
 
-                components = name.split(/::|\./)
-                target_path = components.inject(root_path, &:/)
                 target_path.dirname.mkpath
 
                 target_file = target_path.sub_ext(suffix)
@@ -165,18 +228,18 @@ module Syskit
             #   generate the network, if nil a new plan object is created
             # @return [Roby::Task] the toplevel task that represents the
             #   deployed model
-            def self.compute_system_network(model, main_plan = nil)
-                main_plan ||= Roby::Plan.new
+            def self.compute_system_network(model, main_plan = Roby::Plan.new, **options)
                 main_plan.add(original_task = model.as_plan)
-                base_task = original_task.as_service
                 engine = Syskit::NetworkGeneration::Engine.new(main_plan)
-                engine.compute_system_network([base_task.task.planning_task])
-                base_task.task
-            ensure
-                if engine && engine.work_plan.respond_to?(:commit_transaction)
+                planning_task = original_task.planning_task
+                mapping = engine.compute_system_network([planning_task], **options)
+
+                if engine.work_plan.respond_to?(:commit_transaction)
                     engine.work_plan.commit_transaction
-                    main_plan.remove_task(original_task)
                 end
+
+                main_plan.remove_task(original_task)
+                mapping[planning_task]
             end
 
             # Compute the deployed network for a model
