@@ -21,10 +21,12 @@
 }
 
 #main img.hierarchy-graph {
+    display: none;
     transform: translateX(-17%) scale(65%);
     max-width: none;
 }
 #main img.dataflow-graph {
+    display: none;
     transform: translateX(-17%) scale(65%);
     max-width: none;
 }
