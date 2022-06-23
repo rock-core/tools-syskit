@@ -20,11 +20,11 @@
   font-weight: bold;
 }
 
-.hierarchy-graph {
-    width: 35%;
-    height: 35%;
+#main img.hierarchy-graph {
+    transform: translateX(-17%) scale(65%);
+    max-width: none;
 }
-.dataflow-graph {
-    width: 35%;
-    height: 35%;
+#main img.dataflow-graph {
+    transform: translateX(-17%) scale(65%);
+    max-width: none;
 }
