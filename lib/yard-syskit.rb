@@ -42,9 +42,10 @@ module Syskit
             def process
                 classname = statement[0].source.gsub(/\s/, "")
                 klass = ::YARD::CodeObjects::ClassObject.new(namespace, classname)
-                klass[:syskit] = YARD.load_metadata_for(klass.path)
-                YARD.define_services_accessors(klass)
-                YARD.define_ports_accessors(klass)
+                if (klass[:syskit] = YARD.load_metadata_for(klass.path))
+                    YARD.define_services_accessors(klass)
+                    YARD.define_ports_accessors(klass)
+                end
                 klass
             end
         end
@@ -57,6 +58,7 @@ module Syskit
                 return unless (name_match = /^OroGen\.(\w+)\.(\w+)$/.match(name))
 
                 _, tasks = YARD.define_orogen_project(name_match[1])
+                return unless tasks
                 return unless (task_m = tasks[name_match[2]])
 
                 if (block = statement.block)
