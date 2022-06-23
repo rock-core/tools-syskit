@@ -19,3 +19,12 @@
 #services dl dd {
   font-weight: bold;
 }
+
+.hierarchy-graph {
+    width: 35%;
+    height: 35%;
+}
+.dataflow-graph {
+    width: 35%;
+    height: 35%;
+}
