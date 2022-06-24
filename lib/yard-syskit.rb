@@ -151,6 +151,14 @@ module Syskit
             end
         end
 
+        class ImportTypesFrom < YARD::Handlers::Ruby::Base
+            handles method_call(:import_types_from)
+
+            def process
+                YARD.define_typekit(call_params[0])
+            end
+        end
+
         PORT_DIRECTION_TO_CLASS = {
             "in" => "InputPort",
             "out" => "OutputPort"
@@ -172,6 +180,40 @@ module Syskit
             end
 
             [project_m, tasks]
+        end
+
+        def self.define_typekit(typekit_name)
+            return unless (root_path = YARD.syskit_doc_output_path)
+
+            registry_path = root_path / "typekits" / "#{typekit_name}.tlb"
+            return unless registry_path.exist?
+
+            registry = Typelib::Registry.from_xml(registry_path.read)
+            registry.each do |type|
+                next if type <= Typelib::ArrayType
+                next unless type.metadata.get("orogen:intermediate_for").empty?
+
+                define_type(type)
+            end
+        end
+
+        def self.define_type(type)
+            types_m = ::YARD::CodeObjects::ModuleObject.new(:root, "::Types")
+            type_name, = Typelib::CXX.parse_template(type.name)
+            elements = type_name.split("/")[1..-1]
+
+            namespace_m = elements[0..-2].inject(types_m) do |ns, name|
+                ::YARD::CodeObjects::ModuleObject.new(ns, name)
+            end
+
+            class_object = ::YARD::CodeObjects::ClassObject.new(namespace_m, elements[-1])
+            # We can't save the Type object directly, as it can't be marshalled
+            # and YARD saves the code objects using Ruby's Marshal
+            class_object[:syskit] = Metadata.new(
+                { "type" => { "name" => type.name, "registry" => type.to_xml } }
+            )
+            class_object.superclass = type.superclass.name
+            class_object
         end
 
         def self.define_task_context_model(project_m, task_name)
@@ -267,6 +309,15 @@ module Syskit
 
             def graphs
                 @data["graphs"]
+            end
+
+            def type
+                return unless (typedef = @data["type"])
+
+                # See comment in .define_type
+                name, registry = typedef.values_at("name", "registry")
+                registry = Typelib::Registry.from_xml(registry)
+                registry.get(name)
             end
 
             def hierarchy_graph_path

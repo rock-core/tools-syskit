@@ -18,6 +18,10 @@ module Syskit
                     end
                 end
 
+                app.default_loader.loaded_typekits.each do |_, tk|
+                    save_typekit(target_path, tk)
+                end
+
                 models.each do |m|
                     save_model(target_path, m)
                 end
@@ -143,6 +147,13 @@ module Syskit
                     { "graphs" => { "interface" => interface_path.to_s } }
                 )
                 save target_path, task_m, ".yml", YAML.dump(description)
+            end
+
+            def self.save_typekit(root_path, typekit)
+                typekits_path = root_path / "typekits"
+                typekits_path.mkpath
+
+                (typekits_path / "#{typekit.name}.tlb").write typekit.registry.to_xml
             end
 
             def self.task_model_description(task_m)

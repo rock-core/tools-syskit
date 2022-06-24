@@ -2,7 +2,16 @@
 
 def init
     super
-    sections.place(:bound_services, :dataflow, :hierarchy).before(:constant_summary)
+    sections
+        .place(:type_definition, :bound_services, :dataflow, :hierarchy)
+        .before(:constant_summary)
+end
+
+def type_definition
+    return unless object[:syskit]
+    return unless (@type = object.syskit.type)
+
+    erb(:type_definition)
 end
 
 def bound_services
