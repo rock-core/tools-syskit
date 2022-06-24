@@ -27,7 +27,7 @@
     max-width: none;
 }
 
-#main img.hierarchy-graph,
-#main img.dataflow-graph {
+#main .method_details_list img.hierarchy-graph,
+#main .method_details_list img.dataflow-graph {
     display: none;
 }
