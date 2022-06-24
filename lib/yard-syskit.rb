@@ -52,10 +52,6 @@ module Syskit
             handles :class
             in_file %r{models/compositions/.*\.rb$}
 
-            COMPONENT_CLASSES = %w[
-                Syskit::Composition
-            ].freeze
-
             def process
                 classname = statement[0].source.gsub(/\s/, "")
                 klass = ::YARD::CodeObjects::ClassObject.new(namespace, classname)
