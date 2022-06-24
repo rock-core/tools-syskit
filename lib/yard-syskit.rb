@@ -274,7 +274,9 @@ module Syskit
                 method_name = "#{desc['name']}_def"
 
                 method = ::YARD::CodeObjects::MethodObject.new(profile_m, method_name)
-                method[:syskit] = Metadata.new(desc)
+                method[:syskit] = Metadata.new(
+                    { "profile_definition_graphs" => desc["graphs"] }
+                )
                 method.docstring.replace(<<~DESC)
                     #{desc['doc']}
 
@@ -307,8 +309,8 @@ module Syskit
                 @data["definitions"]
             end
 
-            def graphs
-                @data["graphs"]
+            def profile_definition_graphs
+                @data["profile_definition_graphs"]
             end
 
             def type

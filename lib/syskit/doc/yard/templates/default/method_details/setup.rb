@@ -2,13 +2,19 @@
 
 def init
     super
-    sections.place(:graphs).after(:header)
+    sections.place(:profile_definition_graphs).after(:header)
 end
 
-def graphs
+def profile_definition_graphs
     return unless object[:syskit]
-    return unless (@graphs = object.syskit.graphs)
-    return if @graphs.empty?
+    return unless (@profile_definition_graphs = object.syskit.profile_definition_graphs)
+    return if @profile_definition_graphs.empty?
 
-    erb(:graphs)
+    @profile_definition_graphs = @profile_definition_graphs.transform_values do |path|
+        basename = File.basename(path)
+        dirname = File.basename(File.dirname(path))
+        File.join(dirname, basename)
+    end
+
+    erb(:profile_definition_graphs)
 end
