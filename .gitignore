@@ -1,4 +1,4 @@
-doc/html
+/doc/html
 webgen.cache
 *.sw?
 *.o
@@ -15,7 +15,7 @@ build/
 *.log
 test/roby/*.txt
 *_ui.rb
-doc
+/doc
 logs/
 coverage/
 .yardoc

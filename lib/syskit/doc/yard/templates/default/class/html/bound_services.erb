@@ -1,0 +1,27 @@
+<div id="services">
+<h2>Services</h2>
+
+<% if @services.empty? %>
+    No services
+<% else %>
+    <% @services.each do |desc| %>
+        <h3><%= linkify("##{desc['name']}_srv", desc['name']) %></h3>
+
+        <table>
+        <thead><th>Model</th><th>Mappings</th></thead>
+        <% desc['provided_services'].each do |srv_desc| %>
+            <tr>
+            <td><%= linkify(srv_desc['model']) %></td>
+            <td>
+                <dl>
+                    <% srv_desc['mappings'].each do |service_port, task_port| %>
+                    <dt><%= service_port %></dt><dd><%= task_port %></dd>
+                    <% end %>
+                </dl>
+            </td>
+            </tr>
+        <% end %>
+        </table>
+    <% end %>
+</div>
+<% end %>
