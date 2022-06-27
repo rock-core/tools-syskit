@@ -1,6 +1,7 @@
 # frozen_string_literal: true
 
 require "facets/string/camelcase"
+require "typelib"
 
 YARD::Templates::Engine.register_template_path(
     File.expand_path(
