@@ -518,7 +518,7 @@ module Syskit
                 deployment_groups.key?(name)
             end
 
-            # Returns a deployment group defined with {#create_deployment_group}
+            # Returns a deployment group defined with {#define_deployment_group}
             def find_deployment_group_by_name(name)
                 deployment_groups[name]
             end

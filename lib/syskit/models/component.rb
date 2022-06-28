@@ -914,7 +914,7 @@ module Syskit
                 end
             end
 
-            # @see {concrete_model}
+            # @see #concrete_model
             attr_writer :concrete_model
 
             # If this model is specialized, returns the most derived model that

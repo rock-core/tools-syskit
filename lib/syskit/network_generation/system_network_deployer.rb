@@ -18,7 +18,7 @@ module Syskit
 
             # An event logger object used to track execution
             #
-            # @see {Roby::DRoby::EventLogging}
+            # @see Roby::DRoby::EventLogging
             attr_reader :event_logger
 
             # The solver used to track the deployed tasks vs. the original tasks

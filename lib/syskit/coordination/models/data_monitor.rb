@@ -21,11 +21,11 @@ module Syskit
                 attr_reader :predicate
                 # @return [Boolean] whether instances of this model should
                 #   generate a {DataMonitoringError} when it triggers
-                # @see {raise}
+                # @see #raise_exception
                 attr_predicate :raises?, true
                 # @return [Roby::Coordination::Models::Event] the events that
                 #   should be emitted when this monitor triggers
-                # @see {emit}
+                # @see #emit
                 attr_reader :emitted_events
 
                 def initialize(name, data_streams)

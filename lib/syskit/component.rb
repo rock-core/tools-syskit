@@ -783,7 +783,7 @@ module Syskit
         #
         # @param [BoundDynamicDataService] srv the newly created service
         # @return [void]
-        # @see {#require_dynamic_service}
+        # @see #require_dynamic_service
         def added_dynamic_service(srv)
             super if defined? super
         end
