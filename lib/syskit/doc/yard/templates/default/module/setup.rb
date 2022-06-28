@@ -21,7 +21,7 @@ end
 
 def interface
     return unless object[:syskit]
-    return unless (@svg = object.syskit.interface_graph_path)
+    return unless (@svg = object.syskit.interface_graph)
 
     erb(:interface)
 end

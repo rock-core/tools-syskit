@@ -68,23 +68,31 @@ module Syskit
             #   the definition information should be saved
             # @param [Actions::Profile::Definition] profile_def
             def self.save_profile_definition(target_path, profile_def)
-                task = compute_system_network(
-                    profile_def,
-                    validate_abstract_network: false,
-                    validate_generated_network: false
-                )
+                begin
+                    task = compute_system_network(
+                        profile_def,
+                        validate_abstract_network: false,
+                        validate_generated_network: false
+                    )
 
-                hierarchy_path, dataflow_path =
-                    save_profile_definition_graphs(target_path, task, profile_def)
+                    hierarchy, dataflow =
+                        save_profile_definition_graphs(target_path, task, profile_def)
+                        .map(&:to_s)
+                rescue StandardError => e
+                    Roby.warn "could not generate profile definition graph for "\
+                              "#{profile_def.name}"
+                    Roby.log_exception_with_backtrace(e, Roby, :warn)
+                    # Make dataflow a different object than hierarchy, or psych
+                    # tries to be clever and create aliases, which fails
+                    hierarchy = { "error" => e.message }
+                    dataflow = hierarchy.dup
+                end
 
                 {
                     "name" => profile_def.name,
                     "doc" => profile_def.doc,
                     "model" => profile_def.model.name,
-                    "graphs" => {
-                        "hierarchy" => hierarchy_path.to_s,
-                        "dataflow" => dataflow_path.to_s
-                    }
+                    "graphs" => { "hierarchy" => hierarchy, "dataflow" => dataflow }
                 }
             end
 
@@ -114,20 +122,23 @@ module Syskit
             end
 
             def self.save_composition_model(target_path, composition_m)
-                hierarchy, dataflow = render_composition_graphs(composition_m)
-                hierarchy_path =
-                    save(target_path, composition_m, ".hierarchy.svg", hierarchy)
-                dataflow_path =
-                    save(target_path, composition_m, ".dataflow.svg", dataflow)
+                begin
+                    hierarchy, dataflow =
+                        save_composition_graphs(target_path, composition_m)
+                        .map(&:to_s)
+                rescue StandardError => e
+                    Roby.warn "could not generate composition model graph for "\
+                              "#{composition_m.name}"
+                    Roby.log_exception_with_backtrace(e, Roby, :warn)
+                    hierarchy = { "error" => e.message }
+                    # Make dataflow a different object than hierarchy, or psych
+                    # tries to be clever and create aliases, which fails
+                    dataflow = hierarchy.dup
+                end
 
                 description = composition_model_description(composition_m)
                 description = description.merge(
-                    {
-                        "graphs" => {
-                            "hierarchy" => hierarchy_path.to_s,
-                            "dataflow" => dataflow_path.to_s
-                        }
-                    }
+                    { "graphs" => { "hierarchy" => hierarchy, "dataflow" => dataflow } }
                 )
                 save target_path, composition_m, ".yml", YAML.dump(description)
             end
@@ -225,10 +236,17 @@ module Syskit
                 target_file
             end
 
-            def self.render_composition_graphs(composition_m)
+            def self.save_composition_graphs(target_path, composition_m)
                 task = instanciate_model(composition_m)
-                [render_plan(task.plan, "hierarchy"),
-                 render_plan(task.plan, "dataflow")]
+                hierarchy = render_plan(task.plan, "hierarchy")
+                dataflow = render_plan(task.plan, "dataflow")
+
+                hierarchy_path =
+                    save(target_path, composition_m, ".hierarchy.svg", hierarchy)
+                dataflow_path =
+                    save(target_path, composition_m, ".dataflow.svg", dataflow)
+
+                [hierarchy_path, dataflow_path]
             end
 
             # Compute the system network for a model
@@ -283,17 +301,6 @@ module Syskit
             def self.resolve_system_network(planning_task)
                 engine = Syskit::NetworkGeneration::Engine.new(planning_task.plan)
                 engine.resolve_system_network([planning_task])
-                true
-            rescue RuntimeError
-                engine = Syskit::NetworkGeneration::Engine.new(planning_task.plan)
-                engine.resolve_system_network(
-                    [planning_task],
-                    validate_abstract_network: false,
-                    validate_generated_network: false,
-                    validate_deployed_network: false
-                )
-                false
-            ensure
                 NetworkGeneration::LoggerConfigurationSupport
                     .add_logging_to_network(engine, engine.work_plan)
             end
@@ -318,10 +325,6 @@ module Syskit
                 )
                 main_plan.add(task)
                 task
-            rescue StandardError => e
-                Roby.warn "could not instanciate #{model}"
-                Roby.log_exception_with_backtrace(e, Roby, :warn)
-                requirements.model.new
             end
 
             # List the services provided by a component

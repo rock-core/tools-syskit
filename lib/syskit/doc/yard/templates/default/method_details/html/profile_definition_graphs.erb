@@ -1,3 +1,7 @@
-<% @profile_definition_graphs.each do |graph_type, svg_path| %>
-<img class="<%= graph_type %>-graph" src="<%= svg_path %>" />
+<% @profile_definition_graphs.each do |graph_type, data| %>
+    <% if (error = data["error"]) %>
+        <span class="error">Graph generation failed: <%= error %></span>
+    <% else %>
+        <img class="<%= graph_type %>-graph" src="<%= data %>" />
+    <% end %>
 <% end %>

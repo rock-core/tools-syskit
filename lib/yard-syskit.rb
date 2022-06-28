@@ -319,15 +319,15 @@ module Syskit
                 registry.get(name)
             end
 
-            def hierarchy_graph_path
+            def hierarchy_graph
                 @data.dig("graphs", "hierarchy")
             end
 
-            def dataflow_graph_path
+            def dataflow_graph
                 @data.dig("graphs", "dataflow")
             end
 
-            def interface_graph_path
+            def interface_graph
                 @data.dig("graphs", "interface")
             end
 

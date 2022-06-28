@@ -31,3 +31,7 @@
 #main .method_details_list img.dataflow-graph {
     display: none;
 }
+
+span.error {
+    color: red;
+}

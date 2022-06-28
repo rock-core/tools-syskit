@@ -10,9 +10,11 @@ def profile_definition_graphs
     return unless (@profile_definition_graphs = object.syskit.profile_definition_graphs)
     return if @profile_definition_graphs.empty?
 
-    @profile_definition_graphs = @profile_definition_graphs.transform_values do |path|
-        basename = File.basename(path)
-        dirname = File.basename(File.dirname(path))
+    @profile_definition_graphs = @profile_definition_graphs.transform_values do |data|
+        next(data) if data["error"]
+
+        basename = File.basename(data)
+        dirname = File.basename(File.dirname(data))
         File.join(dirname, basename)
     end
 
