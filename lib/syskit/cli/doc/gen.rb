@@ -32,6 +32,8 @@ module Syskit
             # @param [Pathname] target_path the root of the documentation output path
             # @param model the model to export
             def self.save_model(target_path, model) # rubocop:disable Metrics/CyclomaticComplexity
+                puts "Saving model #{model} in #{target_path}"
+
                 case model
                 when Syskit::Actions::Profile
                     save_profile_model(target_path, model)
@@ -53,6 +55,7 @@ module Syskit
                 definitions_path.mkpath
 
                 definitions = profile_m.each_resolved_definition.map do |profile_def|
+                    puts "Saving #{profile_def}"
                     { "name" => profile_def.name }.merge(
                         save_profile_definition(definitions_path, profile_def)
                     )
@@ -104,6 +107,7 @@ module Syskit
                 hierarchy_path.write(hierarchy)
                 dataflow_path = (target_path / "#{profile_def.name}.dataflow.svg")
                 dataflow_path.write(dataflow)
+                puts "Saved #{hierarchy_path} and #{dataflow_path} for #{profile_def}"
 
                 [hierarchy_path, dataflow_path]
             end
@@ -232,6 +236,7 @@ module Syskit
                 target_path.dirname.mkpath
 
                 target_file = target_path.sub_ext(suffix)
+                puts "Saving #{target_file} for #{model}"
                 target_file.write(data)
                 target_file
             end
