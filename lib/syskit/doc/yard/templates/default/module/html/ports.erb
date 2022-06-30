@@ -11,7 +11,7 @@ No ports
     <tr>
     <td><%= linkify("#{p["name"]}_port", p["name"]) %></td>
     <td><%= p["direction"] %></td>
-    <td><%= p["type"] %></td>
+    <td><%= linkify("Types" + p["type"].gsub("/", "::"), p["type"]) %></td>
     <td><%= p["doc"] %></td>
     </tr>
 <% end %>

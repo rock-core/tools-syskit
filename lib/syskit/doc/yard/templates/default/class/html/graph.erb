@@ -1,0 +1,9 @@
+<div id="<%= @graph_type %>">
+<h2><%= @graph_title %></h2>
+
+<% if @error %>
+    <span class="error">Graph generation failed: <%= @error %></span>
+<% else %>
+    <img class="<%= @graph_type %>-graph" src="<%= File.basename(@graph) %>" />
+<% end %>
+</div>

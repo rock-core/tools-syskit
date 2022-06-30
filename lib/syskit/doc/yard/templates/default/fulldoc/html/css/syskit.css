@@ -20,11 +20,18 @@
   font-weight: bold;
 }
 
-#main img.hierarchy-graph {
+#main img.hierarchy-graph,
+#main img.dataflow-graph,
+#main img.interface-graph {
     transform: translateX(-17%) scale(65%);
     max-width: none;
 }
-#main img.dataflow-graph {
-    transform: translateX(-17%) scale(65%);
-    max-width: none;
+
+#main .method_details_list img.hierarchy-graph,
+#main .method_details_list img.dataflow-graph {
+    display: none;
+}
+
+span.error {
+    color: red;
 }

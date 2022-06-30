@@ -18,6 +18,10 @@ module Syskit
                     end
                 end
 
+                app.default_loader.loaded_typekits.each do |_, tk|
+                    save_typekit(target_path, tk)
+                end
+
                 models.each do |m|
                     save_model(target_path, m)
                 end
@@ -27,8 +31,12 @@ module Syskit
             #
             # @param [Pathname] target_path the root of the documentation output path
             # @param model the model to export
-            def self.save_model(target_path, model)
+            def self.save_model(target_path, model) # rubocop:disable Metrics/CyclomaticComplexity
+                puts "Saving model #{model} in #{target_path}"
+
                 case model
+                when Syskit::Actions::Profile
+                    save_profile_model(target_path, model)
                 when Syskit::Models::DataServiceModel
                     save_data_service_model(target_path, model)
                 when Class
@@ -40,6 +48,68 @@ module Syskit
                         save_task_context_model(target_path, model)
                     end
                 end
+            end
+
+            def self.save_profile_model(target_path, profile_m)
+                definitions_path = path_for_model(target_path, profile_m)
+                definitions_path.mkpath
+
+                definitions = profile_m.each_resolved_definition.map do |profile_def|
+                    puts "Saving #{profile_def}"
+                    { "name" => profile_def.name }.merge(
+                        save_profile_definition(definitions_path, profile_def)
+                    )
+                end
+
+                profile_info = { "definitions" => definitions }
+                save(target_path, profile_m, ".yml", YAML.dump(profile_info))
+            end
+
+            # Save data for a given profile definition within a profile
+            #
+            # @param [Pathname] target_path the profile-specific path into which
+            #   the definition information should be saved
+            # @param [Actions::Profile::Definition] profile_def
+            def self.save_profile_definition(target_path, profile_def)
+                begin
+                    task = compute_system_network(
+                        profile_def,
+                        validate_abstract_network: false,
+                        validate_generated_network: false
+                    )
+
+                    hierarchy, dataflow =
+                        save_profile_definition_graphs(target_path, task, profile_def)
+                        .map(&:to_s)
+                rescue StandardError => e
+                    Roby.warn "could not generate profile definition graph for "\
+                              "#{profile_def.name}"
+                    Roby.log_exception_with_backtrace(e, Roby, :warn)
+                    # Make dataflow a different object than hierarchy, or psych
+                    # tries to be clever and create aliases, which fails
+                    hierarchy = { "error" => e.message }
+                    dataflow = hierarchy.dup
+                end
+
+                {
+                    "name" => profile_def.name,
+                    "doc" => profile_def.doc,
+                    "model" => profile_def.model.name,
+                    "graphs" => { "hierarchy" => hierarchy, "dataflow" => dataflow }
+                }
+            end
+
+            def self.save_profile_definition_graphs(target_path, task, profile_def)
+                hierarchy = render_plan(task.plan, "hierarchy")
+                dataflow = render_plan(task.plan, "dataflow")
+
+                hierarchy_path = (target_path / "#{profile_def.name}.hierarchy.svg")
+                hierarchy_path.write(hierarchy)
+                dataflow_path = (target_path / "#{profile_def.name}.dataflow.svg")
+                dataflow_path.write(dataflow)
+                puts "Saved #{hierarchy_path} and #{dataflow_path} for #{profile_def}"
+
+                [hierarchy_path, dataflow_path]
             end
 
             def self.save_data_service_model(target_path, service_m)
@@ -56,20 +126,23 @@ module Syskit
             end
 
             def self.save_composition_model(target_path, composition_m)
-                hierarchy, dataflow = render_composition_graphs(composition_m)
-                hierarchy_path =
-                    save(target_path, composition_m, ".hierarchy.svg", hierarchy)
-                dataflow_path =
-                    save(target_path, composition_m, ".dataflow.svg", dataflow)
+                begin
+                    hierarchy, dataflow =
+                        save_composition_graphs(target_path, composition_m)
+                        .map(&:to_s)
+                rescue StandardError => e
+                    Roby.warn "could not generate composition model graph for "\
+                              "#{composition_m.name}"
+                    Roby.log_exception_with_backtrace(e, Roby, :warn)
+                    hierarchy = { "error" => e.message }
+                    # Make dataflow a different object than hierarchy, or psych
+                    # tries to be clever and create aliases, which fails
+                    dataflow = hierarchy.dup
+                end
 
                 description = composition_model_description(composition_m)
                 description = description.merge(
-                    {
-                        "graphs" => {
-                            "hierarchy" => hierarchy_path.to_s,
-                            "dataflow" => dataflow_path.to_s
-                        }
-                    }
+                    { "graphs" => { "hierarchy" => hierarchy, "dataflow" => dataflow } }
                 )
                 save target_path, composition_m, ".yml", YAML.dump(description)
             end
@@ -89,6 +162,13 @@ module Syskit
                     { "graphs" => { "interface" => interface_path.to_s } }
                 )
                 save target_path, task_m, ".yml", YAML.dump(description)
+            end
+
+            def self.save_typekit(root_path, typekit)
+                typekits_path = root_path / "typekits"
+                typekits_path.mkpath
+
+                (typekits_path / "#{typekit.name}.tlb").write typekit.registry.to_xml
             end
 
             def self.task_model_description(task_m)
@@ -120,11 +200,26 @@ module Syskit
 
                     mappings = mapping_to.port_mappings_for(provided_service_m)
                     { "model" => provided_service_m.name, "mappings" => mappings }
-                end
+                end.compact
             end
 
             def self.composition_model_description(composition_m)
                 component_model_description(composition_m)
+            end
+
+            # Compute the base path to be used to save data for a given model
+            #
+            # @param [Pathname] root_path
+            # @param {#name} model
+            def self.path_for_model(root_path, model)
+                name = model.name
+                unless name
+                    puts "ignoring model #{model} as its name is invalid"
+                    return
+                end
+
+                components = name.split(/::|\./)
+                components.inject(root_path, &:/)
             end
 
             # Save data at the canonical path for the given model
@@ -136,25 +231,27 @@ module Syskit
             # @return [Pathname,nil] full path to the saved data, or nil if the method
             #   could not save anything
             def self.save(root_path, model, suffix, data)
-                name = model.name
-                unless name
-                    puts "ignoring model #{model} as its name is invalid"
-                    return
-                end
+                return unless (target_path = path_for_model(root_path, model))
 
-                components = name.split(/::|\./)
-                target_path = components.inject(root_path, &:/)
                 target_path.dirname.mkpath
 
                 target_file = target_path.sub_ext(suffix)
+                puts "Saving #{target_file} for #{model}"
                 target_file.write(data)
                 target_file
             end
 
-            def self.render_composition_graphs(composition_m)
+            def self.save_composition_graphs(target_path, composition_m)
                 task = instanciate_model(composition_m)
-                [render_plan(task.plan, "hierarchy"),
-                 render_plan(task.plan, "dataflow")]
+                hierarchy = render_plan(task.plan, "hierarchy")
+                dataflow = render_plan(task.plan, "dataflow")
+
+                hierarchy_path =
+                    save(target_path, composition_m, ".hierarchy.svg", hierarchy)
+                dataflow_path =
+                    save(target_path, composition_m, ".dataflow.svg", dataflow)
+
+                [hierarchy_path, dataflow_path]
             end
 
             # Compute the system network for a model
@@ -165,18 +262,18 @@ module Syskit
             #   generate the network, if nil a new plan object is created
             # @return [Roby::Task] the toplevel task that represents the
             #   deployed model
-            def self.compute_system_network(model, main_plan = nil)
-                main_plan ||= Roby::Plan.new
+            def self.compute_system_network(model, main_plan = Roby::Plan.new, **options)
                 main_plan.add(original_task = model.as_plan)
-                base_task = original_task.as_service
                 engine = Syskit::NetworkGeneration::Engine.new(main_plan)
-                engine.compute_system_network([base_task.task.planning_task])
-                base_task.task
-            ensure
-                if engine && engine.work_plan.respond_to?(:commit_transaction)
+                planning_task = original_task.planning_task
+                mapping = engine.compute_system_network([planning_task], **options)
+
+                if engine.work_plan.respond_to?(:commit_transaction)
                     engine.work_plan.commit_transaction
-                    main_plan.remove_task(original_task)
                 end
+
+                main_plan.remove_task(original_task)
+                mapping[planning_task]
             end
 
             # Compute the deployed network for a model
@@ -209,17 +306,6 @@ module Syskit
             def self.resolve_system_network(planning_task)
                 engine = Syskit::NetworkGeneration::Engine.new(planning_task.plan)
                 engine.resolve_system_network([planning_task])
-                true
-            rescue RuntimeError
-                engine = Syskit::NetworkGeneration::Engine.new(planning_task.plan)
-                engine.resolve_system_network(
-                    [planning_task],
-                    validate_abstract_network: false,
-                    validate_generated_network: false,
-                    validate_deployed_network: false
-                )
-                false
-            ensure
                 NetworkGeneration::LoggerConfigurationSupport
                     .add_logging_to_network(engine, engine.work_plan)
             end
@@ -244,10 +330,6 @@ module Syskit
                 )
                 main_plan.add(task)
                 task
-            rescue StandardError => e
-                Roby.warn "could not instanciate #{model}"
-                Roby.log_exception_with_backtrace(e, Roby, :warn)
-                requirements.model.new
             end
 
             # List the services provided by a component
