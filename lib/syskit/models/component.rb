@@ -608,9 +608,9 @@ module Syskit
             # dynamic service
             #
             # @see require_dynamic_service
-            def with_dynamic_service(dynamic_service_name, options = {})
+            def with_dynamic_service(dynamic_service_name, **options)
                 model = ensure_model_is_specialized
-                model.require_dynamic_service(dynamic_service_name, options)
+                model.require_dynamic_service(dynamic_service_name, **options)
                 model
             end
 
