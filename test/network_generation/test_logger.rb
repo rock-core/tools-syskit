@@ -207,6 +207,10 @@ describe Syskit::NetworkGeneration::LoggerConfigurationSupport do
                 logger_m = Syskit::TaskContext.find_model_from_orogen_name(
                     "logger::Logger"
                 )
+                Syskit.extend_model logger_m do
+                    provides Syskit::LoggerService
+                    def default_logger=(flag); end
+                end
 
                 task_m = OroGen.orogen_syskit_tests.Empty.to_instance_requirements
                 task_m.use_deployment(
