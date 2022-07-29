@@ -287,7 +287,6 @@ module Syskit
                 def create_test_file(ps_log_dir)
                     logfile = File.join(ps_log_dir, "logfile.log")
                     File.open(logfile, "wb") do |f|
-                        # create random 5 MB file
                         f.write(SecureRandom.random_bytes(547))
                     end
                     logfile
@@ -311,6 +310,29 @@ module Syskit
                     wait_for_upload_completion(client).each_result do |r|
                         flunk("upload failed: #{r.message}") unless r.success?
                     end
+                end
+            end
+
+            describe "Log Rotation" do
+                before do
+                    task_m = Syskit::TaskContext.new_submodel
+                    task_m.class_eval do
+                        provides Syskit::LoggerService
+
+                        def log_server_name
+                            "stubs"
+                        end
+
+                        def rotate_log
+                            ["old_log_file.log"]
+                        end
+                    end
+                    @task = syskit_stub_deploy_configure_and_start(task_m)
+                end
+
+                it "rotates log" do
+                    rotated_logs = app.rotate_logs
+                    assert_equal({ "stubs" => ["old_log_file.log"] }, rotated_logs)
                 end
             end
         end

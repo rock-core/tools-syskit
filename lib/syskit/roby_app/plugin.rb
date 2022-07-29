@@ -251,6 +251,13 @@ module Syskit
             # Hook called by the main application to prepare for execution
             def self.prepare(app)
                 @handler_ids = plug_engine_in_roby(app.execution_engine)
+
+                if Syskit.conf.log_rotation_period
+                    app.execution_engine.every(Syskit.conf.log_rotation_period) do
+                        rotated_logs = app.rotate_logs
+                        app.upload_rotated_logs(rotated_logs) if Syskit.conf.log_upload?
+                    end
+                end
             end
 
             # Hook called by the main application to undo what {.prepare} did
@@ -949,6 +956,25 @@ module Syskit
             def self.setup_rest_interface(app, rest_api)
                 require "syskit/roby_app/rest_api"
                 rest_api.mount REST_API => "/syskit"
+            end
+
+            def rotate_logs
+                plan.find_tasks(Syskit::LoggerService).running.each_with_object({}) do |task, rotated_logs|
+                    process_server_name = task.log_server_name
+                    (rotated_logs[process_server_name] ||= []).concat(task.rotate_log)
+                end
+            end
+
+            def upload_rotated_logs(rotated_logs)
+                rotated_logs.each do |process_server_name, logs|
+                    process_server = Syskit.conf.process_server_config_for(process_server_name)
+
+                    if !process_server.in_process? && !process_server.on_localhost?
+                        logs.each do |log_filename|
+                            send_file_transfer_command(process_server_name, log_filename)
+                        end
+                    end
+                end
             end
         end
     end

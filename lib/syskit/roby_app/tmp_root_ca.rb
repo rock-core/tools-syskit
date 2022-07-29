@@ -1,11 +1,6 @@
 # frozen_string_literal: true
 
 require "syskit/roby_app/log_transfer_server"
-
-require "orocos"
-require "orocos/remote_processes"
-require "orocos/remote_processes/server"
-
 require "securerandom"
 
 module Syskit

@@ -1,24 +1,13 @@
 # frozen_string_literal: true
 
 require "syskit/test/self"
-require "./test/fixtures/simple_composition_model"
 
 describe Syskit::NetworkGeneration::LoggerConfigurationSupport do
     attr_reader :syskit_engine
     attr_reader :task, :task_m, :deployment_m, :deployment, :dataflow_dynamics
-    before do
-        Roby.app.using_task_library "logger"
 
-        @task_m = Syskit::TaskContext.new_submodel do
-            output_port "out1", "/double"
-            output_port "out2", "/int"
-        end
-        task_m = @task_m
-        @deployment_m = Syskit::Deployment.new_submodel(name: "deployment") do
-            task "task", task_m.orogen_model
-            add_default_logger
-        end
-        @deployment = syskit_stub_deployment("deployment", deployment_m)
+    before do
+        @deployment = create_deployment_model_with_logger
         @task = deployment.task "task"
 
         dataflow = flexmock
@@ -31,9 +20,6 @@ describe Syskit::NetworkGeneration::LoggerConfigurationSupport do
                      .by_default
         syskit_engine.should_receive(:deployed_tasks).and_return([@task])
                      .by_default
-
-        @logger_m = Syskit::TaskContext.find_model_from_orogen_name "logger::Logger"
-        @logger_m.include Syskit::NetworkGeneration::LoggerConfigurationSupport
     end
 
     describe "add_logging_to_network" do
@@ -221,6 +207,10 @@ describe Syskit::NetworkGeneration::LoggerConfigurationSupport do
                 logger_m = Syskit::TaskContext.find_model_from_orogen_name(
                     "logger::Logger"
                 )
+                Syskit.extend_model logger_m do
+                    provides Syskit::LoggerService
+                    def default_logger=(flag); end
+                end
 
                 task_m = OroGen.orogen_syskit_tests.Empty.to_instance_requirements
                 task_m.use_deployment(
@@ -261,5 +251,33 @@ describe Syskit::NetworkGeneration::LoggerConfigurationSupport do
                 syskit_configure(logger)
             end
         end
+    end
+
+    def create_logger_model
+        logger_m = Syskit::TaskContext.new_submodel(name: "LoggerTask") do
+            dynamic_input_port(/.*/, nil)
+        end
+        logger_m.class_eval do
+            provides Syskit::LoggerService
+            include Syskit::NetworkGeneration::LoggerConfigurationSupport
+            def update_properties
+                super
+            end
+        end
+        logger_m
+    end
+
+    def create_deployment_model_with_logger
+        task_m = @task_m = Syskit::TaskContext.new_submodel do
+            output_port "out1", "/double"
+            output_port "out2", "/int"
+        end
+        logger_m = @logger_m = create_logger_model
+
+        @deployment_m = Syskit::Deployment.new_submodel(name: "deployment") do
+            task "task", task_m.orogen_model
+            task "deployment_Logger", logger_m.orogen_model
+        end
+        syskit_stub_deployment("deployment", deployment_m)
     end
 end

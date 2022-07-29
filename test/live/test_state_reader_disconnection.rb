@@ -211,7 +211,8 @@ module Syskit
 
         def remove_logger
             execute do
-                logger = find_logger
+                return unless (logger = find_logger)
+
                 plan.unmark_permanent_task(logger)
                 plan.remove_task(logger)
             end
