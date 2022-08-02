@@ -18,7 +18,7 @@ module Syskit
                 #   where this data monitor should be attached. They must
                 #   obviously match the table's root task model
                 #
-                # @see {attach_to}
+                # @see #attach_to
                 inherited_attribute(:attachment_point, :attachment_points) { [] }
 
                 # @return [Array<DataMonitor>] the set of data monitoring

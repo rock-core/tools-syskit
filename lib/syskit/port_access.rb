@@ -23,7 +23,7 @@ module Syskit
         #
         # @param [String] name the name of the port
         # @return [Syskit::Port] the port
-        # @raises [ArgumentError] if the port does not exist
+        # @raise [ArgumentError] if the port does not exist
         def port_by_name(name)
             p = find_port(name)
             return p if p

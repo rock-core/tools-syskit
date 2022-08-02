@@ -1285,7 +1285,7 @@ module Syskit
             # @return [Hash<String,Hash<String,String>>] the mapping from a
             #   composition configuration name to the corresponding
             #   configurations that should be applied to its children
-            # @see {#conf}
+            # @see #conf
             inherited_attribute(:configuration, :configurations, map: true) do
                 {}
             end
