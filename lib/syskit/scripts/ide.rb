@@ -36,11 +36,16 @@ parser = OptionParser.new do |opt|
         runtime_only = true
     end
 end
+
+# We must require_app_dir before we call common_options, or the list of robots
+# won't be the right one. Hand-detect --runtime-only and act accordingly
+need_app = !ARGV.include?("--runtime-only")
+Roby.app.require_app_dir if need_app
+
 options = {}
 Roby::Application.host_options(parser, options)
 Syskit::Scripts.common_options(parser, true)
 remaining = parser.parse(ARGV)
-Roby.app.require_app_dir unless runtime_only
 
 # We don't need the process server, win some startup time
 Roby.app.using "syskit"
