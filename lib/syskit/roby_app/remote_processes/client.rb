@@ -279,14 +279,14 @@ module Syskit
 
                     result = {}
                     @death_queue.each do |name, status|
-                        Orocos.debug "#{name} died"
+                        RemoteProcesses.debug "#{name} died"
                         if (p = processes.delete(name))
                             p.dead!
                             result[p] = status
                         else
-                            Orocos.warn "process server reported the exit "\
-                                        "of '#{name}', but no process with "\
-                                        "that name is registered"
+                            RemoteProcesses.warn "process server reported the exit "\
+                                                 "of '#{name}', but no process with "\
+                                                 "that name is registered"
                         end
                     end
                     @death_queue.clear
