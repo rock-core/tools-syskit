@@ -53,7 +53,7 @@ describe Syskit::RobyApp::RemoteProcesses do
 
     after do
         if @server_thread&.alive?
-            @server_thread.raise Interrupt
+            @server.quit
             @server_thread.join
         end
         @server&.close

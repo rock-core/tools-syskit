@@ -143,6 +143,7 @@ module Syskit
                     end
                 end
 
+                INTERNAL_QUIT = "Q"
                 INTERNAL_SIGCHLD_TRIGGERED = "S"
 
                 def open(fd: nil)
@@ -199,6 +200,8 @@ module Syskit
                             cmd = com_r.read(1)
                             if cmd == INTERNAL_SIGCHLD_TRIGGERED
                                 process_dead_processes
+                            elsif cmd == INTERNAL_QUIT
+                                next
                             elsif cmd
                                 Server.warn "unknown internal communication code "\
                                             "#{cmd.inspect}"
@@ -434,6 +437,7 @@ module Syskit
 
                 def quit
                     @quit = true
+                    @com_w&.write INTERNAL_QUIT
                 end
 
                 Upload = Struct.new(
