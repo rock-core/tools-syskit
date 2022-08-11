@@ -11,39 +11,6 @@ describe Syskit::RobyApp::RemoteProcesses do
     attr_reader :client
     attr_reader :root_loader
 
-    class TestLogTransferServer < Syskit::RobyApp::LogTransferServer::SpawnServer
-        attr_reader :certfile_path
-
-        def initialize(target_dir, user, password)
-            @certfile_path = File.join(__dir__, "cert.crt")
-            private_cert = File.join(__dir__, "cert-private.crt")
-            super(target_dir, user, password, private_cert)
-        end
-    end
-
-    def start_server
-        raise "server already started" if @server
-
-        @server = Syskit::RobyApp::RemoteProcesses::Server.new(@app, port: 0)
-        server.open
-        @server_thread = Thread.new { server.listen }
-    end
-
-    def connect_to_server
-        @root_loader = OroGen::Loaders::Aggregate.new
-        OroGen::Loaders::RTT.setup_loader(root_loader)
-        @client = Syskit::RobyApp::RemoteProcesses::Client.new(
-            "localhost",
-            server.port,
-            root_loader: root_loader
-        )
-    end
-
-    def start_and_connect_to_server
-        start_server
-        connect_to_server
-    end
-
     before do
         @app = Roby::Application.new
         @app.log_dir = make_tmpdir
@@ -304,5 +271,38 @@ describe Syskit::RobyApp::RemoteProcesses do
                 flunk("upload failed: #{r.message}") unless r.success?
             end
         end
+    end
+
+    class TestLogTransferServer < Syskit::RobyApp::LogTransferServer::SpawnServer
+        attr_reader :certfile_path
+
+        def initialize(target_dir, user, password)
+            @certfile_path = File.join(__dir__, "cert.crt")
+            private_cert = File.join(__dir__, "cert-private.crt")
+            super(target_dir, user, password, private_cert)
+        end
+    end
+
+    def start_server
+        raise "server already started" if @server
+
+        @server = Syskit::RobyApp::RemoteProcesses::Server.new(@app, port: 0)
+        server.open
+        @server_thread = Thread.new { server.listen }
+    end
+
+    def connect_to_server
+        @root_loader = OroGen::Loaders::Aggregate.new
+        OroGen::Loaders::RTT.setup_loader(root_loader)
+        @client = Syskit::RobyApp::RemoteProcesses::Client.new(
+            "localhost",
+            server.port,
+            root_loader: root_loader
+        )
+    end
+
+    def start_and_connect_to_server
+        start_server
+        connect_to_server
     end
 end
