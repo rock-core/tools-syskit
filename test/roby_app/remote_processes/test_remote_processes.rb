@@ -47,8 +47,11 @@ describe Syskit::RobyApp::RemoteProcesses do
     before do
         @app = Roby::Application.new
         @app.log_dir = make_tmpdir
-        @current_log_level = Syskit::RobyApp::RemoteProcesses::Server.logger.level
-        Syskit::RobyApp::RemoteProcesses::Server.logger.level = Logger::FATAL + 1
+        @__server_current_log_level =
+            Syskit::RobyApp::RemoteProcesses::Server.logger.level
+        Syskit::RobyApp::RemoteProcesses::Server.logger.level = Logger::WARN
+        @__orocos_current_log_level = Orocos.logger.level
+        Orocos.logger.level = Logger::FATAL
     end
 
     after do
@@ -58,9 +61,12 @@ describe Syskit::RobyApp::RemoteProcesses do
         end
         @server&.close
 
-        if @current_log_level
-            Syskit::RobyApp::RemoteProcesses::Server.logger.level = @current_log_level
+        if @__server_current_log_level
+            Syskit::RobyApp::RemoteProcesses::Server.logger.level =
+                @__server_current_log_level
         end
+
+        Orocos.logger.level = @__orocos_current_log_level if @__orocos_current_log_level
     end
 
     describe "#initialize" do
