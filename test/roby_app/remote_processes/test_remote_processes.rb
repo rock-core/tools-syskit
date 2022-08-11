@@ -162,6 +162,41 @@ describe Syskit::RobyApp::RemoteProcesses do
         end
     end
 
+    describe "stopping all remote processes" do
+        attr_reader :process
+        before do
+            start_and_connect_to_server
+            @processes = 10.times.map do |i|
+                client.start(
+                    "syskit_tests_empty_#{i}", "syskit_tests_empty",
+                    { "syskit_tests_empty" => "syskit_tests_empty_#{i}",
+                      "syskit_tests_empty_Logger" => "syskit_tests_empty_#{i}_Logger" },
+                    wait: false, oro_logfile: nil, output: "/dev/null"
+                )
+            end
+        end
+
+        it "kills all remote processes and waits for all of them to stop" do
+            killed = client.kill_all
+            killed_names = killed.map { |process_name, _| process_name }
+            assert_equal killed_names.to_set, @processes.map(&:name).to_set
+
+            @processes.all? do |p|
+                Process.wait2(p.pid, ::Process::WNOHANG)
+                flunk("#{p.pid} has either not been killed or not been reaped")
+            rescue Errno::ECHILD
+                assert(true)
+            end
+        end
+
+        it "does not send for a notification that the process died" do
+            Process.kill "KILL", process.pid
+            dead_processes = client.wait_termination
+            assert dead_processes[process]
+            assert !process.alive?
+        end
+    end
+
     describe "#log_upload_file" do
         before do
             start_and_connect_to_server

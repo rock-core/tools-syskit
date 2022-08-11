@@ -306,6 +306,14 @@ module Syskit
                     join(deployment_name) if wait
                 end
 
+                def kill_all(cleanup: false, hard: true)
+                    socket.write(COMMAND_KILL_ALL)
+                    Marshal.dump([cleanup, hard], socket)
+                    raise Failed, "failed kill_all" unless wait_for_ack
+
+                    Marshal.load(socket)
+                end
+
                 def join(deployment_name)
                     process = processes[deployment_name]
                     return unless process
