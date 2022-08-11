@@ -217,9 +217,9 @@ module Syskit
                         end
                     end
 
-                    Server.fatal "process server exited normally"
+                    Server.info "process server exited normally"
                 rescue Interrupt
-                    Server.fatal "process server exited after SIGINT"
+                    Server.warn "process server exited after SIGINT"
                 rescue Exception => e
                     Server.fatal "process server exited because of unhandled exception"
                     Server.fatal "#{e.message} #{e.class}"
@@ -252,9 +252,9 @@ module Syskit
 
                 # Helper method that stops all running processes
                 def quit_and_join # :nodoc:
-                    Server.warn "stopping process server"
+                    Server.info "stopping process server"
                     processes.each_value do |p|
-                        Server.warn "killing #{p.name}"
+                        Server.info "killing #{p.name}"
                         # Kill the process hard. If there are still processes,
                         # it means that the normal cleanup procedure did not
                         # work.  Not the time to call stop or whatnot
