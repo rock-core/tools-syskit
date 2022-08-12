@@ -171,7 +171,7 @@ module Syskit
         #
         # By default, its false
         def read_only?
-            read_only
+            read_only && !Roby.app.single?
         end
 
         # Whether the task should be kept in plan
