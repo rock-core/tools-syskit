@@ -163,7 +163,6 @@ describe Syskit::RobyApp::RemoteProcesses do
     end
 
     describe "stopping all remote processes" do
-        attr_reader :process
         before do
             start_and_connect_to_server
             @processes = 10.times.map do |i|
@@ -190,10 +189,9 @@ describe Syskit::RobyApp::RemoteProcesses do
         end
 
         it "does not send for a notification that the process died" do
-            Process.kill "KILL", process.pid
-            dead_processes = client.wait_termination
-            assert dead_processes[process]
-            assert !process.alive?
+            client.kill_all
+            sleep 2
+            assert client.wait_termination(0).empty?
         end
     end
 
