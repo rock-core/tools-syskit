@@ -143,6 +143,7 @@ module Syskit
                     end
                 end
 
+                INTERNAL_QUIT = "Q"
                 INTERNAL_SIGCHLD_TRIGGERED = "S"
 
                 def open(fd: nil)
@@ -198,7 +199,10 @@ module Syskit
                             readable_sockets.delete(com_r)
                             cmd = com_r.read(1)
                             if cmd == INTERNAL_SIGCHLD_TRIGGERED
-                                process_dead_processes
+                                dead_processes = reap_dead_subprocesses
+                                announce_dead_processes(dead_processes)
+                            elsif cmd == INTERNAL_QUIT
+                                next
                             elsif cmd
                                 Server.warn "unknown internal communication code "\
                                             "#{cmd.inspect}"
@@ -214,9 +218,9 @@ module Syskit
                         end
                     end
 
-                    Server.fatal "process server exited normally"
+                    Server.info "process server exited normally"
                 rescue Interrupt
-                    Server.fatal "process server exited after SIGINT"
+                    Server.warn "process server exited after SIGINT"
                 rescue Exception => e
                     Server.fatal "process server exited because of unhandled exception"
                     Server.fatal "#{e.message} #{e.class}"
@@ -227,31 +231,81 @@ module Syskit
                     quit_and_join
                 end
 
-                def process_dead_processes
-                    while (exited = ::Process.wait2(-1, ::Process::WNOHANG))
-                        pid, exit_status = *exited
-                        process_name, process = processes.find { |_, p| p.pid == pid }
-                        next unless process_name
+                # Check if a specific subprocess terminated and deregister it
+                #
+                # @param [Integer] pid the subprocess pid
+                # @return [(Orocos::Process,Process::Status),nil] the terminated process
+                #   and its exit status if it terminated, nil otherwise
+                # @raise Errno::ECHILD if there is no such child with this PID
+                def try_wait_for_subprocess_exit(pid)
+                    return unless (exited = try_wait_pid(pid))
 
-                        process.dead!(exit_status)
-                        processes.delete(process_name)
-                        Server.debug "announcing death: #{process_name}"
+                    handle_dead_subprocess(*exited)
+                end
+
+                # Detect all subprocesses of this server that have died and
+                # de-register them
+                #
+                # @return [Array<(Orocos::Process,Process:Status)>] the list of terminated
+                #   subprocesses and their exit status
+                def reap_dead_subprocesses
+                    dead_processes = []
+                    while (exited = try_wait_pid(-1))
+                        dead_processes << handle_dead_subprocess(*exited)
+                    end
+                    dead_processes
+                rescue Errno::ECHILD
+                    dead_processes
+                end
+
+                # Reap a single terminated subprocess if there is one
+                #
+                # @param [Integer] pid PID of a specific subprocess of interest.
+                #   Set to -1 for all subprocesss
+                # @return [Proces::Status,nil] the exit status or nil if no
+                #   subprocess matching `pid` has finished
+                def try_wait_pid(pid)
+                    ::Process.wait2(pid, ::Process::WNOHANG)
+                end
+
+                # Deregister a dead subprocess from the server
+                #
+                # @param [Integer] exit_pid the process PID
+                # @param [Process::Status] exit_status the process exit status
+                # @return [(Orocos::Process,Process::Status)]
+                def handle_dead_subprocess(exit_pid, exit_status)
+                    process_name, process =
+                        processes.find { |_, p| p.pid == exit_pid }
+                    return unless process_name
+
+                    process.dead!(exit_status)
+                    processes.delete(process_name)
+
+                    [process, exit_status]
+                end
+
+                # Announce the end of finished sub-processes to our clients
+                #
+                # @param [Array<(Orocos::Process,Process::Status)>] the list of
+                #   terminated processes
+                def announce_dead_processes(dead_processes)
+                    dead_processes.each do |process, exit_status|
+                        Server.debug "announcing death of #{process.name}"
                         each_client do |socket|
                             Server.debug "  announcing to #{socket}"
                             socket.write(EVENT_DEAD_PROCESS)
-                            Marshal.dump([process_name, exit_status], socket)
+                            Marshal.dump([process.name, exit_status], socket)
                         rescue SystemCallError, IOError => e
                             Server.debug "  #{socket}: #{e}"
                         end
                     end
-                rescue Errno::ECHILD # rubocop:disable Lint/SuppressedException
                 end
 
                 # Helper method that stops all running processes
                 def quit_and_join # :nodoc:
-                    Server.warn "stopping process server"
+                    Server.info "stopping process server"
                     processes.each_value do |p|
-                        Server.warn "killing #{p.name}"
+                        Server.info "killing #{p.name}"
                         # Kill the process hard. If there are still processes,
                         # it means that the normal cleanup procedure did not
                         # work.  Not the time to call stop or whatnot
@@ -340,6 +394,14 @@ module Syskit
                             Server.warn "no process named #{name} to end"
                             socket.write(RET_NO)
                         end
+                    elsif cmd_code == COMMAND_KILL_ALL
+                        cleanup, hard = Marshal.load(socket)
+                        Server.debug "#{socket} requested the end of all processes"
+                        processes = kill_all(cleanup: cleanup, hard: hard)
+                        dead = join_all(processes)
+                        socket.write(RET_YES)
+                        ret = dead.map { |dead_p, dead_s| [dead_p.name, dead_s] }
+                        socket.write Marshal.dump(ret)
                     elsif cmd_code == COMMAND_QUIT
                         quit
                     elsif cmd_code == COMMAND_LOG_UPLOAD_FILE
@@ -432,8 +494,53 @@ module Syskit
                     process.kill(false, cleanup: cleanup, hard: hard)
                 end
 
+                # Kill all running subprocesses
+                #
+                # This method does not wait for their end, nor does it de-register
+                # them.
+                #
+                # @see join_all announce_dead_processes
+                def kill_all(cleanup: false, hard: true)
+                    processes.each_value do |p|
+                        p.kill(false, cleanup: cleanup, hard: hard)
+                    end
+                    processes.values
+                end
+
+                # Exception raised by {#join_all} when its timeout is reached
+                class JoinAllTimeout < RuntimeError; end
+
+                # Wait for the given processes to end
+                #
+                # @param [Array<Orocos::Process>] processes the subprocess objects
+                # @param [Float] poll polling period in seconds
+                # @param [Float] timeout timeout after which the method will raise
+                #   if there are some of the listed subprocesses still running
+                # @return [Array<(Orocos::Process,Process::Status)>]
+                def join_all(processes, poll: 0.1, timeout: 10)
+                    deadline = Time.now + timeout
+                    dead_processes = []
+                    until processes.empty?
+                        processes.delete_if do |p|
+                            if (status = try_wait_for_subprocess_exit(p.pid))
+                                dead_processes << status
+                                true
+                            end
+                        end
+
+                        if Time.now > deadline
+                            raise JoinAllTimeout,
+                                  "timed out while waiting for #{processes.size} "\
+                                  "processes to terminate"
+                        end
+                        sleep poll
+                    end
+                    dead_processes
+                end
+
                 def quit
                     @quit = true
+                    @com_w&.write INTERNAL_QUIT
                 end
 
                 Upload = Struct.new(

@@ -11,56 +11,29 @@ describe Syskit::RobyApp::RemoteProcesses do
     attr_reader :client
     attr_reader :root_loader
 
-    class TestLogTransferServer < Syskit::RobyApp::LogTransferServer::SpawnServer
-        attr_reader :certfile_path
-
-        def initialize(target_dir, user, password)
-            @certfile_path = File.join(__dir__, "cert.crt")
-            private_cert = File.join(__dir__, "cert-private.crt")
-            super(target_dir, user, password, private_cert)
-        end
-    end
-
-    def start_server
-        raise "server already started" if @server
-
-        @server = Syskit::RobyApp::RemoteProcesses::Server.new(@app, port: 0)
-        server.open
-        @server_thread = Thread.new { server.listen }
-    end
-
-    def connect_to_server
-        @root_loader = OroGen::Loaders::Aggregate.new
-        OroGen::Loaders::RTT.setup_loader(root_loader)
-        @client = Syskit::RobyApp::RemoteProcesses::Client.new(
-            "localhost",
-            server.port,
-            root_loader: root_loader
-        )
-    end
-
-    def start_and_connect_to_server
-        start_server
-        connect_to_server
-    end
-
     before do
         @app = Roby::Application.new
         @app.log_dir = make_tmpdir
-        @current_log_level = Syskit::RobyApp::RemoteProcesses::Server.logger.level
-        Syskit::RobyApp::RemoteProcesses::Server.logger.level = Logger::FATAL + 1
+        @__server_current_log_level =
+            Syskit::RobyApp::RemoteProcesses::Server.logger.level
+        Syskit::RobyApp::RemoteProcesses::Server.logger.level = Logger::WARN
+        @__orocos_current_log_level = Orocos.logger.level
+        Orocos.logger.level = Logger::FATAL
     end
 
     after do
         if @server_thread&.alive?
-            @server_thread.raise Interrupt
+            @server.quit
             @server_thread.join
         end
         @server&.close
 
-        if @current_log_level
-            Syskit::RobyApp::RemoteProcesses::Server.logger.level = @current_log_level
+        if @__server_current_log_level
+            Syskit::RobyApp::RemoteProcesses::Server.logger.level =
+                @__server_current_log_level
         end
+
+        Orocos.logger.level = @__orocos_current_log_level if @__orocos_current_log_level
     end
 
     describe "#initialize" do
@@ -189,6 +162,39 @@ describe Syskit::RobyApp::RemoteProcesses do
         end
     end
 
+    describe "stopping all remote processes" do
+        before do
+            start_and_connect_to_server
+            @processes = 10.times.map do |i|
+                client.start(
+                    "syskit_tests_empty_#{i}", "syskit_tests_empty",
+                    { "syskit_tests_empty" => "syskit_tests_empty_#{i}",
+                      "syskit_tests_empty_Logger" => "syskit_tests_empty_#{i}_Logger" },
+                    wait: false, oro_logfile: nil, output: "/dev/null"
+                )
+            end
+        end
+
+        it "kills all remote processes and waits for all of them to stop" do
+            killed = client.kill_all
+            killed_names = killed.map { |process_name, _| process_name }
+            assert_equal killed_names.to_set, @processes.map(&:name).to_set
+
+            @processes.all? do |p|
+                Process.wait2(p.pid, ::Process::WNOHANG)
+                flunk("#{p.pid} has either not been killed or not been reaped")
+            rescue Errno::ECHILD
+                assert(true)
+            end
+        end
+
+        it "does not send for a notification that the process died" do
+            client.kill_all
+            sleep 2
+            assert client.wait_termination(0).empty?
+        end
+    end
+
     describe "#log_upload_file" do
         before do
             start_and_connect_to_server
@@ -298,5 +304,38 @@ describe Syskit::RobyApp::RemoteProcesses do
                 flunk("upload failed: #{r.message}") unless r.success?
             end
         end
+    end
+
+    class TestLogTransferServer < Syskit::RobyApp::LogTransferServer::SpawnServer
+        attr_reader :certfile_path
+
+        def initialize(target_dir, user, password)
+            @certfile_path = File.join(__dir__, "cert.crt")
+            private_cert = File.join(__dir__, "cert-private.crt")
+            super(target_dir, user, password, private_cert)
+        end
+    end
+
+    def start_server
+        raise "server already started" if @server
+
+        @server = Syskit::RobyApp::RemoteProcesses::Server.new(@app, port: 0)
+        server.open
+        @server_thread = Thread.new { server.listen }
+    end
+
+    def connect_to_server
+        @root_loader = OroGen::Loaders::Aggregate.new
+        OroGen::Loaders::RTT.setup_loader(root_loader)
+        @client = Syskit::RobyApp::RemoteProcesses::Client.new(
+            "localhost",
+            server.port,
+            root_loader: root_loader
+        )
+    end
+
+    def start_and_connect_to_server
+        start_server
+        connect_to_server
     end
 end

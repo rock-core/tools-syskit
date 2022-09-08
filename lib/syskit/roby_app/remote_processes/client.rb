@@ -279,14 +279,14 @@ module Syskit
 
                     result = {}
                     @death_queue.each do |name, status|
-                        Orocos.debug "#{name} died"
+                        RemoteProcesses.debug "#{name} died"
                         if (p = processes.delete(name))
                             p.dead!
                             result[p] = status
                         else
-                            Orocos.warn "process server reported the exit "\
-                                        "of '#{name}', but no process with "\
-                                        "that name is registered"
+                            RemoteProcesses.warn "process server reported the exit "\
+                                                 "of '#{name}', but no process with "\
+                                                 "that name is registered"
                         end
                     end
                     @death_queue.clear
@@ -304,6 +304,14 @@ module Syskit
                     raise Failed, "failed to quit #{deployment_name}" unless wait_for_ack
 
                     join(deployment_name) if wait
+                end
+
+                def kill_all(cleanup: false, hard: true)
+                    socket.write(COMMAND_KILL_ALL)
+                    Marshal.dump([cleanup, hard], socket)
+                    raise Failed, "failed kill_all" unless wait_for_ack
+
+                    Marshal.load(socket)
                 end
 
                 def join(deployment_name)

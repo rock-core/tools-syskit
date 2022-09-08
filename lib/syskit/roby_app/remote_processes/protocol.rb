@@ -11,7 +11,8 @@ module Syskit
             COMMAND_START      = "S"
             COMMAND_END        = "E"
             COMMAND_QUIT       = "Q"
-            COMMAND_LOG_UPLOAD_FILE = "U"
+            COMMAND_KILL_ALL   = "K"
+            COMMAND_LOG_UPLOAD_FILE  = "U"
             COMMAND_LOG_UPLOAD_STATE = "X"
 
             EVENT_DEAD_PROCESS = "D"
