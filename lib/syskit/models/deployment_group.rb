@@ -226,11 +226,16 @@ module Syskit
             # Enumerates all the deployments registered on self
             #
             # @yieldparam [ConfiguredDeployment]
-            def each_configured_deployment
+            def each_configured_deployment(on: nil, except_on: "")
                 return enum_for(__method__) unless block_given?
 
                 deployments.each_value do |set|
-                    set.each { |c| yield(c) }
+                    set.each do |c|
+                        if !on.nil? && c.process_server_name == on || \
+                           on.nil? && c.process_server_name != except_on
+                            yield(c)
+                        end
+                    end
                 end
             end
 
