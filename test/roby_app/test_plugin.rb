@@ -335,6 +335,79 @@ module Syskit
                     assert_equal({ "stubs" => ["old_log_file.log"] }, rotated_logs)
                 end
             end
+
+            describe "Syskit start all deployments" do
+                attr_reader :group
+                before do
+                    @app = Roby::Application.new
+                    @conf = RobyApp::Configuration.new(@app)
+                    @loader = OroGen::Loaders::Base.new
+                    @conf.register_process_server(
+                        "localhost", Orocos::RubyTasks::ProcessManager.new(@loader), ""
+                    )
+                    @conf.register_process_server(
+                        "test-mng", Orocos::RubyTasks::ProcessManager.new(@loader), ""
+                    )
+                    @group = Syskit::Models::DeploymentGroup.new
+
+                    model_m = Syskit::TaskContext.new_submodel(
+                        orogen_model_name: "test::Task"
+                    )
+                    deployment_m = syskit_stub_deployment_model(model_m)
+                    @group.use_deployment(
+                        Hash[deployment_m => "task"],
+                        on: "localhost",
+                        process_managers: @conf,
+                        loader: @loader
+                    )
+                    second_model_m = Syskit::TaskContext.new_submodel(
+                        name: "empty", orogen_model_name: "orogen_syskit_tests::Empty"
+                    )
+                    second_deployment_m = syskit_stub_deployment_model(second_model_m)
+                    @group.use_deployment(
+                        Hash[second_deployment_m => "empty"],
+                        on: "test-mng",
+                        process_managers: @conf,
+                        loader: @loader
+                    )
+                end
+
+                it "starts all deployments" do
+                    @app.syskit_start_all_deployments(
+                        deployment_group: group, on: [], except_on: []
+                    )
+                    assert(
+                        @app.plan.permanent_tasks.any? { |c| c.process_name == "task" }
+                    )
+                    assert(
+                        @app.plan.permanent_tasks.any? { |c| c.process_name == "empty" }
+                    )
+                end
+
+                it "starts only the deployments on the defined process server name" do
+                    @app.syskit_start_all_deployments(
+                        deployment_group: group, on: ["localhost"], except_on: []
+                    )
+                    assert(
+                        @app.plan.permanent_tasks.any? { |c| c.process_name == "task" }
+                    )
+                    refute(
+                        @app.plan.permanent_tasks.any? { |c| c.process_name == "empty" }
+                    )
+                end
+
+                it "starts all deployments except the one listed" do
+                    @app.syskit_start_all_deployments(
+                        deployment_group: group, on: [], except_on: ["test-mng"]
+                    )
+                    assert(
+                        @app.plan.permanent_tasks.any? { |c| c.process_name == "task" }
+                    )
+                    refute(
+                        @app.plan.permanent_tasks.any? { |c| c.process_name == "empty" }
+                    )
+                end
+            end
         end
     end
 end
