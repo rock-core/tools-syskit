@@ -741,12 +741,19 @@ module Syskit
                                            .find_all(&:reusable?)
                                            .map(&:process_name).to_set
 
-                deployment_group.each_configured_deployment(
-                          on: on,
-                          except_on: except_on
-                ) do |configured_deployment|
-                    if existing_deployments.include?(configured_deployment.process_name)
-                        next
+                deployment_group.each_configured_deployment do |configured_deployment|
+                    next if existing_deployments.include?(
+                        configured_deployment.process_name
+                    )
+
+                    if on.empty?
+                        next if except_on.include?(
+                            configured_deployment.process_server_name
+                        )
+                    else
+                        next unless on.include?(
+                            configured_deployment.process_server_name
+                        )
                     end
 
                     plan.add_permanent_task(configured_deployment.new)
