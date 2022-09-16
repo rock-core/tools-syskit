@@ -727,8 +727,10 @@ module Syskit
 
             # Start all deployments
             #
-            # @param [String,nil] on the name of the process server on which
-            #   deployments should be started. If nil, all servers are considered
+            # @param [String] on the name of the process servers on which
+            #   deployments should be started. If empty, all servers are considered
+            # @param [String] except_on the of the process servers on which deployments
+            #   should NOT be started.
             def syskit_start_all_deployments(
                 deployment_group: Syskit.conf.deployment_group,
                 on: [],

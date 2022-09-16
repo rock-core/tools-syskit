@@ -225,6 +225,9 @@ module Syskit
 
             # Enumerates all the deployments registered on self
             #
+            # @param [String] on the process server names to look for. If empty, all
+            #   process server names will be considered.
+            # @param [String] except_on the process server names to be ignored.
             # @yieldparam [ConfiguredDeployment]
             def each_configured_deployment(on: [], except_on: [])
                 return enum_for(__method__, on: on, except_on: except_on) unless block_given?
