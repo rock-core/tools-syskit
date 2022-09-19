@@ -338,6 +338,17 @@ module Syskit
 
             describe "Syskit start all deployments" do
                 attr_reader :group
+
+                def use_model_on_group(model, name, server)
+                    deployment_m = syskit_stub_deployment_model(model)
+                    @group.use_deployment(
+                        Hash[deployment_m => name],
+                        on: server,
+                        process_managers: @conf,
+                        loader: @loader
+                    )
+                end
+
                 before do
                     @app = Roby::Application.new
                     @conf = RobyApp::Configuration.new(@app)
@@ -349,27 +360,14 @@ module Syskit
                         "test-mng", Orocos::RubyTasks::ProcessManager.new(@loader), ""
                     )
                     @group = Syskit::Models::DeploymentGroup.new
-
                     model_m = Syskit::TaskContext.new_submodel(
                         orogen_model_name: "test::Task"
-                    )
-                    deployment_m = syskit_stub_deployment_model(model_m)
-                    @group.use_deployment(
-                        Hash[deployment_m => "task"],
-                        on: "localhost",
-                        process_managers: @conf,
-                        loader: @loader
                     )
                     second_model_m = Syskit::TaskContext.new_submodel(
                         name: "empty", orogen_model_name: "orogen_syskit_tests::Empty"
                     )
-                    second_deployment_m = syskit_stub_deployment_model(second_model_m)
-                    @group.use_deployment(
-                        Hash[second_deployment_m => "empty"],
-                        on: "test-mng",
-                        process_managers: @conf,
-                        loader: @loader
-                    )
+                    use_model_on_group(model_m, "task", "localhost")
+                    use_model_on_group(second_model_m, "empty", "test-mng")
                 end
 
                 it "starts all deployments" do
