@@ -84,6 +84,16 @@ module Syskit
             #   disabled altogether
             attr_accessor :log_rotation_period
 
+            # Whether Syskit should instruct a process server to kill all its
+            # processes on connection
+            #
+            # This is a recovery mechanism on Syskit crash. Cleaning up the
+            # process server allows to reuse it and recover quickly.
+            #
+            # It is false by default for backward compatibility, but you most
+            # likely want this
+            attr_predicate :kill_all_on_process_server_connection?, true
+
             # Whether the rotated logs should be uploaded to Syskit's local log dir
             #
             # This is considered experimental, and is disabled by default
@@ -122,6 +132,7 @@ module Syskit
                 @opportunistic_recovery_from_quarantine = true
                 @auto_restart_deployments_with_quarantines = false
                 @exception_transition_timeout = 20.0
+                @kill_all_on_process_server_connection = false
 
                 @log_rotation_period = nil
                 @log_upload = false
@@ -565,6 +576,7 @@ module Syskit
                     log_dir, Roby.app.time_tag,
                     { "parent" => Roby.app.app_metadata }
                 )
+                client.kill_all if kill_all_on_process_server_connection?
                 register_process_server(name, client, log_dir, host_id: host_id || name)
                 client
             end
