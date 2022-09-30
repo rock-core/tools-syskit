@@ -23,14 +23,37 @@ module Syskit
             tasks.fetch(name)
         end
 
+        def wait_running(*process_names)
+            resolved = {}
+            process_names.each do |p_name|
+                resolved[p_name] = {}
+                @processes.each_value do |p|
+                    resolved[p_name] = { iors: p.ior_mappings }
+                end
+            end
+            resolved
+        end
+
         def disconnect; end
     end
     class ProcessFixture
+
+        class ModelFixture
+            def extended_state_support?
+                false
+            end
+        end
+
         attr_reader :process_server
         attr_reader :name_mappings
+        attr_reader :ior_mappings
+        attr_reader :model
+        attr_reader :property_names
         def initialize(process_server)
             @process_server = process_server
             @name_mappings = Hash["task" => "mapped_task_name"]
+            @ior_mappings = { "mapped_task_name" => "IOR" }
+            @property_names = []
         end
 
         def get_mapped_name(name)
@@ -41,7 +64,14 @@ module Syskit
             process_server.killed_processes << self
         end
 
-        def resolve_all_tasks(*); end
+        def define_ior_mappings(ior_mappings)
+            @ior_mappings = ior_mappings
+        end
+
+        def resolve_all_tasks
+            process_server.tasks
+        end
+
     end
 
     describe Deployment do
@@ -327,6 +357,7 @@ module Syskit
                     @orocos_task = Orocos.allow_blocking_calls do
                         Orocos::RubyTasks::TaskContext.new "test"
                     end
+                    process.define_ior_mappings({"mapped_task_name" => "IOR"})
                 end
                 after do
                     orocos_task.dispose
@@ -450,7 +481,6 @@ module Syskit
                     task = add_deployed_task
                     task.orocos_task = orocos_task
                     process.should_receive(:resolve_all_tasks).once
-                           .with("mapped_task_name" => orocos_task)
                            .and_return("mapped_task_name" => orocos_task)
 
                     make_deployment_ready
