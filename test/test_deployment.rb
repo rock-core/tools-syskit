@@ -5,11 +5,11 @@ require "syskit/test/self"
 module Syskit
     class ProcessServerFixture
         attr_reader :loader
-        attr_reader :tasks
+        attr_reader :processes
         attr_reader :killed_processes
         def initialize
             @killed_processes = []
-            @tasks = {}
+            @processes = {}
             @loader = FlexMock.undefined
         end
 
@@ -20,7 +20,18 @@ module Syskit
         end
 
         def start(name, *)
-            tasks.fetch(name)
+            processes.fetch(name)
+        end
+
+        def wait_running(*process_names)
+            resolved = {}
+            process_names.each do |p_name|
+                resolved[p_name] = {}
+                @processes.each_value do |p|
+                    resolved[p_name] = { iors: p.ior_mappings }
+                end
+            end
+            resolved
         end
 
         def disconnect; end
@@ -28,9 +39,16 @@ module Syskit
     class ProcessFixture
         attr_reader :process_server
         attr_reader :name_mappings
+        attr_reader :ior_mappings
+        attr_reader :property_names
+        attr_accessor :tasks
+
         def initialize(process_server)
             @process_server = process_server
             @name_mappings = Hash["task" => "mapped_task_name"]
+            @ior_mappings = { "mapped_task_name" => "IOR" }
+            @property_names = []
+            @tasks = {}
         end
 
         def get_mapped_name(name)
@@ -41,7 +59,13 @@ module Syskit
             process_server.killed_processes << self
         end
 
-        def resolve_all_tasks(*); end
+        def define_ior_mappings(ior_mappings)
+            @ior_mappings = ior_mappings
+        end
+
+        def resolve_all_tasks
+            tasks
+        end
     end
 
     describe Deployment do
@@ -56,13 +80,13 @@ module Syskit
 
             @process_server = ProcessServerFixture.new
             @process = ProcessFixture.new(process_server)
-            process_server.tasks["mapped_task_name"] = process
             @log_dir = flexmock("log_dir")
             @process_server_config =
                 Syskit.conf.register_process_server("fixture", process_server, log_dir)
             @deployment_task = deployment_m
                                .new(process_name: "mapped_task_name", on: "fixture",
                                     name_mappings: { "task" => "mapped_task_name" })
+            process_server.processes["mapped_task_name"] = process
             plan.add_permanent_task(@deployment_task)
 
             flexmock(process_server)
@@ -323,10 +347,11 @@ module Syskit
             describe "monitoring for ready" do
                 attr_reader :orocos_task
                 before do
-                    process_server.should_receive(:start).and_return(process)
                     @orocos_task = Orocos.allow_blocking_calls do
                         Orocos::RubyTasks::TaskContext.new "test"
                     end
+                    process.tasks["test"] = @orocos_task
+                    process_server.should_receive(:start).and_return(process)
                 end
                 after do
                     orocos_task.dispose
@@ -335,26 +360,58 @@ module Syskit
                 it "does not emit ready if the process is not ready yet" do
                     expect_execution { deployment_task.start! }
                         .join_all_waiting_work(false).to_run
-                    sync = Concurrent::Event.new
-                    process.should_receive(:resolve_all_tasks)
-                           .and_return do
-                               sync.set
-                               nil
-                           end
-                    sync.wait
-                    expect_execution { sync.wait }
+                    client_mock = flexmock(process_server_config.client)
+                    client_mock
+                        .should_receive(:wait_running)
+                        .and_return({})
+                    expect_execution
                         .join_all_waiting_work(false)
                         .to { not_emit deployment_task.ready_event }
                 end
 
-                it "is interrupted by the stop command" do
+                it "does not try resolving the task handles when resolve all" \
+                   "tasks raises an exception" do
+                    flexmock(process)
+                        .should_receive(:resolve_all_tasks)
+                        .and_raise(Orocos::IORNotRegisteredError, "some error")
                     expect_execution do
                         deployment_task.start!
-                        deployment_task.stop!
                     end.to do
-                        not_emit deployment_task.ready_event
-                        emit deployment_task.stop_event
+                        flexmock(execution_engine).should_receive(:promise).never
                     end
+                end
+
+                it "does not emit_failed the ready event when the asynchronous part of "\
+                   "the ready codepath is interrupted by the stop command" do
+                    expect_execution { deployment_task.start! }
+                        .join_all_waiting_work(false)
+                        .to { emit deployment_task.start_event }
+
+                    # Use a barrier to make sure we do the ready event
+                    # processing after we actually stopped the deployment
+                    barrier = Concurrent::CyclicBarrier.new(2)
+                    flexmock(deployment_task)
+                        .should_receive(:resolve_remote_task_handles)
+                        .and_return do
+                            barrier.wait
+                            raise "fail the remote calls"
+                        end
+
+                    # Wait for the deployment ready codepath to reach the barrier
+                    expect_execution.join_all_waiting_work(false).to do
+                        achieve { barrier.number_waiting == 1 }
+                    end
+
+                    plan.unmark_permanent_task(deployment_task)
+                    expect_execution { deployment_task.stop! }
+                        .join_all_waiting_work(false)
+                        .to do
+                            not_emit deployment_task.ready_event
+                            emit deployment_task.stop_event
+                        end
+
+                    barrier.wait
+                    expect_execution.to_run
                 end
 
                 def make_deployment_ready
@@ -381,34 +438,13 @@ module Syskit
                 end
 
                 it "polls for process readiness" do
-                    sync = Concurrent::Event.new
-                    process.should_receive(:resolve_all_tasks)
-                           .and_return do
-                        if !sync.set?
-                            sync.set
-                            nil
-                        else Hash["mapped_task_name" => orocos_task]
-                        end
-                    end
-
                     expect_execution { deployment_task.start! }
                         .join_all_waiting_work(false).to_run
-                    sync.wait
-                    expect_execution { sync.wait }
+                    expect_execution
+                        .poll { Syskit::Runtime.update_deployment_states(plan) }
                         .to { emit deployment_task.ready_event }
                 end
-                it "fails the ready event if the ready event monitor raises" do
-                    expect_execution do
-                        process.should_receive(:resolve_all_tasks)
-                               .and_raise(RuntimeError.new("some message"))
-                        deployment_task.start!
-                    end.to do
-                        have_error_matching(
-                            Roby::EmissionFailed
-                            .match.with_origin(deployment_task.ready_event)
-                        )
-                    end
-                end
+
                 it "emits ready when the process is ready" do
                     make_deployment_ready
                     assert deployment_task.ready?
@@ -450,7 +486,6 @@ module Syskit
                     task = add_deployed_task
                     task.orocos_task = orocos_task
                     process.should_receive(:resolve_all_tasks).once
-                           .with("mapped_task_name" => orocos_task)
                            .and_return("mapped_task_name" => orocos_task)
 
                     make_deployment_ready
@@ -694,7 +729,7 @@ module Syskit
             def create_deployment(host_id, name: flexmock)
                 process_server = ProcessServerFixture.new
                 process = ProcessFixture.new(process_server)
-                process_server.tasks["mapped_task_name"] = process
+                process_server.processes["mapped_task_name"] = process
                 log_dir = flexmock("log_dir")
                 process_server_config =
                     Syskit.conf.register_process_server(name, process_server, log_dir, host_id: host_id)

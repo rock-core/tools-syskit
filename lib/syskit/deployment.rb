@@ -468,16 +468,6 @@ module Syskit
             end
         end
 
-        on :start do |_event|
-            handles_from_plan = {}
-            each_parent_object(Roby::TaskStructure::ExecutionAgent) do |task|
-                if orocos_task = task.orocos_task
-                    handles_from_plan[task.orocos_name] = orocos_task
-                end
-            end
-            schedule_ready_event_monitor(handles_from_plan)
-        end
-
         # @api private
         #
         # Event used to quit the ready monitor started by
@@ -487,49 +477,58 @@ module Syskit
         attr_reader :quit_ready_event_monitor
 
         # @api private
+        # This schedules an asynchronous process to connect to the tasks before
+        # ready is emitted. I.e. the process is not ready after the method returns.
         #
-        # Schedule a promise to resolve the task handles
-        #
-        # It will reschedule itself until the process is ready, and will
-        # emit the ready event when it happens
-        def schedule_ready_event_monitor(
-            handles_from_plan, ready_polling_period: self.ready_polling_period
-        )
-            distance_to_syskit = self.distance_to_syskit
-            promise = execution_engine.promise(description: "#{self}:ready_event_monitor") do
-                resolve_remote_task_handles(handles_from_plan)
+        # @param [{String=>String}] ior_mappings the mappings of the form
+        #   { task_name => ior }. This is necessary because the Syskit remote process has
+        #   no information about the IORs until now.
+        def update_remote_tasks(ior_mappings)
+            orocos_process.define_ior_mappings(ior_mappings)
+            begin
+                remote_tasks = orocos_process.resolve_all_tasks
+            rescue Orocos::IORNotRegisteredError, ArgumentError => e
+                ready_event.emit_failed(e)
+                return
             end
-            promise.on_success(description: "#{self}#schedule_ready_event_monitor#emit") do |remote_tasks|
-                if running? && !finishing? && remote_tasks
-                    @remote_task_handles = remote_tasks
+
+            promise = execution_engine.promise(
+                description: "#{self}#update_remote_tasks#resolve handles"
+            ) do
+                resolve_remote_task_handles(remote_tasks)
+            end
+            promise.on_success(
+                description: "#{self}#update_remote_tasks#success"
+            ) do |remote_task_handles|
+                if running? && !finishing?
+                    @remote_task_handles = remote_task_handles
                     ready_event.emit
                 end
             end
             promise.on_error(description: "#{self}#emit_failed") do |reason|
-                ready_event.emit_failed(reason) if !finishing? || !finished?
+                ready_event.emit_failed(reason) unless finishing? || finished?
             end
+            ready_event.pending([])
             ready_event.achieve_asynchronously(
                 promise, emit_on_success: false, on_failure: :nothing
             )
         end
 
-        def resolve_remote_task_handles(
-            handles_from_plan, ready_polling_period: self.ready_polling_period
-        )
-            until (handles = orocos_process.resolve_all_tasks(handles_from_plan))
-                return if quit_ready_event_monitor.set?
+        def resolve_remote_task_handles(remote_tasks)
+            return if quit_ready_event_monitor.set?
 
-                sleep ready_polling_period
-            end
-
-            handles.transform_values do |remote_task|
-                state_reader, state_getter = create_state_access(remote_task, distance: distance_to_syskit)
+            remote_tasks.transform_values do |remote_task|
+                state_reader, state_getter =
+                    create_state_access(remote_task, distance: distance_to_syskit)
                 properties = remote_task.property_names.map do |p_name|
                     p = remote_task.raw_property(p_name)
                     [p, p.raw_read.freeze]
                 end
                 current_configuration = CurrentTaskConfiguration.new(nil, [], Set.new)
-                RemoteTaskHandles.new(remote_task, state_reader, state_getter, properties, false, current_configuration)
+                RemoteTaskHandles.new(
+                    remote_task, state_reader, state_getter,
+                    properties, false, current_configuration
+                )
             end
         end
 

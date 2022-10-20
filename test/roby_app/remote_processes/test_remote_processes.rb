@@ -97,19 +97,18 @@ describe Syskit::RobyApp::RemoteProcesses do
             start_and_connect_to_server
         end
 
-        it "can start a process on the server synchronously" do
+        it "can start a process on the server" do
             process = client.start(
                 "syskit_tests_empty", "syskit_tests_empty",
                 { "syskit_tests_empty" => "syskit_tests_empty" },
-                wait: true, oro_logfile: nil, output: "/dev/null"
+                oro_logfile: nil, output: "/dev/null"
             )
             assert process.alive?
-            assert(Orocos.allow_blocking_calls { Orocos.get("syskit_tests_empty") })
         end
 
         it "raises if the deployment does not exist on the remote server" do
             assert_raises(OroGen::DeploymentModelNotFound) do
-                client.start "bla", "bla", Hash["sink" => "test"], wait: true
+                client.start "bla", "bla", Hash["sink" => "test"]
             end
         end
 
@@ -128,9 +127,117 @@ describe Syskit::RobyApp::RemoteProcesses do
             root_loader.register_deployment_model(deployment)
             process = client.start(
                 "syskit_tests_empty", "syskit_tests_empty", {},
-                wait: true, oro_logfile: nil, output: "/dev/null"
+                oro_logfile: nil, output: "/dev/null"
             )
             assert_same deployment, process.model
+        end
+    end
+
+    describe "waits for the process to be running" do
+        before do
+            start_and_connect_to_server
+        end
+
+        it "returns a hash with information about a process and its tasks" do
+            client.start(
+                "syskit_tests_empty", "syskit_tests_empty",
+                { "syskit_tests_empty" => "syskit_tests_empty" },
+                oro_logfile: nil, output: "/dev/null"
+            )
+            result = nil
+            loop do
+                result = client.wait_running("syskit_tests_empty")
+                break if result["syskit_tests_empty"]&.key?(:iors)
+            end
+
+            assert_match(
+                /^IOR/,
+                result["syskit_tests_empty"][:iors]["syskit_tests_empty"]
+            )
+        end
+
+        it "returns a hash without any info when the process didnt get its tasks ior" do
+            client.start(
+                "syskit_tests_empty", "syskit_tests_empty",
+                { "syskit_tests_empty" => "syskit_tests_empty" },
+                oro_logfile: nil, output: "/dev/null"
+            )
+            result = client.wait_running("syskit_tests_empty")
+            assert_equal({ "syskit_tests_empty" => nil }, result)
+        end
+
+        it "reports a Orocos::NotFound error specific to a process" do
+            not_found_error_message = "syskit_tests_empty was started but crashed"
+            flexmock(Orocos::ProcessBase)
+                .new_instances
+                .should_receive(:wait_running)
+                .and_raise(Orocos::NotFound, not_found_error_message)
+
+            client.start(
+                "syskit_tests_empty", "syskit_tests_empty",
+                { "syskit_tests_empty" => "syskit_tests_empty" },
+                oro_logfile: nil, output: "/dev/null"
+            )
+            result = client.wait_running("syskit_tests_empty")
+            expected = {
+                "syskit_tests_empty" => { error: not_found_error_message }
+            }
+            assert_equal(expected, result)
+        end
+
+        it "reports a invalid ior message error specific to a process" do
+            ior_invalid_error_message =
+                "the ior message doesnt contain information about the following tasks:" \
+                " [\"syskit_tests_empty_Logger\"]"
+            flexmock(Orocos::ProcessBase)
+                .new_instances
+                .should_receive(:wait_running)
+                .and_raise(Orocos::InvalidIORMessage, ior_invalid_error_message)
+
+            client.start(
+                "syskit_tests_empty", "syskit_tests_empty",
+                { "syskit_tests_empty" => "syskit_tests_empty" },
+                oro_logfile: nil, output: "/dev/null"
+            )
+            result = client.wait_running("syskit_tests_empty")
+            expected = {
+                "syskit_tests_empty" => { error: ior_invalid_error_message }
+            }
+            assert_equal(expected, result)
+        end
+
+        it "reports when the process name is not present in the processes' list" do
+            not_present_error =
+                "no process named another_syskit_tests_empty to wait running"
+            client.start(
+                "syskit_tests_empty", "syskit_tests_empty",
+                { "syskit_tests_empty" => "syskit_tests_empty" },
+                oro_logfile: nil, output: "/dev/null"
+            )
+            result = client.wait_running("another_syskit_tests_empty")
+            expected = {
+                "another_syskit_tests_empty" => { error: not_present_error }
+            }
+            assert_equal(expected, result)
+        end
+
+        it "reports when a runtime error occured" do
+            runtime_error_message = "some runtime error occured"
+            flexmock(Orocos::ProcessBase)
+                .new_instances
+                .should_receive(:wait_running)
+                .and_raise(RuntimeError, runtime_error_message)
+
+            client.start(
+                "syskit_tests_empty", "syskit_tests_empty",
+                { "syskit_tests_empty" => "syskit_tests_empty" },
+                oro_logfile: nil, output: "/dev/null"
+            )
+            result = client.wait_running("syskit_tests_empty")
+            expected = {
+                "syskit_tests_empty" => { error: runtime_error_message }
+            }
+            assert_equal(expected, result)
         end
     end
 
@@ -141,7 +248,7 @@ describe Syskit::RobyApp::RemoteProcesses do
             @process = client.start(
                 "syskit_tests_empty", "syskit_tests_empty",
                 { "syskit_tests_empty" => "syskit_tests_empty" },
-                wait: true, oro_logfile: nil, output: "/dev/null"
+                oro_logfile: nil, output: "/dev/null"
             )
         end
 
@@ -170,7 +277,7 @@ describe Syskit::RobyApp::RemoteProcesses do
                     "syskit_tests_empty_#{i}", "syskit_tests_empty",
                     { "syskit_tests_empty" => "syskit_tests_empty_#{i}",
                       "syskit_tests_empty_Logger" => "syskit_tests_empty_#{i}_Logger" },
-                    wait: false, oro_logfile: nil, output: "/dev/null"
+                    oro_logfile: nil, output: "/dev/null"
                 )
             end
         end

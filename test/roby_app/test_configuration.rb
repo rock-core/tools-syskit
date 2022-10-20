@@ -117,25 +117,6 @@ describe Syskit::RobyApp::Configuration do
                 process = client.start "deployment", deployment_m.orogen_model
                 assert_equal 20, process.pid
             end
-
-            it "allows to specify the name service used to resolve the process' task" do
-                process_server_start
-
-                name_service = Orocos::Local::NameService.new
-                name_service.register ruby_task, "resolved-remote-name"
-                client = @conf.connect_to_orocos_process_server(
-                    "test-remote", "localhost",
-                    port: process_server_port,
-                    name_service: name_service
-                )
-
-                process = client.start(
-                    "deployment", deployment_m.orogen_model,
-                    { "name" => "resolved-remote-name" }
-                )
-                tasks = process.resolve_all_tasks
-                assert_equal({ "resolved-remote-name" => ruby_task }, tasks)
-            end
         end
 
         def process_server_create

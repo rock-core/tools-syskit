@@ -419,6 +419,34 @@ module Syskit
                         state = log_upload_state
                         socket.write RET_YES
                         socket.write Marshal.dump(state)
+                    elsif cmd_code == COMMAND_WAIT_RUNNING
+                        result = {}
+                        process_names = Marshal.load(socket)
+                        process_names.each do |p_name|
+                            if (p = @processes[p_name])
+                                begin
+                                    iors = p.wait_running(0)
+                                    result[p_name] = ({ iors: iors } if iors)
+                                rescue Orocos::NotFound => e
+                                    Server.warn(e.message)
+                                    result[p_name] = { error: e.message }
+                                rescue Orocos::InvalidIORMessage => e
+                                    Server.warn(e.message)
+                                    result[p_name] = { error: e.message }
+                                end
+                            else
+                                Server.warn("no process named #{p_name} to wait running")
+                                result[p_name] = {
+                                    error: "no process named #{p_name} to wait running"
+                                }
+                            end
+                        rescue RuntimeError => e
+                            process_names.each do |process_name|
+                                result[process_name] ||= { error: e.message }
+                            end
+                        end
+                        socket.write(RET_YES)
+                        Marshal.dump(result, socket)
                     end
 
                     true

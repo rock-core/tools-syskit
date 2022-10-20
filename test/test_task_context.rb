@@ -1750,6 +1750,7 @@ module Syskit
                             @remote_test_property = task.orocos_task.raw_property("test")
                             @remote_test_property.write(0.2)
                         end
+                        @property.update_remote_value(0.2)
                     end
                     def mock_remote_property
                         property.remote_property = @remote_test_property
@@ -1830,10 +1831,10 @@ module Syskit
                         @property = task.test_property
                         Orocos.allow_blocking_calls do
                             @remote_test_property = task.orocos_task.raw_property("test")
-                            @test_property_initial_value = @remote_test_property.read
                             @remote_test_property.write(0.2)
                         end
                     end
+
                     def mock_remote_property
                         property.remote_property = @remote_test_property
                         flexmock(@remote_test_property)
@@ -1922,6 +1923,7 @@ module Syskit
                         @remote_test_property = task.orocos_task.raw_property("test")
                         remote_test_property.write(0.2)
                     end
+                    @stub_property.update_remote_value(0.2)
                     @guard = syskit_guard_against_start_and_configure
                 end
                 def mock_remote_property
@@ -1988,7 +1990,7 @@ module Syskit
                     end
                     promises.each(&:execute)
                     execution_engine.join_all_waiting_work
-                    assert_equal (0...100).to_a, finished
+                    assert_equal (0...100).to_a, finished.sort
                 end
 
                 it "is serialized with the initial commit in task setup" do

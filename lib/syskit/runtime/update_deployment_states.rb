@@ -10,6 +10,11 @@ module Syskit
             # #cleanup_dead_connections, thus avoiding to disconnect connections
             # between already-dead processes
 
+            handle_dead_deployments(plan)
+            trigger_ready_deployments(plan)
+        end
+
+        def self.handle_dead_deployments(plan)
             all_dead_deployments = Set.new
             server_config = Syskit.conf.each_process_server_config.to_a
             server_config.each do |config|
@@ -33,6 +38,27 @@ module Syskit
             end
         end
 
+        def self.trigger_ready_deployments(plan)
+            not_ready_deployments = find_all_not_ready_deployments(plan)
+            not_ready_deployments.each do |process_server_name, deployments|
+                server_config = Syskit.conf.process_server_config_for(process_server_name)
+                wait_result = server_config.client.wait_running(
+                    *deployments.map { |d| d.arguments[:process_name] }
+                )
+                wait_result.each do |process_name, result|
+                    next unless result
+
+                    deployment = deployments.find { |d| d.process_name == process_name }
+
+                    if result[:error]
+                        deployment.ready_event.emit_failed(result[:error])
+                    elsif result[:iors]
+                        deployment.update_remote_tasks(result[:iors])
+                    end
+                end
+            end
+        end
+
         def self.abort_process_server(plan, process_server)
             client = process_server.client
             # Before we can terminate Syskit, we need to abort all
@@ -41,6 +67,20 @@ module Syskit
                               .find_all { |t| t.arguments[:on] == process_server.name }
             deployments.each { |t| t.aborted_event.emit if !t.pending? && !t.finished? }
             Syskit.conf.remove_process_server(process_server.name)
+        end
+
+        def self.find_all_not_ready_deployments(plan)
+            # Must also check if the deployment task is finishing in case it is
+            # stopped before becoming ready and if the ready event is pending,
+            # which would mean that it the deployment is already updating its
+            # remote tasks
+            valid_running_deployment_tasks =
+                plan.find_tasks(Syskit::Deployment)
+                    .running
+                    .find_all do |dep_task|
+                    !dep_task.ready? && !dep_task.finishing? && !dep_task.ready_event.pending?
+                end
+            valid_running_deployment_tasks.group_by { |t| t.arguments[:on] }
         end
     end
 end

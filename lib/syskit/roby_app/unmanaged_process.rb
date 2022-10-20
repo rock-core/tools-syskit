@@ -82,11 +82,13 @@ module Syskit
             #   process is expected to be running
             def initialize(process_manager, name, model, host_id: "unmanaged_process")
                 @process_manager = process_manager
-                @deployed_tasks = nil
+                @deployed_tasks = {}
                 @name_service = process_manager.name_service
                 @host_id = host_id
                 @quitting = Concurrent::Event.new
                 super(name, model)
+
+                @default_logger = false
             end
 
             # "Starts" this process
@@ -97,7 +99,29 @@ module Syskit
             def spawn(_options = {})
                 @spawn_start = Time.now
                 @last_warning = Time.now
-                @deployed_tasks = nil
+                @deployed_tasks = {}
+
+                @iors_future = Concurrent::Promises.future do
+                    name_service_get_all_tasks
+                end
+            end
+
+            # Calls the name service until all of the tasks are resolved. Ignores whenever
+            # a Orocos::NotFound exception is raised.
+            #
+            # @raises RuntimeError
+            # @raises Orocos::CORBA::ComError
+            # @return [Hash<String, Orocos::TaskContext>]
+            def name_service_get_all_tasks
+                result = {}
+                until task_names.size == result.size
+                    task_names.each do |name|
+                        result[name] = name_service.get(name)
+                    rescue Orocos::NotFound
+                        next
+                    end
+                end
+                result
             end
 
             # Verifies that the monitor thread is alive and well, or that the
@@ -110,21 +134,17 @@ module Syskit
                 monitor_thread.join if monitor_thread && !monitor_thread.alive?
             end
 
-            def resolve_all_tasks(cache = {})
-                resolved = model.task_activities.map do |t|
-                    [t.name, (cache[t.name] ||= name_service.get(t.name))]
-                end
-                @deployed_tasks = Hash[resolved]
-                @monitor_thread = Thread.new do
-                    monitor
-                end
+            # Returns the deployed tasks.The deployed tasks are resolved on wait_running,
+            # which is called by `update_deployment_states.rb` when making the deployment
+            # ready.
+            #
+            # @returns [Hash<String, Orocos::TaskContext>]
+            def resolve_all_tasks
                 @deployed_tasks
-            rescue Orocos::NotFound, Orocos::ComError => e
-                if Time.now - @last_warning > 5
-                    Syskit.warn "waiting for unmanaged task: #{e}"
-                    @last_warning = Time.now
-                end
-                nil
+            end
+
+            def define_ior_mappings(ior_mappings)
+                @ior_mappings = ior_mappings
             end
 
             # Returns the component object for the given name
@@ -133,12 +153,24 @@ module Syskit
             # @raise [ArgumentError] if the name is not the name of a task on
             #   self
             def task(task_name)
-                raise "process not running yet" unless deployed_tasks
-                unless (task = deployed_tasks[task_name])
-                    raise ArgumentError, "#{task_name} is not a task of #{self}"
-                end
+                raise "process not running yet" unless ready?
 
-                task
+                @deployed_tasks.fetch(task_name)
+            end
+
+            # Waits until all the tasks are resolved or the timeout is due, registering
+            # the IORs of the resolved tasks and starting the monitor.
+            #
+            # @raises RuntimeError
+            # @raises Orocos::CORBA::ComError
+            # @return [Hash<String, String>] the ior mappings
+            def wait_running(timeout = nil)
+                return unless (tasks = @iors_future.value!(timeout))
+
+                @ior_mappings = tasks.transform_values(&:ior)
+                @deployed_tasks = tasks
+                @monitor_thread = Thread.new { monitor(tasks) }
+                @ior_mappings
             end
 
             # @api private
@@ -168,10 +200,11 @@ module Syskit
             # Implementation of the monitor thread, i.e. the thread that will
             # detect if the deployment disappears
             #
+            # @param [Hash<String, Orocos::TaskContext>] tasks map of task name to task
             # @param [Float] period polling period in seconds
-            def monitor(period: 0.1)
+            def monitor(tasks, period: 0.1)
                 until quitting?
-                    deployed_tasks.each_value do |task|
+                    tasks.each_value do |task|
                         task.ping
                     rescue Orocos::ComError
                         return # rubocop:disable Lint/NonLocalExitFromIterator
@@ -195,7 +228,7 @@ module Syskit
 
             # Returns true if the tasks have been successfully discovered
             def ready?
-                deployed_tasks
+                @iors_future.resolved?
             end
 
             # True if the process is running. This is an alias for running?

@@ -314,6 +314,14 @@ module Syskit
                     Marshal.load(socket)
                 end
 
+                def wait_running(*process_names)
+                    socket.write(COMMAND_WAIT_RUNNING)
+                    Marshal.dump(process_names, socket)
+                    wait_for_answer do
+                        return Marshal.load(socket)
+                    end
+                end
+
                 def join(deployment_name)
                     process = processes[deployment_name]
                     return unless process
