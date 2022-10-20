@@ -29,6 +29,7 @@ module Syskit
                     @process_client = process_client
                     @pid = pid
                     @alive = true
+                    @ior_mappings = {}
                     super(name, deployment_model)
                 end
 
@@ -64,20 +65,12 @@ module Syskit
                     @alive
                 end
 
-                # Resolve all tasks within the deployment
-                #
-                # A deployment is usually considered ready when all its tasks can be
-                # resolved successfully
-                def resolve_all_tasks(cache = {})
-                    Orocos::Process.resolve_all_tasks(self, cache) do |task_name|
-                        task(task_name)
-                    end
+                def resolve_all_tasks
+                    Orocos::Process.resolve_all_tasks(self)
                 end
 
-                # Waits for the deployment to be ready. +timeout+ is the number of
-                # milliseconds we should wait. If it is nil, will wait indefinitely
-                def wait_running(timeout = nil)
-                    Orocos::Process.wait_running(self, timeout)
+                def define_ior_mappings(mappings)
+                    @ior_mappings = mappings
                 end
             end
         end
