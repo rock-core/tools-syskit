@@ -152,6 +152,24 @@ module Syskit
                 dead_processes
             end
 
+            def wait_running(*process_names)
+                result = {}
+                process_names.each do |name|
+                    if (p = processes[name])
+                        begin
+                            ior_resolution = p.wait_running(0)
+                            result[name] = { iors: ior_resolution }
+                        rescue Orocos::NotFound, Orocos::CORBA::ComError => e
+                            result[name] = { error: e.message }
+                        end
+                    else
+                        result[name] =
+                            { error: "#{name} was not found of the processes list" }
+                    end
+                end
+                result
+            end
+
             # Requests to stop the given deployment
             #
             # The call does not block until the process has quit. You will have to
