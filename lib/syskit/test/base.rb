@@ -4,7 +4,6 @@ require "roby/test/common"
 
 require "syskit"
 require "roby/schedulers/temporal"
-require "orocos/ruby_process_server"
 
 module Syskit
     module Test
@@ -15,7 +14,7 @@ module Syskit
         module Base
             def setup
                 @task_stubs = []
-                @old_loglevel = Orocos.logger.level
+                @old_loglevel = Runkit.logger.level
 
                 super
             end
@@ -39,7 +38,7 @@ module Syskit
 
                 @task_stubs.each(&:dispose)
             ensure
-                Orocos.logger.level = @old_loglevel if @old_loglevel
+                Runkit.logger.level = @old_loglevel if @old_loglevel
                 if teardown_failure
                     raise teardown_failure
                 end

@@ -124,7 +124,7 @@ module Syskit
         # that it represents
         #
         # @param [Syskit::Port] exported_port the port to be mapped
-        # @return [Orocos::Port] the actual port
+        # @return [Runkit::Port] the actual port
         def self_port_to_orocos_port(exported_port)
             self_port_to_actual_port(exported_port).to_orocos_port
         end
@@ -209,7 +209,7 @@ module Syskit
         #
         # It adds the task to {Flows::DataFlow#modified_tasks} whenever the
         # DataFlow relations is changed in a way that could require changing
-        # the underlying Orocos components connections.
+        # the underlying Runkit components connections.
         def dataflow_change_handler(_child, mappings) # :nodoc:
             # The case where 'child' is already a task context is already
             # taken care of by

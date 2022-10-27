@@ -151,7 +151,7 @@ module Syskit
                 attr_reader :name_service
                 before do
                     @task_model = Syskit::TaskContext.new_submodel
-                    @name_service = Orocos::Local::NameService.new
+                    @name_service = Runkit::Local::NameService.new
                     Syskit.conf.register_process_server(
                         "new_unmanaged_tasks",
                         UnmanagedTasksManager.new(name_service: name_service)
@@ -182,8 +182,8 @@ module Syskit
             def create_unmanaged_task
                 raise ArgumentError, "unmanaged task already created" if @unmanaged_task
 
-                @unmanaged_task = Orocos.allow_blocking_calls do
-                    Orocos::RubyTasks::TaskContext.from_orogen_model(
+                @unmanaged_task = Runkit.allow_blocking_calls do
+                    Runkit::RubyTasks::TaskContext.from_orogen_model(
                         "unmanaged_deployment_test", task_model.orogen_model
                     )
                 end

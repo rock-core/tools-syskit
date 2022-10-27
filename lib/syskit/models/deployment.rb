@@ -8,7 +8,7 @@ module Syskit
             include Models::OrogenBase
 
             # The options that should be passed when starting the underlying
-            # Orocos process.
+            # Runkit process.
             #
             # @key_name option_name
             # @return [Hash<String,String>]
@@ -29,7 +29,7 @@ module Syskit
                 end
             end
 
-            # [Orocos::Generation::Deployment] the deployment model
+            # [Runkit::Generation::Deployment] the deployment model
             attr_accessor :orogen_model
 
             # Returns the name of this particular deployment instance
@@ -84,7 +84,7 @@ module Syskit
                 model
             end
 
-            # An array of Orocos::Generation::TaskDeployment instances that
+            # An array of Runkit::Generation::TaskDeployment instances that
             # represent the tasks available in this deployment. Associated plan
             # objects can be instanciated with #task
             def tasks
@@ -115,7 +115,7 @@ module Syskit
 
             # Enumerates the deployed tasks this deployment contains
             #
-            # @yieldparam [Orocos::Generation::DeployedTask] deployed_task
+            # @yieldparam [Runkit::Generation::DeployedTask] deployed_task
             # @return [void]
             def each_orogen_deployed_task_context_model(&block)
                 orogen_model.task_activities.each(&block)

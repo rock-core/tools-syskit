@@ -274,7 +274,7 @@ module Syskit
                 super(service_model)
             end
 
-            # [Orocos::Spec::TaskContext] the object describing the data
+            # [Runkit::Spec::TaskContext] the object describing the data
             # service's interface
             attr_reader :orogen_model
 

@@ -14,9 +14,9 @@ module Syskit
             include InstanceRequirementPlanningHandler::Options
 
             # Whether (false) the stub methods should resolve ruby tasks as ruby
-            # tasks (i.e. Orocos::RubyTasks::TaskContext, the default), or
+            # tasks (i.e. Runkit::RubyTasks::TaskContext, the default), or
             # (true) as something that looks more like a remote task
-            # (Orocos::RubyTasks::RemoteTaskContext)
+            # (Runkit::RubyTasks::RemoteTaskContext)
             #
             # The latter is used in Syskit's own test suite to ensure that we
             # don't call remote methods from within Syskit's own event loop
@@ -62,13 +62,13 @@ module Syskit
             # Helper used to resolve writer objects
             def resolve_orocos_writer(writer, **policy)
                 if writer.respond_to?(:to_orocos_port)
-                    writer = Orocos.allow_blocking_calls do
+                    writer = Runkit.allow_blocking_calls do
                         writer.to_orocos_port
                     end
                 end
                 # We can write on LocalInputPort, LocalOutputPort and InputPort
                 if writer.respond_to?(:writer)
-                    writer = Orocos.allow_blocking_calls do
+                    writer = Runkit.allow_blocking_calls do
                         writer.writer(**policy)
                     end
                 elsif !writer.respond_to?(:write)
@@ -95,13 +95,13 @@ module Syskit
             # Helper used to resolve writer objects
             def resolve_orocos_reader(reader, **policy)
                 if reader.respond_to?(:to_orocos_port)
-                    reader = Orocos.allow_blocking_calls do
+                    reader = Runkit.allow_blocking_calls do
                         reader.to_orocos_port
                     end
                 end
                 # We can write on LocalInputPort, LocalOutputPort and InputPort
                 if reader.respond_to?(:reader)
-                    reader = Orocos.allow_blocking_calls do
+                    reader = Runkit.allow_blocking_calls do
                         reader.reader(**policy)
                     end
                 elsif !reader.respond_to?(:read)
@@ -557,7 +557,7 @@ module Syskit
                     has_missing_states = false
                     pending.delete_if do |t|
                         t.freeze_delayed_arguments
-                        should_setup = Orocos.allow_blocking_calls do
+                        should_setup = Runkit.allow_blocking_calls do
                             if !t.kind_of?(Syskit::TaskContext)
                                 !t.setup? && t.ready_for_setup?
                             elsif (state = t.read_current_state)

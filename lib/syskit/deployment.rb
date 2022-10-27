@@ -320,7 +320,7 @@ module Syskit
         # Create the spawn options needed to start this deployment for the
         # given configuration
         #
-        # @return [Orocos::Process::CommandLine]
+        # @return [Runkit::Process::CommandLine]
         def self.command_line(
             name, name_mappings,
             working_directory: Roby.app.log_dir,
@@ -340,7 +340,7 @@ module Syskit
                 end
             end
 
-            process = Orocos::Process.new(
+            process = Runkit::Process.new(
                 name, orogen_model,
                 loader: loader,
                 name_mappings: name_mappings
@@ -491,7 +491,7 @@ module Syskit
             orocos_process.define_ior_mappings(ior_mappings)
             begin
                 remote_tasks = orocos_process.resolve_all_tasks
-            rescue Orocos::IORNotRegisteredError, ArgumentError => e
+            rescue Runkit::IORNotRegisteredError, ArgumentError => e
                 ready_event.emit_failed(e)
                 return
             end
@@ -755,7 +755,7 @@ module Syskit
                     type: :buffer, size: STATE_READER_BUFFER_SIZE, init: true,
                     distance: distance
                 )
-                state_reader.extend Orocos::TaskContext::StateReader
+                state_reader.extend Runkit::TaskContext::StateReader
                 state_reader.state_symbols = remote_task.state_symbols
             else
                 state_getter.start
@@ -829,7 +829,7 @@ module Syskit
                         if remote_task.handle.rtt_state == :STOPPED
                             remote_task.handle.cleanup(false)
                         end
-                    rescue Orocos::ComError
+                    rescue Runkit::ComError
                         # Assume that the process is killed as it is not reachable
                     end
                 end
@@ -847,7 +847,7 @@ module Syskit
                 ready_to_die!
                 begin
                     orocos_process.kill(false, cleanup: false, hard: hard)
-                rescue Orocos::ComError
+                rescue Runkit::ComError
                     # The underlying process server cannot be reached. Just emit
                     # failed ourselves
                     dead!(nil)

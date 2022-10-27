@@ -21,11 +21,11 @@ module Syskit
             #
             # Get an orocos reader from a syskit port
             def self.resolve_orocos_reader_from_port(port, **policy)
-                orocos_port = Orocos.allow_blocking_calls { port.to_orocos_port }
+                orocos_port = Runkit.allow_blocking_calls { port.to_orocos_port }
                 if orocos_port.respond_to?(:read_new)
                     orocos_port # local input port
                 else
-                    Orocos.allow_blocking_calls { orocos_port.reader(**policy) }
+                    Runkit.allow_blocking_calls { orocos_port.reader(**policy) }
                 end
             end
 
@@ -33,7 +33,7 @@ module Syskit
             #
             # Get an orocos reader from a syskit port
             def self.resolve_orocos_reader_from_syskit_reader(reader)
-                Orocos.allow_blocking_calls do
+                Runkit.allow_blocking_calls do
                     reader.port.to_orocos_port.reader(**reader.policy)
                 end
             end

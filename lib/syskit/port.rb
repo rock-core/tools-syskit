@@ -82,7 +82,7 @@ module Syskit
         #
         # @raise [ArgumentError] if it is not possible (for instance, ports on
         #   InstanceRequirements are not associated with a component port)
-        # @return [Orocos::Port] the resolved port
+        # @return [Runkit::Port] the resolved port
         def to_orocos_port
             component_port = to_actual_port
             component_port.component.self_port_to_orocos_port(component_port)
@@ -314,7 +314,7 @@ module Syskit
 
             p = @execution_engine.promise(description: "disconnect #{self}") do
                 begin accessor.disconnect
-                rescue Orocos::ComError # rubocop:disable Lint/SuppressedException
+                rescue Runkit::ComError # rubocop:disable Lint/SuppressedException
                 end
             end
             p.on_success { @orocos_accessor = nil }.execute
@@ -353,7 +353,7 @@ module Syskit
 
         # The actual data reader itself
         #
-        # @return [Orocos::OutputReader]
+        # @return [Runkit::OutputReader]
         def reader
             @orocos_accessor
         end

@@ -1,7 +1,7 @@
 # frozen_string_literal: true
 
 require "optparse"
-require "orocos"
+require "runkit"
 require "syskit"
 require "syskit/roby_app"
 
@@ -226,9 +226,9 @@ module Syskit
                 Syskit.logger = ::Logger.new(STDOUT)
                 Syskit.logger.formatter = Roby.logger.formatter
                 Syskit.logger.level = ::Logger::DEBUG
-                Orocos.logger = ::Logger.new(STDOUT)
-                Orocos.logger.formatter = Roby.logger.formatter
-                Orocos.logger.level = ::Logger::DEBUG
+                Runkit.logger = ::Logger.new(STDOUT)
+                Runkit.logger.formatter = Roby.logger.formatter
+                Runkit.logger.level = ::Logger::DEBUG
             end
 
             Roby.display_exception do

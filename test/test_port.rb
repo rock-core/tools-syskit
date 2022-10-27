@@ -187,7 +187,7 @@ describe Syskit::InputWriter do
         port_writer = task.in_port.writer
         syskit_wait_ready(port_writer, component: task)
         assert_equal task.in_port, port_writer.resolved_port
-        assert_equal Orocos.allow_blocking_calls { task.orocos_task.port("in") },
+        assert_equal Runkit.allow_blocking_calls { task.orocos_task.port("in") },
                      port_writer.writer.port
     end
     it "waits for the underlying component to be configured if the port is dynamic" do
@@ -197,7 +197,7 @@ describe Syskit::InputWriter do
         @task_m.class_eval do
             def configure
                 super
-                Orocos.allow_blocking_calls do
+                Runkit.allow_blocking_calls do
                     orocos_task.create_input_port "in2", "/double"
                 end
             end
@@ -226,7 +226,7 @@ describe Syskit::InputWriter do
        "the port failed" do
         error = Class.new(RuntimeError)
         task = syskit_stub_deploy_and_configure(task_m)
-        in_port = Orocos.allow_blocking_calls { task.orocos_task.raw_port("in") }
+        in_port = Runkit.allow_blocking_calls { task.orocos_task.raw_port("in") }
         flexmock(task.orocos_task).should_receive(:raw_port)
                                   .with("in").once.and_return(in_port)
         flexmock(in_port).should_receive(:writer).once.and_raise(error)
@@ -256,7 +256,7 @@ describe Syskit::InputWriter do
 
         syskit_wait_ready(port_writer, component: task)
         assert_equal task.in_port, port_writer.resolved_port
-        assert_equal Orocos.allow_blocking_calls { task.orocos_task.port("in") },
+        assert_equal Runkit.allow_blocking_calls { task.orocos_task.port("in") },
                      port_writer.writer.port
     end
 
@@ -346,7 +346,7 @@ describe Syskit::OutputReader do
         port_reader = task.out_port.reader
         syskit_wait_ready(port_reader)
         assert_equal task.out_port, port_reader.resolved_port
-        assert_equal Orocos.allow_blocking_calls { task.orocos_task.port("out") },
+        assert_equal Runkit.allow_blocking_calls { task.orocos_task.port("out") },
                      port_reader.reader.port
     end
     it "waits for the underlying component to be configured if the port is dynamic" do
@@ -356,7 +356,7 @@ describe Syskit::OutputReader do
         @task_m.class_eval do
             def configure
                 super
-                Orocos.allow_blocking_calls do
+                Runkit.allow_blocking_calls do
                     orocos_task.create_output_port "out2", "/double"
                 end
             end
@@ -385,7 +385,7 @@ describe Syskit::OutputReader do
        "if creating the port failed" do
         error = Class.new(RuntimeError)
         task = syskit_stub_deploy_and_configure(task_m)
-        out_port = Orocos.allow_blocking_calls { task.orocos_task.raw_port("out") }
+        out_port = Runkit.allow_blocking_calls { task.orocos_task.raw_port("out") }
         flexmock(task.orocos_task).should_receive(:raw_port)
                                   .with("out").once.and_return(out_port)
         flexmock(out_port).should_receive(:reader).once.and_raise(error)
@@ -410,7 +410,7 @@ describe Syskit::OutputReader do
 
         syskit_wait_ready(port_reader, component: task)
         assert_equal task.out_port, port_reader.resolved_port
-        assert_equal Orocos.allow_blocking_calls { task.orocos_task.port("out") },
+        assert_equal Runkit.allow_blocking_calls { task.orocos_task.port("out") },
                      port_reader.reader.port
     end
 
@@ -418,7 +418,7 @@ describe Syskit::OutputReader do
         before do
             @task = syskit_stub_deploy_and_configure(task_m, remote_task: false)
             @port_reader = @task.out_port.reader
-            @orocos_port = Orocos.allow_blocking_calls do
+            @orocos_port = Runkit.allow_blocking_calls do
                 @task.orocos_task.raw_port("out")
             end
         end
@@ -470,7 +470,7 @@ describe Syskit::OutputReader do
         before do
             @task = syskit_stub_deploy_and_configure(task_m, remote_task: false)
             @port_reader = @task.out_port.reader
-            @orocos_port = Orocos.allow_blocking_calls do
+            @orocos_port = Runkit.allow_blocking_calls do
                 @task.orocos_task.raw_port("out")
             end
         end
@@ -522,7 +522,7 @@ describe Syskit::OutputReader do
         before do
             @task = syskit_stub_deploy_and_configure(task_m, remote_task: false)
             @port_reader = @task.out_port.reader
-            @orocos_port = Orocos.allow_blocking_calls do
+            @orocos_port = Runkit.allow_blocking_calls do
                 @task.orocos_task.raw_port("out")
             end
         end

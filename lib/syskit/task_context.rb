@@ -42,16 +42,16 @@ module Syskit
         # then override with the 'left_camera' section of the same file
         argument :conf, default: ["default"]
         # The name of the remote task context, i.e. the name under which it
-        # can be resolved by Orocos.name_service
+        # can be resolved by Runkit.name_service
         argument :orocos_name
         # Wether the task is set only for read operations
         argument :read_only, default: false
 
-        # [Orocos::TaskContext,Orocos::ROS::Node] the underlying remote task
+        # [Runkit::TaskContext,Runkit::ROS::Node] the underlying remote task
         # context object. It is set only when the task context's deployment
         # is running
         attr_reader :orocos_task
-        # [Orocos::Generation::TaskDeployment] the model of this deployment
+        # [Runkit::Generation::TaskDeployment] the model of this deployment
         attr_accessor :orogen_model
         # The current state for the orogen task. It is a symbol that
         # represents the state name (i.e. :RUNTIME_ERROR, :RUNNING, ...)
@@ -183,13 +183,13 @@ module Syskit
 
         # Value returned by TaskContext#distance_to when the tasks are in
         # the same process
-        D_SAME_PROCESS = Orocos::OutputPort::D_SAME_PROCESS
+        D_SAME_PROCESS = Runkit::OutputPort::D_SAME_PROCESS
         # Value returned by TaskContext#distance_to when the tasks are in
         # different processes, but on the same machine
-        D_SAME_HOST = Orocos::OutputPort::D_SAME_HOST
+        D_SAME_HOST = Runkit::OutputPort::D_SAME_HOST
         # Value returned by TaskContext#distance_to when the tasks are in
         # different processes localized on different machines
-        D_DIFFERENT_HOSTS = Orocos::OutputPort::D_DIFFERENT_HOSTS
+        D_DIFFERENT_HOSTS = Runkit::OutputPort::D_DIFFERENT_HOSTS
 
         # How "far" this process is from the Syskit process
         #
@@ -365,7 +365,7 @@ module Syskit
         def property(name)
             name = name.to_s
             unless (p = find_property(name))
-                raise Orocos::InterfaceObjectNotFound.new(self, name),
+                raise Runkit::InterfaceObjectNotFound.new(self, name),
                       "#{self} has no property called #{name}"
             end
 
@@ -551,7 +551,7 @@ module Syskit
 
         # The state reader object used to get state updates from the task
         #
-        # @return [Orocos::TaskContext::StateReader]
+        # @return [Runkit::TaskContext::StateReader]
         attr_reader :state_reader
 
         # @api private
@@ -712,7 +712,7 @@ module Syskit
 
         def normal_task_verify_configurable_state(state)
             configurable =
-                CONFIGURABLE_RTT_STATES.include?(state) ||
+                CONFIGURABLE_TOPLEVEL_STATES.include?(state) ||
                 orocos_task.exception_state?(state)
 
             return true if configurable
@@ -724,7 +724,7 @@ module Syskit
             false
         end
 
-        # Returns true if the underlying Orocos task has been configured and
+        # Returns true if the underlying Runkit task has been configured and
         # can be started
         #
         # The general protocol is:
@@ -985,7 +985,7 @@ module Syskit
 
         # (see Component#setup_failed!)_
         def setup_failed!(exception)
-            unless exception.kind_of?(Orocos::StateTransitionFailed)
+            unless exception.kind_of?(Runkit::StateTransitionFailed)
                 execution_agent.register_task_context_in_fatal(orocos_name)
             end
 
@@ -1019,14 +1019,14 @@ module Syskit
                 # dynamic ports that are required ... check that
                 expected_output_ports.each do |source_p|
                     unless port_names.include?(source_p)
-                        raise Orocos::NotFound,
+                        raise Runkit::NotFound,
                               "#{orocos_name}(#{orogen_model.name}) does "\
                               "not have a port named #{source_p}"
                     end
                 end
                 expected_input_ports.each do |sink_p|
                     unless port_names.include?(sink_p)
-                        raise Orocos::NotFound,
+                        raise Runkit::NotFound,
                               "#{orocos_name}(#{orogen_model.name}) does "\
                               "not have a port named #{sink_p}"
                     end
@@ -1035,7 +1035,7 @@ module Syskit
             end
             start_event.achieve_asynchronously(promise, emit_on_success: false)
             promise.on_error do |exception|
-                unless exception.kind_of?(Orocos::StateTransitionFailed)
+                unless exception.kind_of?(Runkit::StateTransitionFailed)
                     execution_agent.register_task_context_in_fatal(orocos_name)
                 end
             end
@@ -1116,7 +1116,7 @@ module Syskit
         def stop_orocos_task
             orocos_task.stop(false)
             nil
-        rescue Orocos::StateTransitionFailed
+        rescue Runkit::StateTransitionFailed
             # Could be that we already have stopped, for instance because there
             # was a race between the component and Syskit
             #
@@ -1143,7 +1143,7 @@ module Syskit
                         stop_orocos_task
                     end
                 promise.on_error(description: "#{self}#interrupt#error") do |error|
-                    quarantined! unless error.kind_of?(Orocos::StateTransitionFailed)
+                    quarantined! unless error.kind_of?(Runkit::StateTransitionFailed)
                 end
 
                 interrupt_event.achieve_asynchronously(promise, emit_on_success: false)
@@ -1316,7 +1316,7 @@ module Syskit
             end
         end
 
-        # Stub this task context by assigning a {Orocos::RubyTaskContext}
+        # Stub this task context by assigning a {Runkit::RubyTaskContext}
         # to {#orocos_task}
         def stub!(name = nil)
             if !name && !orocos_name
@@ -1325,7 +1325,7 @@ module Syskit
                       "provide an explicit name in #stub!"
             end
             self.orocos_name = name if name
-            self.orocos_task = Orocos::RubyTaskContext
+            self.orocos_task = Runkit::RubyTaskContext
                                .from_orogen_model(orocos_name, model.orogen_model)
         end
 
@@ -1335,7 +1335,7 @@ module Syskit
         # It should not be used directly. One should usually use
         # Port#to_orocos_port instead
         #
-        # @return [Orocos::Port]
+        # @return [Runkit::Port]
         def self_port_to_orocos_port(port)
             orocos_port = orocos_task.raw_port(port.name)
             if orocos_port.type != port.type

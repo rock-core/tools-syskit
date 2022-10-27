@@ -57,8 +57,8 @@ module Syskit
 
                 super
 
-                unless Orocos.initialized?
-                    Orocos.allow_blocking_calls { Orocos.initialize }
+                unless Runkit.initialized?
+                    Runkit.allow_blocking_calls { Runkit.initialize }
                 end
                 execution_engine.scheduler =
                     Roby::Schedulers::Temporal.new(true, true, plan)
@@ -84,16 +84,16 @@ module Syskit
 
                 Syskit.conf.register_process_server(
                     "stubs",
-                    Orocos::RubyTasks::ProcessManager.new(
+                    Runkit::RubyTasks::ProcessManager.new(
                         Roby.app.default_loader,
-                        task_context_class: Orocos::RubyTasks::StubTaskContext
+                        task_context_class: Runkit::RubyTasks::StubTaskContext
                     ), "", host_id: "syskit"
                 )
                 Syskit.conf.logs.create_configuration_log(
                     File.join(app.log_dir, "properties")
                 )
 
-                Orocos.forbid_blocking_calls
+                Runkit.forbid_blocking_calls
             end
 
             def plug_apply_requirement_modifications
@@ -125,7 +125,7 @@ module Syskit
             end
 
             def teardown
-                Orocos.allow_blocking_calls
+                Runkit.allow_blocking_calls
 
                 plug_connection_management
                 ENV["PKG_CONFIG_PATH"] = @old_pkg_config

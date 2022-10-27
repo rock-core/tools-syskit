@@ -12,7 +12,7 @@ module Syskit
             end
             Syskit.conf.register_process_server(
                 "ruby_tasks",
-                Orocos::RubyTasks::ProcessManager.new(Roby.app.default_loader)
+                Runkit::RubyTasks::ProcessManager.new(Roby.app.default_loader)
             )
         end
 
@@ -27,9 +27,9 @@ module Syskit
             assert_kind_of RubyTaskContext, task
             assert_equal "test", task.orocos_name
 
-            remote_task = Orocos.allow_blocking_calls { Orocos.name_service.get("test") }
+            remote_task = Runkit.allow_blocking_calls { Runkit.name_service.get("test") }
             assert_equal remote_task, task.orocos_task
-            Orocos.allow_blocking_calls do
+            Runkit.allow_blocking_calls do
                 assert_equal remote_task.in, task.orocos_task.in
                 assert_equal remote_task.out, task.orocos_task.out
             end
@@ -44,7 +44,7 @@ module Syskit
             use_ruby_tasks task_m => "test"
             task = syskit_deploy_configure_and_start(task_m)
 
-            reader = Orocos.allow_blocking_calls do
+            reader = Runkit.allow_blocking_calls do
                 writer = task.orocos_task.in.writer(type: :buffer, size: 2)
                 writer.write 1
                 writer.write 2
@@ -66,7 +66,7 @@ module Syskit
         it "allows to optionally resolve the created task as a remote task" do
             use_ruby_tasks({ task_m => "test" }, remote_task: true)
             task = syskit_deploy_configure_and_start(task_m)
-            assert_kind_of Orocos::RubyTasks::RemoteTaskContext, task.orocos_task
+            assert_kind_of Runkit::RubyTasks::RemoteTaskContext, task.orocos_task
         end
     end
 end

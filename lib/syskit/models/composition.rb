@@ -666,7 +666,7 @@ module Syskit
                 end
                 unless options.empty?
                     options = Kernel.validate_options(
-                        options, Orocos::Port::CONNECTION_POLICY_OPTIONS
+                        options, Runkit::Port::CONNECTION_POLICY_OPTIONS
                     )
                 end
                 mappings.each do |out_p, in_p|

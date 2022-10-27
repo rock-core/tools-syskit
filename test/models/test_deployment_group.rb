@@ -12,10 +12,10 @@ module Syskit
                 @loader = OroGen::Loaders::Base.new
                 @group = DeploymentGroup.new
                 conf.register_process_server(
-                    "ruby_tasks", Orocos::RubyTasks::ProcessManager.new(loader), ""
+                    "ruby_tasks", Runkit::RubyTasks::ProcessManager.new(loader), ""
                 )
                 conf.register_process_server(
-                    "test-mng", Orocos::RubyTasks::ProcessManager.new(loader), ""
+                    "test-mng", Runkit::RubyTasks::ProcessManager.new(loader), ""
                 )
             end
 
@@ -288,7 +288,7 @@ module Syskit
                 it "registers a configured deployment using #deployment_model" do
                     expected = ConfiguredDeployment.new(
                         "test-mng", deployment_m, Hash["task" => "test"],
-                        "test", Hash[task_context_class: Orocos::RubyTasks::TaskContext]
+                        "test", Hash[task_context_class: Runkit::RubyTasks::TaskContext]
                     )
                     flexmock(group).should_receive(:register_configured_deployment)
                                    .once
@@ -339,7 +339,7 @@ module Syskit
                 it "sets the configured deployment as read_only" do
                     expected = ConfiguredDeployment.new(
                         "test-mng", deployment_m, Hash["task" => "test"],
-                        "test", Hash[task_context_class: Orocos::RubyTasks::TaskContext],
+                        "test", Hash[task_context_class: Runkit::RubyTasks::TaskContext],
                         read_only: ["test"]
                     )
                     flexmock(group).should_receive(:register_configured_deployment)
@@ -356,7 +356,7 @@ module Syskit
                 it "sets the configured deployment as read_only using the task name" do
                     expected = ConfiguredDeployment.new(
                         "test-mng", deployment_m, Hash["task" => "test"],
-                        "test", Hash[task_context_class: Orocos::RubyTasks::TaskContext],
+                        "test", Hash[task_context_class: Runkit::RubyTasks::TaskContext],
                         read_only: ["test"]
                     )
                     flexmock(group).should_receive(:register_configured_deployment)
@@ -374,7 +374,7 @@ module Syskit
                     expected = ConfiguredDeployment.new(
                         "test-mng", deployment_m, Hash["task" => "test_task_name"],
                         "test_task_name",
-                        Hash[task_context_class: Orocos::RubyTasks::TaskContext],
+                        Hash[task_context_class: Runkit::RubyTasks::TaskContext],
                         read_only: ["test_task_name"]
                     )
                     flexmock(group).should_receive(:register_configured_deployment)
@@ -396,12 +396,12 @@ module Syskit
                     expected = [ConfiguredDeployment.new(
                         "test-mng", deployment_m, Hash["task" => "test_task_name"],
                         "test_task_name",
-                        Hash[task_context_class: Orocos::RubyTasks::TaskContext],
+                        Hash[task_context_class: Runkit::RubyTasks::TaskContext],
                         read_only: ["test_task_name"]
                     ), ConfiguredDeployment.new(
                         "test-mng", deployment_m, Hash["task" => "empty_task"],
                         "empty_task",
-                        Hash[task_context_class: Orocos::RubyTasks::TaskContext],
+                        Hash[task_context_class: Runkit::RubyTasks::TaskContext],
                         read_only: ["empty_task"]
                     )]
                     flexmock(group).should_receive(:register_configured_deployment)
@@ -600,12 +600,12 @@ module Syskit
                                     .with(OroGen::Spec::Project.default_deployment_name("test::Task"))
                                     .and_return(deployment_m.orogen_model)
                     conf.register_process_server(
-                        "localhost", Orocos::RubyTasks::ProcessManager.new(
+                        "localhost", Runkit::RubyTasks::ProcessManager.new(
                                          Roby.app.default_loader
                                      ), ""
                     )
                     conf.register_process_server(
-                        "test", Orocos::RubyTasks::ProcessManager.new(
+                        "test", Runkit::RubyTasks::ProcessManager.new(
                                     Roby.app.default_loader
                                 ), ""
                     )

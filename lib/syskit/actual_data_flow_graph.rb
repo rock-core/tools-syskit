@@ -10,7 +10,7 @@ module Syskit
         # information is critical during disconnection to force
         # reconfiguration of the associated tasks
         #
-        # @return [Hash<(Orocos::TaskContext,String),Boolean>]
+        # @return [Hash<(Runkit::TaskContext,String),Boolean>]
         attr_reader :static_info
 
         def initialize(*)
@@ -20,9 +20,9 @@ module Syskit
 
         # Registers a connection between two tasks
         #
-        # @param [Orocos::TaskContext] source_task the task of the source
+        # @param [Runkit::TaskContext] source_task the task of the source
         #   port
-        # @param [Orocos::TaskContext] sink_task the task of the sink
+        # @param [Runkit::TaskContext] sink_task the task of the sink
         #   port
         # @param [Hash] mappings the connections themselves
         # @option mappings [Boolean] force_update (false) whether the method
@@ -67,7 +67,7 @@ module Syskit
 
         # Whether the given port is static (per {Port#static?}
         #
-        # @param [Orocos::TaskContext] task
+        # @param [Runkit::TaskContext] task
         # @param [String] port
         # @raise [ArgumentError] if the (task, port) pair is not registered
         def static?(task, port)

@@ -259,12 +259,12 @@ module Syskit
 
                 section = nil
                 begin
-                    Orocos.run task_model.orogen_model => "oroconf_extract",
+                    Runkit.run task_model.orogen_model => "oroconf_extract",
                                oro_logfile: "/dev/null" do
-                        task = Orocos.get "oroconf_extract"
+                        task = Runkit.get "oroconf_extract"
                         task_model.configuration_manager.extract(section_name, task)
                         section = task_model.configuration_manager.conf(section_name)
-                        section = Orocos::TaskConfigurations.to_yaml(section)
+                        section = Runkit::TaskConfigurations.to_yaml(section)
                     end
                 rescue RuntimeError
                     unless section

@@ -40,7 +40,7 @@ module Syskit
 
             # Checks if a given component implementation needs to be stubbed
             def needs_stub?(component)
-                super || component.orocos_task.kind_of?(Orocos::RubyTasks::StubTaskContext)
+                super || component.orocos_task.kind_of?(Runkit::RubyTasks::StubTaskContext)
             end
 
             def clear_registration_as_constant
@@ -176,7 +176,7 @@ module Syskit
             # @option options [String] name (nil) forcefully set a name for the model.
             #   This is only useful for "anonymous" models, i.e. models that are
             #   never assigned in the Ruby constant hierarchy
-            # @option options [OroGen::Spec::TaskContext, Orocos::ROS::Spec::Node] orogen_model (nil) the
+            # @option options [OroGen::Spec::TaskContext, Runkit::ROS::Spec::Node] orogen_model (nil) the
             #   oroGen model that should be used. If not given, an empty model
             #   is created, possibly with the name given to the method as well.
             def new_submodel(**options, &block)
