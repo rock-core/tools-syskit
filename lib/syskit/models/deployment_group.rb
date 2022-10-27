@@ -405,7 +405,7 @@ module Syskit
             #
             # @return [Array<Deployment>]
             def use_deployment(
-                *names,
+                *objects,
                 on: "localhost",
                 simulation: Roby.app.simulation?,
                 loader: nil,
@@ -414,73 +414,86 @@ module Syskit
                 logger_name: nil,
                 **run_options
             )
-                deployment_spec = {}
-                deployment_spec = names.pop if names.last.kind_of?(Hash)
-
                 process_server_config, loader =
                     resolve_process_config_and_loader_from_use_arguments(
                         on, simulation, loader, process_managers
                     )
 
+                # Normalize the deployed objects, resolving models that are
+                # given by name
+                deployment_spec = {}
+                deployment_spec = objects.pop if objects.last.kind_of?(Hash)
                 ## WORKAROUND FOR 2.7.0
                 Roby.sanitize_keywords_to_hash(deployment_spec, run_options)
-
-                deployments_by_name = {}
-                names = names.map do |n|
-                    if n.respond_to?(:orogen_model)
-                        if !n.kind_of?(Class)
-                            raise ArgumentError,
-                                  "only deployment models can be given without a name"
-                        elsif n <= Syskit::TaskContext && !(n <= Syskit::RubyTaskContext)
-                            raise TaskNameRequired,
-                                  "you must provide a task name when starting a "\
-                                  "component by type, as e.g. use_deployment "\
-                                  "OroGen.xsens_imu.Task => 'imu'"
-                        elsif !(n <= Syskit::Deployment)
-                            raise ArgumentError,
-                                  "only deployment models can be given without a name"
-                        end
-                        deployments_by_name[n.orogen_model.name] = n
-                        n.orogen_model
-                    else n
-                    end
-                end
+                objects.each { |obj| deployment_spec[obj] = "" }
+                deployment_spec = deployment_spec.transform_values(&:to_s)
                 deployment_spec = deployment_spec.transform_keys do |k|
-                    if k.respond_to?(:to_str)
-                        k
-                    else
-                        is_valid =
-                            k.kind_of?(Class) &&
-                            (k <= Syskit::TaskContext || k <= Syskit::Deployment) &&
-                            !(k <= Syskit::RubyTaskContext)
-                        unless is_valid
-                            raise ArgumentError,
-                                  "only deployment and task context "\
-                                  "models can be deployed by use_deployment, got #{k}"
-                        end
-                        deployments_by_name[k.orogen_model.name] = k
-                        k.orogen_model
-                    end
+                    use_deployment_sanitize_deployed_object(k, deployment_spec[k])
+                        .orogen_model
                 end
 
-                new_deployments, = Runkit::Process.parse_run_options(
-                    *names, deployment_spec, loader: loader, **run_options
+                new_deployments = Runkit::Process.parse_run_options(
+                    deployment_spec, loader: loader, **run_options
                 )
-                new_deployments.map do |deployment_name, name_mappings, name, spawn_options|
-                    unless (model = deployments_by_name[deployment_name])
-                        orogen_model = loader.deployment_model_from_name(deployment_name)
-                        model = Syskit::Deployment.find_model_by_orogen(orogen_model)
-                    end
+                new_deployments.map do |deployment_name, orogen_model, name_mappings, spawn_options|
+                    model = Syskit::Deployment.find_model_by_orogen(orogen_model) ||
+                            Syskit::TaskContext.find_model_by_orogen(orogen_model)
                     model.default_run_options.merge!(
                         process_managers.default_run_options(model)
                     )
 
                     configured_deployment =
                         Models::ConfiguredDeployment
-                        .new(process_server_config.name, model, name_mappings, name,
+                        .new(process_server_config.name, model, name_mappings, deployment_name,
                              spawn_options, read_only: read_only, logger_name: logger_name)
                     register_configured_deployment(configured_deployment)
                     configured_deployment
+                end
+            end
+
+            # @api private
+            #
+            # Sanitize the objects given to {#use_deployment} into a proper Syskit model
+            # that is valid to deploy
+            def use_deployment_sanitize_deployed_object(object, name)
+                if object.respond_to?(:to_str)
+                    object = use_deployment_resolve_model_from_name(object)
+                end
+
+                if !object.kind_of?(Class) ||
+                   !(object <= Syskit::TaskContext || object <= Syskit::Deployment)
+                    raise ArgumentError,
+                          "only deployment and task context models can be deployed by "\
+                          "`use_deployment`, got #{object}"
+                elsif object <= Syskit::RubyTaskContext
+                    raise ArgumentError, "use use_ruby_tasks to deploy ruby task contexts"
+                elsif name.empty? && !(object <= Syskit::Deployment)
+                    raise Syskit::TaskNameRequired,
+                          "you must provide a task name when starting a component "\
+                          "by type, as e.g. OroGen.xsens_imu.Task => 'imu'"
+                end
+
+                object
+            end
+
+            # @api private
+            #
+            # Resolve a name given to {#use_deployment} into the corresponding
+            # Syskit model
+            def use_deployment_resolve_model_from_name(name)
+                Roby.warn_deprecated(
+                    "passing strings to use_deployment is deprecated. Access task "\
+                    "context models using the OroGen.<project>.<Name> accessor, and "\
+                    "deployments with OroGen::Deployments.<deployment_name>"
+                )
+
+                if (m = Syskit::TaskContext.find_model_from_orogen_name(name))
+                    m
+                elsif (m = Syskit::Deployment.find_model_from_orogen_name(name))
+                    m
+                else
+                    raise OroGen::NotFound,
+                          "#{name} is neither a task model nor a deployment name"
                 end
             end
 
