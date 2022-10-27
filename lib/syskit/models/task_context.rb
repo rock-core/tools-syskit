@@ -197,7 +197,7 @@ module Syskit
                 orogen_model: nil,
                 orogen_model_name: submodel.name,
                 extended_state_support: true,
-                loader: Roby.app.default_loader,
+                loader: self.orogen_model.loader,
                 **options
             )
 
