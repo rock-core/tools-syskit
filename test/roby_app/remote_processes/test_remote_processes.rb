@@ -253,11 +253,24 @@ describe Syskit::RobyApp::RemoteProcesses do
         end
 
         it "kills an already started process" do
-            process.kill(true)
-            assert_raises Runkit::NotFound do
+            iors = loop do
+                r = client.wait_running("syskit_tests_empty")
+                break(r) if r["syskit_tests_empty"]
+
+                sleep 0.01
+            end
+            process.kill(hard: true)
+
+            ior = iors.dig("syskit_tests_empty", :iors, "syskit_tests_empty")
+            deadline = Time.now + 1
+            loop do
                 Runkit.allow_blocking_calls do
-                    Runkit.get "syskit_tests_empty"
+                    Runkit::TaskContext.new(ior, name: "test")
                 end
+                flunk("task still alive after 1s") if Time.now > deadline
+                sleep 0.01
+            rescue Runkit::CORBA::ComError
+                break
             end
         end
 

@@ -192,20 +192,16 @@ module Syskit
                             msg = Marshal.load(socket)
                             raise Failed,
                                   "failed to start #{deployment_model.name}: #{msg}"
-                        elsif pid_s == RET_STARTED_PROCESS
-                            pid = Marshal.load(socket)
-                            process = Process.new(
-                                process_name, deployment_model, self, pid
-                            )
-                            name_mappings.each do |old, new|
-                                process.map_name(old, new)
-                            end
-                            processes[process_name] = process
-                            return process
-                        else
+                        elsif pid_s != RET_STARTED_PROCESS
                             raise InternalError,
                                   "unexpected reply #{pid_s} to the start command"
                         end
+
+                        pid = Marshal.load(socket)
+                        process = Process.new(process_name, deployment_model, self, pid)
+                        name_mappings.each { |old, new| process.map_name(old, new) }
+                        processes[process_name] = process
+                        return process
                     end
                 end
 
