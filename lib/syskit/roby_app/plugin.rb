@@ -63,8 +63,6 @@ module Syskit
 
             # Hook called by the main application at the beginning of Application#setup
             def self.setup(app)
-                # We have our own loader, avoid clashing
-                Runkit.default_loader.export_types = false
                 # But, for the time being, default_loader might be equal to
                 # Runkit.default_loader, so reset the export_types flag to the
                 # desired value
@@ -120,9 +118,8 @@ module Syskit
                     Runkit.runkit_logfile ||
                     File.join(app.log_dir, "runkit.#{::Process.pid}.txt")
 
-                if Syskit.conf.only_load_models?
-                    Runkit.load
-                else
+                Runkit.load(loader: app.default_loader)
+                unless Syskit.conf.only_load_models?
                     # Change to the log dir so that the IOR file created by
                     # the CORBA bindings ends up there
                     Dir.chdir(app.log_dir) do
@@ -256,24 +253,24 @@ module Syskit
                 end
             end
 
+            attr_reader :default_pkgconfig_loader
+            attr_reader :orogen_pack_loader
+
             def default_loader
-                unless @default_loader
-                    @default_loader = Runkit.default_loader
-                    default_loader.on_project_load do |project|
-                        project_define_from_orogen(project)
-                    end
-                    orogen_pack_loader
-                    ros_loader
-                end
+                create_default_loader unless @default_loader
                 @default_loader
             end
 
-            def default_pkgconfig_loader
-                Runkit.default_pkgconfig_loader
-            end
-
-            def orogen_pack_loader
-                @orogen_pack_loader ||= OroGen::Loaders::Files.new(default_loader)
+            def create_default_loader
+                @default_loader = DefaultLoader.new
+                @default_loader.export_types = true
+                @default_loader.on_project_load do |project|
+                    project_define_from_orogen(project)
+                end
+                @default_pkgconfig_loader =
+                    OroGen::Loaders::RTT.new(Runkit.orocos_target, @default_loader)
+                @orogen_pack_loader = OroGen::Loaders::Files.new(@default_loader)
+                nil
             end
 
             # A set of task libraries that should be imported when the application
