@@ -543,7 +543,6 @@ module Syskit
             def connect_to_orocos_process_server(
                 name, host, port: Syskit::RobyApp::RemoteProcesses::DEFAULT_PORT,
                 log_dir: nil, result_dir: nil, host_id: nil,
-                name_service: Runkit.name_service,
                 model_only_server: only_load_models? || (app.simulation? && app.single?)
             )
                 if log_dir || result_dir
@@ -587,8 +586,7 @@ module Syskit
 
                 client = Syskit::RobyApp::RemoteProcesses::Client.new(
                     host, port,
-                    root_loader: app.default_loader,
-                    name_service: name_service
+                    root_loader: app.default_loader
                 )
                 client.create_log_dir(
                     log_dir, Roby.app.time_tag,

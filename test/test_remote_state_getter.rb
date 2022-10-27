@@ -253,7 +253,7 @@ module Syskit
             @state.reset(value)
         end
 
-        def rtt_state
+        def read_toplevel_state
             if error = @error.value
                 raise error
             end

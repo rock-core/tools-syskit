@@ -7,6 +7,7 @@ module Syskit
         describe RESTDeploymentManager do
             before do
                 @roby_app = Roby::Application.new
+                @roby_app.default_loader
                 @conf = Configuration.new(@roby_app)
                 @localhost = flexmock(:on, Syskit::RobyApp::RemoteProcesses::Client)
                 @conf.register_process_server("localhost", @localhost)

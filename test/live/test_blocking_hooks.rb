@@ -61,7 +61,7 @@ module Syskit
                     @task.properties.time = 2
                     Runkit::CORBA.call_timeout = 5000
                     syskit_configure(@task)
-                    assert_equal :STOPPED, rtt_state
+                    assert_equal :STOPPED, read_toplevel_state
                     refute @deployment.task_context_in_fatal?(@task.orocos_name)
                 end
 
@@ -101,7 +101,7 @@ module Syskit
                     @task.properties.time = 2
                     Runkit::CORBA.call_timeout = 5000
                     syskit_start(@task)
-                    assert_equal :RUNNING, rtt_state
+                    assert_equal :RUNNING, read_toplevel_state
                     refute @deployment.task_context_in_fatal?(@task.orocos_name)
                 end
 
@@ -146,7 +146,7 @@ module Syskit
                     syskit_configure_and_start(@task)
 
                     syskit_stop(@task)
-                    assert_equal :STOPPED, rtt_state
+                    assert_equal :STOPPED, read_toplevel_state
                     refute @deployment.task_context_in_fatal?(@task.orocos_name)
                 end
 
@@ -215,7 +215,7 @@ module Syskit
                     syskit_configure_and_start(@task)
 
                     syskit_stop(@task)
-                    assert_equal :STOPPED, rtt_state
+                    assert_equal :STOPPED, read_toplevel_state
                     refute @deployment.task_context_in_fatal?(@task.orocos_name)
                 end
 
@@ -326,7 +326,7 @@ module Syskit
                     Runkit::CORBA.call_timeout = 5000
                     prepare_cleanup
                     syskit_configure(@task)
-                    assert_equal :STOPPED, rtt_state
+                    assert_equal :STOPPED, read_toplevel_state
                     refute @deployment.task_context_in_fatal?(@task.orocos_name)
                 end
 
@@ -374,7 +374,7 @@ module Syskit
                     Runkit::CORBA.call_timeout = 5000
                     prepare_cleanup
                     syskit_configure(@task)
-                    assert_equal :STOPPED, rtt_state
+                    assert_equal :STOPPED, read_toplevel_state
                     refute @deployment.task_context_in_fatal?(@task.orocos_name)
                 end
 
@@ -434,8 +434,8 @@ module Syskit
             "#{name}-#{Process.pid}"
         end
 
-        def rtt_state(task = @task)
-            Runkit.allow_blocking_calls { task.orocos_task.rtt_state }
+        def read_toplevel_state(task = @task)
+            Runkit.allow_blocking_calls { task.orocos_task.read_toplevel_state }
         end
 
         def find_logger

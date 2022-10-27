@@ -151,7 +151,7 @@ module Syskit
                 attr_reader :name_service
                 before do
                     @task_model = Syskit::TaskContext.new_submodel
-                    @name_service = Runkit::Local::NameService.new
+                    @name_service = Runkit::NameServices::Local.new
                     Syskit.conf.register_process_server(
                         "new_unmanaged_tasks",
                         UnmanagedTasksManager.new(name_service: name_service)
