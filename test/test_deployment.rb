@@ -350,7 +350,7 @@ module Syskit
                     @orocos_task = Orocos.allow_blocking_calls do
                         Orocos::RubyTasks::TaskContext.new "test"
                     end
-                    process.tasks["test"] = @orocos_task
+                    process.tasks["mapped_task_name"] = @orocos_task
                     process_server.should_receive(:start).and_return(process)
                 end
                 after do
