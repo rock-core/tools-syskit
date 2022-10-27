@@ -697,7 +697,7 @@ module Syskit
                         @group.use_deployment cmp_m => "task"
                     end
                     assert_equal "only deployment and task context models can be "\
-                        "deployed by use_deployment, got #{cmp_m}", e.message
+                        "deployed by `use_deployment`, got #{cmp_m}", e.message
                 end
 
                 it "raises if the given model is a RubyTaskContext" do
@@ -705,8 +705,8 @@ module Syskit
                     e = assert_raises(ArgumentError) do
                         @group.use_deployment task_m => "task"
                     end
-                    assert_equal "only deployment and task context models can be "\
-                        "deployed by use_deployment, got #{task_m}", e.message
+                    assert_equal "use use_ruby_tasks to deploy ruby task contexts",
+                                 e.message
                 end
 
                 it "raises if the task has no default deployment" do
@@ -754,10 +754,11 @@ module Syskit
                         @group.use_deployment(@task_m,
                                               on: "test", process_managers: @conf)
                     end
-                    assert_equal "you must provide a task name when starting "\
-                        "a component by type, as e.g. use_deployment "\
-                        "OroGen.xsens_imu.Task => 'imu'",
-                                 e.message
+                    assert_equal(
+                        "you must provide a task name when starting "\
+                        "a component by type, as e.g. OroGen.xsens_imu.Task => 'imu'",
+                        e.message
+                    )
                 end
                 it "sets the configured deployment as read_only" do
                     configured_deployment = group.use_deployment(
