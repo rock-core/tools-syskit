@@ -68,16 +68,6 @@ module Syskit
                     final_path
                 end
 
-                DEFAULT_OPTIONS = { wait: false, output: "%m-%p.txt" }.freeze
-
-                # Start a standalone process server using the given options and port.
-                # The options are passed to Server.run when a new deployment is started
-                def self.run(options = DEFAULT_OPTIONS, port = DEFAULT_PORT)
-                    Runkit.initialize
-                    new({ wait: false }.merge(options), port).exec
-                rescue Interrupt # rubocop:disable Lint/SuppressedException
-                end
-
                 # The underlying Roby::Application object we use to resolve paths
                 attr_reader :app
                 # The startup options to be passed to Runkit.run
@@ -119,7 +109,7 @@ module Syskit
                     loader: self.class.create_pkgconfig_loader
                 )
                     @app = app
-                    @default_start_options = { wait: false, output: "%m-%p.txt" }
+                    @default_start_options = { output: "%m-%p.txt" }
 
                     @loader = loader
                     @required_port = port
@@ -257,9 +247,9 @@ module Syskit
                             dead_processes << process
                         end
                     end
-                    dead_processes
+                    dead_processes.compact
                 rescue Errno::ECHILD
-                    dead_processes
+                    dead_processes.compact
                 end
 
                 # Reap a single terminated subprocess if there is one
@@ -509,11 +499,11 @@ module Syskit
 
                 def start_process(name, deployment_name, name_mappings, options)
                     options = Hash[working_directory: app.log_dir].merge(options)
+                    deployment_m = loader.deployment_model_from_name(deployment_name)
 
                     p = Runkit::Process.new(
-                        name, deployment_name,
-                        loader: @loader,
-                        name_mappings: name_mappings
+                        name, deployment_m,
+                        loader: @loader, name_mappings: name_mappings
                     )
                     p.spawn(**default_start_options.merge(options))
                     processes[name] = p
