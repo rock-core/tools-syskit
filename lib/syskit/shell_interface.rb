@@ -15,7 +15,7 @@ module Syskit
             FileUtils.mkdir_p(path)
             plan.find_tasks(task_model)
                 .each do |t|
-                    Orocos.conf.save(t.orocos_task, path, name || t.orocos_task.name)
+                    Runkit.conf.save(t.orocos_task, path, name || t.orocos_task.name)
                 end
             nil
         end

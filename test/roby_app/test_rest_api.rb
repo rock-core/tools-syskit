@@ -376,7 +376,7 @@ module Syskit
                         flexmock(@roby_app).should_receive(:log_dir).and_return("/some/log/dir")
                     end
                     it "returns the command line as a hash" do
-                        command_line = Orocos::Process::CommandLine.new(
+                        command_line = Runkit::Process::CommandLine.new(
                             Hash["ENV" => "VAR"],
                             "/path/to/command",
                             ["--some", "args"],
@@ -399,7 +399,7 @@ module Syskit
                         flexmock(RESTDeploymentManager).new_instances
                                                        .should_receive(:command_line)
                                                        .with(123, tracing: false, name_service_ip: "localhost")
-                                                       .and_return(Orocos::Process::CommandLine.new)
+                                                       .and_return(Runkit::Process::CommandLine.new)
                         get_json "/deployments/123/command_line"
                     end
 
@@ -407,7 +407,7 @@ module Syskit
                         flexmock(RESTDeploymentManager).new_instances
                                                        .should_receive(:command_line)
                                                        .with(123, tracing: true, name_service_ip: "some_ip")
-                                                       .and_return(Orocos::Process::CommandLine.new)
+                                                       .and_return(Runkit::Process::CommandLine.new)
                         get_json "/deployments/123/command_line?tracing=true&name_service_ip=some_ip"
                     end
 

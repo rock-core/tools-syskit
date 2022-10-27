@@ -66,13 +66,13 @@ module Syskit
             end
 
             # Helper method that mocks a port accessed through
-            # Orocos::TaskContext#raw_port
+            # Runkit::TaskContext#raw_port
             def mock_raw_port(task, port_name)
                 if task.respond_to?(:orocos_task)
                     task = task.orocos_task
                 end
 
-                port = Orocos.allow_blocking_calls do
+                port = Runkit.allow_blocking_calls do
                     task.raw_port(port_name)
                 end
                 flexmock(task).should_receive(:raw_port).with(port_name).and_return(port)
@@ -301,7 +301,7 @@ module Syskit
                                 mock_raw_port(source_task, "out")
                                     .should_receive(:disconnect_from)
                                     .once.pass_thru
-                                Orocos.allow_blocking_calls do
+                                Runkit.allow_blocking_calls do
                                     source_task.orocos_task.out.connect_to sink_task.orocos_task.in
                                 end
                                 ActualDataFlow.add_connections(
@@ -575,14 +575,14 @@ module Syskit
                     source_task.out1_port.connect_to sink_task.in1_port
                     source_task.out2_port.connect_to sink_task.in2_port
                     ConnectionManagement.update(plan)
-                    Orocos.allow_blocking_calls do
+                    Runkit.allow_blocking_calls do
                         assert source_task.orocos_task.out1.connected?
                         assert source_task.orocos_task.out2.connected?
                     end
 
                     source_task.out2_port.disconnect_from sink_task.in2_port
                     ConnectionManagement.update(plan)
-                    Orocos.allow_blocking_calls do
+                    Runkit.allow_blocking_calls do
                         assert source_task.orocos_task.out1.connected?
                         assert !source_task.orocos_task.out2.connected?
                     end
@@ -654,7 +654,7 @@ module Syskit
                         end
 
                         execute { ConnectionManagement.update(plan) }
-                        assert(Orocos.allow_blocking_calls do
+                        assert(Runkit.allow_blocking_calls do
                             source_new.out_port.to_orocos_port.connected?
                         end)
                     end
@@ -670,7 +670,7 @@ module Syskit
                             plan.execution_engine.garbage_collect([source_old])
                             ConnectionManagement.update(plan)
                         end
-                        assert(Orocos.allow_blocking_calls do
+                        assert(Runkit.allow_blocking_calls do
                             source_new.out_port.to_orocos_port.connected?
                         end)
                     end
@@ -682,7 +682,7 @@ module Syskit
                             source_old.out_port.disconnect_from @sink.in_port
                             ConnectionManagement.update(plan)
                         end
-                        assert(Orocos.allow_blocking_calls do
+                        assert(Runkit.allow_blocking_calls do
                             source_new.out_port.to_orocos_port.connected?
                         end)
                     end
@@ -698,7 +698,7 @@ module Syskit
                             source_old.out_port.disconnect_from @sink.in_port
                             ConnectionManagement.update(plan)
                         end
-                        assert(Orocos.allow_blocking_calls do
+                        assert(Runkit.allow_blocking_calls do
                             source_new.out_port.to_orocos_port.connected?
                         end)
                     end
@@ -730,12 +730,12 @@ module Syskit
                 def assert_is_disconnected(source_alive: true, sink_alive: true)
                     assert ActualDataFlow.edges.empty?
                     if source_alive
-                        Orocos.allow_blocking_calls do
+                        Runkit.allow_blocking_calls do
                             assert !source_orocos_task.out.connected?
                         end
                     end
                     if sink_alive
-                        Orocos.allow_blocking_calls do
+                        Runkit.allow_blocking_calls do
                             assert !sink_orocos_task.in.connected?
                         end
                     end

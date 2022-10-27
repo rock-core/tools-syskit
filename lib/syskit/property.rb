@@ -89,7 +89,7 @@ module Syskit
         #
         # @param [Typelib::Type,Object] value the property value
         # @param [Time] _timestamp ignored, for compatibility with
-        #   {Orocos::Property}
+        #   {Runkit::Property}
         def write(value, _timestamp = nil)
             raw_write(Typelib.from_ruby(value, type))
         end

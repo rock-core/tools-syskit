@@ -5,12 +5,14 @@
     <copyright>
         DFKI/robotik@dfki.de
         Sylvain Joyeux/sylvain.joyeux@m4x.org
+        TideWise/sylvain.joyeux@tidewise.io
     </copyright>
     <license>GPL v2 or later</license>
 
     <depend package="orogen" />
     <depend package="tools/roby" />
     <depend package="tools/orocos.rb" />
+    <depend package="tools/runkit" />
     <depend package="tools/metaruby" />
     <depend package="tools/pocolog" />
 

@@ -1,6 +1,6 @@
 # frozen_string_literal: true
 
-require "orocos/ruby_tasks/stub_task_context"
+require "runkit/ruby_tasks/stub_task_context"
 require "syskit/test/base"
 
 require "roby/test/spec"

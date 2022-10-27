@@ -293,9 +293,9 @@ module Syskit
 
                 task_context_class =
                     if remote_task
-                        Orocos::RubyTasks::RemoteTaskContext
+                        Runkit::RubyTasks::RemoteTaskContext
                     else
-                        Orocos::RubyTasks::TaskContext
+                        Runkit::RubyTasks::TaskContext
                     end
 
                 mappings.map do |task_model, name|
@@ -463,7 +463,7 @@ module Syskit
                     end
                 end
 
-                new_deployments, = Orocos::Process.parse_run_options(
+                new_deployments, = Runkit::Process.parse_run_options(
                     *names, deployment_spec, loader: loader, **run_options
                 )
                 new_deployments.map do |deployment_name, name_mappings, name, spawn_options|

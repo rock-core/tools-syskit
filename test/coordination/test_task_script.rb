@@ -224,7 +224,7 @@ describe Syskit::Coordination::TaskScriptExtension do
             end
 
             it "gobbles ComError exceptions" do
-                flexmock(actual_writer).should_receive(:disconnect).and_raise(Orocos::ComError)
+                flexmock(actual_writer).should_receive(:disconnect).and_raise(Runkit::ComError)
                 expect_execution { cmp.stop! }.to do
                     emit cmp.stop_event
                     achieve { !writer.connected? }
@@ -282,7 +282,7 @@ describe Syskit::Coordination::TaskScriptExtension do
             end
 
             it "gobbles ComError exceptions" do
-                flexmock(reader.reader).should_receive(:disconnect).and_raise(Orocos::ComError)
+                flexmock(reader.reader).should_receive(:disconnect).and_raise(Runkit::ComError)
                 expect_execution { cmp.stop! }.to do
                     emit cmp.stop_event
                     achieve { !reader.connected? }

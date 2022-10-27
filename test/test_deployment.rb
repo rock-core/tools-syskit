@@ -104,13 +104,13 @@ module Syskit
         end
 
         # Helper method that mocks a port accessed through
-        # Orocos::TaskContext#raw_port
+        # Runkit::TaskContext#raw_port
         def mock_raw_port(task, port_name)
             if task.respond_to?(:orocos_task)
                 task = task.orocos_task
             end
 
-            port = Orocos.allow_blocking_calls do
+            port = Runkit.allow_blocking_calls do
                 task.raw_port(port_name)
             end
             task.should_receive(:raw_port).with(port_name).and_return(port)
@@ -347,8 +347,8 @@ module Syskit
             describe "monitoring for ready" do
                 attr_reader :orocos_task
                 before do
-                    @orocos_task = Orocos.allow_blocking_calls do
-                        Orocos::RubyTasks::TaskContext.new "test"
+                    @orocos_task = Runkit.allow_blocking_calls do
+                        Runkit::RubyTasks::TaskContext.new "test"
                     end
                     process.tasks["test"] = @orocos_task
                     process_server.should_receive(:start).and_return(process)
@@ -373,7 +373,7 @@ module Syskit
                    "tasks raises an exception" do
                     flexmock(process)
                         .should_receive(:resolve_all_tasks)
-                        .and_raise(Orocos::IORNotRegisteredError, "some error")
+                        .and_raise(Runkit::IORNotRegisteredError, "some error")
                     expect_execution do
                         deployment_task.start!
                     end.to do
@@ -531,8 +531,8 @@ module Syskit
                 attr_reader :orocos_task
                 before do
                     process_server.should_receive(:start).and_return(process)
-                    @orocos_task = Orocos.allow_blocking_calls do
-                        Orocos::RubyTasks::TaskContext.new "test"
+                    @orocos_task = Runkit.allow_blocking_calls do
+                        Runkit::RubyTasks::TaskContext.new "test"
                     end
                     flexmock(@orocos_task)
                     process.should_receive(:resolve_all_tasks)
@@ -602,12 +602,12 @@ module Syskit
                         end
                 end
                 it "ignores com errors with the tasks" do
-                    orocos_task.should_receive(:cleanup).and_raise(Orocos::ComError)
+                    orocos_task.should_receive(:cleanup).and_raise(Runkit::ComError)
                     expect_execution { deployment_task.stop! }
                         .to { emit deployment_task.stop_event }
                 end
                 it "emits stop if kill fails with a communication error" do
-                    process.should_receive(:kill).and_raise(Orocos::ComError)
+                    process.should_receive(:kill).and_raise(Runkit::ComError)
                     expect_execution { deployment_task.stop! }
                         .to { emit deployment_task.failed_event }
                 end
@@ -622,8 +622,8 @@ module Syskit
                     deployment_m.event :terminal_e, terminal: true
                     execute { plan.clear }
                     process_server.should_receive(:start).and_return(process)
-                    @orocos_task = Orocos.allow_blocking_calls do
-                        Orocos::RubyTasks::TaskContext.new "test"
+                    @orocos_task = Runkit.allow_blocking_calls do
+                        Runkit::RubyTasks::TaskContext.new "test"
                     end
                     process.should_receive(:resolve_all_tasks)
                            .and_return("mapped_task_name" => orocos_task)
@@ -682,7 +682,7 @@ module Syskit
         describe "using the ruby process server" do
             attr_reader :task_m, :deployment_m, :deployment
             before do
-                Syskit.conf.register_process_server("test", Orocos::RubyTasks::ProcessManager.new, "")
+                Syskit.conf.register_process_server("test", Runkit::RubyTasks::ProcessManager.new, "")
                 task_m = @task_m = TaskContext.new_submodel do
                     input_port "in", "/double"
                     output_port "out", "/double"
@@ -702,7 +702,7 @@ module Syskit
                 assert "task", task.orocos_task.name
             end
             it "sets the orocos_task attribute to a RubyTaskContext" do
-                assert_kind_of Orocos::RubyTasks::TaskContext, deployment.task("task").orocos_task
+                assert_kind_of Runkit::RubyTasks::TaskContext, deployment.task("task").orocos_task
             end
             it "makes sure that the Ruby tasks are disposed when the deployment is stopped" do
                 flexmock(deployment.task("task").orocos_task).should_receive(:dispose).once.pass_thru

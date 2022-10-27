@@ -242,9 +242,9 @@ describe Syskit::NetworkGeneration::LoggerConfigurationSupport do
                             .with("task.out2", task, task.out2_port).once.and_return(true)
             flexmock(logger).should_receive(:create_logging_port)
                             .with("task.state", task, task.state_port).once.and_return(true)
-            flexmock(Orocos.conf).should_receive(:apply)
+            flexmock(Runkit.conf).should_receive(:apply)
             syskit_start_execution_agents(logger)
-            Orocos.allow_blocking_calls do
+            Runkit.allow_blocking_calls do
                 logger.orocos_task.create_input_port "task.out1", "/double"
                 logger.orocos_task.create_input_port "task.out2", "/int32_t"
                 logger.orocos_task.create_input_port "task.state", "/int32_t"

@@ -24,7 +24,7 @@ module Syskit
                     foo: { time: { microseconds: 20_000_000 } }
                 }
                 syskit_configure(task)
-                Orocos.allow_blocking_calls do
+                Runkit.allow_blocking_calls do
                     assert_equal Time.at(20), task.orocos_task.foo.time
                     assert_equal Eigen::Vector3.new(1, 2, 3), task.orocos_task.foo.position
                 end

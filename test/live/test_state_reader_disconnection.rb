@@ -10,29 +10,29 @@ module Syskit
         attr_reader :task, :deployment
 
         before do
-            @orig_connect_timeout = Orocos::CORBA.connect_timeout
-            @orig_call_timeout = Orocos::CORBA.call_timeout
+            @orig_connect_timeout = Runkit::CORBA.connect_timeout
+            @orig_call_timeout = Runkit::CORBA.call_timeout
             @orig_opportunistic_recovery =
                 Syskit.conf.opportunistic_recovery_from_quarantine?
             @orig_auto_restart_flag =
                 Syskit.conf.auto_restart_deployments_with_quarantines?
 
-            Orocos::CORBA.connect_timeout = 100
+            Runkit::CORBA.connect_timeout = 100
             Syskit.conf.opportunistic_recovery_from_quarantine = false
             Syskit.conf.auto_restart_deployments_with_quarantines = false
 
             @task_m = OroGen.orogen_syskit_tests.BlockingHooks
                             .deployed_as("blocking_hooks")
             @task = syskit_deploy(@task_m)
-            Orocos::CORBA.call_timeout = 5000
+            Runkit::CORBA.call_timeout = 5000
             @task.properties.time = 2
             @deployment = @task.execution_agent
             remove_logger
         end
 
         after do
-            Orocos::CORBA.connect_timeout = @orig_connect_timeout
-            Orocos::CORBA.call_timeout = @orig_call_timeout
+            Runkit::CORBA.connect_timeout = @orig_connect_timeout
+            Runkit::CORBA.call_timeout = @orig_call_timeout
             Syskit.conf.opportunistic_recovery_from_quarantine =
                 @orig_opportunistic_recovery
             Syskit.conf.auto_restart_deployments_with_quarantines =

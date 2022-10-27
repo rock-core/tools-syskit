@@ -29,8 +29,8 @@ module Syskit
                 old_fallback || new_fallback
             end
 
-        old = Orocos::Port.validate_policy(old)
-        new = Orocos::Port.validate_policy(new)
+        old = Runkit::Port.validate_policy(old)
+        new = Runkit::Port.validate_policy(new)
 
         type = old[:type] || new[:type]
         merged = old.merge(new) do |key, old_value, new_value|

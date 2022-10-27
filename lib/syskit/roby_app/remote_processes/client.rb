@@ -1,6 +1,6 @@
 # frozen_string_literal: true
 
-require "orocos"
+require "runkit"
 require "syskit/roby_app/remote_processes/loader"
 
 module Syskit
@@ -62,16 +62,16 @@ module Syskit
 
                 # Connects to the process server at +host+:+port+
                 #
-                # @option options [Orocos::NameService] :name_service
-                #   (Orocos.name_service). The name service object that should be used
+                # @option options [Runkit::NameService] :name_service
+                #   (Runkit.name_service). The name service object that should be used
                 #   to resolve tasks started by this process server
                 # @option options [OroGen::Loaders::Base] :root_loader
-                #   (Orocos.default_loader). The loader object that should be used as
+                #   (Runkit.default_loader). The loader object that should be used as
                 #   root for this client's loader
                 def initialize(
                     host = "localhost", port = DEFAULT_PORT,
-                    response_timeout: 10, root_loader: Orocos.default_loader,
-                    name_service: Orocos.name_service
+                    response_timeout: 10, root_loader: Runkit.default_loader,
+                    name_service: Runkit.name_service
                 )
                     @host = host
                     @port = port
@@ -185,7 +185,7 @@ module Syskit
                     else deployment_model = deployment
                     end
 
-                    prefix_mappings = Orocos::ProcessBase.resolve_prefix(
+                    prefix_mappings = Runkit::ProcessBase.resolve_prefix(
                         deployment_model, options.delete(:prefix)
                     )
                     name_mappings = prefix_mappings.merge(name_mappings)

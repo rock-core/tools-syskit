@@ -65,7 +65,7 @@ Roby.app.additional_model_files.concat(direct_files)
 $qApp.disable_threading
 
 Syskit::Scripts.run do
-    Orocos.initialize
+    Runkit.initialize
     main = Syskit::GUI::IDE.new(
         robot_name: Roby.app.robot_name,
         runtime_only: runtime_only,

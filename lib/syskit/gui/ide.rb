@@ -104,13 +104,13 @@ module Syskit
                 Roby.app.clear_models
                 Roby.app.clear_config
                 Roby.app.setup
-                # HACK: reload_models calls Orocos.clear, which actually
-                # HACK: de-initializes Orocos. Overall, this isn't a problem
+                # HACK: reload_models calls Runkit.clear, which actually
+                # HACK: de-initializes Runkit. Overall, this isn't a problem
                 # HACK: on the Syskit side as one is not supposed to reload
                 # HACK: the models while the app is setup (setup being
-                # HACK: what calls Orocos.initialize). However, the IDE also
+                # HACK: what calls Runkit.initialize). However, the IDE also
                 # HACK: has a task inspector, which also needs
-                # HACK: Orocos.initialize, so the IDE *does* call initialize
+                # HACK: Runkit.initialize, so the IDE *does* call initialize
                 # HACK: explicitely
                 @runtime_state&.reset
                 model_browser.update_exceptions

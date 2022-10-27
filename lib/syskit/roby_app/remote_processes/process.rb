@@ -1,12 +1,10 @@
 # frozen_string_literal: true
 
-require "orocos/process"
-
 module Syskit
     module RobyApp
         module RemoteProcesses
             # Representation of a remote process started with ProcessClient#start
-            class Process < Orocos::ProcessBase
+            class Process < Runkit::ProcessBase
                 # The ProcessClient instance that gives us access to the remote process
                 # server
                 attr_reader :process_client
@@ -66,7 +64,7 @@ module Syskit
                 end
 
                 def resolve_all_tasks
-                    Orocos::Process.resolve_all_tasks(self)
+                    Runkit::Process.resolve_all_tasks(self)
                 end
 
                 def define_ior_mappings(mappings)

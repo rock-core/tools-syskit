@@ -8,8 +8,8 @@ module Syskit
         run_live
 
         before do
-            @orig_connect_timeout = Orocos::CORBA.connect_timeout
-            @orig_call_timeout = Orocos::CORBA.call_timeout
+            @orig_connect_timeout = Runkit::CORBA.connect_timeout
+            @orig_call_timeout = Runkit::CORBA.call_timeout
             @orig_opportunistic_recovery =
                 Syskit.conf.opportunistic_recovery_from_quarantine?
             @orig_auto_restart_flag =
@@ -17,7 +17,7 @@ module Syskit
             @orig_exception_transition_timeout =
                 Syskit.conf.exception_transition_timeout
 
-            Orocos::CORBA.connect_timeout = 100
+            Runkit::CORBA.connect_timeout = 100
             Syskit.conf.opportunistic_recovery_from_quarantine = false
             Syskit.conf.auto_restart_deployments_with_quarantines = false
         end
@@ -30,8 +30,8 @@ module Syskit
             # the error will be reported by an EmissionFailed on `interrupt`
             plan.execution_engine.join_all_waiting_work
 
-            Orocos::CORBA.connect_timeout = @orig_connect_timeout
-            Orocos::CORBA.call_timeout = @orig_call_timeout
+            Runkit::CORBA.connect_timeout = @orig_connect_timeout
+            Runkit::CORBA.call_timeout = @orig_call_timeout
             Syskit.conf.opportunistic_recovery_from_quarantine =
                 @orig_opportunistic_recovery
             Syskit.conf.auto_restart_deployments_with_quarantines =
@@ -59,7 +59,7 @@ module Syskit
 
                 it "waits for a long call to finish" do
                     @task.properties.time = 2
-                    Orocos::CORBA.call_timeout = 5000
+                    Runkit::CORBA.call_timeout = 5000
                     syskit_configure(@task)
                     assert_equal :STOPPED, rtt_state
                     refute @deployment.task_context_in_fatal?(@task.orocos_name)
@@ -67,7 +67,7 @@ module Syskit
 
                 it "marks a task whose call timed out as 'fatal' on the deployment" do
                     @task.properties.time = 10
-                    Orocos::CORBA.call_timeout = 1000
+                    Runkit::CORBA.call_timeout = 1000
                     expect_execution.scheduler(true).timeout(5).to do
                         fail_to_start task
                     end
@@ -76,7 +76,7 @@ module Syskit
 
                 it "handles the task being killed in the middle of a long call" do
                     @task.properties.time = 10
-                    Orocos::CORBA.call_timeout = 2_000
+                    Runkit::CORBA.call_timeout = 2_000
                     start = Time.now
 
                     expect_execution.scheduler(true).join_all_waiting_work(false).to do
@@ -99,7 +99,7 @@ module Syskit
 
                 it "waits for a long call to finish" do
                     @task.properties.time = 2
-                    Orocos::CORBA.call_timeout = 5000
+                    Runkit::CORBA.call_timeout = 5000
                     syskit_start(@task)
                     assert_equal :RUNNING, rtt_state
                     refute @deployment.task_context_in_fatal?(@task.orocos_name)
@@ -107,7 +107,7 @@ module Syskit
 
                 it "marks a task whose call timed out as 'fatal' on the deployment" do
                     @task.properties.time = 10
-                    Orocos::CORBA.call_timeout = 1000
+                    Runkit::CORBA.call_timeout = 1000
                     expect_execution.scheduler(true).timeout(5).to do
                         fail_to_start task
                     end
@@ -116,7 +116,7 @@ module Syskit
 
                 it "handles the task being killed in the middle of a long call" do
                     @task.properties.time = 10
-                    Orocos::CORBA.call_timeout = 2_000
+                    Runkit::CORBA.call_timeout = 2_000
                     start = Time.now
 
                     expect_execution.scheduler(true).join_all_waiting_work(false).to do
@@ -142,7 +142,7 @@ module Syskit
 
                 it "waits for a long call to finish" do
                     @task.properties.time = 1
-                    Orocos::CORBA.call_timeout = 4_000
+                    Runkit::CORBA.call_timeout = 4_000
                     syskit_configure_and_start(@task)
 
                     syskit_stop(@task)
@@ -152,7 +152,7 @@ module Syskit
 
                 it "quarantines a task whose call timed out" do
                     @task.properties.time = 10
-                    Orocos::CORBA.call_timeout = 1_000
+                    Runkit::CORBA.call_timeout = 1_000
                     syskit_configure(@task)
 
                     synchronize_on_sleep(task) { task.start! }
@@ -164,7 +164,7 @@ module Syskit
                 end
 
                 it "stops the task if the stop eventually works" do
-                    Orocos::CORBA.call_timeout = 1_000
+                    Runkit::CORBA.call_timeout = 1_000
                     @task.properties.time = 4
                     syskit_configure(@task)
 
@@ -179,7 +179,7 @@ module Syskit
 
                 it "handles the task being killed in the middle of a long call" do
                     @task.properties.time = 10
-                    Orocos::CORBA.call_timeout = 2_000
+                    Runkit::CORBA.call_timeout = 2_000
                     syskit_configure(task)
 
                     synchronize_on_sleep(task) { task.start! }
@@ -211,7 +211,7 @@ module Syskit
 
                 it "waits for a long call to finish" do
                     @task.properties.time = 1
-                    Orocos::CORBA.call_timeout = 4_000
+                    Runkit::CORBA.call_timeout = 4_000
                     syskit_configure_and_start(@task)
 
                     syskit_stop(@task)
@@ -221,7 +221,7 @@ module Syskit
 
                 it "quarantines a task whose call timed out" do
                     @task.properties.time = 10
-                    Orocos::CORBA.call_timeout = 1_000
+                    Runkit::CORBA.call_timeout = 1_000
                     syskit_configure_and_start(@task)
 
                     expect_execution { task.stop! }.timeout(5).to do
@@ -231,7 +231,7 @@ module Syskit
                 end
 
                 it "stops the task if the stop eventually works" do
-                    Orocos::CORBA.call_timeout = 1_000
+                    Runkit::CORBA.call_timeout = 1_000
                     @task.properties.time = 4
                     syskit_configure_and_start(@task)
 
@@ -244,7 +244,7 @@ module Syskit
 
                 it "handles the task being killed in the middle of a long call" do
                     @task.properties.time = 10
-                    Orocos::CORBA.call_timeout = 2_000
+                    Runkit::CORBA.call_timeout = 2_000
                     syskit_configure_and_start(task)
 
                     start = Time.now
@@ -323,7 +323,7 @@ module Syskit
             describe "#cleanup (reconfiguration)" do
                 it "waits for a long call to finish" do
                     @task.properties.time = 2
-                    Orocos::CORBA.call_timeout = 5000
+                    Runkit::CORBA.call_timeout = 5000
                     prepare_cleanup
                     syskit_configure(@task)
                     assert_equal :STOPPED, rtt_state
@@ -332,7 +332,7 @@ module Syskit
 
                 it "marks a task whose call timed out as 'fatal' on the deployment" do
                     @task.properties.time = 10
-                    Orocos::CORBA.call_timeout = 1000
+                    Runkit::CORBA.call_timeout = 1000
                     prepare_cleanup
                     expect_execution.scheduler(true).timeout(5).to do
                         fail_to_start task
@@ -342,7 +342,7 @@ module Syskit
 
                 it "handles the task being killed in the middle of a long call" do
                     @task.properties.time = 10
-                    Orocos::CORBA.call_timeout = 2_000
+                    Runkit::CORBA.call_timeout = 2_000
                     prepare_cleanup
                     start = Time.now
 
@@ -371,7 +371,7 @@ module Syskit
             describe "#cleanup (after a property change in #configure)" do
                 it "waits for a long call to finish" do
                     @task.properties.time = 2
-                    Orocos::CORBA.call_timeout = 5000
+                    Runkit::CORBA.call_timeout = 5000
                     prepare_cleanup
                     syskit_configure(@task)
                     assert_equal :STOPPED, rtt_state
@@ -380,7 +380,7 @@ module Syskit
 
                 it "marks a task whose call timed out as 'fatal' on the deployment" do
                     @task.properties.time = 10
-                    Orocos::CORBA.call_timeout = 1000
+                    Runkit::CORBA.call_timeout = 1000
                     prepare_cleanup
                     expect_execution.scheduler(true).timeout(5).to do
                         fail_to_start task
@@ -390,7 +390,7 @@ module Syskit
 
                 it "handles the task being killed in the middle of a long call" do
                     @task.properties.time = 10
-                    Orocos::CORBA.call_timeout = 2_000
+                    Runkit::CORBA.call_timeout = 2_000
                     prepare_cleanup
                     start = Time.now
 
@@ -435,7 +435,7 @@ module Syskit
         end
 
         def rtt_state(task = @task)
-            Orocos.allow_blocking_calls { task.orocos_task.rtt_state }
+            Runkit.allow_blocking_calls { task.orocos_task.rtt_state }
         end
 
         def find_logger

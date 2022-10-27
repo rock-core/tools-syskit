@@ -185,7 +185,7 @@ module Syskit
             !waiting_precedence_relation
         end
 
-        # Returns true if the underlying Orocos task is in a state that
+        # Returns true if the underlying Runkit task is in a state that
         # allows it to be configured
         def ready_for_setup? # :nodoc:
             if garbage?
@@ -205,7 +205,7 @@ module Syskit
             meets_configurationg_precedence_constraints?
         end
 
-        # Returns true if the underlying Orocos task has been properly
+        # Returns true if the underlying Runkit task has been properly
         # configured
         attr_predicate :setup?, true
 
@@ -917,7 +917,7 @@ module Syskit
         # handler. The root cause of it is that disconnection can be
         # performed *after* a Roby task got finalized.
         #
-        # @param [Orocos::TaskContext] source_task
+        # @param [Runkit::TaskContext] source_task
         # @param [String] source_port
         # @param [String] sink_port
         def removing_input_port_connection(source_task, source_port, sink_port)
@@ -934,7 +934,7 @@ module Syskit
         # handler. The root cause of it is that disconnection can be
         # performed *after* a Roby task got finalized.
         #
-        # @param [Orocos::TaskContext] source_task
+        # @param [Runkit::TaskContext] source_task
         # @param [String] source_port
         # @param [String] sink_port
         def removed_input_port_connection(source_task, source_port, sink_port)
@@ -952,7 +952,7 @@ module Syskit
         # performed *after* a Roby task got finalized.
         #
         # @param [String] source_port
-        # @param [Orocos::TaskContext] sink_task
+        # @param [Runkit::TaskContext] sink_task
         # @param [String] sink_port
         def removing_output_port_connection(source_port, sink_task, sink_port)
             super if defined? super
@@ -969,7 +969,7 @@ module Syskit
         # performed *after* a Roby task got finalized.
         #
         # @param [String] source_port
-        # @param [Orocos::TaskContext] sink_task
+        # @param [Runkit::TaskContext] sink_task
         # @param [String] sink_port
         def removed_output_port_connection(source_port, sink_task, sink_port)
             super if defined? super

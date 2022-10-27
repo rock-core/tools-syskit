@@ -17,8 +17,8 @@ describe Syskit::RobyApp::RemoteProcesses do
         @__server_current_log_level =
             Syskit::RobyApp::RemoteProcesses::Server.logger.level
         Syskit::RobyApp::RemoteProcesses::Server.logger.level = Logger::WARN
-        @__orocos_current_log_level = Orocos.logger.level
-        Orocos.logger.level = Logger::FATAL
+        @__orocos_current_log_level = Runkit.logger.level
+        Runkit.logger.level = Logger::FATAL
     end
 
     after do
@@ -33,7 +33,7 @@ describe Syskit::RobyApp::RemoteProcesses do
                 @__server_current_log_level
         end
 
-        Orocos.logger.level = @__orocos_current_log_level if @__orocos_current_log_level
+        Runkit.logger.level = @__orocos_current_log_level if @__orocos_current_log_level
     end
 
     describe "#initialize" do
@@ -166,12 +166,12 @@ describe Syskit::RobyApp::RemoteProcesses do
             assert_equal({ "syskit_tests_empty" => nil }, result)
         end
 
-        it "reports a Orocos::NotFound error specific to a process" do
+        it "reports a Runkit::NotFound error specific to a process" do
             not_found_error_message = "syskit_tests_empty was started but crashed"
-            flexmock(Orocos::ProcessBase)
+            flexmock(Runkit::ProcessBase)
                 .new_instances
                 .should_receive(:wait_running)
-                .and_raise(Orocos::NotFound, not_found_error_message)
+                .and_raise(Runkit::NotFound, not_found_error_message)
 
             client.start(
                 "syskit_tests_empty", "syskit_tests_empty",
@@ -189,10 +189,10 @@ describe Syskit::RobyApp::RemoteProcesses do
             ior_invalid_error_message =
                 "the ior message doesnt contain information about the following tasks:" \
                 " [\"syskit_tests_empty_Logger\"]"
-            flexmock(Orocos::ProcessBase)
+            flexmock(Runkit::ProcessBase)
                 .new_instances
                 .should_receive(:wait_running)
-                .and_raise(Orocos::InvalidIORMessage, ior_invalid_error_message)
+                .and_raise(Runkit::InvalidIORMessage, ior_invalid_error_message)
 
             client.start(
                 "syskit_tests_empty", "syskit_tests_empty",
@@ -223,7 +223,7 @@ describe Syskit::RobyApp::RemoteProcesses do
 
         it "reports when a runtime error occured" do
             runtime_error_message = "some runtime error occured"
-            flexmock(Orocos::ProcessBase)
+            flexmock(Runkit::ProcessBase)
                 .new_instances
                 .should_receive(:wait_running)
                 .and_raise(RuntimeError, runtime_error_message)
@@ -254,9 +254,9 @@ describe Syskit::RobyApp::RemoteProcesses do
 
         it "kills an already started process" do
             process.kill(true)
-            assert_raises Orocos::NotFound do
-                Orocos.allow_blocking_calls do
-                    Orocos.get "syskit_tests_empty"
+            assert_raises Runkit::NotFound do
+                Runkit.allow_blocking_calls do
+                    Runkit.get "syskit_tests_empty"
                 end
             end
         end

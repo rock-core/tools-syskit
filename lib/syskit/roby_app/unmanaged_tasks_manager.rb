@@ -1,7 +1,5 @@
 # frozen_string_literal: true
 
-require "orocos/ruby_tasks/process"
-
 module Syskit
     module RobyApp
         # A class API-compatible with {Syskit::RobyApp::RemoteProcesses::Client} but that
@@ -60,7 +58,7 @@ module Syskit
             attr_reader :loader
 
             def initialize(loader: Roby.app.default_loader,
-                name_service: Orocos::CORBA.name_service)
+                name_service: Runkit::CORBA.name_service)
                 @loader = loader
                 @processes = {}
                 @name_service = name_service
@@ -103,7 +101,7 @@ module Syskit
                     raise ArgumentError, "#{name} is already started in #{self}"
                 end
 
-                prefix_mappings = Orocos::ProcessBase.resolve_prefix(model, prefix)
+                prefix_mappings = Runkit::ProcessBase.resolve_prefix(model, prefix)
                 name_mappings = prefix_mappings.merge(name_mappings)
                 name_mappings.each do |from, to|
                     if from != to
@@ -159,7 +157,7 @@ module Syskit
                         begin
                             ior_resolution = p.wait_running(0)
                             result[name] = { iors: ior_resolution }
-                        rescue Orocos::NotFound, Orocos::CORBA::ComError => e
+                        rescue Runkit::NotFound, Runkit::CORBA::ComError => e
                             result[name] = { error: e.message }
                         end
                     else

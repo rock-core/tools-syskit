@@ -1,9 +1,9 @@
 # frozen_string_literal: true
 
 module Syskit
-    # Adapter for {Orocos::TaskConfigurations} to take into account the
+    # Adapter for {Runkit::TaskConfigurations} to take into account the
     # conventions inside Syskit apps
-    class TaskConfigurationManager < Orocos::TaskConfigurations
+    class TaskConfigurationManager < Runkit::TaskConfigurations
         attr_reader :app
         attr_reader :syskit_model
 

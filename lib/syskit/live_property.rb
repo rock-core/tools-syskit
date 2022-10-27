@@ -35,7 +35,7 @@ module Syskit
         #
         # @param [Typelib::Type,Object] value the property value
         # @param [Time] _timestamp ignored, for compatibility with
-        #   {Orocos::Property}
+        #   {Runkit::Property}
         def write(value, _timestamp = nil)
             super if task_context.would_use_property_update?
         end

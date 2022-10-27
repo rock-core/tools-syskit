@@ -95,12 +95,12 @@ module Syskit
             # in which +from_task+ and +to_task+ are instances of
             # Syskit::TaskContext (i.e. Roby tasks), +from_port+ and
             # +to_port+ are the port names (i.e. strings) and policy the policy
-            # hash that Orocos::OutputPort#connect_to expects.
+            # hash that Runkit::OutputPort#connect_to expects.
             #
             #   removed = { [from_task, to_task] => { [from_port, to_port], ... }, ... }
             #
             # in which +from_task+ and +to_task+ are instances of
-            # Orocos::TaskContext (i.e. the underlying RTT tasks). +from_port+ and
+            # Runkit::TaskContext (i.e. the underlying RTT tasks). +from_port+ and
             # +to_port+ are the names of the ports that have to be disconnected
             # (i.e. strings)
             def compute_connection_changes(tasks)
@@ -182,7 +182,7 @@ module Syskit
             # Checks whether the removal of some connections require to run the
             # Syskit deployer right away
             #
-            # @param [{(Orocos::TaskContext,Orocos::TaskContext) => {[String,String] => Hash}}] removed
+            # @param [{(Runkit::TaskContext,Runkit::TaskContext) => {[String,String] => Hash}}] removed
             #   the connections, specified between the actual tasks (NOT their Roby representations)
             def removed_connections_require_network_update?(connections)
                 unneeded_tasks = nil
@@ -310,7 +310,7 @@ module Syskit
             def post_disconnect_failure(disconnections)
                 disconnections.find_all do |syskit_from_task, from_task, from_port, syskit_to_task, to_task, to_port, error|
                     case error
-                    when Orocos::ComError, Orocos::NotFound
+                    when Runkit::ComError, Runkit::NotFound
                         terminating_deployments =
                             plan.find_tasks(Syskit::Deployment).finishing
                                 .flat_map { |d| d.remote_task_handles.values }
@@ -329,7 +329,7 @@ module Syskit
 
             # Remove port-to-port connections
             #
-            # @param [{(Orocos::TaskContext,Orocos::TaskContext) => [[String,String]]}] removed
+            # @param [{(Runkit::TaskContext,Runkit::TaskContext) => [[String,String]]}] removed
             #   the connections, specified between the actual tasks (NOT their Roby representations)
             # @return [[Syskit::TaskContext]] the list of tasks whose connections have been modified
             def apply_connection_removal(removed)
@@ -364,7 +364,7 @@ module Syskit
                             break
                         end
 
-                        policy, = Kernel.filter_options(policy, Orocos::Port::CONNECTION_POLICY_OPTIONS)
+                        policy, = Kernel.filter_options(policy, Runkit::Port::CONNECTION_POLICY_OPTIONS)
 
                         from_syskit_port = from_task.find_output_port(from_port)
                         to_syskit_port   = to_task.find_input_port(to_port)
@@ -455,7 +455,7 @@ module Syskit
             def post_connect_failure(connections)
                 connections.each do |from_task, from_port, to_task, to_port, policy, error|
                     case error
-                    when Orocos::InterfaceObjectNotFound
+                    when Runkit::InterfaceObjectNotFound
                         if error.task == from_task.orocos_task && error.name == from_port
                             plan.execution_engine.add_error(PortNotFound.new(from_task, from_port, :output))
                         else
@@ -625,7 +625,7 @@ module Syskit
             # The result is formatted as the rest of the connection hashes, that
             # is keys are (source_task, sink_task) and values are Array<(source_port,
             # task_port)>. Note that source_task and sink_task are
-            # Orocos::TaskContext, and it is guaranteed that one of them has no
+            # Runkit::TaskContext, and it is guaranteed that one of them has no
             # equivalent in the Syskit graphs (meaning that no keys in the
             # return value can be found in the return value of
             # {#compute_connection_changes})
