@@ -13,6 +13,7 @@ end
 
 require "securerandom"
 
+require "syskit/roby_app/default_loader"
 require "syskit/roby_app/logging_configuration"
 require "syskit/roby_app/logging_group"
 require "syskit/roby_app/robot_extension"
