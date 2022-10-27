@@ -11,6 +11,7 @@ module Syskit
             # Bypass Roby's own test setup
             def setup
                 @roby_app = Roby::Application.new
+                @roby_app.default_loader # Cause creation of default_pkgconfig_loader
                 @roby_interface = Roby::Interface::Interface.new(@roby_app)
             end
 
