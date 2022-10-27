@@ -398,7 +398,7 @@ module Syskit
                     it "passes sane default configuration" do
                         flexmock(RESTDeploymentManager).new_instances
                                                        .should_receive(:command_line)
-                                                       .with(123, tracing: false, name_service_ip: "localhost")
+                                                       .with(123, tracing: false)
                                                        .and_return(Runkit::Process::CommandLine.new)
                         get_json "/deployments/123/command_line"
                     end
@@ -406,9 +406,9 @@ module Syskit
                     it "allows to override the defaults" do
                         flexmock(RESTDeploymentManager).new_instances
                                                        .should_receive(:command_line)
-                                                       .with(123, tracing: true, name_service_ip: "some_ip")
+                                                       .with(123, tracing: true)
                                                        .and_return(Runkit::Process::CommandLine.new)
-                        get_json "/deployments/123/command_line?tracing=true&name_service_ip=some_ip"
+                        get_json "/deployments/123/command_line?tracing=true"
                     end
 
                     it "returns 404 if the deployment does not exist" do

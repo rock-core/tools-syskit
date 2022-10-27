@@ -69,7 +69,6 @@ module Syskit
                 # Start a standalone process server using the given options and port.
                 # The options are passed to Server.run when a new deployment is started
                 def self.run(options = DEFAULT_OPTIONS, port = DEFAULT_PORT)
-                    Runkit.disable_sigchld_handler = true
                     Runkit.initialize
                     new({ wait: false }.merge(options), port).exec
                 rescue Interrupt # rubocop:disable Lint/SuppressedException

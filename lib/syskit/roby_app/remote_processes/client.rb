@@ -48,9 +48,6 @@ module Syskit
                 attr_reader :server_pid
                 # A string that allows to uniquely identify this process server
                 attr_reader :host_id
-                # The name service object that allows to resolve tasks from this process
-                # server
-                attr_reader :name_service
 
                 def to_s
                     "#<Syskit::RobyApp::RemoteProcesses::Client #{host}:#{port}>"
@@ -62,16 +59,12 @@ module Syskit
 
                 # Connects to the process server at +host+:+port+
                 #
-                # @option options [Runkit::NameService] :name_service
-                #   (Runkit.name_service). The name service object that should be used
-                #   to resolve tasks started by this process server
                 # @option options [OroGen::Loaders::Base] :root_loader
                 #   (Runkit.default_loader). The loader object that should be used as
                 #   root for this client's loader
                 def initialize(
                     host = "localhost", port = DEFAULT_PORT,
-                    response_timeout: 10, root_loader: Runkit.default_loader,
-                    name_service: Runkit.name_service
+                    response_timeout: 10, root_loader: Runkit.default_loader
                 )
                     @host = host
                     @port = port
@@ -86,7 +79,6 @@ module Syskit
                     socket.setsockopt(Socket::IPPROTO_TCP, Socket::TCP_NODELAY, true)
                     socket.fcntl(Fcntl::FD_CLOEXEC, 1)
 
-                    @name_service = name_service
                     begin
                         @server_pid = pid
                     rescue EOFError
@@ -205,7 +197,9 @@ module Syskit
                             process = Process.new(
                                 process_name, deployment_model, self, pid
                             )
-                            process.name_mappings = name_mappings
+                            name_mappings.each do |old, new|
+                                process.map_name(old, new)
+                            end
                             processes[process_name] = process
                             return process
                         else

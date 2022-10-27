@@ -265,7 +265,7 @@ module Syskit
         private def auto_select_conf(task)
             manager = task.model.configuration_manager
             task.conf =
-                if manager.has_section?(task.orocos_name)
+                if manager.section?(task.orocos_name)
                     ["default", task.orocos_name]
                 else
                     ["default"]
@@ -325,10 +325,8 @@ module Syskit
             tracing: false,
             gdb: nil,
             valgrind: nil,
-            name_service_ip: "localhost",
             loader: Roby.app.default_pkgconfig_loader
         )
-
             cmdline_args = cmdline_args.dup
             each_default_run_option do |option_name, option_value|
                 unless cmdline_args.key?(option_name)
@@ -337,9 +335,7 @@ module Syskit
             end
 
             process = Runkit::Process.new(
-                name, orogen_model,
-                loader: loader,
-                name_mappings: name_mappings
+                name, orogen_model, loader: loader, name_mappings: name_mappings
             )
             process.command_line(
                 working_directory: working_directory,
@@ -347,8 +343,7 @@ module Syskit
                 cmdline_args: cmdline_args,
                 tracing: tracing,
                 gdb: gdb,
-                valgrind: valgrind,
-                name_service_ip: name_service_ip
+                valgrind: valgrind
             )
         end
 
@@ -521,7 +516,7 @@ module Syskit
                 state_reader, state_getter =
                     create_state_access(remote_task, distance: distance_to_syskit)
                 properties = remote_task.property_names.map do |p_name|
-                    p = remote_task.raw_property(p_name)
+                    p = remote_task.property(p_name)
                     [p, p.raw_read.freeze]
                 end
                 current_configuration = CurrentTaskConfiguration.new(nil, [], Set.new)
@@ -708,7 +703,7 @@ module Syskit
         # @api private
         def setup_task_handles(remote_tasks)
             model.each_orogen_deployed_task_context_model do |act|
-                name = orocos_process.get_mapped_name(act.name)
+                name = orocos_process.mapped_name_for(act.name)
                 unless remote_tasks.key?(name)
                     raise InternalError,
                           "expected #{orocos_process}'s reported tasks to "\
@@ -716,10 +711,6 @@ module Syskit
                           "but got handles only for "\
                           "#{remote_tasks.keys.sort.join(' ')}"
                 end
-            end
-
-            remote_tasks.each_value do |task|
-                task.handle.process = nil
             end
 
             each_parent_object(Roby::TaskStructure::ExecutionAgent) do |task|
@@ -746,13 +737,10 @@ module Syskit
             state_getter = RemoteStateGetter.new(remote_task)
 
             if remote_task.model.extended_state_support?
-                state_port = remote_task.raw_port("state")
-                state_reader = state_port.reader(
+                state_reader = remote_task.state_reader(
                     type: :buffer, size: STATE_READER_BUFFER_SIZE, init: true,
                     distance: distance
                 )
-                state_reader.extend Runkit::TaskContext::StateReader
-                state_reader.state_symbols = remote_task.state_symbols
             else
                 state_getter.start
                 state_getter.pause
@@ -820,8 +808,8 @@ module Syskit
             promise.then(description: "#{self}.stop_event - cleaning RTT tasks") do
                 remote_task_handles.each_value do |remote_task|
                     begin
-                        if remote_task.handle.rtt_state == :STOPPED
-                            remote_task.handle.cleanup(false)
+                        if remote_task.handle.read_toplevel_state == :STOPPED
+                            remote_task.handle.cleanup
                         end
                     rescue Runkit::ComError
                         # Assume that the process is killed as it is not reachable

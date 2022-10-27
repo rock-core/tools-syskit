@@ -261,13 +261,18 @@ module Syskit
 
                 section = nil
                 begin
-                    Runkit.run task_model.orogen_model => "oroconf_extract",
-                               oro_logfile: "/dev/null" do
-                        task = Runkit.get "oroconf_extract"
-                        task_model.configuration_manager.extract(section_name, task)
-                        section = task_model.configuration_manager.conf(section_name)
-                        section = Runkit::TaskConfigurations.to_yaml(section)
+                    process = Runkit::Process.for_orogen_model(
+                        task_model.orogen_model => "oroconf_extract",
+                        loader: OroGen::Loaders::RTT.new(Runkit.orocos_target)
+                    )
+                    process.spawn(oro_logfile: "/dev/null")
+                    unless process.wait_running(10)
+                        raise "could not get #{task_model.name} running within 10s"
                     end
+
+                    task_model.configuration_manager.extract(section_name, task)
+                    section = task_model.configuration_manager.conf(section_name)
+                    section = Runkit::TaskConfigurations.to_yaml(section)
                 rescue RuntimeError
                     unless section
                         raise Roby::CLI::CLICommandFailed,
@@ -275,6 +280,9 @@ module Syskit
                               "#{task_model.orogen_model.name}, cannot create "\
                               "a configuration file with default values"
                     end
+                ensure
+                    process&.kill
+                    process&.join
                 end
 
                 return unless section

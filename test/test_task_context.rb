@@ -442,7 +442,7 @@ module Syskit
                 "but the task is in a stopped state" do
                 task.orocos_task.should_receive(:stop).and_return do
                     Runkit::TaskContext.instance_method(:stop)
-                                       .call(task.orocos_task, false)
+                                       .call(task.orocos_task)
                     raise Runkit::StateTransitionFailed
                 end
                 expect_execution { task.stop! }
@@ -1256,14 +1256,14 @@ module Syskit
             end
 
             it "resets the needs_configuration flag" do
-                orocos_task.should_receive(:rtt_state).and_return(:PRE_OPERATIONAL)
+                orocos_task.should_receive(:read_toplevel_state).and_return(:PRE_OPERATIONAL)
                 task.should_receive(:ready_for_setup?).with(:PRE_OPERATIONAL).and_return(true)
                 task.needs_reconfiguration!
                 setup_task
                 assert !task.needs_reconfiguration?
             end
             it "registers the current task configuration" do
-                orocos_task.should_receive(:rtt_state).and_return(:PRE_OPERATIONAL)
+                orocos_task.should_receive(:read_toplevel_state).and_return(:PRE_OPERATIONAL)
                 task.should_receive(:ready_for_setup?).with(:PRE_OPERATIONAL).and_return(true)
                 task.needs_reconfiguration!
                 assert task.execution_agent.configuration_changed?(task.orocos_name, ["default"], Set.new)
@@ -1320,12 +1320,12 @@ module Syskit
                     setup_task(expected_messages: ["setting up #{task}"])
                 end
                 it "calls the task's configure method if the task's state is PRE_OPERATIONAL" do
-                    orocos_task.should_receive(:rtt_state).and_return(:PRE_OPERATIONAL)
+                    orocos_task.should_receive(:read_toplevel_state).and_return(:PRE_OPERATIONAL)
                     orocos_task.should_receive(:configure).once.ordered
                     setup_task(expected_messages: ["setting up #{task}"])
                 end
                 it "does not call the task's configure method if the task's state is not PRE_OPERATIONAL" do
-                    orocos_task.should_receive(:rtt_state).and_return(:STOPPED)
+                    orocos_task.should_receive(:read_toplevel_state).and_return(:STOPPED)
                     orocos_task.should_receive(:configure).never
                     setup_task(expected_messages: ["#{task} was already configured"])
                 end
@@ -1747,7 +1747,7 @@ module Syskit
                         @task = syskit_stub_deploy_configure_and_start(task_m)
                         @property = task.test_property
                         Runkit.allow_blocking_calls do
-                            @remote_test_property = task.orocos_task.raw_property("test")
+                            @remote_test_property = task.orocos_task.property("test")
                             @remote_test_property.write(0.2)
                         end
                         @property.update_remote_value(0.2)
@@ -1800,7 +1800,7 @@ module Syskit
                         syskit_start_execution_agents(task)
                         @property = task.test_property
                         Runkit.allow_blocking_calls do
-                            @remote_test_property = task.orocos_task.raw_property("test")
+                            @remote_test_property = task.orocos_task.property("test")
                             @remote_test_property.write(0.2)
                         end
                     end
@@ -1830,7 +1830,7 @@ module Syskit
                         syskit_start_execution_agents(task)
                         @property = task.test_property
                         Runkit.allow_blocking_calls do
-                            @remote_test_property = task.orocos_task.raw_property("test")
+                            @remote_test_property = task.orocos_task.property("test")
                             @remote_test_property.write(0.2)
                         end
                     end
@@ -1920,7 +1920,7 @@ module Syskit
                     syskit_start_execution_agents(task)
                     @stub_property = task.property("test")
                     Runkit.allow_blocking_calls do
-                        @remote_test_property = task.orocos_task.raw_property("test")
+                        @remote_test_property = task.orocos_task.property("test")
                         remote_test_property.write(0.2)
                     end
                     @stub_property.update_remote_value(0.2)
@@ -2103,9 +2103,12 @@ module Syskit
                         task_m = Syskit::TaskContext.new_submodel do
                             property "p", "/int"
                         end
-                        flexmock(Runkit::TaskContext).new_instances
-                                                     .should_receive(:property).with("p")
-                                                     .and_return(flexmock(name: "p", raw_read: 20))
+                        flexmock(Runkit::TaskContext)
+                            .new_instances
+                            .should_receive(:property).with("p")
+                            .and_return(
+                                flexmock(name: "p", raw_read: 20, log_metadata: {})
+                            )
                         @task = syskit_stub_and_deploy(task_m)
                     end
 
@@ -2180,7 +2183,7 @@ module Syskit
                     end
                 end
                 it "does not block the event loop if the node's cleanup command blocks" do
-                    Runkit.allow_blocking_calls { task.orocos_task.configure(false) }
+                    Runkit.allow_blocking_calls { task.orocos_task.configure }
                     flexmock(task.orocos_task).should_receive(:cleanup).once
                                               .pass_thru { barrier.wait }
                     capture_log(task, :info) do
@@ -2252,7 +2255,7 @@ module Syskit
                 @task =
                     syskit_stub_deploy_and_configure(task_m.with_arguments(read_only: true))
 
-                Runkit.allow_blocking_calls { @task.orocos_task.configure(false) }
+                Runkit.allow_blocking_calls { @task.orocos_task.configure }
             end
 
             it "raises when attempting to change a property" do
@@ -2265,7 +2268,7 @@ module Syskit
 
             it "emits start when the task is started while the component is running" do
                 task = @task
-                Runkit.allow_blocking_calls { task.orocos_task.start(false) }
+                Runkit.allow_blocking_calls { task.orocos_task.start }
 
                 assert state(task.orocos_task) == :RUNNING
 
@@ -2293,14 +2296,14 @@ module Syskit
                 assert task.starting?
 
                 expect_execution do
-                    Runkit.allow_blocking_calls { task.orocos_task.start(false) }
+                    Runkit.allow_blocking_calls { task.orocos_task.start }
                 end.to { emit task.start_event }
             end
 
             it "does not emit interrupted " \
             "if the task is stopped while the component is running" do
                 task = @task
-                Runkit.allow_blocking_calls { task.orocos_task.start(false) }
+                Runkit.allow_blocking_calls { task.orocos_task.start }
                 execute { task.start! }
 
                 assert task.running? && state(task.orocos_task) == :RUNNING
@@ -2311,18 +2314,18 @@ module Syskit
 
             it "emits stop when the component is stopped while the task is running" do
                 task = @task
-                Runkit.allow_blocking_calls { task.orocos_task.start(false) }
+                Runkit.allow_blocking_calls { task.orocos_task.start }
                 execute { task.start! }
 
                 assert task.running?
 
                 expect_execution do
-                    Runkit.allow_blocking_calls { task.orocos_task.stop(false) }
+                    Runkit.allow_blocking_calls { task.orocos_task.stop }
                 end.to { emit task.stop_event }
             end
 
             def state(component)
-                Runkit.allow_blocking_calls { component.rtt_state }
+                Runkit.allow_blocking_calls { component.read_toplevel_state }
             end
         end
     end

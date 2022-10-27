@@ -508,7 +508,7 @@ module Syskit
             #   purely used to display debugging information
             # @param [#[]] an object that maps the objects used as tasks in
             #   connections and states to an object that responds to
-            #   {#rtt_state}, to evaluate the object's state.
+            #   {#read_toplevel_state}, to evaluate the object's state.
             # @return [Array,Hash] the set of connections that can be performed
             #   right away, and the set of connections that require a state change
             #   in the tasks

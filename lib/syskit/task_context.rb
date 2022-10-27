@@ -515,18 +515,18 @@ module Syskit
         #
         # This should only be used for debugging reasons, and if you know
         # what you are doing: inconsistencies can arise because the state
-        # port is an asynchronous mean of communication while #rtt_state is
+        # port is an asynchronous mean of communication while #read_toplevel_state is
         # synchronous
         attr_predicate :validate_orogen_states, true
 
         # Validates that the current value in #orogen_state matches the
-        # value returned by orocos_task.rtt_state. This is called
+        # value returned by orocos_task.read_toplevel_state. This is called
         # automatically if #validate_orogen_states? is set to true
-        def validate_orogen_state_from_rtt_state
+        def validate_orogen_state_from_read_toplevel_state
             orogen_state = orogen_state
-            rtt_state    = orocos_task.rtt_state
+            read_toplevel_state    = orocos_task.read_toplevel_state
             mismatch =
-                case rtt_state
+                case read_toplevel_state
                 when :RUNNING
                     !orocos_task.runtime_state?(orogen_state)
                 when :STOPPED
@@ -543,9 +543,9 @@ module Syskit
 
             Runtime.warn(
                 "state mismatch on #{self} between state=#{orogen_state} "\
-                "and rtt_state=#{rtt_state}"
+                "and read_toplevel_state=#{read_toplevel_state}"
             )
-            @orogen_state = rtt_state
+            @orogen_state = read_toplevel_state
             handle_state_changes
         end
 
@@ -598,7 +598,7 @@ module Syskit
                 #
                 # At least tell the system to not expect a state transition
                 # if we were starting or stopping the component. Configure
-                # does its own call to rtt_state, it will figure out what is
+                # does its own call to read_toplevel_state, it will figure out what is
                 # going on
                 error = Roby::QuarantinedTaskError.new(self)
                 if start_event.pending?
@@ -662,7 +662,7 @@ module Syskit
             state || state_reader.read
         end
 
-        CONFIGURABLE_RTT_STATES = %I[STOPPED PRE_OPERATIONAL].freeze
+        CONFIGURABLE_TOPLEVEL_STATES = %I[STOPPED PRE_OPERATIONAL].freeze
 
         # Returns true if this component needs to be setup by calling the
         # #setup method, or if it can be used as-is
@@ -690,7 +690,7 @@ module Syskit
             end
 
             configurable_state =
-                CONFIGURABLE_RTT_STATES.include?(state) ||
+                CONFIGURABLE_TOPLEVEL_STATES.include?(state) ||
                 orocos_task.exception_state?(state)
             if configurable_state
                 true
@@ -858,7 +858,7 @@ module Syskit
                 properties = each_property.map do |syskit_p|
                     [syskit_p, syskit_p.remote_property.raw_read]
                 end
-                [properties, orocos_task.rtt_state]
+                [properties, orocos_task.read_toplevel_state]
             end
             promise.on_success(
                 description: "#{self}#prepare_for_setup#write properties and "\
@@ -899,11 +899,11 @@ module Syskit
             ) do |needs_reconfiguration, state|
                 if state == :EXCEPTION
                     info "reconfiguring #{self}: the task was in exception state"
-                    orocos_task.reset_exception(false)
+                    orocos_task.reset_exception
                     orocos_task.port_names
                 elsif needs_reconfiguration && (state != :PRE_OPERATIONAL)
                     info "cleaning up #{self}"
-                    orocos_task.cleanup(false)
+                    orocos_task.cleanup
                     orocos_task.port_names
                 end
             end
@@ -937,17 +937,17 @@ module Syskit
             commit_properties(promise)
 
             promise.then(description: "#{self}#perform_setup#orocos_task.configure") do
-                state = orocos_task.rtt_state
+                state = orocos_task.read_toplevel_state
                 if properties_updated_in_configure && state != :PRE_OPERATIONAL
                     info "properties have been changed within #configure, "\
                          "cleaning up #{self}"
-                    orocos_task.cleanup(false)
+                    orocos_task.cleanup
                     state = :PRE_OPERATIONAL
                 end
 
                 if state == :PRE_OPERATIONAL
                     info "setting up #{self}"
-                    orocos_task.configure(false)
+                    orocos_task.configure
                 else
                     info "#{self} was already configured"
                 end
@@ -1008,7 +1008,7 @@ module Syskit
                               "not have a port named #{sink_p}"
                     end
                 end
-                orocos_task.start(false)
+                orocos_task.start
             end
             start_event.achieve_asynchronously(promise, emit_on_success: false)
             promise.on_error do |exception|
@@ -1091,15 +1091,15 @@ module Syskit
         # task, or a task that raises StateTransitionFailed but stops
         # anyways
         def stop_orocos_task
-            orocos_task.stop(false)
+            orocos_task.stop
             nil
         rescue Runkit::StateTransitionFailed
             # Could be that we already have stopped, for instance because there
             # was a race between the component and Syskit
             #
-            # Use #rtt_state to verify as it has no problem with asynchronous
+            # Use #read_toplevel_state to verify as it has no problem with asynchronous
             # communication, unlike the port-based state updates.
-            state = orocos_task.rtt_state
+            state = orocos_task.read_toplevel_state
             raise if state == :RUNNING
 
             Runtime.debug do
@@ -1165,7 +1165,7 @@ module Syskit
         def queue_last_chance_to_stop
             stop_event.pending = true
             promise(description: "aborting #{self}") do
-                orocos_task.stop(false)
+                orocos_task.stop
             rescue StandardError # rubocop:disable Lint/SuppressedException
             end.execute
         end

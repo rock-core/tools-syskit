@@ -57,8 +57,10 @@ module Syskit
             # The OroGen loader
             attr_reader :loader
 
-            def initialize(loader: Roby.app.default_loader,
-                name_service: Runkit::CORBA.name_service)
+            def initialize(
+                loader: Roby.app.default_loader,
+                name_service: Runkit::NameServices::CORBA.new("localhost")
+            )
                 @loader = loader
                 @processes = {}
                 @name_service = name_service

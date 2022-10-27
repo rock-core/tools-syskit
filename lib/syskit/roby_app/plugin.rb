@@ -59,8 +59,6 @@ module Syskit
                 if app.testing?
                     require "syskit/test"
                 end
-
-                Runkit.disable_sigchld_handler = true
             end
 
             # Hook called by the main application at the beginning of Application#setup
@@ -119,8 +117,8 @@ module Syskit
                 end
 
                 ENV["ORO_LOGFILE"] =
-                    Runkit.orocos_logfile ||
-                    File.join(app.log_dir, "orocos.orocosrb-#{::Process.pid}.txt")
+                    Runkit.runkit_logfile ||
+                    File.join(app.log_dir, "runkit.#{::Process.pid}.txt")
 
                 if Syskit.conf.only_load_models?
                     Runkit.load
@@ -252,12 +250,6 @@ module Syskit
 
             # Hook called by the main application to undo what {.prepare} did
             def self.shutdown(app)
-                remaining = Runkit.each_process.to_a
-                unless remaining.empty?
-                    Syskit.warn "killing remaining Runkit processes: #{remaining.map(&:name).join(', ')}"
-                    Runkit::Process.kill(remaining)
-                end
-
                 if @handler_ids
                     unplug_engine_from_roby(@handler_ids.values, app.execution_engine)
                     @handler_ids = nil
@@ -881,7 +873,7 @@ module Syskit
 
                 OroGen.load_orogen_plugins("syskit")
                 Roby.app.filter_out_patterns << Regexp.new(Regexp.quote(OroGen::OROGEN_LIB_DIR))
-                Roby.app.filter_out_patterns << Regexp.new(Regexp.quote(Runkit::OROCOSRB_LIB_DIR))
+                Roby.app.filter_out_patterns << Regexp.new(Regexp.quote(Runkit::RUNKIT_LIB_DIR))
                 Roby.app.filter_out_patterns << Regexp.new(Regexp.quote(Typelib::TYPELIB_LIB_DIR))
                 Roby.app.filter_out_patterns << Regexp.new(Regexp.quote(Syskit::SYSKIT_LIB_DIR))
                 toplevel_object.extend LoadToplevelMethods

@@ -27,7 +27,9 @@ module Syskit
             assert_kind_of RubyTaskContext, task
             assert_equal "test", task.orocos_name
 
-            remote_task = Runkit.allow_blocking_calls { Runkit.name_service.get("test") }
+            remote_task = Runkit.allow_blocking_calls do
+                Runkit::TaskContext.new(task.orocos_task.ior, name: "test")
+            end
             assert_equal remote_task, task.orocos_task
             Runkit.allow_blocking_calls do
                 assert_equal remote_task.in, task.orocos_task.in

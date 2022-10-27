@@ -24,6 +24,7 @@ module Syskit
             end
 
             def setup
+                Roby.app.import_types_from "base"
                 Syskit.conf.define_default_process_managers = false
 
                 if ENV["TEST_ENABLE_COVERAGE"] == "1"

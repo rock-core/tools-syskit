@@ -59,7 +59,7 @@ describe Syskit::RobyApp::Configuration do
                                           Runkit::RubyTasks::ProcessManager.new(Roby.app.default_loader), "")
         end
         it "defines a configured deployment from a task model and name" do
-            configured_deployments = @conf.use_unmanaged_task @task_m => "name"
+            configured_deployments = @conf.use_unmanaged_task({ @task_m => "name" })
             assert_equal 1, configured_deployments.size
             configured_d = configured_deployments.first
             deployed_task = configured_d.each_orogen_deployed_task_context_model
@@ -92,7 +92,7 @@ describe Syskit::RobyApp::Configuration do
             attr_reader :ruby_task, :deployment_m
             before do
                 @ruby_task = ruby_task = Runkit.allow_blocking_calls do
-                    Runkit::RubyTasks::TaskContext.new "remote-task"
+                    Runkit::RubyTasks::TaskContext.new "remote_task"
                 end
                 @deployment_m = Syskit::Deployment.new_submodel do
                     task "name", ruby_task.model
@@ -103,7 +103,7 @@ describe Syskit::RobyApp::Configuration do
             end
 
             after do
-                @ruby_task.dispose
+                @ruby_task&.dispose
             end
 
             it "starts the process and reports its PID" do
@@ -138,10 +138,12 @@ describe Syskit::RobyApp::Configuration do
         end
 
         def process_server_start
-            @server.open
+            server = @server
+            server.open
             @server_thread = Thread.new do
-                @server.listen
+                server.listen
             end
+            TCPSocket.new("localhost", server.port).close
         end
 
         def process_server_port
@@ -149,8 +151,7 @@ describe Syskit::RobyApp::Configuration do
         end
 
         def process_server_stop
-            @server_thread.raise Interrupt
-            @server_thread.join
+            @server.quit
             @server = nil
             @server_thread = nil
         end

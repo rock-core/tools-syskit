@@ -51,7 +51,7 @@ module Syskit
             @tasks = {}
         end
 
-        def get_mapped_name(name)
+        def mapped_name_for(name)
             name_mappings.fetch(name)
         end
 
@@ -350,7 +350,7 @@ module Syskit
                     @orocos_task = Runkit.allow_blocking_calls do
                         Runkit::RubyTasks::TaskContext.new "test"
                     end
-                    process.tasks["test"] = @orocos_task
+                    process.tasks["mapped_task_name"] = @orocos_task
                     process_server.should_receive(:start).and_return(process)
                 end
                 after do
@@ -545,7 +545,7 @@ module Syskit
                     @orocos_task.dispose
                 end
                 it "cleans up all stopped tasks" do
-                    orocos_task.should_receive(:rtt_state).and_return(:STOPPED)
+                    orocos_task.should_receive(:read_toplevel_state).and_return(:STOPPED)
                     orocos_task.should_receive(:cleanup).once
                     execute { deployment_task.stop! }
                 end
@@ -566,7 +566,7 @@ module Syskit
                 it "does not attempt to cleanup if some tasks have a representation in "\
                    "the plan" do
                     deployment_task.task("mapped_task_name")
-                    orocos_task.should_receive(:rtt_state).never
+                    orocos_task.should_receive(:read_toplevel_state).never
                     orocos_task.should_receive(:cleanup).never
                     process.should_receive(:kill).once
                            .with(false, cleanup: false, hard: true).pass_thru
@@ -591,7 +591,7 @@ module Syskit
                 end
                 it "does not cleanup and hard-kills the process if "\
                    "the kill event is called" do
-                    orocos_task.should_receive(:rtt_state).never
+                    orocos_task.should_receive(:read_toplevel_state).never
                     orocos_task.should_receive(:cleanup).never
                     process.should_receive(:kill).once
                            .with(false, cleanup: false, hard: true).pass_thru

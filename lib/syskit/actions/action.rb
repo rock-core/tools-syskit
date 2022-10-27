@@ -8,7 +8,7 @@ module Syskit
             #
             # @return [InstanceRequirements]
             def to_instance_requirements
-                model.to_instance_requirements(arguments)
+                model.to_instance_requirements(**arguments)
             end
 
             # Create a new action with the same arguments but the requirements
