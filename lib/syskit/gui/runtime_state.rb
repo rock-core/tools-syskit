@@ -239,10 +239,10 @@ module Syskit
             slots "monitor_syskit_startup()"
 
             def reset
-                Runkit.initialize
+                Orocos.initialize
                 @logger_m = nil
-                orocos_corba_nameservice = Runkit::CORBA::NameService.new(syskit.remote_name)
-                @name_service = Runkit::Async::NameService.new(orocos_corba_nameservice)
+                orocos_corba_nameservice = Orocos::CORBA::NameService.new(syskit.remote_name)
+                @name_service = Orocos::Async::NameService.new(orocos_corba_nameservice)
             end
 
             def update_log_server_connection(port)
