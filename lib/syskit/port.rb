@@ -83,7 +83,7 @@ module Syskit
         # @raise [ArgumentError] if it is not possible (for instance, ports on
         #   InstanceRequirements are not associated with a component port)
         # @return [Runkit::Port] the resolved port
-        def to_orocos_port
+        def to_runkit_port
             component_port = to_actual_port
             component_port.component.self_port_to_orocos_port(component_port)
         end
@@ -328,7 +328,7 @@ module Syskit
 
             resolver =
                 main.promise(description: "#{port}##{@accessor_method} for #{self}") do
-                    port.to_orocos_port.public_send(
+                    port.to_runkit_port.public_send(
                         @accessor_method, distance: distance, **policy
                     )
                 end

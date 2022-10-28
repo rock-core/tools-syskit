@@ -187,7 +187,7 @@ module Syskit
                 end
             end
 
-            def to_orocos_port(component)
+            def to_runkit_port(component)
                 component_model.bind(component).find_port(name)
             end
 

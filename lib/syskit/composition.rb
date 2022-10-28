@@ -126,7 +126,7 @@ module Syskit
         # @param [Syskit::Port] exported_port the port to be mapped
         # @return [Runkit::Port] the actual port
         def self_port_to_orocos_port(exported_port)
-            self_port_to_actual_port(exported_port).to_orocos_port
+            self_port_to_actual_port(exported_port).to_runkit_port
         end
 
         def update_requirements(new_requirements, name: nil, keep_abstract: false)

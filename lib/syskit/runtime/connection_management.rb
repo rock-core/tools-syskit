@@ -242,9 +242,9 @@ module Syskit
                         begin
                             from_orocos_port =
                                 (port_cache[[from_task, from_port]] ||= from_task.raw_port(from_port))
-                            to_orocos_port   =
+                            to_runkit_port   =
                                 (port_cache[[to_task, to_port]] ||= to_task.raw_port(to_port))
-                            unless from_orocos_port.disconnect_from(to_orocos_port)
+                            unless from_orocos_port.disconnect_from(to_runkit_port)
                                 warn "while disconnecting #{from_task}:#{from_port} => #{to_task}:#{to_port} returned false"
                                 warn "I assume that the ports are disconnected, but this should not have happened"
                             end
@@ -412,9 +412,9 @@ module Syskit
                         begin
                             from_orocos_port =
                                 (port_cache[[from_task, from_port]] ||= from_task.orocos_task.raw_port(from_port))
-                            to_orocos_port   =
+                            to_runkit_port   =
                                 (port_cache[[to_task, to_port]] ||= to_task.orocos_task.raw_port(to_port))
-                            from_orocos_port.connect_to(to_orocos_port, distance: distance, **policy)
+                            from_orocos_port.connect_to(to_runkit_port, distance: distance, **policy)
                             execution_engine.log(:syskit_connect, :success, from_task.orocos_name, from_port, to_task.orocos_name, to_port, policy)
                             success << [from_task, from_port, to_task, to_port, policy]
                         rescue Exception => e

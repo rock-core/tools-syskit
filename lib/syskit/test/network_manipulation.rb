@@ -61,9 +61,9 @@ module Syskit
             #
             # Helper used to resolve writer objects
             def resolve_orocos_writer(writer, **policy)
-                if writer.respond_to?(:to_orocos_port)
+                if writer.respond_to?(:to_runkit_port)
                     writer = Runkit.allow_blocking_calls do
-                        writer.to_orocos_port
+                        writer.to_runkit_port
                     end
                 end
                 # We can write on LocalInputPort, LocalOutputPort and InputPort
@@ -94,9 +94,9 @@ module Syskit
             #
             # Helper used to resolve writer objects
             def resolve_orocos_reader(reader, **policy)
-                if reader.respond_to?(:to_orocos_port)
+                if reader.respond_to?(:to_runkit_port)
                     reader = Runkit.allow_blocking_calls do
-                        reader.to_orocos_port
+                        reader.to_runkit_port
                     end
                 end
                 # We can write on LocalInputPort, LocalOutputPort and InputPort
