@@ -731,12 +731,12 @@ module Syskit
                     assert ActualDataFlow.edges.empty?
                     if source_alive
                         Runkit.allow_blocking_calls do
-                            assert !source_orocos_task.out.connected?
+                            refute source_orocos_task.out.connected?
                         end
                     end
                     if sink_alive
                         Runkit.allow_blocking_calls do
-                            assert !sink_orocos_task.in.connected?
+                            refute sink_orocos_task.in.connected?
                         end
                     end
                 end
@@ -773,8 +773,8 @@ module Syskit
                     stop_and_collect_execution_agents(sink)
                     flexmock(ConnectionManagement)
                         .new_instances.should_receive(:warn)
-                        .with(Regexp.new("error while disconnecting|I am assuming that "\
-                                         "the disconnection is actually effective"))
+                        .with(Regexp.new("while disconnecting.*returned false|"\
+                                         "I assume that the ports are disconnected"))
                     ConnectionManagement.update(plan)
                     assert_is_disconnected(sink_alive: false)
                 end

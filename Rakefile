@@ -43,6 +43,7 @@ Rake::TestTask.new("test:core") do |t|
     t.warning = false
 end
 
+desc "Run tests that require executing live components"
 task "test:live" do
     tests = Dir.enum_for(:glob, "test/live/test_*.rb").to_a
     unless system(File.join("test", "live", "run"), *tests)

@@ -595,7 +595,7 @@ module Syskit
                 it "kills the process gracefully, but does not ask "\
                    "the process server to clean it up" do
                     process.should_receive(:kill).once
-                           .with(false, cleanup: false, hard: false).pass_thru
+                           .with(cleanup: false, hard: false).pass_thru
                     expect_execution { deployment_task.stop! }
                         .to do
                             emit deployment_task.stop_event
@@ -608,7 +608,7 @@ module Syskit
                     orocos_task.should_receive(:read_toplevel_state).never
                     orocos_task.should_receive(:cleanup).never
                     process.should_receive(:kill).once
-                           .with(false, cleanup: false, hard: true).pass_thru
+                           .with(cleanup: false, hard: true).pass_thru
                     expect_execution { deployment_task.stop! }
                         .to do
                             emit deployment_task.stop_event
@@ -621,7 +621,7 @@ module Syskit
                     syskit_configure_and_start(task)
                     expect_execution { task.stop! }.to { emit task.stop_event }
                     process.should_receive(:kill).once
-                           .with(false, cleanup: false, hard: false).pass_thru
+                           .with(cleanup: false, hard: false).pass_thru
                     expect_execution { deployment_task.stop! }
                         .to do
                             emit deployment_task.stop_event
@@ -633,7 +633,7 @@ module Syskit
                     orocos_task.should_receive(:read_toplevel_state).never
                     orocos_task.should_receive(:cleanup).never
                     process.should_receive(:kill).once
-                           .with(false, cleanup: false, hard: true).pass_thru
+                           .with(cleanup: false, hard: true).pass_thru
                     expect_execution { deployment_task.kill! }
                         .to do
                             emit deployment_task.stop_event

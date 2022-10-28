@@ -260,7 +260,7 @@ module Syskit
                 section = nil
                 begin
                     process = Runkit::Process.for_orogen_model(
-                        task_model.orogen_model => "oroconf_extract",
+                        { task_model.orogen_model => "oroconf_extract" },
                         loader: OroGen::Loaders::RTT.new(Runkit.orocos_target)
                     )
                     process.spawn(oro_logfile: "/dev/null")

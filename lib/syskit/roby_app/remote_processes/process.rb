@@ -44,8 +44,8 @@ module Syskit
                 # Cleanly stop the process
                 #
                 # @see kill!
-                def kill(wait = true, cleanup: true, hard: false)
-                    process_client.stop(name, wait, cleanup: cleanup, hard: hard)
+                def kill(cleanup: true, hard: false)
+                    process_client.stop(name, cleanup: cleanup, hard: hard)
                 end
 
                 # Wait for the
@@ -64,7 +64,11 @@ module Syskit
                 end
 
                 def resolve_all_tasks
-                    Runkit::Process.resolve_all_tasks(self)
+                    return @tasks if @tasks
+
+                    @tasks = @ior_mappings.each_with_object({}) do |(name, ior), h|
+                        h[name] = Runkit::TaskContext.new(ior, name: name)
+                    end
                 end
 
                 def define_ior_mappings(mappings)

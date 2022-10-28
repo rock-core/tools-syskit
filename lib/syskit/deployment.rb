@@ -293,7 +293,6 @@ module Syskit
 
             spawn_options = spawn_options.merge(
                 output: "%m-%p.txt",
-                wait: false,
                 cmdline_args: options
             )
 
@@ -834,7 +833,7 @@ module Syskit
             end.on_success(description: "#{self}#stop_event - kill") do
                 ready_to_die!
                 begin
-                    orocos_process.kill(false, cleanup: false, hard: hard)
+                    orocos_process.kill(cleanup: false, hard: hard)
                 rescue Runkit::ComError
                     # The underlying process server cannot be reached. Just emit
                     # failed ourselves

@@ -24,15 +24,10 @@ module Syskit
 
             def export_types=(flag)
                 if !export_types? && flag
-                    registry.export_to_ruby(type_export_namespace) do |type, exported_type|
-                        if type.name =~ /orogen_typekits/ # just ignore those
-                        elsif type <= Typelib::NumericType # using numeric is transparent in Typelib/Ruby
-                        elsif type.contains_opaques? # register the intermediate instead
-                            intermediate_type_for(type)
-                        elsif m_type?(type) # just ignore, they are registered as the opaque
-                        else exported_type
+                    registry
+                        .export_to_ruby(type_export_namespace) do |type, exported_type|
+                            resolve_ruby_type(type, exported_type)
                         end
-                    end
                     @export_types = true
                 elsif export_types? && !flag
                     type_export_namespace.disable_registry_export
@@ -40,10 +35,32 @@ module Syskit
                 end
             end
 
+            # @api private
+            #
+            # Resolve the type that should be stored in the Types... hierarchy
+            def resolve_ruby_type(type, exported_type)
+                if type.name =~ /orogen_typekits/
+                    # just ignore those
+                elsif type <= Typelib::NumericType
+                    # using numeric is transparent in Typelib/Ruby
+                elsif type.contains_opaques?
+                    # register the intermediate instead
+                    intermediate_type_for(type)
+                elsif m_type?(type)
+                    # just ignore, they are registered as the opaque
+                else
+                    exported_type
+                end
+            end
+
             def clear
                 super
 
-                type_export_namespace.reset_registry_export(registry) if export_types? && registry
+                if export_types? && registry
+                    type_export_namespace.reset_registry_export(registry)
+                end
+
+                nil
             end
 
             def register_project_model(project)
