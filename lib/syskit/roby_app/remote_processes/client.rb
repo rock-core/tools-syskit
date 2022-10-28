@@ -288,12 +288,10 @@ module Syskit
                 #
                 # The call does not block until the process has quit. You will have to
                 # call #wait_termination to wait for the process end.
-                def stop(deployment_name, wait, cleanup: true, hard: false)
+                def stop(deployment_name, cleanup: true, hard: false)
                     socket.write(COMMAND_END)
                     Marshal.dump([deployment_name, cleanup, hard], socket)
                     raise Failed, "failed to quit #{deployment_name}" unless wait_for_ack
-
-                    join(deployment_name) if wait
                 end
 
                 def kill_all(cleanup: false, hard: true)

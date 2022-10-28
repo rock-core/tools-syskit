@@ -524,7 +524,7 @@ module Syskit
         # automatically if #validate_orogen_states? is set to true
         def validate_orogen_state_from_read_toplevel_state
             orogen_state = orogen_state
-            read_toplevel_state    = orocos_task.read_toplevel_state
+            read_toplevel_state = orocos_task.read_toplevel_state
             mismatch =
                 case read_toplevel_state
                 when :RUNNING

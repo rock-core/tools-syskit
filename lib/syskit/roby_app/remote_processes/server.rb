@@ -298,7 +298,7 @@ module Syskit
                         # Kill the process hard. If there are still processes,
                         # it means that the normal cleanup procedure did not
                         # work.  Not the time to call stop or whatnot
-                        p.kill(false, cleanup: false, hard: true)
+                        p.kill(cleanup: false, hard: true)
                     end
 
                     each_client do |socket|
@@ -508,7 +508,7 @@ module Syskit
                 end
 
                 def end_process(process, cleanup: true, hard: false)
-                    process.kill(false, cleanup: cleanup, hard: hard)
+                    process.kill(cleanup: cleanup, hard: hard)
                 end
 
                 # Kill all running subprocesses
@@ -519,7 +519,7 @@ module Syskit
                 # @see join_all announce_dead_processes
                 def kill_all(cleanup: false, hard: true)
                     processes.each_value do |p|
-                        p.kill(false, cleanup: cleanup, hard: hard)
+                        p.kill(cleanup: cleanup, hard: hard)
                     end
                     processes.values
                 end
