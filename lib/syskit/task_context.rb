@@ -1333,7 +1333,7 @@ module Syskit
         # on the underlying task.
         #
         # It should not be used directly. One should usually use
-        # Port#to_orocos_port instead
+        # Port#to_runkit_port instead
         #
         # @return [Runkit::Port]
         def self_port_to_orocos_port(port)

@@ -279,7 +279,7 @@ module Syskit
             it "should return the port from #orocos_task if it exists" do
                 Runkit.allow_blocking_calls do
                     assert_equal task.orocos_task.port("in"),
-                                 task.find_input_port("in").to_orocos_port
+                                 task.find_input_port("in").to_runkit_port
                 end
             end
             it "should return nil for an output port" do
@@ -302,7 +302,7 @@ module Syskit
             it "should return the port from #orocos_task if it exists" do
                 Runkit.allow_blocking_calls do
                     assert_equal task.orocos_task.port("out"),
-                                 task.find_output_port("out").to_orocos_port
+                                 task.find_output_port("out").to_runkit_port
                 end
             end
             it "should return nil for an input port" do

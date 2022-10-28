@@ -655,7 +655,7 @@ module Syskit
 
                         execute { ConnectionManagement.update(plan) }
                         assert(Runkit.allow_blocking_calls do
-                            source_new.out_port.to_orocos_port.connected?
+                            source_new.out_port.to_runkit_port.connected?
                         end)
                     end
 
@@ -671,7 +671,7 @@ module Syskit
                             ConnectionManagement.update(plan)
                         end
                         assert(Runkit.allow_blocking_calls do
-                            source_new.out_port.to_orocos_port.connected?
+                            source_new.out_port.to_runkit_port.connected?
                         end)
                     end
 
@@ -683,7 +683,7 @@ module Syskit
                             ConnectionManagement.update(plan)
                         end
                         assert(Runkit.allow_blocking_calls do
-                            source_new.out_port.to_orocos_port.connected?
+                            source_new.out_port.to_runkit_port.connected?
                         end)
                     end
 
@@ -699,7 +699,7 @@ module Syskit
                             ConnectionManagement.update(plan)
                         end
                         assert(Runkit.allow_blocking_calls do
-                            source_new.out_port.to_orocos_port.connected?
+                            source_new.out_port.to_runkit_port.connected?
                         end)
                     end
                 end
