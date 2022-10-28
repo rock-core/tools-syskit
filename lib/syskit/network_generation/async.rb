@@ -46,11 +46,11 @@ module Syskit
                 attr_reader :requirement_tasks
                 attr_reader :engine
 
-                def initialize(plan, event_logger, requirement_tasks, **options, &block)
+                def initialize(plan, event_logger, requirement_tasks, options, &block)
                     @plan = plan
                     @requirement_tasks = requirement_tasks.to_set
                     @engine = Engine.new(plan, event_logger: event_logger)
-                    super(**options, &block)
+                    super(options, &block)
                 end
             end
 
@@ -70,7 +70,7 @@ module Syskit
 
                 # Resolver is used within the block ... don't assign directly to @future
                 resolver = Resolution.new(plan, event_logger, requirement_tasks,
-                                          executor: thread_pool) do
+                                          { executor: thread_pool }) do
                     Thread.current.name = "syskit-async-resolution"
                     log_timepoint_group "syskit-async-resolution" do
                         resolver.engine.resolve_system_network(
