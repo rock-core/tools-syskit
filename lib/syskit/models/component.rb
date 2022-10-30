@@ -9,6 +9,10 @@ module Syskit
             include MetaRuby::ModelAsClass
             include Syskit::DataService
 
+            def loader
+                orogen_model.loader
+            end
+
             def to_component_model
                 self
             end

@@ -51,7 +51,7 @@ module Syskit
                     # created it and we're fine- Otherwise, raise an error
                     begin
                         port = orocos_task.port(sink_port_name)
-                        logger_port_type_m = Runkit.default_loader.intermediate_type_for(logged_port_type)
+                        logger_port_type_m = loader.intermediate_type_for(logged_port_type)
                         if port.orocos_type_name != logged_port_type && port.orocos_type_name != logger_port_type_m.name
                             raise ArgumentError, "cannot create a logger port of name #{sink_port_name} and type #{logged_port_type}: a port of same name but of type #{port.model.orocos_type_name} exists"
                         end
@@ -179,7 +179,7 @@ module Syskit
                                         outin_port_names[0]
                                     )
                                     logger_task.instanciate_dynamic_input_port(
-                                        outin_port_names[1], out_port.type,
+                                        outin_port_names[1], out_port.orogen_model.type,
                                         logger_dynamic_port_of(logger_task.model)
                                     )
                                 end

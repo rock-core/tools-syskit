@@ -45,6 +45,10 @@ module Syskit
             # to in the task model
             attr_reader :full_name
 
+            def loader
+                component_model.loader
+            end
+
             def match
                 Queries::DataServiceMatcher
                     .new(component_model.match)

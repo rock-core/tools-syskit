@@ -24,6 +24,10 @@ module Syskit
                 model
             end
 
+            def loader
+                orogen_model.loader
+            end
+
             def initialize(project: Models.create_orogen_project)
                 @orogen_model = Models.create_orogen_task_context_model(project: project)
                 super()

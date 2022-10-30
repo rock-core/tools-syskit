@@ -15,6 +15,10 @@ module Syskit
             #   specializations defined on this composition model
             attribute(:specializations) { SpecializationManager.new(self) }
 
+            def loader
+                Roby.app.default_loader
+            end
+
             def promote_child(child_name, child)
                 promoted = child.attach(self)
                 promoted.parent_model = child

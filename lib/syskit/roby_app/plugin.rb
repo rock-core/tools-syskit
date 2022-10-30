@@ -64,9 +64,6 @@ module Syskit
 
             # Hook called by the main application at the beginning of Application#setup
             def self.setup(app)
-                # But, for the time being, default_loader might be equal to
-                # Runkit.default_loader, so reset the export_types flag to the
-                # desired value
                 app.default_loader.export_types = Syskit.conf.export_types?
 
                 # This is a HACK. We should be able to specify it differently
@@ -272,7 +269,7 @@ module Syskit
             end
 
             def create_default_loader
-                @default_loader = DefaultLoader.new
+                @default_loader = DefaultLoader.new(self)
                 @default_loader.export_types = true
                 @default_loader.on_project_load do |project|
                     project_define_from_orogen(project)

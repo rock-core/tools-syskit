@@ -14,11 +14,12 @@ module Syskit
             # @return [Module]
             attr_reader :type_export_namespace
 
-            def initialize
+            def initialize(app)
+                @app = app
                 @type_export_namespace = ::Types
                 # We need recursive access lock
                 @load_access_lock = Monitor.new
-                super
+                super()
                 self.export_types = true
             end
 
@@ -33,6 +34,15 @@ module Syskit
                     type_export_namespace.disable_registry_export
                     @export_types = false
                 end
+            end
+
+            def register_typekit_model(typekit)
+                super
+
+                return if typekit.virtual?
+                return if Syskit.conf.only_load_models?
+
+                Runkit.load_typekit(typekit.name)
             end
 
             # @api private

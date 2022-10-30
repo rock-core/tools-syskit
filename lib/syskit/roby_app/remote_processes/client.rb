@@ -59,12 +59,12 @@ module Syskit
 
                 # Connects to the process server at +host+:+port+
                 #
-                # @option options [OroGen::Loaders::Base] :root_loader
-                #   (Runkit.default_loader). The loader object that should be used as
-                #   root for this client's loader
+                # @param [OroGen::Loaders::Base] root_loader
+                #   The loader object that should be used as root for this
+                #   client's loader
                 def initialize(
                     host = "localhost", port = DEFAULT_PORT,
-                    response_timeout: 10, root_loader: Runkit.default_loader
+                    response_timeout: 10, root_loader: Roby.app.default_loader
                 )
                     @host = host
                     @port = port

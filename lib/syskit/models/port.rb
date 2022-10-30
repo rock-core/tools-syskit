@@ -31,7 +31,7 @@ module Syskit
 
                 @type =
                     if orogen_model.type.contains_opaques?
-                        Runkit.default_loader.intermediate_type_for(orogen_model.type)
+                        component_model.loader.intermediate_type_for(orogen_model.type)
                     else
                         orogen_model.type
                     end
