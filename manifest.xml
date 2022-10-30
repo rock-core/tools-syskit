@@ -8,6 +8,7 @@
         TideWise/sylvain.joyeux@tidewise.io
     </copyright>
     <license>GPL v2 or later</license>
+    <version>3.0.0</version>
 
     <depend package="orogen" />
     <depend package="tools/roby" />
