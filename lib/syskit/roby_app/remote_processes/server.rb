@@ -7,6 +7,7 @@ require "orocos"
 
 require "concurrent/atomic/atomic_reference"
 require "syskit/roby_app/remote_processes/log_upload_state"
+require "syskit/roby_app/remote_processes/ftp_upload"
 
 module Syskit
     module RobyApp
@@ -405,13 +406,15 @@ module Syskit
                     elsif cmd_code == COMMAND_QUIT
                         quit
                     elsif cmd_code == COMMAND_LOG_UPLOAD_FILE
-                        host, port, certificate, user, password, localfile =
+                        host, port, certificate, user, password, localfile,
+                            max_upload_rate =
                             Marshal.load(socket)
                         Server.debug "#{socket} requested uploading of #{localfile}"
                         @log_upload_command_queue <<
-                            Upload.new(
+                            FTPUpload.new(
                                 host, port, certificate,
-                                user, password, localfile
+                                user, password, localfile,
+                                max_upload_rate: max_upload_rate || Float::INFINITY
                             )
 
                         socket.write(RET_YES)
@@ -571,38 +574,10 @@ module Syskit
                     @com_w&.write INTERNAL_QUIT
                 end
 
-                Upload = Struct.new(
-                    :host, :port, :certificate, :user, :password, :file
-                ) do
-                    def apply
-                        Tempfile.create do |cert_io|
-                            cert_io.write certificate
-                            cert_io.flush
-
-                            Net::FTP.open(
-                                host,
-                                private_data_connection: false,
-                                port: port,
-                                ssl: { verify_mode: OpenSSL::SSL::VERIFY_PEER,
-                                       ca_file: cert_io.path }
-                            ) do |ftp|
-                                ftp.login(user, password)
-                                File.open(file) do |file_io|
-                                    ftp.storbinary("STOR #{File.basename(file)}",
-                                                   file_io, Net::FTP::DEFAULT_BLOCKSIZE)
-                                end
-                            end
-                        end
-                        LogUploadState::Result.new(file, true, nil)
-                    rescue Exception => e
-                        LogUploadState::Result.new(file, false, e.message)
-                    end
-                end
-
                 def log_upload_main
                     while (transfer = @log_upload_command_queue.pop)
                         @log_upload_current.set(transfer)
-                        @log_upload_results_queue << transfer.apply
+                        @log_upload_results_queue << transfer.open_and_transfer
                         @log_upload_current.set(nil)
                     end
                 end

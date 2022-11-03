@@ -230,10 +230,14 @@ module Syskit
                 #
                 # The transfer is asynchronous, use {#upload_state} to track the
                 # upload progress
-                def log_upload_file(host, port, certificate, user, password, localfile)
+                def log_upload_file(
+                    host, port, certificate, user, password, localfile,
+                    max_upload_rate: Float::INFINITY
+                )
                     socket.write(COMMAND_LOG_UPLOAD_FILE)
                     Marshal.dump(
-                        [host, port, certificate, user, password, localfile], socket
+                        [host, port, certificate, user, password, localfile,
+                         max_upload_rate], socket
                     )
 
                     wait_for_ack

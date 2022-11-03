@@ -308,7 +308,7 @@ describe Syskit::RobyApp::RemoteProcesses do
             @port, @certificate = spawn_log_transfer_server
             @logfile = File.join(make_tmpdir, "logfile.log")
             File.open(@logfile, "wb") do |f|
-                f.write(SecureRandom.random_bytes(547)) # create random 5 MB file
+                f.write(SecureRandom.random_bytes(547)) # create random 547 byte
             end
         end
 
@@ -325,6 +325,27 @@ describe Syskit::RobyApp::RemoteProcesses do
                 @user, @password, @logfile
             )
             assert_upload_succeeds
+            assert_equal File.read(path), File.read(@logfile)
+        end
+
+        it "rate-limits the file transfer" do
+            File.open(@logfile, "wb") do |f|
+                f.write(SecureRandom.random_bytes(1024 * 1024))
+            end
+            tic = Time.now
+            client.log_upload_file(
+                "localhost", @port, @certificate,
+                @user, @password, @logfile,
+                max_upload_rate: 500 * 1024
+            )
+            assert_upload_succeeds(timeout: 5)
+            toc = Time.now
+
+            assert_includes(
+                (1.8..2.2), toc - tic,
+                "transfer took #{toc - tic} instead of the expected 2s"
+            )
+            path = File.join(@temp_serverdir, "logfile.log")
             assert_equal File.read(path), File.read(@logfile)
         end
 
@@ -406,8 +427,8 @@ describe Syskit::RobyApp::RemoteProcesses do
             end
         end
 
-        def assert_upload_succeeds
-            wait_for_upload_completion.each_result do |r|
+        def assert_upload_succeeds(timeout: 1)
+            wait_for_upload_completion(timeout: timeout).each_result do |r|
                 flunk("upload failed: #{r.message}") unless r.success?
             end
         end
