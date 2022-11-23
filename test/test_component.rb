@@ -113,8 +113,8 @@ describe Syskit::Component do
         before do
             @task_m = Syskit::TaskContext.new_submodel do
                 output_port "out", "int"
-                dynamic_output_port /\w+_out/, "bool"
-                dynamic_input_port /\w+_in/, "double"
+                dynamic_output_port(/\w+_out/, "bool")
+                dynamic_input_port(/\w+_in/, "double")
             end
             srv_m = @srv_m = Syskit::DataService.new_submodel do
                 output_port "out", "bool"
@@ -512,7 +512,7 @@ describe Syskit::Component do
 
         it "creates dynamic ports" do
             task_m = Syskit::TaskContext.new_submodel do
-                dynamic_output_port /\w+/, nil
+                dynamic_output_port(/\w+/, nil)
             end
             dynport = task_m.orogen_model.dynamic_ports.find { true }
 
@@ -643,6 +643,13 @@ describe Syskit::Component do
             syskit_configure_and_start(support_task)
             assert reader.valid?
             assert_equal task.out_port, reader.resolved_accessor.port
+        end
+
+        it "creates a bound accessor with the specified policy" do
+            reader = @support_task_m.data_reader(
+                @task_m.out_port, type: :buffer, size: 20, as: "test"
+            )
+            assert_equal({ type: :buffer, size: 20 }, reader.policy)
         end
 
         it "enumerates the bound readers with each_data_reader" do
@@ -914,6 +921,13 @@ describe Syskit::Component do
             assert_equal task.in_port, reader.resolved_accessor.port
         end
 
+        it "creates a bound accessor with the specified policy" do
+            writer = @support_task_m.data_writer(
+                @task_m.in_port, type: :buffer, size: 20, as: "test"
+            )
+            assert_equal({ type: :buffer, size: 20 }, writer.policy)
+        end
+
         it "enumerates the bound writers with each_data_writer" do
             @support_task_m.data_writer @task_m.match.in_port, as: "test"
             support_task = syskit_stub_and_deploy(@support_task_m)
@@ -1172,7 +1186,7 @@ class TC_Component < Minitest::Test
         assert(source_task.connected_to?("out", sink_task, "out"))
         assert(source_task.connected_to?("out", sink_task, "other"))
 
-        source_task.disconnect_ports(sink_task, [%w{out other}])
+        source_task.disconnect_ports(sink_task, [%w[out other]])
         assert_equal(
             {
                 %w[out out] => { type: :buffer, size: 20 }

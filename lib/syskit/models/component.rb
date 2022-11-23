@@ -1311,14 +1311,14 @@ module Syskit
             #    data_reader some_child.out_port, as: 'pose'
             #
             # @return [DynamicPortBinding::BoundOutputReader]
-            def data_reader(port, as:)
+            def data_reader(port, as:, **policy)
                 port = DynamicPortBinding.create(port)
                 unless port.output?
                     raise ArgumentError,
                           "expected an output port, but #{port} seems to be an input"
                 end
 
-                data_readers[as] = port.to_bound_data_accessor(as, self)
+                data_readers[as] = port.to_bound_data_accessor(as, self, **policy)
             end
 
             # The data writers defined on this task, as a mapping from the writer's
@@ -1344,14 +1344,14 @@ module Syskit
             #    data_reader some_child.cmd_in_port, as: 'cmd_in'
             #
             # @return [DynamicPortBinding::BoundInputWriter]
-            def data_writer(port, as:)
+            def data_writer(port, as:, **policy)
                 port = DynamicPortBinding.create(port)
                 if port.output?
                     raise ArgumentError,
                           "expected an input port, but #{port} seems to be an output"
                 end
 
-                data_writers[as] = port.to_bound_data_accessor(as, self)
+                data_writers[as] = port.to_bound_data_accessor(as, self, **policy)
             end
 
             def has_through_method_missing?(name)
