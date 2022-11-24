@@ -129,7 +129,7 @@ module Syskit
                     unless (logger_task = deployment.logger_task)
                         warn "deployment #{deployment.process_name} has no usable "\
                              "logger (default logger name would be "\
-                             "#{deployment.process_name}_Logger))"
+                             "#{deployment.process_name}_Logger)"
                         next
                     end
                     logger_task = work_plan[deployment.logger_task]
