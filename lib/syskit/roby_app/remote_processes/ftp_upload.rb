@@ -46,6 +46,7 @@ module Syskit
                         Net::FTP.open(
                             @host,
                             private_data_connection: false, port: @port,
+                            implicit_ftps: true,
                             ssl: { verify_mode: OpenSSL::SSL::VERIFY_PEER,
                                    ca_file: cert_path }
                         ) do |ftp|

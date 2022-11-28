@@ -16,7 +16,7 @@ module Syskit
                     password,
                     certfile_path,
                     interface: "127.0.0.1",
-                    tls: :explicit,
+                    tls: :implicit,
                     port: 0,
                     session_timeout: default_session_timeout,
                     nat_ip: nil,
