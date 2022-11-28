@@ -51,7 +51,9 @@ module Syskit
 
             LogTransfer = Struct.new(
                 :enabled, :ip, :port, :user, :password, :certificate,
-                :self_spawned, :target_dir, keyword_init: true
+                :self_spawned, :target_dir, :default_max_upload_rate,
+                :max_upload_rates,
+                keyword_init: true
             ) do
                 def enabled?
                     enabled
@@ -59,6 +61,25 @@ module Syskit
 
                 def self_spawned?
                     self_spawned
+                end
+
+                # Return the upload rate limit for a given process server
+                #
+                # If {#max_upload_rate} contains an entry for this process server
+                # (keyed by name), it returns it. Otherwise, returns
+                # {#default_max_upload_rate}
+                #
+                # @param [ProcessServerConfig,String] process_server the process server
+                #   object or its name
+                def max_upload_rate_for(process_server, default: default_max_upload_rate)
+                    name =
+                        if process_server.respond_to?(:name)
+                            process_server.name
+                        else
+                            process_server.to_str
+                        end
+
+                    max_upload_rates[name] || default
                 end
             end
 
@@ -165,7 +186,9 @@ module Syskit
                     password: SecureRandom.base64(32),
                     self_spawned: true,
                     certificate: nil, # Use random generated self-signed certificate
-                    target_dir: nil # Use the app's log dir
+                    target_dir: nil, # Use the app's log dir
+                    default_max_upload_rate: Float::INFINITY,
+                    max_upload_rates: {}
                 )
 
                 clear

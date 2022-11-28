@@ -221,7 +221,8 @@ module Syskit
                 logfiles.each do |path|
                     client.log_upload_file(
                         conf.ip, conf.port, conf.certificate,
-                        conf.user, conf.password, path
+                        conf.user, conf.password, path,
+                        max_upload_rate: conf.max_upload_rate_for(name)
                     )
                 end
                 client

@@ -155,4 +155,38 @@ describe Syskit::RobyApp::Configuration do
             @server_thread = nil
         end
     end
+
+    describe "log transfer" do
+        before do
+            @conf = Syskit::RobyApp::Configuration.new(Roby.app)
+            @log_transfer = @conf.log_transfer
+        end
+
+        describe "#max_upload_rate_for" do
+            it "returns the default rate if the max_upload_rates hash "\
+               "has no entry for the given server" do
+                default = flexmock
+                @log_transfer.default_max_upload_rate = default
+                assert_equal default, @log_transfer.max_upload_rate_for("test")
+            end
+
+            it "lets the caller set a different default" do
+                default = flexmock
+                assert_equal default,
+                             @log_transfer.max_upload_rate_for("test", default: default)
+            end
+
+            it "finds a process server by name" do
+                actual = flexmock
+                @log_transfer.max_upload_rates["test"] = actual
+                assert_equal actual, @log_transfer.max_upload_rate_for("test")
+            end
+
+            it "finds a process server by object" do
+                actual = flexmock
+                @log_transfer.max_upload_rates["test"] = actual
+                assert_equal actual, @log_transfer.max_upload_rate_for(flexmock(name: "test"))
+            end
+        end
+    end
 end
