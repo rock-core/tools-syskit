@@ -231,6 +231,22 @@ module Syskit
                 @log_transfer_server
             end
 
+            def log_transfer_flush
+                clients = Syskit.conf.each_process_server.to_a
+                until clients.empty?
+                    clients = clients.find_all do |c|
+                        state = c.log_upload_state
+                        next(false) if state.pending == 0
+
+                        Robot.info "Waiting for process server at #{c.host} "\
+                                   "to finish uploading"
+                        true
+                    end
+
+                    sleep(0.5) unless clients.empty?
+                end
+            end
+
             def log_transfer_stop_server
                 @log_transfer_server.stop
                 @log_transfer_server.join
@@ -270,7 +286,11 @@ module Syskit
 
                 disconnect_all_process_servers
                 stop_local_process_server(app)
-                app.log_transfer_stop_server if app.log_transfer_server_started?
+
+                if app.log_transfer_server_started?
+                    app.log_transfer_flush
+                    app.log_transfer_stop_server
+                end
             end
 
             # Hook called by the main application to prepare for execution
