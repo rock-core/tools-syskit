@@ -162,6 +162,11 @@ module Syskit
                 # Log Transfer FTP Server spawned during Application#setup
                 log_transfer = Syskit.conf.log_transfer
                 if log_transfer.enabled?
+                    unless log_transfer.ip
+                        raise ArgumentError,
+                              "log transfer is enabled, but log_transfer.ip is not set"
+                    end
+
                     log_transfer.target_dir ||= Roby.app.log_dir
 
                     unless Syskit.conf.log_rotation_period
