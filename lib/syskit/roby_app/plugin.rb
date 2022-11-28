@@ -36,7 +36,6 @@ module Syskit
         #   a shell user
         module Plugin
             attr_writer :syskit_use_update_properties
-            attr_accessor :log_transfer_ip
 
             # Assume all component models have been migrated to use update_properties
             #
@@ -161,57 +160,78 @@ module Syskit
                 Syskit::TaskContext.define_from_orogen(rtt_core_model, register: true)
 
                 # Log Transfer FTP Server spawned during Application#setup
-                app.setup_local_log_transfer_server if app.log_transfer_ip
+                log_transfer = Syskit.conf.log_transfer
+                if log_transfer.enabled?
+                    log_transfer.target_dir ||= Roby.app.log_dir
+
+                    unless Syskit.conf.log_rotation_period
+                        raise ArgumentError,
+                              "cannot set up log transfer without log rotation"
+                    end
+
+                    app.log_transfer_start_server if log_transfer.self_spawned?
+                end
             end
 
-            def setup_local_log_transfer_server
-                @log_transfer_user = "process server"
-                @log_transfer_password = SecureRandom.base64(15)
-                @tmp_root_ca = TmpRootCA.new(log_transfer_ip)
-
-                start_local_log_transfer_server(log_dir, @log_transfer_user, @log_transfer_password, @tmp_root_ca.private_certificate_path)
-            end
-
-            def send_file_transfer_command(name, logfile)
-                unless @log_transfer_server
-                    raise "log transfer server is not started"
+            def log_transfer_start_server
+                if @log_transfer_server
+                    raise ArgumentError, "log transfer server already running"
                 end
 
-                # Establishes communication with said process server
-                client = Syskit.conf.process_server_for(name)
+                conf = Syskit.conf.log_transfer
+                @log_transfer_ca = TmpRootCA.new(conf.ip)
+                conf.certificate = @log_transfer_ca.certificate
 
-                # Commands method log_upload_file from said process server
-                client.log_upload_file(
-                    log_transfer_ip,
-                    @log_transfer_server.port,
-                    @tmp_root_ca.certificate,
-                    @log_transfer_user,
-                    @log_transfer_password,
-                    logfile
+                @log_transfer_server = LogTransferServer::SpawnServer.new(
+                    conf.target_dir, conf.user, conf.password,
+                    @log_transfer_ca.private_certificate_path
                 )
+                conf.port = @log_transfer_server.port
+            end
+
+            # Transfer the given files to the FTP server configured in
+            # {Configuration#log_transfer}
+            #
+            # @param [{String=>[String]}] logs mapping of server name to the list of
+            #   log names to transfer for this server
+            def log_transfer_upload(logs)
+                logs.each do |process_server_name, process_server_logs|
+                    process_server =
+                        Syskit.conf.process_server_config_for(process_server_name)
+                    conf = Syskit.conf.log_transfer
+
+                    if process_server.in_process? || process_server.on_localhost?
+                        next if conf.target_dir == Roby.app.log_dir
+                    end
+
+                    log_transfer_send_files(process_server_name, process_server_logs)
+                end
+            end
+
+            def log_transfer_send_files(name, logfiles)
+                raise "log transfer server is not started" unless @log_transfer_server
+
+                conf = Syskit.conf.log_transfer
+                client = Syskit.conf.process_server_for(name)
+                logfiles.each do |path|
+                    client.log_upload_file(
+                        conf.ip, conf.port, conf.certificate,
+                        conf.user, conf.password, path
+                    )
+                end
                 client
             end
 
-            def start_local_log_transfer_server(tgt_dir, user, password, private_certificate_path)
-                if @log_transfer_server
-                    raise "log transfer server is already started"
-                end
-
-                @log_transfer_server = Syskit::RobyApp::LogTransferServer::SpawnServer.new(
-                    tgt_dir,
-                    user,
-                    password,
-                    private_certificate_path
-                )
+            def log_transfer_server_started?
+                @log_transfer_server
             end
 
-            def stop_local_log_transfer_server
-                if @log_transfer_server
-                    @log_transfer_server.stop
-                    @log_transfer_server.join
-                    @log_transfer_server = nil
-                end
-                @tmp_root_ca&.dispose
+            def log_transfer_stop_server
+                @log_transfer_server.stop
+                @log_transfer_server.join
+                @log_transfer_ca.dispose
+                @log_transfer_server = nil
+                @log_transfer_ca = nil
             end
 
             # Hook called by the main application in Application#setup after
@@ -245,7 +265,7 @@ module Syskit
 
                 disconnect_all_process_servers
                 stop_local_process_server(app)
-                app.stop_local_log_transfer_server
+                app.log_transfer_stop_server if app.log_transfer_server_started?
             end
 
             # Hook called by the main application to prepare for execution
@@ -255,7 +275,9 @@ module Syskit
                 if Syskit.conf.log_rotation_period
                     app.execution_engine.every(Syskit.conf.log_rotation_period) do
                         rotated_logs = app.rotate_logs
-                        app.upload_rotated_logs(rotated_logs) if Syskit.conf.log_upload?
+                        if Syskit.conf.log_transfer.enabled?
+                            app.log_transfer_upload(rotated_logs)
+                        end
                     end
                 end
             end
@@ -980,18 +1002,6 @@ module Syskit
                 plan.find_tasks(Syskit::LoggerService).running.each_with_object({}) do |task, rotated_logs|
                     process_server_name = task.log_server_name
                     (rotated_logs[process_server_name] ||= []).concat(task.rotate_log)
-                end
-            end
-
-            def upload_rotated_logs(rotated_logs)
-                rotated_logs.each do |process_server_name, logs|
-                    process_server = Syskit.conf.process_server_config_for(process_server_name)
-
-                    if !process_server.in_process? && !process_server.on_localhost?
-                        logs.each do |log_filename|
-                            send_file_transfer_command(process_server_name, log_filename)
-                        end
-                    end
                 end
             end
         end

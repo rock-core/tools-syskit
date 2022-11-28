@@ -49,6 +49,46 @@ module Syskit
             # is 20s
             attr_accessor :exception_transition_timeout
 
+            LogTransfer = Struct.new(
+                :enabled, :ip, :port, :user, :password, :certificate,
+                :self_spawned, :target_dir, keyword_init: true
+            ) do
+                def enabled?
+                    enabled
+                end
+
+                def self_spawned?
+                    self_spawned
+                end
+            end
+
+            # Configuration of Syskit's log transfer functionality
+            #
+            # Minimum configuration: set `ip` to an IP which the process servers
+            # can reach and set `enabled` to true. You must also configure log rotation
+            # ({#log_rotation_period}). Syskit will transfer the rotated logs to the
+            # main Syskit's instance log directory.
+            #
+            # If you want to transfer to another dir, also set {#target_dir}. If you do
+            # set {#target_dir}, local files will also be transferred. There is currently
+            # no optimization for this (the local logs will also be transferred through
+            # the network)
+            #
+            # If you want to use an external server, you must also provide its public
+            # certificate and set self_spawned to false. In this case, target_dir is
+            # ignored
+            #
+            # @return [LogTransfer]
+            attr_reader :log_transfer
+
+            # Period in seconds for triggering log rotation and transfer
+            #
+            # This is considered experimental, and is disabled by default
+            #
+            # @return [Number] the rotation in seconds, or nil if rotation is
+            #   disabled altogether
+            attr_accessor :log_rotation_period
+
             # @deprecated Unused, kept here for historical reasons
             attr_predicate :ignore_load_errors, true
             # @deprecated Unused, kept here for historical reasons
@@ -76,14 +116,6 @@ module Syskit
             # @return [Models::DeploymentGroup]
             attr_reader :deployment_group
 
-            # Period in seconds for triggering log rotation and transfer
-            #
-            # This is considered experimental, and is disabled by default
-            #
-            # @return [Number] the rotation in seconds, or nil if rotation is
-            #   disabled altogether
-            attr_accessor :log_rotation_period
-
             # Whether Syskit should instruct a process server to kill all its
             # processes on connection
             #
@@ -93,15 +125,6 @@ module Syskit
             # It is false by default for backward compatibility, but you most
             # likely want this
             attr_predicate :kill_all_on_process_server_connection?, true
-
-            # Whether the rotated logs should be uploaded to Syskit's local log dir
-            #
-            # This is considered experimental, and is disabled by default
-            def log_upload?
-                @log_upload
-            end
-
-            attr_writer :log_upload
 
             # Controls whether the orogen types should be exported as Ruby
             # constants
@@ -135,7 +158,15 @@ module Syskit
                 @kill_all_on_process_server_connection = false
 
                 @log_rotation_period = nil
-                @log_upload = false
+                @log_transfer = LogTransfer.new(
+                    enabled: false,
+                    user: "syskit",
+                    port: 22,
+                    password: SecureRandom.base64(32),
+                    self_spawned: true,
+                    certificate: nil, # Use random generated self-signed certificate
+                    target_dir: nil # Use the app's log dir
+                )
 
                 clear
 

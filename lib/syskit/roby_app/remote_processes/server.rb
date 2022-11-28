@@ -304,6 +304,8 @@ module Syskit
 
                 # Helper method that stops all running processes
                 def quit_and_join # :nodoc:
+                    @log_upload_command_queue << nil
+
                     Server.info "stopping process server"
                     processes.each_value do |p|
                         Server.info "killing #{p.name}"
@@ -318,7 +320,6 @@ module Syskit
                     rescue SystemCallError, IOError # rubocop:disable Lint/SuppressedException
                     end
 
-                    @log_upload_command_queue << nil
                     @log_upload_thread.join
                 end
 
