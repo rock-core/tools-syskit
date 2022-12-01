@@ -20,10 +20,11 @@ module Syskit
                 server_start if @conf.self_spawned?
             end
 
-            def dispose(clients, flush: true)
+            # Stop log transfer
+            def dispose(process_servers, flush: true)
                 return unless server_started?
 
-                self.flush(clients) if flush
+                self.flush(process_servers) if flush
                 server_stop
             end
 
@@ -48,7 +49,7 @@ module Syskit
 
             # Whether files from the given directory should be transferred
             def transfer_local_files_from?(dir)
-                conf.target_dir != dir
+                @conf.target_dir != dir
             end
 
             # Transfer the given files to the FTP server configured in
@@ -57,8 +58,8 @@ module Syskit
             # @param [Array<(String, RemoteProcesses::Client, Array<String>)>] logs
             #   list of logs to transfer, per remote server
             def transfer(logs)
-                logs.each do |name, client, paths|
-                    transfer_one_process_server_logs(name, client, paths)
+                logs.each do |name, process_server, paths|
+                    transfer_one_process_server_logs(name, process_server, paths)
                 end
             end
 
@@ -68,9 +69,9 @@ module Syskit
             #
             # @param [RemoteProcesses::Client] process_server
             # @param [Array<String>] logfiles
-            def transfer_one_process_server_logs(name, client, paths)
+            def transfer_one_process_server_logs(name, process_server, paths)
                 paths.each do |path|
-                    client.log_upload_file(
+                    process_server.client.log_upload_file(
                         @conf.ip, @conf.port, @conf.certificate,
                         @conf.user, @conf.password, Pathname(path),
                         max_upload_rate: @conf.max_upload_rate_for(name)
@@ -86,13 +87,13 @@ module Syskit
             # Wait for all pending transfers to finish
             #
             # @return [{RemoteProcesses::Client=>Array<LogUploadState::Result>}]
-            def flush(clients, poll_period: 0.5, timeout: 600)
+            def flush(process_servers, poll_period: 0.5, timeout: 600)
                 results = {}
                 deadline = Time.now + timeout
-                clients.each { |c| results[c] = [] }
+                process_servers.each { |c| results[c] = [] }
                 loop do
-                    clients = flush_poll_clients(clients, results)
-                    break if clients.empty?
+                    process_servers = flush_poll_servers(process_servers, results)
+                    break if process_servers.empty?
 
                     if Time.now > deadline
                         raise Timeout::Error,
@@ -111,10 +112,11 @@ module Syskit
             # Do a single pass to flush clients
             #
             # @return the set of clients that are not finished with transfers
-            def flush_poll_clients(clients, results)
-                clients.find_all do |c|
+            def flush_poll_servers(process_servers, results)
+                process_servers.find_all do |config|
+                    c = config.client
                     state = c.log_upload_state
-                    results[c].concat(state.each_result.to_a)
+                    results[config].concat(state.each_result.to_a)
                     next(false) if state.pending_count == 0
 
                     ::Robot.info "Waiting for process server at #{c.host} "\
