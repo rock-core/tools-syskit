@@ -7,6 +7,12 @@ module Syskit
             class LogUploadState
                 attr_reader :pending_count
 
+                Result = Struct.new :file, :success, :message do
+                    def success?
+                        success
+                    end
+                end
+
                 def initialize(pending_count, results)
                     @pending_count = pending_count
                     @results = results

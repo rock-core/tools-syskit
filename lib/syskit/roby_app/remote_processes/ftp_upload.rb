@@ -20,12 +20,6 @@ module Syskit
                     @max_upload_rate = Float(max_upload_rate)
                 end
 
-                Result = Struct.new :file, :success, :message do
-                    def success?
-                        success
-                    end
-                end
-
                 # Create a temporary file with the FTP server's public key, to pass
                 # to FTP.open
                 #
@@ -58,12 +52,12 @@ module Syskit
 
                 # Open the connection and transfer the file
                 #
-                # @return [UploadResult]
+                # @return [LogUploadState::Result]
                 def open_and_transfer
                     open { |ftp| transfer(ftp) }
-                    Result.new(@file, true, nil)
+                    LogUploadState::Result.new(@file, true, nil)
                 rescue StandardError => e
-                    Result.new(@file, false, e.message)
+                    LogUploadState::Result.new(@file, false, e.message)
                 end
 
                 # Do transfer the file through the given connection
