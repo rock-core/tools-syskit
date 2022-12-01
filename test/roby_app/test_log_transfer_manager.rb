@@ -94,6 +94,7 @@ module Syskit
             # @return [(RemoteProcesses::Client,Pathname)]
             def create_process_server
                 server = RemoteProcesses::Server.new(app, port: 0)
+                server.make_own_logger("", Logger::FATAL)
                 server.open
                 thread = Thread.new { server.listen }
 

@@ -23,6 +23,9 @@ module Syskit
                     "Syskit::RobyApp::RemoteProcesses::Server", Logger::INFO
                 )
 
+                include Logger::Forward
+                include Logger::Hierarchy
+
                 # Returns a unique directory name as a subdirectory of
                 # +base_dir+, based on +path_spec+. The generated name
                 # is of the form
@@ -148,7 +151,7 @@ module Syskit
                 INTERNAL_SIGCHLD_TRIGGERED = "S"
 
                 def open(fd: nil)
-                    Server.info "starting on port #{required_port}"
+                    info "starting on port #{required_port}"
 
                     server =
                         if fd
@@ -179,7 +182,7 @@ module Syskit
                 #
                 # All started processes are stopped when the server quits
                 def listen
-                    Server.info "process server listening on port #{port}"
+                    info "process server listening on port #{port}"
                     server_io, com_r = *@all_ios[0, 2]
 
                     @quit = false
@@ -192,7 +195,7 @@ module Syskit
                                 Socket::IPPROTO_TCP, Socket::TCP_NODELAY, true
                             )
                             client_socket.fcntl(Fcntl::FD_CLOEXEC, 1)
-                            Server.debug "new connection: #{client_socket}"
+                            debug "new connection: #{client_socket}"
                             @all_ios << client_socket
                         end
 
@@ -205,28 +208,27 @@ module Syskit
                             elsif cmd == INTERNAL_QUIT
                                 next
                             elsif cmd
-                                Server.warn "unknown internal communication code "\
-                                            "#{cmd.inspect}"
+                                warn "unknown internal communication code #{cmd.inspect}"
                             end
                         end
 
                         readable_sockets.each do |socket|
                             unless handle_command(socket)
-                                Server.debug "#{socket} closed or errored"
+                                debug "#{socket} closed or errored"
                                 socket.close
                                 @all_ios.delete(socket)
                             end
                         end
                     end
 
-                    Server.info "process server exited normally"
+                    info "process server exited normally"
                 rescue Interrupt
-                    Server.warn "process server exited after SIGINT"
+                    warn "process server exited after SIGINT"
                 rescue Exception => e
-                    Server.fatal "process server exited because of unhandled exception"
-                    Server.fatal "#{e.message} #{e.class}"
+                    fatal "process server exited because of unhandled exception"
+                    fatal "#{e.message} #{e.class}"
                     e.backtrace.each do |line|
-                        Server.fatal "  #{line}"
+                        fatal "  #{line}"
                     end
                 ensure
                     quit_and_join
@@ -291,13 +293,13 @@ module Syskit
                 #   terminated processes
                 def announce_dead_processes(dead_processes)
                     dead_processes.each do |process, exit_status|
-                        Server.debug "announcing death of #{process.name}"
+                        debug "announcing death of #{process.name}"
                         each_client do |socket|
-                            Server.debug "  announcing to #{socket}"
+                            debug "  announcing to #{socket}"
                             socket.write(EVENT_DEAD_PROCESS)
                             Marshal.dump([process.name, exit_status], socket)
                         rescue SystemCallError, IOError => e
-                            Server.debug "  #{socket}: #{e}"
+                            debug "  #{socket}: #{e}"
                         end
                     end
                 end
@@ -306,9 +308,9 @@ module Syskit
                 def quit_and_join # :nodoc:
                     @log_upload_command_queue << nil
 
-                    Server.info "stopping process server"
+                    info "stopping process server"
                     processes.each_value do |p|
-                        Server.info "killing #{p.name}"
+                        info "killing #{p.name}"
                         # Kill the process hard. If there are still processes,
                         # it means that the normal cleanup procedure did not
                         # work.  Not the time to call stop or whatnot
@@ -329,14 +331,14 @@ module Syskit
                     return false unless cmd_code
 
                     if cmd_code == COMMAND_GET_PID
-                        Server.debug "#{socket} requested PID"
+                        debug "#{socket} requested PID"
                         Marshal.dump([::Process.pid], socket)
 
                     elsif cmd_code == COMMAND_GET_INFO
-                        Server.debug "#{socket} requested system information"
+                        debug "#{socket} requested system information"
                         Marshal.dump(build_system_info, socket)
                     elsif cmd_code == COMMAND_CREATE_LOG
-                        Server.debug "#{socket} requested creating a log directory"
+                        debug "#{socket} requested creating a log directory"
                         log_dir, time_tag, metadata = Marshal.load(socket)
 
                         begin
@@ -345,10 +347,10 @@ module Syskit
                             create_log_dir(log_dir, time_tag, metadata)
                             socket.write(RET_YES)
                         rescue StandardError => e
-                            Server.warn "failed to create log directory #{log_dir}: "\
-                                        "#{e.message}"
+                            warn "failed to create log directory #{log_dir}: "\
+                                 "#{e.message}"
                             (e.backtrace || []).each do |line|
-                                Server.warn "   #{line}"
+                                warn "   #{line}"
                             end
                             socket.write(RET_NO)
                         end
@@ -357,29 +359,29 @@ module Syskit
                         name, deployment_name, name_mappings, options =
                             Marshal.load(socket)
                         options ||= {}
-                        Server.debug "#{socket} requested startup of #{name} with "\
-                                     "#{options} and mappings #{name_mappings}"
+                        debug "#{socket} requested startup of #{name} with "\
+                              "#{options} and mappings #{name_mappings}"
                         begin
                             p = start_process(
                                 name, deployment_name, name_mappings, options
                             )
-                            Server.debug "#{name}, from #{deployment_name}, "\
-                                         "is started (#{p.pid})"
+                            debug "#{name}, from #{deployment_name}, "\
+                                  "is started (#{p.pid})"
                             socket.write(RET_STARTED_PROCESS)
                             Marshal.dump(p.pid, socket)
                         rescue Interrupt
                             raise
                         rescue Exception => e
-                            Server.warn "failed to start #{name}: #{e.message}"
+                            warn "failed to start #{name}: #{e.message}"
                             (e.backtrace || []).each do |line|
-                                Server.warn "   #{line}"
+                                warn "   #{line}"
                             end
                             socket.write(RET_NO)
                             socket.write Marshal.dump(e.message)
                         end
                     elsif cmd_code == COMMAND_END
                         name, cleanup, hard = Marshal.load(socket)
-                        Server.debug "#{socket} requested end of #{name}"
+                        debug "#{socket} requested end of #{name}"
                         if (p = processes[name])
                             begin
                                 end_process(p, cleanup: cleanup, hard: hard)
@@ -387,18 +389,17 @@ module Syskit
                             rescue Interrupt
                                 raise
                             rescue Exception => e
-                                Server.warn "exception raised while calling "\
-                                            "#{p}#kill(false)"
-                                Server.log_pp(:warn, e)
+                                warn "exception raised while calling #{p}#kill(false)"
+                                log_pp(:warn, e)
                                 socket.write(RET_NO)
                             end
                         else
-                            Server.warn "no process named #{name} to end"
+                            warn "no process named #{name} to end"
                             socket.write(RET_NO)
                         end
                     elsif cmd_code == COMMAND_KILL_ALL
                         cleanup, hard = Marshal.load(socket)
-                        Server.debug "#{socket} requested the end of all processes"
+                        debug "#{socket} requested the end of all processes"
                         processes = kill_all(cleanup: cleanup, hard: hard)
                         dead = join_all(processes)
                         socket.write(RET_YES)
@@ -424,14 +425,14 @@ module Syskit
                                     iors = p.wait_running(0)
                                     result[p_name] = ({ iors: iors } if iors)
                                 rescue Orocos::NotFound => e
-                                    Server.warn(e.message)
+                                    warn(e.message)
                                     result[p_name] = { error: e.message }
                                 rescue Orocos::InvalidIORMessage => e
-                                    Server.warn(e.message)
+                                    warn(e.message)
                                     result[p_name] = { error: e.message }
                                 end
                             else
-                                Server.warn("no process named #{p_name} to wait running")
+                                warn("no process named #{p_name} to wait running")
                                 result[p_name] = {
                                     error: "no process named #{p_name} to wait running"
                                 }
@@ -451,10 +452,10 @@ module Syskit
                 rescue EOFError
                     false
                 rescue Exception => e
-                    Server.fatal "protocol error on #{socket}: #{e}"
-                    Server.fatal "while serving command #{cmd_code}"
+                    fatal "protocol error on #{socket}: #{e}"
+                    fatal "while serving command #{cmd_code}"
                     e.backtrace.each do |bt|
-                        Server.fatal "  #{bt}"
+                        fatal "  #{bt}"
                     end
                     false
                 end
@@ -474,12 +475,12 @@ module Syskit
                     app.add_app_metadata(metadata)
                     app.find_and_create_log_dir(time_tag)
                     if (parent_info = metadata["parent"])
-                        ::Robot.info "created #{app.log_dir} on behalf of"
+                        info "created #{app.log_dir} on behalf of"
                         YAML.dump(parent_info).each_line do |line|
-                            ::Robot.info "  #{line.chomp}"
+                            info "  #{line.chomp}"
                         end
                     else
-                        ::Robot.info "created #{app.log_dir}"
+                        info "created #{app.log_dir}"
                     end
                 end
 
@@ -571,7 +572,7 @@ module Syskit
                     host, port, certificate, user, password, localfile, max_upload_rate =
                         parameters
 
-                    Server.debug "#{socket} requested uploading of #{localfile}"
+                    debug "#{socket} requested uploading of #{localfile}"
 
                     begin
                         localfile = log_upload_sanitize_path(Pathname(localfile))
@@ -581,7 +582,7 @@ module Syskit
                         return
                     end
 
-                    Server.info "queueing upload of #{localfile} to #{host}:#{port}"
+                    info "queueing upload of #{localfile} to #{host}:#{port}"
                     @log_upload_command_queue <<
                         FTPUpload.new(
                             host, port, certificate,

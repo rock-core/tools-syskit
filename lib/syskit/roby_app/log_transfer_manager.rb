@@ -120,7 +120,7 @@ module Syskit
                     next(false) if state.pending_count == 0
 
                     ::Robot.info "Waiting for process server at #{c.host} "\
-                                    "to finish uploading"
+                                 "to finish uploading"
                     true
                 end
             end
