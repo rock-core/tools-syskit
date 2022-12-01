@@ -49,40 +49,6 @@ module Syskit
             # is 20s
             attr_accessor :exception_transition_timeout
 
-            LogTransfer = Struct.new(
-                :enabled, :ip, :port, :user, :password, :certificate,
-                :self_spawned, :target_dir, :default_max_upload_rate,
-                :max_upload_rates,
-                keyword_init: true
-            ) do
-                def enabled?
-                    enabled
-                end
-
-                def self_spawned?
-                    self_spawned
-                end
-
-                # Return the upload rate limit for a given process server
-                #
-                # If {#max_upload_rate} contains an entry for this process server
-                # (keyed by name), it returns it. Otherwise, returns
-                # {#default_max_upload_rate}
-                #
-                # @param [ProcessServerConfig,String] process_server the process server
-                #   object or its name
-                def max_upload_rate_for(process_server, default: default_max_upload_rate)
-                    name =
-                        if process_server.respond_to?(:name)
-                            process_server.name
-                        else
-                            process_server.to_str
-                        end
-
-                    max_upload_rates[name] || default
-                end
-            end
-
             # Configuration of Syskit's log transfer functionality
             #
             # Minimum configuration: set `ip` to an IP which the process servers
@@ -99,7 +65,7 @@ module Syskit
             # certificate and set self_spawned to false. In this case, target_dir is
             # ignored
             #
-            # @return [LogTransfer]
+            # @return [LogTransferManager::Configuration]
             attr_reader :log_transfer
 
             # Period in seconds for triggering log rotation and transfer
@@ -179,7 +145,7 @@ module Syskit
                 @kill_all_on_process_server_connection = false
 
                 @log_rotation_period = nil
-                @log_transfer = LogTransfer.new(
+                @log_transfer = LogTransferManager::Configuration.new(
                     enabled: false,
                     user: "syskit",
                     port: 22,
@@ -192,7 +158,6 @@ module Syskit
                 )
 
                 clear
-
                 self.export_types = true
             end
 

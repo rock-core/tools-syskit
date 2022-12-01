@@ -48,6 +48,10 @@ module Syskit
                 end
 
                 def stop
+                    dispose
+                end
+
+                def dispose
                     @server.stop
                 end
 

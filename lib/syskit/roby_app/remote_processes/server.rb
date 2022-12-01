@@ -407,18 +407,10 @@ module Syskit
                     elsif cmd_code == COMMAND_QUIT
                         quit
                     elsif cmd_code == COMMAND_LOG_UPLOAD_FILE
-                        host, port, certificate, user, password, localfile,
-                            max_upload_rate =
-                            Marshal.load(socket)
-                        Server.debug "#{socket} requested uploading of #{localfile}"
-                        @log_upload_command_queue <<
-                            FTPUpload.new(
-                                host, port, certificate,
-                                user, password, localfile,
-                                max_upload_rate: max_upload_rate || Float::INFINITY
-                            )
-
+                        parameters = Marshal.load(socket)
+                        log_upload_file(socket, parameters)
                         socket.write(RET_YES)
+
                     elsif cmd_code == COMMAND_LOG_UPLOAD_STATE
                         state = log_upload_state
                         socket.write RET_YES
@@ -575,6 +567,40 @@ module Syskit
                     @com_w&.write INTERNAL_QUIT
                 end
 
+                def log_upload_file(socket, parameters)
+                    host, port, certificate, user, password, localfile, max_upload_rate =
+                        parameters
+
+                    Server.debug "#{socket} requested uploading of #{localfile}"
+
+                    begin
+                        localfile = log_upload_sanitize_path(Pathname(localfile))
+                    rescue Exception => e
+                        @log_upload_results_queue <<
+                            LogUploadState::Result.new(localfile, false, e.message)
+                        return
+                    end
+
+                    Server.info "queueing upload of #{localfile} to #{host}:#{port}"
+                    @log_upload_command_queue <<
+                        FTPUpload.new(
+                            host, port, certificate,
+                            user, password, localfile,
+                            max_upload_rate: max_upload_rate || Float::INFINITY
+                        )
+                end
+
+                def log_upload_sanitize_path(path)
+                    log_path = Pathname(app.log_dir)
+                    full_path = path.realpath(log_path)
+                    if full_path.to_s.start_with?(log_path.to_s + "/")
+                        return full_path
+                    end
+
+                    raise ArgumentError,
+                          "cannot upload files not within the app's log directory"
+                end
+
                 def log_upload_main
                     while (transfer = @log_upload_command_queue.pop)
                         @log_upload_current.set(transfer)
@@ -589,6 +615,13 @@ module Syskit
                         results << @log_upload_results_queue.pop(true)
                     rescue ThreadError
                         break
+                    end
+
+                    log_dir = Pathname.new(app.log_dir)
+                    results.each do |r|
+                        if r.success?
+                            r.file = Pathname.new(r.file).relative_path_from(log_dir).to_s
+                        end
                     end
 
                     # This count is not exact. However, it's designed to show
