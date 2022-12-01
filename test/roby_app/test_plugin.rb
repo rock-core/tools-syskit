@@ -273,6 +273,10 @@ module Syskit
                 end
 
                 it "transfers data for the selected process servers" do
+                    Syskit.conf.log_transfer.user = "user"
+                    Syskit.conf.log_transfer.password = "pass"
+                    Syskit.conf.log_transfer.certificate = "cert"
+                    Syskit.conf.log_transfer.port = 42
                     conf = Syskit.conf.process_server_config_for("localhost")
                     flexmock(conf).should_receive(supports_log_transfer?: true)
                     flexmock(app)
@@ -283,8 +287,12 @@ module Syskit
                         )
 
                     app.syskit_log_transfer_setup
-                    flexmock(app.syskit_log_transfer_manager)
-                        .should_receive(:transfer).with({ conf => ["old_log_file.log"] })
+                    flexmock(conf.client)
+                        .should_receive(:log_upload_file).explicitly
+                        .with("127.0.0.1", 42, "cert", "user", "pass",
+                              Pathname("old_log_file.log"),
+                              max_upload_rate: Float::INFINITY)
+                        .once
                     app.syskit_log_perform_rotation_and_transfer
                 end
             end

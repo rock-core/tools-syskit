@@ -58,8 +58,8 @@ module Syskit
             # @param [Array<(String, RemoteProcesses::Client, Array<String>)>] logs
             #   list of logs to transfer, per remote server
             def transfer(logs)
-                logs.each do |name, process_server, paths|
-                    transfer_one_process_server_logs(name, process_server, paths)
+                logs.each do |process_server, paths|
+                    transfer_one_process_server_logs(process_server, paths)
                 end
             end
 
@@ -69,12 +69,13 @@ module Syskit
             #
             # @param [RemoteProcesses::Client] process_server
             # @param [Array<String>] logfiles
-            def transfer_one_process_server_logs(name, process_server, paths)
+            def transfer_one_process_server_logs(process_server, paths)
+                upload_rate = @conf.max_upload_rate_for(process_server.name)
                 paths.each do |path|
                     process_server.client.log_upload_file(
                         @conf.ip, @conf.port, @conf.certificate,
                         @conf.user, @conf.password, Pathname(path),
-                        max_upload_rate: @conf.max_upload_rate_for(name)
+                        max_upload_rate: upload_rate
                     )
                 end
             end

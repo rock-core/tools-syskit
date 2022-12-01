@@ -31,7 +31,7 @@ module Syskit
                 file_path = create_test_file(@process_server.log_dir)
                 @manager = LogTransferManager.new(@conf)
                 assert @manager.server_started?
-                @manager.transfer([["test", @process_server, [file_path.basename]]])
+                @manager.transfer([[@process_server, [file_path.basename]]])
                 assert_upload_succeeds(file_path, @process_server)
             end
 
@@ -53,12 +53,12 @@ module Syskit
                 passwd_abs = other_path / "passwd"
                 passwd_rel = passwd_abs.relative_path_from(@process_server.log_dir).to_s
                 passwd_abs.write("test")
-                @manager.transfer([["test", @process_server, [passwd_rel]]])
+                @manager.transfer([[@process_server, [passwd_rel]]])
                 assert_upload_fails(
                     @process_server,
                     /cannot upload files not within the app's log directory/
                 )
-                @manager.transfer([["test", @process_server, [passwd_abs]]])
+                @manager.transfer([[@process_server, [passwd_abs]]])
                 assert_upload_fails(
                     @process_server,
                     /cannot upload files not within the app's log directory/
@@ -82,7 +82,7 @@ module Syskit
 
                 file_path = create_test_file(@process_server.log_dir)
                 @manager = LogTransferManager.new(@conf)
-                @manager.transfer([["test", @process_server, [file_path.basename]]])
+                @manager.transfer([[@process_server, [file_path.basename]]])
                 assert_upload_succeeds(file_path, @process_server)
                 @manager.dispose([@process_server])
             ensure
