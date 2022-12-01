@@ -669,7 +669,8 @@ module Syskit
                 client = create_local_process_server_client(app)
 
                 # Do *not* manage the log directory for that one ...
-                Syskit.conf.register_process_server("localhost", client, app.log_dir)
+                conf = Syskit.conf.register_process_server("localhost", client, app.log_dir)
+                conf.supports_log_transfer = true
                 client
             end
 
