@@ -161,20 +161,50 @@ module Syskit
                 rtt_core_model = app.default_loader.task_model_from_name("RTT::TaskContext")
                 Syskit::TaskContext.define_from_orogen(rtt_core_model, register: true)
 
-                log_transfer_setup
+                app.syskit_log_transfer_setup
             end
 
-            def log_transfer_setup
-                return unless Syskit.conf.log_transfer.enabled?
+            def syskit_log_transfer_setup
+                return unless Syskit.conf.log_transfer.ip
 
                 unless Syskit.conf.log_rotation_period
                     raise ArgumentError,
                           "cannot enable log transfer without log rotation"
                 end
 
-                app.syskit_log_transfer_manager = LogTransferManager.new(
-                    Syskit.conf.log_transfer
-                )
+                @syskit_log_transfer_manager =
+                    LogTransferManager.new(Syskit.conf.log_transfer)
+            end
+
+            def syskit_log_transfer_cleanup
+                syskit_log_transfer_manager&.dispose(syskit_log_transfer_process_servers)
+                @syskit_log_transfer_manager = nil
+            end
+
+            # Returns the list of remote process servers that will take part in the
+            # log transfer process
+            #
+            # @return [Configuration::ProcessServerConfig]
+            def syskit_log_transfer_process_servers
+                Syskit.conf.each_process_server_config.find_all do |config|
+                    next unless config.supports_log_transfer?
+                    next(true) unless config.on_localhost?
+
+                    syskit_log_transfer_manager&.transfer_local_files_from?(config.log_dir)
+                end
+            end
+
+            # Rotate logs, and transfer the old logs if log transfer is configured
+            def syskit_log_perform_rotation_and_transfer
+                rotated_logs = syskit_rotate_logs
+
+                return unless (mng = syskit_log_transfer_manager)
+
+                handled = syskit_log_transfer_process_servers
+                rotated_logs.delete_if do |process_server_config, _|
+                    !handled.include?(process_server_config)
+                end
+                mng.transfer(rotated_logs)
             end
 
             # Hook called by the main application in Application#setup after
@@ -206,9 +236,7 @@ module Syskit
                     app.syskit_remove_configuration_changes_listener
                 end
 
-                app.syskit_log_transfer_manager&.dispose(
-                    Syskit.conf.each_process_server.to_a
-                )
+                app.syskit_log_transfer_cleanup
                 disconnect_all_process_servers
                 stop_local_process_server(app)
             end
@@ -219,8 +247,7 @@ module Syskit
 
                 if Syskit.conf.log_rotation_period
                     app.execution_engine.every(Syskit.conf.log_rotation_period) do
-                        rotated_logs = app.syskit_rotate_logs
-                        app.log_transfer_manager&.transfer(rotated_logs)
+                        app.syskit_log_perform_rotation_and_transfer
                     end
                 end
             end

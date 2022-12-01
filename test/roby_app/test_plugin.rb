@@ -213,12 +213,24 @@ module Syskit
                 end
             end
 
-            describe "Log Rotation" do
+            describe "log rotation and transfer" do
                 before do
-                    task_m = Syskit::TaskContext.new_submodel
-                    task_m.class_eval do
-                        provides Syskit::LoggerService
+                    Syskit.conf.log_rotation_period = 600
+                    Syskit.conf.log_transfer.ip = "127.0.0.1"
+                    Syskit.conf.log_transfer.self_spawned = false
+                    Syskit.conf.log_transfer.target_dir = make_tmpdir
+                end
 
+                after do
+                    Syskit.conf.log_rotation_period = nil
+                    Syskit.conf.log_transfer.ip = nil
+                    app.syskit_log_transfer_cleanup
+                end
+
+                it "rotates logs and returns which logs were rotated" do
+                    task_m = Syskit::TaskContext.new_submodel
+                    task_m.provides Syskit::LoggerService
+                    task_m.class_eval do
                         def log_server_name
                             "stubs"
                         end
@@ -227,12 +239,53 @@ module Syskit
                             ["old_log_file.log"]
                         end
                     end
+
                     @task = syskit_stub_deploy_configure_and_start(task_m)
+                    rotated_logs = app.syskit_rotate_logs
+
+                    stubs = Syskit.conf.process_server_config_for("stubs")
+                    assert_equal({ stubs => ["old_log_file.log"] }, rotated_logs)
                 end
 
-                it "rotates log" do
-                    rotated_logs = app.rotate_logs
-                    assert_equal({ "stubs" => ["old_log_file.log"] }, rotated_logs)
+                it "returns an empty list of process servers "\
+                   "if log transfer is disabled" do
+                    conf = Syskit.conf.process_server_config_for("localhost")
+                    flexmock(conf).should_receive(supports_log_transfer?: true)
+                    assert_equal [], app.syskit_log_transfer_process_servers
+                end
+
+                it "returns the list of process servers whose logs we want to transfer" do
+                    app.syskit_log_transfer_setup
+
+                    conf = Syskit.conf.process_server_config_for("localhost")
+                    flexmock(conf).should_receive(supports_log_transfer?: true)
+                    assert_equal [conf], app.syskit_log_transfer_process_servers
+                end
+
+                it "ignores local process servers if they have the same directory than "\
+                   "the transfer's target dir" do
+                    Syskit.conf.log_transfer.target_dir = app.log_dir
+                    app.syskit_log_transfer_setup
+
+                    conf = Syskit.conf.process_server_config_for("localhost")
+                    flexmock(conf).should_receive(supports_log_transfer?: true)
+                    assert_equal [], app.syskit_log_transfer_process_servers
+                end
+
+                it "transfers data for the selected process servers" do
+                    conf = Syskit.conf.process_server_config_for("localhost")
+                    flexmock(conf).should_receive(supports_log_transfer?: true)
+                    flexmock(app)
+                        .should_receive(:syskit_rotate_logs)
+                        .and_return(
+                            { conf => ["old_log_file.log"],
+                              Configuration::ProcessServerConfig.new => ["some_file"] }
+                        )
+
+                    app.syskit_log_transfer_setup
+                    flexmock(app.syskit_log_transfer_manager)
+                        .should_receive(:transfer).with({ conf => ["old_log_file.log"] })
+                    app.syskit_log_perform_rotation_and_transfer
                 end
             end
 

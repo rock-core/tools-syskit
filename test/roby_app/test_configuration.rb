@@ -117,6 +117,16 @@ describe Syskit::RobyApp::Configuration do
                 process = client.start "deployment", deployment_m.orogen_model
                 assert_equal 20, process.pid
             end
+
+            it "marks the process server as supporting log transfer" do
+                process_server_start
+                @conf.connect_to_orocos_process_server(
+                    "test-remote", "localhost",
+                    port: process_server_port
+                )
+                config = @conf.process_server_config_for("test-remote")
+                assert config.supports_log_transfer?
+            end
         end
 
         def process_server_create

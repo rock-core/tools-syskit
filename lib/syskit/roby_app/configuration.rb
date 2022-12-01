@@ -596,11 +596,14 @@ module Syskit
                     { "parent" => Roby.app.app_metadata }
                 )
                 client.kill_all if kill_all_on_process_server_connection?
-                register_process_server(name, client, log_dir, host_id: host_id || name)
+                config = register_process_server(
+                    name, client, log_dir, host_id: host_id || name
+                )
+                config.supports_log_transfer = true
                 client
             end
 
-            ProcessServerConfig = Struct.new :name, :client, :log_dir, :host_id do
+            ProcessServerConfig = Struct.new :name, :client, :log_dir, :host_id, :supports_log_transfer do
                 def on_localhost?
                     host_id == "localhost" || host_id == "syskit"
                 end
@@ -611,6 +614,10 @@ module Syskit
 
                 def loader
                     client.loader
+                end
+
+                def supports_log_transfer?
+                    supports_log_transfer
                 end
             end
 
