@@ -220,6 +220,7 @@ module Syskit
                 def create_log_dir(log_dir, time_tag, metadata = {})
                     socket.write(COMMAND_CREATE_LOG)
                     Marshal.dump([log_dir, time_tag, metadata], socket)
+                    wait_for_ack
                 end
 
                 def queue_death_announcement

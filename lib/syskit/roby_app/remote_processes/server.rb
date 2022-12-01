@@ -343,14 +343,14 @@ module Syskit
                             metadata ||= {} # compatible with older clients
                             log_dir = File.expand_path(log_dir) if log_dir
                             create_log_dir(log_dir, time_tag, metadata)
-                        rescue Interrupt
-                            raise
-                        rescue Exception => e
+                            socket.write(RET_YES)
+                        rescue StandardError => e
                             Server.warn "failed to create log directory #{log_dir}: "\
                                         "#{e.message}"
                             (e.backtrace || []).each do |line|
                                 Server.warn "   #{line}"
                             end
+                            socket.write(RET_NO)
                         end
 
                     elsif cmd_code == COMMAND_START
