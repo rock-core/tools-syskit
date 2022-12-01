@@ -152,7 +152,10 @@ module Syskit
             end
 
             def assert_upload_with_single_result(manager, client)
-                transfers = manager.flush([client], timeout: 1)
+                transfers = nil
+                capture_log(::Robot, :info) do
+                    transfers = manager.flush([client], timeout: 1)
+                end
                 assert_equal [client], transfers.keys
                 assert_equal 1, transfers[client].size
                 transfers[client].first
