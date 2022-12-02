@@ -287,7 +287,7 @@ module Syskit
             end
 
             def app_start(robot_name: "default", port: nil)
-                robot_name, start_controller = AppStartDialog.exec(
+                robot_name, start_controller, single = AppStartDialog.exec(
                     Roby.app.robots.names, self, default_robot_name: robot_name
                 )
                 return unless robot_name
@@ -296,6 +296,7 @@ module Syskit
                 extra_args << "-r" << robot_name unless robot_name.empty?
                 extra_args << "-c" if start_controller
                 extra_args << "--port=#{port}" if port
+                extra_args << "--single" if single
                 extra_args.concat(
                     Roby.app.argv_set.flat_map { |arg| ["--set", arg] }
                 )
