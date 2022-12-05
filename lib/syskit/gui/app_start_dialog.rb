@@ -15,6 +15,12 @@ module Syskit
             # @return [Qt::CheckBox]
             attr_reader :start_controller
 
+            # The checkbox allowing to choose whether Roby app should be run
+            # on single mode. For more information, check [Roby::Application#single]
+            #
+            # @return [Qt::CheckBox]
+            attr_reader :single
+
             # Text used to allow the user to not load any robot configuration
             NO_ROBOT = " -- None -- "
 
@@ -36,6 +42,9 @@ module Syskit
                 end
                 layout.add_widget(@start_controller = Qt::CheckBox.new("Start controller"))
                 start_controller.checked = true
+
+                layout.add_widget(@single = Qt::CheckBox.new("Run on single mode"))
+                single.checked = false
 
                 button_box = Qt::DialogButtonBox.new(
                     Qt::DialogButtonBox::Ok | Qt::DialogButtonBox::Cancel
@@ -64,6 +73,13 @@ module Syskit
                 start_controller.checked?
             end
 
+            # Whether Roby app should be run on single mode
+            #
+            # @return [Boolean]
+            def single?
+                single.checked?
+            end
+
             # Executes a {AppStartDialog} in a modal way and returns the result
             #
             # @return [nil,(String,Boolean)] either nil if the dialog was
@@ -74,7 +90,7 @@ module Syskit
             def self.exec(names, parent = nil, default_robot_name: "default")
                 dialog = new(names, parent, default_robot_name: default_robot_name)
                 if Qt::Dialog::Accepted == dialog.exec
-                    [dialog.selected_name, dialog.start_controller?]
+                    [dialog.selected_name, dialog.start_controller?, dialog.single?]
                 end
             end
         end
