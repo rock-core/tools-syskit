@@ -53,7 +53,7 @@ describe Syskit::RobyApp::RemoteProcesses do
 
     describe "#pid" do
         before do
-            @client = start_and_connect_to_server
+            @client, = start_and_connect_to_server
         end
 
         it "returns the process server's PID" do
