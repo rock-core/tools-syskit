@@ -4,7 +4,17 @@ require "English"
 
 module Syskit
     module RobyApp
-        module LogTransferServer
+        module LogTransferServer # :nodoc:
+            # Whether we should configure client and server to use implicit FTPs by
+            # default
+            #
+            # This workarounds some incompatibility between net-ftp and ftpd. They
+            # don't manage connecting properly in implicit mode before 2.7.0, and
+            # don't manage connecting properly in explicit mode afterwards
+            def self.use_implicit_ftps?
+                RUBY_VERSION >= "2.7.0"
+            end
+
             # Class responsible for spawning an FTP server for transfering logs
             class SpawnServer
                 attr_reader :port
@@ -16,7 +26,7 @@ module Syskit
                     password,
                     certfile_path,
                     interface: "127.0.0.1",
-                    tls: :implicit,
+                    tls: LogTransferServer.use_implicit_ftps? ? :implicit : :explicit,
                     port: 0,
                     session_timeout: default_session_timeout,
                     nat_ip: nil,

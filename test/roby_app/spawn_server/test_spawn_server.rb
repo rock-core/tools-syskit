@@ -28,7 +28,7 @@ module Syskit
                     Net::FTP.open(
                         "localhost",
                         port: @server.port,
-                        implicit_ftps: true,
+                        implicit_ftps: LogTransferServer.use_implicit_ftps?,
                         ssl: { verify_mode: OpenSSL::SSL::VERIFY_PEER,
                                verify_hostname: false,
                                ca_file: certfile_path },
