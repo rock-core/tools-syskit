@@ -1,7 +1,5 @@
 # frozen_string_literal: true
 
-require "syskit/roby_app/tmp_root_ca"
-
 class Module
     def backward_compatible_constant(old_name, new_constant, file)
         msg = "  #{name}::#{old_name} has been renamed to #{new_constant} and is now in #{file}"
@@ -35,8 +33,11 @@ module Syskit
         #   loaded models. In addition, a text notification is sent to inform
         #   a shell user
         module Plugin
+            # @return [LogTransferManager,nil] the log transfer support object, or nil
+            #   before {.setup}, or if log transfer is not enabled
+            attr_accessor :syskit_log_transfer_manager
+
             attr_writer :syskit_use_update_properties
-            attr_accessor :log_transfer_ip
 
             # Assume all component models have been migrated to use update_properties
             #
@@ -160,58 +161,50 @@ module Syskit
                 rtt_core_model = app.default_loader.task_model_from_name("RTT::TaskContext")
                 Syskit::TaskContext.define_from_orogen(rtt_core_model, register: true)
 
-                # Log Transfer FTP Server spawned during Application#setup
-                app.setup_local_log_transfer_server if app.log_transfer_ip
+                app.syskit_log_transfer_setup
             end
 
-            def setup_local_log_transfer_server
-                @log_transfer_user = "process server"
-                @log_transfer_password = SecureRandom.base64(15)
-                @tmp_root_ca = TmpRootCA.new(log_transfer_ip)
+            def syskit_log_transfer_setup
+                return unless Syskit.conf.log_transfer.ip
 
-                start_local_log_transfer_server(log_dir, @log_transfer_user, @log_transfer_password, @tmp_root_ca.private_certificate_path)
-            end
-
-            def send_file_transfer_command(name, logfile)
-                unless @log_transfer_server
-                    raise "log transfer server is not started"
+                unless Syskit.conf.log_rotation_period
+                    raise ArgumentError,
+                          "cannot enable log transfer without log rotation"
                 end
 
-                # Establishes communication with said process server
-                client = Syskit.conf.process_server_for(name)
-
-                # Commands method log_upload_file from said process server
-                client.log_upload_file(
-                    log_transfer_ip,
-                    @log_transfer_server.port,
-                    @tmp_root_ca.certificate,
-                    @log_transfer_user,
-                    @log_transfer_password,
-                    logfile
-                )
-                client
+                @syskit_log_transfer_manager =
+                    LogTransferManager.new(Syskit.conf.log_transfer)
             end
 
-            def start_local_log_transfer_server(tgt_dir, user, password, private_certificate_path)
-                if @log_transfer_server
-                    raise "log transfer server is already started"
-                end
-
-                @log_transfer_server = Syskit::RobyApp::LogTransferServer::SpawnServer.new(
-                    tgt_dir,
-                    user,
-                    password,
-                    private_certificate_path
-                )
+            def syskit_log_transfer_cleanup
+                syskit_log_transfer_manager&.dispose(syskit_log_transfer_process_servers)
+                @syskit_log_transfer_manager = nil
             end
 
-            def stop_local_log_transfer_server
-                if @log_transfer_server
-                    @log_transfer_server.stop
-                    @log_transfer_server.join
-                    @log_transfer_server = nil
+            # Returns the list of remote process servers that will take part in the
+            # log transfer process
+            #
+            # @return [Configuration::ProcessServerConfig]
+            def syskit_log_transfer_process_servers
+                Syskit.conf.each_process_server_config.find_all do |config|
+                    next unless config.supports_log_transfer?
+                    next(true) unless config.on_localhost?
+
+                    syskit_log_transfer_manager&.transfer_local_files_from?(config.log_dir)
                 end
-                @tmp_root_ca&.dispose
+            end
+
+            # Rotate logs, and transfer the old logs if log transfer is configured
+            def syskit_log_perform_rotation_and_transfer
+                rotated_logs = syskit_rotate_logs
+
+                return unless (mng = syskit_log_transfer_manager)
+
+                handled = syskit_log_transfer_process_servers
+                rotated_logs.delete_if do |process_server_config, _|
+                    !handled.include?(process_server_config)
+                end
+                mng.transfer(rotated_logs)
             end
 
             # Hook called by the main application in Application#setup after
@@ -243,9 +236,9 @@ module Syskit
                     app.syskit_remove_configuration_changes_listener
                 end
 
+                app.syskit_log_transfer_cleanup
                 disconnect_all_process_servers
                 stop_local_process_server(app)
-                app.stop_local_log_transfer_server
             end
 
             # Hook called by the main application to prepare for execution
@@ -254,8 +247,7 @@ module Syskit
 
                 if Syskit.conf.log_rotation_period
                     app.execution_engine.every(Syskit.conf.log_rotation_period) do
-                        rotated_logs = app.rotate_logs
-                        app.upload_rotated_logs(rotated_logs) if Syskit.conf.log_upload?
+                        app.syskit_log_perform_rotation_and_transfer
                     end
                 end
             end
@@ -677,7 +669,8 @@ module Syskit
                 client = create_local_process_server_client(app)
 
                 # Do *not* manage the log directory for that one ...
-                Syskit.conf.register_process_server("localhost", client, app.log_dir)
+                conf = Syskit.conf.register_process_server("localhost", client, app.log_dir)
+                conf.supports_log_transfer = true
                 client
             end
 
@@ -976,23 +969,14 @@ module Syskit
                 rest_api.mount REST_API => "/syskit"
             end
 
-            def rotate_logs
-                plan.find_tasks(Syskit::LoggerService).running.each_with_object({}) do |task, rotated_logs|
-                    process_server_name = task.log_server_name
-                    (rotated_logs[process_server_name] ||= []).concat(task.rotate_log)
-                end
-            end
-
-            def upload_rotated_logs(rotated_logs)
-                rotated_logs.each do |process_server_name, logs|
-                    process_server = Syskit.conf.process_server_config_for(process_server_name)
-
-                    if !process_server.in_process? && !process_server.on_localhost?
-                        logs.each do |log_filename|
-                            send_file_transfer_command(process_server_name, log_filename)
-                        end
+            def syskit_rotate_logs
+                plan.find_tasks(Syskit::LoggerService)
+                    .running.each_with_object({}) do |task, rotated_logs|
+                        process_server = Syskit.conf.process_server_config_for(
+                            task.log_server_name
+                        )
+                        (rotated_logs[process_server] ||= []).concat(task.rotate_log)
                     end
-                end
             end
         end
     end

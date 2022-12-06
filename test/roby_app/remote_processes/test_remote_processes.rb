@@ -19,6 +19,9 @@ describe Syskit::RobyApp::RemoteProcesses do
         Syskit::RobyApp::RemoteProcesses::Server.logger.level = Logger::WARN
         @__orocos_current_log_level = Orocos.logger.level
         Orocos.logger.level = Logger::FATAL
+
+        @root_loader = OroGen::Loaders::Aggregate.new
+        OroGen::Loaders::RTT.setup_loader(root_loader)
     end
 
     after do
@@ -39,8 +42,6 @@ describe Syskit::RobyApp::RemoteProcesses do
     describe "#initialize" do
         it "registers the loader exactly once on the provided root loader" do
             start_server
-            root_loader = OroGen::Loaders::Aggregate.new
-            OroGen::Loaders::RTT.setup_loader(root_loader)
             client = Syskit::RobyApp::RemoteProcesses::Client.new(
                 "localhost",
                 server.port,
@@ -52,7 +53,7 @@ describe Syskit::RobyApp::RemoteProcesses do
 
     describe "#pid" do
         before do
-            start_and_connect_to_server
+            @client, = start_and_connect_to_server
         end
 
         it "returns the process server's PID" do
@@ -63,7 +64,7 @@ describe Syskit::RobyApp::RemoteProcesses do
     describe "#loader" do
         attr_reader :loader
         before do
-            start_and_connect_to_server
+            @client, = start_and_connect_to_server
             @loader = client.loader
         end
 
@@ -94,7 +95,7 @@ describe Syskit::RobyApp::RemoteProcesses do
 
     describe "#start" do
         before do
-            start_and_connect_to_server
+            @client, = start_and_connect_to_server
         end
 
         it "can start a process on the server" do
@@ -135,7 +136,7 @@ describe Syskit::RobyApp::RemoteProcesses do
 
     describe "waits for the process to be running" do
         before do
-            start_and_connect_to_server
+            @client, = start_and_connect_to_server
         end
 
         it "returns a hash with information about a process and its tasks" do
@@ -244,7 +245,7 @@ describe Syskit::RobyApp::RemoteProcesses do
     describe "stopping a remote process" do
         attr_reader :process
         before do
-            start_and_connect_to_server
+            @client, = start_and_connect_to_server
             @process = client.start(
                 "syskit_tests_empty", "syskit_tests_empty",
                 { "syskit_tests_empty" => "syskit_tests_empty" },
@@ -271,7 +272,7 @@ describe Syskit::RobyApp::RemoteProcesses do
 
     describe "stopping all remote processes" do
         before do
-            start_and_connect_to_server
+            @client, = start_and_connect_to_server
             @processes = 10.times.map do |i|
                 client.start(
                     "syskit_tests_empty_#{i}", "syskit_tests_empty",
@@ -304,11 +305,12 @@ describe Syskit::RobyApp::RemoteProcesses do
 
     describe "#log_upload_file" do
         before do
-            start_and_connect_to_server
+            @client, @remote_log_dir = start_and_connect_to_server
             @port, @certificate = spawn_log_transfer_server
-            @logfile = File.join(make_tmpdir, "logfile.log")
+            remote_app_path = Pathname(@remote_log_dir).each_child.first
+            @logfile = remote_app_path / "logfile.log"
             File.open(@logfile, "wb") do |f|
-                f.write(SecureRandom.random_bytes(547)) # create random 5 MB file
+                f.write(SecureRandom.random_bytes(547)) # create random 547 byte
             end
         end
 
@@ -325,6 +327,27 @@ describe Syskit::RobyApp::RemoteProcesses do
                 @user, @password, @logfile
             )
             assert_upload_succeeds
+            assert_equal File.read(path), File.read(@logfile)
+        end
+
+        it "rate-limits the file transfer" do
+            File.open(@logfile, "wb") do |f|
+                f.write(SecureRandom.random_bytes(1024 * 1024))
+            end
+            tic = Time.now
+            client.log_upload_file(
+                "localhost", @port, @certificate,
+                @user, @password, @logfile,
+                max_upload_rate: 500 * 1024
+            )
+            assert_upload_succeeds(timeout: 5)
+            toc = Time.now
+
+            assert_includes(
+                (1.8..2.2), toc - tic,
+                "transfer took #{toc - tic} instead of the expected 2s"
+            )
+            path = File.join(@temp_serverdir, "logfile.log")
             assert_equal File.read(path), File.read(@logfile)
         end
 
@@ -406,8 +429,8 @@ describe Syskit::RobyApp::RemoteProcesses do
             end
         end
 
-        def assert_upload_succeeds
-            wait_for_upload_completion.each_result do |r|
+        def assert_upload_succeeds(timeout: 1)
+            wait_for_upload_completion(timeout: timeout).each_result do |r|
                 flunk("upload failed: #{r.message}") unless r.success?
             end
         end
@@ -432,13 +455,13 @@ describe Syskit::RobyApp::RemoteProcesses do
     end
 
     def connect_to_server
-        @root_loader = OroGen::Loaders::Aggregate.new
-        OroGen::Loaders::RTT.setup_loader(root_loader)
-        @client = Syskit::RobyApp::RemoteProcesses::Client.new(
-            "localhost",
-            server.port,
-            root_loader: root_loader
+        client = Syskit::RobyApp::RemoteProcesses::Client.new(
+            "localhost", server.port, root_loader: root_loader
         )
+
+        log_dir = make_tmpdir
+        client.create_log_dir(log_dir, Roby.app.time_tag)
+        [client, log_dir]
     end
 
     def start_and_connect_to_server

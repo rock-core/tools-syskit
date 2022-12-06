@@ -13,7 +13,7 @@ module Syskit
             COMMAND_QUIT       = "Q"
             COMMAND_KILL_ALL   = "K"
             COMMAND_WAIT_RUNNING = "W"
-            COMMAND_LOG_UPLOAD_FILE  = "U"
+            COMMAND_LOG_UPLOAD_FILE = "U"
             COMMAND_LOG_UPLOAD_STATE = "X"
 
             EVENT_DEAD_PROCESS = "D"

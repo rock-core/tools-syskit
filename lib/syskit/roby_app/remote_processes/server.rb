@@ -7,6 +7,7 @@ require "orocos"
 
 require "concurrent/atomic/atomic_reference"
 require "syskit/roby_app/remote_processes/log_upload_state"
+require "syskit/roby_app/remote_processes/ftp_upload"
 
 module Syskit
     module RobyApp
@@ -21,6 +22,9 @@ module Syskit
                 extend Logger::Root(
                     "Syskit::RobyApp::RemoteProcesses::Server", Logger::INFO
                 )
+
+                include Logger::Forward
+                include Logger::Hierarchy
 
                 # Returns a unique directory name as a subdirectory of
                 # +base_dir+, based on +path_spec+. The generated name
@@ -147,7 +151,7 @@ module Syskit
                 INTERNAL_SIGCHLD_TRIGGERED = "S"
 
                 def open(fd: nil)
-                    Server.info "starting on port #{required_port}"
+                    info "starting on port #{required_port}"
 
                     server =
                         if fd
@@ -178,7 +182,7 @@ module Syskit
                 #
                 # All started processes are stopped when the server quits
                 def listen
-                    Server.info "process server listening on port #{port}"
+                    info "process server listening on port #{port}"
                     server_io, com_r = *@all_ios[0, 2]
 
                     @quit = false
@@ -191,7 +195,7 @@ module Syskit
                                 Socket::IPPROTO_TCP, Socket::TCP_NODELAY, true
                             )
                             client_socket.fcntl(Fcntl::FD_CLOEXEC, 1)
-                            Server.debug "new connection: #{client_socket}"
+                            debug "new connection: #{client_socket}"
                             @all_ios << client_socket
                         end
 
@@ -204,28 +208,27 @@ module Syskit
                             elsif cmd == INTERNAL_QUIT
                                 next
                             elsif cmd
-                                Server.warn "unknown internal communication code "\
-                                            "#{cmd.inspect}"
+                                warn "unknown internal communication code #{cmd.inspect}"
                             end
                         end
 
                         readable_sockets.each do |socket|
                             unless handle_command(socket)
-                                Server.debug "#{socket} closed or errored"
+                                debug "#{socket} closed or errored"
                                 socket.close
                                 @all_ios.delete(socket)
                             end
                         end
                     end
 
-                    Server.info "process server exited normally"
+                    info "process server exited normally"
                 rescue Interrupt
-                    Server.warn "process server exited after SIGINT"
+                    warn "process server exited after SIGINT"
                 rescue Exception => e
-                    Server.fatal "process server exited because of unhandled exception"
-                    Server.fatal "#{e.message} #{e.class}"
+                    fatal "process server exited because of unhandled exception"
+                    fatal "#{e.message} #{e.class}"
                     e.backtrace.each do |line|
-                        Server.fatal "  #{line}"
+                        fatal "  #{line}"
                     end
                 ensure
                     quit_and_join
@@ -290,22 +293,24 @@ module Syskit
                 #   terminated processes
                 def announce_dead_processes(dead_processes)
                     dead_processes.each do |process, exit_status|
-                        Server.debug "announcing death of #{process.name}"
+                        debug "announcing death of #{process.name}"
                         each_client do |socket|
-                            Server.debug "  announcing to #{socket}"
+                            debug "  announcing to #{socket}"
                             socket.write(EVENT_DEAD_PROCESS)
                             Marshal.dump([process.name, exit_status], socket)
                         rescue SystemCallError, IOError => e
-                            Server.debug "  #{socket}: #{e}"
+                            debug "  #{socket}: #{e}"
                         end
                     end
                 end
 
                 # Helper method that stops all running processes
                 def quit_and_join # :nodoc:
-                    Server.info "stopping process server"
+                    @log_upload_command_queue << nil
+
+                    info "stopping process server"
                     processes.each_value do |p|
-                        Server.info "killing #{p.name}"
+                        info "killing #{p.name}"
                         # Kill the process hard. If there are still processes,
                         # it means that the normal cleanup procedure did not
                         # work.  Not the time to call stop or whatnot
@@ -317,7 +322,6 @@ module Syskit
                     rescue SystemCallError, IOError # rubocop:disable Lint/SuppressedException
                     end
 
-                    @log_upload_command_queue << nil
                     @log_upload_thread.join
                 end
 
@@ -327,57 +331,57 @@ module Syskit
                     return false unless cmd_code
 
                     if cmd_code == COMMAND_GET_PID
-                        Server.debug "#{socket} requested PID"
+                        debug "#{socket} requested PID"
                         Marshal.dump([::Process.pid], socket)
 
                     elsif cmd_code == COMMAND_GET_INFO
-                        Server.debug "#{socket} requested system information"
+                        debug "#{socket} requested system information"
                         Marshal.dump(build_system_info, socket)
                     elsif cmd_code == COMMAND_CREATE_LOG
-                        Server.debug "#{socket} requested creating a log directory"
+                        debug "#{socket} requested creating a log directory"
                         log_dir, time_tag, metadata = Marshal.load(socket)
 
                         begin
                             metadata ||= {} # compatible with older clients
                             log_dir = File.expand_path(log_dir) if log_dir
                             create_log_dir(log_dir, time_tag, metadata)
-                        rescue Interrupt
-                            raise
-                        rescue Exception => e
-                            Server.warn "failed to create log directory #{log_dir}: "\
-                                        "#{e.message}"
+                            socket.write(RET_YES)
+                        rescue StandardError => e
+                            warn "failed to create log directory #{log_dir}: "\
+                                 "#{e.message}"
                             (e.backtrace || []).each do |line|
-                                Server.warn "   #{line}"
+                                warn "   #{line}"
                             end
+                            socket.write(RET_NO)
                         end
 
                     elsif cmd_code == COMMAND_START
                         name, deployment_name, name_mappings, options =
                             Marshal.load(socket)
                         options ||= {}
-                        Server.debug "#{socket} requested startup of #{name} with "\
-                                     "#{options} and mappings #{name_mappings}"
+                        debug "#{socket} requested startup of #{name} with "\
+                              "#{options} and mappings #{name_mappings}"
                         begin
                             p = start_process(
                                 name, deployment_name, name_mappings, options
                             )
-                            Server.debug "#{name}, from #{deployment_name}, "\
-                                         "is started (#{p.pid})"
+                            debug "#{name}, from #{deployment_name}, "\
+                                  "is started (#{p.pid})"
                             socket.write(RET_STARTED_PROCESS)
                             Marshal.dump(p.pid, socket)
                         rescue Interrupt
                             raise
                         rescue Exception => e
-                            Server.warn "failed to start #{name}: #{e.message}"
+                            warn "failed to start #{name}: #{e.message}"
                             (e.backtrace || []).each do |line|
-                                Server.warn "   #{line}"
+                                warn "   #{line}"
                             end
                             socket.write(RET_NO)
                             socket.write Marshal.dump(e.message)
                         end
                     elsif cmd_code == COMMAND_END
                         name, cleanup, hard = Marshal.load(socket)
-                        Server.debug "#{socket} requested end of #{name}"
+                        debug "#{socket} requested end of #{name}"
                         if (p = processes[name])
                             begin
                                 end_process(p, cleanup: cleanup, hard: hard)
@@ -385,18 +389,17 @@ module Syskit
                             rescue Interrupt
                                 raise
                             rescue Exception => e
-                                Server.warn "exception raised while calling "\
-                                            "#{p}#kill(false)"
-                                Server.log_pp(:warn, e)
+                                warn "exception raised while calling #{p}#kill(false)"
+                                log_pp(:warn, e)
                                 socket.write(RET_NO)
                             end
                         else
-                            Server.warn "no process named #{name} to end"
+                            warn "no process named #{name} to end"
                             socket.write(RET_NO)
                         end
                     elsif cmd_code == COMMAND_KILL_ALL
                         cleanup, hard = Marshal.load(socket)
-                        Server.debug "#{socket} requested the end of all processes"
+                        debug "#{socket} requested the end of all processes"
                         processes = kill_all(cleanup: cleanup, hard: hard)
                         dead = join_all(processes)
                         socket.write(RET_YES)
@@ -405,16 +408,10 @@ module Syskit
                     elsif cmd_code == COMMAND_QUIT
                         quit
                     elsif cmd_code == COMMAND_LOG_UPLOAD_FILE
-                        host, port, certificate, user, password, localfile =
-                            Marshal.load(socket)
-                        Server.debug "#{socket} requested uploading of #{localfile}"
-                        @log_upload_command_queue <<
-                            Upload.new(
-                                host, port, certificate,
-                                user, password, localfile
-                            )
-
+                        parameters = Marshal.load(socket)
+                        log_upload_file(socket, parameters)
                         socket.write(RET_YES)
+
                     elsif cmd_code == COMMAND_LOG_UPLOAD_STATE
                         state = log_upload_state
                         socket.write RET_YES
@@ -428,14 +425,14 @@ module Syskit
                                     iors = p.wait_running(0)
                                     result[p_name] = ({ iors: iors } if iors)
                                 rescue Orocos::NotFound => e
-                                    Server.warn(e.message)
+                                    warn(e.message)
                                     result[p_name] = { error: e.message }
                                 rescue Orocos::InvalidIORMessage => e
-                                    Server.warn(e.message)
+                                    warn(e.message)
                                     result[p_name] = { error: e.message }
                                 end
                             else
-                                Server.warn("no process named #{p_name} to wait running")
+                                warn("no process named #{p_name} to wait running")
                                 result[p_name] = {
                                     error: "no process named #{p_name} to wait running"
                                 }
@@ -455,10 +452,10 @@ module Syskit
                 rescue EOFError
                     false
                 rescue Exception => e
-                    Server.fatal "protocol error on #{socket}: #{e}"
-                    Server.fatal "while serving command #{cmd_code}"
+                    fatal "protocol error on #{socket}: #{e}"
+                    fatal "while serving command #{cmd_code}"
                     e.backtrace.each do |bt|
-                        Server.fatal "  #{bt}"
+                        fatal "  #{bt}"
                     end
                     false
                 end
@@ -478,12 +475,12 @@ module Syskit
                     app.add_app_metadata(metadata)
                     app.find_and_create_log_dir(time_tag)
                     if (parent_info = metadata["parent"])
-                        ::Robot.info "created #{app.log_dir} on behalf of"
+                        info "created #{app.log_dir} on behalf of"
                         YAML.dump(parent_info).each_line do |line|
-                            ::Robot.info "  #{line.chomp}"
+                            info "  #{line.chomp}"
                         end
                     else
-                        ::Robot.info "created #{app.log_dir}"
+                        info "created #{app.log_dir}"
                     end
                 end
 
@@ -571,38 +568,42 @@ module Syskit
                     @com_w&.write INTERNAL_QUIT
                 end
 
-                Upload = Struct.new(
-                    :host, :port, :certificate, :user, :password, :file
-                ) do
-                    def apply
-                        Tempfile.create do |cert_io|
-                            cert_io.write certificate
-                            cert_io.flush
+                def log_upload_file(socket, parameters)
+                    host, port, certificate, user, password, localfile, max_upload_rate =
+                        parameters
 
-                            Net::FTP.open(
-                                host,
-                                private_data_connection: false,
-                                port: port,
-                                ssl: { verify_mode: OpenSSL::SSL::VERIFY_PEER,
-                                       ca_file: cert_io.path }
-                            ) do |ftp|
-                                ftp.login(user, password)
-                                File.open(file) do |file_io|
-                                    ftp.storbinary("STOR #{File.basename(file)}",
-                                                   file_io, Net::FTP::DEFAULT_BLOCKSIZE)
-                                end
-                            end
-                        end
-                        LogUploadState::Result.new(file, true, nil)
+                    debug "#{socket} requested uploading of #{localfile}"
+
+                    begin
+                        localfile = log_upload_sanitize_path(Pathname(localfile))
                     rescue Exception => e
-                        LogUploadState::Result.new(file, false, e.message)
+                        @log_upload_results_queue <<
+                            LogUploadState::Result.new(localfile, false, e.message)
+                        return
                     end
+
+                    info "queueing upload of #{localfile} to #{host}:#{port}"
+                    @log_upload_command_queue <<
+                        FTPUpload.new(
+                            host, port, certificate,
+                            user, password, localfile,
+                            max_upload_rate: max_upload_rate || Float::INFINITY
+                        )
+                end
+
+                def log_upload_sanitize_path(path)
+                    log_path = Pathname(app.log_dir)
+                    full_path = path.realpath(log_path)
+                    return full_path if full_path.to_s.start_with?(log_path.to_s + "/")
+
+                    raise ArgumentError,
+                          "cannot upload files not within the app's log directory"
                 end
 
                 def log_upload_main
                     while (transfer = @log_upload_command_queue.pop)
                         @log_upload_current.set(transfer)
-                        @log_upload_results_queue << transfer.apply
+                        @log_upload_results_queue << transfer.open_and_transfer
                         @log_upload_current.set(nil)
                     end
                 end
@@ -613,6 +614,13 @@ module Syskit
                         results << @log_upload_results_queue.pop(true)
                     rescue ThreadError
                         break
+                    end
+
+                    log_dir = Pathname.new(app.log_dir)
+                    results.each do |r|
+                        if r.success?
+                            r.file = Pathname.new(r.file).relative_path_from(log_dir).to_s
+                        end
                     end
 
                     # This count is not exact. However, it's designed to show

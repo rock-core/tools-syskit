@@ -213,112 +213,24 @@ module Syskit
                 end
             end
 
-            describe "Local Log Transfer Server" do
+            describe "log rotation and transfer" do
                 before do
-                    @server_threads = []
-                    @process_servers = []
-                    register_process_server("test_ps")
-                    app.log_transfer_ip = "127.0.0.1"
+                    Syskit.conf.log_rotation_period = 600
+                    Syskit.conf.log_transfer.ip = "127.0.0.1"
+                    Syskit.conf.log_transfer.self_spawned = false
+                    Syskit.conf.log_transfer.target_dir = make_tmpdir
                 end
 
                 after do
-                    close_process_servers
-                    app.log_transfer_ip = nil
+                    Syskit.conf.log_rotation_period = nil
+                    Syskit.conf.log_transfer.ip = nil
+                    app.syskit_log_transfer_cleanup
                 end
 
-                it "raises if tries to spawn server when there is already a server running" do
-                    app.setup_local_log_transfer_server
-                    assert_raises(RuntimeError) { app.setup_local_log_transfer_server }
-                end
-
-                it "uploads file from Process Server" do
-                    app.setup_local_log_transfer_server
-                    ps_logfile = create_test_file(@ps_log_dir)
-                    path = File.join(app.log_dir, "logfile.log")
-                    refute File.exist?(path)
-                    client = app.send_file_transfer_command("test_ps", ps_logfile)
-                    assert_upload_succeeds(client)
-                    assert_equal File.read(path), File.read(ps_logfile)
-                end
-
-                it "raises if tries to upload when there is no server running" do
-                    ps_logfile = create_test_file(@ps_log_dir)
-                    path = File.join(app.log_dir, "logfile.log")
-                    refute File.exist?(path)
-                    assert_raises(RuntimeError) { app.send_file_transfer_command("test_ps", ps_logfile) }
-                end
-
-                def register_process_server(name)
-                    server = RemoteProcesses::Server.new(app, port: 0)
-                    server.open
-
-                    thread = Thread.new { server.listen }
-                    @server_threads << thread
-
-                    client = Syskit.conf.connect_to_orocos_process_server(
-                        name, "localhost",
-                        port: server.port,
-                        model_only_server: false
-                    )
-                    @process_servers << [name, client]
-
-                    config_log_dir(client)
-                end
-
-                def config_log_dir(client)
-                    @ps_log_dir = make_tmpdir
-                    client.create_log_dir(
-                        @ps_log_dir, Roby.app.time_tag,
-                        { "parent" => Roby.app.app_metadata }
-                    )
-                end
-
-                def close_process_servers
-                    @process_servers.each do |name, client|
-                        client.close
-                        Syskit.conf.remove_process_server(name)
-                    end
-                    @server_threads.each do |thread|
-                        thread.raise Interrupt
-                        thread.join
-                    end
-                end
-
-                def create_test_file(ps_log_dir)
-                    logfile = File.join(ps_log_dir, "logfile.log")
-                    File.open(logfile, "wb") do |f|
-                        f.write(SecureRandom.random_bytes(547))
-                    end
-                    logfile
-                end
-
-                def wait_for_upload_completion(client, poll_period: 0.01, timeout: 1)
-                    deadline = Time.now + timeout
-                    loop do
-                        if Time.now > deadline
-                            flunk("timed out while waiting for upload completion")
-                        end
-
-                        state = client.log_upload_state
-                        return state if state.pending_count == 0
-
-                        sleep poll_period
-                    end
-                end
-
-                def assert_upload_succeeds(client)
-                    wait_for_upload_completion(client).each_result do |r|
-                        flunk("upload failed: #{r.message}") unless r.success?
-                    end
-                end
-            end
-
-            describe "Log Rotation" do
-                before do
+                it "rotates logs and returns which logs were rotated" do
                     task_m = Syskit::TaskContext.new_submodel
+                    task_m.provides Syskit::LoggerService
                     task_m.class_eval do
-                        provides Syskit::LoggerService
-
                         def log_server_name
                             "stubs"
                         end
@@ -327,12 +239,61 @@ module Syskit
                             ["old_log_file.log"]
                         end
                     end
+
                     @task = syskit_stub_deploy_configure_and_start(task_m)
+                    rotated_logs = app.syskit_rotate_logs
+
+                    stubs = Syskit.conf.process_server_config_for("stubs")
+                    assert_equal({ stubs => ["old_log_file.log"] }, rotated_logs)
                 end
 
-                it "rotates log" do
-                    rotated_logs = app.rotate_logs
-                    assert_equal({ "stubs" => ["old_log_file.log"] }, rotated_logs)
+                it "returns an empty list of process servers "\
+                   "if log transfer is disabled" do
+                    conf = Syskit.conf.process_server_config_for("localhost")
+                    flexmock(conf).should_receive(supports_log_transfer?: true)
+                    assert_equal [], app.syskit_log_transfer_process_servers
+                end
+
+                it "returns the list of process servers whose logs we want to transfer" do
+                    app.syskit_log_transfer_setup
+
+                    conf = Syskit.conf.process_server_config_for("localhost")
+                    flexmock(conf).should_receive(supports_log_transfer?: true)
+                    assert_equal [conf], app.syskit_log_transfer_process_servers
+                end
+
+                it "ignores local process servers if they have the same directory than "\
+                   "the transfer's target dir" do
+                    Syskit.conf.log_transfer.target_dir = app.log_dir
+                    app.syskit_log_transfer_setup
+
+                    conf = Syskit.conf.process_server_config_for("localhost")
+                    flexmock(conf).should_receive(supports_log_transfer?: true)
+                    assert_equal [], app.syskit_log_transfer_process_servers
+                end
+
+                it "transfers data for the selected process servers" do
+                    Syskit.conf.log_transfer.user = "user"
+                    Syskit.conf.log_transfer.password = "pass"
+                    Syskit.conf.log_transfer.certificate = "cert"
+                    Syskit.conf.log_transfer.port = 42
+                    conf = Syskit.conf.process_server_config_for("localhost")
+                    flexmock(conf).should_receive(supports_log_transfer?: true)
+                    flexmock(app)
+                        .should_receive(:syskit_rotate_logs)
+                        .and_return(
+                            { conf => ["old_log_file.log"],
+                              Configuration::ProcessServerConfig.new => ["some_file"] }
+                        )
+
+                    app.syskit_log_transfer_setup
+                    flexmock(conf.client)
+                        .should_receive(:log_upload_file).explicitly
+                        .with("127.0.0.1", 42, "cert", "user", "pass",
+                              Pathname("old_log_file.log"),
+                              max_upload_rate: Float::INFINITY)
+                        .once
+                    app.syskit_log_perform_rotation_and_transfer
                 end
             end
 

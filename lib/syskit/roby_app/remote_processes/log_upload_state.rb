@@ -5,13 +5,13 @@ module Syskit
         module RemoteProcesses
             # State of the asynchronous file transfers managed by {Server}
             class LogUploadState
+                attr_reader :pending_count
+
                 Result = Struct.new :file, :success, :message do
                     def success?
                         success
                     end
                 end
-
-                attr_reader :pending_count
 
                 def initialize(pending_count, results)
                     @pending_count = pending_count

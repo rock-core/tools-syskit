@@ -220,6 +220,7 @@ module Syskit
                 def create_log_dir(log_dir, time_tag, metadata = {})
                     socket.write(COMMAND_CREATE_LOG)
                     Marshal.dump([log_dir, time_tag, metadata], socket)
+                    wait_for_ack
                 end
 
                 def queue_death_announcement
@@ -230,10 +231,14 @@ module Syskit
                 #
                 # The transfer is asynchronous, use {#upload_state} to track the
                 # upload progress
-                def log_upload_file(host, port, certificate, user, password, localfile)
+                def log_upload_file(
+                    host, port, certificate, user, password, localfile,
+                    max_upload_rate: Float::INFINITY
+                )
                     socket.write(COMMAND_LOG_UPLOAD_FILE)
                     Marshal.dump(
-                        [host, port, certificate, user, password, localfile], socket
+                        [host, port, certificate, user, password, localfile,
+                         max_upload_rate], socket
                     )
 
                     wait_for_ack
