@@ -594,9 +594,7 @@ module Syskit
                 def log_upload_sanitize_path(path)
                     log_path = Pathname(app.log_dir)
                     full_path = path.realpath(log_path)
-                    if full_path.to_s.start_with?(log_path.to_s + "/")
-                        return full_path
-                    end
+                    return full_path if full_path.to_s.start_with?(log_path.to_s + "/")
 
                     raise ArgumentError,
                           "cannot upload files not within the app's log directory"

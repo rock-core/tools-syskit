@@ -75,13 +75,17 @@ module Syskit
 
                     it "rejects an invalid user" do
                         ftp_open do |ftp|
-                            assert_raises(Net::FTPPermError) { ftp.login("user", @password) }
+                            assert_raises(Net::FTPPermError) do
+                                ftp.login("user", @password)
+                            end
                         end
                     end
 
                     it "rejects an invalid password" do
                         ftp_open do |ftp|
-                            assert_raises(Net::FTPPermError) { ftp.login(@user, "password") }
+                            assert_raises(Net::FTPPermError) do
+                                ftp.login(@user, "password")
+                            end
                         end
                     end
 
