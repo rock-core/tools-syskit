@@ -172,8 +172,9 @@ module Syskit
                           "cannot enable log transfer without log rotation"
                 end
 
-                @syskit_log_transfer_manager =
-                    LogTransferManager.new(Syskit.conf.log_transfer)
+                conf = Syskit.conf.log_transfer
+                conf.target_dir ||= log_dir
+                @syskit_log_transfer_manager = LogTransferManager.new(conf)
             end
 
             def syskit_log_transfer_cleanup
