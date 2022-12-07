@@ -47,7 +47,10 @@ module Syskit
                     server.log = make_log
                     server.nat_ip = nat_ip
                     @server = server
+                    Thread.abort_on_exception = false
                     @server.start
+                    sleep 0.1 until Thread.abort_on_exception
+                    Thread.abort_on_exception = false
                     @port = @server.bound_port
                     display_connection_info if verbose
                 end
