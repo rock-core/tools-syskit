@@ -309,9 +309,7 @@ describe Syskit::RobyApp::RemoteProcesses do
             @port, @certificate = spawn_log_transfer_server
             remote_app_path = Pathname(@remote_log_dir).each_child.first
             @logfile = remote_app_path / "logfile.log"
-            File.open(@logfile, "wb") do |f|
-                f.write(SecureRandom.random_bytes(547)) # create random 547 byte
-            end
+            create_logfile(547)
         end
 
         after do
@@ -327,13 +325,12 @@ describe Syskit::RobyApp::RemoteProcesses do
                 @user, @password, @logfile
             )
             assert_upload_succeeds
-            assert_equal File.read(path), File.read(@logfile)
+            assert_equal @logfile_contents, File.read(path)
+            refute File.exist?(@logfile)
         end
 
         it "rate-limits the file transfer" do
-            File.open(@logfile, "wb") do |f|
-                f.write(SecureRandom.random_bytes(1024 * 1024))
-            end
+            create_logfile(1024 * 1024)
             tic = Time.now
             client.log_upload_file(
                 "localhost", @port, @certificate,
@@ -348,7 +345,7 @@ describe Syskit::RobyApp::RemoteProcesses do
                 "transfer took #{toc - tic} instead of the expected 2s"
             )
             path = File.join(@temp_serverdir, "logfile.log")
-            assert_equal File.read(path), File.read(@logfile)
+            assert_equal @logfile_contents, File.read(path)
         end
 
         it "rejects a wrong user" do
@@ -389,6 +386,8 @@ describe Syskit::RobyApp::RemoteProcesses do
             assert_equal @logfile, result.file
             refute result.success?
             assert_match(/File already exists/, result.message)
+            # Does not delete the file
+            assert File.file?(@logfile)
         end
 
         it "fails on an invalid certificate" do
@@ -403,6 +402,11 @@ describe Syskit::RobyApp::RemoteProcesses do
             assert_equal @logfile, result.file
             refute result.success?
             assert_match(/certificate verify failed/, result.message)
+        end
+
+        def create_logfile(size)
+            @logfile.write(SecureRandom.random_bytes(size))
+            @logfile_contents = @logfile.read
         end
 
         def spawn_log_transfer_server

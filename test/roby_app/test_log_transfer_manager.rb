@@ -141,6 +141,7 @@ module Syskit
             end
 
             def assert_upload_succeeds(test_file_path, client)
+                expected_content = test_file_path.read
                 result = assert_upload_with_single_result(@manager, client)
 
                 assert result.success?, "transfer failed, message: #{result.message}"
@@ -148,7 +149,7 @@ module Syskit
                 actual_content = File.read(
                     File.join(@conf.target_dir, result.file)
                 )
-                assert_equal test_file_path.read, actual_content
+                assert_equal expected_content, actual_content
             end
 
             def assert_upload_with_single_result(manager, client)
