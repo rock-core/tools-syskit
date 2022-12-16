@@ -188,7 +188,6 @@ module Syskit
             def orogen(project_name)
                 Roby.app.require_app_dir(needs_current: true)
                 Roby.app.single = true
-                Roby.app.base_setup
                 Syskit.conf.only_load_models = true
                 Roby.app.setup
 
@@ -210,7 +209,6 @@ module Syskit
                          )
             ensure
                 Roby.app.cleanup
-                Roby.app.base_cleanup
             end
 
             no_commands do
