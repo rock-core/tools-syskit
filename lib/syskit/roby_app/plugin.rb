@@ -60,6 +60,11 @@ module Syskit
                 if app.testing?
                     require "syskit/test"
                 end
+
+                if Conf.ui?
+                    require "orocos"
+                    require "orocos/async"
+                end
             end
 
             # Hook called by the main application at the beginning of Application#setup
@@ -70,8 +75,6 @@ module Syskit
                 if app.testing? && app.auto_load_models?
                     app.auto_load_all_task_libraries = true
                 end
-
-                require "orocos/async" if Conf.ui?
 
                 if app.development_mode?
                     require "listen"
