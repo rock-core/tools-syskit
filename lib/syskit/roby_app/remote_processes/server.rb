@@ -619,6 +619,7 @@ module Syskit
                     log_dir = Pathname.new(app.log_dir)
                     results.each do |r|
                         if r.success?
+                            r.file.unlink
                             r.file = Pathname.new(r.file).relative_path_from(log_dir).to_s
                         end
                     end
