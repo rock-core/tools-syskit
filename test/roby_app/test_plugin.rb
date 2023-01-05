@@ -60,6 +60,7 @@ module Syskit
                                 m1.orogen_model.find_task_by_name("m1task").task_model
                 end
             end
+
             describe "local process server startup" do
                 before do
                     Syskit.conf.remove_process_server "localhost"

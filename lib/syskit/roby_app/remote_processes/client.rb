@@ -121,10 +121,6 @@ module Syskit
                     Marshal.load(socket)
                 end
 
-                def disconnect
-                    socket.close
-                end
-
                 class TimeoutError < RuntimeError
                 end
 
@@ -339,6 +335,10 @@ module Syskit
 
                 def quit_server
                     socket.write(COMMAND_QUIT)
+                end
+
+                def disconnect
+                    socket.close
                 end
 
                 def close
