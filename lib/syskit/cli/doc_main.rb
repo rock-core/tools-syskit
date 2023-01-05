@@ -19,6 +19,9 @@ module Syskit
             option :exclude,
                    type: :array, default: [],
                    desc: "list of path patterns to exclude from documentation"
+            option :set,
+                   type: :array, default: [],
+                   desc: "set some configuration parameters"
             def gen(target_path)
                 MetaRuby.keep_definition_location = true
                 roby_app_configure
@@ -40,6 +43,8 @@ module Syskit
                 end
 
                 def roby_app_configure
+                    apply_set_options(roby_app)
+
                     roby_app.require_app_dir
                     roby_app.using "syskit"
                     roby_app.development_mode = false
@@ -47,6 +52,13 @@ module Syskit
 
                     roby_app_configure_robot
                     roby_app.setup_for_minimal_tooling
+                end
+
+                def apply_set_options(app)
+                    (options[:set] || []).each do |kv|
+                        app.argv_set << kv
+                        Roby::Application.apply_conf_from_argv(kv)
+                    end
                 end
 
                 def roby_autoload_orogen_projects
