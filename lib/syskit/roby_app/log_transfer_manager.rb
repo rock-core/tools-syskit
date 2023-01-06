@@ -35,16 +35,20 @@ module Syskit
             def server_start
                 raise ArgumentError, "log transfer server already running" if @server
 
+                server_update_self_spawned_conf
+                @server = LogTransferServer::SpawnServer.new(
+                    @conf.target_dir, @conf.user, @conf.password,
+                    @self_signed_ca.private_certificate_path,
+                    interface: @conf.ip
+                )
+                @conf.port = @server.port
+            end
+
+            def server_update_self_spawned_conf
                 @self_signed_ca = TmpRootCA.new(@conf.ip)
                 @conf.user ||= "Syskit"
                 @conf.password ||= SecureRandom.base64(32)
                 @conf.certificate = @self_signed_ca.certificate
-
-                @server = LogTransferServer::SpawnServer.new(
-                    @conf.target_dir, @conf.user, @conf.password,
-                    @self_signed_ca.private_certificate_path
-                )
-                @conf.port = @server.port
             end
 
             # Whether files from the given directory should be transferred
