@@ -52,9 +52,9 @@ module Syskit
             # Configuration of Syskit's log transfer functionality
             #
             # Minimum configuration: set `ip` to an IP which the process servers
-            # can reach and set `enabled` to true. You must also configure log rotation
-            # ({#log_rotation_period}). Syskit will transfer the rotated logs to the
-            # main Syskit's instance log directory.
+            # can reach. You must also configure log rotation
+            # ({#log_rotation_period}). Syskit will transfer the rotated logs to
+            # the main Syskit's instance log directory.
             #
             # If you want to transfer to another dir, also set {#target_dir}. If you do
             # set {#target_dir}, local files will also be transferred. There is currently
@@ -146,7 +146,6 @@ module Syskit
 
                 @log_rotation_period = nil
                 @log_transfer = LogTransferManager::Configuration.new(
-                    enabled: false,
                     user: "syskit",
                     port: 22,
                     password: SecureRandom.base64(32),
