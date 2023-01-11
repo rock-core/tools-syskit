@@ -196,6 +196,21 @@ module Syskit
                 end
             end
 
+            def syskit_log_transfer_poll_state
+                syskit_log_transfer_process_servers.each do |process_server_config|
+                    result = process_server_config.client.log_upload_state
+                    ::Robot.info "#{result.pending_count} log transfers pending or in "\
+                                 "progress from #{process_server_config.name}"
+                    result.each_result do |r|
+                        if r.success
+                            ::Robot.info "   transferred #{r.file}"
+                        else
+                            ::Robot.info "   transfer of #{r.file} failed: #{r.message}"
+                        end
+                    end
+                end
+            end
+
             # Rotate logs, and transfer the old logs if log transfer is configured
             def syskit_log_perform_rotation_and_transfer
                 rotated_logs = syskit_rotate_logs
@@ -250,6 +265,7 @@ module Syskit
                 if Syskit.conf.log_rotation_period
                     app.execution_engine.every(Syskit.conf.log_rotation_period) do
                         app.syskit_log_perform_rotation_and_transfer
+                        app.syskit_log_transfer_poll_state
                     end
                 end
             end
