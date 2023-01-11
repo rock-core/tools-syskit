@@ -150,8 +150,9 @@ module Syskit
                     !(app.single? && app.simulation?)
 
                 if start_local_process_server
-                    start_local_process_server(redirect: Syskit.conf.redirect_local_process_server?)
-                    @local_process_server_client = create_local_process_server_client(app)
+                    start_local_process_server(
+                        redirect: Syskit.conf.redirect_local_process_server?
+                    )
                     connect_to_local_process_server(app)
                 else
                     fake_client = Configuration::ModelOnlyServer.new(app.default_loader)
@@ -238,8 +239,8 @@ module Syskit
                 end
 
                 app.syskit_log_transfer_cleanup
-                disconnect_all_process_servers
                 stop_local_process_server(app)
+                disconnect_all_process_servers
             end
 
             # Hook called by the main application to prepare for execution
@@ -624,10 +625,16 @@ module Syskit
                 @server_pid
             end
 
+            def self.connect_to_local_process_server(app)
+                @local_process_server_client = create_local_process_server_client(app)
+                register_local_process_server_client(@local_process_server_client, app)
+                @local_process_server_client
+            end
+
             def self.create_local_process_server_client(app)
                 unless @server_pid
                     raise Syskit::RobyApp::RemoteProcesses::Client::StartupFailed,
-                          "#connect_to_local_process_server got called but "\
+                          "#create_local_process_server_client got called but "\
                           "no process server is being started"
                 end
 
@@ -666,9 +673,7 @@ module Syskit
                 client
             end
 
-            def self.connect_to_local_process_server(app)
-                client = create_local_process_server_client(app)
-
+            def self.register_local_process_server_client(client, app)
                 # Do *not* manage the log directory for that one ...
                 conf = Syskit.conf.register_process_server("localhost", client, app.log_dir)
                 conf.supports_log_transfer = true
@@ -679,6 +684,10 @@ module Syskit
             # one is running
             def self.stop_local_process_server(app)
                 return unless has_local_process_server?
+
+                if Syskit.conf.has_process_server?("localhost")
+                    Syskit.conf.remove_process_server("localhost")
+                end
 
                 @local_process_server_client ||= create_local_process_server_client(app)
                 @local_process_server_client.quit_server
