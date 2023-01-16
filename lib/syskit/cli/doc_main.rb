@@ -20,7 +20,7 @@ module Syskit
                    type: :array, default: [],
                    desc: "list of path patterns to exclude from documentation"
             option :set,
-                   type: :array, default: [],
+                   type: :string, repeatable: true,
                    desc: "set some configuration parameters"
             def gen(target_path)
                 MetaRuby.keep_definition_location = true
