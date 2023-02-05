@@ -147,7 +147,7 @@ module Syskit
                 @log_rotation_period = nil
                 @log_transfer = LogTransferManager::Configuration.new(
                     user: "syskit",
-                    port: 22,
+                    port: 20_301,
                     password: SecureRandom.base64(32),
                     self_spawned: true,
                     certificate: nil, # Use random generated self-signed certificate
