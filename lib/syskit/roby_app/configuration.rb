@@ -153,7 +153,8 @@ module Syskit
                     certificate: nil, # Use random generated self-signed certificate
                     target_dir: nil, # Use the app's log dir
                     default_max_upload_rate: Float::INFINITY,
-                    max_upload_rates: {}
+                    max_upload_rates: {},
+                    implicit_ftps: LogTransferServer.use_implicit_ftps?
                 )
 
                 clear

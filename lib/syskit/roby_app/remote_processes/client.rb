@@ -229,12 +229,13 @@ module Syskit
                 # upload progress
                 def log_upload_file(
                     host, port, certificate, user, password, localfile,
-                    max_upload_rate: Float::INFINITY
+                    max_upload_rate: Float::INFINITY,
+                    implicit_ftps: LogTransferServer.use_implicit_ftps?
                 )
                     socket.write(COMMAND_LOG_UPLOAD_FILE)
                     Marshal.dump(
                         [host, port, certificate, user, password, localfile,
-                         max_upload_rate], socket
+                         max_upload_rate, implicit_ftps], socket
                     )
 
                     wait_for_ack

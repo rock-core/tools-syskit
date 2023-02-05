@@ -569,8 +569,8 @@ module Syskit
                 end
 
                 def log_upload_file(socket, parameters)
-                    host, port, certificate, user, password, localfile, max_upload_rate =
-                        parameters
+                    host, port, certificate, user, password, localfile,
+                        max_upload_rate, implicit_ftps = parameters
 
                     debug "#{socket} requested uploading of #{localfile}"
 
@@ -587,7 +587,8 @@ module Syskit
                         FTPUpload.new(
                             host, port, certificate,
                             user, password, localfile,
-                            max_upload_rate: max_upload_rate || Float::INFINITY
+                            max_upload_rate: max_upload_rate || Float::INFINITY,
+                            implicit_ftps: implicit_ftps
                         )
                 end
 

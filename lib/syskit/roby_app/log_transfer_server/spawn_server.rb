@@ -26,7 +26,7 @@ module Syskit
                     password,
                     certfile_path,
                     interface: "127.0.0.1",
-                    tls: LogTransferServer.use_implicit_ftps? ? :implicit : :explicit,
+                    implicit_ftps: LogTransferServer.use_implicit_ftps?,
                     port: 0,
                     session_timeout: default_session_timeout,
                     nat_ip: nil,
@@ -39,7 +39,7 @@ module Syskit
                     server = Ftpd::FtpServer.new(driver)
                     server.interface = interface
                     server.port = port
-                    server.tls = tls
+                    server.tls = implicit_ftps ? :implicit : :explicit
                     server.passive_ports = passive_ports
                     server.certfile_path = certfile_path
                     server.auth_level = Ftpd.const_get("AUTH_PASSWORD")

@@ -39,7 +39,8 @@ module Syskit
                 @server = LogTransferServer::SpawnServer.new(
                     @conf.target_dir, @conf.user, @conf.password,
                     @self_signed_ca.private_certificate_path,
-                    interface: @conf.ip
+                    interface: @conf.ip,
+                    implicit_ftps: @conf.implicit_ftps?
                 )
                 @conf.port = @server.port
             end
@@ -79,7 +80,8 @@ module Syskit
                     process_server.client.log_upload_file(
                         @conf.ip, @conf.port, @conf.certificate,
                         @conf.user, @conf.password, Pathname(path),
-                        max_upload_rate: upload_rate
+                        max_upload_rate: upload_rate,
+                        implicit_ftps: @conf.implicit_ftps?
                     )
                 end
             end
@@ -141,7 +143,7 @@ module Syskit
             Configuration = Struct.new(
                 :enabled, :ip, :port, :user, :password, :certificate,
                 :self_spawned, :target_dir, :default_max_upload_rate,
-                :max_upload_rates,
+                :max_upload_rates, :implicit_ftps,
                 keyword_init: true
             ) do
                 def enabled?
@@ -150,6 +152,10 @@ module Syskit
 
                 def self_spawned?
                     self_spawned
+                end
+
+                def implicit_ftps?
+                    implicit_ftps
                 end
 
                 # Return the upload rate limit for a given process server

@@ -18,9 +18,12 @@ module Syskit
                     private_key_path = File.join(
                         __dir__, "..", "remote_processes", "cert-private.crt"
                     )
+
+                    @implicit_ftps = LogTransferServer.use_implicit_ftps?
                     @server = SpawnServer.new(
                         @temp_serverdir, @user, @password,
-                        private_key_path
+                        private_key_path,
+                        implicit_ftps: @implicit_ftps
                     )
                 end
 
@@ -28,7 +31,7 @@ module Syskit
                     Net::FTP.open(
                         "localhost",
                         port: @server.port,
-                        implicit_ftps: LogTransferServer.use_implicit_ftps?,
+                        implicit_ftps: @implicit_ftps,
                         ssl: { verify_mode: OpenSSL::SSL::VERIFY_PEER,
                                verify_hostname: false,
                                ca_file: certfile_path },
