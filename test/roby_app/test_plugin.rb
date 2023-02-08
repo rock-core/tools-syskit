@@ -278,6 +278,7 @@ module Syskit
                     Syskit.conf.log_transfer.password = "pass"
                     Syskit.conf.log_transfer.certificate = "cert"
                     Syskit.conf.log_transfer.port = 42
+                    Syskit.conf.log_transfer.implicit_ftps = false
                     conf = Syskit.conf.process_server_config_for("localhost")
                     flexmock(conf).should_receive(supports_log_transfer?: true)
                     flexmock(app)
@@ -292,7 +293,8 @@ module Syskit
                         .should_receive(:log_upload_file).explicitly
                         .with("127.0.0.1", 42, "cert", "user", "pass",
                               Pathname("old_log_file.log"),
-                              max_upload_rate: Float::INFINITY)
+                              max_upload_rate: Float::INFINITY,
+                              implicit_ftps: false)
                         .once
                     app.syskit_log_perform_rotation_and_transfer
                 end

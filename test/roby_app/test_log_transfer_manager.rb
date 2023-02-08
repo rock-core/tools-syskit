@@ -15,7 +15,8 @@ module Syskit
                 @conf = LogTransferManager::Configuration.new(
                     ip: "127.0.0.1",
                     self_spawned: true,
-                    max_upload_rates: {}
+                    max_upload_rates: {},
+                    implicit_ftps: LogTransferServer.use_implicit_ftps?
                 )
                 @conf.target_dir = make_tmpdir
                 @manager = nil

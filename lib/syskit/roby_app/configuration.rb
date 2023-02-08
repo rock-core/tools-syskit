@@ -147,13 +147,14 @@ module Syskit
                 @log_rotation_period = nil
                 @log_transfer = LogTransferManager::Configuration.new(
                     user: "syskit",
-                    port: 22,
+                    port: 20_301,
                     password: SecureRandom.base64(32),
                     self_spawned: true,
                     certificate: nil, # Use random generated self-signed certificate
                     target_dir: nil, # Use the app's log dir
                     default_max_upload_rate: Float::INFINITY,
-                    max_upload_rates: {}
+                    max_upload_rates: {},
+                    implicit_ftps: LogTransferServer.use_implicit_ftps?
                 )
 
                 clear

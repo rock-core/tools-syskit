@@ -7,7 +7,8 @@ module Syskit
             class FTPUpload
                 def initialize( # rubocop:disable Metrics/ParameterLists
                     host, port, certificate, user, password, file,
-                    max_upload_rate: Float::INFINITY
+                    max_upload_rate: Float::INFINITY,
+                    implicit_ftps: false
                 )
 
                     @host = host
@@ -18,6 +19,7 @@ module Syskit
                     @file = file
 
                     @max_upload_rate = Float(max_upload_rate)
+                    @implicit_ftps = implicit_ftps
                 end
 
                 # Create a temporary file with the FTP server's public key, to pass
@@ -40,7 +42,7 @@ module Syskit
                         Net::FTP.open(
                             @host,
                             private_data_connection: false, port: @port,
-                            implicit_ftps: LogTransferServer.use_implicit_ftps?,
+                            implicit_ftps: @implicit_ftps,
                             ssl: { verify_mode: OpenSSL::SSL::VERIFY_PEER,
                                    ca_file: cert_path }
                         ) do |ftp|
