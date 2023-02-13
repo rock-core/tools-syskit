@@ -213,9 +213,9 @@ module Syskit
                       "expected #{base_syskit_task_model} or one of its subclasses"
             end
 
-            is_read_only_task = read_only.include?(mapped_name)
-            plan.add(task = syskit_task_model
-                            .new(orocos_name: mapped_name, read_only: is_read_only_task))
+            task = syskit_task_model
+                   .new(orocos_name: mapped_name, read_only: read_only?(mapped_name))
+            plan.add(task)
             task.executed_by self
             if scheduler_task
                 task.depends_on scheduler_task, role: "scheduler"
@@ -226,6 +226,10 @@ module Syskit
             task.initialize_remote_handles(remote_handles) if remote_handles
             auto_select_conf(task) if auto_conf
             task
+        end
+
+        def read_only?(mapped_name)
+            read_only.include?(mapped_name)
         end
 
         # Returns an task instance that represents the given task in this
@@ -818,7 +822,9 @@ module Syskit
 
         def stop_cleanly(promise, remote_task_handles)
             promise.then(description: "#{self}.stop_event - cleaning RTT tasks") do
-                remote_task_handles.each_value do |remote_task|
+                remote_task_handles.each do |mapped_name, remote_task|
+                    next if read_only?(mapped_name)
+
                     begin
                         if remote_task.handle.rtt_state == :STOPPED
                             remote_task.handle.cleanup(false)

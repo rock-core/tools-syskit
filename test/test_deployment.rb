@@ -236,6 +236,21 @@ module Syskit
                 assert_equal true, task.read_only
             end
 
+            it "does not cleanup read-only tasks on shutdown" do
+                task_m = Syskit::TaskContext.new_submodel
+                deployment = syskit_stub_deployment(
+                    "test", task_model: task_m, read_only: %w[test]
+                )
+                expect_execution { deployment.start! }.to { emit deployment.ready_event }
+
+                task = deployment.task("test")
+                Orocos.allow_blocking_calls do
+                    task.orocos_task.configure
+                end
+                flexmock(task.orocos_task).should_receive(:cleanup).never
+                expect_execution { deployment.stop! }.to { emit deployment.stop_event }
+            end
+
             describe "slave tasks" do
                 before do
                     @task_m = TaskContext.new_submodel do
