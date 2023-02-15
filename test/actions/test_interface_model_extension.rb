@@ -308,6 +308,27 @@ describe Syskit::Actions::InterfaceModelExtension do
         end
     end
 
+    describe "method missing" do
+        before do
+            @action_m = Roby::Actions::Interface.new_submodel
+            @srv_m = Syskit::DataService.new_submodel
+            profile_m = Syskit::Actions::Profile.new
+            profile_m.tag "t", @srv_m
+
+            @action_m.use_profile profile_m
+        end
+
+        it "returns an used profile's tag model when accessed with _tag "\
+           "at the model level" do
+            assert @action_m.t_tag.fullfills?(@srv_m)
+        end
+
+        it "returns an used profile's tag model when accessed with _tag "\
+           "at the instance level" do
+            assert @action_m.new(plan).t_tag.fullfills?(@srv_m)
+        end
+    end
+
     describe "overloading of definitions by actions" do
         attr_reader :actions, :profile
         before do

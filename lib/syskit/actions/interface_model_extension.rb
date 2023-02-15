@@ -223,13 +223,13 @@ module Syskit
 
             def has_through_method_missing?(name)
                 MetaRuby::DSLs.has_through_method_missing?(
-                    profile, m, "_tag" => :has_tag?
+                    profile, name, "_tag" => :has_tag?
                 ) || super
             end
 
             def find_through_method_missing(name, args)
                 MetaRuby::DSLs.find_through_method_missing(
-                    profile, m, args, "_tag" => :find_tag
+                    profile, name, args, "_tag" => :find_tag
                 ) || super
             end
 
