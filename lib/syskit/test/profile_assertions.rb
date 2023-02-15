@@ -31,6 +31,14 @@ module Syskit
                 end
             end
 
+            # @api private
+            #
+            # Find all planning tasks in a task hierarchy and return the resolved actions
+            #
+            # @param [Roby::Task] task the hierarchy's root task
+            # @return [Array<Roby::Actions::Action>] the resolved actions. The method
+            #   finds tasks with an action planner, syskit requirement tasks as well
+            #   as expands state machines to find actions related to states.
             def resolve_actions_from_plan(task)
                 actions = []
                 queue = [task]
@@ -51,9 +59,57 @@ module Syskit
                 actions
             end
 
+            # @api private
+            #
             # Validates an argument that can be an action, an action collection
             # (e.g. a profile) or an array of action, and normalizes it into an
             # array of actions
+            #
+            # @raise [ArgumentError] if the argument is invalid
+            def ActionModels(arg)
+                if arg.respond_to?(:each_action)
+                    ActionModels(arg.each_action)
+                elsif arg.respond_to?(:to_action)
+                    [arg.to_action.model]
+                elsif arg.respond_to?(:flat_map)
+                    arg.flat_map { |a| ActionModels(a) }
+                elsif arg.respond_to?(:to_instance_requirements)
+                    [Actions::Model::Action.new(arg)]
+                else
+                    raise ArgumentError,
+                          "expected an action or a collection of actions, but got "\
+                          "#{arg} of class #{arg.class}"
+                end
+            end
+
+            # @api private
+            #
+            # Helper to {#Actions} to resolve a list of actions from a method action
+            #
+            # It returns either the actions that can be found from the instanciated
+            # method action, or itself if it has missing required arguments
+            #
+            # @param [Roby::Actions::Action] arg the method action
+            # @return [Array<#to_action>] the resolved actions
+            def actions_from_method_action(arg)
+                return [arg] if arg.has_missing_required_arg?
+
+                plan = Roby::Plan.new
+                task = arg.instanciate(plan)
+
+                # Now find the new actions
+                resolve_actions_from_plan(task).flat_map { |a| Actions(a) }
+            end
+
+            # @api private
+            #
+            # Resolves all reachable syskit actions from an argument that can be
+            # an action, an action collection (e.g. a profile or action interface),
+            # or an array of actions
+            #
+            # The method returns as-is method actions that cannot be instanciated
+            # because of missing required arguments. Use {#BulkAssertAtomicActions} to
+            # filter these out automatically
             #
             # @raise [ArgumentError] if the argument is invalid
             def Actions(arg)
@@ -67,12 +123,7 @@ module Syskit
                         return [arg]
                     end
 
-                    plan = Roby::Plan.new
-                    task = arg.instanciate(plan)
-
-                    # Now find the new actions
-                    resolve_actions_from_plan(task)
-                        .flat_map { |a| Actions(a) }
+                    actions_from_method_action(arg)
                 elsif arg.respond_to?(:flat_map)
                     arg.flat_map { |a| Actions(a) }
                 elsif arg.respond_to?(:to_instance_requirements)
@@ -100,7 +151,7 @@ module Syskit
             #   should be ignored. Actions are compared on the basis of their
             #   model (arguments do not count)
             def BulkAssertAtomicActions(arg, exclude: [])
-                exclude = Actions(exclude).map(&:model)
+                exclude = ActionModels(exclude)
                 skipped_actions = []
                 actions = AtomicActions(arg).find_all do |action|
                     if exclude.include?(action.model)
@@ -119,22 +170,35 @@ module Syskit
                 [actions, skipped_actions]
             end
 
-            # Tests that a definition or all definitions of a profile are
-            # self-contained, that is that the only variation points in the
-            # profile are profile tags.
+            # Tests that one or many syskit definitions are self-contained
             #
-            # If given a profile as argument, or no profile at all, will test on
-            # all definitions of resp. the given profile or the test's subject
+            # When it is part of a profile, a definition is self-contained if it only
+            # contains concrete component models or tags of said profile
             #
             # Note that it is a really good idea to maintain this property. No.
-            # Seriously. Keep it in your tests.
+            # Seriously. Keep it in your profile tests.
+            #
+            # When resolving actions that are not directly defined from profile
+            # definitions, the method will attempte to resolve method action by
+            # calling them. If there is a problem, pass the action model to the
+            # `exclude` argument.
+            #
+            # In particular, in the presence of action methods with required
+            # arguments, run one assert first with the action method excluded and
+            # another with that action and sample arguments.
+            #
+            # @param action_or_profile if an action interface or profile, test all
+            #   definitions that are reachable from it. In the case of action interfaces,
+            #   this means looking into method actions and action state machines.
             def assert_is_self_contained(
                 action_or_profile = subject_syskit_model,
                 message: "%s is not self contained", exclude: [], **instanciate_options
             )
                 actions = validate_actions(action_or_profile, exclude: exclude) do |skip|
-                    flunk "could not validate some non-Syskit actions: "\
-                          "#{skip}, pass them to the 'exclude' argument to #{__method__}"
+                    flunk "could not validate some non-Syskit actions: #{skip}, "\
+                          "probably because of required arguments. Pass the action to "\
+                          "the 'exclude' option of #{__method__}, and add a separate "\
+                          "assertion test with the arguments added explicitly"
                 end
 
                 actions.each do |act|
@@ -211,26 +275,42 @@ module Syskit
             # Tests that the following definition can be successfully
             # instanciated in a valid, non-abstract network.
             #
-            # If given a profile, it will perform the test on each action of the
-            # profile taken in isolation. If you want to test whether actions
-            # can be instanciated at the same time, use
-            # {#assert_can_instanciate_together}
+            # When resolving actions that are not directly defined from profile
+            # definitions, the method will attempte to resolve method action by
+            # calling them. If there is a problem, pass the action model to the
+            # `exclude` argument.
             #
-            # If called without argument, it tests the spec's context profile
+            # In particular, in the presence of action methods with required
+            # arguments, run one assert first with the action method excluded and
+            # another with that action and sample arguments.
+            #
+            # @param action_or_profile if an action interface or profile, test all
+            #   definitions that are reachable from it. In the case of action interfaces,
+            #   this means looking into method actions and action state machines.
+            # @param together_with test that each single action in `action_or_profile`
+            #   can be instanciated when all actions in `together_with` are instanciated
+            #   at the same time. This can be used if the former depend on the presence
+            #   of the latter, or if you want to test against conflicts.
             def assert_can_instanciate(
                 action_or_profile = subject_syskit_model,
                 exclude: [], together_with: []
             )
                 actions = validate_actions(action_or_profile, exclude: exclude) do |skip|
-                    flunk "could not validate some non-Syskit actions: "\
-                          "#{skip}, pass them to the 'exclude' argument to #{__method__}"
+                    flunk "could not validate some non-Syskit actions: #{skip}, "\
+                          "probably because of required arguments. Pass the action to "\
+                          "the 'exclude' option of #{__method__}, and add a separate "\
+                          "assertion test with the arguments added explicitly"
                 end
 
-                together_with = validate_actions(together_with) do |skip|
-                    flunk "could not validate some non-Syskit actions given to "\
-                          "`together_with`: #{skip}, pass them to the 'exclude' "\
-                          "argument to #{__method__}"
-                end
+                together_with =
+                    validate_actions(together_with, exclude: exclude) do |skip|
+                        flunk "could not validate some non-Syskit actions given to "\
+                              "`together_with` in #{__method__}: #{skip}, "\
+                              "probably because of "\
+                              "missing arguments. If you are passing a profile or "\
+                              "action interface and do not require to test against "\
+                              "that particular action, pass it to the 'exclude' argument"
+                    end
 
                 actions.each do |action|
                     tasks = assert_can_instanciate_together(action, *together_with)
@@ -311,26 +391,42 @@ module Syskit
             # that is they result in a valid, non-abstract network whose all
             # components have a deployment
             #
-            # If given a profile, it will perform the test on each action of the
-            # profile taken in isolation. If you want to test whether actions
-            # can be deployed at the same time, use
-            # {#assert_can_deploy_together}
+            # When resolving actions that are not directly defined from profile
+            # definitions, the method will attempte to resolve method action by
+            # calling them. If there is a problem, pass the action model to the
+            # `exclude` argument.
             #
-            # If called without argument, it tests the spec's context profile
+            # In particular, in the presence of action methods with required
+            # arguments, run one assert first with the action method excluded and
+            # another with that action and sample arguments.
+            #
+            # @param action_or_profile if an action interface or profile, test all
+            #   definitions that are reachable from it. In the case of action interfaces,
+            #   this means looking into method actions and action state machines.
+            # @param together_with test that each single action in `action_or_profile`
+            #   can be instanciated when all actions in `together_with` are instanciated
+            #   at the same time. This can be used if the former depend on the presence
+            #   of the latter, or if you want to test against conflicts.
             def assert_can_deploy(
                 action_or_profile = subject_syskit_model,
                 exclude: [], together_with: []
             )
                 actions = validate_actions(action_or_profile, exclude: exclude) do |skip|
-                    flunk "could not validate some non-Syskit actions: "\
-                          "#{skip}, pass them to the 'exclude' argument to #{__method__}"
+                    flunk "could not validate some non-Syskit actions: #{skip}, "\
+                          "probably because of required arguments. Pass the action to "\
+                          "the 'exclude' option of #{__method__}, and add a separate "\
+                          "assertion test with the arguments added explicitly"
                 end
 
-                together_with = validate_actions(together_with) do |skip|
-                    flunk "could not validate some non-Syskit actions given to "\
-                          "`together_with` #{skip}, pass them to the 'exclude' "\
-                          "argument to #{__method__}"
-                end
+                together_with =
+                    validate_actions(together_with, exclude: exclude) do |skip|
+                        flunk "could not validate some non-Syskit actions given to "\
+                            "`together_with` in #{__method__}: #{skip}, "\
+                            "probably because of "\
+                            "missing arguments. If you are passing a profile or action "\
+                            "interface and do not require to test against that "\
+                            "particular action, pass it to the 'exclude' argument"
+                    end
 
                 actions.each do |action|
                     task = assert_can_deploy_together(action, *together_with)
@@ -418,7 +514,11 @@ module Syskit
             def validate_actions(action_or_profile, exclude: [])
                 actions, skipped =
                     BulkAssertAtomicActions(action_or_profile, exclude: exclude)
-                yield skipped.map(&:name).sort.join(", ") unless skipped.empty?
+
+                unless skipped.empty?
+                    action_names = "'#{skipped.map(&:name).sort.join("', '")}'"
+                    yield(action_names)
+                end
 
                 actions
             end
