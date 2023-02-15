@@ -15,7 +15,7 @@ module Syskit
                 @cmp_m.add @srv_m, as: "test"
             end
 
-            describe "Actions" do
+            describe "ActionModels" do
                 include ProfileAssertions
 
                 before do
@@ -26,7 +26,72 @@ module Syskit
                 end
 
                 it "resolves an instance requirements action" do
+                    assert_equal [@interface_m.test_def.model],
+                                 ActionModels(@interface_m.test_def)
+                end
+
+                it "resolves a method action" do
+                    task_m = Roby::Task.new_submodel
+                    @interface_m.class_eval do
+                        describe("act").returns(task_m)
+                        define_method :act do
+                        end
+                    end
+
+                    assert_equal [@interface_m.act.model], ActionModels(@interface_m.act)
+                end
+
+                it "handles array of actions as argument" do
+                    @interface_m.class_eval do
+                        describe("act")
+                        define_method(:act) {}
+                    end
+
+                    assert_equal [@interface_m.act.model, @interface_m.test_def.model],
+                                 ActionModels([@interface_m.act, @interface_m.test_def])
+                end
+
+                it "resolves an action state machine" do
+                    task_m = Roby::Task.new_submodel
+                    @interface_m.class_eval do
+                        describe("act").returns(task_m)
+                        action_state_machine :act do
+                            start state(task_m)
+                        end
+                    end
+
+                    assert_equal [@interface_m.act.model], ActionModels(@interface_m.act)
+                end
+            end
+
+            describe "Actions" do
+                include ProfileAssertions
+
+                before do
+                    @profile_m = Syskit::Actions::Profile.new
+                    @profile_m.define "test", @cmp_m
+                    @profile_m.define "test2", @cmp_m
+                    @interface_m = Roby::Actions::Interface.new_submodel
+                    @interface_m.use_profile @profile_m
+                end
+
+                it "resolves an instance requirements action" do
                     assert_equal [@interface_m.test_def], Actions(@interface_m.test_def)
+                end
+
+                it "accepts an array as argument" do
+                    task_m = Roby::Task.new_submodel
+                    @interface_m.class_eval do
+                        describe("act").returns(task_m)
+                        define_method(:act) do
+                            root = task_m.new
+                            root.depends_on(test2_def)
+                            root
+                        end
+                    end
+
+                    assert_equal [@interface_m.test2_def, @interface_m.test_def],
+                                 Actions([@interface_m.act, @interface_m.test_def])
                 end
 
                 it "resolves a method action that returns a task with "\
@@ -84,6 +149,91 @@ module Syskit
                 end
             end
 
+            describe "BulkAssertAtomicActions" do
+                include ProfileAssertions
+
+                before do
+                    @profile_m = Syskit::Actions::Profile.new
+                    @profile_m.define "test", @cmp_m
+                    @interface_m = Roby::Actions::Interface.new_submodel
+                    @interface_m.use_profile @profile_m
+                end
+
+                it "lists all actions that can be resolved from its argument" do
+                    @interface_m.describe(:sm)
+                    @interface_m.action_state_machine :sm do
+                        start state(test_def)
+                    end
+
+                    assert_equal [[@interface_m.test_def], []],
+                                 BulkAssertAtomicActions(@interface_m.sm)
+                end
+
+                it "excludes actions from the models listed in 'exclude'" do
+                    @interface_m.describe(:sm)
+                    @interface_m.action_state_machine :sm do
+                        start state(test_def)
+                    end
+
+                    found, skipped = BulkAssertAtomicActions(
+                        @interface_m.sm, exclude: [@interface_m.test_def]
+                    )
+                    assert_equal [], found
+                    assert_equal [], skipped
+                end
+
+                it "reports actions that cannot be instanciated "\
+                   "because of missing arguments" do
+                    @interface_m.describe(:m_action).required_arg(:test, "some docs")
+                    @interface_m.define_method(:m_action) do |test:|
+                    end
+
+                    found, skipped = BulkAssertAtomicActions(@interface_m.m_action)
+                    assert_equal [], found
+                    assert_equal [@interface_m.m_action], skipped
+                end
+
+                it "reports actions that cannot be instanciated "\
+                   "because of missing arguments within a state machine" do
+                    @interface_m.describe(:m_action).required_arg(:test, "some docs")
+                    @interface_m.define_method(:m_action) do |test:|
+                    end
+                    @interface_m.describe(:sm)
+                    @interface_m.action_state_machine :sm do
+                        start state(m_action)
+                    end
+
+                    found, skipped = BulkAssertAtomicActions(@interface_m.sm)
+                    assert_equal [], found
+                    assert_equal [@interface_m.m_action], skipped
+                end
+
+                it "lets the caller exclude atomic actions" do
+                    @interface_m.describe(:sm)
+                    @interface_m.action_state_machine :sm do
+                        start state(test_def)
+                    end
+
+                    found, skipped = BulkAssertAtomicActions(
+                        @interface_m.sm, exclude: [@interface_m.sm]
+                    )
+                    assert_equal [@interface_m.test_def], found
+                    assert_equal [], skipped
+                end
+
+                it "lets the caller exclude method actions with missing arguments" do
+                    @interface_m.describe(:m_action).required_arg(:test, "")
+                    @interface_m.define_method :m_action do |test:|
+                    end
+
+                    found, skipped = BulkAssertAtomicActions(
+                        @interface_m.m_action, exclude: [@interface_m.m_action]
+                    )
+                    assert_equal [], found
+                    assert_equal [], skipped
+                end
+            end
+
             describe "assert_is_self_contained" do
                 include ProfileAssertions
 
@@ -135,6 +285,24 @@ module Syskit
                 it "handles plain instance requirements" do
                     @test_profile.tag "test", @srv_m
                     assert_is_self_contained(@cmp_m.use(@srv_m => @test_profile.test_tag))
+                end
+
+                it "fails if some actions are not resolvable" do
+                    flexmock(self)
+                        .should_receive(:BulkAssertAtomicActions)
+                        .with(action = flexmock, exclude: (excluded = flexmock))
+                        .and_return([[],
+                                     [flexmock(name: "some"), flexmock(name: "action")]])
+
+                    e = assert_raises(Minitest::Assertion) do
+                        assert_is_self_contained(action, exclude: excluded)
+                    end
+                    message = "could not validate some non-Syskit actions: 'action', "\
+                              "'some', probably because of required arguments. Pass "\
+                              "the action to the 'exclude' option of "\
+                              "assert_is_self_contained, and add a separate assertion "\
+                              "test with the arguments added explicitly"
+                    assert_equal message, e.message
                 end
             end
 
@@ -208,6 +376,51 @@ module Syskit
                         t = plan.find_tasks(@cmp_m).first.test_child
                         assert_equal 9, t.bla
                     end
+                end
+
+                it "fails if some actions are not resolvable" do
+                    flexmock(self)
+                        .should_receive(:BulkAssertAtomicActions)
+                        .with(action = flexmock, exclude: (excluded = flexmock))
+                        .and_return([[],
+                                     [flexmock(name: "some"), flexmock(name: "action")]])
+
+                    e = assert_raises(Minitest::Assertion) do
+                        assert_can_instanciate(action, exclude: excluded)
+                    end
+                    message = "could not validate some non-Syskit actions: 'action', "\
+                              "'some', probably because of required arguments. Pass "\
+                              "the action to the 'exclude' option of "\
+                              "assert_can_instanciate, and add a separate assertion "\
+                              "test with the arguments added explicitly"
+                    assert_equal message, e.message
+                end
+
+                it "fails if some actions in together_with are not resolvable" do
+                    action, together_with, exclude = 3.times.map { flexmock }
+                    flexmock(self)
+                        .should_receive(:BulkAssertAtomicActions)
+                        .with(action, exclude: exclude)
+                        .and_return([[], []])
+                    flexmock(self)
+                        .should_receive(:BulkAssertAtomicActions)
+                        .with(together_with, exclude: exclude)
+                        .and_return([[],
+                                     [flexmock(name: "some"), flexmock(name: "action")]])
+
+                    e = assert_raises(Minitest::Assertion) do
+                        assert_can_instanciate(
+                            action, exclude: exclude, together_with: together_with
+                        )
+                    end
+                    message =
+                        "could not validate some non-Syskit actions given "\
+                        "to `together_with` in assert_can_instanciate: 'action', "\
+                        "'some', probably because of "\
+                        "missing arguments. If you are passing a profile or action "\
+                        "interface and do not require to test against that particular "\
+                        "action, pass it to the 'exclude' argument"
+                    assert_equal message, e.message
                 end
             end
 
@@ -300,6 +513,51 @@ module Syskit
                         together_with: @task_m.to_instance_requirements
                                               .use_deployment(@deployment_m)
                     )
+                end
+
+                it "fails if some actions are not resolvable" do
+                    flexmock(self)
+                        .should_receive(:BulkAssertAtomicActions)
+                        .with(action = flexmock, exclude: (excluded = flexmock))
+                        .and_return([[],
+                                     [flexmock(name: "some"), flexmock(name: "action")]])
+
+                    e = assert_raises(Minitest::Assertion) do
+                        assert_can_deploy(action, exclude: excluded)
+                    end
+                    message = "could not validate some non-Syskit actions: 'action', "\
+                              "'some', probably because of required arguments. Pass "\
+                              "the action to the 'exclude' option of "\
+                              "assert_can_deploy, and add a separate assertion "\
+                              "test with the arguments added explicitly"
+                    assert_equal message, e.message
+                end
+
+                it "fails if some actions in together_with are not resolvable" do
+                    action, together_with, exclude = 3.times.map { flexmock }
+                    flexmock(self)
+                        .should_receive(:BulkAssertAtomicActions)
+                        .with(action, exclude: exclude)
+                        .and_return([[], []])
+                    flexmock(self)
+                        .should_receive(:BulkAssertAtomicActions)
+                        .with(together_with, exclude: exclude)
+                        .and_return([[],
+                                     [flexmock(name: "some"), flexmock(name: "action")]])
+
+                    e = assert_raises(Minitest::Assertion) do
+                        assert_can_deploy(
+                            action, exclude: exclude, together_with: together_with
+                        )
+                    end
+                    message =
+                        "could not validate some non-Syskit actions given "\
+                        "to `together_with` in assert_can_deploy: 'action', "\
+                        "'some', probably because of "\
+                        "missing arguments. If you are passing a profile or action "\
+                        "interface and do not require to test against that particular "\
+                        "action, pass it to the 'exclude' argument"
+                    assert_equal message, e.message
                 end
             end
         end
