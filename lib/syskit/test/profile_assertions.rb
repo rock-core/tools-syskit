@@ -56,6 +56,27 @@ module Syskit
             # array of actions
             #
             # @raise [ArgumentError] if the argument is invalid
+            def ActionModels(arg)
+                if arg.respond_to?(:each_action)
+                    ActionModels(arg.each_action)
+                elsif arg.respond_to?(:to_action)
+                    [arg.to_action.model]
+                elsif arg.respond_to?(:flat_map)
+                    arg.flat_map { |a| ActionModels(a) }
+                elsif arg.respond_to?(:to_instance_requirements)
+                    [Actions::Model::Action.new(arg)]
+                else
+                    raise ArgumentError,
+                          "expected an action or a collection of actions, but got "\
+                          "#{arg} of class #{arg.class}"
+                end
+            end
+
+            # Validates an argument that can be an action, an action collection
+            # (e.g. a profile) or an array of action, and normalizes it into an
+            # array of actions
+            #
+            # @raise [ArgumentError] if the argument is invalid
             def Actions(arg)
                 if arg.respond_to?(:each_action)
                     arg.each_action.flat_map do |a|
@@ -100,7 +121,7 @@ module Syskit
             #   should be ignored. Actions are compared on the basis of their
             #   model (arguments do not count)
             def BulkAssertAtomicActions(arg, exclude: [])
-                exclude = Actions(exclude).map(&:model)
+                exclude = ActionModels(exclude)
                 skipped_actions = []
                 actions = AtomicActions(arg).find_all do |action|
                     if exclude.include?(action.model)
