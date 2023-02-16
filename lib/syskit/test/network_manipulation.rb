@@ -284,14 +284,26 @@ module Syskit
                 model
             end
 
-            def syskit_stub_configured_deployment(
-                task_model = nil,
-                task_name = syskit_default_stub_name(task_model),
+            # Create a ready-to-deployed object for the given task model
+            #
+            # @param [Syskit::TaskContext] task_model
+            # @param [String] task_name
+            # @param [Boolean] remote_task stubbed tasks are always ruby tasks, i.e.
+            #   tasks that run inside the Syskit process. This flag controls whether
+            #   the task should be handled as if they were remote, or as ruby tasks.
+            #   This is meant to be used during Syskit's own tests, to ensure we don't
+            #   rely on ruby task behavior when testing remote task-handling code
+            # @param [Boolean] register the configured deployment in the test group
+            #   This makes it available to further deployments
+            # @return [Syskit::Models::ConfiguredDeployment]
+            def syskit_stub_configured_deployment( # rubocop:disable Metrics/ParameterLists
+                task_model = nil, task_name = syskit_default_stub_name(task_model),
                 remote_task: syskit_stub_resolves_remote_tasks?,
-                register: true, &block
+                register: true, read_only: [], &block
             )
                 configured_deployment = @__stubs.stub_configured_deployment(
-                    task_model, task_name, remote_task: remote_task, &block
+                    task_model, task_name,
+                    read_only: read_only, remote_task: remote_task, &block
                 )
                 if register
                     @__test_deployment_group
@@ -320,14 +332,22 @@ module Syskit
                 )
             end
 
-            # Create a new stub deployment instance, optionally stubbing the
-            # model as well
-            def syskit_stub_deployment(
+            # Create a new stub deployment instance
+            #
+            # @param [Syskit::Models::Deployment] deployment_model the deployment model
+            #   to use, or nil if the method should stub one
+            # @param [Syskit::Models::TaskContext] task_model set to a desired task
+            #   context model to deploy when creating a new stub deployment model (i.e.
+            #   when deployment_model is nil)
+            # @param [Boolean] read_only (see #syskit_stub_configured_deployment)
+            def syskit_stub_deployment( # rubocop:disable Metrics/ParameterLists
                 name = "deployment", deployment_model = nil,
+                task_model: nil, read_only: [],
                 remote_task: syskit_stub_resolves_remote_tasks?, &block
             )
                 deployment_model ||= syskit_stub_configured_deployment(
-                    nil, name, remote_task: remote_task, &block
+                    task_model, name,
+                    read_only: read_only, remote_task: remote_task, &block
                 )
                 task = deployment_model.new(process_name: name, on: "stubs")
                 plan.add_permanent_task(task)
