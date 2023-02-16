@@ -59,6 +59,8 @@ module Syskit
             received_states = []
             while (!state || task.orocos_task.runtime_state?(state)) &&
                   (new_state = task.update_orogen_state)
+                next if new_state == :PRE_OPERATIONAL && task.read_only?
+
                 received_states << new_state
 
                 # Returns nil if we have a communication problem. In this
