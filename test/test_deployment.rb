@@ -236,6 +236,45 @@ module Syskit
                 assert_equal true, task.read_only
             end
 
+            it "does not cleanup read-only tasks on shutdown" do
+                task_m = Syskit::TaskContext.new_submodel
+                deployment = syskit_stub_deployment(
+                    "test", task_model: task_m, read_only: %w[test]
+                )
+                expect_execution { deployment.start! }.to { emit deployment.ready_event }
+
+                task = deployment.task("test")
+                Orocos.allow_blocking_calls do
+                    task.orocos_task.configure
+                end
+                flexmock(task.orocos_task).should_receive(:cleanup).never
+                expect_execution { deployment.stop! }.to { emit deployment.stop_event }
+            end
+
+            it "handles a readonly task being stopped and cleaned up in a single cycle" do
+                # The bug this tests against was Syskit receiving stopped and
+                # pre operational in a single cycle. TaskContext#handle_state_changes
+                # would try to find an event for that transition and boom
+                task_m = Syskit::TaskContext.new_submodel
+                deployment = syskit_stub_deployment(
+                    "test", task_model: task_m, read_only: %w[test]
+                )
+                expect_execution { deployment.start! }.to { emit deployment.ready_event }
+
+                task = deployment.task("test")
+                Orocos.allow_blocking_calls do
+                    task.orocos_task.configure
+                    task.orocos_task.start
+                end
+                expect_execution { task.start! }.to { emit task.start_event }
+
+                Orocos.allow_blocking_calls do
+                    task.orocos_task.stop
+                    task.orocos_task.cleanup
+                end
+                execute_one_cycle
+            end
+
             describe "slave tasks" do
                 before do
                     @task_m = TaskContext.new_submodel do
