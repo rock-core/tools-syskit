@@ -163,10 +163,20 @@ module Syskit
             end
 
             describe "#reconfigure_tasks_on_static_port_modification" do
-                it "reconfigures already-configured tasks whose static input ports have been modified" do
-                    task = syskit_stub_deploy_and_configure("Task", as: "task") { input_port("in", "/double").static }
-                    proxy = work_plan[task]
-                    flexmock(proxy).should_receive(:transaction_modifies_static_ports?).once.and_return(true)
+                attr_reader :task, :proxy
+
+                before do
+                    @task = syskit_stub_deploy_and_configure("Task", as: "task") do
+                        input_port("in", "/double").static
+                    end
+                    @proxy = work_plan[task]
+                end
+
+                it "reconfigures already-configured tasks whose static input "\
+                   "ports have been modified" do
+                    flexmock(proxy).should_receive(:transaction_modifies_static_ports?)
+                                   .once.and_return(true)
+
                     syskit_engine.reconfigure_tasks_on_static_port_modification([proxy])
                     tasks = work_plan.find_local_tasks(Syskit::TaskContext)
                                      .with_arguments(orocos_name: task.orocos_name).to_a
@@ -178,10 +188,10 @@ module Syskit
                                     Roby::EventStructure::SyskitConfigurationPrecedence
                 end
 
-                it "does not reconfigure already-configured tasks whose static input ports have not been modified" do
-                    task = syskit_stub_deploy_and_configure("Task", as: "task") { input_port("in", "/double").static }
-                    proxy = work_plan[task]
-                    flexmock(proxy).should_receive(:transaction_modifies_static_ports?).once.and_return(false)
+                it "does not reconfigure already-configured tasks whose "\
+                   "static input ports have not been modified" do
+                    flexmock(proxy).should_receive(:transaction_modifies_static_ports?)
+                                   .once.and_return(false)
                     syskit_engine.reconfigure_tasks_on_static_port_modification([proxy])
                     tasks = work_plan.find_local_tasks(Syskit::TaskContext)
                                      .with_arguments(orocos_name: task.orocos_name).to_a
@@ -189,7 +199,6 @@ module Syskit
                 end
 
                 it "does not reconfigure not-setup tasks" do
-                    task = syskit_stub_and_deploy("Task") { input_port("in", "/double").static }
                     syskit_engine.reconfigure_tasks_on_static_port_modification([task])
                     tasks = work_plan.find_local_tasks(Syskit::TaskContext)
                                      .with_arguments(orocos_name: task.orocos_name).to_a
@@ -563,12 +572,16 @@ module Syskit
                     execute { plan.remove_task(deployed.planning_task) }
 
                     new_deployed = syskit_deploy(
-                        composition_model.use("child" => task_model.with_conf("non_default"))
+                        composition_model.use(
+                            "child" => task_model.with_conf("non_default")
+                        )
                     )
 
                     assert_equal(["non_default"], new_deployed.child_child.conf)
-                    assert_equal [deployed.child_child.stop_event],
-                                 new_deployed.child_child.start_event.parent_objects(Roby::EventStructure::SyskitConfigurationPrecedence).to_a
+                    assert_configures_after(
+                        deployed.child_child.stop_event,
+                        new_deployed.child_child.start_event
+                    )
                 end
 
                 it "reconfigures a toplevel task if its configuration changed" do
@@ -581,9 +594,9 @@ module Syskit
                     deployed_reconf = syskit_deploy(task_model.with_conf("non_default"))
                     plan.add_mission_task(deployed_reconf)
 
-                    assert_equal [deployed_task.stop_event],
-                                 deployed_reconf.start_event.parent_objects(Roby::EventStructure::SyskitConfigurationPrecedence).to_a
-                    plan.useful_tasks
+                    assert_configures_after(
+                        deployed_task.stop_event, deployed_reconf.start_event
+                    )
                     assert_equal([planning_task, deployed_task].to_set,
                                  execute { plan.static_garbage_collect.to_set })
                     assert(["non_default"], deployed_reconf.conf)
@@ -604,8 +617,7 @@ module Syskit
                     new_cmp, = syskit_deploy(composition_model.use("child" => task_model))
                     new_child = new_cmp.child_child
 
-                    assert_equal [child.stop_event],
-                                 new_child.start_event.parent_objects(Roby::EventStructure::SyskitConfigurationPrecedence).to_a
+                    assert_configures_after child.stop_event, new_child.start_event
                 end
 
                 it "does not change anything if asked to deploy the same composition twice" do
@@ -887,6 +899,13 @@ module Syskit
                         syskit_run_planner_with_full_deployment { deploy_current_plan }
                     end
                 end
+            end
+
+            def assert_configures_after(expected_event, event)
+                should_configure_after = event.parent_objects(
+                    Roby::EventStructure::SyskitConfigurationPrecedence
+                ).to_a
+                assert_equal [expected_event], should_configure_after
             end
         end
 
