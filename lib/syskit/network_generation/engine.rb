@@ -863,8 +863,6 @@ module Syskit
                     log_timepoint "final_network_postprocessing:#{block}"
                 end
 
-                # Finally, we should now only have deployed tasks. Verify it
-                # and compute the connection policies
                 if garbage_collect && validate_final_network
                     validate_final_network(required_instances, work_plan,
                                            compute_deployments: compute_deployments)
@@ -872,6 +870,8 @@ module Syskit
                 end
 
                 commit_work_plan
+
+                validate_reconfigured_tasks_are_not_held(@new_deployed_tasks)
             end
 
             def discard_work_plan
@@ -932,7 +932,13 @@ module Syskit
             def validate_final_network(
                 required_instances, plan, compute_deployments: true
             )
-                # Check that all device instances are proper tasks (not proxies)
+                validate_required_instances_are_tasks(required_instances)
+
+                super if defined? super
+            end
+
+            def validate_required_instances_are_tasks(required_instances)
+                # Check that the final set of root required instances are proper tasks
                 required_instances.each do |_req_task, task|
                     if task.transaction_proxy?
                         raise InternalError,
@@ -943,8 +949,32 @@ module Syskit
                               "instance definition #{task} has been removed from plan"
                     end
                 end
+            end
 
-                super if defined? super
+            # Exception added to the plan when we detect that a task being reconfigured
+            # is held against garbage collection.
+            #
+            # This is an internal error (i.e. should not happen), but not triggering
+            # this causes the system to "hold on" forever.
+            class InternalErrorReconfiguredTaskIsHeld < Roby::LocalizedError
+            end
+
+            # Validate that "old" tasks in a reconfigured pair will be garbage collected
+            #
+            # This must be called at the very end
+            def validate_reconfigured_tasks_are_not_held(new_deployed_tasks)
+                reconfigured_tasks = new_deployed_tasks.flat_map do |task|
+                    task.start_event.parent_objects(
+                        Roby::EventStructure::SyskitConfigurationPrecedence
+                    ).map(&:task).to_a
+                end
+
+                useful_tasks = real_plan.useful_tasks
+                reconfigured_tasks.each do |t|
+                    next unless useful_tasks.include?(t)
+
+                    t.add_error(InternalErrorReconfiguredTaskIsHeld.new(t))
+                end
             end
 
             @@dot_index = 0

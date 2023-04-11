@@ -210,11 +210,13 @@ module Syskit
                 resolve_options = Hash[on_error: :commit].merge(resolve_options)
                 begin
                     syskit_engine_resolve_handle_plan_export do
-                        syskit_engine ||= Syskit::NetworkGeneration::Engine.new(plan)
-                        syskit_engine.resolve(
-                            default_deployment_group: default_deployment_group,
-                            **resolve_options
-                        )
+                        execute do
+                            syskit_engine ||= Syskit::NetworkGeneration::Engine.new(plan)
+                            syskit_engine.resolve(
+                                default_deployment_group: default_deployment_group,
+                                **resolve_options
+                            )
+                        end
                     end
                 rescue StandardError => e
                     expect_execution do

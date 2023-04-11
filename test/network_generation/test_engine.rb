@@ -307,7 +307,7 @@ module Syskit
             end
 
             describe "when scheduling tasks for reconfiguration" do
-                it "ensures that the old task is gargabe collected "\
+                it "ensures that the old task is garbage collected "\
                    "when child of a composition" do
                     task_m = Syskit::TaskContext.new_submodel
                     cmp_m  = Syskit::Composition.new_submodel
@@ -396,6 +396,40 @@ module Syskit
                     # And the old tasks should be ready to garbage-collect
                     assert_equal [child, child_task].to_set,
                                  execute { plan.static_garbage_collect.to_set }
+                end
+
+                it "detects if the scheduling code fails to 'liberate' the old task" do
+                    flexmock(Engine)
+                        .new_instances.should_receive(:sever_old_plan_from_new_plan)
+
+                    child_m  = Syskit::TaskContext.new_submodel
+                    parent_m = Syskit::TaskContext.new_submodel
+                    parent_m.singleton_class.class_eval do
+                        define_method(:instanciate) do |*args, **kw|
+                            task = super(*args, **kw)
+                            task.depends_on(child_m.instanciate(*args, **kw),
+                                            role: "test")
+                            task
+                        end
+                    end
+
+                    syskit_stub_configured_deployment(child_m)
+                    parent_m = syskit_stub_requirements(parent_m)
+                    parent = syskit_deploy(parent_m)
+                    child  = parent.test_child
+
+                    flexmock(child_m)
+                        .new_instances.should_receive(:can_be_deployed_by?)
+                        .with(->(proxy) { proxy.__getobj__ == child }).and_return(false)
+                    e = assert_raises(
+                        Roby::Test::ExecutionExpectations::UnexpectedErrors
+                    ) do
+                        syskit_deploy(parent_m)
+                    end
+                    e = e.each_execution_exception.first
+                    assert_equal child, e.origin
+                    assert_kind_of Engine::InternalErrorReconfiguredTaskIsHeld,
+                                   e.exception
                 end
             end
 
@@ -578,7 +612,10 @@ module Syskit
                     deployed = syskit_deploy(composition_model)
                     # This deregisters the task from the list of requirements in the
                     # syskit engine
-                    execute { plan.remove_task(deployed.planning_task) }
+                    execute do
+                        plan.remove_task(deployed.planning_task)
+                        plan.unmark_mission_task(deployed)
+                    end
 
                     new_deployed = syskit_deploy(
                         composition_model.use(
