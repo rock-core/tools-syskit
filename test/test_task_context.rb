@@ -2244,52 +2244,42 @@ module Syskit
         end
 
         describe "read_only" do
+            attr_reader :task, :task_m
             before do
-                task_m = TaskContext.new_submodel do
+                @task_m = TaskContext.new_submodel do
                     property "p", "/double"
                 end
 
-                @task =
-                    syskit_stub_deploy_and_configure(task_m.with_arguments(read_only: true))
-
+                @task = syskit_stub_deploy_and_configure(
+                    task_m.with_arguments(read_only: true)
+                )
                 Orocos.allow_blocking_calls { @task.orocos_task.configure(false) }
             end
 
             it "raises when attempting to change a property" do
-                task = @task
-
                 assert_raises(InvalidReadOnlyOperation) do
                     task.properties.p = 2.0
                 end
             end
 
             it "emits start when the task is started while the component is running" do
-                task = @task
                 Orocos.allow_blocking_calls { task.orocos_task.start(false) }
-
                 assert state(task.orocos_task) == :RUNNING
 
-                expect_execution { task.start! }
-                    .to { emit task.start_event }
+                expect_execution { task.start! }.to { emit task.start_event }
             end
 
-            it "does not emit start " \
-            "if the task is started while the component is not running" do
-                task = @task
-
+            it "does not emit start if the task is started "\
+               "while the component is not running" do
                 assert state(task.orocos_task) != :RUNNING
 
-                expect_execution { task.start! }
-                    .to { not_emit task.start_event }
-
+                expect_execution { task.start! }.to { not_emit task.start_event }
                 # just to avoid: "TeardownFailedError: failed to tear down plan"
                 execute { task.stop! }
             end
 
             it "emits start when the component is started while the task is starting" do
-                task = @task
                 execute { task.start! }
-
                 assert task.starting?
 
                 expect_execution do
@@ -2298,19 +2288,15 @@ module Syskit
             end
 
             it "does not emit interrupted " \
-            "if the task is stopped while the component is running" do
-                task = @task
+               "if the task is stopped while the component is running" do
                 Orocos.allow_blocking_calls { task.orocos_task.start(false) }
                 execute { task.start! }
 
                 assert task.running? && state(task.orocos_task) == :RUNNING
-
-                expect_execution { task.stop! }
-                    .to { not_emit task.interrupt_event }
+                expect_execution { task.stop! }.to { not_emit task.interrupt_event }
             end
 
             it "emits stop when the component is stopped while the task is running" do
-                task = @task
                 Orocos.allow_blocking_calls { task.orocos_task.start(false) }
                 execute { task.start! }
 
