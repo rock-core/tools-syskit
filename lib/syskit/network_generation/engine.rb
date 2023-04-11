@@ -132,10 +132,11 @@ module Syskit
             def apply_deployed_network_to_plan
                 # Finally, we map the deployed network to the currently
                 # running tasks
-                @deployment_tasks, @deployed_tasks =
+                @deployment_tasks, @reused_deployed_tasks, @new_deployed_tasks =
                     log_timepoint_group "finalize_deployed_tasks" do
                         finalize_deployed_tasks
                     end
+                @deployed_tasks = @reused_deployed_tasks + @new_deployed_tasks
 
                 sever_old_plan_from_new_plan
 
@@ -143,6 +144,7 @@ module Syskit
                     @dataflow_dynamics.apply_merges(merge_solver)
                     log_timepoint "apply_merged_to_dataflow_dynamics"
                 end
+
                 Engine.deployment_postprocessing.each do |block|
                     block.call(self, work_plan)
                     log_timepoint "postprocessing:#{block}"
@@ -387,8 +389,9 @@ module Syskit
                 end
                 log_timepoint "select_deployments"
 
-                reused_deployed_tasks =
-                    reconfigure_tasks_on_static_port_modification(reused_deployed_tasks)
+                reconfigure_tasks_on_static_port_modification(
+                    reused_deployed_tasks, newly_deployed_tasks
+                )
                 log_timepoint "reconfigure_tasks_on_static_port_modification"
 
                 debug do
@@ -404,7 +407,7 @@ module Syskit
                 merge_solver.merge_identical_tasks
                 log_timepoint "merge"
 
-                [selected_deployment_tasks, reused_deployed_tasks | newly_deployed_tasks]
+                [selected_deployment_tasks, reused_deployed_tasks, newly_deployed_tasks]
             end
 
             # Process a single deployment in {#finalize_deployed_tasks}
@@ -433,18 +436,18 @@ module Syskit
                 end
 
                 if usable
-                    newly_deployed_tasks = []
-                    reused_deployed_tasks = adapt_existing_deployment(required, usable)
+                    new_deployed_tasks, reused_deployed_tasks =
+                        adapt_existing_deployment(required, usable)
                     selected = usable
                 else
                     # Nothing to do, we leave the plan as it is
-                    newly_deployed_tasks = required.each_executed_task
+                    new_deployed_tasks = required.each_executed_task
                     reused_deployed_tasks = []
                     selected = required
                 end
 
                 selected.should_start_after(not_reusable.stop_event) if not_reusable
-                [selected, newly_deployed_tasks, reused_deployed_tasks]
+                [selected, new_deployed_tasks, reused_deployed_tasks]
             end
 
             # Validate that the usable deployment we found is actually usable
@@ -563,9 +566,9 @@ module Syskit
             # Note that tasks that are already reconfigured because of
             # {#adapt_existing_deployment} will be fine as the task is not
             # configured yet
-            def reconfigure_tasks_on_static_port_modification(deployed_tasks)
-                final_deployed_tasks = deployed_tasks.dup
-
+            def reconfigure_tasks_on_static_port_modification(
+                reused_deployed_tasks, newly_deployed_tasks
+            )
                 # We filter against 'deployed_tasks' to always select the tasks
                 # that have been selected in this deployment. It does mean that
                 # the task is always the 'current' one, that is we would pick
@@ -576,7 +579,7 @@ module Syskit
                     .find_tasks(Syskit::TaskContext).not_finished.not_finishing
                     .find_all { |t| !t.read_only? }
                     .find_all do |t|
-                        deployed_tasks.include?(t) && (t.setting_up? || t.setup?)
+                        reused_deployed_tasks.include?(t) && (t.setting_up? || t.setup?)
                     end
 
                 already_setup_tasks.each do |t|
@@ -590,10 +593,9 @@ module Syskit
                     new_task = t.execution_agent.task(t.orocos_name, t.concrete_model)
                     merge_solver.apply_merge_group(t => new_task)
                     new_task.should_configure_after t.stop_event
-                    final_deployed_tasks.delete(t)
-                    final_deployed_tasks << new_task
+                    reused_deployed_tasks.delete(t)
+                    newly_deployed_tasks << new_task
                 end
-                final_deployed_tasks
             end
 
             # Find the "last" deployed task in a set of related deployed tasks
@@ -635,8 +637,9 @@ module Syskit
                     (orocos_name_to_existing[t.orocos_name] ||= []) << t
                 end
 
-                applied_merges = Set.new
                 deployed_tasks = deployment_task.each_executed_task.to_a
+                new_deployed_tasks = []
+                reused_deployed_tasks = []
                 deployed_tasks.each do |task|
                     existing_tasks =
                         orocos_name_to_existing[task.orocos_name] || []
@@ -667,15 +670,17 @@ module Syskit
 
                             new_task.should_configure_after(previous_task.stop_event)
                         end
+                        new_deployed_tasks << new_task
                         existing_task = new_task
+                    else
+                        reused_deployed_tasks << existing_task
                     end
 
                     merge_solver.apply_merge_group(task => existing_task)
-                    applied_merges << existing_task
                     debug { "  using #{existing_task} for #{task} (#{task.orocos_name})" }
                 end
                 work_plan.remove_task(deployment_task)
-                applied_merges
+                [new_deployed_tasks, reused_deployed_tasks]
             end
 
             # Computes the set of requirement tasks that should be used for

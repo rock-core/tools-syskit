@@ -177,32 +177,41 @@ module Syskit
                     flexmock(proxy).should_receive(:transaction_modifies_static_ports?)
                                    .once.and_return(true)
 
-                    syskit_engine.reconfigure_tasks_on_static_port_modification([proxy])
+                    syskit_engine.reconfigure_tasks_on_static_port_modification(
+                        reused = [proxy], new = []
+                    )
+                    assert_equal [], reused
                     tasks = work_plan.find_local_tasks(Syskit::TaskContext)
                                      .with_arguments(orocos_name: task.orocos_name).to_a
-                    assert_equal 2, tasks.size
-                    tasks.delete(proxy)
-                    new_task = tasks.first
+                    assert_equal(Set[proxy, *new], tasks.to_set)
+                    new_task = new.first
 
-                    assert_child_of proxy.stop_event, new_task.start_event,
-                                    Roby::EventStructure::SyskitConfigurationPrecedence
+                    assert_configures_after proxy.stop_event, new_task.start_event
                 end
 
                 it "does not reconfigure already-configured tasks whose "\
                    "static input ports have not been modified" do
                     flexmock(proxy).should_receive(:transaction_modifies_static_ports?)
                                    .once.and_return(false)
-                    syskit_engine.reconfigure_tasks_on_static_port_modification([proxy])
+                    syskit_engine.reconfigure_tasks_on_static_port_modification(
+                        reused = [proxy], new = []
+                    )
+                    assert_equal [proxy], reused
+                    assert_equal [], new
                     tasks = work_plan.find_local_tasks(Syskit::TaskContext)
                                      .with_arguments(orocos_name: task.orocos_name).to_a
-                    assert_equal work_plan.wrap([task]), tasks
+                    assert_equal [proxy], tasks
                 end
 
                 it "does not reconfigure not-setup tasks" do
-                    syskit_engine.reconfigure_tasks_on_static_port_modification([task])
+                    syskit_engine.reconfigure_tasks_on_static_port_modification(
+                        reused = [proxy], new = []
+                    )
+                    assert_equal [proxy], reused
+                    assert_equal [], new
                     tasks = work_plan.find_local_tasks(Syskit::TaskContext)
                                      .with_arguments(orocos_name: task.orocos_name).to_a
-                    assert_equal work_plan.wrap([task]), tasks
+                    assert_equal [proxy], tasks
                 end
             end
 
@@ -461,7 +470,7 @@ module Syskit
                     required_deployment, (required0, task2) =
                         add_deployment_and_tasks(work_plan, deployment_m, %w[task0 task2])
 
-                    selected_deployments, selected_deployed_tasks =
+                    selected_deployments, reused_tasks, new_tasks =
                         syskit_engine.finalize_deployed_tasks
 
                     expected_deployment = work_plan[existing_deployment]
@@ -474,8 +483,8 @@ module Syskit
 
                     assert_equal [work_plan[task0], work_plan[task1], task2].to_set,
                                  expected_deployment.each_executed_task.to_set
-                    assert_equal [work_plan[task0], task2].to_set,
-                                 selected_deployed_tasks.to_set
+                    assert_equal [work_plan[task0]], reused_tasks.to_a
+                    assert_equal [task2], new_tasks.to_a
                 end
 
                 it "maintains the dependencies" do
