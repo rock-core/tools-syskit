@@ -137,6 +137,8 @@ module Syskit
                         finalize_deployed_tasks
                     end
 
+                sever_old_plan_from_new_plan
+
                 if @dataflow_dynamics
                     @dataflow_dynamics.apply_merges(merge_solver)
                     log_timepoint "apply_merged_to_dataflow_dynamics"
@@ -144,6 +146,42 @@ module Syskit
                 Engine.deployment_postprocessing.each do |block|
                     block.call(self, work_plan)
                     log_timepoint "postprocessing:#{block}"
+                end
+            end
+
+            # "Cut" relations between the "old" plan and the new one
+            #
+            # At this stage, old components (task contexts and compositions)
+            # that are not part of the new plan may still be child of bits of
+            # the new plan. This happens if they are added as children of other
+            # task contexts. The transformer does this to register dynamic
+            # transformation producers
+            #
+            # This pass looks for all proxies of compositions and task contexts
+            # that are not the target of a merge operation. When this happens,
+            # we know that the component is not being reused, and we remove all
+            # dependency relations where it is child and where the parent is
+            # "useful"
+            #
+            # Note that we do this only for relations between Syskit
+            # components. Relations with "plan" Roby tasks are updated because
+            # we replace toplevel tasks.
+            def sever_old_plan_from_new_plan
+                old_tasks =
+                    work_plan
+                    .find_local_tasks(Syskit::Component)
+                    .find_all(&:transaction_proxy?)
+
+                merge_leaves = merge_solver.each_merge_leaf.to_set
+                old_tasks.each do |old_task|
+                    next if merge_leaves.include?(old_task)
+
+                    parents =
+                        old_task
+                        .each_parent_task
+                        .find_all { |t| merge_leaves.include?(t) }
+
+                    parents.each { |t| t.remove_child(old_task) }
                 end
             end
 
@@ -602,9 +640,7 @@ module Syskit
                 deployed_tasks.each do |task|
                     existing_tasks =
                         orocos_name_to_existing[task.orocos_name] || []
-                    unless existing_tasks.empty?
-                        existing_task = find_current_deployed_task(existing_tasks)
-                    end
+                    existing_task = find_current_deployed_task(existing_tasks)
 
                     if !existing_task || !task.can_be_deployed_by?(existing_task)
                         debug do
@@ -629,14 +665,6 @@ module Syskit
                                 "to finish before reconfiguring"
                             end
 
-                            parent_task_contexts =
-                                previous_task
-                                .each_parent_task
-                                .find_all { |t| t.kind_of?(Syskit::TaskContext) }
-
-                            parent_task_contexts.each do |t|
-                                t.remove_child(previous_task)
-                            end
                             new_task.should_configure_after(previous_task.stop_event)
                         end
                         existing_task = new_task
