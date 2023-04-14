@@ -572,6 +572,14 @@ module Syskit
                     break
                 end
             end
+
+            def each_merge_leaf
+                return enum_for(__method__) unless block_given?
+
+                task_replacement_graph.each_vertex do |v|
+                    yield(v) if task_replacement_graph.leaf?(v)
+                end
+            end
         end
     end
 end
