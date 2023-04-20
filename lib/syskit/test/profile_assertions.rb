@@ -153,17 +153,18 @@ module Syskit
             def BulkAssertAtomicActions(arg, exclude: [])
                 exclude = ActionModels(exclude)
                 skipped_actions = []
-                actions = AtomicActions(arg).find_all do |action|
+                actions = AtomicActions(arg).map do |action|
+                    action = action.dup.with_example_arguments
                     if exclude.include?(action.model)
-                        false
+                        nil
                     elsif !action.kind_of?(Actions::Action) &&
                           action.has_missing_required_arg?
                         skipped_actions << action
-                        false
+                        nil
                     else
-                        true
+                        action
                     end
-                end
+                end.compact
                 skipped_actions.delete_if do |skipped_action|
                     actions.any? { |action| action.model == skipped_action.model }
                 end
