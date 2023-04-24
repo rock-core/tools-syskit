@@ -538,49 +538,81 @@ module Syskit
                 @task = flexmock(task)
                 syskit_start_execution_agents(task)
                 @orocos_task = flexmock(task.orocos_task)
+                setup_task_state_queue(task)
+            end
+
+            def setup_task_state_queue(task)
                 flexmock(task.state_reader)
+                @current_state = nil
+                @state_queue = []
+                task.state_reader.should_receive(:read)
+                    .at_most.once
+                    .by_default
+                    .and_return do
+                        if @state_queue.empty?
+                            @current_state
+                        else
+                            @current_state = @state_queue.shift
+                        end
+                    end
+                task.state_reader.should_receive(:read_new)
+                    .by_default
+                    .and_return { @current_state = @state_queue.shift }
+            end
+
+            def push_task_state(state)
+                @state_queue << state
             end
 
             # NOTE: handling of errors related to the state readers is done
             # in live/test_state_reader_disconnection.rb
 
             it "is provided a connected state reader by its execution agent" do
-                syskit_start_execution_agents(task)
                 assert task.state_reader.connected?
             end
-            it "sets orogen_state with the new state" do
+            it "reads the last known state on initialization "\
+               "if there is no state transition" do
+                task.state_reader.should_receive(:read_new).and_return(nil)
+                task.state_reader.should_receive(:read).and_return(state = Object.new)
+                assert_equal state, task.update_orogen_state
+                refute task.last_orogen_state
+            end
+            it "does not read the last known state once it is initialized" do
+                task.state_reader.should_receive(:read)
+                    .once.and_return(state = Object.new)
                 task.state_reader.should_receive(:read_new)
-                    .and_return(state = Object.new)
+                    .once.and_return(nil)
+                assert_equal state, task.update_orogen_state
+                assert_nil task.update_orogen_state
+            end
+            it "sets orogen_state with the new state" do
+                push_task_state(state = Object.new)
                 task.update_orogen_state
                 assert_equal state, task.orogen_state
             end
             it "updates last_orogen_state with the current state" do
-                task.state_reader.should_receive(:read_new)
-                    .and_return(last_state = Object.new)
-                    .and_return(Object.new)
+                push_task_state(last_state = Object.new)
+                push_task_state(Object.new)
                 task.update_orogen_state
                 task.update_orogen_state
                 assert_equal last_state, task.last_orogen_state
             end
             it "returns nil if no new state has been received" do
-                task.state_reader.should_receive(:read_new)
-                assert !task.update_orogen_state
+                refute task.update_orogen_state
             end
             it "does not change the last and current states if no new states "\
                 "have been received" do
-                task.state_reader.should_receive(:read_new)
-                    .and_return(last_state = Object.new)
-                    .and_return(state = Object.new)
-                    .and_return(nil)
+                push_task_state(last_state = Object.new)
+                push_task_state(state = Object.new)
+                push_task_state(nil)
                 task.update_orogen_state
                 task.update_orogen_state
-                assert !task.update_orogen_state
+                refute task.update_orogen_state
                 assert_equal last_state, task.last_orogen_state
                 assert_equal state, task.orogen_state
             end
             it "returns the new state if there is one" do
-                task.state_reader.should_receive(:read_new)
-                    .and_return(state = Object.new)
+                push_task_state(state = Object.new)
                 assert_equal state, task.update_orogen_state
             end
             it "emits the exception event when transitioned to exception" do
@@ -2244,81 +2276,119 @@ module Syskit
         end
 
         describe "read_only" do
+            attr_reader :deployment, :handle
             before do
                 task_m = TaskContext.new_submodel do
                     property "p", "/double"
                 end
 
-                @task =
-                    syskit_stub_deploy_and_configure(task_m.with_arguments(read_only: true))
+                @deployment = syskit_stub_deployment(
+                    "test", task_model: task_m, read_only: ["test"]
+                )
+                expect_execution { deployment.start! }.to { emit deployment.ready_event }
 
-                Orocos.allow_blocking_calls { @task.orocos_task.configure(false) }
+                @handle = deployment.remote_task_handles["test"].handle
+            end
+
+            it "emits start when the task is create and started "\
+               "while the component is running" do
+                Orocos.allow_blocking_calls { handle.configure(false) }
+                Orocos.allow_blocking_calls { handle.start(false) }
+                assert state(handle) == :RUNNING
+
+                create_configure_and_start_task
+            end
+
+            it "emits start when the task is created and started after the component "\
+               "configuration but before its start" do
+                Orocos.allow_blocking_calls { handle.configure(false) }
+                task = create_and_configure_task
+                Orocos.allow_blocking_calls { handle.start(false) }
+                expect_execution { task.start! }.to { emit task.start_event }
+            end
+
+            it "does not emit start if the task is started "\
+               "while the component is not running" do
+                task = create_and_configure_task
+                expect_execution { task.start! }.to { not_emit task.start_event }
+                # just to avoid: "TeardownFailedError: failed to tear down plan"
+                execute { task.stop! }
+            end
+
+            it "emits start when the component is started while the task is starting" do
+                task = create_and_configure_task
+                execute { task.start! }
+                assert task.starting?
+
+                expect_execution do
+                    Orocos.allow_blocking_calls { handle.configure(false) }
+                    Orocos.allow_blocking_calls { handle.start(false) }
+                end.to { emit task.start_event }
             end
 
             it "raises when attempting to change a property" do
-                task = @task
+                Orocos.allow_blocking_calls { handle.configure(false) }
+                Orocos.allow_blocking_calls { handle.start(false) }
+                task = create_configure_and_start_task
 
                 assert_raises(InvalidReadOnlyOperation) do
                     task.properties.p = 2.0
                 end
             end
 
-            it "emits start when the task is started while the component is running" do
-                task = @task
-                Orocos.allow_blocking_calls { task.orocos_task.start(false) }
+            describe "stopping behavior" do
+                attr_reader :task
 
-                assert state(task.orocos_task) == :RUNNING
+                before do
+                    Orocos.allow_blocking_calls { handle.configure(false) }
+                    Orocos.allow_blocking_calls { handle.start(false) }
+                    @task = create_configure_and_start_task
+                end
 
-                expect_execution { task.start! }
-                    .to { emit task.start_event }
+                it "does not emit interrupted " \
+                   "if the task is stopped while the component is running" do
+                    expect_execution { task.stop! }.to do
+                        not_emit task.interrupt_event
+                        emit task.stop_event
+                    end
+                end
+
+                it "does not stop the component if the task is stopped" do
+                    expect_execution { task.stop! }.to { emit task.stop_event }
+                    assert state(handle) == :RUNNING
+                end
+
+                it "emits stop when the component is stopped while the task is running" do
+                    expect_execution do
+                        Orocos.allow_blocking_calls { handle.stop(false) }
+                    end.to { emit task.stop_event }
+                end
             end
 
-            it "does not emit start " \
-            "if the task is started while the component is not running" do
-                task = @task
+            it "handles being restarted on the same running component" do
+                Orocos.allow_blocking_calls { handle.configure(false) }
+                Orocos.allow_blocking_calls { handle.start(false) }
 
-                assert state(task.orocos_task) != :RUNNING
-
-                expect_execution { task.start! }
-                    .to { not_emit task.start_event }
-
-                # just to avoid: "TeardownFailedError: failed to tear down plan"
-                execute { task.stop! }
+                2.times do
+                    task = deployment.task("test")
+                    syskit_configure(task)
+                    expect_execution { task.start! }.to { emit task.start_event }
+                    expect_execution { task.stop! }.to { emit task.stop_event }
+                end
             end
 
-            it "emits start when the component is started while the task is starting" do
-                task = @task
-                execute { task.start! }
-
-                assert task.starting?
-
-                expect_execution do
-                    Orocos.allow_blocking_calls { task.orocos_task.start(false) }
-                end.to { emit task.start_event }
+            def create_and_configure_task
+                task = @deployment.task("test")
+                syskit_configure(task)
+                task
             end
 
-            it "does not emit interrupted " \
-            "if the task is stopped while the component is running" do
-                task = @task
-                Orocos.allow_blocking_calls { task.orocos_task.start(false) }
-                execute { task.start! }
+            def create_configure_and_start_task
+                task = create_and_configure_task
+                expect_execution { task.start! }.to { emit task.start_event }
 
-                assert task.running? && state(task.orocos_task) == :RUNNING
-
-                expect_execution { task.stop! }
-                    .to { not_emit task.interrupt_event }
-            end
-
-            it "emits stop when the component is stopped while the task is running" do
-                task = @task
-                Orocos.allow_blocking_calls { task.orocos_task.start(false) }
-                execute { task.start! }
-
-                assert task.running?
-
-                expect_execution do
-                    Orocos.allow_blocking_calls { task.orocos_task.stop(false) }
-                end.to { emit task.stop_event }
+                assert task.running? && state(handle) == :RUNNING
+                task
             end
 
             def state(component)

@@ -560,7 +560,12 @@ module Syskit
         # task using the values read from the state reader
         def update_orogen_state
             @state_sample ||= state_reader.new_sample
-            state = state_reader.read_new(@state_sample)
+            state =
+                if @orogen_state
+                    state_reader.read_new(@state_sample)
+                else
+                    state_reader.read(@state_sample)
+                end
 
             if @exception_transition_deadline
                 return update_orogen_state_in_exception(state)
