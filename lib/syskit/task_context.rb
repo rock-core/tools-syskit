@@ -713,7 +713,7 @@ module Syskit
         def normal_task_verify_configurable_state(state)
             configurable =
                 CONFIGURABLE_RTT_STATES.include?(state) ||
-                    orocos_task.exception_state?(state)
+                orocos_task.exception_state?(state)
 
             return true if configurable
 

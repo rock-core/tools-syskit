@@ -710,26 +710,8 @@ module Syskit
                "state" do
                 task.should_receive(:read_only?).and_return(true)
                 orocos_task.should_receive(:runtime_state?)
-                                          .and_return(true)
+                           .and_return(true)
                 assert task.ready_for_setup?
-            end
-        end
-
-        describe "#perform_setup" do
-            attr_reader :task
-            before do
-                task = syskit_stub_and_deploy("Task") {}
-                syskit_start_execution_agents(task)
-                @task = flexmock(task)
-            end
-
-            it "does nothing when the task is read_only" do
-                task.should_receive(:read_only?).and_return(true)
-                task.should_receive(:prepare_for_setup).never
-                flexmock(task.orocos_task).should_receive(:configure).never
-                expect_execution { task.start! }.to do
-                    not_emit task.start_event, within: 0.5
-                end
             end
         end
 
@@ -2349,6 +2331,16 @@ module Syskit
                 assert_raises(InvalidReadOnlyOperation) do
                     task.properties.p = 2.0
                 end
+            end
+
+            it "does not perform setup on configuration" do
+                task = deployment.task("test")
+                flexmock(task).should_receive(:perform_setup).once
+                flexmock(task).should_receive(:prepare_for_setup).never
+
+                Orocos.allow_blocking_calls { handle.configure(false) }
+                Orocos.allow_blocking_calls { handle.start(false) }
+                syskit_configure(task)
             end
 
             describe "stopping behavior" do
