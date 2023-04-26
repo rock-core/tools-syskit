@@ -672,8 +672,6 @@ module Syskit
         # Returns true if this component needs to be setup by calling the
         # #setup method, or if it can be used as-is
         def ready_for_setup?(state = nil)
-            return running? if read_only?
-
             if execution_agent.configuring?(orocos_name)
                 debug { "#{self} not ready for setup: already configuring" }
                 return false
@@ -695,6 +693,8 @@ module Syskit
                 end
                 return
             end
+
+            return orocos_task.runtime_state?(state) if read_only?
 
             configurable_state =
                 CONFIGURABLE_RTT_STATES.include?(state) ||
