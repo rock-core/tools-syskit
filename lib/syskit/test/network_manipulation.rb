@@ -545,8 +545,6 @@ module Syskit
                     current_pending = pending.size
                     has_missing_states = false
                     pending.delete_if do |t|
-                        next true if t.read_only?
-
                         t.freeze_delayed_arguments
                         should_setup = Orocos.allow_blocking_calls do
                             if !t.kind_of?(Syskit::TaskContext)

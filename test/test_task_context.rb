@@ -2322,36 +2322,20 @@ module Syskit
                "while the component is running" do
                 Orocos.allow_blocking_calls { handle.configure(false) }
                 Orocos.allow_blocking_calls { handle.start(false) }
-                assert state(handle) == :RUNNING
-
                 create_configure_and_start_task
             end
 
-            it "emits start when the task is created and started after the component "\
-               "configuration but before its start" do
+            it "does not let itself be configured if the component is not configured" do
+                assert_raises(Syskit::Test::NetworkManipulation::NoConfigureFixedPoint) do
+                    create_and_configure_task
+                end
+            end
+
+            it "does not let itself be configured if the component is not started" do
                 Orocos.allow_blocking_calls { handle.configure(false) }
-                task = create_and_configure_task
-                Orocos.allow_blocking_calls { handle.start(false) }
-                expect_execution { task.start! }.to { emit task.start_event }
-            end
-
-            it "does not emit start if the task is started "\
-               "while the component is not running" do
-                task = create_and_configure_task
-                expect_execution { task.start! }.to { not_emit task.start_event }
-                # just to avoid: "TeardownFailedError: failed to tear down plan"
-                execute { task.stop! }
-            end
-
-            it "emits start when the component is started while the task is starting" do
-                task = create_and_configure_task
-                execute { task.start! }
-                assert task.starting?
-
-                expect_execution do
-                    Orocos.allow_blocking_calls { handle.configure(false) }
-                    Orocos.allow_blocking_calls { handle.start(false) }
-                end.to { emit task.start_event }
+                assert_raises(Syskit::Test::NetworkManipulation::NoConfigureFixedPoint) do
+                    create_and_configure_task
+                end
             end
 
             it "raises when attempting to change a property" do

@@ -694,20 +694,34 @@ module Syskit
                 return
             end
 
-            return orocos_task.runtime_state?(state) if read_only?
-
-            configurable_state =
-                CONFIGURABLE_RTT_STATES.include?(state) ||
-                orocos_task.exception_state?(state)
-            if configurable_state
-                true
+            if read_only?
+                read_only_task_verify_configurable_state(state)
             else
-                debug do
-                    "#{self} not ready for setup: in state #{state}, "\
-                    "expected STOPPED, PRE_OPERATIONAL or an exception state"
-                end
-                false
+                normal_task_verify_configurable_state(state)
             end
+        end
+
+        def read_only_task_verify_configurable_state(state)
+            return true if orocos_task.runtime_state?(state)
+
+            execution_engine.scheduler.report_holdoff(
+                "read-only task #{self} not ready, task is not currently running", self
+            )
+            false
+        end
+
+        def normal_task_verify_configurable_state(state)
+            configurable =
+                CONFIGURABLE_RTT_STATES.include?(state) ||
+                    orocos_task.exception_state?(state)
+
+            return true if configurable
+
+            execution_engine.scheduler.report_holdoff(
+                "task #{self} not ready, task is in state #{state}, expected "\
+                    "PRE_OPERATIONAL, STOPPED or an exception state", self
+            )
+            false
         end
 
         # Returns true if the underlying Orocos task has been configured and
