@@ -700,6 +700,34 @@ module Syskit
                 task.should_receive(:read_current_state).and_return(:STOPPED)
                 assert task.ready_for_setup?
             end
+
+            it "returns false if the task is read_only and the component is not running" do
+                task.should_receive(:read_only?).and_return(true)
+                refute task.ready_for_setup?
+            end
+
+            it "returns true if the task is read_only and the component is in a running "\
+               "state" do
+                task.should_receive(:read_only?).and_return(true)
+                orocos_task.should_receive(:runtime_state?)
+                                          .and_return(true)
+                assert task.ready_for_setup?
+            end
+        end
+
+        describe "#perform_setup" do
+            attr_reader :task
+            before do
+                task = syskit_stub_and_deploy("Task") {}
+                syskit_start_execution_agents(task)
+                @task = flexmock(task)
+            end
+
+            it "does nothing when the task is read_only" do
+                task.should_receive(:read_only?).and_return(true)
+                task.should_receive(:prepare_for_setup).never
+                flexmock(task.orocos_task).should_receive(:configure).never
+            end
         end
 
         describe "#read_current_state" do
