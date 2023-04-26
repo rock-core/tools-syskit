@@ -672,6 +672,8 @@ module Syskit
         # Returns true if this component needs to be setup by calling the
         # #setup method, or if it can be used as-is
         def ready_for_setup?(state = nil)
+            return running? if read_only?
+
             if execution_agent.configuring?(orocos_name)
                 debug { "#{self} not ready for setup: already configuring" }
                 return false
@@ -718,7 +720,7 @@ module Syskit
         #  end
         #
         def setup?
-            read_only? || @setup
+            @setup
         end
 
         def ready_to_start!
@@ -921,6 +923,8 @@ module Syskit
 
         # (see Component#perform_setup)
         def perform_setup(promise)
+            return if read_only?
+
             prepare_for_setup(promise)
 
             # This calls #configure
