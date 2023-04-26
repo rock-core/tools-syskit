@@ -727,6 +727,9 @@ module Syskit
                 task.should_receive(:read_only?).and_return(true)
                 task.should_receive(:prepare_for_setup).never
                 flexmock(task.orocos_task).should_receive(:configure).never
+                expect_execution { task.start! }.to do
+                    not_emit task.start_event, within: 0.5
+                end
             end
         end
 
