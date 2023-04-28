@@ -129,17 +129,14 @@ module Syskit
 
                 def initialize(reader, count, buffer_size, backtrace)
                     @received_samples = []
+                    @rejected_samples = []
                     @predicate = nil
 
                     orocos_reader = ExecutionExpectations.resolve_orocos_reader(
                         reader, type: :buffer, size: buffer_size
                     )
 
-                    description = proc do
-                        matching = " matching the given predicate" if @predicate
-                        "#{reader} should have received #{count} new sample(s)"\
-                        "#{matching}, but got #{@received_samples.size}"
-                    end
+                    description = proc { format_error_message(reader, count) }
                     block = ->(_) { process_samples(orocos_reader, count) }
                     super(block, description, backtrace)
                 end
@@ -149,6 +146,8 @@ module Syskit
                         if !@predicate || @predicate.call(sample)
                             @received_samples << sample
                             return true if @received_samples.size == count
+                        else
+                            @rejected_samples << sample
                         end
                     end
                     false
@@ -156,6 +155,34 @@ module Syskit
 
                 def return_object
                     @received_samples
+                end
+
+                def format_error_message(reader, expected_count)
+                    matching = " matching the given predicate" if @predicate
+                    msg = "#{reader} should have received #{expected_count} "\
+                          "new sample(s)#{matching}, but got #{@received_samples.size}"
+
+                    return msg unless @predicate
+
+                    msg + "\n  " + format_rejected_samples_message
+                end
+
+                def format_rejected_samples_message
+                    if @rejected_samples.empty?
+                        return "No samples were rejected by the #matching predicate"
+                    elsif @rejected_samples.size > 10
+                        samples = @rejected_samples[-10, 10]
+                    else
+                        samples = @rejected_samples
+                    end
+
+                    msg = +"#{samples.size} samples were rejected "\
+                          "by the #matching predicate:"
+                    samples.each do |s|
+                        sample_to_s = PP.pp(s, +"")
+                        msg += "\n    #{sample_to_s.split("\n").join("\n    ")}"
+                    end
+                    msg
                 end
 
                 def matching(&block)
