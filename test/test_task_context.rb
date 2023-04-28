@@ -2335,7 +2335,7 @@ module Syskit
 
             it "does not perform setup on configuration" do
                 task = deployment.task("test")
-                flexmock(task).should_receive(:perform_setup).once
+                flexmock(task).should_receive(:perform_setup).once.pass_thru
                 flexmock(task).should_receive(:prepare_for_setup).never
 
                 Orocos.allow_blocking_calls { handle.configure(false) }
