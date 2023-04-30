@@ -170,14 +170,18 @@ module Syskit
                 def format_rejected_samples_message
                     if @rejected_samples.empty?
                         return "No samples were rejected by the #matching predicate"
-                    elsif @rejected_samples.size > 10
+                    end
+
+                    if @rejected_samples.size > 10
                         samples = @rejected_samples[-10, 10]
+                        extra_msg = ". The last 10 rejected samples were:"
                     else
                         samples = @rejected_samples
+                        extra_msg = ":"
                     end
 
                     msg = +"#{samples.size} samples were rejected "\
-                          "by the #matching predicate:"
+                          "by the #matching predicate#{extra_msg}"
                     samples.each do |s|
                         sample_to_s = PP.pp(s, +"")
                         msg += "\n    #{sample_to_s.split("\n").join("\n    ")}"
