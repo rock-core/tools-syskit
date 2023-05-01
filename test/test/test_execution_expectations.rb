@@ -250,15 +250,31 @@ module Syskit
                             ).matching { |v| v >= default_size }
                         end
                 end
+                it "produces a specific message if there were no rejected samples" do
+                    e = assert_raises(Roby::Test::ExecutionExpectations::Unmet) do
+                        expect_execution { syskit_write task.in_port, 2 }
+                            .timeout(0.01)
+                            .to { have_new_samples(task.in_port, 2).matching(&:even?) }
+                    end
+                    expected_msg = <<~MSG.chomp
+                        #{task.in_port} should have received 2 new sample(s) matching the given predicate, but got 1
+                          No samples were rejected by the #matching predicate
+                    MSG
+                    assert_equal expected_msg, e.message.split("\n")[1, 4].join("\n")
+                end
                 it "fails if the task does not emit enough matching samples" do
                     e = assert_raises(Roby::Test::ExecutionExpectations::Unmet) do
                         expect_execution { syskit_write task.in_port, 1, 2, 3 }
                             .timeout(0.01)
                             .to { have_new_samples(task.in_port, 2).matching(&:even?) }
                     end
-                    assert_match "#{task.in_port} should have received 2 new "\
-                                 "sample(s) matching the given predicate, "\
-                                 "but got 1", e.message.split("\n")[1]
+                    expected_msg = <<~MSG.chomp
+                        #{task.in_port} should have received 2 new sample(s) matching the given predicate, but got 1
+                          2 samples were rejected by the #matching predicate:
+                            1
+                            3
+                    MSG
+                    assert_equal expected_msg, e.message.split("\n")[1, 4].join("\n")
                 end
                 it "provides the backtrace from the point of call by default" do
                     expectation = nil

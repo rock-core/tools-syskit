@@ -259,7 +259,6 @@ Lint/AssignmentInCondition:
     - 'lib/syskit/runtime/connection_management.rb'
     - 'lib/syskit/scripts/common.rb'
     - 'lib/syskit/task_configuration_manager.rb'
-    - 'test/test/test_execution_expectations.rb'
     - 'test/test_remote_state_getter.rb'
 
 # Offense count: 23
