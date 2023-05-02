@@ -232,6 +232,19 @@ module Syskit
                     assert_equal [], found
                     assert_equal [], skipped
                 end
+
+                it "uses example arguments in place of required arguments "\
+                   "when available" do
+                    @interface_m.describe(:m_action).required_arg(:test, "", example: 10)
+                    @interface_m.define_method :m_action do |test:|
+                    end
+
+                    found, skipped = BulkAssertAtomicActions(
+                        @interface_m.m_action
+                    )
+                    assert_equal [@interface_m.m_action.with_arguments(test: 10)], found
+                    assert_equal [], skipped
+                end
             end
 
             describe "assert_is_self_contained" do
