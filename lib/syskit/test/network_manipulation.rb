@@ -200,7 +200,25 @@ module Syskit
                 end.compact
                 root_tasks = placeholder_tasks.map(&:as_service)
                 placeholder_tasks = normalize_instanciation_models(placeholder_tasks)
+                syskit_deploy_normalized_placeholder_tasks(
+                    placeholder_tasks,
+                    syskit_engine: syskit_engine,
+                    default_deployment_group: default_deployment_group,
+                    **resolve_options
+                )
 
+                root_tasks = root_tasks.map(&:task)
+                if root_tasks.size == 1
+                    root_tasks.first
+                elsif root_tasks.size > 1
+                    root_tasks
+                end
+            end
+
+            def syskit_deploy_normalized_placeholder_tasks(
+                placeholder_tasks,
+                syskit_engine:, default_deployment_group:, **resolve_options
+            )
                 requirement_tasks = placeholder_tasks.map(&:planning_task)
 
                 not_running = requirement_tasks.find_all { |t| !t.running? }
@@ -233,13 +251,6 @@ module Syskit
                         plan.remove_task(task)
                     end
                     requirement_tasks.each { |t| t.success_event.emit unless t.finished? }
-                end
-
-                root_tasks = root_tasks.map(&:task)
-                if root_tasks.size == 1
-                    root_tasks.first
-                elsif root_tasks.size > 1
-                    root_tasks
                 end
             end
 
