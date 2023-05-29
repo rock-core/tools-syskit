@@ -138,9 +138,20 @@ module Syskit
             # Like #Actions, but expands coordination models into their
             # consistuent actions
             def AtomicActions(arg)
-                Actions(arg).flat_map do |action|
-                    expand_action_coordination_models(action)
+                queue = Actions(arg)
+                result = []
+                until queue.empty?
+                    actions = Actions(queue.shift).flat_map do |action|
+                        expand_action_coordination_models(action)
+                    end
+
+                    if actions.size == 1
+                        result.concat(actions)
+                    else
+                        queue.concat(actions)
+                    end
                 end
+                result.map { |a| a.dup.with_example_arguments }
             end
 
             # Like {#AtomicActions} but filters out actions that cannot be
@@ -154,7 +165,6 @@ module Syskit
                 exclude = ActionModels(exclude)
                 skipped_actions = []
                 actions = AtomicActions(arg).map do |action|
-                    action = action.dup.with_example_arguments
                     if exclude.include?(action.model)
                         nil
                     elsif !action.kind_of?(Actions::Action) &&
@@ -314,10 +324,7 @@ module Syskit
                     end
 
                 actions.each do |action|
-                    tasks = assert_can_instanciate_together(action, *together_with)
-                    Array(tasks).each { |t| plan.unmark_mission_task(t) }
-                    yield(action, tasks, together_with: together_with) if block_given?
-                    expect_execution.garbage_collect(true).to_run
+                    assert_can_instanciate_together(action, *together_with)
                 end
             end
 
@@ -341,11 +348,9 @@ module Syskit
             # deployed (e.g. if some components do not have a corresponding
             # deployment)
             def assert_can_instanciate_together(*actions)
-                actions = subject_syskit_model if actions.empty?
-                self.assertions += 1
-                syskit_deploy(AtomicActions(actions),
-                              compute_policies: false,
-                              compute_deployments: false)
+                syskit_run_deploy_in_bulk(
+                    actions, compute_policies: false, compute_deployments: false
+                )
             rescue Minitest::Assertion, StandardError => e
                 raise ProfileAssertionFailed.new(actions, e), e.message, e.backtrace
             end
@@ -430,10 +435,7 @@ module Syskit
                     end
 
                 actions.each do |action|
-                    task = assert_can_deploy_together(action, *together_with)
-                    yield(action, tasks, together_with: together_with) if block_given?
-                    Array(task).each { |t| plan.unmark_mission_task(t) }
-                    expect_execution.garbage_collect(true).to_run
+                    assert_can_deploy_together(action, *together_with)
                 end
             end
 
@@ -452,13 +454,49 @@ module Syskit
             # It is stronger (and therefore includes)
             # {assert_can_instanciate_together}
             def assert_can_deploy_together(*actions)
-                actions = subject_syskit_model if actions.empty?
-                self.assertions += 1
-                syskit_deploy(AtomicActions(actions),
-                              compute_policies: true,
-                              compute_deployments: true)
+                syskit_run_deploy_in_bulk(
+                    actions, compute_policies: true, compute_deployments: true
+                )
             rescue Minitest::Assertion, StandardError => e
                 raise ProfileAssertionFailed.new(actions, e), e.message, e.backtrace
+            end
+
+            def syskit_run_deploy_in_bulk(
+                actions, compute_policies:, compute_deployments:
+            )
+                actions = subject_syskit_model if actions.empty?
+                self.assertions += 1
+                atomic_actions = actions.map { AtomicActions(_1) }
+                ProfileAssertions.each_combination(*atomic_actions) do |test_actions|
+                    t = syskit_deploy(
+                        *test_actions.map(&:with_example_arguments),
+                        compute_policies: compute_policies,
+                        compute_deployments: compute_deployments
+                    )
+                    Array(t).each { plan.unmark_mission_task(_1) }
+                    expect_execution.garbage_collect(true).to_run
+                end
+            end
+
+            def self.each_combination(*arrays)
+                return enum_for(__method__, *arrays) unless block_given?
+
+                enumerators = arrays.map(&:each)
+                i = 0
+                values = []
+                loop do
+                    values[i] = enumerators[i].next
+                    if i == enumerators.size - 1
+                        yield values.dup
+                    else
+                        i += 1
+                    end
+                rescue StopIteration
+                    return if i == 0
+
+                    enumerators[i] = arrays[i].each
+                    i -= 1
+                end
             end
 
             # Spec-style call for {#assert_can_deploy_together}
