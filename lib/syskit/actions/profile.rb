@@ -53,6 +53,10 @@ module Syskit
                     action_model.advanced = advanced?
                     action_model
                 end
+
+                def to_s
+                    "#{profile}.#{name}_def"
+                end
             end
 
             class Definition < ProfileInstanceRequirements
@@ -67,10 +71,6 @@ module Syskit
                     profile.inject_di_context(result)
                     result.doc(doc)
                     result
-                end
-
-                def to_s
-                    "#{profile}.#{name}_def"
                 end
             end
 

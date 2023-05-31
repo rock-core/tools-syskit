@@ -54,6 +54,55 @@ module Syskit
             assert_equal expected, formatted.gsub(/<id:\d+>/, "<id:ID>").chomp
         end
 
+        it "displays definitions that depend on the conflicting tasks" do
+            device_m = Device.new_submodel(name: "D")
+            driver_m = TaskContext.new_submodel(name: "T")
+            driver_m.argument :arg
+            driver_m.driver_for device_m, as: "test"
+            robot = Robot::RobotDefinition.new
+            robot.device device_m, as: "test"
+
+            cmp_m = Composition.new_submodel
+            cmp_m.add device_m, as: "test"
+            profile = Actions::Profile.new("Test")
+            profile.define("test1", cmp_m)
+                   .use("test" => robot.test_dev.with_arguments(arg: 1))
+            profile.define("test2", cmp_m)
+                   .use("test" => robot.test_dev.with_arguments(arg: 2))
+
+            self.syskit_run_planner_validate_network = true
+            e = assert_raises(ConflictingDeviceAllocation) do
+                run_planners([profile.test1_def, profile.test2_def])
+            end
+
+            formatted = PP.pp(e, +"")
+            expected = <<~PP.chomp
+                device 'test' of type D is assigned to two tasks that cannot be merged
+                Chain 1 cannot be merged in chain 2:
+                Chain 1:
+                  T<id:ID>
+                    no owners
+                    arguments:
+                      test_dev: MasterDeviceInstance(test[D]_dev),
+                      arg: 2,
+                      conf: ["default"],
+                      read_only: false
+                Chain 2:
+                  T<id:ID>
+                    no owners
+                    arguments:
+                      test_dev: MasterDeviceInstance(test[D]_dev),
+                      arg: 1,
+                      conf: ["default"],
+                      read_only: false
+                Chain 1 is needed by the following definitions:
+                  Test.test2_def
+                Chain 2 is needed by the following definitions:
+                  Test.test1_def
+            PP
+            assert_equal expected, formatted.gsub(/<id:\d+>/, "<id:ID>").chomp
+        end
+
         it "displays merge chains to explain why devices are duplicated" do
             device_m = Device.new_submodel(name: "D")
             driver_m = TaskContext.new_submodel(name: "Driver") do
