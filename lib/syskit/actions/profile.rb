@@ -68,6 +68,10 @@ module Syskit
                     result.doc(doc)
                     result
                 end
+
+                def to_s
+                    "#{profile}.#{name}_def"
+                end
             end
 
             # Instance-level API for tags
@@ -265,7 +269,7 @@ module Syskit
             end
 
             def to_s
-                "profile:#{name}"
+                name
             end
 
             # Promote requirements taken from another profile to this profile
