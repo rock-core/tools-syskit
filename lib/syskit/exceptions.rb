@@ -457,36 +457,16 @@ module Syskit
         def initialize(device, task0, task1)
             @device = device
             @tasks = [task0, task1]
-            @can_merge = task0.can_merge?(task1) || task1.can_merge?(task0)
-            if can_merge?
-                # Mismatching inputs ... gather more info
-                @inputs = []
-                @inputs[0] = task0.each_concrete_input_connection.to_a
-                @inputs[1] = task1.each_concrete_input_connection.to_a
-            end
+
+            solver = NetworkGeneration::MergeSolver.new(task0.plan)
+            @merge_result = solver.resolve_merge(task0, task1, {})
         end
 
         def pretty_print(pp)
-            pp.text "device #{device.name} is assigned to two tasks"
-            if can_merge?
-                pp.text " that have mismatching inputs"
-                tasks.each_with_index do |t, i|
-                    pp.breakable
-                    t.pretty_print(pp)
-                    pp.breakable
-                    pp.text "#{inputs[i].size} input(s):"
-                    inputs[i].each do |source_task, source_port, sink_port|
-                        pp.breakable
-                        pp.text "  #{source_task}.#{source_port} -> #{sink_port}"
-                    end
-                end
-            else
-                pp.text " that cannot be merged"
-                tasks.each do |t|
-                    pp.breakable
-                    t.pretty_print(pp)
-                end
-            end
+            pp.text "device '#{device.name}' of type #{device.model} is assigned "
+            pp.text "to two tasks that cannot be merged"
+            pp.breakable
+            @merge_result.pretty_print_failure(pp)
         end
     end
 

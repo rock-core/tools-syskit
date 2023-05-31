@@ -419,17 +419,26 @@ module Syskit
                     !failure_chain
                 end
 
-                # @!method mappings
-                #    the set of known-good merges, only considering
-                #    tasks' intrinsic properties
-
-                # @!method failure_chain
-                #    when the merge cannot be performed, a
-                #    chain that links the original task pair given to resolve_merge
-                #    up to two tasks that can't be merged, in the form
-                #    `[t1, p1, t2, p2, t3, ... tN]``meaning that t2 is connected on t1's
-                #    sink port p1, t3 is connected on t2's sink port p2 and tN
-                #    is the task that cannot be merged
+                def pretty_print_failure(pp)
+                    pp.text "Chain 1 cannot be merged in chain 2:"
+                    [[merged_task, merged_failure_chain], [task, failure_chain]]
+                        .each_with_index do |(task, chain), i|
+                            pp.breakable
+                            pp.text "Chain #{i + 1}:"
+                            pp.nest(2) do
+                                pp.breakable
+                                task.pretty_print(pp)
+                                chain.each do |connection|
+                                    pp.breakable
+                                    pp.text "sink #{connection.sink_port}_port connected "
+                                    pp.text "via policy #{connection.policy} to source "
+                                    pp.text "#{connection.source_port}_port of"
+                                    pp.breakable
+                                    connection.source_task.pretty_print(pp)
+                                end
+                            end
+                        end
+                end
             end
 
             Connection = Struct.new(
