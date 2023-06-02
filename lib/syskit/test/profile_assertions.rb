@@ -15,13 +15,14 @@ module Syskit
             class ProfileAssertionFailed < Roby::ExceptionBase
                 attr_reader :actions
 
-                def initialize(act, original_error)
-                    @actions = Array(act)
+                def initialize(assertion_name, actions, original_error)
+                    @assertion_name = assertion_name
+                    @actions = Array(actions)
                     super([original_error])
                 end
 
                 def pretty_print(pp)
-                    pp.text "Failure while running an assertion on"
+                    pp.text "Failure while running a #{@assertion_name} assertion on"
                     pp.nest(2) do
                         actions.each do |act|
                             pp.breakable
@@ -270,7 +271,8 @@ module Syskit
                 plan.unmark_mission_task(task)
                 expect_execution.garbage_collect(true).to_run
             rescue Minitest::Assertion, StandardError => e
-                raise ProfileAssertionFailed.new(action, e), e.message, e.backtrace
+                raise ProfileAssertionFailed.new("self contained", action, e),
+                      e.message, e.backtrace
             end
 
             # Spec-style call for {#assert_is_self_contained}
@@ -352,7 +354,8 @@ module Syskit
                     actions, compute_policies: false, compute_deployments: false
                 )
             rescue Minitest::Assertion, StandardError => e
-                raise ProfileAssertionFailed.new(actions, e), e.message, e.backtrace
+                raise ProfileAssertionFailed.new("instanciate together", actions, e),
+                      e.message, e.backtrace
             end
 
             # Spec-style call for {#assert_can_instanciate_together}
@@ -458,7 +461,8 @@ module Syskit
                     actions, compute_policies: true, compute_deployments: true
                 )
             rescue Minitest::Assertion, StandardError => e
-                raise ProfileAssertionFailed.new(actions, e), e.message, e.backtrace
+                raise ProfileAssertionFailed.new("deploy together", actions, e),
+                      e.message, e.backtrace
             end
 
             def syskit_run_deploy_in_bulk(
@@ -533,15 +537,17 @@ module Syskit
                 task_contexts = tasks.find_all { |t| t.kind_of?(Syskit::TaskContext) }
                                      .each do |task_context|
                     unless task_context.plan
-                        raise ProfileAssertionFailed.new(actions, nil),
-                              "#{task_context} got garbage-collected before "\
-                              "it got configured"
+                        raise ProfileAssertionFailed.new(
+                            "configure together", actions, nil
+                        ), "#{task_context} got garbage-collected before "\
+                           "it got configured"
                     end
                 end
                 syskit_configure(task_contexts)
                 roots
             rescue Minitest::Assertion, StandardError => e
-                raise ProfileAssertionFailed.new(actions, e), e.message, e.backtrace
+                raise ProfileAssertionFailed.new("configure together", actions, e),
+                      e.message, e.backtrace
             end
 
             # Spec-style call for {#assert_can_configure_together}
