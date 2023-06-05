@@ -161,7 +161,7 @@ describe Syskit::Models::CompositionChild do
                     @cmp_m.test_child.bind(cmp.test_child.other_srv)
                 end
                 assert_equal "cannot bind Syskit::Models::Placeholder<srv_m> to "\
-                             "#<BoundDataService: task_m:0x.other>",
+                             "#<BoundDataService: task_m.other>",
                              e.message.gsub(/0x[0-9a-f]+/, "0x")
             end
         end
@@ -188,10 +188,11 @@ describe Syskit::Models::CompositionChild do
                 e = assert_raises(ArgumentError) do
                     @cmp_m.test_child.bind(task)
                 end
-                assert_equal "cannot bind cmp_m.test_child["\
-                             "Syskit::Models::Placeholder<srv_m>] to task_m:: "\
-                             "it is not the child of any cmp_m composition",
-                             e.message.gsub(/:0x.*:/, "::")
+                expected = "cannot bind cmp_m.test_child[Syskit::Models::"\
+                           "Placeholder<srv_m>] to task_m<id:X>(conf: default(["\
+                           "\"default\"]), read_only: default(false)): it is not"\
+                           " the child of any cmp_m composition"
+                assert_equal expected, e.message.gsub(/id:\d+/, "id:X")
             end
             it "does not move up to parents when the role does not match" do
                 plan.add(task = @task_m.new)
@@ -201,9 +202,10 @@ describe Syskit::Models::CompositionChild do
                     @cmp_m.test_child.bind(task)
                 end
                 assert_equal "cannot bind cmp_m.test_child[Syskit::Models::"\
-                             "Placeholder<srv_m>] to task_m:: it is the child of one "\
-                             "or more cmp_m compositions, but not with the role 'test'",
-                             e.message.gsub(/:0x.*:/, "::")
+                             "Placeholder<srv_m>] to task_m<id:X>(conf: default(["\
+                             "\"default\"]), read_only: default(false)): it is the child "\
+                             "of one or more cmp_m compositions, but not with the role "\
+                             "'test'", e.message.gsub(/id:\d+/, "id:X")
             end
         end
     end
