@@ -154,6 +154,20 @@ module Syskit
                 end
             end
 
+            # @api private
+            #
+            # For testing purposes only
+            def changed?
+                @changed
+            end
+
+            # @api private
+            #
+            # For testing purposes only
+            def reset_changed
+                @changed = false
+            end
+
             def reset(tasks = [])
                 @result = Hash.new { |h, k| h[k] = {} }
                 # Internal variable that is used to detect whether an iteration
@@ -318,7 +332,7 @@ module Syskit
                     @result[task][port_name] = info
                 else
                     begin
-                        @changed = @result[task][port_name].merge(info)
+                        @changed |= @result[task][port_name].merge(info)
                     rescue Exception => e
                         raise e, "while adding information to port #{port_name} on #{task}, #{e.message}", e.backtrace
                     end
