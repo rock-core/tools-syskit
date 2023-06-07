@@ -209,7 +209,7 @@ module Syskit
             # @return [nil,Typelib::Type] nil if there is has never been any data, or if
             #    there are no underlying port. A data sample otherwise.
             def read(sample = nil)
-                return unless (sample = @resolved_accessor&.read(sample))
+                return if (sample = @resolved_accessor&.read(sample)).nil?
 
                 @value_resolver.__resolve(sample)
             end
@@ -221,7 +221,7 @@ module Syskit
             # @return [nil,Typelib::Type] nil if there is no new data or if there are
             #    no underlying port. A data sample otherwise.
             def read_new(sample = nil)
-                return unless (sample = @resolved_accessor&.read_new(sample))
+                return if (sample = @resolved_accessor&.read_new(sample)).nil?
 
                 @value_resolver.__resolve(sample)
             end

@@ -573,6 +573,14 @@ module Syskit
                 assert_equal 2, @reader.read_new
             end
 
+            it "handles 'false' as a valid value" do
+                @reader.attach_to_task(@task)
+                wait_until_connected @reader
+                flexmock(@reader.resolved_accessor)
+                    .should_receive(:read_new).and_return(false)
+                assert_equal false, @reader.read_new
+            end
+
             it "processes the samples through the given value resolver" do
                 @value_resolver.should_receive(:__resolve).with(2).and_return(42)
                 @reader.attach_to_task(@task)
@@ -636,6 +644,14 @@ module Syskit
                 wait_until_connected @reader
                 execute { syskit_write @task.out_port, 2 }
                 assert_equal 2, @reader.read
+            end
+
+            it "handles 'false' as a valid value" do
+                @reader.attach_to_task(@task)
+                wait_until_connected @reader
+                flexmock(@reader.resolved_accessor)
+                    .should_receive(:read).and_return(false)
+                assert_equal false, @reader.read
             end
 
             it "processes the samples through the given value resolver" do
