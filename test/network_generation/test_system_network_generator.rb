@@ -180,7 +180,27 @@ module Syskit
 
                     assert_equal Set[task1, task2], e.tasks.to_set
                     formatted = PP.pp(e, +"")
-                    assert_equal "", formatted.gsub(/<id:\d+>/, "<id:ID>")
+                    expected = <<~MSG
+                        device 'test' of type D is assigned to two tasks that cannot be merged
+                        Chain 1 cannot be merged in chain 2:
+                        Chain 1:
+                          T<id:X>
+                            no owners
+                            arguments:
+                              arg: 2,
+                              test_dev: MasterDeviceInstance(test[D]_dev),
+                              conf: default(["default"]),
+                              read_only: default(false)
+                        Chain 2:
+                          T<id:X>
+                            no owners
+                            arguments:
+                              arg: 1,
+                              test_dev: MasterDeviceInstance(test[D]_dev),
+                              conf: default(["default"]),
+                              read_only: default(false)
+                    MSG
+                    assert_equal expected, formatted.gsub(/<id:\d+>/, "<id:X>")
                 end
             end
 
