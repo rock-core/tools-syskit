@@ -505,8 +505,10 @@ module Syskit
             end
 
             # @deprecated use {#connect_to_orocos_process_server} instead
-            def process_server(*args)
-                connect_to_orocos_process_server(*args)
+            def process_server(*args, **kw)
+                Roby.warn_deprecated "#{self.class}##{__method__} is deprecated, use "\
+                    "connect_to_orocos_process_server instead"
+                connect_to_orocos_process_server(*args, **kw)
             end
 
             ModelOnlyServer = Struct.new :loader do
@@ -533,14 +535,22 @@ module Syskit
             def connect_to_orocos_process_server(
                 name, host, port: Syskit::RobyApp::RemoteProcesses::DEFAULT_PORT,
                 log_dir: nil, result_dir: nil, host_id: nil,
-                model_only_server: only_load_models? || (app.simulation? && app.single?)
+                model_only_server: only_load_models? || (app.simulation? && app.single?),
+                name_service: nil
             )
                 if log_dir || result_dir
-                    Syskit.warn(
+                    Roby.warn_deprecated(
                         "specifying log and/or result dir for remote process servers "\
                         "is deprecated. Use 'syskit process_server' instead of "\
                         "'orocos_process_server' which will take the log dir "\
                         "information from the environment/configuration"
+                    )
+                end
+
+                if name_service
+                    Roby.warn_deprecated(
+                        "the name_service argument to connect_to_orocos_process_server "\
+                        "is not used anymore"
                     )
                 end
 
