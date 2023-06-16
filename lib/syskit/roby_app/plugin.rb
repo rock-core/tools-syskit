@@ -69,8 +69,6 @@ module Syskit
 
             # Hook called by the main application at the beginning of Application#setup
             def self.setup(app)
-                app.default_loader.export_types = Syskit.conf.export_types?
-
                 # This is a HACK. We should be able to specify it differently
                 if app.testing? && app.auto_load_models?
                     app.auto_load_all_task_libraries = true
@@ -272,8 +270,18 @@ module Syskit
             end
 
             def create_default_loader
-                @default_loader = DefaultLoader.new(self)
-                @default_loader.export_types = true
+                # Workaround needed for migration to runkit
+                #
+                # orocos.rb sets ::Types, and some other libraries (e.g. rock-gazebo)
+                # end up loading it. Make sure we (1) load it preemptively and (2)
+                # set our own
+                require "orocos/typekits"
+                type_export_namespace = Typelib::RegistryExport::Namespace.new
+                Object.const_set(:Types, type_export_namespace)
+
+                @default_loader = DefaultLoader.new(
+                    self, type_export_namespace: type_export_namespace
+                )
                 @default_loader.on_project_load do |project|
                     project_define_from_orogen(project)
                 end

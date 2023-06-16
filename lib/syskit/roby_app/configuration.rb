@@ -112,15 +112,6 @@ module Syskit
             # likely want this
             attr_predicate :kill_all_on_process_server_connection?, true
 
-            # Controls whether the orogen types should be exported as Ruby
-            # constants
-            #
-            # @param [Boolean] flag
-            def export_types=(flag)
-                @export_types = flag
-                app.default_loader.export_types = flag
-            end
-
             def initialize(app)
                 super()
 
@@ -157,7 +148,6 @@ module Syskit
                 )
 
                 clear
-                self.export_types = true
             end
 
             def create_subfield(name)
