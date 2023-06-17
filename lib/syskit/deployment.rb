@@ -285,6 +285,10 @@ module Syskit
         event :start do |_context|
             raise ArgumentError, "must set process_name" unless process_name
 
+            model.orogen_model.used_typekits.each do |tk|
+                Runkit.load_typekit tk.name
+            end
+
             spawn_options = self.spawn_options
             options = (spawn_options[:cmdline_args] || {}).dup
             model.each_default_run_option do |name, value|
