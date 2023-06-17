@@ -505,10 +505,10 @@ module Syskit
             end
 
             # @deprecated use {#connect_to_orocos_process_server} instead
-            def process_server(*args, **kw)
+            def process_server(...)
                 Roby.warn_deprecated "#{self.class}##{__method__} is deprecated, use "\
                     "connect_to_orocos_process_server instead"
-                connect_to_orocos_process_server(*args, **kw)
+                connect_to_orocos_process_server(...)
             end
 
             ModelOnlyServer = Struct.new :loader do
