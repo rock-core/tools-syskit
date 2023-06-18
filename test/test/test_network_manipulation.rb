@@ -232,6 +232,14 @@ module Syskit
                     task = syskit_deploy(@task_m)
                     assert_equal "test_level", task.orocos_name
                 end
+
+                it "on error, it filters out the planning failed and mission failed "\
+                   "error caused by itself" do
+                    task_m = Syskit::TaskContext.new_submodel
+                    assert_raises(MissingDeployments) do
+                        syskit_deploy(task_m)
+                    end
+                end
             end
 
             describe "#syskit_generate_network" do

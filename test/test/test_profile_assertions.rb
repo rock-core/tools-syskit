@@ -345,7 +345,8 @@ module Syskit
                     end
                     assert_match(
                         /cannot\ find\ a\ concrete\ implementation.*
-                         TestProfile.test_tag/mx, e.message
+                         TestProfile.test_tag/mx,
+                        PP.pp(e.each_original_exception.first, +"")
                     )
                 end
 
@@ -356,7 +357,8 @@ module Syskit
                     end
                     assert_match(
                         /cannot\ find\ a\ concrete\ implementation.*
-                         Models::Placeholder<Srv>/mx, e.message
+                         Models::Placeholder<Srv>/mx,
+                        PP.pp(e.each_original_exception.first, +"")
                     )
                 end
 
@@ -371,8 +373,8 @@ module Syskit
                         assert_can_instanciate(@test_profile)
                     end
                     assert_match(
-                        /cannot find a concrete implementation.*profile:Other.test_tag/m,
-                        e.message
+                        /cannot find a concrete implementation.*Other.test_tag/m,
+                        PP.pp(e.each_original_exception.first, +"")
                     )
                 end
 
@@ -465,7 +467,7 @@ module Syskit
 
                     assert_match(
                         /cannot deploy the following tasks.*Task.*child test of Cmp/m,
-                        e.message
+                        PP.pp(e.each_original_exception.first, +"")
                     )
                 end
 
@@ -479,7 +481,8 @@ module Syskit
                     end
                     assert_match(
                         /cannot\ find\ a\ concrete\ implementation.*
-                         TestProfile.test_tag/mx, e.message
+                         TestProfile.test_tag/mx,
+                        PP.pp(e.each_original_exception.first, +"")
                     )
                 end
 
@@ -490,7 +493,8 @@ module Syskit
                     end
                     assert_match(
                         /cannot\ find\ a\ concrete\ implementation.*
-                         Models::Placeholder<Srv>/mx, e.message
+                         Models::Placeholder<Srv>/mx,
+                        PP.pp(e.each_original_exception.first, +"")
                     )
                 end
 
@@ -505,8 +509,8 @@ module Syskit
                         assert_can_deploy(@test_profile)
                     end
                     assert_match(
-                        /cannot find a concrete implementation.*profile:Other.test_tag/m,
-                        e.message
+                        /cannot find a concrete implementation.*Other.test_tag/m,
+                        PP.pp(e.each_original_exception.first, +"")
                     )
                 end
 

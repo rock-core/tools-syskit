@@ -286,11 +286,9 @@ module Syskit
 
                     each_task_context_merge_candidate(task) do |merged_task|
                         # Try to resolve the merge
-                        can_merge, mappings =
-                            resolve_merge(merged_task, task, merged_task => task)
-
-                        if can_merge
-                            apply_merge_group(mappings)
+                        result = resolve_merge(merged_task, task, merged_task => task)
+                        if result.can_merge?
+                            apply_merge_group(result.mappings)
                         else
                             invalid_merges << [merged_task, task]
                         end
@@ -412,44 +410,126 @@ module Syskit
                 end
             end
 
+            # Representation of the result of {#resolve_merge}
+            MergeResolution = Struct.new(
+                :mappings, :merged_task, :task, :merged_failure_chain, :failure_chain
+            ) do
+                # Whether the merge resolution was successful
+                def can_merge?
+                    !failure_chain
+                end
+
+                def pretty_print_failure(pp)
+                    pp.text "Chain 1 cannot be merged in chain 2:"
+                    [[merged_task, merged_failure_chain], [task, failure_chain]]
+                        .each_with_index do |(task, chain), i|
+                            pp.breakable
+                            pp.text "Chain #{i + 1}:"
+                            pp.nest(2) do
+                                pp.breakable
+                                task.pretty_print(pp)
+                                chain.each do |connection|
+                                    pp.breakable
+                                    pp.text "sink #{connection.sink_port}_port connected "
+                                    pp.text "via policy #{connection.policy} to source "
+                                    pp.text "#{connection.source_port}_port of"
+                                    pp.breakable
+                                    connection.source_task.pretty_print(pp)
+                                end
+                            end
+                        end
+                end
+            end
+
+            Connection = Struct.new(
+                :source_task, :source_port, :policy, :sink_port, :sink_task
+            )
+
+            # Resolve merge between N tasks with the given tasks as seeds
+            #
+            # The method will cycle through the task's mismatching inputs (if
+            # there are any) and recursively resolve them, until it determines
+            # if the whole group can or cannot be merged
+            #
+            # @param [Syskit::TaskContext] merged_task task that is being considered
+            #   to be merged into 'task'
+            # @param [Syskit::TaskContext] task the task into which merged_task will
+            #   be merged. I.e. the operation is `task.merge(merged_task)``
+            # @param [{Syskit::TaskContext=>Syskit::TaskContext}] mappings hash
+            #   of "known good" merges that do not consider the dataflow (i.e. only
+            #   considering intrinsic properties of the tasks themselves)
+            #
+            # @return [MergeResolution]
             def resolve_merge(merged_task, task, mappings)
-                mismatched_inputs = log_nest(2) { resolve_input_matching(merged_task, task) }
+                unless may_merge_task_contexts?(merged_task, task)
+                    return MergeResolution.new(mappings, merged_task, task, [], [])
+                end
+
+                mismatched_inputs, failed_connections = log_nest(2) do
+                    resolve_input_matching(merged_task, task)
+                end
+
                 unless mismatched_inputs
-                    # Incompatible inputs
-                    return false, mappings
+                    return MergeResolution.new(
+                        mappings, merged_task, task,
+                        [failed_connections[0]], [failed_connections[1]]
+                    )
                 end
 
-                mismatched_inputs.each do |sink_port, merged_source_task, source_task|
-                    info do
-                        info "  looking to pair the inputs of port #{sink_port} of"
-                        info "    #{merged_source_task}"
-                        info "    -- and --"
-                        info "    #{source_task}"
-                        break
-                    end
+                mappings = mappings.merge({ merged_task => task })
+                mismatched_inputs.each do |connection, m_connection|
+                    next unless (result = process_port_mismatch(connection, m_connection, mappings))
+                    return result unless result.can_merge?
 
-                    if mappings[merged_source_task] == source_task
-                        info "  are already paired in the merge resolution: matching"
-                        next
-                    elsif !may_merge_task_contexts?(merged_source_task, source_task)
-                        info "  rejected: may not be merged"
-                        return false, mappings
-                    end
-
-                    can_merge, mappings = log_nest(2) do
-                        resolve_merge(merged_source_task, source_task,
-                                      mappings.merge(merged_source_task => source_task))
-                    end
-
-                    if can_merge
-                        info "  resolved"
-                    else
-                        info "  rejected: cannot find mapping to merge both tasks"
-                        return false, mappings
-                    end
+                    mappings = result.mappings
                 end
 
-                [true, mappings]
+                MergeResolution.new(mappings, merged_task, task)
+            end
+
+            # @api private
+            #
+            # Process the mismatch between two connections as returned by
+            # {#resolve_input_matching}
+            #
+            # @param [Connection] connection the mismatching connection on the
+            #   merge-target side
+            # @param [Connection] connection the mismatching connection on the
+            #   to-be-merged side
+            # @return [MergeResolution] merge result
+            def process_port_mismatch(connection, m_connection, mappings)
+                sink_port = connection.sink_port
+                merged_source_task = m_connection.source_task
+                source_task = connection.source_task
+
+                info do
+                    info "  looking to pair the inputs of port #{sink_port} of"
+                    info "    #{merged_source_task}"
+                    info "    -- and --"
+                    info "    #{source_task}"
+                    break
+                end
+
+                if mappings[merged_source_task] == source_task
+                    info "  are already paired in the merge resolution: matching"
+                    return
+                end
+
+                resolution = log_nest(2) do
+                    resolve_merge(merged_source_task, source_task, mappings)
+                end
+
+                if resolution.can_merge?
+                    info "  resolved"
+                    resolution
+                else
+                    info "  rejected: cannot find mapping to merge both tasks"
+                    MergeResolution.new(
+                        resolution.mappings, m_connection.sink_task, connection.sink_task,
+                        [connection] + resolution.failure_chain,
+                        [m_connection] + resolution.merged_failure_chain
+                    )
+                end
             end
 
             def compatible_policies?(policy, other_policy)
@@ -469,81 +549,86 @@ module Syskit
             #   Otherwise, the set of mismatching inputs is returned, in which
             #   each mismatch is a tuple (port_name,source_port,task_source,target_source).
             def resolve_input_matching(merged_task, task)
-                return [] if merged_task.equal?(task)
+                return [], nil if merged_task.equal?(task)
 
                 m_inputs = Hash.new { |h, k| h[k] = {} }
                 merged_task.each_concrete_input_connection do |m_source_task, m_source_port, sink_port, m_policy|
-                    m_inputs[sink_port][[m_source_task, m_source_port]] = m_policy
+                    m_inputs[sink_port][[m_source_task, m_source_port]] =
+                        Connection.new(m_source_task, m_source_port, m_policy,
+                                       sink_port, merged_task)
                 end
 
-                task.each_concrete_input_connection
-                    .filter_map do |source_task, source_port, sink_port, policy|
+                mismatched_inputs =
+                    task.each_concrete_input_connection
+                        .filter_map do |source_task, source_port, sink_port, policy|
                         # If merged_task has no connection on sink_port, the merge
                         # is always valid
                         next unless m_inputs.key?(sink_port)
 
+                        connection = Connection.new(
+                            source_task, source_port, policy, sink_port, task
+                        )
+
                         port_model = merged_task.model.find_input_port(sink_port)
-                        resolved =
+                        resolved, m_failed_connection =
                             if port_model&.multiplexes?
                                 resolve_multiplexing_input(
-                                    sink_port, source_task, source_port, policy,
-                                    m_inputs[sink_port]
+                                    connection, m_inputs[sink_port]
                                 )
                             else
-                                resolve_input(
-                                    sink_port, source_task, source_port, policy,
-                                    m_inputs[sink_port]
-                                )
+                                resolve_input(connection, m_inputs[sink_port])
                             end
 
-                        break unless resolved
+                        unless resolved
+                            return nil, [m_failed_connection, connection]
+                        end
 
                         resolved unless resolved.empty?
                     end
+
+                [mismatched_inputs, nil]
             end
 
-            def resolve_multiplexing_input(
-                sink_port, source_task, source_port, policy, m_inputs
-            )
-                return [] unless (m_policy = m_inputs[[source_task, source_port]])
+            def resolve_multiplexing_input(connection, m_inputs)
+                m_connection = m_inputs[[connection.source_task, connection.source_port]]
+                return [], nil unless m_connection
 
                 # Already connected to the same task and port, we
                 # just need to check whether the connections are
                 # compatible
-                return [] if compatible_policies?(policy, m_policy)
+                return [], nil if compatible_policies?(connection.policy, m_connection.policy)
 
                 debug do
                     "rejected: incompatible policies on #{sink_port}"
                 end
-                nil
+                [nil, m_connection]
             end
 
-            def resolve_input(
-                sink_port, source_task, source_port, policy, m_inputs
-            )
+            def resolve_input(connection, m_inputs)
                 # If we are not multiplexing, there can be only one source
                 # for merged_task
-                (m_source_task, m_source_port), m_policy = m_inputs.first
+                m_connection = m_inputs.first.last
 
-                if m_source_port != source_port
+                if m_connection.source_port != connection.source_port
                     debug do
                         "rejected: sink #{sink_port} is connected to a port "\
-                        "named #{m_source_port}, expected #{source_port}"
+                        "named #{m_connection.source_port}, expected "\
+                        "#{connection.source_port}"
                     end
-                    return
+                    return nil, m_connection
                 end
 
-                unless compatible_policies?(policy, m_policy)
+                unless compatible_policies?(connection.policy, m_connection.policy)
                     debug do
-                        "rejected: incompatible policies on #{sink_port}"
+                        "rejected: incompatible policies on #{connection.sink_port}"
                     end
-                    return
+                    return nil, m_connection
                 end
 
-                if m_source_task == source_task
-                    []
+                if m_connection.source_task == connection.source_task
+                    [[], nil]
                 else
-                    [sink_port, m_source_task, source_task]
+                    [[connection, m_connection], nil]
                 end
             end
 

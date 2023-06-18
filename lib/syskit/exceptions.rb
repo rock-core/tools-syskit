@@ -454,37 +454,41 @@ module Syskit
             !!@can_merge
         end
 
-        def initialize(device, task0, task1)
+        def initialize(device, task0, task1, toplevel_tasks_to_requirements = {})
             @device = device
             @tasks = [task0, task1]
-            @can_merge = task0.can_merge?(task1) || task1.can_merge?(task0)
-            if can_merge?
-                # Mismatching inputs ... gather more info
-                @inputs = []
-                @inputs[0] = task0.each_concrete_input_connection.to_a
-                @inputs[1] = task1.each_concrete_input_connection.to_a
+
+            solver = NetworkGeneration::MergeSolver.new(task0.plan)
+            @merge_result = solver.resolve_merge(task0, task1, {})
+            @involved_definitions = @tasks.map do |t|
+                find_all_related_syskit_actions(t, toplevel_tasks_to_requirements)
             end
         end
 
+        def find_all_related_syskit_actions(task, toplevel_tasks_to_requirements)
+            result = []
+            while task
+                result.concat(toplevel_tasks_to_requirements[task] || [])
+                task = task.each_parent_task.first
+            end
+            result
+        end
+
         def pretty_print(pp)
-            pp.text "device #{device.name} is assigned to two tasks"
-            if can_merge?
-                pp.text " that have mismatching inputs"
-                tasks.each_with_index do |t, i|
-                    pp.breakable
-                    t.pretty_print(pp)
-                    pp.breakable
-                    pp.text "#{inputs[i].size} input(s):"
-                    inputs[i].each do |source_task, source_port, sink_port|
+            pp.text "device '#{device.name}' of type #{device.model} is assigned "
+            pp.text "to two tasks that cannot be merged"
+            pp.breakable
+            @merge_result.pretty_print_failure(pp)
+            @involved_definitions.each_with_index do |defs, i|
+                next if defs.empty?
+
+                pp.breakable
+                pp.text "Chain #{i + 1} is needed by the following definitions:"
+                pp.nest(2) do
+                    defs.each do |d|
                         pp.breakable
-                        pp.text "  #{source_task}.#{source_port} -> #{sink_port}"
+                        pp.text d.to_s
                     end
-                end
-            else
-                pp.text " that cannot be merged"
-                tasks.each do |t|
-                    pp.breakable
-                    t.pretty_print(pp)
                 end
             end
         end

@@ -163,6 +163,45 @@ module Syskit
                         SystemNetworkGenerator.new(plan).validate_generated_network
                     end
                 end
+
+                it "validates that devices are allocated at most once" do
+                    device_m = Device.new_submodel(name: "D")
+                    task_m = TaskContext.new_submodel(name: "T")
+                    task_m.argument :arg
+                    task_m.driver_for device_m, as: "test"
+                    robot = Robot::RobotDefinition.new
+                    robot.device device_m, as: "test"
+
+                    plan.add(task1 = task_m.new(arg: 1, test_dev: robot.test_dev))
+                    plan.add(task2 = task_m.new(arg: 2, test_dev: robot.test_dev))
+                    e = assert_raises(ConflictingDeviceAllocation) do
+                        SystemNetworkGenerator.new(plan).validate_generated_network
+                    end
+
+                    assert_equal Set[task1, task2], e.tasks.to_set
+                    formatted = PP.pp(e, +"")
+                    expected = <<~MSG
+                        device 'test' of type D is assigned to two tasks that cannot be merged
+                        Chain 1 cannot be merged in chain 2:
+                        Chain 1:
+                          T<id:X>
+                            no owners
+                            arguments:
+                              arg: 2,
+                              test_dev: MasterDeviceInstance(test[D]_dev),
+                              conf: default(["default"]),
+                              read_only: default(false)
+                        Chain 2:
+                          T<id:X>
+                            no owners
+                            arguments:
+                              arg: 1,
+                              test_dev: MasterDeviceInstance(test[D]_dev),
+                              conf: default(["default"]),
+                              read_only: default(false)
+                    MSG
+                    assert_equal expected, formatted.gsub(/<id:\d+>/, "<id:X>")
+                end
             end
 
             describe "#verify_no_multiplexing_connections" do

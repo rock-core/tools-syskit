@@ -53,6 +53,10 @@ module Syskit
                     action_model.advanced = advanced?
                     action_model
                 end
+
+                def to_s
+                    "#{profile}.#{name}_def"
+                end
             end
 
             class Definition < ProfileInstanceRequirements
@@ -265,7 +269,7 @@ module Syskit
             end
 
             def to_s
-                "profile:#{name}"
+                name
             end
 
             # Promote requirements taken from another profile to this profile

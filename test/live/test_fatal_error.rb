@@ -44,11 +44,9 @@ module Syskit
                 Syskit.conf.auto_restart_deployments_with_quarantines = false
                 trigger_fatal_error(@task)
 
-                e = assert_raises(Roby::Test::ExecutionExpectations::UnexpectedErrors) do
+                assert_raises(TaskContextInFatal) do
                     syskit_deploy(@task_m)
                 end
-                assert_kind_of Roby::PlanningFailedError,
-                               e.each_execution_exception.first.exception
             end
 
             it "auto-restarts deployments with a task in FATAL_ERROR "\
