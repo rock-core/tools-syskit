@@ -65,7 +65,7 @@ module Syskit
             def configure
                 super
 
-                each_input_connection do |source_task, source_port_name, sink_port_name, policy|
+                each_concrete_input_connection do |source_task, source_port_name, sink_port_name, policy|
                     source_port = source_task.find_output_port(source_port_name)
                     create_logging_port(sink_port_name, source_task, source_port)
                 end
