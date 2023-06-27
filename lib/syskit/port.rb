@@ -88,6 +88,13 @@ module Syskit
             component_port.component.self_port_to_orocos_port(component_port)
         end
 
+        # @deprecated use {#to_orocos_port} instead
+        def to_orocos_port
+            Roby.warn_deprecated "#to_orocos_port is deprecated, "\
+                                 "use #to_runkit_port instead"
+            to_runkit_port
+        end
+
         # Connects this port to the other given port, using the given policy
         def connect_to(in_port, policy = {})
             out_port = to_component_port
