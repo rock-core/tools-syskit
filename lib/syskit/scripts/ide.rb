@@ -3,11 +3,9 @@
 require "roby"
 require "syskit/gui/ide"
 require "syskit/scripts/common"
-require "vizkit"
 
 load_all = false
-runtime_mode = nil
-runtime_only = false
+runtime_mode = false
 test_mode = false
 parser = OptionParser.new do |opt|
     opt.banner = <<~BANNER_TEXT
@@ -23,17 +21,8 @@ parser = OptionParser.new do |opt|
         test_mode = true
     end
 
-    opt.on "--no-runtime", "Do not attempt to connect to a running syskit instance" do
-        runtime_mode = false
-    end
-
     opt.on "--runtime", "Start in runtime mode" do
         runtime_mode = true
-    end
-
-    opt.on "--runtime-only", "only show runtime control functionalities" do
-        runtime_mode = true
-        runtime_only = true
     end
 end
 
@@ -62,13 +51,15 @@ Roby.app.auto_load_all = load_all
 Roby.app.auto_load_models = false
 Roby.app.additional_model_files.concat(direct_files)
 
-$qApp.disable_threading
 
 Syskit::Scripts.run do
     Runkit.initialize
+
+    qapp = Qt::Application.new(ARGV) unless defined?(Vizkit)
+
     main = Syskit::GUI::IDE.new(
         robot_name: Roby.app.robot_name,
-        runtime_only: runtime_only,
+        runtime_only: runtime_mode,
         runtime: runtime_mode, tests: test_mode,
         host: options[:host], port: options[:port]
     )
@@ -76,7 +67,14 @@ Syskit::Scripts.run do
 
     main.restore_from_settings
     main.show
-    Vizkit.exec
+
+    if qapp
+        qapp.exec
+    else
+        $qApp.disable_threading
+        Vizkit.exec
+    end
+
     main.save_to_settings
     main.settings.sync
 end

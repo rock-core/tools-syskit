@@ -5,7 +5,7 @@ require "open3"
 require "syskit/gui/model_browser"
 require "syskit/gui/state_label"
 require "syskit/gui/testing"
-require "syskit/gui/runtime_state"
+require "roby/droby/plan_rebuilder"
 require "shellwords"
 
 module Syskit
@@ -20,9 +20,12 @@ module Syskit
             attr_reader :connection_state
             attr_reader :testing
 
-            def initialize(parent = nil,
+            def initialize(
+                parent = nil,
                 runtime_only: false,
-                host: "localhost", port: Roby::Interface::DEFAULT_PORT, runtime: nil, tests: false, robot_name: "default")
+                host: "localhost", port: Roby::Interface::DEFAULT_PORT,
+                runtime: runtime_only, tests: false, robot_name: "default"
+            )
                 super(parent)
 
                 @layout = Qt::VBoxLayout.new(self)
@@ -73,6 +76,7 @@ module Syskit
                 end
 
                 if runtime != false
+                    require "syskit/gui/runtime_state"
                     syskit = Roby::Interface::Async::Interface.new(host, port: port)
                     create_runtime_state_ui(syskit)
                     runtime_idx = tab_widget.add_tab runtime_state, "Runtime"

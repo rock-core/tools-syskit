@@ -10,6 +10,7 @@ require "syskit/gui/expanded_job_status"
 require "syskit/gui/global_state_label"
 require "syskit/gui/app_start_dialog"
 require "syskit/gui/batch_manager"
+require "vizkit"
 
 module Syskit
     module GUI
