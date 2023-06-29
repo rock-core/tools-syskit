@@ -2,30 +2,23 @@
 
 require "Qt"
 require "open3"
+require "shellwords"
+
 require "syskit/gui/model_browser"
-require "syskit/gui/state_label"
 require "syskit/gui/testing"
 require "roby/droby/plan_rebuilder"
-require "shellwords"
 
 module Syskit
     module GUI
         # The main Syskit IDE window
-        class IDE < Qt::Widget
+        class BrowseMain < Qt::Widget
             attr_reader :layout
             attr_reader :btn_reload_models
             attr_reader :tab_widget
             attr_reader :model_browser
-            attr_reader :runtime_state
-            attr_reader :connection_state
             attr_reader :testing
 
-            def initialize(
-                parent = nil,
-                runtime_only: false,
-                host: "localhost", port: Roby::Interface::DEFAULT_PORT,
-                runtime: runtime_only, tests: false, robot_name: "default"
-            )
+            def initialize(parent = nil, tests: false, robot_name: "default")
                 super(parent)
 
                 @layout = Qt::VBoxLayout.new(self)
@@ -33,75 +26,50 @@ module Syskit
                 @layout.add_widget tab_widget
                 @robot_name = robot_name
 
-                unless runtime_only
-                    @testing = Testing.new
-                    @model_browser = ModelBrowser.new
-                    @btn_reload_models = Qt::PushButton.new("Reload Models", self)
-                    @btn_add = Qt::PushButton.new("Add", self)
-                    btn_add_menu = Qt::Menu.new
-                    btn_add_menu.add_action "OroGen Project"
-                    btn_add_menu.add_action "OroGen Type"
-                    btn_add_menu.add_action "Model File"
-                    btn_add_menu.connect(SIGNAL("triggered(QAction*)")) do |action|
-                        case action.text
-                        when "OroGen Project"
-                            add_orogen_project
-                        when "OroGen Type"
-                            add_orogen_type
-                        when "Model File"
-                            add_model_file
-                        end
+                @testing = Testing.new
+                @model_browser = ModelBrowser.new
+                @btn_reload_models = Qt::PushButton.new("Reload Models", self)
+                @btn_add = Qt::PushButton.new("Add", self)
+                btn_add_menu = Qt::Menu.new
+                btn_add_menu.add_action "OroGen Project"
+                btn_add_menu.add_action "OroGen Type"
+                btn_add_menu.add_action "Model File"
+                btn_add_menu.connect(SIGNAL("triggered(QAction*)")) do |action|
+                    case action.text
+                    when "OroGen Project"
+                        add_orogen_project
+                    when "OroGen Type"
+                        add_orogen_type
+                    when "Model File"
+                        add_model_file
                     end
-                    @btn_add.menu = btn_add_menu
-
-                    connect(model_browser, SIGNAL("fileOpenClicked(const QUrl&)"),
-                            self, SLOT("fileOpenClicked(const QUrl&)"))
-                    connect(testing, SIGNAL("fileOpenClicked(const QUrl&)"),
-                            self, SLOT("fileOpenClicked(const QUrl&)"))
-
-                    browse_container = Qt::Widget.new
-                    browse_container_layout = Qt::VBoxLayout.new(browse_container)
-                    status_bar = testing.create_status_bar_ui
-                    status_bar.insert_widget(0, @btn_reload_models)
-                    status_bar.insert_widget(1, @btn_add)
-                    browse_container_layout.add_layout(status_bar)
-                    browse_container_layout.add_widget(model_browser)
-                    tab_widget.add_tab browse_container, "Browse"
-                    tab_widget.add_tab testing, "Testing"
-
-                    btn_reload_models.connect(SIGNAL("clicked()")) do
-                        reload_models
-                    end
-                    model_browser.model_selector.filter_box.set_focus(Qt::OtherFocusReason)
                 end
+                @btn_add.menu = btn_add_menu
 
-                if runtime != false
-                    require "syskit/gui/runtime_state"
-                    syskit = Roby::Interface::Async::Interface.new(host, port: port)
-                    create_runtime_state_ui(syskit)
-                    runtime_idx = tab_widget.add_tab runtime_state, "Runtime"
-                    connect(@runtime_state, SIGNAL("fileOpenClicked(const QUrl&)"),
-                            self, SLOT("fileOpenClicked(const QUrl&)"))
-                end
+                connect(model_browser, SIGNAL("fileOpenClicked(const QUrl&)"),
+                        self, SLOT("fileOpenClicked(const QUrl&)"))
+                connect(testing, SIGNAL("fileOpenClicked(const QUrl&)"),
+                        self, SLOT("fileOpenClicked(const QUrl&)"))
 
-                if runtime
-                    tab_widget.current_index = runtime_idx
-                end
+                browse_container = Qt::Widget.new
+                browse_container_layout = Qt::VBoxLayout.new(browse_container)
+                status_bar = testing.create_status_bar_ui
+                status_bar.insert_widget(0, @btn_reload_models)
+                status_bar.insert_widget(1, @btn_add)
+                browse_container_layout.add_layout(status_bar)
+                browse_container_layout.add_widget(model_browser)
+                tab_widget.add_tab browse_container, "Browse"
+                tab_widget.add_tab testing, "Testing"
 
-                if tests
-                    testing.start
+                btn_reload_models.connect(SIGNAL("clicked()")) do
+                    reload_models
                 end
+                model_browser.model_selector.filter_box.set_focus(Qt::OtherFocusReason)
+
+                testing.start if tests
             end
 
             def reload_models
-                if @runtime_state && @runtime_state.current_state != "UNREACHABLE"
-                    Qt::MessageBox.warning(
-                        self, "Cannot Reload while running",
-                        "Cannot reload while an app is running, quit the app first"
-                    )
-                    return
-                end
-
                 model_browser.registered_exceptions.clear
                 Roby.app.clear_exceptions
                 Roby.app.cleanup
@@ -116,7 +84,6 @@ module Syskit
                 # HACK: has a task inspector, which also needs
                 # HACK: Runkit.initialize, so the IDE *does* call initialize
                 # HACK: explicitely
-                @runtime_state&.reset
                 model_browser.update_exceptions
                 model_browser.reload
                 testing.reloaded
@@ -260,39 +227,17 @@ module Syskit
                 end
             end
 
-            def create_runtime_state_ui(syskit)
-                @runtime_state = RuntimeState.new(syskit: syskit, robot_name: @robot_name)
-                connect(runtime_state, SIGNAL("fileOpenClicked(const QUrl&)"),
-                        self, SLOT("fileOpenClicked(const QUrl&)"))
-                @connection_state = GlobalStateLabel.new(
-                    actions: runtime_state.global_actions.values,
-                    name: runtime_state.remote_name
-                )
-                @connection_state.connect(SIGNAL("clicked(QPoint)")) do |global_pos|
-                    @connection_state.app_state_menu(global_pos)
-                end
-
-                tab_widget.set_corner_widget(connection_state, Qt::TopLeftCorner)
-                runtime_state.on_connection_state_changed do |state|
-                    connection_state.update_state state
-                end
-                runtime_state.on_progress do |message|
-                    state = connection_state.current_state.to_s
-                    connection_state.update_text(format("%s - %s", state, message))
-                end
-            end
-
             def global_settings
                 @global_settings ||= Qt::Settings.new("syskit")
             end
 
             def settings
-                @settings ||= Qt::Settings.new("syskit", "ide")
+                @settings ||= Qt::Settings.new("syskit", "browse")
             end
 
             def restore_from_settings(settings = self.settings)
                 self.size = settings.value("MainWindow/size", Qt::Variant.new(Qt::Size.new(800, 600))).to_size
-                %w{model_browser testing runtime_state}.each do |child_object_name|
+                %w[model_browser testing].each do |child_object_name|
                     next unless send(child_object_name)
 
                     settings.begin_group(child_object_name)
@@ -306,7 +251,7 @@ module Syskit
 
             def save_to_settings(settings = self.settings)
                 settings.set_value("MainWindow/size", Qt::Variant.new(size))
-                %w{model_browser testing runtime_state}.each do |child_object_name|
+                %w[model_browser testing].each do |child_object_name|
                     next unless send(child_object_name)
 
                     settings.begin_group(child_object_name)

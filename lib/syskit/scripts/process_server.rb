@@ -1,6 +1,8 @@
 # frozen_string_literal: true
 
 require "roby"
+require "syskit"
+require "syskit/roby_app"
 require "syskit/roby_app/remote_processes"
 require "syskit/roby_app/remote_processes/server"
 

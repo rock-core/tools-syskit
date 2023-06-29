@@ -1,15 +1,20 @@
 # frozen_string_literal: true
 
-require "syskit"
+require "qtwebkit"
+require "metaruby/gui/exception_rendering"
+require "metaruby/gui/exception_view"
+require "roby/gui/exception_view"
 require "roby/interface/async"
 require "roby/interface/async/log"
-require "syskit/gui/logging_configuration"
-require "syskit/gui/job_status_display"
-require "syskit/gui/widget_list"
-require "syskit/gui/expanded_job_status"
-require "syskit/gui/global_state_label"
 require "syskit/gui/app_start_dialog"
 require "syskit/gui/batch_manager"
+require "syskit/gui/expanded_job_status"
+require "syskit/gui/state_label"
+require "syskit/gui/global_state_label"
+require "syskit/gui/job_state_label"
+require "syskit/gui/job_status_display"
+require "syskit/gui/logging_configuration"
+require "syskit/gui/widget_list"
 require "vizkit"
 
 module Syskit

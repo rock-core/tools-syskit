@@ -1,9 +1,7 @@
 # frozen_string_literal: true
 
 require "optparse"
-require "runkit"
-require "syskit"
-require "syskit/roby_app"
+require "English"
 
 module Syskit
     module Scripts
@@ -217,6 +215,9 @@ module Syskit
         end
 
         def self.setup
+            require "syskit"
+            require "syskit/roby_app"
+
             tic = Time.now
             Roby.app.using "syskit"
             if debug
