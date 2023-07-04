@@ -168,6 +168,8 @@ module Syskit
                 @all_tasks = Set.new
                 @known_loggers = nil
                 @all_job_info = {}
+                @proxies = {}
+
                 syskit.on_ui_event do |event_name, *args|
                     if w = @ui_event_widgets[event_name]
                         w.show
@@ -312,11 +314,11 @@ module Syskit
                     ui_task_inspector.remove_task(task_name)
                 end
                 new.each do |task_name|
-                    ui_task_inspector.add_task(
-                        Orocos::Async::TaskContextProxy.new(
-                            task_name, name_service: @async_name_service
-                        )
+                    @proxies[task_name] ||= Orocos::Async::TaskContextProxy.new(
+                        task_name, name_service: @async_name_service
                     )
+
+                    ui_task_inspector.add_task(@proxies[task_name])
                 end
                 @current_orocos_tasks = orocos_tasks
             end
