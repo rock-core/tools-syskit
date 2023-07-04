@@ -307,8 +307,8 @@ module Syskit
                 t.kind_of?(@logger_m)
             end
 
-            def update_orocos_tasks
-                orocos_tasks = @name_service.names.to_set
+            def update_task_inspector(task_names)
+                orocos_tasks = task_names.to_set
                 removed = current_orocos_tasks - orocos_tasks
                 new     = orocos_tasks - current_orocos_tasks
                 removed.each do |task_name|
@@ -321,7 +321,7 @@ module Syskit
 
                     ui_task_inspector.add_task(@proxies[task_name])
                 end
-                @current_orocos_tasks = orocos_tasks
+                @current_orocos_tasks = orocos_tasks.dup
             end
 
             EventWidget = Struct.new :name, :widget, :hook do
@@ -527,7 +527,10 @@ module Syskit
             #
             # Sets up polling on a given syskit interface
             def poll_syskit_interface
-                syskit_update_info if syskit.connected?
+                begin
+                    syskit_update_info if syskit.connected?
+                rescue Roby::Interface::ComError # rubocop:disable Lint/SuppressedException
+                end
 
                 syskit.poll
             end
@@ -541,7 +544,14 @@ module Syskit
 
                 polling_call ["syskit"], "deployments" do |deployments|
                     update_deployments(deployments)
-                    update_orocos_tasks
+                    update_task_inspector(@name_service.names) unless @current_job
+                end
+
+                if @current_job
+                    polling_call [], "tasks_of_job", @current_job.job_id do |tasks|
+                        orocos_names = tasks.map { _1.arguments[:orocos_name] }.compact
+                        update_task_inspector(orocos_names)
+                    end
                 end
             end
 
@@ -631,6 +641,7 @@ module Syskit
                 @known_loggers = nil
                 all_job_info.clear
                 job_expanded_status.add_tasks_info(all_tasks, all_job_info)
+                update_task_inspector(@name_service.names)
             end
 
             def select_job(job_status)
