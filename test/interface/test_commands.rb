@@ -26,6 +26,27 @@ module Syskit
                 end
             end
 
+            describe "#deployments" do
+                attr_reader :task_m, :task
+                before do
+                    @task_m = TaskContext.new_submodel
+                    @task = syskit_stub_deploy_configure_and_start(
+                        syskit_stub_requirements(task_m).with_conf("default")
+                    )
+                    plan.add_mission_task(task)
+                end
+
+                it "returns the list of deployments" do
+                    deployments = subject.deployments
+                    assert_equal 1, deployments.size
+                    deployment = deployments.first
+                    assert_kind_of Protocol::Deployment, deployment
+                    assert_equal ::Process.pid, deployment.pid
+                    assert_equal "stubs", deployment.on
+                    assert_equal({ deployment.name => @task.orocos_task.ior }, deployment.iors)
+                end
+            end
+
             describe "#restart_deployments" do
                 attr_reader :task_m, :task
                 before do
