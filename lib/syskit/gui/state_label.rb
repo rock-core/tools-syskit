@@ -105,7 +105,7 @@ module Syskit
                 if c = COLORS[color]
                     COLORS[color]
                 else
-                    color.to_str
+                    color.to_s
                 end
             end
 

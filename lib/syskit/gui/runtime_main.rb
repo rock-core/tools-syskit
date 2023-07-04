@@ -27,7 +27,7 @@ module Syskit
 
                 syskit = Roby::Interface::Async::Interface.new(host, port: port)
                 create_runtime_state_ui(syskit)
-                runtime_idx = tab_widget.add_tab runtime_state, "Runtime"
+                tab_widget.add_tab runtime_state, "Runtime"
                 connect(@runtime_state, SIGNAL("fileOpenClicked(const QUrl&)"),
                         self, SLOT("fileOpenClicked(const QUrl&)"))
             end
