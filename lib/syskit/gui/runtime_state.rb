@@ -14,6 +14,7 @@ require "syskit/gui/global_state_label"
 require "syskit/gui/job_state_label"
 require "syskit/gui/job_status_display"
 require "syskit/gui/logging_configuration"
+require "syskit/gui/name_service"
 require "syskit/gui/widget_list"
 require "vizkit"
 
@@ -244,8 +245,9 @@ module Syskit
             def reset
                 Orocos.initialize
                 @logger_m = nil
-                orocos_corba_nameservice = Orocos::CORBA::NameService.new(syskit.remote_name)
-                @name_service = Orocos::Async::NameService.new(orocos_corba_nameservice)
+
+                @name_service = NameService.new
+                @async_name_service = Orocos::Async::NameService.new(@name_service)
             end
 
             def hide_loggers?
@@ -303,16 +305,18 @@ module Syskit
             end
 
             def update_orocos_tasks
-                candidate_tasks = all_tasks
-                                  .find_all { |t| t.kind_of?(Syskit::TaskContext) }
-                orocos_tasks = candidate_tasks.map { |t| t.arguments[:orocos_name] }.compact.to_set
+                orocos_tasks = @name_service.names.to_set
                 removed = current_orocos_tasks - orocos_tasks
                 new     = orocos_tasks - current_orocos_tasks
                 removed.each do |task_name|
                     ui_task_inspector.remove_task(task_name)
                 end
                 new.each do |task_name|
-                    ui_task_inspector.add_task(name_service.proxy(task_name))
+                    ui_task_inspector.add_task(
+                        Orocos::Async::TaskContextProxy.new(
+                            task_name, name_service: @async_name_service
+                        )
+                    )
                 end
                 @current_orocos_tasks = orocos_tasks
             end
@@ -520,9 +524,45 @@ module Syskit
             #
             # Sets up polling on a given syskit interface
             def poll_syskit_interface
+                syskit_update_info if syskit.connected?
+
                 syskit.poll
             end
             slots "poll_syskit_interface()"
+
+            def syskit_update_info
+                if syskit.cycle_start_time
+                    time_s = syskit.cycle_start_time.strftime("%H:%M:%S.%3N").to_s
+                    run_hook :on_progress, format("@%i %s", syskit.cycle_index, time_s)
+                end
+
+                syskit.async_call ["syskit"], "deployments" do |error, deployments|
+                    update_deployments(deployments)
+                    update_orocos_tasks
+                end
+            end
+
+            def update_deployments(deployments)
+                # Now remove all tasks that are not in deployments
+                existing = @name_service.names
+
+                deployments.each do |d|
+                    d.iors.each do |task_name, task_ior|
+                        if existing.include?(task_name)
+                            existing.delete(task_name)
+                            next if task_ior == @name_service.ior(task_name)
+                        end
+
+                        existing.delete(task_name)
+                        @name_service.register(
+                            Orocos::TaskContext.new(task_ior, name: task_name),
+                            name: task_name
+                        )
+                    end
+                end
+
+                existing.each { @name_service.deregister(_1) }
+            end
 
             # @api private
             #
