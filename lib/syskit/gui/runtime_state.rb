@@ -247,6 +247,7 @@ module Syskit
             def reset
                 Orocos.initialize
                 @logger_m = nil
+                @call_guards = {}
 
                 @name_service = NameService.new
                 @async_name_service = Orocos::Async::NameService.new(@name_service)
@@ -538,9 +539,43 @@ module Syskit
                     run_hook :on_progress, format("@%i %s", syskit.cycle_index, time_s)
                 end
 
-                syskit.async_call ["syskit"], "deployments" do |error, deployments|
+                polling_call ["syskit"], "deployments" do |deployments|
                     update_deployments(deployments)
                     update_orocos_tasks
+                end
+            end
+
+            def polling_call(path, m, *args)
+                key = [path, m, args]
+                if @call_guards.key?(key)
+                    return unless @call_guards[key]
+                end
+
+                @call_guards[key] = false
+                syskit.async_call(path, m, *args) do |error, ret|
+                    @call_guards[key] = true
+                    if error
+                        report_app_error(error)
+                    else
+                        yield(ret)
+                    end
+                end
+            end
+
+            def async_call(path, m, *args)
+                syskit.async_call(path, m, *args) do |error, ret|
+                    if error
+                        report_app_error(error)
+                    else
+                        yield(ret)
+                    end
+                end
+            end
+
+            def report_app_error(error)
+                warn error.message
+                error.backtrace.each do |line|
+                    warn "  #{line}"
                 end
             end
 
