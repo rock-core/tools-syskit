@@ -6,6 +6,17 @@ module Syskit
     module Interface
         # Definition of the syskit-specific interface commands
         class Commands < Roby::Interface::CommandLibrary
+            # Return information about deployments
+            #
+            # @return [Protocol::Deployment]
+            def deployments
+                plan.find_tasks(Syskit::Deployment).map do |task|
+                    Protocol.marshal_deployment_task(task)
+                end
+            end
+            command :deployments,
+                    "returns information about running deployments"
+
             # Save the configuration of all running tasks of the given model to disk
             #
             # @param [String,nil] name the section name for the new configuration.
