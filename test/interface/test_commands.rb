@@ -29,7 +29,7 @@ module Syskit
             describe "#deployments" do
                 attr_reader :task_m, :task
                 before do
-                    @task_m = TaskContext.new_submodel
+                    @task_m = TaskContext.new_submodel(name: "something")
                     @task = syskit_stub_deploy_configure_and_start(
                         syskit_stub_requirements(task_m).with_conf("default")
                     )
@@ -43,7 +43,12 @@ module Syskit
                     assert_kind_of Protocol::Deployment, deployment
                     assert_equal ::Process.pid, deployment.pid
                     assert_equal "stubs", deployment.on
-                    assert_equal({ deployment.name => @task.orocos_task.ior }, deployment.iors)
+
+                    assert_equal 1, deployment.deployed_tasks.size
+                    assert(task = deployment.deployed_tasks[deployment.name])
+                    assert_equal deployment.name, task.name
+                    assert_equal @task.orocos_task.ior, task.ior
+                    assert_equal "something", task.orogen_model_name
                 end
             end
 

@@ -47,11 +47,6 @@ module Syskit
             # state
             attr_reader :connection_state
 
-            # All known tasks
-            attr_reader :all_tasks
-            # Job information for tasks in the rebuilt plan
-            attr_reader :all_job_info
-
             # The name service which allows us to resolve Rock task contexts
             attr_reader :name_service
             # A task inspector widget we use to display the task states
@@ -165,9 +160,6 @@ module Syskit
 
                 @current_job = nil
                 @current_orocos_tasks = Set.new
-                @all_tasks = Set.new
-                @known_loggers = nil
-                @all_job_info = {}
                 @proxies = {}
 
                 syskit.on_ui_event do |event_name, *args|
@@ -248,6 +240,7 @@ module Syskit
                 Orocos.initialize
                 @logger_m = nil
                 @call_guards = {}
+                @orogen_models = {}
 
                 @name_service = NameService.new
                 @async_name_service = Orocos::Async::NameService.new(@name_service)
@@ -594,21 +587,31 @@ module Syskit
                 existing = @name_service.names
 
                 deployments.each do |d|
-                    d.iors.each do |task_name, task_ior|
+                    d.deployed_tasks.each do |task_name, deployed_task|
                         if existing.include?(task_name)
                             existing.delete(task_name)
-                            next if task_ior == @name_service.ior(task_name)
+                            next if deployed_task.ior == @name_service.ior(task_name)
                         end
 
                         existing.delete(task_name)
-                        @name_service.register(
-                            Orocos::TaskContext.new(task_ior, name: task_name),
-                            name: task_name
+                        task = Orocos::TaskContext.new(
+                            deployed_task.ior,
+                            name: task_name,
+                            model: orogen_model_from_name(deployed_task.orogen_model_name)
                         )
+
+                        @name_service.register(task, name: task_name)
                     end
                 end
 
                 existing.each { @name_service.deregister(_1) }
+            end
+
+            def orogen_model_from_name(name)
+                @orogen_models[name] ||= Orocos.default_loader.task_model_from_name(name)
+            rescue OroGen::NotFound
+                Orocos.warn "#{name} is a task context of class #{name}, but I cannot find the description for it, falling back"
+                @orogen_models[name] ||= Orocos.create_orogen_task_context_model(name)
             end
 
             # @api private
@@ -637,21 +640,12 @@ module Syskit
             def deselect_job
                 @current_job = nil
                 job_expanded_status.deselect
-                all_tasks.clear
-                @known_loggers = nil
-                all_job_info.clear
-                job_expanded_status.add_tasks_info(all_tasks, all_job_info)
                 update_task_inspector(@name_service.names)
             end
 
             def select_job(job_status)
                 @current_job = job_status.job
-                all_tasks.clear
-                @known_loggers = nil
-                all_job_info.clear
-                update_tasks_info
                 job_expanded_status.select(job_status)
-                job_expanded_status.add_tasks_info(all_tasks, all_job_info)
             end
 
             def restore_from_settings(settings)
