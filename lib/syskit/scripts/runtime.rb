@@ -11,6 +11,8 @@ parser = OptionParser.new do |opt|
     BANNER_TEXT
 end
 
+Roby.app.guess_app_dir
+
 options = {}
 Roby::Application.host_options(parser, options)
 Syskit::Scripts.common_options(parser, true)
@@ -20,7 +22,8 @@ error = Roby.display_exception do
     $qApp.disable_threading
 
     main = Syskit::GUI::RuntimeMain.new(
-        host: options[:host], port: options[:port]
+        host: options[:host], port: options[:port],
+        robot_name: Roby.app.robot_name || "default"
     )
     main.window_title = "Syskit #{Roby.app.app_name} #{Roby.app.robot_name} @#{options[:host]}"
 
@@ -33,3 +36,4 @@ error = Roby.display_exception do
     main.settings.sync
 end
 
+exit(1) if error

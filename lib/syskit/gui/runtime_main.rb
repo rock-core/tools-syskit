@@ -16,7 +16,8 @@ module Syskit
 
             def initialize(
                 parent = nil,
-                host: "localhost", port: Roby::Interface::DEFAULT_PORT
+                host: "localhost", port: Roby::Interface::DEFAULT_PORT,
+                robot_name: "default"
             )
                 super(parent)
 
@@ -26,14 +27,14 @@ module Syskit
                 @robot_name = "default"
 
                 syskit = Roby::Interface::Async::Interface.new(host, port: port)
-                create_runtime_state_ui(syskit)
+                create_runtime_state_ui(syskit, robot_name: robot_name)
                 tab_widget.add_tab runtime_state, "Runtime"
                 connect(@runtime_state, SIGNAL("fileOpenClicked(const QUrl&)"),
                         self, SLOT("fileOpenClicked(const QUrl&)"))
             end
 
-            def create_runtime_state_ui(syskit)
-                @runtime_state = RuntimeState.new(syskit: syskit, robot_name: @robot_name)
+            def create_runtime_state_ui(syskit, robot_name: "default")
+                @runtime_state = RuntimeState.new(syskit: syskit, robot_name: robot_name)
                 connect(runtime_state, SIGNAL("fileOpenClicked(const QUrl&)"),
                         self, SLOT("fileOpenClicked(const QUrl&)"))
                 @connection_state = GlobalStateLabel.new(
