@@ -4,6 +4,12 @@ require "archive/tar/minitar"
 
 module Syskit
     module CLI
+        # Implementation of the `syskit log-runtime-archive` tool
+        #
+        # The tool archives Syskit log directories into tar archives in realtime,
+        # compressing files using zstd
+        #
+        # It depends on the syskit instance using log rotation
         module LogRuntimeArchive
             # Find all dataset-looking folders within a root log folder
             def self.find_all_dataset_folders(root_dir)
@@ -20,6 +26,8 @@ module Syskit
             end
 
             # Safely add an entry into an archive, compressing it with zstd
+            #
+            # @return [Boolean] true if the file was added successfully, false otherwise
             def self.add_to_archive(archive_io, child_path)
                 puts "adding #{child_path}"
                 stat = child_path.stat
@@ -30,7 +38,9 @@ module Syskit
                 exit_status = write_compressed_data(child_path, archive_io)
 
                 if exit_status.success?
-                    add_to_archive_commit(archive_io, child_path, start_pos, data_pos, stat)
+                    add_to_archive_commit(
+                        archive_io, child_path, start_pos, data_pos, stat
+                    )
                     child_path.unlink
                 else
                     add_to_archive_rollback(archive_io, start_pos)
@@ -99,6 +109,13 @@ module Syskit
                 io.write("\0" * remainder)
             end
 
+            # Archive the given dataset
+            #
+            # @param [IO] archive_io the IO of the target archive
+            # @param [Pathname] path path to the dataset folder
+            # @param [Boolean] full whether we're arching the complete dataset (true),
+            #   or only the files that we know are not being written to (for log
+            #   directories of running Syskit instances)
             def self.archive_dataset(archive_io, path, full:)
                 puts "Archiving dataset #{path} in #{full ? "full" : "partial"} mode"
                 candidates = path.enum_for(:each_entry).map { path / _1 }
@@ -109,21 +126,42 @@ module Syskit
                 end
             end
 
+            # Filters all candidates for archiving to return the ones relevant for a
+            # partial archive (i.e. excluding files that are being written to)
+            #
+            # @param [Array<Pathname>] candidates
+            # @return [Array<Pathname>] files that should be archived
             def self.archive_partial_filter_candidates(candidates)
-                per_file_and_idx = candidates.each_with_object({}) do |path, h|
-                    name = path.basename.to_s
-                    if (m = /\.(\d+)\.log$/.match(name))
-                        per_file = (h[m.pre_match] ||= {})
-                        per_file[Integer(m[1])] = path
-                    end
-                end
-
+                per_file_and_idx = filter_and_group_pocolog_files(candidates)
                 per_file_and_idx.each_value.flat_map do |logs|
                     logs.delete(logs.keys.max)
                     logs.values
                 end
             end
 
+            # Filter the pocolog files from the given candidates and sort them
+            # by basename and log index
+            #
+            # @param [Array<Pathname>] candidates
+            # @return [{String=>{Integer=>Pathname}}]
+            def self.filter_and_group_pocolog_files(candidates)
+                candidates.each_with_object({}) do |path, h|
+                    name = path.basename.to_s
+                    if (m = /\.(\d+)\.log$/.match(name))
+                        per_file = (h[m.pre_match] ||= {})
+                        per_file[Integer(m[1])] = path
+                    end
+                end
+            end
+
+            # Iterate over all datasets in a Roby log root folder and archive them
+            #
+            # The method assumes the last dataset is the current one (i.e. the running
+            # one), and will only archive already rotated files.
+            #
+            # @param [Pathname] root_dir the log root folder
+            # @param [Pathname] target_dir the folder in which to save the
+            #   archived datasets
             def self.process_root_folder(root_dir, target_dir)
                 candidates = find_all_dataset_folders(root_dir)
                 running = candidates.last
@@ -184,7 +222,7 @@ module Syskit
                         newname = "#{nxt}/#{newname}"
                     end
 
-                    prefix = (parts + [nxt]).join('/')
+                    prefix = (parts + [nxt]).join("/")
                     name = newname
                 end
 

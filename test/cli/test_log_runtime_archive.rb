@@ -91,7 +91,7 @@ module Syskit
 
                 it "adds a compressed version of the input I/O to the archive "\
                    "and deletes the input file" do
-                    in_path = make_in_file "something.txt", "something"
+                    something = make_in_file "something.txt", "something"
 
                     @archive_path.open("w") do |archive_io|
                         @in_files.each do |in_path|
@@ -104,7 +104,7 @@ module Syskit
                     assert_entry_matches(
                         *entries.first, name: "something.txt.zst", content: "something"
                     )
-                    refute in_path.exist?
+                    refute something.exist?
                 end
 
                 it "creates a multi-file archive" do
