@@ -42,13 +42,15 @@ module Syskit
                         archive_io, child_path, start_pos, data_pos, stat
                     )
                     child_path.unlink
+                    true
                 else
                     add_to_archive_rollback(archive_io, start_pos)
+                    false
                 end
-
             rescue Exception => e # rubocop:disable Lint/RescueException
+                Roby.display_exception(STDOUT, e)
                 add_to_archive_rollback(archive_io, start_pos) if start_pos
-                raise
+                false
             end
 
             # Finalize appending a file in the archive

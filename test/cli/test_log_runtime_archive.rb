@@ -131,13 +131,39 @@ module Syskit
                     bli = make_in_file "bli.txt", "bli"
 
                     @archive_path.open("w") do |archive_io|
-                        LogRuntimeArchive.add_to_archive(archive_io, bla)
+                        assert LogRuntimeArchive.add_to_archive(archive_io, bla)
                         FlexMock.use(Process) do |mock|
                             mock.should_receive(:waitpid2).once
                                 .and_return([10, flexmock(success?: false)])
-                            LogRuntimeArchive.add_to_archive(archive_io, blo)
+                            refute LogRuntimeArchive.add_to_archive(archive_io, blo)
                         end
-                        LogRuntimeArchive.add_to_archive(archive_io, bli)
+                        assert LogRuntimeArchive.add_to_archive(archive_io, bli)
+                    end
+
+                    entries = read_archive
+                    assert_equal 2, entries.size
+                    assert_entry_matches(*entries[0], name: "bla.txt.zst", content: "bla")
+                    assert_entry_matches(*entries[1], name: "bli.txt.zst", content: "bli")
+                    refute bla.exist?
+                    assert blo.exist?
+                    refute bli.exist?
+                end
+
+                it "restores the file as it was and keeps the input file if an "\
+                   "exception occurs" do
+                    bla = make_in_file "bla.txt", "bla"
+                    blo = make_in_file "blo.txt", "blo"
+                    bli = make_in_file "bli.txt", "bli"
+
+                    @archive_path.open("w") do |archive_io|
+                        assert LogRuntimeArchive.add_to_archive(archive_io, bla)
+                        FlexMock.use(Process) do |mock|
+                            mock.should_receive(:waitpid2).once
+                                .and_raise(Exception.new)
+                            flexmock(Roby).should_receive(:display_exception).once
+                            refute LogRuntimeArchive.add_to_archive(archive_io, blo)
+                        end
+                        assert LogRuntimeArchive.add_to_archive(archive_io, bli)
                     end
 
                     entries = read_archive
