@@ -28,8 +28,8 @@ module Syskit
             # Safely add an entry into an archive, compressing it with zstd
             #
             # @return [Boolean] true if the file was added successfully, false otherwise
-            def self.add_to_archive(archive_io, child_path)
-                puts "adding #{child_path}"
+            def self.add_to_archive(archive_io, child_path, logger: null_logger)
+                logger.info "adding #{child_path}"
                 stat = child_path.stat
 
                 start_pos = archive_io.tell
@@ -44,12 +44,14 @@ module Syskit
                     child_path.unlink
                     true
                 else
-                    add_to_archive_rollback(archive_io, start_pos)
+                    add_to_archive_rollback(archive_io, start_pos, logger: logger)
                     false
                 end
             rescue Exception => e # rubocop:disable Lint/RescueException
                 Roby.display_exception(STDOUT, e)
-                add_to_archive_rollback(archive_io, start_pos) if start_pos
+                if start_pos
+                    add_to_archive_rollback(archive_io, start_pos, logger: logger)
+                end
                 false
             end
 
@@ -67,7 +69,8 @@ module Syskit
             end
 
             # Revert the addition of a file in the archive, after an error
-            def self.add_to_archive_rollback(archive_io, start_pos)
+            def self.add_to_archive_rollback(archive_io, start_pos, logger:)
+                logger.warn "failed addition to archive, rolling back to known-good state"
                 archive_io.truncate(start_pos)
                 archive_io.seek(start_pos, IO::SEEK_SET)
             end
@@ -111,6 +114,13 @@ module Syskit
                 io.write("\0" * remainder)
             end
 
+            # Create a logger that will display nothing
+            def self.null_logger
+                logger = Logger.new(STDOUT)
+                logger.level = Logger::FATAL + 1
+                logger
+            end
+
             # Archive the given dataset
             #
             # @param [IO] archive_io the IO of the target archive
@@ -118,13 +128,15 @@ module Syskit
             # @param [Boolean] full whether we're arching the complete dataset (true),
             #   or only the files that we know are not being written to (for log
             #   directories of running Syskit instances)
-            def self.archive_dataset(archive_io, path, full:)
-                puts "Archiving dataset #{path} in #{full ? "full" : "partial"} mode"
+            def self.archive_dataset(archive_io, path, full:, logger: null_logger)
+                logger.info(
+                    "Archiving dataset #{path} in #{full ? 'full' : 'partial'} mode"
+                )
                 candidates = path.enum_for(:each_entry).map { path / _1 }
                 candidates = archive_partial_filter_candidates(candidates) unless full
 
                 candidates.each do |child_path|
-                    add_to_archive(archive_io, child_path)
+                    add_to_archive(archive_io, child_path, logger: logger)
                 end
             end
 
@@ -164,7 +176,7 @@ module Syskit
             # @param [Pathname] root_dir the log root folder
             # @param [Pathname] target_dir the folder in which to save the
             #   archived datasets
-            def self.process_root_folder(root_dir, target_dir)
+            def self.process_root_folder(root_dir, target_dir, logger: null_logger)
                 candidates = find_all_dataset_folders(root_dir)
                 running = candidates.last
                 candidates.each do |child|
@@ -178,7 +190,9 @@ module Syskit
 
                     archive_path.open(mode) do |archive_io|
                         archive_io.seek(0, IO::SEEK_END)
-                        archive_dataset(archive_io, child, full: child != running)
+                        archive_dataset(
+                            archive_io, child, logger: logger, full: child != running
+                        )
                     end
                 end
             end

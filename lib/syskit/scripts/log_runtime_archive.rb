@@ -21,8 +21,13 @@ end
 
 POLLING_PERIOD = 600
 
+logger = Logger.new(STDOUT)
+logger.level = Logger::INFO
+
 loop do
-    Syskit::CLI::LogRuntimeArchive.process_root_folder(root_dir, target_dir)
+    Syskit::CLI::LogRuntimeArchive.process_root_folder(
+        root_dir, target_dir, logger: logger
+    )
 
     puts "Archived pending logs, sleeping #{POLLING_PERIOD}s"
     sleep POLLING_PERIOD
