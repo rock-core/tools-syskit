@@ -6,18 +6,13 @@ require "syskit/cli/log_runtime_archive"
 module Syskit
     module CLI
         describe LogRuntimeArchive do
+            before do
+                @root = make_tmppath
+                @archive_path = (make_tmppath / "archive.tar")
+                @in_files = []
+            end
+
             describe ".find_all_dataset_folders" do
-                before do
-                    @root = make_tmppath
-                end
-
-                def make_valid_folder(name)
-                    path = (@root / name)
-                    path.mkpath
-                    FileUtils.touch(path / "info.yml")
-                    path
-                end
-
                 it "returns the directories that look like a dataset path" do
                     path = make_valid_folder("20229523-1104.1")
                     assert_equal(
@@ -57,38 +52,6 @@ module Syskit
             end
 
             describe ".add_to_archive" do
-                before do
-                    @root = make_tmppath
-                    @archive_path = (make_tmppath / "archive.tar")
-                    @in_files = []
-                end
-
-                def make_in_file(name, content)
-                    path = (@root / name)
-                    path.write(content)
-                    @in_files << path
-                    path
-                end
-
-                def read_archive
-                    tar = Archive::Tar::Minitar::Input.open(@archive_path.open("r"))
-                    tar.each_entry.map { |e| [e, e.read] }
-                end
-
-                def decompress_data(data)
-                    IO.popen(["zstd", "-d", "--stdout"], "r+") do |io|
-                        io.write data
-                        io.close_write
-                        io.read
-                    end
-                end
-
-                def assert_entry_matches(entry, data, name:, content:)
-                    assert entry.file?
-                    assert_equal name, entry.full_name
-                    assert_equal content, decompress_data(data)
-                end
-
                 it "adds a compressed version of the input I/O to the archive "\
                    "and deletes the input file" do
                     something = make_in_file "something.txt", "something"
@@ -174,6 +137,91 @@ module Syskit
                     assert blo.exist?
                     refute bli.exist?
                 end
+            end
+
+            describe ".archive_dataset" do
+                it "does a full archive of a given dataset" do
+                    dataset = make_valid_folder("20220434-2023")
+                    make_in_file "test.0.log", "test0", root: dataset
+                    make_in_file "test.1.log", "test1", root: dataset
+                    make_in_file "something.txt", "something", root: dataset
+
+                    @archive_path.open("w") do |archive_io|
+                        flexmock(LogRuntimeArchive)
+                            .should_receive(:add_to_archive).times(4).pass_thru
+                        LogRuntimeArchive.archive_dataset(archive_io, dataset, full: true)
+                    end
+
+                    entries = read_archive
+                    assert_equal 4, entries.size
+                    entries = entries.sort_by { _1[0].full_name }
+                    assert_entry_matches(
+                        *entries[0], name: "info.yml.zst", content: ""
+                    )
+                    assert_entry_matches(
+                        *entries[1], name: "something.txt.zst", content: "something"
+                    )
+                    assert_entry_matches(
+                        *entries[2], name: "test.0.log.zst", content: "test0"
+                    )
+                    assert_entry_matches(
+                        *entries[3], name: "test.1.log.zst", content: "test1"
+                    )
+                end
+
+                it "does a partial archive of a given dataset" do
+                    dataset = make_valid_folder("20220434-2023")
+                    make_in_file "test.0.log", "test0", root: dataset
+                    make_in_file "test.1.log", "test1", root: dataset
+                    make_in_file "something.txt", "something", root: dataset
+
+                    @archive_path.open("w") do |archive_io|
+                        flexmock(LogRuntimeArchive)
+                            .should_receive(:add_to_archive).times(1).pass_thru
+                        LogRuntimeArchive.archive_dataset(
+                            archive_io, dataset, full: false
+                        )
+                    end
+
+                    entries = read_archive
+                    assert_equal 1, entries.size
+                    assert_entry_matches(
+                        *entries[0], name: "test.0.log.zst", content: "test0"
+                    )
+                end
+            end
+
+            def make_valid_folder(name)
+                path = (@root / name)
+                path.mkpath
+                FileUtils.touch(path / "info.yml")
+                path
+            end
+
+            def make_in_file(name, content, root: @root)
+                path = (root / name)
+                path.write(content)
+                @in_files << path
+                path
+            end
+
+            def read_archive
+                tar = Archive::Tar::Minitar::Input.open(@archive_path.open("r"))
+                tar.each_entry.map { |e| [e, e.read] }
+            end
+
+            def decompress_data(data)
+                IO.popen(["zstd", "-d", "--stdout"], "r+") do |io|
+                    io.write data
+                    io.close_write
+                    io.read
+                end
+            end
+
+            def assert_entry_matches(entry, data, name:, content:)
+                assert entry.file?
+                assert_equal name, entry.full_name
+                assert_equal content, decompress_data(data)
             end
         end
     end

@@ -132,7 +132,9 @@ module Syskit
                 logger.info(
                     "Archiving dataset #{path} in #{full ? 'full' : 'partial'} mode"
                 )
-                candidates = path.enum_for(:each_entry).map { path / _1 }
+                candidates =
+                    path.enum_for(:each_entry).map { path / _1 }
+                        .find_all { _1.file? }
                 candidates = archive_partial_filter_candidates(candidates) unless full
 
                 candidates.each do |child_path|
