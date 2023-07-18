@@ -191,6 +191,63 @@ module Syskit
                 end
             end
 
+            describe ".process_root_folder" do
+                it "archives all folders, the last one only partially" do
+                    dataset0 = make_valid_folder("20220434-2023")
+                    dataset1 = make_valid_folder("20220434-2024")
+                    dataset2 = make_valid_folder("20220434-2025")
+
+                    archive_dir = make_tmppath
+                    flexmock(LogRuntimeArchive)
+                        .should_receive(:archive_dataset)
+                        .with(
+                            ->(p) { p.path == (archive_dir / "20220434-2023.tar").to_s },
+                            dataset0,
+                            hsh(full: true)
+                        ).once.pass_thru
+                    flexmock(LogRuntimeArchive)
+                        .should_receive(:archive_dataset)
+                        .with(
+                            ->(p) { p.path == (archive_dir / "20220434-2024.tar").to_s },
+                            dataset1,
+                            hsh(full: true)
+                        ).once.pass_thru
+                    flexmock(LogRuntimeArchive)
+                        .should_receive(:archive_dataset)
+                        .with(
+                            ->(p) { p.path == (archive_dir / "20220434-2025.tar").to_s },
+                            dataset2,
+                            hsh(full: false)
+                        ).once.pass_thru
+
+                    LogRuntimeArchive.process_root_folder(@root, archive_dir)
+
+                    assert (archive_dir / "20220434-2023.tar").file?
+                    assert (archive_dir / "20220434-2024.tar").file?
+                    assert (archive_dir / "20220434-2025.tar").file?
+                end
+
+                it "appends to existing archives" do
+                    dataset = make_valid_folder("20220434-2023")
+                    make_in_file "test.0.log", "test0", root: dataset
+                    make_in_file "test.1.log", "test1", root: dataset
+
+                    archive_dir = make_tmppath
+                    LogRuntimeArchive.process_root_folder(@root, archive_dir)
+                    make_in_file "test.2.log", "test2", root: dataset
+                    LogRuntimeArchive.process_root_folder(@root, archive_dir)
+
+                    entries = read_archive(path: archive_dir / "20220434-2023.tar")
+                    assert_equal 2, entries.size
+                    assert_entry_matches(
+                        *entries[0], name: "test.0.log.zst", content: "test0"
+                    )
+                    assert_entry_matches(
+                        *entries[1], name: "test.1.log.zst", content: "test1"
+                    )
+                end
+            end
+
             def make_valid_folder(name)
                 path = (@root / name)
                 path.mkpath
@@ -205,8 +262,8 @@ module Syskit
                 path
             end
 
-            def read_archive
-                tar = Archive::Tar::Minitar::Input.open(@archive_path.open("r"))
+            def read_archive(path: @archive_path)
+                tar = Archive::Tar::Minitar::Input.open(path.open("r"))
                 tar.each_entry.map { |e| [e, e.read] }
             end
 
