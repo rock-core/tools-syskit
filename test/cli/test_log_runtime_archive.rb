@@ -192,39 +192,111 @@ module Syskit
             end
 
             describe ".process_root_folder" do
+                before do
+                    @archive_dir = make_tmppath
+                    @process = LogRuntimeArchive.new(@root, @archive_dir)
+                end
+
                 it "archives all folders, the last one only partially" do
                     dataset0 = make_valid_folder("20220434-2023")
                     dataset1 = make_valid_folder("20220434-2024")
                     dataset2 = make_valid_folder("20220434-2025")
 
-                    archive_dir = make_tmppath
-                    flexmock(LogRuntimeArchive)
-                        .should_receive(:archive_dataset)
-                        .with(
-                            ->(p) { p.path == (archive_dir / "20220434-2023.tar").to_s },
-                            dataset0,
-                            hsh(full: true)
-                        ).once.pass_thru
-                    flexmock(LogRuntimeArchive)
-                        .should_receive(:archive_dataset)
-                        .with(
-                            ->(p) { p.path == (archive_dir / "20220434-2024.tar").to_s },
-                            dataset1,
-                            hsh(full: true)
-                        ).once.pass_thru
-                    flexmock(LogRuntimeArchive)
-                        .should_receive(:archive_dataset)
-                        .with(
-                            ->(p) { p.path == (archive_dir / "20220434-2025.tar").to_s },
-                            dataset2,
-                            hsh(full: false)
-                        ).once.pass_thru
+                    should_archive_dataset(dataset0, "20220434-2023.0.tar", full: true)
+                    should_archive_dataset(dataset1, "20220434-2024.0.tar", full: true)
+                    should_archive_dataset(dataset2, "20220434-2025.0.tar", full: false)
+                    @process.process_root_folder
 
-                    LogRuntimeArchive.process_root_folder(@root, archive_dir)
+                    assert (@archive_dir / "20220434-2023.0.tar").file?
+                    assert (@archive_dir / "20220434-2024.0.tar").file?
+                    assert (@archive_dir / "20220434-2025.0.tar").file?
+                end
 
-                    assert (archive_dir / "20220434-2023.tar").file?
-                    assert (archive_dir / "20220434-2024.tar").file?
-                    assert (archive_dir / "20220434-2025.tar").file?
+                it "splits the archive according to the max size" do
+                    dataset = make_valid_folder("20220434-2023")
+                    (dataset / "test.0.log")
+                        .write(test0 = Base64.encode64(Random.bytes(1024)))
+                    (dataset / "test.1.log")
+                        .write(test1 = Base64.encode64(Random.bytes(1024)))
+                    (dataset / "test.2.log").write(Base64.encode64(Random.bytes(1024)))
+                    process = LogRuntimeArchive.new(
+                        @root, @archive_dir, max_archive_size: 1024
+                    )
+                    process.process_root_folder
+
+                    entries = read_archive(path: @archive_dir / "20220434-2023.0.tar")
+                    assert_equal 1, entries.size
+                    assert_entry_matches(
+                        *entries[0], name: "test.0.log.zst", content: test0
+                    )
+
+                    entries = read_archive(path: @archive_dir / "20220434-2023.1.tar")
+                    assert_equal 1, entries.size
+                    assert_entry_matches(
+                        *entries[0], name: "test.1.log.zst", content: test1
+                    )
+
+                    refute (@archive_dir / "20220434-2023.2.tar").exist?
+                end
+
+                it "appends to the last created archive" do
+                    dataset = make_valid_folder("20220434-2023")
+                    (dataset / "test.0.log")
+                        .write(Base64.encode64(Random.bytes(1024)))
+                    (dataset / "test.1.log")
+                        .write(test1 = Base64.encode64(Random.bytes(128)))
+                    (dataset / "test.2.log")
+                        .write(test2 = Base64.encode64(Random.bytes(128)))
+                    process = LogRuntimeArchive.new(
+                        @root, @archive_dir, max_archive_size: 1024
+                    )
+                    process.process_root_folder
+
+                    (dataset / "test.3.log").write(Base64.encode64(Random.bytes(1024)))
+                    process.process_root_folder
+
+                    entries = read_archive(path: @archive_dir / "20220434-2023.1.tar")
+                    assert_equal 2, entries.size
+                    assert_entry_matches(
+                        *entries[0], name: "test.1.log.zst", content: test1
+                    )
+                    assert_entry_matches(
+                        *entries[1], name: "test.2.log.zst", content: test2
+                    )
+
+                    refute (@archive_dir / "20220434-2023.2.tar").exist?
+                end
+
+                it "creates a new archive if the last archive is already "\
+                   "above the limit" do
+                    dataset = make_valid_folder("20220434-2023")
+                    (dataset / "test.0.log")
+                        .write(Base64.encode64(Random.bytes(1024)))
+                    (dataset / "test.1.log")
+                        .write(test1 = Base64.encode64(Random.bytes(1024)))
+                    (dataset / "test.2.log")
+                        .write(test2 = Base64.encode64(Random.bytes(1024)))
+                    process = LogRuntimeArchive.new(
+                        @root, @archive_dir, max_archive_size: 1024
+                    )
+                    process.process_root_folder
+
+                    (dataset / "test.3.log").write(Base64.encode64(Random.bytes(1024)))
+                    process.process_root_folder
+
+                    entries = read_archive(path: @archive_dir / "20220434-2023.1.tar")
+                    assert_equal 1, entries.size
+                    assert_entry_matches(
+                        *entries[0], name: "test.1.log.zst", content: test1
+                    )
+
+                    entries = read_archive(path: @archive_dir / "20220434-2023.2.tar")
+                    assert_equal 1, entries.size
+                    assert_entry_matches(
+                        *entries[0], name: "test.2.log.zst", content: test2
+                    )
+
+                    refute (@archive_dir / "20220434-2023.3.tar").exist?
                 end
 
                 it "appends to existing archives" do
@@ -232,12 +304,11 @@ module Syskit
                     make_in_file "test.0.log", "test0", root: dataset
                     make_in_file "test.1.log", "test1", root: dataset
 
-                    archive_dir = make_tmppath
-                    LogRuntimeArchive.process_root_folder(@root, archive_dir)
+                    @process.process_root_folder
                     make_in_file "test.2.log", "test2", root: dataset
-                    LogRuntimeArchive.process_root_folder(@root, archive_dir)
+                    @process.process_root_folder
 
-                    entries = read_archive(path: archive_dir / "20220434-2023.tar")
+                    entries = read_archive(path: @archive_dir / "20220434-2023.0.tar")
                     assert_equal 2, entries.size
                     assert_entry_matches(
                         *entries[0], name: "test.0.log.zst", content: "test0"
@@ -245,6 +316,15 @@ module Syskit
                     assert_entry_matches(
                         *entries[1], name: "test.1.log.zst", content: "test1"
                     )
+                end
+
+                def should_archive_dataset(dataset, archive_basename, full:)
+                    flexmock(LogRuntimeArchive)
+                        .should_receive(:archive_dataset)
+                        .with(
+                            ->(p) { p.path == (@archive_dir / archive_basename).to_s },
+                            dataset, hsh(full: full)
+                        ).once.pass_thru
                 end
             end
 
