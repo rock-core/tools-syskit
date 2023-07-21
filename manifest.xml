@@ -23,6 +23,10 @@
     <depend_optional package="ruby-listen" />
     <depend_optional package="gui/vizkit" />
 
+    <!-- Log management -->
+    <depend_optional package="zstd" />
+    <depend_optional package="minitar" />
+
     <test_depend package="minitest" />
     <test_depend package="aruba" />
     <test_depend package="flexmock" />

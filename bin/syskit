@@ -52,7 +52,7 @@ end
 ORIGINAL_ARGV = ARGV.dup
 mode = ARGV.shift
 
-SYSKIT_MODES = %w[ide process_server].freeze
+SYSKIT_MODES = %w[ide process_server log_runtime_archive].freeze
 ROBY_MODES = %w[run shell test gen quit restart].freeze
 if [nil, "--help", "-h", "help"].include?(mode)
     thor_modes = Syskit::CLI::Main
