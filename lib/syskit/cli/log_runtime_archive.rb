@@ -234,30 +234,75 @@ module Syskit
                 logger.info(
                     "Archiving dataset #{path} in #{full ? 'full' : 'partial'} mode"
                 )
-                candidates =
-                    path.enum_for(:each_entry).map { path / _1 }
-                        .find_all { _1.file? }
-                candidates = archive_partial_filter_candidates(candidates) unless full
+                candidates = each_file_from_path(path).to_a
+                complete, candidates =
+                    if full
+                        archive_filter_candidates_full(candidates)
+                    else
+                        archive_filter_candidates_partial(candidates)
+                    end
+
                 candidates.each_with_index do |child_path, i|
                     add_to_archive(archive_io, child_path, logger: logger)
 
-                    return (i == candidates.size - 1) if archive_io.tell > max_size
+                    if archive_io.tell > max_size
+                        return (complete && (i == candidates.size - 1))
+                    end
                 end
 
-                true
+                complete
             end
 
-            # Filters all candidates for archiving to return the ones relevant for a
-            # partial archive (i.e. excluding files that are being written to)
+            # Enumerate the children of a path that are files
+            #
+            # @yieldparam [Pathname] file_path the full path to the file
+            def self.each_file_from_path(path)
+                return enum_for(:each_file_from_path, path) unless block_given?
+
+                path.each_entry do |child_path|
+                    full = path / child_path
+                    yield(full) if full.file?
+                end
+            end
+
+            # Filters all candidates for archiving to return the ones that should
+            # be archived in `full` mode at this point in time
+            #
+            # The method either returns the remaining rotated logs, or if there
+            # are none, the non-rotated files. This ensures that the archiver groups
+            # all non-rotated files in a single archive.
             #
             # @param [Array<Pathname>] candidates
-            # @return [Array<Pathname>] files that should be archived
-            def self.archive_partial_filter_candidates(candidates)
+            # @return [(Boolean,Array<Pathname>)] a flag that tell whether the candidate
+            #   array is complete or not, and the files that should be archived. If
+            #   the flag is true, the assumption is that after having archived the files
+            #   that were returned, the archiving loop should try archiving again.
+            def self.archive_filter_candidates_full(candidates)
                 per_file_and_idx = filter_and_group_pocolog_files(candidates)
-                per_file_and_idx.each_value.flat_map do |logs|
+                rotated_logs = per_file_and_idx.each_value.flat_map(&:values)
+                unless rotated_logs.empty?
+                    return [(candidates - rotated_logs).empty?, rotated_logs]
+                end
+
+                [true, candidates]
+            end
+
+            # Filters all candidates for archiving to return the ones that should
+            # be archived in `partial` mode at this point in time
+            #
+            # The method returns the rotated logs that are known to be complete.
+            #
+            # @param [Array<Pathname>] candidates
+            # @return [(true,Array<Pathname>)] files that should be archived. The
+            #   boolean is here for consistency with {.archive_filter_candidates_full}
+            def self.archive_filter_candidates_partial(candidates)
+                per_file_and_idx = filter_and_group_pocolog_files(candidates)
+                complete_log_files = per_file_and_idx.each_value.flat_map do |logs|
                     logs.delete(logs.keys.max)
                     logs.values
                 end
+
+                [true, complete_log_files]
             end
 
             # Filter the pocolog files from the given candidates and sort them
