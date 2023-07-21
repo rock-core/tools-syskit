@@ -1,34 +1,54 @@
 # frozen_string_literal: true
 
+# NOTE: this is NOT integrated in the Thor-based CLI to make it more independent
+# (i.e. not depending on actually having Syskit installed)
+
 require "pathname"
+require "thor"
 require "syskit/cli/log_runtime_archive"
 
-unless ARGV.size == 2
-    STDERR.puts "usage: log_runtime_archive ROOT_DIR TARGET_DIR"
-    exit 1
+# Command-line definition for the log-runtime-archive syskit subcommand
+class CLI < Thor
+    def self.exit_on_failure?
+        true
+    end
+
+    desc "watch", "watch a dataset root folder and archive the datasets"
+    option :period,
+           type: :numeric, default: 600, desc: "polling period in seconds"
+    option :max_size,
+           type: :numeric, default: 10_000, desc: "max log size in MB"
+    default_task def watch(root_dir, target_dir)
+        root_dir = validate_directory_exists(root_dir)
+        target_dir = validate_directory_exists(target_dir)
+        archiver = make_archiver(root_dir, target_dir)
+        loop do
+            archiver.process_root_folder
+
+            puts "Archived pending logs, sleeping #{options[:period]}s"
+            sleep options[:period]
+        end
+    end
+
+    no_commands do
+        def validate_directory_exists(dir)
+            dir = Pathname.new(dir)
+            unless dir.directory?
+                raise ArgumentError, "#{dir} does not exist, or is not a directory"
+            end
+
+            dir
+        end
+
+        def make_archiver(root_dir, target_dir)
+            logger = Logger.new(STDOUT)
+
+            Syskit::CLI::LogRuntimeArchive.new(
+                root_dir, target_dir,
+                logger: logger, max_archive_size: options[:max_size] * 1024**2
+            )
+        end
+    end
 end
 
-root_dir = Pathname.new(ARGV[0])
-target_dir = Pathname.new(ARGV[1])
-
-if !root_dir.directory?
-    warn "#{root_dir} is not a directory"
-    exit 1
-elsif !target_dir.directory?
-    warn "#{target_dir} is not a directory"
-    exit 1
-end
-
-POLLING_PERIOD = 600
-
-logger = Logger.new(STDOUT)
-logger.level = Logger::INFO
-
-loop do
-    Syskit::CLI::LogRuntimeArchive.process_root_folder(
-        root_dir, target_dir, logger: logger
-    )
-
-    puts "Archived pending logs, sleeping #{POLLING_PERIOD}s"
-    sleep POLLING_PERIOD
-end
+CLI.start(ARGV)
