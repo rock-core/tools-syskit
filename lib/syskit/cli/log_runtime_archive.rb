@@ -10,7 +10,103 @@ module Syskit
         # compressing files using zstd
         #
         # It depends on the syskit instance using log rotation
-        module LogRuntimeArchive
+        class LogRuntimeArchive
+            DEFAULT_MAX_ARCHIVE_SIZE = 10_000_000_000 # 10G
+
+            def initialize(
+                root_dir, target_dir,
+                logger: LogRuntimeArchive.null_logger,
+                max_archive_size: DEFAULT_MAX_ARCHIVE_SIZE
+            )
+                @last_archive_index = {}
+                @logger = logger
+                @root_dir = root_dir
+                @target_dir = target_dir
+                @max_archive_size = max_archive_size
+            end
+
+            # Iterate over all datasets in a Roby log root folder and archive them
+            #
+            # The method assumes the last dataset is the current one (i.e. the running
+            # one), and will only archive already rotated files.
+            #
+            # @param [Pathname] root_dir the log root folder
+            # @param [Pathname] target_dir the folder in which to save the
+            #   archived datasets
+            def process_root_folder
+                candidates = self.class.find_all_dataset_folders(@root_dir)
+                running = candidates.last
+                candidates.each do |child|
+                    process_dataset(child, full: child != running)
+                end
+            end
+
+            def process_dataset(child, full:)
+                use_existing = true
+                loop do
+                    open_archive_for(
+                        child.basename.to_s, use_existing: use_existing
+                    ) do |io|
+                        if io.tell > @max_archive_size
+                            use_existing = false
+                            break
+                        end
+
+                        dataset_complete = self.class.archive_dataset(
+                            io, child,
+                            logger: @logger, full: full,
+                            max_size: @max_archive_size
+                        )
+                        return if dataset_complete
+                    end
+
+                    use_existing = false
+                end
+            end
+
+            # Create or open an archive
+            #
+            # The method will find an archive to open or create, do it and
+            # yield the corresponding IO. The archives are named #{basename}.${INDEX}.tar
+            #
+            # @param [Boolean] use_existing if false, always create a new
+            #   archive. If true, reuse the last archive that was created, if
+            #   present, or create ${basename}.0.tar otherwise.
+            def open_archive_for(basename, use_existing: true)
+                last_index = find_last_archive_index(basename)
+
+                index, mode =
+                    if !last_index
+                        [0, "w"]
+                    elsif use_existing
+                        [last_index, "r+"]
+                    else
+                        [last_index + 1, "w"]
+                    end
+
+                archive_path = @target_dir / "#{basename}.#{index}.tar"
+                archive_path.open(mode) do |io|
+                    io.seek(0, IO::SEEK_END)
+                    yield(io)
+                end
+            end
+
+            # Find the last archive index used for a given basename
+            #
+            # @param [String] basename the archive basename
+            def find_last_archive_index(basename)
+                i = @last_archive_index[basename] || 0
+                last_i = nil
+                loop do
+                    candidate = @target_dir / "#{basename}.#{i}.tar"
+                    return last_i unless candidate.exist?
+
+                    @last_archive_index[basename] = last_i
+                    last_i = i
+                    i += 1
+                end
+            end
+
             # Find all dataset-looking folders within a root log folder
             def self.find_all_dataset_folders(root_dir)
                 candidates = root_dir.enum_for(:each_entry).map do |child|
@@ -128,31 +224,85 @@ module Syskit
             # @param [Boolean] full whether we're arching the complete dataset (true),
             #   or only the files that we know are not being written to (for log
             #   directories of running Syskit instances)
-            def self.archive_dataset(archive_io, path, full:, logger: null_logger)
+            # @return [Boolean] true if we're done processing this dataset. False
+            #   if processing was interrupted by e.g. an archive that reached the
+            #   max_archive_size limit
+            def self.archive_dataset(
+                archive_io, path,
+                full:, logger: null_logger, max_size: DEFAULT_MAX_ARCHIVE_SIZE
+            )
                 logger.info(
                     "Archiving dataset #{path} in #{full ? 'full' : 'partial'} mode"
                 )
-                candidates =
-                    path.enum_for(:each_entry).map { path / _1 }
-                        .find_all { _1.file? }
-                candidates = archive_partial_filter_candidates(candidates) unless full
+                candidates = each_file_from_path(path).to_a
+                complete, candidates =
+                    if full
+                        archive_filter_candidates_full(candidates)
+                    else
+                        archive_filter_candidates_partial(candidates)
+                    end
 
-                candidates.each do |child_path|
+                candidates.each_with_index do |child_path, i|
                     add_to_archive(archive_io, child_path, logger: logger)
+
+                    if archive_io.tell > max_size
+                        return (complete && (i == candidates.size - 1))
+                    end
+                end
+
+                complete
+            end
+
+            # Enumerate the children of a path that are files
+            #
+            # @yieldparam [Pathname] file_path the full path to the file
+            def self.each_file_from_path(path)
+                return enum_for(:each_file_from_path, path) unless block_given?
+
+                path.each_entry do |child_path|
+                    full = path / child_path
+                    yield(full) if full.file?
                 end
             end
 
-            # Filters all candidates for archiving to return the ones relevant for a
-            # partial archive (i.e. excluding files that are being written to)
+            # Filters all candidates for archiving to return the ones that should
+            # be archived in `full` mode at this point in time
+            #
+            # The method either returns the remaining rotated logs, or if there
+            # are none, the non-rotated files. This ensures that the archiver groups
+            # all non-rotated files in a single archive.
             #
             # @param [Array<Pathname>] candidates
-            # @return [Array<Pathname>] files that should be archived
-            def self.archive_partial_filter_candidates(candidates)
+            # @return [(Boolean,Array<Pathname>)] a flag that tell whether the candidate
+            #   array is complete or not, and the files that should be archived. If
+            #   the flag is true, the assumption is that after having archived the files
+            #   that were returned, the archiving loop should try archiving again.
+            def self.archive_filter_candidates_full(candidates)
                 per_file_and_idx = filter_and_group_pocolog_files(candidates)
-                per_file_and_idx.each_value.flat_map do |logs|
+                rotated_logs = per_file_and_idx.each_value.flat_map(&:values)
+                unless rotated_logs.empty?
+                    return [(candidates - rotated_logs).empty?, rotated_logs]
+                end
+
+                [true, candidates]
+            end
+
+            # Filters all candidates for archiving to return the ones that should
+            # be archived in `partial` mode at this point in time
+            #
+            # The method returns the rotated logs that are known to be complete.
+            #
+            # @param [Array<Pathname>] candidates
+            # @return [(true,Array<Pathname>)] files that should be archived. The
+            #   boolean is here for consistency with {.archive_filter_candidates_full}
+            def self.archive_filter_candidates_partial(candidates)
+                per_file_and_idx = filter_and_group_pocolog_files(candidates)
+                complete_log_files = per_file_and_idx.each_value.flat_map do |logs|
                     logs.delete(logs.keys.max)
                     logs.values
                 end
+
+                [true, complete_log_files]
             end
 
             # Filter the pocolog files from the given candidates and sort them
@@ -166,35 +316,6 @@ module Syskit
                     if (m = /\.(\d+)\.log$/.match(name))
                         per_file = (h[m.pre_match] ||= {})
                         per_file[Integer(m[1])] = path
-                    end
-                end
-            end
-
-            # Iterate over all datasets in a Roby log root folder and archive them
-            #
-            # The method assumes the last dataset is the current one (i.e. the running
-            # one), and will only archive already rotated files.
-            #
-            # @param [Pathname] root_dir the log root folder
-            # @param [Pathname] target_dir the folder in which to save the
-            #   archived datasets
-            def self.process_root_folder(root_dir, target_dir, logger: null_logger)
-                candidates = find_all_dataset_folders(root_dir)
-                running = candidates.last
-                candidates.each do |child|
-                    archive_path = target_dir / "#{child.basename}.tar"
-                    mode =
-                        if archive_path.exist?
-                            "r+"
-                        else
-                            "w"
-                        end
-
-                    archive_path.open(mode) do |archive_io|
-                        archive_io.seek(0, IO::SEEK_END)
-                        archive_dataset(
-                            archive_io, child, logger: logger, full: child != running
-                        )
                     end
                 end
             end
