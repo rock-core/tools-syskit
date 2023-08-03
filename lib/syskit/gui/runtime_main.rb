@@ -33,7 +33,7 @@ module Syskit
                         self, SLOT("fileOpenClicked(const QUrl&)"))
             end
 
-            def create_runtime_state_ui(syskit, robot_name: "default")
+            def create_runtime_state_ui(syskit, robot_name: "default") # rubocop:disable Metrics/AbcSize
                 @runtime_state = RuntimeState.new(syskit: syskit, robot_name: robot_name)
                 connect(runtime_state, SIGNAL("fileOpenClicked(const QUrl&)"),
                         self, SLOT("fileOpenClicked(const QUrl&)"))
@@ -51,7 +51,9 @@ module Syskit
                 end
                 runtime_state.on_progress do |message|
                     state = connection_state.current_state.to_s
-                    connection_state.update_text(format("%s - %s", state, message))
+                    connection_state.update_text(
+                        format("%<state>s - %<message>s", state: state, message: message)
+                    )
                 end
             end
 
@@ -64,7 +66,9 @@ module Syskit
             end
 
             def restore_from_settings(settings = self.settings)
-                self.size = settings.value("MainWindow/size", Qt::Variant.new(Qt::Size.new(800, 600))).to_size
+                self.size = settings.value(
+                    "MainWindow/size", Qt::Variant.new(Qt::Size.new(800, 600))
+                ).to_size
                 %w[runtime_state].each do |child_object_name|
                     next unless send(child_object_name)
 
@@ -91,25 +95,40 @@ module Syskit
                 end
             end
 
-            def fileOpenClicked(url)
+            def fileOpenClicked(url) # rubocop:disable Naming/MethodName
                 edit_cmd = global_settings.value("Main/cmdline", Qt::Variant.new)
                 if edit_cmd.null?
-                    Qt::MessageBox.warning(self, "Edit File", "No editor configured to open file #{url.to_string}. Edit #{global_settings.file_name} and add a cmdline= line in the [Main] section there. The %PATH and %LINENO placeholders will be replaced (if present) by the path and line number that should be edited")
-                else
-                    edit_cmd = edit_cmd.to_string
-                                       .gsub("%FILEPATH", url.to_local_file)
-                                       .gsub("%LINENO", url.query_item_value("lineno") || "0")
-
-                    edit_cmd = Shellwords.shellsplit(edit_cmd)
-                    stdin, stdout, stderr, wait_thr = Open3.popen3(*edit_cmd)
-                    status = wait_thr.value
-                    unless status.success?
-                        Qt::MessageBox.warning(self, "Edit File", "Runninga \"#{edit_cmd.join('" "')}\" failed\n\nProcess reported: #{stderr.read}")
-                    end
+                    Qt::MessageBox.warning(
+                        self, "Edit File", "No editor configured to open file "\
+                        "#{url.to_string}. Edit #{global_settings.file_name} and "\
+                        "add a cmdline= line in the [Main] section there. The %PATH "\
+                        "and %LINENO placeholders will be replaced (if present) "\
+                        "by the path and line number that should be edited"
+                    )
+                    return
                 end
+
+                run_edit_command(edit_cmd.to_string, url)
             end
             slots "fileOpenClicked(const QUrl&)"
+
+            def run_edit_command(edit_cmd, url)
+                edit_cmd = edit_cmd
+                           .to_string
+                           .gsub("%FILEPATH", url.to_local_file)
+                           .gsub("%LINENO", url.query_item_value("lineno") || "0")
+
+                edit_cmd = Shellwords.shellsplit(edit_cmd)
+                _, _, stderr, wait_thr = Open3.popen3(*edit_cmd)
+                status = wait_thr.value
+                return if status.success?
+
+                Qt::MessageBox.warning(
+                    self, "Edit File",
+                    "Runninga \"#{edit_cmd.join('" "')}\" failed\n\n"\
+                    "Process reported: #{stderr.read}"
+                )
+            end
         end
     end
 end
-

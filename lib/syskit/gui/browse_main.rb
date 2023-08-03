@@ -18,7 +18,7 @@ module Syskit
             attr_reader :model_browser
             attr_reader :testing
 
-            def initialize(parent = nil, tests: false, robot_name: "default")
+            def initialize(parent = nil, tests: false, robot_name: "default") # rubocop:disable Metrics/AbcSize
                 super(parent)
 
                 @layout = Qt::VBoxLayout.new(self)
@@ -69,7 +69,7 @@ module Syskit
                 testing.start if tests
             end
 
-            def reload_models
+            def reload_models # rubocop:disable Metrics/AbcSize
                 model_browser.registered_exceptions.clear
                 Roby.app.clear_exceptions
                 Roby.app.cleanup
@@ -89,8 +89,11 @@ module Syskit
                 testing.reloaded
             end
 
+            # Dialog to pick an item from a list of strings
+            #
+            # Used for orogen project and type dialogs
             class Picker < Qt::Dialog
-                def initialize(parent, items)
+                def initialize(parent, items) # rubocop:disable Metrics/AbcSize
                     super(parent)
 
                     model = Qt::StringListModel.new(self)
@@ -106,7 +109,7 @@ module Syskit
                     @list = Qt::ListView.new(self)
                     @list.edit_triggers = Qt::AbstractItemView::NoEditTriggers
                     @list.model = @filter
-                    @list.connect(SIGNAL("doubleClicked(const QModelIndex&)")) do |index|
+                    @list.connect(SIGNAL("doubleClicked(const QModelIndex&)")) do |_index|
                         accept
                     end
                     @list.current_index = @filter.index(0, 0)
@@ -136,38 +139,50 @@ module Syskit
 
                 def select
                     result = exec
-                    if result == Qt::Dialog::Accepted
-                        @filter.data(@list.current_index)
-                               .to_string
-                    end
+                    return unless result == Qt::Dialog::Accepted
+
+                    @filter.data(@list.current_index)
+                           .to_string
                 end
             end
 
-            def add_orogen_project
+            def add_orogen_project # rubocop:disable Metrics/AbcSize
                 loader = Roby.app.default_pkgconfig_loader
                 model_names = loader.each_available_task_model_name.to_a
-                syskit2orogen = model_names
-                                .each_with_object({}) do |(orogen_name, project_name), result|
-                    unless loader.has_loaded_project?(project_name)
-                        syskit_path = ["OroGen", *orogen_name.split("::")]
-                        syskit_name = syskit_path.join(".")
-                        result[syskit_name] = [syskit_path, project_name]
+                syskit2orogen =
+                    model_names
+                    .each_with_object({}) do |(orogen_name, project_name), result|
+                        unless loader.has_loaded_project?(project_name)
+                            syskit_path = ["OroGen", *orogen_name.split("::")]
+                            syskit_name = syskit_path.join(".")
+                            result[syskit_name] = [syskit_path, project_name]
+                        end
                     end
-                end
 
-                if (selected = Picker.select(self, syskit2orogen.keys))
-                    syskit_path, project_name = syskit2orogen[selected]
-                    Roby.app.using_task_library(project_name)
-                    Roby.app.extra_required_task_libraries << project_name
-                    @model_browser.reload
-                    @model_browser.select_by_path(*syskit_path)
-                end
+                return unless (selected = Picker.select(self, syskit2orogen.keys))
+
+                syskit_path, project_name = syskit2orogen[selected]
+                Roby.app.using_task_library(project_name)
+                Roby.app.extra_required_task_libraries << project_name
+                @model_browser.reload
+                @model_browser.select_by_path(*syskit_path)
             end
 
             def add_orogen_type
+                syskit2orogen = compute_types_syskit2orogen
+                return unless (selected = Picker.select(self, syskit2orogen.keys))
+
+                syskit_path, typekit_name = syskit2orogen[selected]
+                Roby.app.extra_required_typekits << typekit_name
+                Roby.app.import_types_from(typekit_name)
+                @model_browser.reload
+                @model_browser.select_by_path(*syskit_path)
+            end
+
+            def compute_types_syskit2orogen
                 loader = Roby.app.default_pkgconfig_loader
-                syskit2orogen = loader.each_available_type_name
-                                      .each_with_object({}) do |(type_name, typekit_name, _), result|
+                loader.each_available_type_name
+                      .each_with_object({}) do |(type_name, typekit_name, _), result|
                     next if type_name.end_with?("_m")
                     next if type_name =~ /\[/
 
@@ -177,17 +192,24 @@ module Syskit
                         result[syskit_name] = [syskit_path, typekit_name]
                     end
                 end
-
-                if (selected = Picker.select(self, syskit2orogen.keys))
-                    syskit_path, typekit_name = syskit2orogen[selected]
-                    Roby.app.extra_required_typekits << typekit_name
-                    Roby.app.import_types_from(typekit_name)
-                    @model_browser.reload
-                    @model_browser.select_by_path(*syskit_path)
-                end
             end
 
             def add_model_file
+                existing_models = self.existing_models
+
+                files = pick_model_files
+                files.each do |path|
+                    Roby.app.require(path)
+                    Roby.app.additional_model_files << path
+                end
+
+                @model_browser.update_exceptions
+                @model_browser.reload
+
+                select_newly_loaded_model(existing_models)
+            end
+
+            def pick_model_files
                 models_dir = File.join(Roby.app.app_dir, "models")
                 initial_dir =
                     if File.directory?(models_dir)
@@ -196,20 +218,18 @@ module Syskit
                         Roby.app.app_dir
                     end
 
-                existing_models = Roby.app.root_models
-                                      .flat_map { |root| root.each_submodel.to_a }
-                                      .to_set
-
-                files = Qt::FileDialog.getOpenFileNames(
+                Qt::FileDialog.getOpenFileNames(
                     self, "Pick model file(s) to add", initial_dir
                 )
-                files.each do |path|
-                    Roby.app.require(path)
-                    Roby.app.additional_model_files << path
-                    @model_browser.update_exceptions
-                    @model_browser.reload
-                end
+            end
 
+            def existing_models
+                Roby.app.root_models
+                    .flat_map { |root| root.each_submodel.to_a }
+                    .to_set
+            end
+
+            def select_newly_loaded_model(existing_models)
                 new_models = []
                 Roby.app.root_models.each do |root|
                     root.each_submodel do |m|
@@ -222,9 +242,10 @@ module Syskit
                         m <= Syskit::TaskContext &&
                         !(m <= Syskit::RubyTaskContext)
                 end
-                if (new_model = other.first || orogen_based.first)
-                    @model_browser.select_by_model(new_model)
-                end
+
+                return unless (new_model = other.first || orogen_based.first)
+
+                @model_browser.select_by_model(new_model)
             end
 
             def global_settings
@@ -236,7 +257,10 @@ module Syskit
             end
 
             def restore_from_settings(settings = self.settings)
-                self.size = settings.value("MainWindow/size", Qt::Variant.new(Qt::Size.new(800, 600))).to_size
+                self.size = settings.value(
+                    "MainWindow/size", Qt::Variant.new(Qt::Size.new(800, 600))
+                ).to_size
+
                 %w[model_browser testing].each do |child_object_name|
                     next unless send(child_object_name)
 
@@ -263,24 +287,40 @@ module Syskit
                 end
             end
 
-            def fileOpenClicked(url)
+            def fileOpenClicked(url) # rubocop:disable Naming/MethodName
                 edit_cmd = global_settings.value("Main/cmdline", Qt::Variant.new)
                 if edit_cmd.null?
-                    Qt::MessageBox.warning(self, "Edit File", "No editor configured to open file #{url.to_string}. Edit #{global_settings.file_name} and add a cmdline= line in the [Main] section there. The %PATH and %LINENO placeholders will be replaced (if present) by the path and line number that should be edited")
-                else
-                    edit_cmd = edit_cmd.to_string
-                                       .gsub("%FILEPATH", url.to_local_file)
-                                       .gsub("%LINENO", url.query_item_value("lineno") || "0")
-
-                    edit_cmd = Shellwords.shellsplit(edit_cmd)
-                    stdin, stdout, stderr, wait_thr = Open3.popen3(*edit_cmd)
-                    status = wait_thr.value
-                    unless status.success?
-                        Qt::MessageBox.warning(self, "Edit File", "Runninga \"#{edit_cmd.join('" "')}\" failed\n\nProcess reported: #{stderr.read}")
-                    end
+                    Qt::MessageBox.warning(
+                        self, "Edit File",
+                        "No editor configured to open file #{url.to_string}. "\
+                        "Edit #{global_settings.file_name} and add a cmdline= "\
+                        "line in the [Main] section there. The %PATH and %LINENO "\
+                        "placeholders will be replaced (if present) by the path "\
+                        "and line number that should be edited"
+                    )
+                    return
                 end
+
+                run_edit_command(edit_cmd.to_string, url)
             end
             slots "fileOpenClicked(const QUrl&)"
+
+            def run_edit_command(edit_cmd, url)
+                edit_cmd =
+                    edit_cmd.gsub("%FILEPATH", url.to_local_file)
+                            .gsub("%LINENO", url.query_item_value("lineno") || "0")
+
+                edit_cmd = Shellwords.shellsplit(edit_cmd)
+                _, _, stderr, wait_thr = Open3.popen3(*edit_cmd)
+                status = wait_thr.value
+                return if status.success?
+
+                Qt::MessageBox.warning(
+                    self, "Edit File",
+                    "Runninga \"#{edit_cmd.join('" "')}\" failed\n\n"\
+                    "Process reported: #{stderr.read}"
+                )
+            end
         end
     end
 end

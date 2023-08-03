@@ -52,12 +52,10 @@ module Syskit
             end
 
             # Add task and job info
-            def add_tasks_info(tasks_info, job_info)
-            end
+            def add_tasks_info(tasks_info, job_info); end
 
             # Set the current scheduler state
-            def scheduler_state=(state)
-            end
+            def scheduler_state=(state); end
 
             # Slot used to announce that the exceptions registerd on
             # {#job_status} have changed

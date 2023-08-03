@@ -55,7 +55,7 @@ elsif ARGV.first
             begin
                 Syskit::CLI::Main.start(ARGV)
                 exit 0
-            rescue Roby::CLI::CLIException => e
+            rescue Roby::CLI::CLIException => e # rubocop:disable Metrics/BlockNesting
                 STDERR.puts Roby.color(e.message, :red)
                 exit 1
             end

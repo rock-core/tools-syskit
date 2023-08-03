@@ -6,7 +6,8 @@ module Syskit
         class NameService < Orocos::NameServiceBase
             # A new NameService instance
             #
-            # @param [Hash<String,Orocos::TaskContext>] tasks The tasks which are known by the name service.
+            # @param [Hash<String,Orocos::TaskContext>] tasks The tasks which are
+            #        known by the name service.
             # @note The namespace is always "Local"
             def initialize(tasks = [])
                 @registered_tasks = Concurrent::Hash.new

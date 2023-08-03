@@ -520,9 +520,14 @@ module Syskit
             #
             # Sets up polling on a given syskit interface
             def poll_syskit_interface
-                begin
-                    syskit_update_info if syskit.connected?
-                rescue Roby::Interface::ComError # rubocop:disable Lint/SuppressedException
+                if syskit.connected?
+                    begin
+                        syskit_update_info
+                    rescue Roby::Interface::ComError # rubocop:disable Lint/SuppressedException
+                    end
+                else
+                    update_deployments([])
+                    update_task_inspector([])
                 end
 
                 syskit.poll

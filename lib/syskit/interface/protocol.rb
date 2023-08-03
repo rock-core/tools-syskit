@@ -11,7 +11,7 @@ module Syskit
 
             DeployedTask = Struct.new :name, :ior, :orogen_model_name, keyword_init: true
 
-            def self.marshal_deployment_task(task)
+            def self.marshal_deployment_task(task) # rubocop:disable Metrics/AbcSize
                 if (ready_since = task.ready_event.last&.time)
                     ready_since = ready_since.tv_sec
                 end
