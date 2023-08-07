@@ -281,7 +281,10 @@ module Syskit
                 def handle_dead_subprocess(exit_pid, exit_status)
                     process_name, process =
                         processes.find { |_, p| p.pid == exit_pid }
-                    return unless process_name
+                    unless process_name
+                        warn "wait2 returned PID #{exit_pid}, which is not known"
+                        return
+                    end
 
                     process.dead!(exit_status)
                     processes.delete(process_name)
