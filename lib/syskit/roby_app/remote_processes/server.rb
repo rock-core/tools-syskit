@@ -254,7 +254,9 @@ module Syskit
                 def reap_dead_subprocesses
                     dead_processes = []
                     while (exited = try_wait_pid(-1))
-                        dead_processes << handle_dead_subprocess(*exited)
+                        if (process = handle_dead_subprocess(*exited))
+                            dead_processes << process
+                        end
                     end
                     dead_processes
                 rescue Errno::ECHILD
@@ -279,7 +281,10 @@ module Syskit
                 def handle_dead_subprocess(exit_pid, exit_status)
                     process_name, process =
                         processes.find { |_, p| p.pid == exit_pid }
-                    return unless process_name
+                    unless process_name
+                        warn "wait2 returned PID #{exit_pid}, which is not known"
+                        return
+                    end
 
                     process.dead!(exit_status)
                     processes.delete(process_name)
