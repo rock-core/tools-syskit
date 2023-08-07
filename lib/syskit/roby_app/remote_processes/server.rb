@@ -254,7 +254,9 @@ module Syskit
                 def reap_dead_subprocesses
                     dead_processes = []
                     while (exited = try_wait_pid(-1))
-                        dead_processes << handle_dead_subprocess(*exited)
+                        if (process = handle_dead_subprocess(*exited))
+                            dead_processes << process
+                        end
                     end
                     dead_processes
                 rescue Errno::ECHILD
