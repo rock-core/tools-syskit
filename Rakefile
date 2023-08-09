@@ -51,12 +51,24 @@ task "test:live" do
         exit 1
     end
 end
+
 Rake::TestTask.new("test:gui") do |t|
     t.libs << "."
     t.libs << "lib"
 
     minitest_set_options(t, "gui")
-    t.test_files = FileList["test/gui/**/test_*.rb"]
+    t.test_files =
+        FileList["test/gui/**/test_*.rb"]
+        .exclude("test/gui/test_runtime_state.rb", "test/gui/test_logging_configuration.rb")
+    t.warning = false
+end
+
+Rake::TestTask.new("test:gui:runtime") do |t|
+    t.libs << "."
+    t.libs << "lib"
+
+    minitest_set_options(t, "gui")
+    t.test_files = FileList["test/gui/test_runtime_state.rb", "test/gui/test_logging_configuration.rb"]
     t.warning = false
 end
 

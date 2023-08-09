@@ -1,6 +1,7 @@
 # frozen_string_literal: true
 
-require "syskit/test/self"
+require "minitest/autorun"
+require "flexmock/minitest"
 require "syskit/gui/logging_configuration.rb"
 
 module Syskit
@@ -11,9 +12,9 @@ module Syskit
             attr_reader :client
             attr_reader :conf
             before do
-                @conf = Syskit::ShellInterface::LoggingConfiguration.new true, true, {}
-                @conf.groups["images"] = Syskit::ShellInterface::LoggingGroup.new "images", true
-                @conf.groups["messages"] = Syskit::ShellInterface::LoggingGroup.new "messages", true
+                @conf = Interface::Commands::LoggingConfiguration.new true, true, {}
+                @conf.groups["images"] = Interface::Commands::LoggingGroup.new "images", true
+                @conf.groups["messages"] = Interface::Commands::LoggingGroup.new "messages", true
 
                 @client = flexmock("client")
                 @syskit = flexmock("syskit")
@@ -105,7 +106,7 @@ module Syskit
             end
 
             it "adds group to view" do
-                conf.groups["events"] = Syskit::ShellInterface::LoggingGroup.new "events", true
+                conf.groups["events"] = Interface::Commands::LoggingGroup.new "events", true
 
                 subject.refresh
                 assert_view_matches_conf

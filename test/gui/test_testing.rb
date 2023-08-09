@@ -1,7 +1,6 @@
 # frozen_string_literal: true
 
 require "syskit/test/self"
-require "vizkit"
 require "syskit/gui/testing"
 require "syskit/gui/state_label"
 
@@ -9,6 +8,8 @@ module Syskit
     module GUI
         describe Testing do
             before do
+                $qApp = Qt::Application.new([]) unless $qApp
+
                 @app = flexmock(discover_test_files: [], argv_set: [])
                 @testing = Testing.new(app: app)
             end
