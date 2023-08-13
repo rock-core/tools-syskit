@@ -147,7 +147,7 @@ module Syskit
             # Helper for {#restart_deployments} to restart all deployments of a
             # given model
             def restart_deployments_from_model(task_or_deployemnt_model, protection, done)
-                agents_from_Task_or_deployment_model(task_or_deployemnt_model)
+                agents_from_task_or_deployment_model(task_or_deployemnt_model)
                     .each do |agent_task|
                         agent_task.each_executed_task do |task|
                             task.stop_event.handle_with(protection)
