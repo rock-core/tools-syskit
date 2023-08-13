@@ -38,7 +38,7 @@ end
 ORIGINAL_ARGV = ARGV.dup
 
 SYSKIT_MODES = %w[ide runtime browse process_server log_runtime_archive].freeze
-ROBY_MODES = %w[run shell test quit restart].freeze
+ROBY_MODES = %w[run shell test restart].freeze
 
 if SYSKIT_MODES.include?(ARGV.first)
     require "syskit/scripts/#{ARGV.shift}"
