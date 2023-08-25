@@ -8,7 +8,7 @@ module Syskit
     module GUI
         describe Testing do
             before do
-                $qApp = Qt::Application.new([]) unless $qApp
+                $qApp ||= Qt::Application.new([]) # rubocop:disable Style/GlobalVars
 
                 @app = flexmock(discover_test_files: [], argv_set: [])
                 @testing = Testing.new(app: app)
