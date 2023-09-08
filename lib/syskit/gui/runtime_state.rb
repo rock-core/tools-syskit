@@ -335,7 +335,7 @@ module Syskit
                                                 .first
                     return unless job_task
 
-                    placeholder_task = job_task.planned_task
+                    placeholder_task = job_task.planned_task || job_task
                     return unless placeholder_task
 
                     dependency = placeholder_task.relation_graph_for(Roby::TaskStructure::Dependency)
@@ -368,9 +368,8 @@ module Syskit
                 all_tasks.merge(tasks)
                 tasks.each do |job|
                     if job.kind_of?(Roby::Interface::Job)
-                        if placeholder_task = job.planned_task
-                            all_job_info[placeholder_task] = job
-                        end
+                        placeholder_task = job.planned_task || job
+                        all_job_info[placeholder_task] = job
                     end
                 end
                 update_orocos_tasks

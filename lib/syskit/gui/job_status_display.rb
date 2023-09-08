@@ -39,7 +39,7 @@ module Syskit
             ].freeze
 
             def label
-                "##{job.job_id} #{job.action_name}"
+                "##{job.job_id} #{job.job_name}"
             end
 
             def create_ui
