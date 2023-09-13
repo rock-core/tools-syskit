@@ -216,11 +216,17 @@ module Syskit
                     make_in_file "test.2.log", "test2", root: dataset
                     make_in_file "something.txt", "something", root: dataset
 
+                    puts "AAAAAAAAAAAAAAAAAAAAAAA"
+                    pp dataset.enum_for(:each_entry).to_a
+                    logger = Logger.new(STDERR)
+                    logger.level = Logger::DEBUG
+
                     ret = @archive_path.open("w") do |archive_io|
                         flexmock(LogRuntimeArchive)
                             .should_receive(:add_to_archive).times(1).pass_thru
                         LogRuntimeArchive.archive_dataset(
-                            archive_io, dataset, full: false, max_size: 4
+                            archive_io, dataset,
+                            full: false, max_size: 4, logger: logger
                         )
                     end
                     refute ret
