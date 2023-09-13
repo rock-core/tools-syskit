@@ -296,10 +296,12 @@ module Syskit
             # @return [(true,Array<Pathname>)] files that should be archived. The
             #   boolean is here for consistency with {.archive_filter_candidates_full}
             def self.archive_filter_candidates_partial(candidates)
-                per_file_and_idx = filter_and_group_pocolog_files(candidates)
-                complete_log_files = per_file_and_idx.each_value.flat_map do |logs|
-                    logs.delete(logs.keys.max)
-                    logs.values
+                per_file_and_idx =
+                    filter_and_group_pocolog_files(candidates)
+                    .each_value { |logs| logs.delete(logs.keys.max) }
+
+                complete_log_files = per_file_and_idx.flat_map do |_, logs|
+                    logs.keys.sort.map { |i| logs[i] }
                 end
 
                 [true, complete_log_files]

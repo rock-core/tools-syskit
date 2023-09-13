@@ -232,6 +232,33 @@ module Syskit
                     )
                 end
 
+                it "orders log files according to their index" do
+                    dataset = make_valid_folder("20220434-2023")
+                    make_in_file "test.0.log", "test0", root: dataset
+                    make_in_file "test.1.log", "test1", root: dataset
+                    make_in_file "test.2.log", "test2", root: dataset
+                    make_in_file "something.txt", "something", root: dataset
+
+                    ret = @archive_path.open("w") do |archive_io|
+                        flexmock(LogRuntimeArchive)
+                            .should_receive(:add_to_archive).times(1).pass_thru
+                        flexmock(LogRuntimeArchive)
+                            .should_receive(:each_file_from_path)
+                            .pass_thru { |files| files.to_a.shuffle }
+
+                        LogRuntimeArchive.archive_dataset(
+                            archive_io, dataset, full: false, max_size: 4
+                        )
+                    end
+                    refute ret
+
+                    entries = read_archive
+                    assert_equal 1, entries.size
+                    assert_entry_matches(
+                        *entries[0], name: "test.0.log.zst", content: "test0"
+                    )
+                end
+
                 it "always adds at least a file, "\
                    "regardless of the current size of the archive" do
                     dataset = make_valid_folder("20220434-2023")
