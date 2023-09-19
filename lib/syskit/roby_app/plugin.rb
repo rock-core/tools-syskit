@@ -261,10 +261,11 @@ module Syskit
                 @handler_ids = plug_engine_in_roby(app.execution_engine)
 
                 if Syskit.conf.log_rotation_period
-                    app.execution_engine.every(Syskit.conf.log_rotation_period) do
-                        app.syskit_log_perform_rotation_and_transfer
-                        app.syskit_log_transfer_poll_state
-                    end
+                    @log_rotation_poll_handler =
+                        app.execution_engine.every(Syskit.conf.log_rotation_period) do
+                            app.syskit_log_perform_rotation_and_transfer
+                            app.syskit_log_transfer_poll_state
+                        end
                 end
             end
 
@@ -280,6 +281,8 @@ module Syskit
                     unplug_engine_from_roby(@handler_ids.values, app.execution_engine)
                     @handler_ids = nil
                 end
+
+                @log_rotation_poll_handler&.dispose
                 app.syskit_log_transfer_shutdown
             end
 
