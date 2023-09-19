@@ -156,7 +156,7 @@ module Syskit
                 end
                 ui_start.connect(SIGNAL("clicked()")) do
                     arguments = job.action_arguments.dup
-                    arguments.delete(:job_id)
+                    arguments&.delete(:job_id)
                     if @batch_manager.create_new_job(job.action_name, arguments)
                         if @actions_immediate
                             @batch_manager.process
