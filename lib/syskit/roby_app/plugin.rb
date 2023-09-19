@@ -161,11 +161,9 @@ module Syskit
 
                 rtt_core_model = app.default_loader.task_model_from_name("RTT::TaskContext")
                 Syskit::TaskContext.define_from_orogen(rtt_core_model, register: true)
-
-                app.syskit_log_transfer_setup
             end
 
-            def syskit_log_transfer_setup
+            def syskit_log_transfer_prepare
                 return unless Syskit.conf.log_transfer.ip
 
                 unless Syskit.conf.log_rotation_period
@@ -178,7 +176,7 @@ module Syskit
                 @syskit_log_transfer_manager = LogTransferManager.new(conf)
             end
 
-            def syskit_log_transfer_cleanup
+            def syskit_log_transfer_shutdown
                 syskit_log_transfer_manager&.dispose(syskit_log_transfer_process_servers)
                 @syskit_log_transfer_manager = nil
             end
@@ -253,13 +251,13 @@ module Syskit
                     app.syskit_remove_configuration_changes_listener
                 end
 
-                app.syskit_log_transfer_cleanup
                 stop_local_process_server(app)
                 disconnect_all_process_servers
             end
 
             # Hook called by the main application to prepare for execution
             def self.prepare(app)
+                app.syskit_log_transfer_prepare
                 @handler_ids = plug_engine_in_roby(app.execution_engine)
 
                 if Syskit.conf.log_rotation_period
@@ -282,6 +280,7 @@ module Syskit
                     unplug_engine_from_roby(@handler_ids.values, app.execution_engine)
                     @handler_ids = nil
                 end
+                app.syskit_log_transfer_shutdown
             end
 
             def default_loader
