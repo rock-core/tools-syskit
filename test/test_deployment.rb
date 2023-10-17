@@ -244,7 +244,7 @@ module Syskit
                 expect_execution { deployment.start! }.to { emit deployment.ready_event }
 
                 task = deployment.task("test")
-                Orocos.allow_blocking_calls do
+                Runkit.allow_blocking_calls do
                     task.orocos_task.configure
                 end
                 flexmock(task.orocos_task).should_receive(:cleanup).never
@@ -262,13 +262,13 @@ module Syskit
                 expect_execution { deployment.start! }.to { emit deployment.ready_event }
 
                 task = deployment.task("test")
-                Orocos.allow_blocking_calls do
+                Runkit.allow_blocking_calls do
                     task.orocos_task.configure
                     task.orocos_task.start
                 end
                 expect_execution { task.start! }.to { emit task.start_event }
 
-                Orocos.allow_blocking_calls do
+                Runkit.allow_blocking_calls do
                     task.orocos_task.stop
                     task.orocos_task.cleanup
                 end
