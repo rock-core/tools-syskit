@@ -66,8 +66,18 @@ module Syskit
                 def resolve_all_tasks
                     return @tasks if @tasks
 
-                    @tasks = @ior_mappings.each_with_object({}) do |(name, ior), h|
-                        h[name] = Runkit::TaskContext.new(ior, name: name)
+                    @tasks = model.task_activities
+                                  .each_with_object({}) do |deployed_task, h|
+                        name = deployed_task.name
+                        task_model = deployed_task.task_model
+                        mapped_name = mapped_name_for(name)
+                        ior = @ior_mappings.fetch(mapped_name)
+
+                        h[mapped_name] = Runkit::TaskContext.new(
+                            ior,
+                            name: mapped_name,
+                            model: task_model
+                        )
                     end
                 end
 
