@@ -75,6 +75,8 @@ if [nil, "--help", "-h", "help"].include?(ARGV.first)
     return
 end
 
+mode = ARGV.shift
+
 begin
     require "syskit/scripts/#{mode}"
 rescue LoadError => e
