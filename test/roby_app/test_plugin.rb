@@ -225,7 +225,7 @@ module Syskit
                 after do
                     Syskit.conf.log_rotation_period = nil
                     Syskit.conf.log_transfer.ip = nil
-                    app.syskit_log_transfer_cleanup
+                    app.syskit_log_transfer_shutdown
                 end
 
                 it "rotates logs and returns which logs were rotated" do
@@ -256,7 +256,7 @@ module Syskit
                 end
 
                 it "returns the list of process servers whose logs we want to transfer" do
-                    app.syskit_log_transfer_setup
+                    app.syskit_log_transfer_prepare
 
                     conf = Syskit.conf.process_server_config_for("localhost")
                     flexmock(conf).should_receive(supports_log_transfer?: true)
@@ -266,7 +266,7 @@ module Syskit
                 it "ignores local process servers if they have the same directory than "\
                    "the transfer's target dir" do
                     Syskit.conf.log_transfer.target_dir = app.log_dir
-                    app.syskit_log_transfer_setup
+                    app.syskit_log_transfer_prepare
 
                     conf = Syskit.conf.process_server_config_for("localhost")
                     flexmock(conf).should_receive(supports_log_transfer?: true)
@@ -288,7 +288,7 @@ module Syskit
                               Configuration::ProcessServerConfig.new => ["some_file"] }
                         )
 
-                    app.syskit_log_transfer_setup
+                    app.syskit_log_transfer_prepare
                     flexmock(conf.client)
                         .should_receive(:log_upload_file).explicitly
                         .with("127.0.0.1", 42, "cert", "user", "pass",
