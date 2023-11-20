@@ -103,6 +103,7 @@ module Syskit
                 required_loggers = []
                 engine.deployment_tasks.each do |deployment|
                     next unless deployment.plan
+                    next unless deployment.logging_enabled?
 
                     required_logging_ports = []
                     required_connections   = []

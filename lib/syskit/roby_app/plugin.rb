@@ -108,9 +108,12 @@ module Syskit
                         "ros", fake_client, app.log_dir, host_id: "syskit"
                     )
                 elsif Syskit.conf.define_default_process_managers?
-                    Syskit.conf.register_process_server("ruby_tasks",
-                                                        Orocos::RubyTasks::ProcessManager.new(app.default_loader),
-                                                        app.log_dir, host_id: "syskit")
+                    Syskit.conf.register_process_server(
+                        "ruby_tasks",
+                        Orocos::RubyTasks::ProcessManager.new(app.default_loader),
+                        app.log_dir,
+                        host_id: "syskit", logging_enabled: !app.testing?
+                    )
 
                     Syskit.conf.register_process_server(
                         "unmanaged_tasks", UnmanagedTasksManager.new, app.log_dir

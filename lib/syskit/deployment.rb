@@ -33,6 +33,7 @@ module Syskit
         argument :ready_polling_period, default: 0.1
         argument :logger_task, default: nil
         argument :logger_name, default: nil
+        argument :logging_enabled, default: nil
         argument :read_only, default: nil
 
         # The underlying process object
@@ -369,6 +370,8 @@ module Syskit
         # @return [TaskContext,nil] either the logging task, or nil if this
         #   deployment has none
         def logger_task
+            return unless logging_enabled?
+
             if arguments[:logger_task]
                 @logger_task = arguments[:logger_task]
             elsif @logger_task&.reusable?
@@ -928,6 +931,14 @@ module Syskit
             # What could be stopped cleanly has been stopped cleanly (not
             # cleaned up, but stopped). Kill the process to avoid further damage
             kill! if running?
+        end
+
+        def logging_enabled?
+            if logging_enabled.nil?
+                process_server_config.logging_enabled?
+            else
+                logging_enabled
+            end
         end
     end
 end

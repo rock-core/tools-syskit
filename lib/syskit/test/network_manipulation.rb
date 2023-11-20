@@ -353,14 +353,16 @@ module Syskit
             # @param [Boolean] read_only (see #syskit_stub_configured_deployment)
             def syskit_stub_deployment( # rubocop:disable Metrics/ParameterLists
                 name = "deployment", deployment_model = nil,
-                task_model: nil, read_only: [],
+                task_model: nil, read_only: [], logging_enabled: nil,
                 remote_task: syskit_stub_resolves_remote_tasks?, &block
             )
                 deployment_model ||= syskit_stub_configured_deployment(
                     task_model, name,
                     read_only: read_only, remote_task: remote_task, &block
                 )
-                task = deployment_model.new(process_name: name, on: "stubs")
+                task = deployment_model.new(
+                    process_name: name, on: "stubs", logging_enabled: logging_enabled
+                )
                 plan.add_permanent_task(task)
                 task
             end

@@ -101,7 +101,9 @@ module Syskit
 
                 client = RemoteProcesses::Client.new("localhost", server.port)
                 log_dir = config_log_dir(client)
-                config = Configuration::ProcessServerConfig.new("test", client, log_dir)
+                config = Configuration::ProcessServerConfig.new(
+                    name: "test", client: client, log_dir: log_dir
+                )
                 @server_threads << thread
                 @process_servers << config
                 config

@@ -86,8 +86,8 @@ module Syskit
                     "stubs",
                     Orocos::RubyTasks::ProcessManager.new(
                         Roby.app.default_loader,
-                        task_context_class: Orocos::RubyTasks::StubTaskContext
-                    ), "", host_id: "syskit"
+                        task_context_class: Orocos::RubyTasks::StubTaskContext,
+                    ), "", host_id: "syskit", logging_enabled: false
                 )
                 Syskit.conf.logs.create_configuration_log(
                     File.join(app.log_dir, "properties")

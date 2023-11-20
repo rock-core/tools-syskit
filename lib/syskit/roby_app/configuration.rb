@@ -391,7 +391,7 @@ module Syskit
                         app.default_loader,
                         task_context_class: Orocos::RubyTasks::StubTaskContext
                     )
-                    register_process_server(sim_name, mng)
+                    register_process_server(sim_name, mng, logging_enabled: false)
                 end
                 process_server_config_for(sim_name)
             end
@@ -603,23 +603,31 @@ module Syskit
                 client
             end
 
-            ProcessServerConfig = Struct.new :name, :client, :log_dir, :host_id, :supports_log_transfer do
-                def on_localhost?
-                    host_id == "localhost" || host_id == "syskit"
-                end
+            ProcessServerConfig =
+                Struct.new :name, :client, :log_dir, :host_id, :supports_log_transfer,
+                           :logging_enabled,
+                           keyword_init: true do
+                    def on_localhost?
+                        host_id == "localhost" || host_id == "syskit"
+                    end
 
-                def in_process?
-                    host_id == "syskit"
-                end
+                    def in_process?
+                        host_id == "syskit"
+                    end
 
-                def loader
-                    client.loader
-                end
+                    def loader
+                        client.loader
+                    end
 
-                def supports_log_transfer?
-                    supports_log_transfer
+                    def supports_log_transfer?
+                        supports_log_transfer
+                    end
+
+                    def logging_enabled?
+                        logging_enabled
+                    end
+
                 end
-            end
 
             # Make a process server available to syskit
             #
@@ -628,12 +636,18 @@ module Syskit
             #   to conform to the API of {Orocos::Remotes::Client}
             # @param [String] log_dir the path to the server's log directory
             # @return [ProcessServerConfig]
-            def register_process_server(name, client, log_dir = nil, host_id: name)
+            def register_process_server(
+                name, client, log_dir = nil, host_id: name,
+                logging_enabled: true
+            )
                 if process_servers[name]
                     raise ArgumentError, "there is already a process server registered as #{name}, call #remove_process_server first"
                 end
 
-                ps = ProcessServerConfig.new(name, client, log_dir, host_id)
+                ps = ProcessServerConfig.new(
+                    name: name, client: client, log_dir: log_dir, host_id: host_id,
+                    logging_enabled: logging_enabled
+                )
                 process_servers[name] = ps
                 ps
             end
