@@ -65,6 +65,7 @@ module Syskit
                 def initialize(
                     host = "localhost", port = DEFAULT_PORT,
                     response_timeout: 10, root_loader: Orocos.default_loader,
+                    register_on_name_server: true
                 )
                     @host = host
                     @port = port
@@ -90,6 +91,7 @@ module Syskit
                     @processes = {}
                     @death_queue = []
                     @host_id = "#{host}:#{port}:#{server_pid}"
+                    @register_on_name_server = register_on_name_server
                     @response_timeout = response_timeout
                 end
 
@@ -177,6 +179,8 @@ module Syskit
                         deployment_model, options.delete(:prefix)
                     )
                     name_mappings = prefix_mappings.merge(name_mappings)
+                    options[:register_on_name_server] =
+                        options.fetch(:register_on_name_server, @register_on_name_server)
 
                     socket.write(COMMAND_START)
                     Marshal.dump(

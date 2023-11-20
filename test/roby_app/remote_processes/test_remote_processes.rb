@@ -130,7 +130,45 @@ describe Syskit::RobyApp::RemoteProcesses do
                 "syskit_tests_empty", "syskit_tests_empty", {},
                 oro_logfile: nil, output: "/dev/null"
             )
+
             assert_same deployment, process.model
+        end
+
+        it "registers the task on the name server if directed to do so" do
+            project    = OroGen::Spec::Project.new(root_loader)
+            deployment = project.deployment "syskit_tests_empty"
+            root_loader.register_deployment_model(deployment)
+            task_name = "syskit-remote-process-tests-#{Process.pid}"
+            process = client.start(
+                "syskit_tests_empty", "syskit_tests_empty",
+                { "syskit_tests_empty" => task_name },
+                oro_logfile: nil, output: "/tmp/out",
+                register_on_name_server: true
+            )
+            result = wait_running_process(process)
+            task = Orocos.allow_blocking_calls { Orocos.name_service.get task_name }
+            assert_equal result[:iors][task_name],
+                         task.ior
+        end
+
+        it "does not register the task on the name server if registration is disabled" do
+            project    = OroGen::Spec::Project.new(root_loader)
+            deployment = project.deployment "syskit_tests_empty"
+            root_loader.register_deployment_model(deployment)
+            task_name = "syskit-remote-process-tests-#{Process.pid}"
+            process = client.start(
+                "syskit_tests_empty", "syskit_tests_empty",
+                { "syskit_tests_empty" => task_name },
+                oro_logfile: nil, output: "/tmp/out",
+                register_on_name_server: false
+            )
+            result = wait_running_process(process)
+            task = Orocos.allow_blocking_calls { Orocos.name_service.get task_name }
+            refute_equal result[:iors][task_name],
+                         task.ior
+        rescue Orocos::NotFound
+            # Expected behavior
+            assert(true)
         end
     end
 
@@ -140,20 +178,16 @@ describe Syskit::RobyApp::RemoteProcesses do
         end
 
         it "returns a hash with information about a process and its tasks" do
-            client.start(
+            process = client.start(
                 "syskit_tests_empty", "syskit_tests_empty",
                 { "syskit_tests_empty" => "syskit_tests_empty" },
                 oro_logfile: nil, output: "/dev/null"
             )
-            result = nil
-            loop do
-                result = client.wait_running("syskit_tests_empty")
-                break if result["syskit_tests_empty"]&.key?(:iors)
-            end
+            result = wait_running_process(process)
 
             assert_match(
                 /^IOR/,
-                result["syskit_tests_empty"][:iors]["syskit_tests_empty"]
+                result[:iors]["syskit_tests_empty"]
             )
         end
 
@@ -471,5 +505,34 @@ describe Syskit::RobyApp::RemoteProcesses do
     def start_and_connect_to_server
         start_server
         connect_to_server
+    end
+
+    def wait_running_process(process, timeout: 5)
+        deadline = Time.now + timeout
+        while Time.now < deadline
+            if (r = query_process_running(process))
+                return r
+            end
+
+            sleep 0.01
+        end
+        flunk("did not manage to get a running #{process} in #{timeout} seconds")
+    end
+
+    # Query {#client} to check whether the given process is running
+    #
+    # @return [nil,Hash] nil if the process is not ready, and the process-specific hash
+    #   returned by the process server otherwise
+    # @raise if the process finished or died, or if the remote process server reports
+    #   an error
+    def query_process_running(process)
+        result = client.wait_running(process.name)
+        return unless (r = result[process.name])
+        return r if r.key?(:iors)
+
+        result = client.wait_termination(0)
+        raise "process #{process.name} unexpectedly terminated" if result[process]
+
+        raise r[:error]
     end
 end

@@ -82,12 +82,15 @@ module Syskit
                     Syskit::RobyApp::Plugin.connect_to_local_process_server
                 end
 
+                stubs_process_manager = Orocos::RubyTasks::ProcessManager.new(
+                    Roby.app.default_loader,
+                    task_context_class: Orocos::RubyTasks::StubTaskContext
+                )
+
                 Syskit.conf.register_process_server(
-                    "stubs",
-                    Orocos::RubyTasks::ProcessManager.new(
-                        Roby.app.default_loader,
-                        task_context_class: Orocos::RubyTasks::StubTaskContext,
-                    ), "", host_id: "syskit", logging_enabled: false
+                    "stubs", stubs_process_manager, "",
+                    host_id: "syskit", logging_enabled: false,
+                    register_on_name_server: false
                 )
                 Syskit.conf.logs.create_configuration_log(
                     File.join(app.log_dir, "properties")

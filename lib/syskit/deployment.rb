@@ -34,6 +34,7 @@ module Syskit
         argument :logger_task, default: nil
         argument :logger_name, default: nil
         argument :logging_enabled, default: nil
+        argument :register_on_name_server, default: nil
         argument :read_only, default: nil
 
         # The underlying process object
@@ -295,7 +296,8 @@ module Syskit
             spawn_options = spawn_options.merge(
                 output: "%m-%p.txt",
                 wait: false,
-                cmdline_args: options
+                cmdline_args: options,
+                register_on_name_server: register_on_name_server
             )
 
             if log_dir
@@ -938,6 +940,14 @@ module Syskit
                 process_server_config.logging_enabled?
             else
                 logging_enabled
+            end
+        end
+
+        def register_on_name_server?
+            if register_on_name_server.nil?
+                process_server_config.register_on_name_server?
+            else
+                register_on_name_server
             end
         end
     end

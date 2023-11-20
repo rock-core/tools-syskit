@@ -719,15 +719,19 @@ module Syskit
         end
 
         describe "using the ruby process server" do
-            attr_reader :task_m, :deployment_m, :deployment
+            attr_reader :task_name, :task_m, :deployment_m, :deployment
             before do
-                Syskit.conf.register_process_server("test", Orocos::RubyTasks::ProcessManager.new, "")
+                Syskit.conf.register_process_server(
+                    "test", Orocos::RubyTasks::ProcessManager.new, "",
+                    register_on_name_server: false
+                )
                 task_m = @task_m = TaskContext.new_submodel do
                     input_port "in", "/double"
                     output_port "out", "/double"
                 end
+                @task_name = task_name = "syskit-ruby-tasks-test-#{Process.pid}"
                 @deployment_m = Deployment.new_submodel(name: "deployment") do
-                    task "task", task_m.orogen_model
+                    task task_name, task_m.orogen_model
                 end
                 Syskit.conf.process_server_for("test")
                       .register_deployment_model(deployment_m.orogen_model)
@@ -736,17 +740,53 @@ module Syskit
                     .to { emit deployment.ready_event }
             end
             it "can start tasks defined on a ruby process server" do
-                task = deployment.task("task")
+                task = deployment.task(task_name)
                 assert task.orocos_task
                 assert "task", task.orocos_task.name
             end
             it "sets the orocos_task attribute to a RubyTaskContext" do
-                assert_kind_of Orocos::RubyTasks::TaskContext, deployment.task("task").orocos_task
+                assert_kind_of Orocos::RubyTasks::TaskContext,
+                               deployment.task(task_name).orocos_task
             end
             it "makes sure that the Ruby tasks are disposed when the deployment is stopped" do
-                flexmock(deployment.task("task").orocos_task).should_receive(:dispose).once.pass_thru
+                flexmock(deployment.task(task_name).orocos_task)
+                    .should_receive(:dispose).once.pass_thru
                 expect_execution { deployment.stop! }
                     .to { emit deployment.stop_event }
+            end
+            it "does not register the task on the name server by default, "\
+               "as specified on the process server config" do
+                task = Orocos.allow_blocking_calls { Orocos.name_service.get @task_name }
+                # Check for equality in case we have a leftover from another failed test
+                refute_equal(
+                    task.ior, deployment.remote_task_handles[@task_name].handle.ior
+                )
+            rescue Orocos::NotFound
+                # Expected
+            end
+            it "registers the task on the name server if told to do so" do
+                expect_execution { deployment.stop! }.to { emit deployment.stop_event }
+
+                deployment = deployment_m.new(on: "test", register_on_name_server: true)
+                plan.add(deployment)
+                expect_execution { deployment.start! }.to { emit deployment.ready_event }
+                task = Orocos.allow_blocking_calls { Orocos.name_service.get @task_name }
+                assert_equal(
+                    task.ior,
+                    deployment.remote_task_handles[@task_name].handle.ior
+                )
+            end
+            it "deregisters the task on stop" do
+                expect_execution { deployment.stop! }.to { emit deployment.stop_event }
+
+                deployment = deployment_m.new(on: "test", register_on_name_server: true)
+                plan.add(deployment)
+                expect_execution { deployment.start! }.to { emit deployment.ready_event }
+                expect_execution { deployment.stop! }.to { emit deployment.stop_event }
+                Orocos.allow_blocking_calls { Orocos.name_service.get @task_name }
+                flunk("task name was not deregistered on stop")
+            rescue Orocos::NotFound
+                # Expected
             end
         end
 

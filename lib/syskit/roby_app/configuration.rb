@@ -391,7 +391,10 @@ module Syskit
                         app.default_loader,
                         task_context_class: Orocos::RubyTasks::StubTaskContext
                     )
-                    register_process_server(sim_name, mng, logging_enabled: false)
+                    register_process_server(
+                        sim_name, mng,
+                        logging_enabled: false, register_on_name_server: false
+                    )
                 end
                 process_server_config_for(sim_name)
             end
@@ -544,7 +547,7 @@ module Syskit
             def connect_to_orocos_process_server(
                 name, host, port: Syskit::RobyApp::RemoteProcesses::DEFAULT_PORT,
                 log_dir: nil, result_dir: nil, host_id: nil,
-                name_service: Orocos.name_service,
+                name_service: nil,
                 model_only_server: only_load_models? || (app.simulation? && app.single?)
             )
                 if log_dir || result_dir
@@ -553,6 +556,13 @@ module Syskit
                         "is deprecated. Use 'syskit process_server' instead of "\
                         "'orocos_process_server' which will take the log dir "\
                         "information from the environment/configuration"
+                    )
+                end
+
+                if name_service
+                    Roby.warn_deprecated(
+                        "the name_service argument to connect_to_orocos_process_server is "\
+                        "unused, and will be removed in the future"
                     )
                 end
 
@@ -587,9 +597,7 @@ module Syskit
                 self.disables_local_process_server = (host == "localhost")
 
                 client = Syskit::RobyApp::RemoteProcesses::Client.new(
-                    host, port,
-                    root_loader: app.default_loader,
-                    name_service: name_service
+                    host, port, root_loader: app.default_loader
                 )
                 client.create_log_dir(
                     log_dir, Roby.app.time_tag,
@@ -605,7 +613,7 @@ module Syskit
 
             ProcessServerConfig =
                 Struct.new :name, :client, :log_dir, :host_id, :supports_log_transfer,
-                           :logging_enabled,
+                           :logging_enabled, :register_on_name_server,
                            keyword_init: true do
                     def on_localhost?
                         host_id == "localhost" || host_id == "syskit"
@@ -627,6 +635,9 @@ module Syskit
                         logging_enabled
                     end
 
+                    def register_on_name_server?
+                        register_on_name_server
+                    end
                 end
 
             # Make a process server available to syskit
@@ -638,7 +649,7 @@ module Syskit
             # @return [ProcessServerConfig]
             def register_process_server(
                 name, client, log_dir = nil, host_id: name,
-                logging_enabled: true
+                logging_enabled: true, register_on_name_server: true
             )
                 if process_servers[name]
                     raise ArgumentError, "there is already a process server registered as #{name}, call #remove_process_server first"
@@ -646,7 +657,8 @@ module Syskit
 
                 ps = ProcessServerConfig.new(
                     name: name, client: client, log_dir: log_dir, host_id: host_id,
-                    logging_enabled: logging_enabled
+                    logging_enabled: logging_enabled,
+                    register_on_name_server: register_on_name_server
                 )
                 process_servers[name] = ps
                 ps
