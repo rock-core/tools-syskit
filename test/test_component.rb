@@ -735,6 +735,13 @@ describe Syskit::Component do
             @task = syskit_stub_deploy_and_configure(@task_m)
         end
 
+        it "instanciates new data readers on dup" do
+            @task_m.data_reader @task_m.out_port, as: "test"
+            task1 = @task_m.new
+            task2 = task1.dup
+            refute_equal task1.test_reader, task2.test_reader
+        end
+
         describe "without a given accessor name" do
             it "creates an unbound accessor" do
                 reader = @task.data_reader(@task_m.out_port)
@@ -958,6 +965,13 @@ describe Syskit::Component do
             flexmock(Syskit::DynamicPortBinding::BoundInputWriter)
 
             @task = syskit_stub_deploy_and_configure(@task_m)
+        end
+
+        it "instanciates new data writers on dup" do
+            @task_m.data_writer @task_m.in_port, as: "test"
+            task1 = @task_m.new
+            task2 = task1.dup
+            refute_equal task1.test_writer, task2.test_writer
         end
 
         describe "without a given accessor name" do
