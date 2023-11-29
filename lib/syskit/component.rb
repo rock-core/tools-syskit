@@ -53,12 +53,7 @@ module Syskit
             super
             @requirements = InstanceRequirements.new
 
-            @registered_data_writers =
-                instanciate_data_accessors(model.each_data_writer)
-            @registered_data_readers =
-                instanciate_data_accessors(model.each_data_reader)
-            @data_readers = @registered_data_readers.values
-            @data_writers = @registered_data_writers.values
+            setup_data_accessors
         end
 
         def initialize_copy(source)
@@ -66,6 +61,16 @@ module Syskit
             @requirements = @requirements.dup
             specialize if source.specialized_model?
             duplicate_missing_services_from(source)
+            setup_data_accessors
+        end
+
+        def setup_data_accessors
+            @registered_data_writers =
+                instanciate_data_accessors(model.each_data_writer)
+            @registered_data_readers =
+                instanciate_data_accessors(model.each_data_reader)
+            @data_readers = @registered_data_readers.values
+            @data_writers = @registered_data_writers.values
         end
 
         def create_fresh_copy
