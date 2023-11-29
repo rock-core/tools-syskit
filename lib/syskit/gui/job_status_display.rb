@@ -1,6 +1,5 @@
 # frozen_string_literal: true
 
-require "syskit/gui/job_state_label"
 module Syskit
     module GUI
         class JobStatusDisplay < Qt::Widget

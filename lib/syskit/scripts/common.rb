@@ -1,9 +1,7 @@
 # frozen_string_literal: true
 
 require "optparse"
-require "orocos"
-require "syskit"
-require "syskit/roby_app"
+require "English"
 
 module Syskit
     module Scripts
@@ -217,6 +215,9 @@ module Syskit
         end
 
         def self.setup
+            require "syskit"
+            require "syskit/roby_app"
+
             tic = Time.now
             Roby.app.using "syskit"
             if debug
@@ -226,9 +227,9 @@ module Syskit
                 Syskit.logger = ::Logger.new(STDOUT)
                 Syskit.logger.formatter = Roby.logger.formatter
                 Syskit.logger.level = ::Logger::DEBUG
-                Orocos.logger = ::Logger.new(STDOUT)
-                Orocos.logger.formatter = Roby.logger.formatter
-                Orocos.logger.level = ::Logger::DEBUG
+                Runkit.logger = ::Logger.new(STDOUT)
+                Runkit.logger.formatter = Roby.logger.formatter
+                Runkit.logger.level = ::Logger::DEBUG
             end
 
             Roby.display_exception do

@@ -615,11 +615,11 @@ module Syskit
                         source_port, sink_port, fallback_policy
                     )
                 elsif sink_port_m.required_connection_type == :data
-                    policy = Orocos::Port.prepare_policy(type: :data)
+                    policy = Runkit::Port.prepare_policy(type: :data)
                     DataFlowDynamics.debug { "     result: #{policy}" }
                     policy
                 elsif sink_port_m.required_connection_type == :buffer
-                    policy = Orocos::Port.prepare_policy(type: :buffer, size: 1)
+                    policy = Runkit::Port.prepare_policy(type: :buffer, size: 1)
                     DataFlowDynamics.debug { "     result: #{policy}" }
                     policy
                 else

@@ -216,7 +216,7 @@ module Syskit
 
             # Module used to allow droby-marshalling of Typelib values
             #
-            # The manipulated registry is Orocos.registry
+            # The manipulated registry is Runkit.registry
             module TypelibTypeDumper
                 # Marshalling representation of a typelib value
                 class DRoby

@@ -46,10 +46,10 @@ module Syskit
                 if p = @properties[non_raw_name]
                     [true, p]
                 else
-                    ::Kernel.raise ::Orocos::NotFound, "neither #{non_raw_name} nor #{name} are a property of #{@task}"
+                    ::Kernel.raise ::Runkit::NotFound, "neither #{non_raw_name} nor #{name} are a property of #{@task}"
                 end
             else
-                ::Kernel.raise ::Orocos::NotFound, "#{name} is not a property of #{@task}"
+                ::Kernel.raise ::Runkit::NotFound, "#{name} is not a property of #{@task}"
             end
         end
 

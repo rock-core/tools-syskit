@@ -11,13 +11,13 @@ module Syskit
             attr_reader :syskit_engine, :merge_solver
 
             # Helper method that mocks a port accessed through
-            # Orocos::TaskContext#raw_port
+            # Runkit::TaskContext#raw_port
             def mock_raw_port(task, port_name)
                 if task.respond_to?(:orocos_task)
                     task = task.orocos_task
                 end
 
-                port = Orocos.allow_blocking_calls do
+                port = Runkit.allow_blocking_calls do
                     task.raw_port(port_name)
                 end
                 task.should_receive(:raw_port).with(port_name).and_return(port)

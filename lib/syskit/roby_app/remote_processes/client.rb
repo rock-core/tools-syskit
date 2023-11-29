@@ -1,6 +1,6 @@
 # frozen_string_literal: true
 
-require "orocos"
+require "runkit"
 require "syskit/roby_app/remote_processes/loader"
 
 module Syskit
@@ -48,9 +48,6 @@ module Syskit
                 attr_reader :server_pid
                 # A string that allows to uniquely identify this process server
                 attr_reader :host_id
-                # The name service object that allows to resolve tasks from this process
-                # server
-                attr_reader :name_service
 
                 def to_s
                     "#<Syskit::RobyApp::RemoteProcesses::Client #{host}:#{port}>"
@@ -62,16 +59,12 @@ module Syskit
 
                 # Connects to the process server at +host+:+port+
                 #
-                # @option options [Orocos::NameService] :name_service
-                #   (Orocos.name_service). The name service object that should be used
-                #   to resolve tasks started by this process server
-                # @option options [OroGen::Loaders::Base] :root_loader
-                #   (Orocos.default_loader). The loader object that should be used as
-                #   root for this client's loader
+                # @param [OroGen::Loaders::Base] root_loader
+                #   The loader object that should be used as root for this
+                #   client's loader
                 def initialize(
                     host = "localhost", port = DEFAULT_PORT,
-                    response_timeout: 10, root_loader: Orocos.default_loader,
-                    name_service: Orocos.name_service
+                    response_timeout: 10, root_loader: Roby.app.default_loader
                 )
                     @host = host
                     @port = port
@@ -86,7 +79,6 @@ module Syskit
                     socket.setsockopt(Socket::IPPROTO_TCP, Socket::TCP_NODELAY, true)
                     socket.fcntl(Fcntl::FD_CLOEXEC, 1)
 
-                    @name_service = name_service
                     begin
                         @server_pid = pid
                     rescue EOFError
@@ -181,7 +173,7 @@ module Syskit
                     else deployment_model = deployment
                     end
 
-                    prefix_mappings = Orocos::ProcessBase.resolve_prefix(
+                    prefix_mappings = Runkit::ProcessBase.resolve_prefix(
                         deployment_model, options.delete(:prefix)
                     )
                     name_mappings = prefix_mappings.merge(name_mappings)
@@ -196,18 +188,16 @@ module Syskit
                             msg = Marshal.load(socket)
                             raise Failed,
                                   "failed to start #{deployment_model.name}: #{msg}"
-                        elsif pid_s == RET_STARTED_PROCESS
-                            pid = Marshal.load(socket)
-                            process = Process.new(
-                                process_name, deployment_model, self, pid
-                            )
-                            process.name_mappings = name_mappings
-                            processes[process_name] = process
-                            return process
-                        else
+                        elsif pid_s != RET_STARTED_PROCESS
                             raise InternalError,
                                   "unexpected reply #{pid_s} to the start command"
                         end
+
+                        pid = Marshal.load(socket)
+                        process = Process.new(process_name, deployment_model, self, pid)
+                        name_mappings.each { |old, new| process.map_name(old, new) }
+                        processes[process_name] = process
+                        return process
                     end
                 end
 
@@ -300,12 +290,10 @@ module Syskit
                 #
                 # The call does not block until the process has quit. You will have to
                 # call #wait_termination to wait for the process end.
-                def stop(deployment_name, wait, cleanup: true, hard: false)
+                def stop(deployment_name, cleanup: true, hard: false)
                     socket.write(COMMAND_END)
                     Marshal.dump([deployment_name, cleanup, hard], socket)
                     raise Failed, "failed to quit #{deployment_name}" unless wait_for_ack
-
-                    join(deployment_name) if wait
                 end
 
                 def kill_all(cleanup: false, hard: true)

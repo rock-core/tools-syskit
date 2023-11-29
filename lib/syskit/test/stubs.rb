@@ -295,7 +295,7 @@ module Syskit
                 process_server = Syskit.conf.process_server_for("stubs")
                 task_context_class =
                     if remote_task
-                        Orocos::RubyTasks::RemoteTaskContext
+                        Runkit::RubyTasks::RemoteTaskContext
                     else
                         process_server.task_context_class
                     end
@@ -322,12 +322,10 @@ module Syskit
                 task_m = superclass.new_submodel(name: "#{model}-stub")
                 services.each_with_index do |srv, idx|
                     srv.each_input_port do |p|
-                        orocos_type_name = Orocos.find_orocos_type_name_by_type(p.type)
-                        task_m.orogen_model.input_port p.name, orocos_type_name
+                        task_m.orogen_model.input_port p.name, p.orogen_model.type.name
                     end
                     srv.each_output_port do |p|
-                        orocos_type_name = Orocos.find_orocos_type_name_by_type(p.type)
-                        task_m.orogen_model.output_port p.name, orocos_type_name
+                        task_m.orogen_model.output_port p.name, p.orogen_model.type.name
                     end
                     if srv <= Syskit::Device
                         task_m.driver_for srv, as: "dev#{idx}"

@@ -7,6 +7,8 @@ module Syskit
         # Update the state of all unfinished tasks
         #
         # Called once per execution cycle by the engine
+        #
+        # @param [Roby::ExecutablePlan]
         def self.update_task_states(plan) # :nodoc:
             scheduler = plan.execution_engine.scheduler
             plan.find_tasks(Syskit::TaskContext).not_finished.each do |task|

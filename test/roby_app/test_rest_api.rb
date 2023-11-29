@@ -11,6 +11,7 @@ module Syskit
             # Bypass Roby's own test setup
             def setup
                 @roby_app = Roby::Application.new
+                @roby_app.default_loader # Cause creation of default_pkgconfig_loader
                 @roby_interface = Roby::Interface::Interface.new(@roby_app)
             end
 
@@ -135,7 +136,7 @@ module Syskit
                     it "returns the deployments as registered in Syskit" do
                         configured_deployment = Models::ConfiguredDeployment.new(
                             "localhost", @deployment_m,
-                            Hash["test_task" => "mapped_test_task"], "test_deployment", {}
+                            { "test_task" => "mapped_test_task" }, "test_deployment"
                         )
                         @configured_deployments << configured_deployment
                         expected = Hash[
@@ -156,7 +157,7 @@ module Syskit
 
                     it "returns a deployment type of 'orocos' for an orocos remote process server" do
                         configured_deployment = Models::ConfiguredDeployment.new(
-                            "localhost", @deployment_m, Hash[], "test_deployment", {}
+                            "localhost", @deployment_m, {}, "test_deployment"
                         )
                         @configured_deployments << configured_deployment
                         assert_equal "orocos",
@@ -165,7 +166,7 @@ module Syskit
 
                     it "returns a deployment type of 'unmanaged' for an unmanaged task" do
                         configured_deployment = Models::ConfiguredDeployment.new(
-                            "unmanaged_tasks", @deployment_m, Hash[], "test_deployment", {}
+                            "unmanaged_tasks", @deployment_m, {}, "test_deployment"
                         )
                         @configured_deployments << configured_deployment
                         assert_equal "unmanaged",
@@ -174,7 +175,7 @@ module Syskit
 
                     it "ignores tasks whose process server type is not exported" do
                         configured_deployment = Models::ConfiguredDeployment.new(
-                            "something_else", @deployment_m, Hash[], "test_deployment", {}
+                            "something_else", @deployment_m, {}, "test_deployment"
                         )
                         @configured_deployments << configured_deployment
                         assert_equal [], get_json("/deployments/registered")["registered_deployments"]
@@ -182,7 +183,7 @@ module Syskit
 
                     it "reports if a deployment has not been created by the REST API" do
                         configured_deployment = Models::ConfiguredDeployment.new(
-                            "localhost", @deployment_m, Hash[], "test_deployment", {}
+                            "localhost", @deployment_m, {}, "test_deployment"
                         )
                         @configured_deployments << configured_deployment
                         flexmock(RESTDeploymentManager).new_instances
@@ -194,7 +195,7 @@ module Syskit
 
                     it "reports if a deployment has been created by the REST API" do
                         configured_deployment = Models::ConfiguredDeployment.new(
-                            "localhost", @deployment_m, Hash[], "test_deployment", {}
+                            "localhost", @deployment_m, {}, "test_deployment"
                         )
                         @configured_deployments << configured_deployment
                         flexmock(RESTDeploymentManager).new_instances
@@ -206,10 +207,10 @@ module Syskit
 
                     it "reports overriden deployments but not the tasks they are replaced by" do
                         configured_deployment = Models::ConfiguredDeployment.new(
-                            "unmanaged_tasks", @deployment_m, Hash[], "test_deployment", {}
+                            "unmanaged_tasks", @deployment_m, {}, "test_deployment"
                         )
                         overriden = Models::ConfiguredDeployment.new(
-                            "localhost", @deployment_m, Hash[], "test_deployment", {}
+                            "localhost", @deployment_m, {}, "test_deployment"
                         )
                         @configured_deployments << configured_deployment
                         mock = flexmock(RESTDeploymentManager).new_instances
@@ -376,7 +377,7 @@ module Syskit
                         flexmock(@roby_app).should_receive(:log_dir).and_return("/some/log/dir")
                     end
                     it "returns the command line as a hash" do
-                        command_line = Orocos::Process::CommandLine.new(
+                        command_line = Runkit::Process::CommandLine.new(
                             Hash["ENV" => "VAR"],
                             "/path/to/command",
                             ["--some", "args"],
@@ -398,17 +399,17 @@ module Syskit
                     it "passes sane default configuration" do
                         flexmock(RESTDeploymentManager).new_instances
                                                        .should_receive(:command_line)
-                                                       .with(123, tracing: false, name_service_ip: "localhost")
-                                                       .and_return(Orocos::Process::CommandLine.new)
+                                                       .with(123, tracing: false)
+                                                       .and_return(Runkit::Process::CommandLine.new)
                         get_json "/deployments/123/command_line"
                     end
 
                     it "allows to override the defaults" do
                         flexmock(RESTDeploymentManager).new_instances
                                                        .should_receive(:command_line)
-                                                       .with(123, tracing: true, name_service_ip: "some_ip")
-                                                       .and_return(Orocos::Process::CommandLine.new)
-                        get_json "/deployments/123/command_line?tracing=true&name_service_ip=some_ip"
+                                                       .with(123, tracing: true)
+                                                       .and_return(Runkit::Process::CommandLine.new)
+                        get_json "/deployments/123/command_line?tracing=true"
                     end
 
                     it "returns 404 if the deployment does not exist" do

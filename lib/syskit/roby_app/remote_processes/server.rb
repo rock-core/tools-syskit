@@ -3,7 +3,7 @@
 require "socket"
 require "fcntl"
 require "net/ftp"
-require "orocos"
+require "runkit"
 
 require "concurrent/atomic/atomic_reference"
 require "syskit/roby_app/remote_processes/log_upload_state"
@@ -68,20 +68,9 @@ module Syskit
                     final_path
                 end
 
-                DEFAULT_OPTIONS = { wait: false, output: "%m-%p.txt" }.freeze
-
-                # Start a standalone process server using the given options and port.
-                # The options are passed to Server.run when a new deployment is started
-                def self.run(options = DEFAULT_OPTIONS, port = DEFAULT_PORT)
-                    Orocos.disable_sigchld_handler = true
-                    Orocos.initialize
-                    new({ wait: false }.merge(options), port).exec
-                rescue Interrupt # rubocop:disable Lint/SuppressedException
-                end
-
                 # The underlying Roby::Application object we use to resolve paths
                 attr_reader :app
-                # The startup options to be passed to Orocos.run
+                # The startup options to be passed to Runkit.run
                 attr_reader :default_start_options
                 # The TCP port we are required to bind to
                 #
@@ -111,7 +100,7 @@ module Syskit
                 attr_reader :loader
 
                 def self.create_pkgconfig_loader
-                    OroGen::Loaders::RTT.new(Orocos.orocos_target)
+                    OroGen::Loaders::RTT.new(Runkit.orocos_target)
                 end
 
                 def initialize(
@@ -120,7 +109,7 @@ module Syskit
                     loader: self.class.create_pkgconfig_loader
                 )
                     @app = app
-                    @default_start_options = { wait: false, output: "%m-%p.txt" }
+                    @default_start_options = { output: "%m-%p.txt" }
 
                     @loader = loader
                     @required_port = port
@@ -237,7 +226,7 @@ module Syskit
                 # Check if a specific subprocess terminated and deregister it
                 #
                 # @param [Integer] pid the subprocess pid
-                # @return [(Orocos::Process,Process::Status),nil] the terminated process
+                # @return [(Runkit::Process,Process::Status),nil] the terminated process
                 #   and its exit status if it terminated, nil otherwise
                 # @raise Errno::ECHILD if there is no such child with this PID
                 def try_wait_for_subprocess_exit(pid)
@@ -249,7 +238,7 @@ module Syskit
                 # Detect all subprocesses of this server that have died and
                 # de-register them
                 #
-                # @return [Array<(Orocos::Process,Process:Status)>] the list of terminated
+                # @return [Array<(Runkit::Process,Process:Status)>] the list of terminated
                 #   subprocesses and their exit status
                 def reap_dead_subprocesses
                     dead_processes = []
@@ -258,9 +247,9 @@ module Syskit
                             dead_processes << process
                         end
                     end
-                    dead_processes
+                    dead_processes.compact
                 rescue Errno::ECHILD
-                    dead_processes
+                    dead_processes.compact
                 end
 
                 # Reap a single terminated subprocess if there is one
@@ -277,7 +266,7 @@ module Syskit
                 #
                 # @param [Integer] exit_pid the process PID
                 # @param [Process::Status] exit_status the process exit status
-                # @return [(Orocos::Process,Process::Status)]
+                # @return [(Runkit::Process,Process::Status)]
                 def handle_dead_subprocess(exit_pid, exit_status)
                     process_name, process =
                         processes.find { |_, p| p.pid == exit_pid }
@@ -294,7 +283,7 @@ module Syskit
 
                 # Announce the end of finished sub-processes to our clients
                 #
-                # @param [Array<(Orocos::Process,Process::Status)>] the list of
+                # @param [Array<(Runkit::Process,Process::Status)>] the list of
                 #   terminated processes
                 def announce_dead_processes(dead_processes)
                     dead_processes.each do |process, exit_status|
@@ -319,7 +308,7 @@ module Syskit
                         # Kill the process hard. If there are still processes,
                         # it means that the normal cleanup procedure did not
                         # work.  Not the time to call stop or whatnot
-                        p.kill(false, cleanup: false, hard: true)
+                        p.kill(cleanup: false, hard: true)
                     end
 
                     each_client do |socket|
@@ -429,10 +418,10 @@ module Syskit
                                 begin
                                     iors = p.wait_running(0)
                                     result[p_name] = ({ iors: iors } if iors)
-                                rescue Orocos::NotFound => e
+                                rescue Runkit::NotFound => e
                                     warn(e.message)
                                     result[p_name] = { error: e.message }
-                                rescue Orocos::InvalidIORMessage => e
+                                rescue Runkit::InvalidIORMessage => e
                                     warn(e.message)
                                     result[p_name] = { error: e.message }
                                 end
@@ -510,18 +499,18 @@ module Syskit
 
                 def start_process(name, deployment_name, name_mappings, options)
                     options = Hash[working_directory: app.log_dir].merge(options)
+                    deployment_m = loader.deployment_model_from_name(deployment_name)
 
-                    p = Orocos::Process.new(
-                        name, deployment_name,
-                        loader: @loader,
-                        name_mappings: name_mappings
+                    p = Runkit::Process.new(
+                        name, deployment_m,
+                        loader: @loader, name_mappings: name_mappings
                     )
                     p.spawn(**default_start_options.merge(options))
                     processes[name] = p
                 end
 
                 def end_process(process, cleanup: true, hard: false)
-                    process.kill(false, cleanup: cleanup, hard: hard)
+                    process.kill(cleanup: cleanup, hard: hard)
                 end
 
                 # Kill all running subprocesses
@@ -532,7 +521,7 @@ module Syskit
                 # @see join_all announce_dead_processes
                 def kill_all(cleanup: false, hard: true)
                     processes.each_value do |p|
-                        p.kill(false, cleanup: cleanup, hard: hard)
+                        p.kill(cleanup: cleanup, hard: hard)
                     end
                     processes.values
                 end
@@ -542,11 +531,11 @@ module Syskit
 
                 # Wait for the given processes to end
                 #
-                # @param [Array<Orocos::Process>] processes the subprocess objects
+                # @param [Array<Runkit::Process>] processes the subprocess objects
                 # @param [Float] poll polling period in seconds
                 # @param [Float] timeout timeout after which the method will raise
                 #   if there are some of the listed subprocesses still running
-                # @return [Array<(Orocos::Process,Process::Status)>]
+                # @return [Array<(Runkit::Process,Process::Status)>]
                 def join_all(processes, poll: 0.1, timeout: 10)
                     deadline = Time.now + timeout
                     dead_processes = []

@@ -31,13 +31,13 @@ module Syskit
 
                 @type =
                     if orogen_model.type.contains_opaques?
-                        Orocos.default_loader.intermediate_type_for(orogen_model.type)
+                        component_model.loader.intermediate_type_for(orogen_model.type)
                     else
                         orogen_model.type
                     end
 
                 @max_sizes = orogen_model.max_sizes
-                                         .merge(Orocos.max_sizes_for(type))
+                                         .merge(Runkit.max_sizes_for(type))
             end
 
             def max_marshalling_size
@@ -187,7 +187,7 @@ module Syskit
                 end
             end
 
-            def to_orocos_port(component)
+            def to_runkit_port(component)
                 component_model.bind(component).find_port(name)
             end
 

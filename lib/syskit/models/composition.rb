@@ -15,6 +15,10 @@ module Syskit
             #   specializations defined on this composition model
             attribute(:specializations) { SpecializationManager.new(self) }
 
+            def loader
+                Roby.app.default_loader
+            end
+
             def promote_child(child_name, child)
                 promoted = child.attach(self)
                 promoted.parent_model = child
@@ -666,7 +670,7 @@ module Syskit
                 end
                 unless options.empty?
                     options = Kernel.validate_options(
-                        options, Orocos::Port::CONNECTION_POLICY_OPTIONS
+                        options, Runkit::Port::CONNECTION_POLICY_OPTIONS
                     )
                 end
                 mappings.each do |out_p, in_p|

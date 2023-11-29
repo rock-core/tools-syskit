@@ -9,6 +9,10 @@ module Syskit
             include MetaRuby::ModelAsClass
             include Syskit::DataService
 
+            def loader
+                orogen_model.loader
+            end
+
             def to_component_model
                 self
             end
@@ -29,7 +33,7 @@ module Syskit
             inherited_attribute(:data_service, :data_services, map: true) { {} }
 
             # List of modules that should be applied on the underlying
-            # {Orocos::RubyTasks::StubTaskContext} when running tests in
+            # {Runkit::RubyTasks::StubTaskContext} when running tests in
             # non-stub mode
             #
             # @see stub
@@ -114,7 +118,7 @@ module Syskit
             end
 
             # Define a module that should be applied on the underlying
-            # {Orocos::RubyTasks::StubTaskContext} when running tests in
+            # {Runkit::RubyTasks::StubTaskContext} when running tests in
             # non-live mode
             def stub(&block)
                 stub_modules.first.class_eval(&block)

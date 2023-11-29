@@ -62,7 +62,7 @@ module Syskit
                 @wait_sync.synchronize { @cycle_start_index += 1 }
 
                 time = Time.now
-                state = orocos_task.rtt_state
+                state = orocos_task.read_toplevel_state
                 if (state != last_state) || !@current_state.value
                     @current_state.reset(state)
                     @state_queue.push(state)

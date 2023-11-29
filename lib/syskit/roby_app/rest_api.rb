@@ -347,8 +347,7 @@ module Syskit
             end
             get "/deployments/:id/command_line" do
                 deployment_manager.command_line(params[:id],
-                                                tracing: params[:tracing],
-                                                name_service_ip: params[:name_service_ip]).to_h
+                                                tracing: params[:tracing]).to_h
             end
         end
     end

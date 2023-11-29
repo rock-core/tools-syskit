@@ -1,6 +1,5 @@
 # frozen_string_literal: true
 
-require "orocos/ruby_process_server"
 module Syskit
     module RobyApp
         # Syskit engine configuration interface
@@ -113,15 +112,6 @@ module Syskit
             # likely want this
             attr_predicate :kill_all_on_process_server_connection?, true
 
-            # Controls whether the orogen types should be exported as Ruby
-            # constants
-            #
-            # @param [Boolean] flag
-            def export_types=(flag)
-                @export_types = flag
-                app.default_loader.export_types = flag
-            end
-
             def initialize(app)
                 super()
 
@@ -158,7 +148,6 @@ module Syskit
                 )
 
                 clear
-                self.export_types = true
             end
 
             def create_subfield(name)
@@ -387,9 +376,9 @@ module Syskit
             def sim_process_server_config_for(name)
                 sim_name = "#{name}-sim"
                 unless process_servers[sim_name]
-                    mng = Orocos::RubyTasks::ProcessManager.new(
+                    mng = Runkit::RubyTasks::ProcessManager.new(
                         app.default_loader,
-                        task_context_class: Orocos::RubyTasks::StubTaskContext
+                        task_context_class: Runkit::RubyTasks::StubTaskContext
                     )
                     register_process_server(sim_name, mng)
                 end
@@ -516,8 +505,10 @@ module Syskit
             end
 
             # @deprecated use {#connect_to_orocos_process_server} instead
-            def process_server(*args)
-                connect_to_orocos_process_server(*args)
+            def process_server(...)
+                Roby.warn_deprecated "#{self.class}##{__method__} is deprecated, use "\
+                    "connect_to_orocos_process_server instead"
+                connect_to_orocos_process_server(...)
             end
 
             ModelOnlyServer = Struct.new :loader do
@@ -535,7 +526,7 @@ module Syskit
             # of the local process server (i.e. sets
             # orocos_disables_local_process_server to true)
             #
-            # @return [Orocos::ProcessClient,Orocos::Generation::Project]
+            # @return [Runkit::ProcessClient,Runkit::Generation::Project]
             #
             # @raise [LocalOnlyConfiguration] if host is not 'localhost' and
             #   {#local_only?} is set
@@ -544,15 +535,22 @@ module Syskit
             def connect_to_orocos_process_server(
                 name, host, port: Syskit::RobyApp::RemoteProcesses::DEFAULT_PORT,
                 log_dir: nil, result_dir: nil, host_id: nil,
-                name_service: Orocos.name_service,
-                model_only_server: only_load_models? || (app.simulation? && app.single?)
+                model_only_server: only_load_models? || (app.simulation? && app.single?),
+                name_service: nil
             )
                 if log_dir || result_dir
-                    Syskit.warn(
+                    Roby.warn_deprecated(
                         "specifying log and/or result dir for remote process servers "\
                         "is deprecated. Use 'syskit process_server' instead of "\
                         "'orocos_process_server' which will take the log dir "\
                         "information from the environment/configuration"
+                    )
+                end
+
+                if name_service
+                    Roby.warn_deprecated(
+                        "the name_service argument to connect_to_orocos_process_server "\
+                        "is not used anymore"
                     )
                 end
 
@@ -588,8 +586,7 @@ module Syskit
 
                 client = Syskit::RobyApp::RemoteProcesses::Client.new(
                     host, port,
-                    root_loader: app.default_loader,
-                    name_service: name_service
+                    root_loader: app.default_loader
                 )
                 client.create_log_dir(
                     log_dir, Roby.app.time_tag,
@@ -625,7 +622,7 @@ module Syskit
             #
             # @param [String] name the process server name
             # @param [Object] client the process server client object, which has
-            #   to conform to the API of {Orocos::Remotes::Client}
+            #   to conform to the API of {Runkit::Remotes::Client}
             # @param [String] log_dir the path to the server's log directory
             # @return [ProcessServerConfig]
             def register_process_server(name, client, log_dir = nil, host_id: name)

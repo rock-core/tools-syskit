@@ -1,6 +1,8 @@
 # frozen_string_literal: true
 
 require "roby"
+require "syskit"
+require "syskit/roby_app"
 require "syskit/roby_app/remote_processes"
 require "syskit/roby_app/remote_processes/server"
 
@@ -23,9 +25,7 @@ server_port = Syskit::RobyApp::RemoteProcesses::DEFAULT_PORT
 Roby::Application.host_options(parser, options)
 parser.parse(ARGV)
 
-Orocos::CORBA.name_service.ip = options[:host]
-Orocos.disable_sigchld_handler = true
-Orocos.initialize
+Runkit.initialize
 server = Syskit::RobyApp::RemoteProcesses::Server.new(Roby.app, port: server_port)
 server.open(fd: options[:fd])
 server.listen

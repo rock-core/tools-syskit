@@ -12,10 +12,10 @@ module Syskit
                 @loader = OroGen::Loaders::Base.new
                 @group = DeploymentGroup.new
                 conf.register_process_server(
-                    "ruby_tasks", Orocos::RubyTasks::ProcessManager.new(loader), ""
+                    "ruby_tasks", Runkit::RubyTasks::ProcessManager.new(loader), ""
                 )
                 conf.register_process_server(
-                    "test-mng", Orocos::RubyTasks::ProcessManager.new(loader), ""
+                    "test-mng", Runkit::RubyTasks::ProcessManager.new(loader), ""
                 )
             end
 
@@ -288,7 +288,7 @@ module Syskit
                 it "registers a configured deployment using #deployment_model" do
                     expected = ConfiguredDeployment.new(
                         "test-mng", deployment_m, Hash["task" => "test"],
-                        "test", Hash[task_context_class: Orocos::RubyTasks::TaskContext]
+                        "test", Hash[task_context_class: Runkit::RubyTasks::TaskContext]
                     )
                     flexmock(group).should_receive(:register_configured_deployment)
                                    .once
@@ -339,7 +339,7 @@ module Syskit
                 it "sets the configured deployment as read_only" do
                     expected = ConfiguredDeployment.new(
                         "test-mng", deployment_m, Hash["task" => "test"],
-                        "test", Hash[task_context_class: Orocos::RubyTasks::TaskContext],
+                        "test", Hash[task_context_class: Runkit::RubyTasks::TaskContext],
                         read_only: ["test"]
                     )
                     flexmock(group).should_receive(:register_configured_deployment)
@@ -356,7 +356,7 @@ module Syskit
                 it "sets the configured deployment as read_only using the task name" do
                     expected = ConfiguredDeployment.new(
                         "test-mng", deployment_m, Hash["task" => "test"],
-                        "test", Hash[task_context_class: Orocos::RubyTasks::TaskContext],
+                        "test", Hash[task_context_class: Runkit::RubyTasks::TaskContext],
                         read_only: ["test"]
                     )
                     flexmock(group).should_receive(:register_configured_deployment)
@@ -374,7 +374,7 @@ module Syskit
                     expected = ConfiguredDeployment.new(
                         "test-mng", deployment_m, Hash["task" => "test_task_name"],
                         "test_task_name",
-                        Hash[task_context_class: Orocos::RubyTasks::TaskContext],
+                        Hash[task_context_class: Runkit::RubyTasks::TaskContext],
                         read_only: ["test_task_name"]
                     )
                     flexmock(group).should_receive(:register_configured_deployment)
@@ -396,12 +396,12 @@ module Syskit
                     expected = [ConfiguredDeployment.new(
                         "test-mng", deployment_m, Hash["task" => "test_task_name"],
                         "test_task_name",
-                        Hash[task_context_class: Orocos::RubyTasks::TaskContext],
+                        Hash[task_context_class: Runkit::RubyTasks::TaskContext],
                         read_only: ["test_task_name"]
                     ), ConfiguredDeployment.new(
                         "test-mng", deployment_m, Hash["task" => "empty_task"],
                         "empty_task",
-                        Hash[task_context_class: Orocos::RubyTasks::TaskContext],
+                        Hash[task_context_class: Runkit::RubyTasks::TaskContext],
                         read_only: ["empty_task"]
                     )]
                     flexmock(group).should_receive(:register_configured_deployment)
@@ -600,12 +600,12 @@ module Syskit
                                     .with(OroGen::Spec::Project.default_deployment_name("test::Task"))
                                     .and_return(deployment_m.orogen_model)
                     conf.register_process_server(
-                        "localhost", Orocos::RubyTasks::ProcessManager.new(
+                        "localhost", Runkit::RubyTasks::ProcessManager.new(
                                          Roby.app.default_loader
                                      ), ""
                     )
                     conf.register_process_server(
-                        "test", Orocos::RubyTasks::ProcessManager.new(
+                        "test", Runkit::RubyTasks::ProcessManager.new(
                                     Roby.app.default_loader
                                 ), ""
                     )
@@ -697,7 +697,7 @@ module Syskit
                         @group.use_deployment cmp_m => "task"
                     end
                     assert_equal "only deployment and task context models can be "\
-                        "deployed by use_deployment, got #{cmp_m}", e.message
+                        "deployed by `use_deployment`, got #{cmp_m}", e.message
                 end
 
                 it "raises if the given model is a RubyTaskContext" do
@@ -705,8 +705,8 @@ module Syskit
                     e = assert_raises(ArgumentError) do
                         @group.use_deployment task_m => "task"
                     end
-                    assert_equal "only deployment and task context models can be "\
-                        "deployed by use_deployment, got #{task_m}", e.message
+                    assert_equal "use use_ruby_tasks to deploy ruby task contexts",
+                                 e.message
                 end
 
                 it "raises if the task has no default deployment" do
@@ -754,10 +754,11 @@ module Syskit
                         @group.use_deployment(@task_m,
                                               on: "test", process_managers: @conf)
                     end
-                    assert_equal "you must provide a task name when starting "\
-                        "a component by type, as e.g. use_deployment "\
-                        "OroGen.xsens_imu.Task => 'imu'",
-                                 e.message
+                    assert_equal(
+                        "you must provide a task name when starting "\
+                        "a component by type, as e.g. OroGen.xsens_imu.Task => 'imu'",
+                        e.message
+                    )
                 end
                 it "sets the configured deployment as read_only" do
                     configured_deployment = group.use_deployment(

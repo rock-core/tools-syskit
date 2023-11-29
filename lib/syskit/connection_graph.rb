@@ -2,13 +2,13 @@
 
 module Syskit
     # Represents the actual connection graph between task context proxies.
-    # Its vertices are instances of Orocos::TaskContext, and edges are
+    # Its vertices are instances of Runkit::TaskContext, and edges are
     # mappings from [source_port_name, sink_port_name] pairs to the
     # connection policy between these ports.
     #
     # Syskit::ActualDataFlow is the actual global graph instance
     # in which the overall system connections are maintained in practice.
-    # Its vertices are Orocos::TaskContext and the edge information a
+    # Its vertices are Runkit::TaskContext and the edge information a
     # mapping of the form
     #
     #   (source_port_name, sink_port_name) => policy

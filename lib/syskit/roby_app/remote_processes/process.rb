@@ -1,12 +1,10 @@
 # frozen_string_literal: true
 
-require "orocos/process"
-
 module Syskit
     module RobyApp
         module RemoteProcesses
             # Representation of a remote process started with ProcessClient#start
-            class Process < Orocos::ProcessBase
+            class Process < Runkit::ProcessBase
                 # The ProcessClient instance that gives us access to the remote process
                 # server
                 attr_reader :process_client
@@ -46,8 +44,8 @@ module Syskit
                 # Cleanly stop the process
                 #
                 # @see kill!
-                def kill(wait = true, cleanup: true, hard: false)
-                    process_client.stop(name, wait, cleanup: cleanup, hard: hard)
+                def kill(cleanup: true, hard: false)
+                    process_client.stop(name, cleanup: cleanup, hard: hard)
                 end
 
                 # Wait for the
@@ -66,7 +64,21 @@ module Syskit
                 end
 
                 def resolve_all_tasks
-                    Orocos::Process.resolve_all_tasks(self)
+                    return @tasks if @tasks
+
+                    @tasks = model.task_activities
+                                  .each_with_object({}) do |deployed_task, h|
+                        name = deployed_task.name
+                        task_model = deployed_task.task_model
+                        mapped_name = mapped_name_for(name)
+                        ior = @ior_mappings.fetch(mapped_name)
+
+                        h[mapped_name] = Runkit::TaskContext.new(
+                            ior,
+                            name: mapped_name,
+                            model: task_model
+                        )
+                    end
                 end
 
                 def define_ior_mappings(mappings)

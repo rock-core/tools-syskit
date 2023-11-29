@@ -1,11 +1,12 @@
 # frozen_string_literal: true
 
-require "syskit/test/self"
+require "minitest/autorun"
 require "vizkit"
+
 require "metaruby/gui"
-require "roby/gui/exception_view"
 require "syskit/gui/state_label"
 require "syskit/gui/runtime_state"
+require "roby/gui/exception_view"
 require "roby/interface/async/interface"
 
 module Syskit

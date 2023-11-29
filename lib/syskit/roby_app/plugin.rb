@@ -61,24 +61,18 @@ module Syskit
                     require "syskit/test"
                 end
 
-                Orocos.disable_sigchld_handler = true
+                if Conf.ui?
+                    require "orocos"
+                    require "orocos/async"
+                end
             end
 
             # Hook called by the main application at the beginning of Application#setup
             def self.setup(app)
-                # We have our own loader, avoid clashing
-                Orocos.default_loader.export_types = false
-                # But, for the time being, default_loader might be equal to
-                # Orocos.default_loader, so reset the export_types flag to the
-                # desired value
-                app.default_loader.export_types = Syskit.conf.export_types?
-
                 # This is a HACK. We should be able to specify it differently
                 if app.testing? && app.auto_load_models?
                     app.auto_load_all_task_libraries = true
                 end
-
-                require "orocos/async" if Conf.ui?
 
                 if app.development_mode?
                     require "listen"
@@ -108,38 +102,27 @@ module Syskit
                         "ros", fake_client, app.log_dir, host_id: "syskit"
                     )
                 elsif Syskit.conf.define_default_process_managers?
-                    Syskit.conf.register_process_server("ruby_tasks",
-                                                        Orocos::RubyTasks::ProcessManager.new(app.default_loader),
-                                                        app.log_dir, host_id: "syskit")
+                    Syskit.conf.register_process_server(
+                        "ruby_tasks",
+                        Runkit::RubyTasks::ProcessManager.new(app.default_loader),
+                        app.log_dir, host_id: "syskit"
+                    )
 
                     Syskit.conf.register_process_server(
                         "unmanaged_tasks", UnmanagedTasksManager.new, app.log_dir
                     )
-
-                    Syskit.conf.register_process_server(
-                        "ros", Orocos::ROS::ProcessManager.new(app.ros_loader),
-                        app.log_dir
-                    )
                 end
 
                 ENV["ORO_LOGFILE"] =
-                    Orocos.orocos_logfile ||
-                    File.join(app.log_dir, "orocos.orocosrb-#{::Process.pid}.txt")
+                    Runkit.runkit_logfile ||
+                    File.join(app.log_dir, "runkit.#{::Process.pid}.txt")
 
-                if Syskit.conf.only_load_models?
-                    Orocos.load
-                    if Orocos::ROS.available?
-                        Orocos::ROS.load
-                    end
-                else
+                Runkit.load(loader: app.default_loader)
+                unless Syskit.conf.only_load_models?
                     # Change to the log dir so that the IOR file created by
                     # the CORBA bindings ends up there
                     Dir.chdir(app.log_dir) do
-                        Orocos.initialize
-                        if Orocos::ROS.enabled?
-                            Orocos::ROS.initialize
-                            Orocos::ROS.roscore_start(:wait => true)
-                        end
+                        Runkit.initialize
                     end
                 end
 
@@ -271,12 +254,6 @@ module Syskit
 
             # Hook called by the main application to undo what {.prepare} did
             def self.shutdown(app)
-                remaining = Orocos.each_process.to_a
-                unless remaining.empty?
-                    Syskit.warn "killing remaining Orocos processes: #{remaining.map(&:name).join(', ')}"
-                    Orocos::Process.kill(remaining)
-                end
-
                 if @handler_ids
                     unplug_engine_from_roby(@handler_ids.values, app.execution_engine)
                     @handler_ids = nil
@@ -286,28 +263,34 @@ module Syskit
                 app.syskit_log_transfer_shutdown
             end
 
+            attr_reader :default_pkgconfig_loader
+            attr_reader :orogen_pack_loader
+
             def default_loader
-                unless @default_loader
-                    @default_loader = Orocos.default_loader
-                    default_loader.on_project_load do |project|
-                        project_define_from_orogen(project)
-                    end
-                    orogen_pack_loader
-                    ros_loader
-                end
+                create_default_loader unless @default_loader
                 @default_loader
             end
 
-            def default_pkgconfig_loader
-                Orocos.default_pkgconfig_loader
-            end
+            def create_default_loader
+                # Workaround needed for migration to runkit
+                #
+                # orocos.rb sets ::Types, and some other libraries (e.g. rock-gazebo)
+                # end up loading it. Make sure we (1) load it preemptively and (2)
+                # set our own
+                require "orocos/typekits"
+                type_export_namespace = Typelib::RegistryExport::Namespace.new
+                Object.const_set(:Types, type_export_namespace)
 
-            def orogen_pack_loader
-                @orogen_pack_loader ||= OroGen::Loaders::Files.new(default_loader)
-            end
-
-            def ros_loader
-                @ros_loader ||= OroGen::ROS::Loader.new(default_loader)
+                @default_loader = DefaultLoader.new(
+                    self, type_export_namespace: type_export_namespace
+                )
+                @default_loader.on_project_load do |project|
+                    project_define_from_orogen(project)
+                end
+                @default_pkgconfig_loader =
+                    OroGen::Loaders::RTT.new(Runkit.orocos_target, @default_loader)
+                @orogen_pack_loader = OroGen::Loaders::Files.new(@default_loader)
+                nil
             end
 
             # A set of task libraries that should be imported when the application
@@ -439,11 +422,6 @@ module Syskit
                     dir  = File.dirname(path)
                     app.orogen_pack_loader.register_typekit dir, name
                 end
-
-                app.ros_loader.search_path
-                   .concat(Roby.app.find_dirs("models", "ROBOT", "orogen", "ros", :all => app.auto_load_all?, :order => :specific_first))
-                app.ros_loader.packs
-                   .concat(Roby.app.find_dirs("models", "ROBOT", "pack", "ros", :all => true, :order => :specific_last))
             end
 
             def syskit_listen_to_configuration_changes
@@ -585,12 +563,6 @@ module Syskit
             def using_task_library(name, options = {})
                 options = Kernel.validate_options options, :loader => default_loader
                 options[:loader].project_model_from_name(name)
-            end
-
-            # Loads the required ROS package
-            def using_ros_package(name, options = {})
-                options = Kernel.validate_options options, :loader => ros_loader
-                using_task_library(name, options)
             end
 
             # @deprecated use {using_task_library} instead
@@ -740,12 +712,6 @@ module Syskit
                 Deployment.find_model_by_orogen(deployment_model)
             end
 
-            # Loads the oroGen deployment model based on a ROS launcher file
-            def using_ros_launcher(name, options = {})
-                options = Kernel.validate_options options, :loader => ros_loader
-                using_deployment(name, options)
-            end
-
             # Start all deployments
             #
             # @param [Array<String>] on the name of the process servers on which
@@ -883,7 +849,7 @@ module Syskit
                 app.loaded_orogen_projects.clear
                 app.default_loader.clear
 
-                # We need to explicitly call Orocos.clear even though it looks
+                # We need to explicitly call Runkit.clear even though it looks
                 # like clearing the process servers would be sufficient
                 #
                 # The reason is that #cleanup only disconnects from the process
@@ -896,7 +862,7 @@ module Syskit
                 # I (sylvain) chose to not clear on disconnection as it sounds
                 # too much like a very bad side-effect to me. Simply explicitly
                 # clear the local registries here
-                Orocos.clear
+                Runkit.clear
 
                 # This needs to be cleared here and not in
                 # Component.clear_model. The main reason is that we need to
@@ -922,11 +888,6 @@ module Syskit
                 def using_task_library(name)
                     Roby.app.using_task_library(name)
                 end
-
-                # Loads a ROS package description
-                def using_ros_package(name)
-                    Roby.app.using_ros_package(name)
-                end
             end
 
             class << self
@@ -938,7 +899,7 @@ module Syskit
 
                 OroGen.load_orogen_plugins("syskit")
                 Roby.app.filter_out_patterns << Regexp.new(Regexp.quote(OroGen::OROGEN_LIB_DIR))
-                Roby.app.filter_out_patterns << Regexp.new(Regexp.quote(Orocos::OROCOSRB_LIB_DIR))
+                Roby.app.filter_out_patterns << Regexp.new(Regexp.quote(Runkit::RUNKIT_LIB_DIR))
                 Roby.app.filter_out_patterns << Regexp.new(Regexp.quote(Typelib::TYPELIB_LIB_DIR))
                 Roby.app.filter_out_patterns << Regexp.new(Regexp.quote(Syskit::SYSKIT_LIB_DIR))
                 toplevel_object.extend LoadToplevelMethods
@@ -974,7 +935,7 @@ module Syskit
             end
 
             def self.globally_sized_type?(type)
-                sizes = Orocos.max_sizes_for(type)
+                sizes = Runkit.max_sizes_for(type)
                 !sizes.empty? && OroGen::Spec::Port.compute_max_marshalling_size(type, sizes)
             end
 

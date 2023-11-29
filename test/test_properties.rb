@@ -46,11 +46,11 @@ module Syskit
                 assert_equal value, (properties.prop = value)
             end
             it "raises if trying to get the value of a non-existing property" do
-                exception = assert_raises(Orocos::NotFound) { properties.does_not_exist }
+                exception = assert_raises(Runkit::NotFound) { properties.does_not_exist }
                 assert_equal "does_not_exist is not a property of #{task}", exception.message
             end
             it "raises if trying to set the value of a non-existing property" do
-                exception = assert_raises(Orocos::NotFound) { properties.does_not_exist = 10 }
+                exception = assert_raises(Runkit::NotFound) { properties.does_not_exist = 10 }
                 assert_equal "does_not_exist is not a property of #{task}", exception.message
             end
             it "returns the raw value of an existent property" do
@@ -62,11 +62,11 @@ module Syskit
                 assert_equal value, (properties.raw_prop = value)
             end
             it "raises if trying to get the raw value of a non-existing property" do
-                exception = assert_raises(Orocos::NotFound) { properties.raw_does_not_exist }
+                exception = assert_raises(Runkit::NotFound) { properties.raw_does_not_exist }
                 assert_equal "neither does_not_exist nor raw_does_not_exist are a property of #{task}", exception.message
             end
             it "raises if trying to set the raw value of a non-existing property" do
-                exception = assert_raises(Orocos::NotFound) { properties.raw_does_not_exist = 10 }
+                exception = assert_raises(Runkit::NotFound) { properties.raw_does_not_exist = 10 }
                 assert_equal "neither does_not_exist nor raw_does_not_exist are a property of #{task}", exception.message
             end
             it "gets the non-raw value of a property whose name starts with raw_" do

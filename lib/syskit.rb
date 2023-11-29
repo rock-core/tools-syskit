@@ -5,23 +5,24 @@ require "English"
 
 require "backports/2.7.0/enumerable/filter_map"
 
-require "orocos"
 require "metaruby"
 require "metaruby/dsls/find_through_method_missing"
-require "orocos/ruby_tasks/process_manager"
-require "orocos/ruby_tasks/remote_task_context"
-require "orocos/ruby_tasks/stub_task_context"
+
+require "runkit"
+require "runkit/ruby_tasks/process_manager"
+require "runkit/ruby_tasks/remote_task_context"
+require "runkit/ruby_tasks/stub_task_context"
+
 require "roby"
 require "orogen"
+require "pocolog"
 
 require "utilrb/module/include"
 require "utilrb/symbol/to_str"
 require "utilrb/module/define_or_reuse"
 
 require "syskit/base"
-
 require "syskit/instance_requirements"
-
 require "syskit/orogen_namespace"
 require "syskit/roby_app"
 
@@ -104,9 +105,6 @@ require "syskit/instance_requirements_task"
 
 # App support
 require "syskit/graphviz"
-
-# ROS support
-require "syskit/ros"
 
 # Marshalling/demarshalling
 require "syskit/droby/enable"

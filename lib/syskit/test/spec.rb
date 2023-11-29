@@ -15,8 +15,8 @@ module Syskit
                 unplug_requirement_modifications
                 loader = OroGen::Loaders::Base.new(Roby.app.default_loader)
 
-                stub_manager = Orocos::RubyTasks::ProcessManager.new(
-                    loader, task_context_class: Orocos::RubyTasks::StubTaskContext
+                stub_manager = Runkit::RubyTasks::ProcessManager.new(
+                    loader, task_context_class: Runkit::RubyTasks::StubTaskContext
                 )
                 Syskit.conf.register_process_server(
                     "stubs", stub_manager, nil, host_id: "syskit"

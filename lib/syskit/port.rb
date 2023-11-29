@@ -82,10 +82,17 @@ module Syskit
         #
         # @raise [ArgumentError] if it is not possible (for instance, ports on
         #   InstanceRequirements are not associated with a component port)
-        # @return [Orocos::Port] the resolved port
-        def to_orocos_port
+        # @return [Runkit::Port] the resolved port
+        def to_runkit_port
             component_port = to_actual_port
             component_port.component.self_port_to_orocos_port(component_port)
+        end
+
+        # @deprecated use {#to_orocos_port} instead
+        def to_orocos_port
+            Roby.warn_deprecated "#to_orocos_port is deprecated, "\
+                                 "use #to_runkit_port instead"
+            to_runkit_port
         end
 
         # Connects this port to the other given port, using the given policy
@@ -314,7 +321,7 @@ module Syskit
 
             p = @execution_engine.promise(description: "disconnect #{self}") do
                 begin accessor.disconnect
-                rescue Orocos::ComError # rubocop:disable Lint/SuppressedException
+                rescue Runkit::ComError # rubocop:disable Lint/SuppressedException
                 end
             end
             p.on_success { @orocos_accessor = nil }.execute
@@ -328,7 +335,7 @@ module Syskit
 
             resolver =
                 main.promise(description: "#{port}##{@accessor_method} for #{self}") do
-                    port.to_orocos_port.public_send(
+                    port.to_runkit_port.public_send(
                         @accessor_method, distance: distance, **policy
                     )
                 end
@@ -353,7 +360,7 @@ module Syskit
 
         # The actual data reader itself
         #
-        # @return [Orocos::OutputReader]
+        # @return [Runkit::OutputReader]
         def reader
             @orocos_accessor
         end

@@ -181,27 +181,27 @@ module Syskit
                 manager.client.kind_of?(Syskit::RobyApp::RemoteProcesses::Client)
             end
 
-            # Returns the command line needed to start the given deployment with the given spawn options
+            # Returns the command line needed to start the given deployment with
+            # the given spawn options
             #
             # The returned command line assumes that the Syskit process runs on
             # the machine where it will be executed
-            def command_line(id, tracing: false,
-                name_service_ip: "localhost",
-                working_directory: @conf.app.log_dir,
-                loader: @conf.app.default_pkgconfig_loader)
-
+            def command_line(
+                id, tracing: false, working_directory: @conf.app.log_dir,
+                loader: @conf.app.default_pkgconfig_loader
+            )
                 deployment = find_registered_deployment_by_id(id) ||
                     find_overriden_deployment_by_id(id)
                 if !deployment
                     raise NotFound, "#{id} is not a known deployment"
                 elsif !orogen_deployment?(deployment)
-                    raise NotOrogen, "#{id} is not an oroGen deployment, cannot generate a command line"
+                    raise NotOrogen,
+                          "#{id} is not an oroGen deployment, "\
+                          "cannot generate a command line"
                 end
 
                 deployment.command_line(
-                    working_directory: working_directory,
-                    tracing: tracing,
-                    name_service_ip: name_service_ip,
+                    tracing: tracing, working_directory: working_directory,
                     loader: loader
                 )
             end
