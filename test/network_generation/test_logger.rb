@@ -142,7 +142,9 @@ describe Syskit::NetworkGeneration::LoggerConfigurationSupport do
         end
 
         it "sets up logging while sharing a logger across deployments" do
-            deployment2 = syskit_stub_deployment("deployment2", deployment_m)
+            deployment2 = syskit_stub_deployment(
+                "deployment2", deployment_m, logging_enabled: true
+            )
             task2 = deployment2.task "task"
             syskit_engine.should_receive(:deployment_tasks)
                          .and_return([@deployment, deployment2])
@@ -278,6 +280,6 @@ describe Syskit::NetworkGeneration::LoggerConfigurationSupport do
             task "task", task_m.orogen_model
             task "deployment_Logger", logger_m.orogen_model
         end
-        syskit_stub_deployment("deployment", deployment_m)
+        syskit_stub_deployment("deployment", deployment_m, logging_enabled: true)
     end
 end

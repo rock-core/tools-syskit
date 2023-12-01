@@ -33,6 +33,8 @@ module Syskit
         argument :ready_polling_period, default: 0.1
         argument :logger_task, default: nil
         argument :logger_name, default: nil
+        argument :logging_enabled, default: nil
+        argument :register_on_name_server, default: nil
         argument :read_only, default: nil
 
         # The underlying process object
@@ -294,7 +296,8 @@ module Syskit
             spawn_options = spawn_options.merge(
                 output: "%m-%p.txt",
                 wait: false,
-                cmdline_args: options
+                cmdline_args: options,
+                register_on_name_server: register_on_name_server
             )
 
             if log_dir
@@ -369,6 +372,8 @@ module Syskit
         # @return [TaskContext,nil] either the logging task, or nil if this
         #   deployment has none
         def logger_task
+            return unless logging_enabled?
+
             if arguments[:logger_task]
                 @logger_task = arguments[:logger_task]
             elsif @logger_task&.reusable?
@@ -928,6 +933,22 @@ module Syskit
             # What could be stopped cleanly has been stopped cleanly (not
             # cleaned up, but stopped). Kill the process to avoid further damage
             kill! if running?
+        end
+
+        def logging_enabled?
+            if logging_enabled.nil?
+                process_server_config.logging_enabled?
+            else
+                logging_enabled
+            end
+        end
+
+        def register_on_name_server?
+            if register_on_name_server.nil?
+                process_server_config.register_on_name_server?
+            else
+                register_on_name_server
+            end
         end
     end
 end

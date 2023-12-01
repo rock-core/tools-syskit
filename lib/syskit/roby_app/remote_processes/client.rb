@@ -48,9 +48,6 @@ module Syskit
                 attr_reader :server_pid
                 # A string that allows to uniquely identify this process server
                 attr_reader :host_id
-                # The name service object that allows to resolve tasks from this process
-                # server
-                attr_reader :name_service
 
                 def to_s
                     "#<Syskit::RobyApp::RemoteProcesses::Client #{host}:#{port}>"
@@ -62,16 +59,13 @@ module Syskit
 
                 # Connects to the process server at +host+:+port+
                 #
-                # @option options [Orocos::NameService] :name_service
-                #   (Orocos.name_service). The name service object that should be used
-                #   to resolve tasks started by this process server
                 # @option options [OroGen::Loaders::Base] :root_loader
                 #   (Orocos.default_loader). The loader object that should be used as
                 #   root for this client's loader
                 def initialize(
                     host = "localhost", port = DEFAULT_PORT,
                     response_timeout: 10, root_loader: Orocos.default_loader,
-                    name_service: Orocos.name_service
+                    register_on_name_server: true
                 )
                     @host = host
                     @port = port
@@ -86,7 +80,6 @@ module Syskit
                     socket.setsockopt(Socket::IPPROTO_TCP, Socket::TCP_NODELAY, true)
                     socket.fcntl(Fcntl::FD_CLOEXEC, 1)
 
-                    @name_service = name_service
                     begin
                         @server_pid = pid
                     rescue EOFError
@@ -98,6 +91,7 @@ module Syskit
                     @processes = {}
                     @death_queue = []
                     @host_id = "#{host}:#{port}:#{server_pid}"
+                    @register_on_name_server = register_on_name_server
                     @response_timeout = response_timeout
                 end
 
@@ -185,6 +179,8 @@ module Syskit
                         deployment_model, options.delete(:prefix)
                     )
                     name_mappings = prefix_mappings.merge(name_mappings)
+                    options[:register_on_name_server] =
+                        options.fetch(:register_on_name_server, @register_on_name_server)
 
                     socket.write(COMMAND_START)
                     Marshal.dump(
