@@ -381,6 +381,80 @@ module Syskit
                         .join_all_waiting_work(false)
                         .to { not_emit deployment_task.ready_event }
                 end
+
+                describe "name server registration" do
+                    before do
+                        @orocos_task = Orocos.allow_blocking_calls do
+                            Orocos::RubyTasks::TaskContext.new "test"
+                        end
+                        process.tasks["mapped_task_name"] = @orocos_task
+                    end
+
+                    after do
+                        @orocos_task.dispose
+                    end
+
+                    describe "while enabled on the process server config" do
+                        before do
+                            flexmock(@process_server_config)\
+                                .should_receive(register_on_name_server?: true)
+                        end
+
+                        it "spawns the deployment with name service if "\
+                           "register_on_name_server is true" do
+                            flexmock(deployment_task, register_on_name_server: true)
+                            expect_registers_on_name_server(true)
+                        end
+                        it "spawns the deployment without name service if "\
+                           "register_on_name_server is false" do
+                            flexmock(deployment_task, register_on_name_server: false)
+                            expect_registers_on_name_server(false)
+                        end
+                        it "spawns the deployment with name service if "\
+                           "register_on_name_server is nil" do
+                            flexmock(deployment_task, register_on_name_server: nil)
+                            expect_registers_on_name_server(true)
+                        end
+                    end
+
+                    describe "while disabled on the process server config" do
+                        before do
+                            flexmock(@process_server_config)\
+                                .should_receive(register_on_name_server?: false)
+                        end
+
+                        it "spawns the deployment with name service if "\
+                           "register_on_name_server is true" do
+                            flexmock(deployment_task, register_on_name_server: true)
+                            expect_registers_on_name_server(true)
+                        end
+                        it "spawns the deployment without name service if "\
+                           "register_on_name_server is false" do
+                            flexmock(deployment_task, register_on_name_server: false)
+                            expect_registers_on_name_server(false)
+                        end
+                        it "spawns the deployment without name service if "\
+                           "register_on_name_server is nil" do
+                            flexmock(deployment_task, register_on_name_server: nil)
+                            expect_registers_on_name_server(false)
+                        end
+                    end
+
+                    def expect_registers_on_name_server(enabled)
+                        check = ->(h) { !(enabled ^ h[:register_on_name_server]) }
+
+                        flexmock(@process_server)
+                            .should_receive(:start)
+                            .once.with(any, any, any, check)
+                            .pass_thru
+                        assert_deployment_ready(deployment_task)
+                    end
+
+                    def assert_deployment_ready(deployment_task)
+                        expect_execution { deployment_task.start! }
+                            .to { emit deployment_task.ready_event }
+                    end
+                end
             end
 
             describe "monitoring for ready" do

@@ -297,7 +297,7 @@ module Syskit
                 output: "%m-%p.txt",
                 wait: false,
                 cmdline_args: options,
-                register_on_name_server: register_on_name_server
+                register_on_name_server: register_on_name_server?
             )
 
             if log_dir
