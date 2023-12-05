@@ -139,7 +139,11 @@ module Syskit
                     # Change to the log dir so that the IOR file created by
                     # the CORBA bindings ends up there
                     Dir.chdir(app.log_dir) do
-                        Orocos.initialize
+                        Orocos.initialize(
+                            register_on_name_server:
+                                Syskit.conf.register_self_on_name_server?,
+                            default_corba_name_server: false
+                        )
                         if Orocos::ROS.enabled?
                             Orocos::ROS.initialize
                             Orocos::ROS.roscore_start(:wait => true)

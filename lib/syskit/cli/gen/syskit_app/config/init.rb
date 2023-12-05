@@ -20,6 +20,9 @@ Syskit.conf.export_types = true
 
 # Set to false to disable old-style task model export (using constants)
 OroGen.syskit_model_constant_registration = true
+# Whether Syskit's internal ruby task should be registered on the CORBA naming
+# service.
+Syskit.conf.register_self_on_name_server = false
 
 # Set the module's name. It is normally inferred from the app name, and the app
 # name is inferred from the base directory name (e.g. an app located in
