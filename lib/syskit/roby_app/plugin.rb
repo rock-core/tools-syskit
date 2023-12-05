@@ -96,34 +96,8 @@ module Syskit
                     )
                 end
 
-                if Syskit.conf.define_default_process_managers? && Syskit.conf.only_load_models?
-                    fake_client = Configuration::ModelOnlyServer.new(app.default_loader)
-                    Syskit.conf.register_process_server(
-                        "ruby_tasks", fake_client, app.log_dir, host_id: "syskit"
-                    )
-                    Syskit.conf.register_process_server(
-                        "unmanaged_tasks", fake_client, app.log_dir, host_id: "syskit"
-                    )
-                    Syskit.conf.register_process_server(
-                        "ros", fake_client, app.log_dir, host_id: "syskit"
-                    )
-                elsif Syskit.conf.define_default_process_managers?
-                    Syskit.conf.register_process_server(
-                        "ruby_tasks",
-                        Orocos::RubyTasks::ProcessManager.new(app.default_loader),
-                        app.log_dir,
-                        host_id: "syskit", logging_enabled: !app.testing?,
-                        register_on_name_server: !app.testing?
-                    )
-
-                    Syskit.conf.register_process_server(
-                        "unmanaged_tasks", UnmanagedTasksManager.new, app.log_dir
-                    )
-
-                    Syskit.conf.register_process_server(
-                        "ros", Orocos::ROS::ProcessManager.new(app.ros_loader),
-                        app.log_dir
-                    )
+                if Syskit.conf.define_default_process_managers?
+                    define_default_process_managers(app)
                 end
 
                 ENV["ORO_LOGFILE"] =
@@ -169,6 +143,38 @@ module Syskit
 
                 rtt_core_model = app.default_loader.task_model_from_name("RTT::TaskContext")
                 Syskit::TaskContext.define_from_orogen(rtt_core_model, register: true)
+            end
+
+            def self.define_default_process_managers(app)
+                if Syskit.conf.only_load_models?
+                    fake_client = Configuration::ModelOnlyServer.new(app.default_loader)
+                    Syskit.conf.register_process_server(
+                        "ruby_tasks", fake_client, app.log_dir, host_id: "syskit"
+                    )
+                    Syskit.conf.register_process_server(
+                        "unmanaged_tasks", fake_client, app.log_dir, host_id: "syskit"
+                    )
+                    Syskit.conf.register_process_server(
+                        "ros", fake_client, app.log_dir, host_id: "syskit"
+                    )
+                elsif Syskit.conf.define_default_process_managers?
+                    Syskit.conf.register_process_server(
+                        "ruby_tasks",
+                        Orocos::RubyTasks::ProcessManager.new(app.default_loader),
+                        app.log_dir,
+                        host_id: "syskit", logging_enabled: !app.testing?,
+                        register_on_name_server: !app.testing?
+                    )
+
+                    Syskit.conf.register_process_server(
+                        "unmanaged_tasks", UnmanagedTasksManager.new, app.log_dir
+                    )
+
+                    Syskit.conf.register_process_server(
+                        "ros", Orocos::ROS::ProcessManager.new(app.ros_loader),
+                        app.log_dir
+                    )
+                end
             end
 
             def syskit_log_transfer_prepare
