@@ -510,6 +510,10 @@ module Syskit
                 end
             end
 
+            describe ".ensure_free_space" do
+
+            end
+
             def make_valid_folder(name)
                 path = (@root / name)
                 path.mkpath

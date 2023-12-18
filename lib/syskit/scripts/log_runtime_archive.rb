@@ -18,12 +18,21 @@ class CLI < Thor
            type: :numeric, default: 600, desc: "polling period in seconds"
     option :max_size,
            type: :numeric, default: 10_000, desc: "max log size in MB"
+    option :free_space_low_limit,
+            type: :numeric, default: 1_000, desc: "start deleting files if free space is \
+            below this threshold"
+    option :free_space_delete_until,
+            type: :numeric, default: 10_000, desc: "stop deleting files if free space is \
+            above this threshold"
     default_task def watch(root_dir, target_dir)
         root_dir = validate_directory_exists(root_dir)
         target_dir = validate_directory_exists(target_dir)
         archiver = make_archiver(root_dir, target_dir)
         loop do
             archiver.process_root_folder
+            archiver.ensure_free_space(
+                options[:free_space_low_limit], options[:free_space_delete_until]
+            )
 
             puts "Archived pending logs, sleeping #{options[:period]}s"
             sleep options[:period]

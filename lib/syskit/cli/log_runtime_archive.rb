@@ -1,6 +1,7 @@
 # frozen_string_literal: true
 
 require "archive/tar/minitar"
+require "sys/filesystem"
 
 module Syskit
     module CLI
@@ -12,17 +13,23 @@ module Syskit
         # It depends on the syskit instance using log rotation
         class LogRuntimeArchive
             DEFAULT_MAX_ARCHIVE_SIZE = 10_000_000_000 # 10G
+            FREE_SPACE_LOW_LIMIT = 1_000_000_000 # 1gb
+            FREE_SPACE_FREED_LIMIT = 10_000_000_000 # 10gb
 
             def initialize(
                 root_dir, target_dir,
                 logger: LogRuntimeArchive.null_logger,
-                max_archive_size: DEFAULT_MAX_ARCHIVE_SIZE
+                max_archive_size: DEFAULT_MAX_ARCHIVE_SIZE,
+                free_space_low_limit: FREE_SPACE_LOW_LIMIT,
+                free_space_delete_until: FREE_SPACE_FREED_LIMIT
             )
                 @last_archive_index = {}
                 @logger = logger
                 @root_dir = root_dir
                 @target_dir = target_dir
                 @max_archive_size = max_archive_size
+                @free_space_low_limit = free_space_low_limit
+                @free_space_delete_until = free_space_delete_until
             end
 
             # Iterate over all datasets in a Roby log root folder and archive them
@@ -38,6 +45,30 @@ module Syskit
                 running = candidates.last
                 candidates.each do |child|
                     process_dataset(child, full: child != running)
+                end
+            end
+
+            # Manages folder free space
+            #
+            # The method will check if there is enough space to save more log files
+            # according to pre-established threshold.
+            #
+            # @param [integer] free_space_low_limit: required free space threshold, at
+            #   which the archiver starts deleting the oldest log files
+            # @param [integer] free_space_delete_until: post-deletion free space, at which
+            #   the archiver stops deleting the oldest log fil
+            def ensure_free_space(free_space_low_limit: @free_space_low_limit,
+                    free_space_delete_until: @free_space_delete_until)
+                stat = Sys::Filesystem.stat(@target_dir)
+                free_space = stat.bytes_free
+
+                return if free_space > free_space_low_limit
+
+                candidates = each_file_from_path(path).to_a.sort
+                loop do |index|
+                    stat.delete(candidates[index])
+                    free_space = stat.bytes_free
+                    break if free_space >= free_space_delete_until
                 end
             end
 
@@ -63,6 +94,7 @@ module Syskit
                     use_existing = false
                 end
             end
+
 
             # Create or open an archive
             #
