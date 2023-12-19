@@ -510,8 +510,62 @@ module Syskit
                 end
             end
 
-            describe ".ensure_free_space" do
+            describe "#ensure_free_space" do
+                before do
+                    @target_dir = make_tmppath
+                    10.times { |i| (@target_dir / i.to_s).write(i.to_s) }
 
+                    @archiver = LogRuntimeArchive.new(
+                        @root_dir, @target_dir,
+                        free_space_low_limit: 1,
+                        free_space_freed_limit: 10
+                    )
+                end
+
+                it "does nothing if there is enough free space" do
+                    mock_target_dir_free_space(2)
+                    assert_deleted_files([])
+                end
+
+                it "removes enough files to reach the freed limit" do
+                    mock_target_dir_free_space(0.5)
+                    mock_files_size([0.6, 2, 4, 6, 7])
+                    assert_deleted_files([0, 1, 2, 3])
+                end
+
+                def mock_files_size(sizes)
+                    sizes.each_with_index do |size, i|
+                        flexmock(@archiver)
+                            .should_receive(:size_of_file)
+                            .with(@target_dir / i.to_s)
+                            .and_return(size)
+                    end
+                end
+
+                def mock_target_dir_free_space(space)
+                    flexmock(Sys::Filesystem)
+                        .should_receive(:stat).with(@target_dir)
+                        .and_return(flexmock(bytes_free: space))
+                end
+
+                def assert_deleted_files(deleted_files)
+                    (0...10).each do |i|
+                        if deleted_files.include?(i)
+                            refute (@target_dir / i.to_s).exist?,
+                                   "#{i} was expected to be deleted, but has not been"
+                        else
+                            assert (@target_dir / i.to_s).exist?,
+                                   "#{i} was expected to be present, but got deleted"
+                        end
+                    end
+                end
+            end
+
+            describe ".size_of_file" do
+                it "returns the size in bytes of a file" do
+                    path = (@root / "testfile").write(" " * 10)
+                    assert_equal 10, LogRuntimeArchive.size_of_file(path)
+                end
             end
 
             def make_valid_folder(name)

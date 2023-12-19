@@ -72,6 +72,10 @@ module Syskit
                 end
             end
 
+            def self.size_of_file(path)
+                path.stat.size
+            end
+
             def process_dataset(child, full:)
                 use_existing = true
                 loop do
