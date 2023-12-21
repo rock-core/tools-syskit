@@ -518,7 +518,7 @@ module Syskit
                     @archiver = LogRuntimeArchive.new(
                         @root_dir, @target_dir,
                         free_space_low_limit: 1,
-                        free_space_freed_limit: 10
+                        free_space_delete_until: 10
                     )
                 end
 

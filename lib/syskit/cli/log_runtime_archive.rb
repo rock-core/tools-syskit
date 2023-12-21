@@ -59,21 +59,23 @@ module Syskit
             #   the archiver stops deleting the oldest log fil
             def ensure_free_space(free_space_low_limit: @free_space_low_limit,
                     free_space_delete_until: @free_space_delete_until)
+                return if free_space_low_limit >= free_space_delete_until
+
                 stat = Sys::Filesystem.stat(@target_dir)
                 free_space = stat.bytes_free
 
                 return if free_space > free_space_low_limit
 
-                candidates = each_file_from_path(path).to_a.sort
-                loop do |index|
-                    stat.delete(candidates[index])
+                candidates = Dir.entries(@target_dir).sort
+                until free_space >= free_space_delete_until
+                    candidates.shift
                     free_space = stat.bytes_free
-                    break if free_space >= free_space_delete_until
                 end
             end
 
+            # Returns the file size in bytes
             def self.size_of_file(path)
-                path.stat.size
+                File.stat(path).size
             end
 
             def process_dataset(child, full:)
@@ -98,7 +100,6 @@ module Syskit
                     use_existing = false
                 end
             end
-
 
             # Create or open an archive
             #
