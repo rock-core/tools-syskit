@@ -535,7 +535,7 @@ module Syskit
 
                 def mock_files_size(sizes)
                     sizes.each_with_index do |size, i|
-                        flexmock(@archiver)
+                        flexmock(LogRuntimeArchive)
                             .should_receive(:size_of_file)
                             .with(@target_dir / i.to_s)
                             .and_return(size)
@@ -563,7 +563,8 @@ module Syskit
 
             describe ".size_of_file" do
                 it "returns the size in bytes of a file" do
-                    path = (@root / "testfile").write(" " * 10)
+                    path = (@root / "testfile")
+                    path.write(" " * 10)
                     assert_equal 10, LogRuntimeArchive.size_of_file(path)
                 end
             end
