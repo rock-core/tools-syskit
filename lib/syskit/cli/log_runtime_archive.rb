@@ -48,7 +48,7 @@ module Syskit
                 end
             end
 
-            # Manages folder free space
+            # Manages folder available space
             #
             # The method will check if there is enough space to save more log files
             # according to pre-established threshold.
@@ -56,20 +56,23 @@ module Syskit
             # @param [integer] free_space_low_limit: required free space threshold, at
             #   which the archiver starts deleting the oldest log files
             # @param [integer] free_space_delete_until: post-deletion free space, at which
-            #   the archiver stops deleting the oldest log fil
+            #   the archiver stops deleting the oldest log files
             def ensure_free_space(free_space_low_limit: @free_space_low_limit,
                     free_space_delete_until: @free_space_delete_until)
                 return if free_space_low_limit >= free_space_delete_until
 
                 stat = Sys::Filesystem.stat(@target_dir)
-                free_space = stat.bytes_free
+                available_space = stat.bytes_free
 
-                return if free_space > free_space_low_limit
+                return if available_space > free_space_delete_until
 
-                candidates = Dir.entries(@target_dir).sort
-                until free_space >= free_space_delete_until
-                    candidates.shift
-                    free_space = stat.bytes_free
+                until available_space >= free_space_delete_until
+                    files = @target_dir.each_child.select { |file| file.file? }
+                    break if files.empty?
+
+                    files.sort.first.unlink
+                    stat = Sys::Filesystem.stat(@target_dir)
+                    available_space = stat.bytes_free
                 end
             end
 
