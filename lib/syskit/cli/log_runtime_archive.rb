@@ -64,15 +64,14 @@ module Syskit
                 stat = Sys::Filesystem.stat(@target_dir)
                 available_space = stat.bytes_free
 
-                return if available_space > free_space_delete_until
+                return if available_space > free_space_low_limit
 
                 until available_space >= free_space_delete_until
-                    files = @target_dir.each_child.select { |file| file.file? }
+                    files = @target_dir.each_child.select(&:file?)
                     break if files.empty?
 
+                    available_space += files.sort.first.size
                     files.sort.first.unlink
-                    stat = Sys::Filesystem.stat(@target_dir)
-                    available_space = stat.bytes_free
                 end
             end
 
