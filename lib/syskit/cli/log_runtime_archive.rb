@@ -23,6 +23,12 @@ module Syskit
                 free_space_low_limit: FREE_SPACE_LOW_LIMIT,
                 free_space_delete_until: FREE_SPACE_FREED_LIMIT
             )
+                if free_space_low_limit > free_space_delete_until
+                    raise ArgumentError,
+                          "cannot erase files: freed limit is smaller than " \
+                          "low limit space."
+                end
+
                 @last_archive_index = {}
                 @logger = logger
                 @root_dir = root_dir
@@ -59,8 +65,6 @@ module Syskit
             #   the archiver stops deleting the oldest log files
             def ensure_free_space(free_space_low_limit: @free_space_low_limit,
                 free_space_delete_until: @free_space_delete_until)
-                return if free_space_low_limit >= free_space_delete_until
-
                 stat = Sys::Filesystem.stat(@target_dir)
                 available_space = stat.bytes_free
 
