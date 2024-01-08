@@ -548,6 +548,19 @@ module Syskit
                     assert_deleted_files(@deleted_files)
                 end
 
+                it "stops removing files when there is no file in folder even if freed
+                    limit is not achieved" do
+                    size_files = Array.new(10, 1)
+                    mock_files_size(size_files)
+                    mock_available_space(0.5)
+
+                    @archiver.ensure_free_space(
+                        free_space_low_limit: 1,
+                        free_space_delete_until: 15
+                    )
+                    assert_deleted_files([0, 1, 2, 3, 4, 5, 6, 7, 8, 9])
+                end
+
                 def mock_files_size(sizes)
                     @mocked_files_sizes = sizes
                     sizes.each_with_index do |size, i|
