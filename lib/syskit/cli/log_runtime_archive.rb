@@ -58,7 +58,7 @@ module Syskit
             # @param [integer] free_space_delete_until: post-deletion free space, at which
             #   the archiver stops deleting the oldest log files
             def ensure_free_space(free_space_low_limit: @free_space_low_limit,
-                    free_space_delete_until: @free_space_delete_until)
+                free_space_delete_until: @free_space_delete_until)
                 return if free_space_low_limit >= free_space_delete_until
 
                 stat = Sys::Filesystem.stat(@target_dir)
