@@ -515,7 +515,6 @@ module Syskit
                     @archive_dir = make_tmppath
                     @free_space_low_limit = 1
                     @free_space_delete_until = 10
-                    @deleted_files = []
                     @mocked_files_sizes = []
 
                     10.times { |i| (@archive_dir / i.to_s).write(i.to_s) }
@@ -537,15 +536,15 @@ module Syskit
                 end
 
                 it "removes enough files to reach the freed limit" do
-                    size_files = [6, 2, 4, 6, 7, 10, 3, 5, 8, 9]
+                    size_files = [6, 2, 1, 6, 7, 10, 3, 5, 8, 9]
                     mock_files_size(size_files)
-                    mock_available_space(size_files.sum + 0.5)
+                    mock_available_space(0.5)
 
                     @archiver.ensure_free_space(
                         free_space_low_limit: @free_space_low_limit,
                         free_space_delete_until: @free_space_delete_until
                     )
-                    assert_deleted_files(@deleted_files)
+                    assert_deleted_files([0, 1, 2, 3])
                 end
 
                 it "stops removing files when there is no file in folder even if freed
@@ -563,11 +562,8 @@ module Syskit
 
                 def mock_files_size(sizes)
                     @mocked_files_sizes = sizes
-                    sizes.each_with_index do |size, i|
-                        flexmock(LogRuntimeArchive)
-                            .should_receive(:size_of_file)
-                            .with(@archive_dir / i.to_s)
-                            .and_return(size)
+                    @mocked_files_sizes.each_with_index do |size, i|
+                        (@archive_dir / i.to_s).write(" " * size)
                     end
                 end
 
@@ -576,27 +572,15 @@ module Syskit
                         .should_receive(:stat).with(@archive_dir)
                         .and_return do
                             flexmock(
-                                bytes_free: compute_mocked_disk_size(total_disk_size)
+                                bytes_free: total_disk_size
                             )
                         end
                 end
 
-                def compute_mocked_disk_size(total_disk_size)
-                    return total_disk_size if @mocked_files_sizes.empty?
-
-                    @mocked_files_sizes.each_index do |i|
-                        if !(@archive_dir / i.to_s).exist?
-                            total_disk_size -= @mocked_files_sizes[i]
-                            @deleted_files.append(i)
-                        end
-                    end
-
-                    total_disk_size
-                end
-
                 def assert_deleted_files(deleted_files)
                     if deleted_files.empty?
-                        assert_equal 10, @archive_dir.each_child.size
+                        files = @archive_dir.each_child.select(&:file?)
+                        assert_equal 10, files.size
                     else
                         (0..9).each do |i|
                             if deleted_files.include?(i)
