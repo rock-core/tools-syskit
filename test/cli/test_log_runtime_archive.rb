@@ -595,14 +595,6 @@ module Syskit
                 end
             end
 
-            describe ".size_of_file" do
-                it "returns the size in bytes of a file" do
-                    path = (@root / "testfile")
-                    path.write(" " * 10)
-                    assert_equal 10, LogRuntimeArchive.size_of_file(path)
-                end
-            end
-
             def make_valid_folder(name)
                 path = (@root / name)
                 path.mkpath

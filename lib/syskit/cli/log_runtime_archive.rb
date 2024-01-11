@@ -79,11 +79,6 @@ module Syskit
                 end
             end
 
-            # Returns the file size in bytes
-            def self.size_of_file(path)
-                File.stat(path).size
-            end
-
             def process_dataset(child, full:)
                 use_existing = true
                 loop do
