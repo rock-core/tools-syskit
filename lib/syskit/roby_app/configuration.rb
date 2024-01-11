@@ -143,6 +143,7 @@ module Syskit
                 @auto_restart_deployments_with_quarantines = false
                 @exception_transition_timeout = 20.0
                 @kill_all_on_process_server_connection = false
+                @register_self_on_name_server = (ENV["SYSKIT_REGISTER_SELF_ON_NAME_SERVER"] != "0")
 
                 @log_rotation_period = nil
                 @log_transfer = LogTransferManager::Configuration.new(
@@ -159,6 +160,26 @@ module Syskit
 
                 clear
                 self.export_types = true
+            end
+
+            # Whether syskit's very own ruby task should be registered on the
+            # CORBA naming service
+            #
+            # It is true for historical reasons. Switch globally to false by
+            # setting the SYSKIT_REGISTER_SELF_ON_NAME_SERVER environment
+            # variable to 0, or per-app by using this writer
+            #
+            # @see {#register_self_on_name_server?}
+            attr_writer :register_self_on_name_server
+
+            # Whether syskit's very own ruby task should be registered on the
+            # CORBA naming service
+            #
+            # It is true for historical reasons. Switch globally to false by
+            # setting the SYSKIT_REGISTER_SELF_ON_NAME_SERVER environment
+            # variable to 0, or per-app by using {#register_self_on_name_server=}
+            def register_self_on_name_server?
+                @register_syskit_on_name_server
             end
 
             def create_subfield(name)

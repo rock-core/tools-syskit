@@ -96,7 +96,57 @@ module Syskit
                     )
                 end
 
-                if Syskit.conf.define_default_process_managers? && Syskit.conf.only_load_models?
+                if Syskit.conf.define_default_process_managers?
+                    define_default_process_managers(app)
+                end
+
+                ENV["ORO_LOGFILE"] =
+                    Orocos.orocos_logfile ||
+                    File.join(app.log_dir, "orocos.orocosrb-#{::Process.pid}.txt")
+
+                if Syskit.conf.only_load_models?
+                    Orocos.load
+                    if Orocos::ROS.available?
+                        Orocos::ROS.load
+                    end
+                else
+                    # Change to the log dir so that the IOR file created by
+                    # the CORBA bindings ends up there
+                    Dir.chdir(app.log_dir) do
+                        Orocos.initialize(
+                            register_on_name_server:
+                                Syskit.conf.register_self_on_name_server?,
+                            default_corba_name_server: false
+                        )
+                        if Orocos::ROS.enabled?
+                            Orocos::ROS.initialize
+                            Orocos::ROS.roscore_start(:wait => true)
+                        end
+                    end
+                end
+
+                start_local_process_server =
+                    Syskit.conf.define_default_process_managers? &&
+                    !Syskit.conf.only_load_models? &&
+                    !Syskit.conf.disables_local_process_server? &&
+                    !(app.single? && app.simulation?)
+
+                if start_local_process_server
+                    start_local_process_server(
+                        redirect: Syskit.conf.redirect_local_process_server?
+                    )
+                    connect_to_local_process_server(app)
+                else
+                    fake_client = Configuration::ModelOnlyServer.new(app.default_loader)
+                    Syskit.conf.register_process_server("localhost", fake_client, app.log_dir, host_id: "syskit")
+                end
+
+                rtt_core_model = app.default_loader.task_model_from_name("RTT::TaskContext")
+                Syskit::TaskContext.define_from_orogen(rtt_core_model, register: true)
+            end
+
+            def self.define_default_process_managers(app)
+                if Syskit.conf.only_load_models?
                     fake_client = Configuration::ModelOnlyServer.new(app.default_loader)
                     Syskit.conf.register_process_server(
                         "ruby_tasks", fake_client, app.log_dir, host_id: "syskit"
@@ -125,46 +175,6 @@ module Syskit
                         app.log_dir
                     )
                 end
-
-                ENV["ORO_LOGFILE"] =
-                    Orocos.orocos_logfile ||
-                    File.join(app.log_dir, "orocos.orocosrb-#{::Process.pid}.txt")
-
-                if Syskit.conf.only_load_models?
-                    Orocos.load
-                    if Orocos::ROS.available?
-                        Orocos::ROS.load
-                    end
-                else
-                    # Change to the log dir so that the IOR file created by
-                    # the CORBA bindings ends up there
-                    Dir.chdir(app.log_dir) do
-                        Orocos.initialize
-                        if Orocos::ROS.enabled?
-                            Orocos::ROS.initialize
-                            Orocos::ROS.roscore_start(:wait => true)
-                        end
-                    end
-                end
-
-                start_local_process_server =
-                    Syskit.conf.define_default_process_managers? &&
-                    !Syskit.conf.only_load_models? &&
-                    !Syskit.conf.disables_local_process_server? &&
-                    !(app.single? && app.simulation?)
-
-                if start_local_process_server
-                    start_local_process_server(
-                        redirect: Syskit.conf.redirect_local_process_server?
-                    )
-                    connect_to_local_process_server(app)
-                else
-                    fake_client = Configuration::ModelOnlyServer.new(app.default_loader)
-                    Syskit.conf.register_process_server("localhost", fake_client, app.log_dir, host_id: "syskit")
-                end
-
-                rtt_core_model = app.default_loader.task_model_from_name("RTT::TaskContext")
-                Syskit::TaskContext.define_from_orogen(rtt_core_model, register: true)
             end
 
             def syskit_log_transfer_prepare
