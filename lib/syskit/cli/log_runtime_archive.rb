@@ -19,11 +19,9 @@ module Syskit
             def initialize(
                 root_dir, target_dir,
                 logger: LogRuntimeArchive.null_logger,
-                max_archive_size: DEFAULT_MAX_ARCHIVE_SIZE,
-                free_space_low_limit: FREE_SPACE_LOW_LIMIT,
-                free_space_delete_until: FREE_SPACE_FREED_LIMIT
+                max_archive_size: DEFAULT_MAX_ARCHIVE_SIZE
             )
-                if free_space_low_limit > free_space_delete_until
+                if FREE_SPACE_LOW_LIMIT > FREE_SPACE_FREED_LIMIT
                     raise ArgumentError,
                           "cannot erase files: freed limit is smaller than " \
                           "low limit space."
@@ -34,8 +32,6 @@ module Syskit
                 @root_dir = root_dir
                 @target_dir = target_dir
                 @max_archive_size = max_archive_size
-                @free_space_low_limit = free_space_low_limit
-                @free_space_delete_until = free_space_delete_until
             end
 
             # Iterate over all datasets in a Roby log root folder and archive them
@@ -63,8 +59,8 @@ module Syskit
             #   which the archiver starts deleting the oldest log files
             # @param [integer] free_space_delete_until: post-deletion free space, at which
             #   the archiver stops deleting the oldest log files
-            def ensure_free_space(free_space_low_limit: @free_space_low_limit,
-                free_space_delete_until: @free_space_delete_until)
+            def ensure_free_space(free_space_low_limit = FREE_SPACE_LOW_LIMIT,
+                free_space_delete_until = FREE_SPACE_FREED_LIMIT)
                 stat = Sys::Filesystem.stat(@target_dir)
                 available_space = stat.bytes_free
 
@@ -72,10 +68,16 @@ module Syskit
 
                 until available_space >= free_space_delete_until
                     files = @target_dir.each_child.select(&:file?)
-                    break if files.empty?
+                    if files.empty?
+                        Roby.warn "Cannot erase files: the folder is empty but the "\
+                        "available space is smaller than the threshold."
+                        break
+                    end
 
-                    available_space += files.sort.first.size
-                    files.sort.first.unlink
+                    removed_file = files.min
+                    size_removed_file = removed_file.size
+                    removed_file.unlink
+                    available_space += size_removed_file
                 end
             end
 

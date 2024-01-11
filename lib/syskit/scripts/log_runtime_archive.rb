@@ -29,10 +29,10 @@ class CLI < Thor
         target_dir = validate_directory_exists(target_dir)
         archiver = make_archiver(root_dir, target_dir)
         loop do
-            archiver.process_root_folder
             archiver.ensure_free_space(
-                options[:free_space_low_limit], options[:free_space_delete_until]
+                options[:FREE_SPACE_LOW_LIMIT], options[:FREE_SPACE_FREED_LIMIT]
             )
+            archiver.process_root_folder
 
             puts "Archived pending logs, sleeping #{options[:period]}s"
             sleep options[:period]

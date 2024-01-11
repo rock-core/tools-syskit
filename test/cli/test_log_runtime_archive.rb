@@ -513,25 +513,16 @@ module Syskit
             describe "#ensure_free_space" do
                 before do
                     @archive_dir = make_tmppath
-                    @free_space_low_limit = 1
-                    @free_space_delete_until = 10
                     @mocked_files_sizes = []
 
                     10.times { |i| (@archive_dir / i.to_s).write(i.to_s) }
 
-                    @archiver = LogRuntimeArchive.new(
-                        @root, @archive_dir,
-                        free_space_low_limit: @free_space_low_limit,
-                        free_space_delete_until: @free_space_delete_until
-                    )
+                    @archiver = LogRuntimeArchive.new(@root, @archive_dir)
                 end
 
                 it "does nothing if there is enough free space" do
                     mock_available_space(2)
-                    @archiver.ensure_free_space(
-                        free_space_low_limit: @free_space_low_limit,
-                        free_space_delete_until: @free_space_delete_until
-                    )
+                    @archiver.ensure_free_space(1, 10)
                     assert_deleted_files([])
                 end
 
@@ -540,10 +531,7 @@ module Syskit
                     mock_files_size(size_files)
                     mock_available_space(0.5)
 
-                    @archiver.ensure_free_space(
-                        free_space_low_limit: @free_space_low_limit,
-                        free_space_delete_until: @free_space_delete_until
-                    )
+                    @archiver.ensure_free_space(1, 10)
                     assert_deleted_files([0, 1, 2, 3])
                 end
 
@@ -553,10 +541,7 @@ module Syskit
                     mock_files_size(size_files)
                     mock_available_space(0.5)
 
-                    @archiver.ensure_free_space(
-                        free_space_low_limit: 1,
-                        free_space_delete_until: 15
-                    )
+                    @archiver.ensure_free_space(1, 15)
                     assert_deleted_files([0, 1, 2, 3, 4, 5, 6, 7, 8, 9])
                 end
 
