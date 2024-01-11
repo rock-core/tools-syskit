@@ -18,11 +18,11 @@ class CLI < Thor
            type: :numeric, default: 600, desc: "polling period in seconds"
     option :max_size,
            type: :numeric, default: 10_000, desc: "max log size in MB"
-    option :free_space_low_limit,
-           type: :numeric, default: 1_000, desc: "start deleting files if free space is \
+    option :FREE_SPACE_LOW_LIMIT,
+           type: :numeric, default: 5_000, desc: "start deleting files if free space is \
             below this threshold"
-    option :free_space_delete_until,
-           type: :numeric, default: 10_000, desc: "stop deleting files if free space is \
+    option :FREE_SPACE_FREED_LIMIT,
+           type: :numeric, default: 25_000, desc: "stop deleting files if free space is \
             above this threshold"
     default_task def watch(root_dir, target_dir)
         root_dir = validate_directory_exists(root_dir)

@@ -13,8 +13,8 @@ module Syskit
         # It depends on the syskit instance using log rotation
         class LogRuntimeArchive
             DEFAULT_MAX_ARCHIVE_SIZE = 10_000_000_000 # 10G
-            FREE_SPACE_LOW_LIMIT = 1_000_000_000 # 1 G
-            FREE_SPACE_FREED_LIMIT = 10_000_000_000 # 10 G
+            FREE_SPACE_LOW_LIMIT = 5_000_000_000 # 5 G
+            FREE_SPACE_FREED_LIMIT = 25_000_000_000 # 25 G
 
             def initialize(
                 root_dir, target_dir,
