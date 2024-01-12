@@ -13,20 +13,12 @@ module Syskit
         # It depends on the syskit instance using log rotation
         class LogRuntimeArchive
             DEFAULT_MAX_ARCHIVE_SIZE = 10_000_000_000 # 10G
-            FREE_SPACE_LOW_LIMIT = 5_000_000_000 # 5 G
-            FREE_SPACE_FREED_LIMIT = 25_000_000_000 # 25 G
 
             def initialize(
                 root_dir, target_dir,
                 logger: LogRuntimeArchive.null_logger,
                 max_archive_size: DEFAULT_MAX_ARCHIVE_SIZE
             )
-                if FREE_SPACE_LOW_LIMIT > FREE_SPACE_FREED_LIMIT
-                    raise ArgumentError,
-                          "cannot erase files: freed limit is smaller than " \
-                          "low limit space."
-                end
-
                 @last_archive_index = {}
                 @logger = logger
                 @root_dir = root_dir
@@ -59,8 +51,13 @@ module Syskit
             #   which the archiver starts deleting the oldest log files
             # @param [integer] free_space_delete_until: post-deletion free space, at which
             #   the archiver stops deleting the oldest log files
-            def ensure_free_space(free_space_low_limit = FREE_SPACE_LOW_LIMIT,
-                free_space_delete_until = FREE_SPACE_FREED_LIMIT)
+            def ensure_free_space(free_space_low_limit, free_space_delete_until)
+                if free_space_low_limit > free_space_delete_until
+                    raise ArgumentError,
+                          "cannot erase files: freed limit is smaller than " \
+                          "low limit space."
+                end
+
                 stat = Sys::Filesystem.stat(@target_dir)
                 available_space = stat.bytes_free
 
