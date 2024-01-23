@@ -1143,7 +1143,9 @@ module Syskit
                         stop_orocos_task
                     end
                 promise.on_error(description: "#{self}#interrupt#error") do |error|
-                    quarantined! unless error.kind_of?(Orocos::StateTransitionFailed)
+                    if execution_agent && !error.kind_of?(Orocos::StateTransitionFailed)
+                        quarantined!
+                    end
                 end
 
                 interrupt_event.achieve_asynchronously(promise, emit_on_success: false)

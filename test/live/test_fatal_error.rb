@@ -169,6 +169,23 @@ module Syskit
                 trigger_fatal_error(task)
             end
 
+            it "handles a delay between the fatal error and the component "\
+               "returning from stop" do
+                task_m = OroGen.orogen_syskit_tests.FatalError
+                               .deployed_as(default_deployment_name)
+                task = syskit_deploy(task_m)
+                task.properties.stop_return_delay_after_fatal_ms = 5_000
+                syskit_configure_and_start(task)
+                plan.unmark_permanent_task(task.execution_agent)
+                flexmock(task).should_receive(:quarantined!).never
+                expect_execution { task.stop! }
+                    .garbage_collect(true).join_all_waiting_work(false)
+                    .to do
+                        emit task.fatal_error_event
+                        emit task.execution_agent.stop_event
+                    end
+            end
+
             it "marks itself as being in FATAL on its deployment" do
                 task_m = OroGen.orogen_syskit_tests.FatalError
                                .deployed_as(default_deployment_name)
