@@ -24,7 +24,7 @@ class CLI < Thor
     option :free_space_freed_limit,
            type: :numeric, default: 25_000, desc: "stop deleting files if available \
             space is above this threshold (threshold in MB)"
-    default_task def watch(root_dir, target_dir)
+    default_task def watch(root_dir, target_dir) # rubocop:disable Metrics/AbcSize
         root_dir = validate_directory_exists(root_dir)
         target_dir = validate_directory_exists(target_dir)
         archiver = make_archiver(root_dir, target_dir)
