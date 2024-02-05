@@ -6,14 +6,17 @@ require "syskit/cli/log_runtime_archive_main"
 module Syskit
     module CLI
         describe CLIArchiveMain do
+            it "raises ArgumentError if some of the directories do not exist" do
+                root = "make_tmppath"
             before do
                 @root = make_tmppath
                 @archive_dir = make_tmppath
                 @mocked_files_sizes = []
 
-                10.times { |i| (@archive_dir / i.to_s).write(i.to_s) }
-
-                @archiver = LogRuntimeArchive.new(@root, @archive_dir)
+                e = assert_raises ArgumentError do
+                    call_command_line(root, @archive_dir, 1e3, 10 * 1e3)
+                end
+                assert_equal "#{root} does not exist, or is not a directory", e.message
             end
 
             it "removes enough files to reach the freed limit" do
