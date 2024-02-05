@@ -11,31 +11,40 @@ module Syskit
                 true
             end
 
-            desc "watch", "watch a dataset root folder and archive the datasets"
+            desc "watch", "watch a dataset root folder and call archiver"
+
             option :period,
                    type: :numeric, default: 600, desc: "polling period in seconds"
             option :max_size,
                    type: :numeric, default: 10_000, desc: "max log size in MB"
-            option :free_space_low_limit,
-                   type: :numeric, default: 5_000, desc: "start deleting files if available \
-                    space is below this threshold (threshold in MB)"
-            option :free_space_freed_limit,
-                   type: :numeric, default: 25_000, desc: "stop deleting files if available \
-                    space is above this threshold (threshold in MB)"
             default_task def watch(root_dir, target_dir)
                 root_dir = validate_directory_exists(root_dir)
                 target_dir = validate_directory_exists(target_dir)
-                archiver = make_archiver(root_dir, target_dir)
                 loop do
-                    archiver.ensure_free_space(
-                        options[:free_space_low_limit] * 1000,
-                        options[:free_space_freed_limit] * 1000
-                    )
-                    archiver.process_root_folder
+                    archive(root_dir, target_dir)
 
                     puts "Archived pending logs, sleeping #{options[:period]}s"
                     sleep options[:period]
                 end
+            end
+
+            desc "archive", "archive the datasets and manages disk space"
+            option :max_size,
+                   type: :numeric, default: 10_000, desc: "max log size in MB"
+            option :free_space_low_limit,
+                   type: :numeric, default: 5_000, desc: "start deleting files if \
+                    available space is below this threshold (threshold in MB)"
+            option :free_space_freed_limit,
+                   type: :numeric, default: 25_000, desc: "stop deleting files if \
+                    available space is above this threshold (threshold in MB)"
+            def archive(root_dir, target_dir)
+                archiver = make_archiver(root_dir, target_dir)
+
+                archiver.ensure_free_space(
+                    options[:free_space_low_limit] * 1000,
+                    options[:free_space_freed_limit] * 1000
+                )
+                archiver.process_root_folder
             end
 
             no_commands do
