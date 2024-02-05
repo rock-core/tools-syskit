@@ -22,8 +22,6 @@ module Syskit
             option :max_size,
                    type: :numeric, default: 10_000, desc: "max log size in MB"
             default_task def watch(root_dir, target_dir)
-                root_dir = validate_directory_exists(root_dir)
-                target_dir = validate_directory_exists(target_dir)
                 loop do
                     archive(root_dir, target_dir)
 
@@ -42,6 +40,8 @@ module Syskit
                    type: :numeric, default: 25_000, desc: "stop deleting files if \
                     available space is above this threshold (threshold in MB)"
             def archive(root_dir, target_dir)
+                root_dir = validate_directory_exists(root_dir)
+                target_dir = validate_directory_exists(target_dir)
                 archiver = make_archiver(root_dir, target_dir)
 
                 archiver.ensure_free_space(

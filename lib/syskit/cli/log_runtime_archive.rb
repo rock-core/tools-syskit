@@ -47,10 +47,10 @@ module Syskit
             # The method will check if there is enough space to save more log files
             # according to pre-established threshold.
             #
-            # @param [integer] free_space_low_limit: required free space threshold, at
-            #   which the archiver starts deleting the oldest log files
-            # @param [integer] free_space_delete_until: post-deletion free space, at which
-            #   the archiver stops deleting the oldest log files
+            # @param [integer] free_space_low_limit: required free space threshold in
+            #   bytes, at which the archiver starts deleting the oldest log files
+            # @param [integer] free_space_delete_until: post-deletion free space in bytes,
+            #   at which the archiver stops deleting the oldest log files
             def ensure_free_space(free_space_low_limit, free_space_delete_until)
                 if free_space_low_limit > free_space_delete_until
                     raise ArgumentError,
