@@ -45,8 +45,8 @@ module Syskit
                 archiver = make_archiver(root_dir, target_dir)
 
                 archiver.ensure_free_space(
-                    options[:free_space_low_limit] * 1000,
-                    options[:free_space_freed_limit] * 1000
+                    options[:free_space_low_limit] * 1e6,
+                    options[:free_space_freed_limit] * 1e6
                 )
                 archiver.process_root_folder
             end
