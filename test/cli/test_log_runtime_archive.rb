@@ -552,17 +552,17 @@ module Syskit
                     end
                 end
 
-                def mock_available_space(total_disk_size)
+                def mock_available_space(total_available_disk_space)
                     flexmock(Sys::Filesystem)
                         .should_receive(:stat).with(@archive_dir)
                         .and_return do
                             flexmock(
-                                bytes_free: total_disk_size
+                                bytes_free: total_available_disk_space
                             )
                         end
                 end
 
-                def assert_deleted_files(deleted_files)
+                def assert_deleted_files(deleted_files) # rubocop:disable Metrics/AbcSize
                     if deleted_files.empty?
                         files = @archive_dir.each_child.select(&:file?)
                         assert_equal 10, files.size

@@ -5,22 +5,18 @@ require "syskit/cli/log_runtime_archive_main"
 
 module Syskit
     module CLI
-        describe LogRuntimeArchiveMain do
+        describe CLIArchiveMain do
             before do
+                @root = make_tmppath
                 @archive_dir = make_tmppath
                 @mocked_files_sizes = []
 
-                10.times do |i|
-                    ("/dev/tools/syskit/tmp/datasets" / i.to_s).write(i.to_s)
-                end
+                10.times { |i| (@archive_dir / i.to_s).write(i.to_s) }
 
-                @archiver = LogRuntimeArchiveMain.new(
-                    "/dev/tools/syskit/tmp/datasets",
-                    "/dev/tools/syskit/tmp/archive"
-                )
+                @archiver = LogRuntimeArchive.new(@root, @archive_dir)
             end
 
-            it "test cli" do
+            it "removes enough files to reach the freed limit" do
                 size_files = [6, 2, 1, 6, 7, 10, 3, 5, 8, 9]
                 mock_files_size(size_files)
                 mock_available_space(0.5)
@@ -36,12 +32,12 @@ module Syskit
                 end
             end
 
-            def mock_available_space(total_disk_size)
+            def mock_available_space(total_available_disk_space)
                 flexmock(Sys::Filesystem)
                     .should_receive(:stat).with(@archive_dir)
                     .and_return do
                         flexmock(
-                            bytes_free: total_disk_size
+                            bytes_free: total_available_disk_space
                         )
                     end
             end

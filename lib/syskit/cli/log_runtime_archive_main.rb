@@ -1,12 +1,16 @@
 # frozen_string_literal: true
 
+# NOTE: this is NOT integrated in the Thor-based CLI to make it more independent
+# (i.e. not depending on actually having Syskit installed)
+
 require "pathname"
 require "thor"
 require "syskit/cli/log_runtime_archive"
 
 module Syskit
     module CLI
-        class LogRuntimeArchiveMain < Thor
+        # Command-line definition for the cli-archive-main syskit subcommand
+        class CLIArchiveMain < Thor
             def self.exit_on_failure?
                 true
             end
@@ -51,7 +55,8 @@ module Syskit
                 def validate_directory_exists(dir)
                     dir = Pathname.new(dir)
                     unless dir.directory?
-                        raise ArgumentError, "#{dir} does not exist, or is not a directory"
+                        raise ArgumentError, "#{dir} does not exist, or is not a "\
+                                             "directory"
                     end
 
                     dir
@@ -67,7 +72,5 @@ module Syskit
                 end
             end
         end
-
-        CLI::LogRuntimeArchiveMain.start(ARGV)
     end
 end
