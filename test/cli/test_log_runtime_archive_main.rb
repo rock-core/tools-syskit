@@ -24,11 +24,8 @@ module Syskit
                 size_files = [6, 2, 1, 6, 7, 10, 3, 5, 8, 9]
                 mock_files_size(size_files)
                 mock_available_space(0.5)
-                CLI::LogRuntimeArchiveMain.start(
-                    ["/tmp/archive", "/tmp/datasets",
-                     "--free-space-low-limit", "345526079490",
-                     "--free-space-freed-limit", "345526079500"]
-                )
+
+                call_command_line(@root, @archive_dir, 1e-3, 10 * 1e-3)
                 assert_deleted_files([0, 1, 2, 3])
             end
 
@@ -64,6 +61,15 @@ module Syskit
                         end
                     end
                 end
+            end
+
+            # Call 'archive' function instead of 'watch' to call archiver once
+            def call_command_line(root_path, archive_path, low_limit, freed_limit)
+                Syskit::CLI::CLIArchiveMain.start(
+                    ["archive", root_path, archive_path,
+                     "--free-space-low-limit", low_limit,
+                     "--free-space-freed-limit", freed_limit]
+                )
             end
         end
     end
