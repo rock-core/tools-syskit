@@ -11,7 +11,7 @@ module Syskit
                 root = "make_tmppath"
 
                 e = assert_raises ArgumentError do
-                    call_command_line(root, @archive_dir, 1e3, 10 * 1e3)
+                    call_command_line(root, @archive_dir, 1, 10)
                 end
                 assert_equal "#{root} does not exist, or is not a directory", e.message
             end
@@ -28,28 +28,28 @@ module Syskit
                 end
 
                 it "does nothing if there is enough free space" do
-                    mock_available_space(2000)
-                    call_command_line(@root, @archive_dir, 1000, 3000)
+                    mock_available_space(200)
+                    call_command_line(@root, @archive_dir, 100, 300)  # 100 MB, 300 MB
 
                     assert_deleted_files([])
                 end
 
                 it "removes enough files to reach the freed limit" do
-                    size_files = [750, 400, 900, 600, 700]
+                    size_files = [75, 40, 90, 60, 70]
                     mock_files_size(size_files)
-                    mock_available_space(700) # 700 MB
+                    mock_available_space(70) # 70 MB
 
-                    call_command_line(@root, @archive_dir, 1000, 3000)
+                    call_command_line(@root, @archive_dir, 100, 300) # 100 MB, 300 MB
                     assert_deleted_files([0, 1, 2, 3])
                 end
 
                 it "stops removing files when there is no file in folder even if freed
                     limit is not achieved" do
-                    size_files = Array.new(5, 100)
+                    size_files = Array.new(5, 10)
                     mock_files_size(size_files)
-                    mock_available_space(500)
+                    mock_available_space(80) # 80 MB
 
-                    call_command_line(@root, @archive_dir, 1000, 3000)
+                    call_command_line(@root, @archive_dir, 100, 300) # 100 MB, 300 MB
                     assert_deleted_files([0, 1, 2, 3, 4])
                 end
 
