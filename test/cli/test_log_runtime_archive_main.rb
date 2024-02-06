@@ -29,7 +29,7 @@ module Syskit
 
                 it "does nothing if there is enough free space" do
                     mock_available_space(200)
-                    call_command_line(@root, @archive_dir, 100, 300)  # 100 MB, 300 MB
+                    call_command_line(@root, @archive_dir, 100, 300) # 100 MB, 300 MB
 
                     assert_deleted_files([])
                 end
