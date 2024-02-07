@@ -1,6 +1,7 @@
 # frozen_string_literal: true
 
 require "archive/tar/minitar"
+require "sys/filesystem"
 
 module Syskit
     module CLI
@@ -38,6 +39,42 @@ module Syskit
                 running = candidates.last
                 candidates.each do |child|
                     process_dataset(child, full: child != running)
+                end
+            end
+
+            # Manages folder available space
+            #
+            # The method will check if there is enough space to save more log files
+            # according to pre-established threshold.
+            #
+            # @param [integer] free_space_low_limit: required free space threshold in
+            #   bytes, at which the archiver starts deleting the oldest log files
+            # @param [integer] free_space_delete_until: post-deletion free space in bytes,
+            #   at which the archiver stops deleting the oldest log files
+            def ensure_free_space(free_space_low_limit, free_space_delete_until)
+                if free_space_low_limit > free_space_delete_until
+                    raise ArgumentError,
+                          "cannot erase files: freed limit is smaller than " \
+                          "low limit space."
+                end
+
+                stat = Sys::Filesystem.stat(@target_dir)
+                available_space = stat.bytes_free
+
+                return if available_space > free_space_low_limit
+
+                until available_space >= free_space_delete_until
+                    files = @target_dir.each_child.select(&:file?)
+                    if files.empty?
+                        Roby.warn "Cannot erase files: the folder is empty but the "\
+                        "available space is smaller than the threshold."
+                        break
+                    end
+
+                    removed_file = files.min
+                    size_removed_file = removed_file.size
+                    removed_file.unlink
+                    available_space += size_removed_file
                 end
             end
 

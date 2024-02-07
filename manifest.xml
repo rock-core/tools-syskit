@@ -16,6 +16,7 @@
 
     <depend package="ftpd" />
     <depend package="net-ftp" />
+    <depend package="sys-filesystem" />
 
     <depend package="ruby2_keywords" />
 
