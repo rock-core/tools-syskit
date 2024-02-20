@@ -9,8 +9,11 @@ module Syskit
             include Roby::Test::ArubaMinitest
 
             def assert_app_valid(*args)
-                syskit_run  = run_command ["syskit", "run", *args].join(" ")
-                syskit_quit = run_command "syskit quit --retry"
+                port = roby_allocate_port
+                syskit_run = run_command(
+                    ["syskit", "run", "--port=#{port}", *args].join(" ")
+                )
+                syskit_quit = run_command "syskit quit --retry --host=localhost:#{port}"
                 assert_command_stops syskit_run
                 assert_command_stops syskit_quit
 
