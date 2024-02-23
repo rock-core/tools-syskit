@@ -173,8 +173,7 @@ module Syskit
                                   "models/pack/orogen/reload.orogen"
                     copy_into_app "config/robots/reload_orogen.rb",
                                   "config/robots/default.rb"
-                    pid = roby_app_spawn "run", silent: true
-                    interface = assert_roby_app_is_running(pid)
+                    pid, interface = roby_app_start "run", silent: true
                     copy_into_app "models/pack/orogen/reload-2.orogen",
                                   "models/pack/orogen/reload.orogen"
                     perform_app_assertion interface.unit_tests.orogen_deployment_exists?
@@ -188,8 +187,7 @@ module Syskit
                                   "models/compositions/reload_ruby_task.rb"
                     copy_into_app "config/robots/reload_ruby_task.rb",
                                   "config/robots/default.rb"
-                    pid = roby_app_spawn "run", silent: true
-                    interface = assert_roby_app_is_running(pid)
+                    pid, interface = roby_app_start "run", silent: true
                     copy_into_app "models/compositions/reload_ruby_task-2.rb",
                                   "models/compositions/reload_ruby_task.rb"
                     perform_app_assertion interface.unit_tests.orogen_deployment_exists?
@@ -203,8 +201,7 @@ module Syskit
                                   "models/pack/orogen/reload.orogen"
                     copy_into_app "config/robots/reload_unmanaged_task.rb",
                                   "config/robots/default.rb"
-                    pid = roby_app_spawn "run", silent: true
-                    interface = assert_roby_app_is_running(pid)
+                    pid, interface = roby_app_start "run", silent: true
                     copy_into_app "models/pack/orogen/reload-2.orogen",
                                   "models/pack/orogen/reload.orogen"
                     perform_app_assertion interface.unit_tests.orogen_deployment_exists?
