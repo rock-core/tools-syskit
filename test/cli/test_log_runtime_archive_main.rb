@@ -7,29 +7,41 @@ module Syskit
     module CLI
         # Tests CLI command "archive" from syskit/cli/log_runtime_archive_main.rb
         describe LogRuntimeArchiveMain do
-            it "raises ArgumentError if some of the directories do not exist" do
-                root = "make_tmppath"
-
-                e = assert_raises ArgumentError do
-                    call_command_line(root, @archive_dir, 1, 10)
+            describe "#watch" do
+                before do
+                    @root = make_tmppath
+                    @archive_dir = make_tmppath
                 end
-                assert_equal "#{root} does not exist, or is not a directory", e.message
             end
 
-            describe "#ensure_free_space" do
+            describe "#archive" do
                 before do
                     @root = make_tmppath
                     @archive_dir = make_tmppath
                     @mocked_files_sizes = []
 
                     5.times { |i| (@archive_dir / i.to_s).write(i.to_s) }
+                end
 
-                    @archiver = LogRuntimeArchive.new(@root, @archive_dir)
+                it "raises ArgumentError if the source directory does not exist" do
+                    e = assert_raises ArgumentError do
+                        call_archive("/does/not/exist", @archive_dir, 1, 10)
+                    end
+                    assert_equal "/does/not/exist does not exist, or is not a directory",
+                                 e.message
+                end
+
+                it "raises ArgumentError if the target directory does not exist" do
+                    e = assert_raises ArgumentError do
+                        call_archive(@root, "/does/not/exist", 1, 10)
+                    end
+                    assert_equal "/does/not/exist does not exist, or is not a directory",
+                                 e.message
                 end
 
                 it "does nothing if there is enough free space" do
                     mock_available_space(200)
-                    call_command_line(@root, @archive_dir, 100, 300) # 100 MB, 300 MB
+                    call_archive(@root, @archive_dir, 100, 300) # 100 MB, 300 MB
 
                     assert_deleted_files([])
                 end
@@ -39,7 +51,7 @@ module Syskit
                     mock_files_size(size_files)
                     mock_available_space(70) # 70 MB
 
-                    call_command_line(@root, @archive_dir, 100, 300) # 100 MB, 300 MB
+                    call_archive(@root, @archive_dir, 100, 300) # 100 MB, 300 MB
                     assert_deleted_files([0, 1, 2, 3])
                 end
 
@@ -49,7 +61,7 @@ module Syskit
                     mock_files_size(size_files)
                     mock_available_space(80) # 80 MB
 
-                    call_command_line(@root, @archive_dir, 100, 300) # 100 MB, 300 MB
+                    call_archive(@root, @archive_dir, 100, 300) # 100 MB, 300 MB
                     assert_deleted_files([0, 1, 2, 3, 4])
                 end
 
@@ -90,15 +102,15 @@ module Syskit
                         end
                     end
                 end
-            end
 
-            # Call 'archive' function instead of 'watch' to call archiver once
-            def call_command_line(root_path, archive_path, low_limit, freed_limit)
-                LogRuntimeArchiveMain.start(
-                    ["archive", root_path, archive_path,
-                     "--free-space-low-limit", low_limit,
-                     "--free-space-freed-limit", freed_limit]
-                )
+                # Call 'archive' function instead of 'watch' to call archiver once
+                def call_archive(root_path, archive_path, low_limit, freed_limit)
+                    LogRuntimeArchiveMain.start(
+                        ["archive", root_path, archive_path,
+                         "--free-space-low-limit", low_limit,
+                         "--free-space-freed-limit", freed_limit]
+                    )
+                end
             end
         end
     end
