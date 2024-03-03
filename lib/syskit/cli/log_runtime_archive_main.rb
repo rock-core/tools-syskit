@@ -29,7 +29,11 @@ module Syskit
                     available space is above this threshold (threshold in MB)"
             default_task def watch(root_dir, target_dir)
                 loop do
-                    archive(root_dir, target_dir)
+                    begin
+                        archive(root_dir, target_dir)
+                    rescue Errno::ENOSPC
+                        next
+                    end
 
                     puts "Archived pending logs, sleeping #{options[:period]}s"
                     sleep options[:period]

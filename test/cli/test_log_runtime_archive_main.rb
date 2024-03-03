@@ -40,6 +40,31 @@ module Syskit
                     assert called == 3
                     assert_operator(Time.now - tic, :>, 0.9)
                 end
+
+                it "retries on ENOSPC" do
+                    mock_files_size([])
+                    mock_available_space(200) # 70 MB
+
+                    quit = Class.new(RuntimeError)
+                    called = 0
+                    flexmock(LogRuntimeArchive)
+                        .new_instances
+                        .should_receive(:process_root_folder)
+                        .pass_thru do
+                            called += 1
+                            raise quit if called == 3
+
+                            raise Errno::ENOSPC
+                        end
+
+                    tic = Time.now
+                    assert_raises(quit) do
+                        LogRuntimeArchiveMain.start(
+                            ["watch", @root, @archive_dir, "--period", 0.5]
+                        )
+                    end
+                    assert_operator(Time.now - tic, :<, 1)
+                end
             end
 
             describe "#archive" do
