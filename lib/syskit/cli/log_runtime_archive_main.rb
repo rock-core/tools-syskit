@@ -21,6 +21,12 @@ module Syskit
                    type: :numeric, default: 600, desc: "polling period in seconds"
             option :max_size,
                    type: :numeric, default: 10_000, desc: "max log size in MB"
+            option :free_space_low_limit,
+                   type: :numeric, default: 5_000, desc: "start deleting files if \
+                    available space is below this threshold (threshold in MB)"
+            option :free_space_freed_limit,
+                   type: :numeric, default: 25_000, desc: "stop deleting files if \
+                    available space is above this threshold (threshold in MB)"
             default_task def watch(root_dir, target_dir)
                 loop do
                     archive(root_dir, target_dir)
