@@ -17,8 +17,7 @@ module Syskit
                 end
 
                 it "calls archive with the specified period" do
-                    size_files = [75, 40, 90, 60, 70]
-                    mock_files_size(size_files)
+                    mock_files_size([])
                     mock_available_space(200) # 70 MB
 
                     quit = Class.new(RuntimeError)
@@ -31,6 +30,7 @@ module Syskit
                             raise quit if called == 3
                         end
 
+                    tic = Time.now
                     assert_raises(quit) do
                         LogRuntimeArchiveMain.start(
                             ["watch", @root, @archive_dir, "--period", 0.5]
@@ -38,6 +38,7 @@ module Syskit
                     end
 
                     assert called == 3
+                    assert_operator(Time.now - tic, :>, 0.9)
                 end
             end
 
