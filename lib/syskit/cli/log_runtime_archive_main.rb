@@ -10,7 +10,7 @@ require "syskit/cli/log_runtime_archive"
 module Syskit
     module CLI
         # Command-line definition for the cli-archive-main syskit subcommand
-        class CLIArchiveMain < Thor
+        class LogRuntimeArchiveMain < Thor
             def self.exit_on_failure?
                 true
             end

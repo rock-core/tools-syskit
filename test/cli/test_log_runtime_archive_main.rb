@@ -6,7 +6,7 @@ require "syskit/cli/log_runtime_archive_main"
 module Syskit
     module CLI
         # Tests CLI command "archive" from syskit/cli/log_runtime_archive_main.rb
-        describe CLIArchiveMain do
+        describe LogRuntimeArchiveMain do
             it "raises ArgumentError if some of the directories do not exist" do
                 root = "make_tmppath"
 
@@ -94,7 +94,7 @@ module Syskit
 
             # Call 'archive' function instead of 'watch' to call archiver once
             def call_command_line(root_path, archive_path, low_limit, freed_limit)
-                Syskit::CLI::CLIArchiveMain.start(
+                LogRuntimeArchiveMain.start(
                     ["archive", root_path, archive_path,
                      "--free-space-low-limit", low_limit,
                      "--free-space-freed-limit", freed_limit]
