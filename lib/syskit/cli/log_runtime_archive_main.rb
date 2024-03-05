@@ -10,7 +10,7 @@ require "syskit/cli/log_runtime_archive"
 module Syskit
     module CLI
         # Command-line definition for the cli-archive-main syskit subcommand
-        class CLIArchiveMain < Thor
+        class LogRuntimeArchiveMain < Thor
             def self.exit_on_failure?
                 true
             end
@@ -21,9 +21,19 @@ module Syskit
                    type: :numeric, default: 600, desc: "polling period in seconds"
             option :max_size,
                    type: :numeric, default: 10_000, desc: "max log size in MB"
+            option :free_space_low_limit,
+                   type: :numeric, default: 5_000, desc: "start deleting files if \
+                    available space is below this threshold (threshold in MB)"
+            option :free_space_freed_limit,
+                   type: :numeric, default: 25_000, desc: "stop deleting files if \
+                    available space is above this threshold (threshold in MB)"
             default_task def watch(root_dir, target_dir)
                 loop do
-                    archive(root_dir, target_dir)
+                    begin
+                        archive(root_dir, target_dir)
+                    rescue Errno::ENOSPC
+                        next
+                    end
 
                     puts "Archived pending logs, sleeping #{options[:period]}s"
                     sleep options[:period]
@@ -45,8 +55,8 @@ module Syskit
                 archiver = make_archiver(root_dir, target_dir)
 
                 archiver.ensure_free_space(
-                    options[:free_space_low_limit] * 1e6,
-                    options[:free_space_freed_limit] * 1e6
+                    options[:free_space_low_limit] * 1_000_000,
+                    options[:free_space_freed_limit] * 1_000_000
                 )
                 archiver.process_root_folder
             end
