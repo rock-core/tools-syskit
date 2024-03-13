@@ -325,7 +325,7 @@ module Syskit
 
                 @logger_m ||= Syskit::TaskContext
                               .find_model_from_orogen_name("logger::Logger") || false
-                t.kind_of?(@logger_m)
+                t.kind_of?(@logger_m) if @logger_m
             end
 
             def update_tasks_info
