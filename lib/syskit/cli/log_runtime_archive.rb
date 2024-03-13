@@ -59,7 +59,7 @@ module Syskit
                 end
 
                 stat = Sys::Filesystem.stat(@target_dir)
-                available_space = stat.bytes_free
+                available_space = stat.bytes_available
 
                 return if available_space > free_space_low_limit
 
