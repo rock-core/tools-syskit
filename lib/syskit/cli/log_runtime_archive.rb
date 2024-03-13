@@ -5,6 +5,9 @@ require "sys/filesystem"
 
 module Syskit
     module CLI
+        # Exception raised when the zstd subprocess returns an error
+        class CompressionFailed < RuntimeError; end
+
         # Implementation of the `syskit log-runtime-archive` tool
         #
         # The tool archives Syskit log directories into tar archives in realtime,
@@ -170,22 +173,20 @@ module Syskit
                 data_pos = archive_io.tell
                 exit_status = write_compressed_data(child_path, archive_io)
 
-                if exit_status.success?
-                    add_to_archive_commit(
-                        archive_io, child_path, start_pos, data_pos, stat
-                    )
-                    child_path.unlink
-                    true
-                else
-                    add_to_archive_rollback(archive_io, start_pos, logger: logger)
-                    false
+                unless exit_status.success?
+                    raise CompressionFailed, "compression failed for #{child_path}"
                 end
+
+                add_to_archive_commit(
+                    archive_io, child_path, start_pos, data_pos, stat
+                )
+                child_path.unlink
             rescue Exception => e # rubocop:disable Lint/RescueException
                 Roby.display_exception(STDOUT, e)
                 if start_pos
                     add_to_archive_rollback(archive_io, start_pos, logger: logger)
                 end
-                false
+                raise
             end
 
             # Finalize appending a file in the archive

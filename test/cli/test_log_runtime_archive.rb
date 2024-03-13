@@ -87,8 +87,7 @@ module Syskit
                     refute blo.exist?
                 end
 
-                it "restores the file as it was and keeps the input file if zstd fails "\
-                   "but continues with other files" do
+                it "restores the file as it was and keeps the input file if zstd fails" do
                     bla = make_in_file "bla.txt", "bla"
                     blo = make_in_file "blo.txt", "blo"
                     bli = make_in_file "bli.txt", "bli"
@@ -98,7 +97,11 @@ module Syskit
                         FlexMock.use(Process) do |mock|
                             mock.should_receive(:waitpid2).once
                                 .and_return([10, flexmock(success?: false)])
-                            refute LogRuntimeArchive.add_to_archive(archive_io, blo)
+
+                            flexmock(Roby).should_receive(:display_exception).once
+                            assert_raises(CompressionFailed) do
+                                LogRuntimeArchive.add_to_archive(archive_io, blo)
+                            end
                         end
                         assert LogRuntimeArchive.add_to_archive(archive_io, bli)
                     end
@@ -118,13 +121,16 @@ module Syskit
                     blo = make_in_file "blo.txt", "blo"
                     bli = make_in_file "bli.txt", "bli"
 
+                    exception_m = Class.new(RuntimeError)
                     @archive_path.open("w") do |archive_io|
                         assert LogRuntimeArchive.add_to_archive(archive_io, bla)
                         FlexMock.use(Process) do |mock|
                             mock.should_receive(:waitpid2).once
-                                .and_raise(Exception.new)
+                                .and_raise(exception_m.new)
                             flexmock(Roby).should_receive(:display_exception).once
-                            refute LogRuntimeArchive.add_to_archive(archive_io, blo)
+                            assert_raises(exception_m) do
+                                LogRuntimeArchive.add_to_archive(archive_io, blo)
+                            end
                         end
                         assert LogRuntimeArchive.add_to_archive(archive_io, bli)
                     end
