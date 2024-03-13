@@ -144,7 +144,7 @@ module Syskit
                     .should_receive(:stat).with(@archive_dir)
                     .and_return do
                         flexmock(
-                            bytes_free: total_available_disk_space * 1e6
+                            bytes_available: total_available_disk_space * 1e6
                         )
                     end
             end
