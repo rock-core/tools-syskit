@@ -414,7 +414,8 @@ module Syskit
                     )
                     register_process_server(
                         sim_name, mng,
-                        logging_enabled: false, register_on_name_server: false
+                        logging_enabled: false,
+                        register_on_name_server: !app.testing?
                     )
                 end
                 process_server_config_for(sim_name)
