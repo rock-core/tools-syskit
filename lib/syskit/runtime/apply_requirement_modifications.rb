@@ -113,13 +113,8 @@ module Syskit
                 end
                 nil
             rescue ::Exception => e # rubocop:disable Lint/RescueException
-                if running_requirement_tasks.empty?
-                    add_framework_error(e, "deployment error without "\
-                        "requirement tasks")
-                else
-                    running_requirement_tasks.each do |t|
-                        t.failed_event.emit(e)
-                    end
+                running_requirement_tasks.each do |t|
+                    t.failed_event.emit(e)
                 end
                 e
             end

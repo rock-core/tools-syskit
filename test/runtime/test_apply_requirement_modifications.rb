@@ -44,7 +44,33 @@ module Syskit
                 execute { Runtime.apply_requirement_modifications(plan) }
 
                 assert_resolution_cancelled do
-                    execute { plan.unmark_permanent_task(requirement_task) }
+                    expect_execution do
+                        plan.unmark_permanent_task(requirement_task)
+                        requirement_task.planning_task.stop!
+                    end.to { have_error_matching Roby::PlanningFailedError.match }
+                end
+
+                refute plan.syskit_current_resolution
+            end
+
+            it "ignores resolution errors if all requirements have been "\
+               "stopped in the meantime" do
+                cmp_m = Composition.new_submodel
+                requirement_task =
+                    plan.add_permanent_task(cmp_m.to_instance_requirements.as_plan)
+                execute { requirement_task.planning_task.start! }
+                execute { Runtime.apply_requirement_modifications(plan) }
+
+                error_m = Class.new(RuntimeError)
+                flexmock(plan.syskit_current_resolution)
+                    .should_receive(:apply).and_raise(error_m)
+
+                assert_resolution_cancelled do
+                    expect_execution do
+                        plan.unmark_permanent_task(requirement_task)
+                        requirement_task.planning_task.stop!
+                    end.to { have_error_matching Roby::PlanningFailedError.match }
+                    Runtime.apply_requirement_modifications(plan)
                 end
 
                 refute plan.syskit_current_resolution
