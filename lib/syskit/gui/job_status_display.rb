@@ -137,7 +137,7 @@ module Syskit
             end
             signals "clicked()"
 
-            def connect_to_hooks
+            def connect_to_hooks # rubocop:disable Metrics/PerceivedComplexity
                 ui_drop.connect(SIGNAL("clicked()")) do
                     @batch_manager.drop_job(self)
                     if @actions_immediate
