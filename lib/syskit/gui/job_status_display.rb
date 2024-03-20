@@ -144,22 +144,24 @@ module Syskit
                         @batch_manager.process
                     end
                 end
-                ui_restart.connect(SIGNAL("clicked()")) do
-                    arguments = job.action_arguments.dup
-                    arguments.delete(:job_id)
-                    if @batch_manager.create_new_job(job.action_name, arguments)
-                        @batch_manager.drop_job(self)
-                        if @actions_immediate
-                            @batch_manager.process
+                if job.action_name
+                    ui_restart.connect(SIGNAL("clicked()")) do
+                        arguments = job.action_arguments.dup
+                        arguments.delete(:job_id)
+                        if @batch_manager.create_new_job(job.action_name, arguments)
+                            @batch_manager.drop_job(self)
+                            if @actions_immediate
+                                @batch_manager.process
+                            end
                         end
                     end
-                end
-                ui_start.connect(SIGNAL("clicked()")) do
-                    arguments = job.action_arguments.dup
-                    arguments.delete(:job_id)
-                    if @batch_manager.create_new_job(job.action_name, arguments)
-                        if @actions_immediate
-                            @batch_manager.process
+                    ui_start.connect(SIGNAL("clicked()")) do
+                        arguments = job.action_arguments.dup
+                        arguments.delete(:job_id)
+                        if @batch_manager.create_new_job(job.action_name, arguments)
+                            if @actions_immediate
+                                @batch_manager.process
+                            end
                         end
                     end
                 end
