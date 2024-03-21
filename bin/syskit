@@ -17,20 +17,23 @@ end
 
 require "syskit/cli/main"
 
+def thor_command?(name)
+    Syskit::CLI::Main.all_commands.key?(name.tr("-", "_"))
+end
+
 # Transform 'syskit help <mode>' to 'syskit <mode> --help' if mode is not
 # handled by thor
 if ARGV[0] == "help"
-    if (command_name = ARGV[1])
-        unless Syskit::CLI::Main.all_commands.key?(command_name)
-            ARGV.shift
-            ARGV << "--help"
-        end
+    if ((command_name = ARGV[1]) && !thor_command?(command_name))
+          ARGV.shift
+          ARGV << "--help"
     end
 # Transform 'syskit <mode> --help' to 'syskit help <mode>' if mode is handled
 # by thor
 elsif ["-h", "--help"].include?(ARGV[1])
     STDERR.puts "WARN: syskit <mode> --help is deprecated, use syskit help <mode> instead"
-    if Syskit::CLI::Main.all_commands.key?(ARGV[0])
+    if thor_command?(ARGV[0])
+        ARGV.delete_at(1)
         ARGV.unshift "help"
     end
 end
