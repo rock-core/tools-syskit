@@ -611,7 +611,7 @@ module Syskit
 
                 if m_connection.source_port != connection.source_port
                     debug do
-                        "rejected: sink #{sink_port} is connected to a port "\
+                        "rejected: sink #{m_connection.sink_port} is connected to a port "\
                         "named #{m_connection.source_port}, expected "\
                         "#{connection.source_port}"
                     end

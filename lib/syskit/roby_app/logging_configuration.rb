@@ -32,7 +32,7 @@ module Syskit
         # Logs groups are usually defined in a robot file, in a Robot.conf
         # block:
         #
-        #     Robot.config do
+        #     Robot.setup do
         #       Syskit.conf.logs.create_group 'Images' do |g|
         #         g.add /base.samples.frame.Frame/
         #       end
@@ -55,7 +55,7 @@ module Syskit
         # If you want to disable the group as it is being created, add
         # the enabled: false option to create_group
         #
-        #     Robot.config do
+        #     Robot.setup do
         #       Syskit.conf.logs.create_group 'Images', enabled: false do |g|
         #         g.add /base.samples.frame.Frame/
         #       end

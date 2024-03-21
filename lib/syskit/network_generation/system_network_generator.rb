@@ -97,6 +97,15 @@ module Syskit
                 log_timepoint "instanciate_requirements"
                 toplevel_tasks = instance_requirements.each_with_index.map do |requirements, i|
                     task = requirements.instanciate(plan).to_task
+                    debug do
+                        debug "Instanciated task "
+                        log_nest(2) do
+                            log_pp :debug, task
+                        end
+                        debug "for requirements "
+                        log_pp :debug, requirements
+                        nil
+                    end
                     # We add all these tasks as permanent tasks, to use
                     # #static_garbage_collect to cleanup #plan.
                     plan.add_permanent_task(task)
