@@ -6,7 +6,7 @@ require "metaruby/gui"
 require "roby/gui/exception_view"
 require "syskit/gui/state_label"
 require "syskit/gui/runtime_state"
-require "roby/interface/async/interface"
+require "roby/interface/async"
 
 module Syskit
     module GUI
