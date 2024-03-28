@@ -11,9 +11,7 @@ module Syskit
             #
             # @return [Protocol::Deployment]
             def deployments
-                plan.find_tasks(Syskit::Deployment).map do |task|
-                    Protocol.marshal_deployment_task(task)
-                end
+                plan.find_tasks(Syskit::Deployment).to_a
             end
             command :deployments,
                     "returns information about running deployments"
