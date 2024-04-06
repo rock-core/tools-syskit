@@ -958,6 +958,14 @@ module Syskit
                 toplevel_object.extend LoadToplevelMethods
             end
 
+            # Plugin hook called by Roby to setup the v2 interface protocol
+            def self.setup_interface_v2_protocol
+                require "syskit/interface/v2/protocol"
+                Syskit::Interface::V2::Protocol.register_marshallers(
+                    Roby::Interface::V2::Protocol
+                )
+            end
+
             class VariableSizedType < RuntimeError; end
 
             def self.validate_port_has_fixed_size(port, with_global_size, only_warn: false, ignore: [])
