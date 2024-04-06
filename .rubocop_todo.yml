@@ -573,6 +573,7 @@ Metrics/ClassLength:
     - 'lib/syskit/network_generation/engine.rb'
     - 'lib/syskit/runtime/connection_management.rb'
     - 'lib/syskit/task_context.rb'
+    - 'lib/syskit/telemetry/ui/runtime_state.rb'
 
 # Offense count: 105
 # Configuration parameters: Max.
