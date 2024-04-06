@@ -668,19 +668,6 @@ module Syskit
                 end
 
                 signals "fileOpenClicked(const QUrl&)"
-
-                def self.exec(host, port: Roby::Interface::DEFAULT_PORT)
-                    Orocos.initialize
-                    interface = Roby::Interface::V1::Async::Interface.new(host, port: port)
-                    main = UI::RuntimeState.new(syskit: interface)
-                    main.window_title = "Syskit @#{options[:host]}"
-
-                    main.restore_from_settings
-                    main.show
-                    Vizkit.exec
-                    main.save_to_settings
-                    main.settings.sync
-                end
             end
         end
     end
