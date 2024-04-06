@@ -43,7 +43,8 @@ module Syskit
                     assert_kind_of Protocol::Deployment, deployment
                     assert_equal ::Process.pid, deployment.pid
                     assert_equal "stubs", deployment.on
-                    assert_equal({ deployment.name => @task.orocos_task.ior }, deployment.iors)
+                    assert_equal({ deployment.name => @task.orocos_task.ior },
+                                 deployment.iors)
                 end
             end
 
@@ -102,7 +103,9 @@ module Syskit
                 attr_reader :task_m, :task
                 before do
                     @task_m = TaskContext.new_submodel
-                    @task = syskit_stub_deploy_configure_and_start(task_m.with_conf("default"))
+                    @task = syskit_stub_deploy_configure_and_start(
+                        task_m.with_conf("default")
+                    )
                     plan.add_mission_task(task)
                 end
 
@@ -116,13 +119,15 @@ module Syskit
                 end
 
                 it "restricts the deployments to the given models" do
-                    other = syskit_stub_deploy_configure_and_start(task_m.with_conf("other"))
+                    other =
+                        syskit_stub_deploy_configure_and_start(task_m.with_conf("other"))
                     subject.plan.add_mission_task(other)
-                    expect_execution { subject.stop_deployments(task.execution_agent.model) }
-                        .to do
-                            emit task.aborted_event
-                            emit task.execution_agent.stop_event
-                        end
+                    expect_execution do
+                        subject.stop_deployments(task.execution_agent.model)
+                    end.to do
+                        emit task.aborted_event
+                        emit task.execution_agent.stop_event
+                    end
                     assert task.finished?
                     assert !other.finished?
                 end
@@ -131,11 +136,12 @@ module Syskit
                     other_m = TaskContext.new_submodel
                     other = syskit_stub_deploy_configure_and_start(other_m)
                     subject.plan.add_mission_task(other)
-                    expect_execution { subject.stop_deployments(task.execution_agent.model) }
-                        .to do
-                            emit task.aborted_event
-                            emit task.execution_agent.stop_event
-                        end
+                    expect_execution do
+                        subject.stop_deployments(task.execution_agent.model)
+                    end.to do
+                        emit task.aborted_event
+                        emit task.execution_agent.stop_event
+                    end
                     assert task.finished?
                     assert !other.finished?
                 end
@@ -147,8 +153,10 @@ module Syskit
 
                 it "creates a marshallable instance of the configuration" do
                     conf = subject.logging_conf
-                    assert_equal conf.port_logs_enabled, Syskit.conf.logs.port_logs_enabled?
-                    assert_equal conf.conf_logs_enabled, Syskit.conf.logs.conf_logs_enabled?
+                    assert_equal conf.port_logs_enabled,
+                                 Syskit.conf.logs.port_logs_enabled?
+                    assert_equal conf.conf_logs_enabled,
+                                 Syskit.conf.logs.conf_logs_enabled?
                     Syskit.conf.logs.groups.each_pair do |key, group|
                         assert_equal group.enabled?, conf.groups[key].enabled
                     end
@@ -164,8 +172,10 @@ module Syskit
                     conf.conf_logs_enabled = !previous_conf_status
 
                     flexmock(subject).should_receive(:redeploy).once.pass_thru do
-                        assert_equal Syskit.conf.logs.port_logs_enabled?, !previous_port_status
-                        assert_equal Syskit.conf.logs.conf_logs_enabled?, !previous_conf_status
+                        assert_equal Syskit.conf.logs.port_logs_enabled?,
+                                     !previous_port_status
+                        assert_equal Syskit.conf.logs.conf_logs_enabled?,
+                                     !previous_conf_status
                     end
                     subject.update_logging_conf(conf)
                 end
@@ -176,7 +186,8 @@ module Syskit
                     conf.groups["test"].enabled = !previous_status
 
                     flexmock(subject).should_receive(:redeploy).once.pass_thru do
-                        assert_equal Syskit.conf.logs.group_by_name("test").enabled?, !previous_status
+                        assert_equal Syskit.conf.logs.group_by_name("test").enabled?,
+                                     !previous_status
                     end
                     subject.update_logging_conf(conf)
                 end
@@ -186,7 +197,7 @@ module Syskit
                 attr_reader :group
                 before do
                     @group = Syskit.conf.logs.create_group "test" do |g|
-                        g.add /base.samples.frame.Frame/
+                        g.add(/base.samples.frame.Frame/)
                     end
                 end
 
@@ -208,13 +219,15 @@ module Syskit
                     assert !group.enabled?
                 end
 
-                it "enable_log_group raises ArgumentError if the log group does not exist" do
+                it "enable_log_group raises ArgumentError "\
+                   "if the log group does not exist" do
                     assert_raises(ArgumentError) do
                         subject.enable_log_group "does_not_exist"
                     end
                 end
 
-                it "disable_log_group raises ArgumentError if the log group does not exist" do
+                it "disable_log_group raises ArgumentError "\
+                   "if the log group does not exist" do
                     assert_raises(ArgumentError) do
                         subject.disable_log_group "does_not_exist"
                     end
