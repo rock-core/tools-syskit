@@ -4,6 +4,7 @@ require "Qt"
 require "qtwebkit"
 require "vizkit"
 require "syskit"
+require "orocos/async"
 require "metaruby/gui/exception_view"
 require "roby/interface/v2/async"
 require "roby/gui/exception_view"
@@ -639,7 +640,8 @@ module Syskit
                                 )
                             )
 
-                            @name_service.register(task, name: task_name)
+                            async_task = Orocos::Async::CORBA::TaskContext.new(use: task)
+                            @name_service.register(async_task, name: task_name)
                         end
                     end
 

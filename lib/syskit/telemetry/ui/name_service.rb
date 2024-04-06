@@ -12,6 +12,8 @@ module Syskit
                 # @note The namespace is always "Local"
                 def initialize(tasks = [])
                     @registered_tasks = Concurrent::Hash.new
+                    @task_added_callbacks = Concurrent::Array.new
+                    @task_removed_callbacks = Concurrent::Array.new
                     tasks.each { |task| register(task) }
                 end
 
@@ -20,7 +22,6 @@ module Syskit
                 end
 
                 def include?(name)
-                    puts @registered_tasks.keys
                     @registered_tasks.key?(name)
                 end
 
@@ -49,6 +50,7 @@ module Syskit
                 # @param [String] name Optional name which is used to register the task.
                 def register(task, name: task.name)
                     @registered_tasks[name] = task
+                    trigger_task_added(name)
                 end
 
                 # Deregisters the given name or task from the name service.
@@ -56,11 +58,50 @@ module Syskit
                 # @param [String,TaskContext] name The name or task
                 def deregister(name)
                     @registered_tasks.delete(name)
+                    trigger_task_removed(name)
                 end
 
                 # (see Base#cleanup)
                 def cleanup
+                    names = @registered_tasks.keys
                     @registered_tasks.clear
+                    names.each { trigger_task_removed(name) }
+                end
+
+                def to_async
+                    self
+                end
+
+                def on_task_added(&block)
+                    @task_added_callbacks << block
+                    Roby.disposable { @task_added_callbacks.delete(block) }
+                end
+
+                def trigger_task_added(name)
+                    error = nil
+                    @task_added_callbacks.each do |block|
+                        block.call(name)
+                    rescue RuntimeError => e
+                        error = e
+                    end
+
+                    raise error if error
+                end
+
+                def on_task_removed(&block)
+                    @task_removed_callbacks << block
+                    Roby.disposable { @task_removed_callbacks.delete(block) }
+                end
+
+                def trigger_task_removed(name)
+                    error = nil
+                    @task_removed_callbacks.each do |block|
+                        block.call(name)
+                    rescue RuntimeError => e
+                        error = e
+                    end
+
+                    raise error if error
                 end
             end
         end
