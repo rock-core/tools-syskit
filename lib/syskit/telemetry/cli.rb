@@ -2,7 +2,6 @@
 
 require "roby"
 require "roby/interface/base"
-require "roby/interface/v1/async"
 
 module Syskit
     module Telemetry
@@ -12,11 +11,11 @@ module Syskit
                  "open a UI to interface with a running Syskit system"
             option :host,
                    type: :string, doc: "host[:port] to connect to",
-                   default: "localhost:#{Roby::Interface::DEFAULT_PORT}"
+                   default: "localhost:#{Roby::Interface::DEFAULT_PORT_V2}"
             def ui
                 roby_setup
                 host, port = parse_host_port(
-                    options[:host], default_port: Roby::Interface::DEFAULT_PORT
+                    options[:host], default_port: Roby::Interface::DEFAULT_PORT_V2
                 )
 
                 require "syskit/telemetry/ui/runtime_state"
@@ -49,8 +48,8 @@ module Syskit
 
                 def runtime_state(host, port)
                     Orocos.initialize
-                    interface =
-                        Roby::Interface::V1::Async::Interface.new(host, port: port)
+                    interface = Roby::Interface::V2::Async::Interface
+                                .new(host, port: port)
                     main = UI::RuntimeState.new(syskit: interface)
                     main.window_title = "Syskit @#{options[:host]}"
 
