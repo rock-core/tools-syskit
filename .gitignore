@@ -23,3 +23,5 @@ coverage/
 
 tmp/
 syskit-0.1.gem
+
+lib/syskit/telemetry/agent/*_pb.rb

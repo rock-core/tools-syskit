@@ -1,0 +1,93 @@
+package syskit.telemetry.agent.grpc;
+
+service Server {
+    /** Establish a conneciton
+     *
+     * This creates a data connection, whose ID will be used in other calls to declare
+     * what will be written
+     *
+     * Cancel the call to kill the connection
+     */
+    rpc data(Connection) returns (stream DataStreamValue) {}
+
+    /** Add ports to a connection data stream
+     *
+     * The connection must be alive. The call returns the type definitions
+     * (as typelib XML) and unique numerical IDs that allow to recognize the ports
+     * on the data connection. The stream definitions are returned in the same order
+     * they were given
+     */
+    rpc portmonitoringStart(PortMonitors) returns (DataStreams) {}
+
+    /** Add ports to a connection data stream
+     *
+     * The connection must be alive. The call returns the type definitions
+     * (as typelib XML) and unique numerical IDs that allow to recognize the ports
+     * on the data connection. The stream definitions are returned in the same order
+     * they were given
+     */
+    rpc portMonitoringStop(PortMonitorIDs) returns (DataStreams) {}
+}
+
+message Void {
+}
+
+message Connection {
+    required string connection_id = 1;
+}
+
+message TaskObject {
+    required string task_name = 1;
+    required string object_name = 2;
+}
+
+message TaskObjects {
+    repeated TaskObject objects = 1;
+}
+
+message ReceiverStats {}
+message SenderStats {}
+
+enum BufferType {
+    DATA = 0;
+    BUFFER_DROP_OLD = 1;
+    BUFFER_DROP_NEW = 2;
+}
+
+message BufferPolicy {
+    required BufferType type = 1;
+    optional uint32 size = 2;
+}
+
+message PortMonitor {
+    required TaskObject task = 1;
+    required float period = 2;
+    required BufferPolicy policy = 3;
+}
+
+message PortMonitors {
+    required string connection_id = 1;
+    repeated PortMonitor monitors = 2;
+}
+
+message PortMonitorIDs {
+    repeated uint32 id = 1;
+}
+
+message DataStreamValue {
+
+}
+
+message DataStreamValues {
+    repeated DataStreamValue values = 1;
+
+}
+
+message DataStream {
+    required int32 id = 1;
+    required string typelib_xml = 2;
+}
+
+message DataStreams {
+    repeated DataStream streams = 1;
+}
