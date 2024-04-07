@@ -1,0 +1,97 @@
+package syskit.telemetry.agent.grpc;
+
+/** Protocol definition for Syskit's telemetry agent
+ *
+ * The objective of the agent is to make it viable to monitor a complete syskit system
+ * over a bandwidth-limited, high latency, communication channel. The purpose of this
+ * interface is to reduce the amount of request/replies needed to get an interface
+ * looking like the syskit IDE runtime view.
+ *
+ * Data monitoring is done a subscription basis. The client must first create a permanent
+ * streaming connection using data() and then subscribes or removes subscriptions
+ * using the *MonitoringStart and *MonitoringStop calls.
+ *
+ * The data call is what maintains the subscriptions. If the call is interrupted or
+ * cancelled, the whole subscription process must be re-done.
+ */
+service Server {
+    /** Establish a connection
+     *
+     * This creates a data connection, whose ID will be used in other calls to declare
+     * what will be written. This must be done before calling the MonitoringStart
+     * and MonitoringStop functions
+     *
+     * Cancel the call to kill the connection
+     */
+    rpc data(Void) returns (stream DataStreamValue) {}
+
+    /** Add ports to a connection data stream
+     *
+     * The connection must be alive. The call returns the type definitions
+     * (as typelib XML) and unique numerical IDs that allow to recognize the ports
+     * on the data connection. The stream definitions are returned in the same order
+     * they were given
+     */
+    rpc portMonitoringStart(PortMonitors) returns (DataStreams) {}
+
+    /** Add ports to a connection data stream
+     *
+     * The connection must be alive. The call returns the type definitions
+     * (as typelib XML) and unique numerical IDs that allow to recognize the ports
+     * on the data connection. The stream definitions are returned in the same order
+     * they were given
+     */
+    rpc portMonitoringStop(PortMonitorIDs) returns (Void) {}
+}
+
+message Void {
+}
+
+message Error {
+    required int32 code = 1;
+    required string message = 2;
+}
+
+enum BufferType {
+    DATA = 0;
+    BUFFER_DROP_OLD = 1;
+    BUFFER_DROP_NEW = 2;
+}
+
+message BufferPolicy {
+    required BufferType type = 1;
+    optional uint32 size = 2;
+}
+
+message PortMonitor {
+    required string task_name = 1;
+    required string port_name = 2;
+    required float period = 3;
+    required BufferPolicy policy = 4;
+}
+
+message PortMonitors {
+    repeated PortMonitor monitors = 1;
+}
+
+message PortMonitorIDs {
+    repeated uint32 ids = 1;
+}
+
+message DataStreamValue {
+    required int32 id = 1;
+    required bytes data = 2;
+}
+
+message DataStreamValues {
+    repeated DataStreamValue values = 2;
+}
+
+message DataStream {
+    required int32 id = 1;
+    required string typelib_xml = 2;
+}
+
+message DataStreams {
+    repeated DataStream streams = 1;
+}
