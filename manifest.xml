@@ -28,6 +28,10 @@
     <depend_optional package="zstd" />
     <depend_optional package="minitar" />
 
+    <!-- Telemetry -->
+    <depend_optional package="grpc-ruby" />
+    <depend_optional package="grpc-ruby-tools" /> <!-- Only needed at build time -->
+
     <test_depend package="minitest" />
     <test_depend package="aruba" />
     <test_depend package="flexmock" />
