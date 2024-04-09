@@ -1311,14 +1311,14 @@ module Syskit
             #    data_reader some_child.out_port, as: 'pose'
             #
             # @return [DynamicPortBinding::BoundOutputReader]
-            def data_reader(port, as:, **policy)
+            def data_reader(port, as:, klass: BoundOutputReader, args: {}, **policy)
                 port = DynamicPortBinding.create(port)
                 unless port.output?
                     raise ArgumentError,
                           "expected an output port, but #{port} seems to be an input"
                 end
 
-                data_readers[as] = port.to_bound_data_accessor(as, self, **policy)
+                klass.new(name, component_model, port, **args, **policy)
             end
 
             # The data writers defined on this task, as a mapping from the writer's
