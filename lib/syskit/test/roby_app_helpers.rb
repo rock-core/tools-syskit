@@ -8,6 +8,14 @@ module Syskit
         module RobyAppHelpers
             include Roby::Test::RobyAppHelpers
 
+            def setup
+                super
+
+                register_plugin =
+                    File.join(__dir__, "..", "roby_app", "register_plugin.rb")
+                register_roby_plugin(File.expand_path(register_plugin))
+            end
+
             def gen_app
                 require "syskit/cli/gen_main"
                 Dir.chdir(app_dir) { CLI::GenMain.start(["app", "--quiet"]) }
