@@ -671,6 +671,21 @@ describe Syskit::Component do
             expect_execution.to { achieve { reader.connected? } }
             assert_equal task.out_port, reader.resolved_accessor.port
         end
+
+        it "injects a new class instead of using BoundOutputReader" do
+            injected = Class.new Syskit::DynamicPortBinding::BoundOutputReader
+
+            @support_task_m.data_reader(
+                @task_m.match.running.out_port, as: "test", klass: injected
+            )
+            support_task = syskit_stub_deploy_configure_and_start(@support_task_m)
+            task = syskit_stub_deploy_configure_and_start(@task_m)
+            reader = support_task.test_reader
+
+            assert reader.kind_of? injected
+            expect_execution.to { achieve { reader.connected? } }
+            assert_equal task.out_port, reader.resolved_accessor.port
+        end
     end
 
     describe Syskit::Component::DataAccessorInterface do
@@ -835,6 +850,30 @@ describe Syskit::Component do
             syskit_start(@task)
             flexmock(writer).should_receive(:disconnect).once
             syskit_stop(@task)
+        end
+
+        it "uses injected class to update read samples" do
+            injected = Class.new Syskit::DynamicPortBinding::BoundOutputReader
+            injected.class_eval do
+                def read_new
+                    return unless (sample = super)
+
+                    22 + sample
+                end
+            end
+
+            @task_m.data_reader(
+                @task_m.match.running.out_port, as: "test", klass: injected
+            )
+            task = syskit_stub_deploy_configure_and_start(@task_m, remote_task: false)
+
+            reader = task.test_reader
+            assert_kind_of injected, reader
+            expect_execution.to { achieve { reader.connected? } }
+
+            expect_execution { syskit_write task.out_port, 20 }.to do
+                achieve { reader.read_new == 42 }
+            end
         end
 
         describe "deprecated string-based arguments" do
