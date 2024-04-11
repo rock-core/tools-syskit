@@ -1310,15 +1310,30 @@ module Syskit
             # @example create a data reader for a composition child
             #    data_reader some_child.out_port, as: 'pose'
             #
+            # @example inject another class to act as the output reader
+            #   class Foo < Syskit::DynamicPortBinding::BoundOutputReader
+            #       def read_new
+            #           return unless (sample = super)
+            #
+            #           sample + 42
+            #       end
+            #   end
+            #
+            #   data_reader some_child.out_port, as: "pose", klass: Foo
+            #
             # @return [DynamicPortBinding::BoundOutputReader]
-            def data_reader(port, as:, **policy)
+            def data_reader(
+                port, as:, klass: Syskit::DynamicPortBinding::BoundOutputReader, **policy
+            )
                 port = DynamicPortBinding.create(port)
                 unless port.output?
                     raise ArgumentError,
                           "expected an output port, but #{port} seems to be an input"
                 end
 
-                data_readers[as] = port.to_bound_data_accessor(as, self, **policy)
+                data_readers[as] = DynamicPortBinding::BoundOutputReader.new(
+                    as, self, port, klass: klass, **policy
+                )
             end
 
             # The data writers defined on this task, as a mapping from the writer's

@@ -197,9 +197,18 @@ module Syskit
             class BoundOutputReader < OutputReader
                 include BoundAccessor
 
+                def initialize(
+                    name, component_model, *arguments,
+                    klass: Syskit::DynamicPortBinding::BoundOutputReader, **kw_arguments
+                )
+                    super(name, component_model, *arguments, **kw_arguments)
+
+                    @klass = klass
+                end
+
                 def instanciate(component, value_resolver: IdentityValueResolver.new)
                     port_binding = @port_binding.instanciate
-                    Syskit::DynamicPortBinding::BoundOutputReader.new(
+                    @klass.new(
                         name, component, port_binding,
                         value_resolver: value_resolver, **policy
                     )

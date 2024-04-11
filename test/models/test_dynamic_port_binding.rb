@@ -455,6 +455,29 @@ module Syskit
                 end
             end
 
+            describe "injecting another instantiation class" do
+                before do
+                    @port = DynamicPortBinding.new(flexmock, flexmock,
+                                                   output: true, port_resolver: nil)
+                end
+
+                it "instantiates using BoundOutputReader when klass is not passed" do
+                    b = DynamicPortBinding::BoundOutputReader.new("bla", flexmock, @port)
+                    result = b.instanciate(flexmock)
+                    assert_kind_of(Syskit::DynamicPortBinding::BoundOutputReader, result)
+                end
+
+                it "instantiates using the injected class" do
+                    klass = Class.new Syskit::DynamicPortBinding::BoundOutputReader
+
+                    b = DynamicPortBinding::BoundOutputReader.new(
+                        "bla", flexmock, @port, klass: klass
+                    )
+                    result = b.instanciate(flexmock)
+                    assert_kind_of(klass, result)
+                end
+            end
+
             def make_resolver(type)
                 app.default_loader.register_type_model(type)
 
