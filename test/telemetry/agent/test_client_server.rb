@@ -28,6 +28,7 @@ module Syskit
                     @rpc.stop
                     @rpc_thread.join
                     Orocos.allow_blocking_calls { @server.dispose }
+                    @name_service.each_task(&:dispose)
                 end
 
                 describe "with an established data channel" do
