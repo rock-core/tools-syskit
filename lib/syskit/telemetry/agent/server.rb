@@ -6,6 +6,7 @@ require "syskit/telemetry/agent/server_peer"
 module Syskit
     module Telemetry
         module Agent
+            class DuplicateDataStream < RuntimeError; end
             class PeerNotConnected < RuntimeError; end
 
             # Server for the telemetry agent
@@ -19,7 +20,7 @@ module Syskit
                 end
 
                 def data(_void, call)
-                    ServerPeer.enum_for(:data_channel, self, call)
+                    ServerPeer.create_data_channel(self, call)
                 end
 
                 def port_monitoring_start(port_monitors, call)
@@ -48,6 +49,12 @@ module Syskit
                     peers.each_value(&:dispose)
                 end
 
+                # @api private
+                #
+                # Create and register a {ServerPeer} for the given peer ID
+                #
+                # @return [ServerPeer]
+                # @raise DuplicateDataStream if the peer is already registered
                 def register_peer(peer_id)
                     @peers_mu.synchronize do
                         if @peers[peer_id]
