@@ -23,11 +23,15 @@ module Syskit
                     readers.each_value(&:dispose)
                 end
 
+                def self.create_data_channel(server, call)
+                    peer = server.register_peer(call.peer)
+                    enum_for(:data_channel, peer, server, call)
+                end
+
                 # @api private
                 #
                 # Implementation of the enumerator needed by the GRPC streaming API
-                def self.data_channel(server, call)
-                    peer = server.register_peer(call.peer)
+                def self.data_channel(peer, server, call)
                     until call.cancelled?
                         now = Time.now
                         next_deadline = peer.poll_subscribed_streams(now) do |id, sample|
