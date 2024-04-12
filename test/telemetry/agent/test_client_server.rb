@@ -28,7 +28,17 @@ module Syskit
                     @rpc.stop
                     @rpc_thread.join
                     Orocos.allow_blocking_calls { @server.dispose }
+
                     @name_service.each_task(&:dispose)
+                end
+
+                it "raises if trying to monitor a port without an established channel" do
+                    e = assert_raises(GRPC::Unknown) do
+                        @client.monitor_port(
+                            "task", "out", period: 0.1, type: :buffer, size: 20
+                        )
+                    end
+                    assert_match(/NotConnected/, e.message)
                 end
 
                 describe "with an established data channel" do
@@ -64,6 +74,33 @@ module Syskit
                         assert_client_receives_nothing do
                             task.out.write 42
                         end
+                    end
+
+                    it "raises if trying to monitor a non-existent port" do
+                        create_task_and_port("task", "out")
+                        e = assert_raises(GRPC::Unknown) do
+                            @client.monitor_port(
+                                "task", "does_not_exist",
+                                period: 0.1, type: :buffer, size: 20
+                            )
+                        end
+                        assert_match(/NotFound/, e.message)
+                    end
+
+                    it "raises if trying to monitor a non-existent task" do
+                        e = assert_raises(GRPC::Unknown) do
+                            @client.monitor_port(
+                                "task", "out", period: 0.1, type: :buffer, size: 20
+                            )
+                        end
+                        assert_match(/NotFound/, e.message)
+                    end
+
+                    it "raises if a data channel is already registered for this peer" do
+                        e = assert_raises(GRPC::Unknown) do
+                            @client.data(Grpc::Void.new) {}
+                        end
+                        assert_match(/Duplicate/, e.message)
                     end
 
                     def assert_client_receives(expected, timeout: 10)
