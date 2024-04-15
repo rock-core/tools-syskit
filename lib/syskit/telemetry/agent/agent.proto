@@ -34,12 +34,11 @@ service Server {
      */
     rpc portMonitoringStart(PortMonitors) returns (DataStreams) {}
 
-    /** Add ports to a connection data stream
+    /** Remove ports from a connection data stream
      *
-     * The connection must be alive. The call returns the type definitions
-     * (as typelib XML) and unique numerical IDs that allow to recognize the ports
-     * on the data connection. The stream definitions are returned in the same order
-     * they were given
+     * The ID list given as argument is made of the IDs returned by
+     * portMonitoringStart. Passing IDs that do not exist or were
+     * already removed does nothing
      */
     rpc portMonitoringStop(PortMonitorIDs) returns (Void) {}
 }
