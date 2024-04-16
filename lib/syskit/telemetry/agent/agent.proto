@@ -46,6 +46,10 @@ service Server {
     /** Return the XML definition of the given types
      */
     rpc typeDefinitions(TypeNames) returns (TypeDefinitions) {}
+
+    /** Read the given properties
+     */
+    rpc readProperties(Properties) returns (PropertyValues) {}
 }
 
 message Void {
@@ -98,6 +102,24 @@ message DataStream {
 
 message DataStreams {
     repeated DataStream streams = 1;
+}
+
+message PropertyValue {
+    required string type_name = 1;
+    required bytes data = 2;
+}
+
+message PropertyValues {
+    repeated PropertyValue values = 1;
+}
+
+message Property {
+    required string task_name = 1;
+    required string property_name = 2;
+}
+
+message Properties {
+    repeated Property properties = 1;
 }
 
 message TypeNames {
