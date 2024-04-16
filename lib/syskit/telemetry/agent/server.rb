@@ -39,6 +39,13 @@ module Syskit
                     Grpc::Void.new
                 end
 
+                def type_definitions(names, _call)
+                    types = names.names.map do |n|
+                        Roby.app.default_loader.resolve_type(n)
+                    end
+                    Grpc::TypeDefinitions.new(definitions: types.map(&:to_xml))
+                end
+
                 def dispose
                     peers = @peers_mu.synchronize do
                         temp = @peers

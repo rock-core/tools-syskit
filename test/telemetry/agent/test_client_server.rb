@@ -126,6 +126,47 @@ module Syskit
                     end
                 end
 
+                describe "#resolve_types" do
+                    it "transfers type definitions if they are not known" do
+                        t = @client.resolve_types(["/double"])
+                        assert_equal 1, t.size
+                        t = t.first
+                        assert_equal "/double", t.name
+                        assert_equal 8, t.size
+                        refute t.integer?
+                    end
+
+                    it "reuses known definitions" do
+                        @client.resolve_types(["/double"])
+                        flexmock(@client).should_receive(:type_definitions).never
+                        t = @client.resolve_types(["/double"])
+                        assert_equal 1, t.size
+                        t = t.first
+                        assert_equal "/double", t.name
+                        assert_equal 8, t.size
+                        refute t.integer?
+                    end
+
+                    it "resolves only the types that are not yet known "\
+                       "if there is a mixture of known/unknown types" do
+                        @client.resolve_types(["/double", "/int32_t"])
+                        flexmock(@client)
+                            .should_receive(:type_definitions)
+                            .with(->(grpc) { grpc.names == %w[/float /int64_t] })
+                            .once
+                            .pass_thru
+                        types = @client.resolve_types(
+                            ["/double", "/float", "/int32_t", "/int64_t"]
+                        )
+                        assert_equal ["/double", "/float", "/int32_t", "/int64_t"],
+                                     types.map(&:name)
+                        assert_equal [8, 4, 4, 8],
+                                     types.map(&:size)
+                        assert_equal [false, false, true, true],
+                                     types.map(&:integer?)
+                    end
+                end
+
                 def create_task_and_port(task_name, port_name)
                     task = Orocos.allow_blocking_calls do
                         task = Orocos::RubyTasks::TaskContext.new(task_name)

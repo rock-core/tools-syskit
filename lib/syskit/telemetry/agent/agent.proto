@@ -41,6 +41,10 @@ service Server {
      * already removed does nothing
      */
     rpc portMonitoringStop(PortMonitorIDs) returns (Void) {}
+
+    /** Return the XML definition of the given types
+     */
+    rpc typeDefinitions(TypeNames) returns (TypeDefinitions) {}
 }
 
 message Void {
@@ -94,3 +98,12 @@ message DataStream {
 message DataStreams {
     repeated DataStream streams = 1;
 }
+
+message TypeNames {
+    repeated string names = 1;
+}
+
+message TypeDefinitions {
+    repeated string definitions = 1;
+}
+
