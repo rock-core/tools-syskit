@@ -45,6 +45,24 @@ module Syskit
                     [data_stream.id, disposable]
                 end
 
+                def read_property(task_name, property_name)
+                    grpc_property = Grpc::Property.new(
+                        task_name: task_name, property_name: property_name
+                    )
+
+                    grpc_values = read_properties(
+                        Grpc::Properties.new(properties: [grpc_property])
+                    )
+                    resolve_property_values(grpc_values.values).first
+                end
+
+                def resolve_property_values(grpc_values)
+                    types = resolve_types(grpc_values.map(&:type_name))
+                    grpc_values.zip(types).map do |v, t|
+                        t.from_buffer(v.data)
+                    end
+                end
+
                 def resolve_types(type_names)
                     types = type_names.map do |name|
                         [name, @registry.get(name)]

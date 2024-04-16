@@ -167,14 +167,35 @@ module Syskit
                     end
                 end
 
-                def create_task_and_port(task_name, port_name)
+                describe "#read_property" do
+                    it "reads the value of a property" do
+                        task = create_task_and_property("test", "p")
+                        Orocos.allow_blocking_calls { task.p = 10 }
+                        value = @client.read_property("test", "p")
+                        assert_equal 10, Typelib.to_ruby(value)
+                    end
+                end
+
+                def create_task(task_name)
                     task = Orocos.allow_blocking_calls do
                         task = Orocos::RubyTasks::TaskContext.new(task_name)
-                        task.create_output_port port_name, "/double"
+                        yield(task) if block_given?
                         task
                     end
                     @name_service.register(task)
                     @name_service.register(task, name: task_name)
+                end
+
+                def create_task_and_port(task_name, port_name)
+                    create_task(task_name) do |task|
+                        task.create_output_port port_name, "/double"
+                    end
+                end
+
+                def create_task_and_property(task_name, property_name)
+                    create_task(task_name) do |task|
+                        task.create_property property_name, "/double"
+                    end
                 end
 
                 class QueueWithTimeout

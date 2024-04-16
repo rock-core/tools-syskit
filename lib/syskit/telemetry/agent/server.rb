@@ -39,6 +39,24 @@ module Syskit
                     Grpc::Void.new
                 end
 
+                def read_properties(properties, _call)
+                    values = read_properties_raw(properties.properties)
+
+                    grpc_values = values.map do |v|
+                        Grpc::PropertyValue.new(
+                            type_name: v.class.name,
+                            data: v.to_byte_array
+                        )
+                    end
+                    Grpc::PropertyValues.new(values: grpc_values)
+                end
+
+                def read_properties_raw(properties)
+                    properties.map do |p|
+                        @name_service.get(p.task_name).property(p.property_name).raw_read
+                    end
+                end
+
                 def type_definitions(names, _call)
                     types = names.names.map do |n|
                         Roby.app.default_loader.resolve_type(n)
