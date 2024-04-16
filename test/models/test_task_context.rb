@@ -634,5 +634,17 @@ module Syskit # :nodoc:
                 assert task_m.use_update_properties?
             end
         end
+
+        describe "#each_property" do
+            it "lists the properties of the model" do
+                task_m = Syskit::TaskContext.new_submodel do
+                    property "p", "/double"
+                end
+
+                properties = task_m.each_property.to_a
+                assert_equal %w[p], properties.map(&:name)
+                assert_equal(%w[/double], properties.map { |p| p.type.name })
+            end
+        end
     end
 end
