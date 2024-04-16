@@ -3,6 +3,7 @@
 require "roby/cli/main"
 require "syskit/cli/gen_main"
 require "syskit/cli/doc_main"
+require "syskit/telemetry/cli"
 
 module Syskit
     module CLI
@@ -33,6 +34,10 @@ module Syskit
                 Process.exec(syskit_path, "test", "--live", *extra_args, *files, "--",
                              *minitest_args, chdir: workdir)
             end
+
+            desc "telemetry",
+                 "commands related to monitoring and commanding a running Syskit system"
+            subcommand "telemetry", Telemetry::CLI
         end
     end
 end

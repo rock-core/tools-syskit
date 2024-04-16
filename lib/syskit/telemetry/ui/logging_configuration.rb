@@ -4,8 +4,8 @@ require "vizkit"
 require "vizkit/vizkit_items"
 require "vizkit/tree_view"
 require "Qt4"
-require "syskit/interface"
 require "syskit/telemetry/ui/logging_configuration_item"
+require "roby/interface"
 require "roby/interface/exceptions"
 
 module Syskit

@@ -1,8 +1,13 @@
 # frozen_string_literal: true
 
+require "Qt"
+require "qtwebkit"
+require "vizkit"
 require "syskit"
-require "roby/interface/async"
-require "roby/interface/async/log"
+require "metaruby/gui/exception_view"
+require "roby/interface/v2/async"
+require "roby/interface/v2/async/log"
+require "roby/gui/exception_view"
 require "syskit/telemetry/ui/logging_configuration"
 require "syskit/telemetry/ui/job_status_display"
 require "syskit/telemetry/ui/widget_list"
@@ -19,7 +24,7 @@ module Syskit
                 include Roby::Hooks
                 include Roby::Hooks::InstanceHooks
 
-                # @return [Roby::Interface::Async::Interface] the underlying syskit
+                # @return [Roby::Interface::V2::Async::Interface] the underlying syskit
                 #   interface
                 attr_reader :syskit
                 # An async object to access the log stream
@@ -117,13 +122,13 @@ module Syskit
                     end
                 end
 
-                # @param [Roby::Interface::Async::Interface] syskit the underlying
+                # @param [Roby::Interface::V2::Async::Interface] syskit the underlying
                 #   syskit interface
                 # @param [Integer] poll_period how often should the syskit interface
                 #   be polled (milliseconds). Set to nil if the polling is already
                 #   done externally
                 def initialize(parent: nil, robot_name: "default",
-                    syskit: Roby::Interface::Async::Interface.new, poll_period: 50)
+                    syskit: Roby::Interface::V2::Async::Interface.new, poll_period: 50)
 
                     super(parent)
 
@@ -253,7 +258,7 @@ module Syskit
                         syskit_log_stream.close
                     end
 
-                    @syskit_log_stream = Roby::Interface::Async::Log.new(syskit.remote_name, port: port)
+                    @syskit_log_stream = Roby::Interface::V2::Async::Log.new(syskit.remote_name, port: port)
                     syskit_log_stream.on_reachable do
                         deselect_job
                     end
@@ -596,7 +601,7 @@ module Syskit
                 def poll_syskit_interface
                     syskit.poll
                     if syskit_log_stream
-                        if syskit_log_stream.poll(max: 0.05) == Roby::Interface::Async::Log::STATE_PENDING_DATA
+                        if syskit_log_stream.poll(max: 0.05) == Roby::Interface::V2::Async::Log::STATE_PENDING_DATA
                             syskit_poll.interval = 0
                         else
                             syskit_poll.interval = @syskit_poll_period
@@ -609,7 +614,7 @@ module Syskit
                 #
                 # Create the UI elements for the given job
                 #
-                # @param [Roby::Interface::Async::JobMonitor] job
+                # @param [Roby::Interface::V2::Async::JobMonitor] job
                 def monitor_job(job)
                     job_status = JobStatusDisplay.new(job, @batch_manager)
                     job_status_list.add_widget job_status
@@ -645,14 +650,18 @@ module Syskit
                     job_expanded_status.add_tasks_info(all_tasks, all_job_info)
                 end
 
-                def restore_from_settings(settings)
+                def settings
+                    @settings ||= Qt::Settings.new("syskit", "telemetry-ui")
+                end
+
+                def restore_from_settings(settings = self.settings)
                     %w{ui_hide_loggers ui_show_expanded_job}.each do |checkbox_name|
                         default = Qt::Variant.new(send(checkbox_name).checked)
                         send(checkbox_name).checked = settings.value(checkbox_name, default).to_bool
                     end
                 end
 
-                def save_to_settings(settings)
+                def save_to_settings(settings = self.settings)
                     %w(ui_hide_loggers ui_show_expanded_job).each do |checkbox_name|
                         settings.set_value checkbox_name, Qt::Variant.new(send(checkbox_name).checked)
                     end
