@@ -20,6 +20,11 @@ module Syskit
             # {#create_data_channel}. This block is called in a separate thread, use
             # a Queue to transfer to a main thread if necessary.
             class Client < Grpc::Server::Stub
+                def initialize(host, certificate)
+                    super
+                    @registry = Typelib::Registry.new
+                end
+
                 # Add a single port to the monitored ports
                 def monitor_port(task_name, port_name, period:, type: :data, size: 1)
                     grpc_type = GRPC_BUFFER_TYPE_FROM_SYMBOL.fetch(type)
@@ -38,6 +43,38 @@ module Syskit
                     end
 
                     [data_stream.id, disposable]
+                end
+
+                def resolve_types(type_names)
+                    types = type_names.map do |name|
+                        [name, @registry.get(name)]
+                    rescue Typelib::NotFound
+                        [name, nil]
+                    end
+
+                    needs_resolution = types.find_all { |_, t| !t }.map(&:first)
+                    resolved_types = resolve_types_from_remote(needs_resolution)
+                    resolved_types_by_name = Hash[
+                        resolved_types.map { |t| [t.name, t] }
+                    ]
+                    types.map { |name, t| t || resolved_types_by_name[name] }
+                end
+
+                def resolve_types_from_remote(type_names)
+                    return [] if type_names.empty?
+
+                    grpc_type_names = Grpc::TypeNames.new(names: type_names)
+                    grpc_type_definitions = type_definitions(grpc_type_names)
+                    merge_type_definitions(
+                        type_names.zip(grpc_type_definitions.definitions)
+                    )
+                end
+
+                def merge_type_definitions(type_definitions)
+                    type_definitions.map do |name, grpc_t|
+                        @registry.merge_xml(grpc_t)
+                        @registry.get(name)
+                    end
                 end
 
                 GRPC_BUFFER_TYPE_FROM_SYMBOL = {
