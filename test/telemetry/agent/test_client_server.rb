@@ -98,7 +98,7 @@ module Syskit
 
                     it "raises if a data channel is already registered for this peer" do
                         e = assert_raises(GRPC::Unknown) do
-                            @client.data(Grpc::Void.new) {}
+                            @client.stub.data(Grpc::Void.new) {}
                         end
                         assert_match(/Duplicate/, e.message)
                     end
@@ -138,7 +138,7 @@ module Syskit
 
                     it "reuses known definitions" do
                         @client.resolve_types(["/double"])
-                        flexmock(@client).should_receive(:type_definitions).never
+                        flexmock(@client.stub).should_receive(:type_definitions).never
                         t = @client.resolve_types(["/double"])
                         assert_equal 1, t.size
                         t = t.first
@@ -150,7 +150,7 @@ module Syskit
                     it "resolves only the types that are not yet known "\
                        "if there is a mixture of known/unknown types" do
                         @client.resolve_types(["/double", "/int32_t"])
-                        flexmock(@client)
+                        flexmock(@client.stub)
                             .should_receive(:type_definitions)
                             .with(->(grpc) { grpc.names == %w[/float /int64_t] })
                             .once
@@ -245,7 +245,7 @@ module Syskit
 
                 DataChannel = Struct.new :op, :queue, :thread, keyword_init: true do # rubocop:disable Metrics/BlockLength
                     def self.setup(client)
-                        data_op = client.data(Grpc::Void.new, return_op: true)
+                        data_op = client.stub.data(Grpc::Void.new, return_op: true)
                         sample_queue = QueueWithTimeout.new
 
                         channel_ready = Concurrent::Event.new
