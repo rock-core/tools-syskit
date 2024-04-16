@@ -123,11 +123,13 @@ module Syskit
                 #   be polled (milliseconds). Set to nil if the polling is already
                 #   done externally
                 def initialize(parent: nil, robot_name: "default",
-                    syskit: Roby::Interface::V2::Async::Interface.new, poll_period: 50)
+                    syskit: Roby::Interface::V2::Async::Interface.new,
+                    poll_period: 50)
 
                     super(parent)
 
                     @syskit = syskit
+                    @poller = Poller.new(syskit_async_interface: syskit)
                     @robot_name = robot_name
                     reset
 
@@ -241,7 +243,6 @@ module Syskit
                 def reset
                     Orocos.initialize
                     @logger_m = nil
-                    @call_guards = {}
                     @orogen_models = {}
 
                     @name_service = NameService.new
@@ -504,64 +505,29 @@ module Syskit
                 #
                 # Sets up polling on a given syskit interface
                 def poll_syskit_interface
-                    if syskit.connected?
-                        begin
-                            display_current_cycle_index_and_time
-                            update_current_deployments
-                            update_current_job_task_names if current_job
-                        rescue Roby::Interface::ComError # rubocop:disable Lint/SuppressedException
-                        end
+                    @poller.poll
+                    if @poller.connected?
+                        display_current_cycle_index_and_time
+                        update_task_inspector(@poller.selected_orocos_task_names)
                     else
-                        reset_current_deployments
-                        reset_current_job
-                        reset_name_service
                         reset_task_inspector
                     end
-
-                    syskit.poll
                 end
                 slots "poll_syskit_interface()"
 
                 def display_current_cycle_index_and_time
-                    return unless syskit.cycle_start_time
+                    return unless (start_time = @poller.cycle_start_time)
 
-                    time_s = syskit.cycle_start_time.strftime("%H:%M:%S.%3N").to_s
+                    time_s = start_time.strftime("%H:%M:%S.%3N").to_s
                     progress_s = format(
-                        "@%<index>i %<time>s", index: syskit.cycle_index, time: time_s
+                        "@%<index>i %<time>s", index: @poller.cycle_index, time: time_s
                     )
                     run_hook :on_progress, progress_s
                 end
 
                 def reset_current_job
-                    @current_job = nil
-                    @current_job_task_names = []
-
-                    update_task_inspector(@name_service.names)
-                end
-
-                def update_current_deployments
-                    polling_call ["syskit"], "deployments" do |deployments|
-                        @current_deployments = deployments
-                        update_name_service(deployments)
-
-                        names = @name_service.names
-                        names &= @current_job_task_names if @current_job
-                        update_task_inspector(names)
-                    end
-                end
-
-                def reset_current_deployments
-                    @current_deployments = []
-                    reset_task_inspector
-                end
-
-                def update_current_job_task_names
-                    polling_call [], "tasks_of_job", @current_job.job_id do |tasks|
-                        @current_job_task_names =
-                            tasks
-                            .map { _1.arguments[:orocos_name] }
-                            .compact
-                    end
+                    @poller.reset_current_job
+                    update_task_inspector(@poller.orocos_task_names)
                 end
 
                 def update_task_inspector(task_names)
@@ -585,80 +551,11 @@ module Syskit
                     update_task_inspector([])
                 end
 
-                def polling_call(path, method_name, *args)
-                    key = [path, method_name, args]
-                    if @call_guards.key?(key)
-                        return unless @call_guards[key]
-                    end
-
-                    @call_guards[key] = false
-                    syskit.async_call(path, method_name, *args) do |error, ret|
-                        @call_guards[key] = true
-                        if error
-                            report_app_error(error)
-                        else
-                            yield(ret)
-                        end
-                    end
-                end
-
-                def async_call(path, method_name, *args)
-                    syskit.async_call(path, method_name, *args) do |error, ret|
-                        if error
-                            report_app_error(error)
-                        else
-                            yield(ret)
-                        end
-                    end
-                end
-
                 def report_app_error(error)
                     warn error.message
                     error.backtrace.each do |line|
                         warn "  #{line}"
                     end
-                end
-
-                def update_name_service(deployments)
-                    # Now remove all tasks that are not in deployments
-                    existing = @name_service.names
-
-                    deployments.each do |d|
-                        d.deployed_tasks.each do |deployed_task|
-                            task_name = deployed_task.name
-                            if existing.include?(task_name)
-                                existing.delete(task_name)
-                                next if deployed_task.ior == @name_service.ior(task_name)
-                            end
-
-                            existing.delete(task_name)
-                            task = Orocos::TaskContext.new(
-                                deployed_task.ior,
-                                name: task_name,
-                                model: orogen_model_from_name(
-                                    deployed_task.orogen_model_name
-                                )
-                            )
-
-                            async_task = Orocos::Async::CORBA::TaskContext.new(use: task)
-                            @name_service.register(async_task, name: task_name)
-                        end
-                    end
-
-                    existing.each { @name_service.deregister(_1) }
-                    @name_service.names
-                end
-
-                def reset_name_service
-                    all = @name_service.names.dup
-                    all.each { @name_service.deregister(_1) }
-                end
-
-                def orogen_model_from_name(name)
-                    @orogen_models[name] ||= Orocos.default_loader.task_model_from_name(name)
-                rescue OroGen::NotFound
-                    Orocos.warn "#{name} is a task context of class #{name}, but I cannot find the description for it, falling back"
-                    @orogen_models[name] ||= Orocos.create_orogen_task_context_model(name)
                 end
 
                 # @api private
@@ -690,8 +587,7 @@ module Syskit
                 end
 
                 def select_job(job_status)
-                    @current_job = job_status.job
-                    @current_job_names = []
+                    @poller.select_job(job_status.job)
                     job_expanded_status.select(job_status)
                 end
 
