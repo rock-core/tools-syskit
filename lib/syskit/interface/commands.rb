@@ -246,6 +246,15 @@ module Syskit
             end
             command :update_logging_conf, "updates the current logging configuration",
                     conf: "the new logging settings"
+
+            def models_of_deployed_tasks(*names)
+                tasks = plan.find_task(Syskit::TaskContext).find_all do |t|
+                    names.include?(t.orocos_name)
+                end
+                Hash[names.zip(tasks).map { |name, task| [name, task.model] }]
+            end
+            command :task_models,
+                    "return the Syskit task context models for the given orogen names"
         end
     end
 end
