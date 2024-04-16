@@ -27,35 +27,70 @@ module Syskit
                     @registry = Typelib::Registry.new
                 end
 
+                PortMonitor =
+                    Struct.new(:task_name, :port_name, :period, :type, :size,
+                               keyword_init: true)
+
+                PortDataStream = Struct.new(:client, :id, keyword_init: true) do
+                    def dispose
+                        client.remove_data_streams([self])
+                    end
+                end
+
                 # Add a single port to the monitored ports
-                def monitor_port(task_name, port_name, period:, type: :data, size: 1)
-                    grpc_type = GRPC_BUFFER_TYPE_FROM_SYMBOL.fetch(type)
-                    monitor = Grpc::PortMonitor.new(
-                        task_name: task_name, port_name: port_name, period: period,
-                        policy: Grpc::BufferPolicy.new(type: grpc_type, size: size)
+                def monitor_ports(ports)
+                    grpc = convert_port_monitors_to_grpc(ports)
+                    @stub.port_monitoring_start(grpc)
+                         .streams.map do |grpc_ds|
+                             PortDataStream.new(client: self, id: grpc_ds.id)
+                         end
+                end
+
+                def remove_data_streams(streams)
+                    @stub.port_monitoring_stop(
+                        Grpc::PortMonitorIDs.new(ids: streams.map(&:id))
                     )
-                    data_streams = @stub.port_monitoring_start(
-                        Grpc::PortMonitors.new(monitors: [monitor])
-                    )
-                    data_stream = data_streams.streams.first
-                    disposable = Roby.disposable do
-                        @stub.port_monitoring_stop(
-                            Grpc::PortMonitorIDs.new(ids: [data_stream.id])
+                end
+
+                def convert_port_monitors_to_grpc(monitors)
+                    grpc = monitors.map do |m|
+                        grpc_type = GRPC_BUFFER_TYPE_FROM_SYMBOL.fetch(m.type)
+                        grpc_policy =
+                            Grpc::BufferPolicy.new(type: grpc_type, size: m.size || 0)
+                        Grpc::PortMonitor.new(
+                            task_name: m.task_name, port_name: m.port_name,
+                            period: m.period, policy: grpc_policy
                         )
                     end
+                    Grpc::PortMonitors.new(monitors: grpc)
+                end
 
-                    [data_stream.id, disposable]
+                # Add a single port to the monitored ports
+                def monitor_port(task_name, port_name, period:, type: :data, size: 1)
+                    p = PortMonitor.new(
+                        task_name: task_name, port_name: port_name,
+                        period: period, type: type, size: size
+                    )
+                    stream = monitor_ports([p]).first
+                    [stream.id, stream]
+                end
+
+                Property = Struct.new :task_name, :property_name, keyword_init: true
+
+                def read_properties(properties)
+                    grpc_properties =
+                        properties.map { |p| Grpc::Property.new(**p.to_h) }
+
+                    grpc_values = @stub.read_properties(
+                        Grpc::Properties.new(properties: grpc_properties)
+                    )
+                    resolve_property_values(grpc_values.values)
                 end
 
                 def read_property(task_name, property_name)
-                    grpc_property = Grpc::Property.new(
-                        task_name: task_name, property_name: property_name
-                    )
-
-                    grpc_values = @stub.read_properties(
-                        Grpc::Properties.new(properties: [grpc_property])
-                    )
-                    resolve_property_values(grpc_values.values).first
+                    read_properties(
+                        [Property.new(task_name: task_name, property_name: property_name)]
+                    ).first
                 end
 
                 def resolve_property_values(grpc_values)
