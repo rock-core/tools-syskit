@@ -19,9 +19,11 @@ module Syskit
             # The samples themselves are received by a block given to
             # {#create_data_channel}. This block is called in a separate thread, use
             # a Queue to transfer to a main thread if necessary.
-            class Client < Grpc::Server::Stub
+            class Client
+                attr_reader :stub
+
                 def initialize(host, certificate)
-                    super
+                    @stub = Grpc::Server::Stub.new(host, certificate)
                     @registry = Typelib::Registry.new
                 end
 
@@ -32,12 +34,12 @@ module Syskit
                         task_name: task_name, port_name: port_name, period: period,
                         policy: Grpc::BufferPolicy.new(type: grpc_type, size: size)
                     )
-                    data_streams = port_monitoring_start(
+                    data_streams = @stub.port_monitoring_start(
                         Grpc::PortMonitors.new(monitors: [monitor])
                     )
                     data_stream = data_streams.streams.first
                     disposable = Roby.disposable do
-                        port_monitoring_stop(
+                        @stub.port_monitoring_stop(
                             Grpc::PortMonitorIDs.new(ids: [data_stream.id])
                         )
                     end
@@ -50,7 +52,7 @@ module Syskit
                         task_name: task_name, property_name: property_name
                     )
 
-                    grpc_values = read_properties(
+                    grpc_values = @stub.read_properties(
                         Grpc::Properties.new(properties: [grpc_property])
                     )
                     resolve_property_values(grpc_values.values).first
@@ -82,7 +84,7 @@ module Syskit
                     return [] if type_names.empty?
 
                     grpc_type_names = Grpc::TypeNames.new(names: type_names)
-                    grpc_type_definitions = type_definitions(grpc_type_names)
+                    grpc_type_definitions = @stub.type_definitions(grpc_type_names)
                     merge_type_definitions(
                         type_names.zip(grpc_type_definitions.definitions)
                     )
