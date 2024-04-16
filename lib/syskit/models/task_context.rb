@@ -127,6 +127,14 @@ module Syskit
                 make_state_events
             end
 
+            def each_property
+                return enum_for(__method__) unless block_given?
+
+                orogen_model.each_property do |p|
+                    yield Property.new(self, p.name, p.type)
+                end
+            end
+
             # A state_name => event_name mapping that maps the component's
             # state names to the event names that should be emitted when it
             # enters a new state.
