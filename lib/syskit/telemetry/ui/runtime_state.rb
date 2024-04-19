@@ -4,9 +4,9 @@ require "Qt"
 require "qtwebkit"
 require "vizkit"
 require "syskit"
+require "orocos/async"
 require "metaruby/gui/exception_view"
 require "roby/interface/v2/async"
-require "roby/interface/v2/async/log"
 require "roby/gui/exception_view"
 require "syskit/telemetry/ui/logging_configuration"
 require "syskit/telemetry/ui/job_status_display"
@@ -15,6 +15,8 @@ require "syskit/telemetry/ui/expanded_job_status"
 require "syskit/telemetry/ui/global_state_label"
 require "syskit/telemetry/ui/app_start_dialog"
 require "syskit/telemetry/ui/batch_manager"
+require "syskit/telemetry/ui/name_service"
+require "syskit/interface/v2"
 
 module Syskit
     module Telemetry
@@ -27,8 +29,6 @@ module Syskit
                 # @return [Roby::Interface::V2::Async::Interface] the underlying syskit
                 #   interface
                 attr_reader :syskit
-                # An async object to access the log stream
-                attr_reader :syskit_log_stream
 
                 # The toplevel layout
                 attr_reader :main_layout
@@ -47,11 +47,6 @@ module Syskit
                 # The connection state, which gives access to the global Syskit
                 # state
                 attr_reader :connection_state
-
-                # All known tasks
-                attr_reader :all_tasks
-                # Job information for tasks in the rebuilt plan
-                attr_reader :all_job_info
 
                 # The name service which allows us to resolve Rock task contexts
                 attr_reader :name_service
@@ -141,9 +136,7 @@ module Syskit
                     connect syskit_poll, SIGNAL("timeout()"),
                             self, SLOT("poll_syskit_interface()")
 
-                    if poll_period
-                        @syskit_poll.start(poll_period)
-                    end
+                    @syskit_poll.start(poll_period) if poll_period
 
                     create_ui
 
@@ -166,15 +159,15 @@ module Syskit
 
                     @current_job = nil
                     @current_orocos_tasks = Set.new
-                    @all_tasks = Set.new
-                    @known_loggers = nil
-                    @all_job_info = {}
+                    @proxies = {}
+
                     syskit.on_ui_event do |event_name, *args|
-                        if w = @ui_event_widgets[event_name]
+                        if (w = @ui_event_widgets[event_name])
                             w.show
                             w.update(*args)
                         else
-                            puts "don't know what to do with UI event #{event_name}, known events: #{@ui_event_widgets}"
+                            puts "don't know what to do with UI event #{event_name}, "\
+                                 "known events: #{@ui_event_widgets}"
                         end
                     end
                     on_connection_state_changed do |state|
@@ -183,7 +176,6 @@ module Syskit
                     end
                     syskit.on_reachable do
                         @syskit_commands = syskit.client.syskit
-                        update_log_server_connection(syskit.log_server_port)
                         @job_status_list.each_widget do |w|
                             w.show_actions = true
                         end
@@ -192,7 +184,9 @@ module Syskit
                         syskit.actions.sort_by(&:name).each do |action|
                             next if action.advanced?
 
-                            action_combo.add_item(action.name, Qt::Variant.new(action.doc))
+                            action_combo.add_item(
+                                action.name, Qt::Variant.new(action.doc)
+                            )
                         end
                         ui_logging_configuration.refresh
                         global_actions[:start].visible = false
@@ -247,37 +241,11 @@ module Syskit
                 def reset
                     Orocos.initialize
                     @logger_m = nil
-                    orocos_corba_nameservice = Orocos::CORBA::NameService.new(syskit.remote_name)
-                    @name_service = Orocos::Async::NameService.new(orocos_corba_nameservice)
-                end
+                    @call_guards = {}
+                    @orogen_models = {}
 
-                def update_log_server_connection(port)
-                    if syskit_log_stream && (syskit_log_stream.port == port)
-                        return
-                    elsif syskit_log_stream
-                        syskit_log_stream.close
-                    end
-
-                    @syskit_log_stream = Roby::Interface::V2::Async::Log.new(syskit.remote_name, port: port)
-                    syskit_log_stream.on_reachable do
-                        deselect_job
-                    end
-                    syskit_log_stream.on_init_progress do |rx, expected|
-                        run_hook :on_progress, format("loading %02i", Float(rx) / expected * 100)
-                    end
-                    syskit_log_stream.on_update do |cycle_index, cycle_time|
-                        if syskit_log_stream.init_done?
-                            time_s = cycle_time.strftime("%H:%M:%S.%3N").to_s
-                            run_hook :on_progress, format("@%i %s", cycle_index, time_s)
-
-                            job_expanded_status.update_time(cycle_index, cycle_time)
-                            update_tasks_info
-                            job_expanded_status.add_tasks_info(all_tasks, all_job_info)
-                            job_expanded_status.scheduler_state = syskit_log_stream.scheduler_state
-                            job_expanded_status.update_chronicle unless hide_expanded_jobs?
-                        end
-                        syskit_log_stream.clear_integrated
-                    end
+                    @name_service = NameService.new
+                    @async_name_service = Orocos::Async::NameService.new(@name_service)
                 end
 
                 def hide_loggers?
@@ -332,68 +300,6 @@ module Syskit
                     @logger_m ||= Syskit::TaskContext
                                   .find_model_from_orogen_name("logger::Logger") || false
                     t.kind_of?(@logger_m) if @logger_m
-                end
-
-                def update_tasks_info
-                    if current_job
-                        job_task = syskit_log_stream.plan.find_tasks(Roby::Interface::Job)
-                                                    .with_arguments(job_id: current_job.job_id)
-                                                    .first
-                        return unless job_task
-
-                        placeholder_task = job_task.planned_task || job_task
-                        return unless placeholder_task
-
-                        dependency = placeholder_task.relation_graph_for(Roby::TaskStructure::Dependency)
-                        tasks = dependency.enum_for(:depth_first_visit, placeholder_task).to_a
-                        tasks << job_task
-                    else
-                        tasks = syskit_log_stream.plan.tasks
-                    end
-
-                    if hide_loggers?
-                        unless @known_loggers
-                            @known_loggers = Set.new
-                            all_tasks.delete_if do |t|
-                                @known_loggers << t if logger_task?(t)
-                            end
-                        end
-
-                        tasks = tasks.find_all do |t|
-                            if all_tasks.include?(t)
-                                true
-                            elsif @known_loggers.include?(t)
-                                false
-                            elsif logger_task?(t)
-                                @known_loggers << t
-                                false
-                            else true
-                            end
-                        end
-                    end
-                    all_tasks.merge(tasks)
-                    tasks.each do |job|
-                        if job.kind_of?(Roby::Interface::Job)
-                            placeholder_task = job.planned_task || job
-                            all_job_info[placeholder_task] = job
-                        end
-                    end
-                    update_orocos_tasks
-                end
-
-                def update_orocos_tasks
-                    candidate_tasks = all_tasks
-                                      .find_all { |t| t.kind_of?(Syskit::TaskContext) }
-                    orocos_tasks = candidate_tasks.map { |t| t.arguments[:orocos_name] }.compact.to_set
-                    removed = current_orocos_tasks - orocos_tasks
-                    new     = orocos_tasks - current_orocos_tasks
-                    removed.each do |task_name|
-                        ui_task_inspector.remove_task(task_name)
-                    end
-                    new.each do |task_name|
-                        ui_task_inspector.add_task(name_service.proxy(task_name))
-                    end
-                    @current_orocos_tasks = orocos_tasks
                 end
 
                 EventWidget = Struct.new :name, :widget, :hook do
@@ -479,7 +385,6 @@ module Syskit
                     )
                     @ui_hide_loggers.checked = false
                     @ui_hide_loggers.connect SIGNAL("toggled(bool)") do |checked|
-                        @known_loggers = nil
                         update_tasks_info
                     end
                     @ui_show_expanded_job.checked = true
@@ -599,23 +504,174 @@ module Syskit
                 #
                 # Sets up polling on a given syskit interface
                 def poll_syskit_interface
+                    if syskit.connected?
+                        begin
+                            display_current_cycle_index_and_time
+                            update_current_deployments
+                            update_current_job_task_names if current_job
+                        rescue Roby::Interface::ComError # rubocop:disable Lint/SuppressedException
+                        end
+                    else
+                        reset_current_deployments
+                        reset_current_job
+                        reset_name_service
+                        reset_task_inspector
+                    end
+
                     syskit.poll
-                    if syskit_log_stream
-                        if syskit_log_stream.poll(max: 0.05) == Roby::Interface::V2::Async::Log::STATE_PENDING_DATA
-                            syskit_poll.interval = 0
+                end
+                slots "poll_syskit_interface()"
+
+                def display_current_cycle_index_and_time
+                    return unless syskit.cycle_start_time
+
+                    time_s = syskit.cycle_start_time.strftime("%H:%M:%S.%3N").to_s
+                    progress_s = format(
+                        "@%<index>i %<time>s", index: syskit.cycle_index, time: time_s
+                    )
+                    run_hook :on_progress, progress_s
+                end
+
+                def reset_current_job
+                    @current_job = nil
+                    @current_job_task_names = []
+
+                    update_task_inspector(@name_service.names)
+                end
+
+                def update_current_deployments
+                    polling_call ["syskit"], "deployments" do |deployments|
+                        @current_deployments = deployments
+                        update_name_service(deployments)
+
+                        names = @name_service.names
+                        names &= @current_job_task_names if @current_job
+                        update_task_inspector(names)
+                    end
+                end
+
+                def reset_current_deployments
+                    @current_deployments = []
+                    reset_task_inspector
+                end
+
+                def update_current_job_task_names
+                    polling_call [], "tasks_of_job", @current_job.job_id do |tasks|
+                        @current_job_task_names =
+                            tasks
+                            .map { _1.arguments[:orocos_name] }
+                            .compact
+                    end
+                end
+
+                def update_task_inspector(task_names)
+                    orocos_tasks = task_names.to_set
+                    removed = current_orocos_tasks - orocos_tasks
+                    new     = orocos_tasks - current_orocos_tasks
+                    removed.each do |task_name|
+                        ui_task_inspector.remove_task(task_name)
+                    end
+                    new.each do |task_name|
+                        @proxies[task_name] ||= Orocos::Async::TaskContextProxy.new(
+                            task_name, name_service: @async_name_service
+                        )
+
+                        ui_task_inspector.add_task(@proxies[task_name])
+                    end
+                    @current_orocos_tasks = orocos_tasks.dup
+                end
+
+                def reset_task_inspector
+                    update_task_inspector([])
+                end
+
+                def polling_call(path, method_name, *args)
+                    key = [path, method_name, args]
+                    if @call_guards.key?(key)
+                        return unless @call_guards[key]
+                    end
+
+                    @call_guards[key] = false
+                    syskit.async_call(path, method_name, *args) do |error, ret|
+                        @call_guards[key] = true
+                        if error
+                            report_app_error(error)
                         else
-                            syskit_poll.interval = @syskit_poll_period
+                            yield(ret)
                         end
                     end
                 end
-                slots "poll_syskit_interface()"
+
+                def async_call(path, method_name, *args)
+                    syskit.async_call(path, method_name, *args) do |error, ret|
+                        if error
+                            report_app_error(error)
+                        else
+                            yield(ret)
+                        end
+                    end
+                end
+
+                def report_app_error(error)
+                    warn error.message
+                    error.backtrace.each do |line|
+                        warn "  #{line}"
+                    end
+                end
+
+                def update_name_service(deployments)
+                    # Now remove all tasks that are not in deployments
+                    existing = @name_service.names
+
+                    deployments.each do |d|
+                        d.deployed_tasks.each do |deployed_task|
+                            task_name = deployed_task.name
+                            if existing.include?(task_name)
+                                existing.delete(task_name)
+                                next if deployed_task.ior == @name_service.ior(task_name)
+                            end
+
+                            existing.delete(task_name)
+                            task = Orocos::TaskContext.new(
+                                deployed_task.ior,
+                                name: task_name,
+                                model: orogen_model_from_name(
+                                    deployed_task.orogen_model_name
+                                )
+                            )
+
+                            async_task = Orocos::Async::CORBA::TaskContext.new(use: task)
+                            @name_service.register(async_task, name: task_name)
+                        end
+                    end
+
+                    existing.each { @name_service.deregister(_1) }
+                    @name_service.names
+                end
+
+                def reset_name_service
+                    all = @name_service.names.dup
+                    all.each { @name_service.deregister(_1) }
+                end
+
+                def orogen_model_from_name(name)
+                    @orogen_models[name] ||= Orocos.default_loader.task_model_from_name(name)
+                rescue OroGen::NotFound
+                    Orocos.warn "#{name} is a task context of class #{name}, but I cannot find the description for it, falling back"
+                    @orogen_models[name] ||= Orocos.create_orogen_task_context_model(name)
+                end
 
                 # @api private
                 #
                 # Create the UI elements for the given job
                 #
-                # @param [Roby::Interface::V2::Async::JobMonitor] job
+                # @param [Roby::Interface::Async::JobMonitor] job
                 def monitor_job(job)
+                    if job.respond_to?(:message)
+                        puts job.message
+                        return
+                    end
+
                     job_status = JobStatusDisplay.new(job, @batch_manager)
                     job_status_list.add_widget job_status
                     job_status.connect(SIGNAL("clicked()")) do
@@ -629,25 +685,14 @@ module Syskit
                 end
 
                 def deselect_job
-                    @current_job = nil
+                    reset_current_job
                     job_expanded_status.deselect
-                    all_tasks.clear
-                    @known_loggers = nil
-                    all_job_info.clear
-                    if syskit_log_stream
-                        update_tasks_info
-                    end
-                    job_expanded_status.add_tasks_info(all_tasks, all_job_info)
                 end
 
                 def select_job(job_status)
                     @current_job = job_status.job
-                    all_tasks.clear
-                    @known_loggers = nil
-                    all_job_info.clear
-                    update_tasks_info
+                    @current_job_names = []
                     job_expanded_status.select(job_status)
-                    job_expanded_status.add_tasks_info(all_tasks, all_job_info)
                 end
 
                 def settings
