@@ -10,6 +10,7 @@ TESTOPTS = ENV.delete("TESTOPTS") || ""
 RUBOCOP_REQUIRED = (ENV["RUBOCOP"] == "1")
 USE_RUBOCOP = (ENV["RUBOCOP"] != "0")
 USE_JUNIT = (ENV["JUNIT"] == "1")
+USE_GRPC = (ENV["SYSKIT_HAS_GRPC"] != "0")
 REPORT_DIR = ENV["REPORT_DIR"] || File.expand_path("test_reports", __dir__)
 
 def minitest_set_options(test_task, name)
@@ -76,12 +77,19 @@ if USE_RUBOCOP
     end
 end
 
-begin
-    require "coveralls/rake/task"
-    Coveralls::RakeTask.new
-    task "test:coveralls" => ["test", "coveralls:push"]
-rescue LoadError # rubocop:disable Lint/SuppressedException
-end
+protogen =
+    file "lib/syskit/telemetry/agent/agent_pb.rb" =>
+        ["lib/syskit/telemetry/agent/agent.proto"] do
+        system(
+            "grpc_tools_ruby_protoc",
+            "syskit/telemetry/agent/agent.proto",
+            "--ruby_out=.",
+            "--grpc_out=.",
+            chdir: "lib",
+            exception: true
+        )
+    end
+task "default" => protogen if USE_GRPC
 
 # For backward compatibility with some scripts that expected hoe
 task "gem" => "build"
