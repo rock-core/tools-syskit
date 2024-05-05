@@ -79,6 +79,7 @@ module Syskit
 
             describe "#select_deployments" do
                 attr_reader :task_m, :task, :task_models, :deployments, :deployment_models
+
                 before do
                     @task_m = Syskit::TaskContext.new_submodel
                     plan.add(@task = task_m.new)
@@ -292,6 +293,7 @@ module Syskit
 
             describe "#find_suitable_deployment_for" do
                 attr_reader :task_m, :task
+
                 before do
                     @task_m = Syskit::TaskContext.new_submodel
                     plan.add(@task = task_m.new)

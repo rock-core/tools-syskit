@@ -12,7 +12,7 @@ module Syskit
             # This resolver's data type
             attr_reader :type
 
-            def initialize(port_model, type, output: port_model.output?, port_resolver:)
+            def initialize(port_model, type, port_resolver:, output: port_model.output?)
                 @port_model = port_model
                 @type = type
                 @output = output
@@ -89,12 +89,10 @@ module Syskit
                           "option. Should be one of :auto, :input or :output"
                 end
 
-                if direction == :auto
-                    unless (direction = matcher.try_resolve_direction)
-                        raise ArgumentError,
-                              "cannot create a dynamic data source from a matcher "\
-                              "whose direction cannot be inferred"
-                    end
+                if direction == :auto && !(direction = matcher.try_resolve_direction)
+                    raise ArgumentError,
+                          "cannot create a dynamic data source from a matcher "\
+                          "whose direction cannot be inferred"
                 end
 
                 unless (type = matcher.try_resolve_type)
@@ -164,7 +162,7 @@ module Syskit
                     @root_resolver.respond_to?(name)
                 end
 
-                def method_missing(name, *args, **keywords) # rubocop:disable Style/MethodMissingSuper
+                def method_missing(name, *args, **keywords)
                     @root_resolver.__send__(name, *args, **keywords)
                 end
 

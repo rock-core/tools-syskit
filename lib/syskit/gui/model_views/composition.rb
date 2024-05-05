@@ -11,8 +11,7 @@ module Syskit::GUI
         # In addition to the plain component network, it visualizes the
         # specializations and allows to select them dynamically
         class Composition < ComponentNetworkView
-            attr_reader :specializations
-            attr_reader :task_model_view
+            attr_reader :specializations, :task_model_view
 
             def initialize(page)
                 super(page)

@@ -5,6 +5,7 @@ require "syskit/test/self"
 describe Syskit::Component do
     describe "#specialize" do
         attr_reader :task, :task_m
+
         before do
             @task_m = Syskit::TaskContext.new_submodel
             @task = task_m.new
@@ -110,6 +111,7 @@ describe Syskit::Component do
 
     describe "#require_dynamic_service" do
         attr_reader :task_m, :srv_m, :dyn, :task
+
         before do
             @task_m = Syskit::TaskContext.new_submodel do
                 output_port "out", "int"
@@ -191,6 +193,7 @@ describe Syskit::Component do
 
     describe "#can_merge?" do
         attr_reader :srv_m, :task_m, :testing_task, :tested_task
+
         before do
             srv_m = Syskit::DataService.new_submodel
             @task_m = Syskit::TaskContext.new_submodel do
@@ -260,6 +263,7 @@ describe Syskit::Component do
 
     describe "#merge" do
         attr_reader :srv_m, :task_m, :task, :merged_task
+
         before do
             srv_m = @srv_m = Syskit::DataService.new_submodel
             @task_m = Syskit::TaskContext.new_submodel do
@@ -348,6 +352,7 @@ describe Syskit::Component do
         end
         describe "handling of default arguments" do
             attr_reader :task_m, :default_arg
+
             before do
                 @task_m = Syskit::Component.new_submodel do
                     argument :arg

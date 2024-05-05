@@ -14,6 +14,7 @@ module Syskit
             # Set which contains at most one Component model and any number
             # of data service models
             attr_accessor :dependency_options
+
             # [InstanceSelection] information needed to update the composition's
             # parent models about the child (mainly port mappings)
             def overload_info
@@ -308,10 +309,7 @@ module Syskit
         end
 
         class InvalidCompositionChildPort < RuntimeError
-            attr_reader :composition_model
-            attr_reader :child_name
-            attr_reader :port_name
-            attr_reader :existing_ports
+            attr_reader :composition_model, :child_name, :port_name, :existing_ports
 
             def initialize(composition_model, child_name, port_name)
                 @composition_model = composition_model

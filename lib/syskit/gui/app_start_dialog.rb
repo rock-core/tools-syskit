@@ -62,7 +62,8 @@ module Syskit
                 txt = robot_names.current_text
                 if txt != NO_ROBOT
                     txt
-                else ""
+                else
+                    ""
                 end
             end
 

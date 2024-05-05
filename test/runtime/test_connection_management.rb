@@ -147,6 +147,7 @@ module Syskit
             describe "#removed_connections_require_network_update?" do
                 let(:management) { ConnectionManagement.new(plan) }
                 attr_reader :source_task, :sink_task
+
                 before do
                     @source_task = syskit_stub_and_deploy("source") do
                         output_port "out", "/double"
@@ -229,6 +230,7 @@ module Syskit
             describe "#update" do
                 describe "interaction between connections and task states" do
                     attr_reader :source_task, :sink_task
+
                     before do
                         @source_task = syskit_stub_and_deploy("source") do
                             output_port "out", "/double"
@@ -708,6 +710,7 @@ module Syskit
             describe "connections involving finalized task" do
                 attr_reader :source, :sink, :task_m
                 attr_reader :source_orocos_task, :sink_orocos_task
+
                 before do
                     unplug_connection_management
                     @task_m = TaskContext.new_submodel do
@@ -811,6 +814,7 @@ module Syskit
 
             describe "#partition_early_late" do
                 attr_reader :manager, :connections, :source, :sink
+
                 before do
                     @manager = ConnectionManagement.new(plan)
                     @source = flexmock
@@ -1011,6 +1015,7 @@ module Syskit
 
             describe "handling of dead deployments" do
                 attr_reader :source_task, :sink_task, :source_agent, :sink_agent, :source_orocos, :sink_orocos
+
                 before do
                     unplug_connection_management
                     task_m = Syskit::TaskContext.new_submodel do

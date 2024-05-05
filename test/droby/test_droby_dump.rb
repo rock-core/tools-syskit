@@ -6,6 +6,7 @@ module Syskit
     module DRoby
         describe V5 do
             attr_reader :local_id, :remote_id, :remote_object_id, :object_manager, :marshal
+
             before do
                 @local_id = Object.new
                 @remote_id = Object.new
@@ -14,6 +15,7 @@ module Syskit
 
             describe "combus marshalling" do
                 attr_reader :combus, :message_type
+
                 before do
                     @object_manager = Roby::DRoby::ObjectManager.new(local_id)
                     @marshal = Roby::DRoby::Marshal.new(object_manager, remote_id)
@@ -37,6 +39,7 @@ module Syskit
 
             describe "Typelib object marshalling" do
                 attr_reader :type
+
                 before do
                     @object_manager = Roby::DRoby::ObjectManager.new(local_id)
                     @marshal = Roby::DRoby::Marshal.new(object_manager, remote_id)

@@ -8,6 +8,7 @@ describe Syskit::Composition do
 
     describe "#find_required_composition_child_from_role" do
         attr_reader :composition_m, :base_srv_m, :srv_m, :task_m
+
         before do
             @base_srv_m = Syskit::DataService.new_submodel name: "BaseSrv"
             @srv_m = Syskit::DataService.new_submodel name: "Srv"
@@ -67,6 +68,7 @@ describe Syskit::Composition do
 
     describe "port access" do
         attr_reader :cmp, :child, :srv_m, :task_m
+
         before do
             @srv_m = Syskit::DataService.new_submodel(name: "Srv") do
                 output_port "srv_out", "/double"
@@ -195,6 +197,7 @@ describe Syskit::Composition do
 
     describe "handling of connection modifications" do
         attr_reader :task_m, :child_cmp_m, :cmp_m, :cmp, :task, :dataflow_graph
+
         before do
             @task_m = Syskit::TaskContext.new_submodel do
                 input_port "in", "/double"

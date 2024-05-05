@@ -18,6 +18,7 @@ module Syskit
             end
         end
         attr_reader :source, :sink
+
         before do
             plan.add(@source = source_m.new)
             plan.add(@sink = sink_m.new)

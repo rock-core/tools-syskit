@@ -76,6 +76,7 @@ module Syskit
 
             describe "create_for" do
                 attr_reader :srv0_m, :srv1_m, :service_models, :component_model, :task_m
+
                 before do
                     @service_models = flexmock
                     @component_model = flexmock
@@ -130,6 +131,7 @@ module Syskit
 
             describe "for" do
                 attr_reader :srv0_m, :srv1_m, :service_models, :task_m
+
                 before do
                     @task_m = Syskit::TaskContext.new_submodel(name: "T")
                     @srv0_m = Syskit::DataService.new_submodel(name: "A")
@@ -138,6 +140,7 @@ module Syskit
                 end
                 describe "placeholder model creation" do
                     attr_reader :placeholder_m, :placeholder_name
+
                     before do
                         @placeholder_m = task_m.new_submodel
                         @placeholder_name = flexmock
@@ -183,6 +186,7 @@ module Syskit
 
             describe "specialized placeholder types" do
                 attr_reader :srv0_m, :srv1_m, :task_m
+
                 before do
                     @task_m = Syskit::TaskContext.new_submodel(name: "T")
                     @srv0_m = Syskit::DataService.new_submodel(name: "A")
@@ -291,6 +295,7 @@ module Syskit
 
             describe "#merge" do
                 attr_reader :srv0_m, :srv1_m, :task_m
+
                 before do
                     @task_m = Syskit::TaskContext.new_submodel(name: "T")
                     @srv0_m = Syskit::DataService.new_submodel(name: "A")
@@ -369,6 +374,7 @@ module Syskit
         describe "#can_merge?" do
             describe "handling of dynamic services" do
                 attr_reader :srv0, :srv1, :task_m
+
                 before do
                     base_srv = Syskit::DataService.new_submodel
                     @srv0 = base_srv.new_submodel

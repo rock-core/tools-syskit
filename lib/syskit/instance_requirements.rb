@@ -184,13 +184,9 @@ module Syskit
         # @yieldparam selection the selected model/task in the use flag
         # @yieldreturn the value that should replaces selection
         # @return [self]
-        def map_use_selections!
-            selections.map! do |value|
-                yield(value)
-            end
-            pushed_selections.map! do |value|
-                yield(value)
-            end
+        def map_use_selections!(&block)
+            selections.map!(&block)
+            pushed_selections.map!(&block)
             invalidate_dependency_injection
             invalidate_template
             self
@@ -237,7 +233,8 @@ module Syskit
             model = self.model.to_component_model
             if model.placeholder?
                 model.proxied_component_model
-            else model
+            else
+                model
             end
         end
 
@@ -428,7 +425,8 @@ module Syskit
         def port_by_name(name)
             if p = find_port(name)
                 p
-            else raise ArgumentError, "#{self} has no port called #{name}, known ports are: #{each_port.map(&:name).sort.join(', ')}"
+            else
+                raise ArgumentError, "#{self} has no port called #{name}, known ports are: #{each_port.map(&:name).sort.join(', ')}"
             end
         end
 
@@ -630,7 +628,8 @@ module Syskit
         def simplest_model_representation
             if plain?
                 model
-            else self
+            else
+                self
             end
         end
 
@@ -975,7 +974,8 @@ module Syskit
                     !sel.kind_of?(DependencyInjection::SpecialDIValue)
 
                     sel.to_instance_requirements
-                else sel
+                else
+                    sel
                 end
             end
             task.update_requirements(task_requirements,
@@ -1112,19 +1112,18 @@ module Syskit
             end
         end
 
-        def each_required_model
+        def each_required_model(&block)
             return enum_for(:each_required_model) unless block_given?
 
-            model.each_required_model do |m|
-                yield(m)
-            end
+            model.each_required_model(&block)
         end
 
         # Tests if these requirements explicitly point to a component model
         def component_model?
             if model.placeholder?
                 model.proxied_component_model != Syskit::Component
-            else true
+            else
+                true
             end
         end
 
@@ -1196,7 +1195,8 @@ module Syskit
                 arguments = @requirements.arguments.transform_values do |value|
                     if value.respond_to?(:evaluate)
                         value.evaluate(variables)
-                    else value
+                    else
+                        value
                     end
                 end
                 @requirements.as_plan(**arguments)

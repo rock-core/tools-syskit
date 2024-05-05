@@ -2,8 +2,7 @@
 
 module Syskit
     class PortNotFound < Roby::LocalizedError
-        attr_reader :port_name
-        attr_reader :port_kind
+        attr_reader :port_name, :port_kind
 
         def initialize(task, name, kind)
             @port_name = name

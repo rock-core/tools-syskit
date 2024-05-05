@@ -149,7 +149,7 @@ module Syskit
                     end
             end
 
-            def assert_deleted_files(deleted_files) # rubocop:disable Metrics/AbcSize
+            def assert_deleted_files(deleted_files)
                 if deleted_files.empty?
                     files = @archive_dir.each_child.select(&:file?)
                     assert_equal 5, files.size

@@ -147,7 +147,8 @@ module Syskit
                     if m.kind_of?(Syskit::Models::BoundDataService)
                         srv = m
                         m.component_model
-                    else m
+                    else
+                        m
                     end
                 end
                 expected = Syskit::Models::Placeholder.for(proxied_models)

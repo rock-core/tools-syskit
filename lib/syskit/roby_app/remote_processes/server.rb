@@ -35,7 +35,7 @@ module Syskit
                 #
                 # Shamelessly taken from Roby
                 def self.unique_dirname(base_dir, path_spec, date_tag = nil)
-                    if path_spec =~ %r{\/$}
+                    if path_spec =~ %r{/$}
                         basename = ""
                         dirname = path_spec
                     else

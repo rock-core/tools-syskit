@@ -45,6 +45,7 @@ describe Syskit::Models::BoundDataService do
 
     describe "#self_port_to_component_port" do
         attr_reader :stub_t
+
         before do
             @stub_t = stub_type "/test_t"
             create_simple_composition_model
@@ -62,6 +63,7 @@ describe Syskit::Models::BoundDataService do
 
     describe "DRoby marshalling" do
         attr_reader :srv_m, :task_m, :stub_t
+
         before do
             @stub_t = stub_type "/test_t"
             create_simple_composition_model
@@ -125,6 +127,7 @@ describe Syskit::Models::BoundDataService do
 
     describe "#bind" do
         attr_reader :srv_m, :task_m
+
         before do
             srv_m = Syskit::DataService.new_submodel
             @task_m = Syskit::TaskContext.new_submodel { provides srv_m, as: "test" }
@@ -152,6 +155,7 @@ describe Syskit::Models::BoundDataService do
 
         describe "behaviour related to placeholder models" do
             attr_reader :srv_m, :other_srv_m, :component_m, :placeholder_m, :task_m
+
             before do
                 @srv_m = Syskit::DataService.new_submodel
                 @other_srv_m = Syskit::DataService.new_submodel
@@ -224,6 +228,7 @@ describe Syskit::Models::BoundDataService do
 
     describe "#fullfills?" do
         attr_reader :base, :parent, :model, :component_model, :service
+
         before do
             @base, @parent, @model, @component_model, @service =
                 setup_transitive_services
@@ -265,6 +270,7 @@ describe Syskit::Models::BoundDataService do
 
     describe "#attach" do
         attr_reader :srv, :task_m
+
         before do
             srv_m = Syskit::DataService.new_submodel do
                 output_port "out", "/double"
@@ -301,6 +307,7 @@ describe Syskit::Models::BoundDataService do
 
     describe "#==" do
         attr_reader :parent_srv_m, :srv_m, :task_m
+
         before do
             @parent_srv_m = Syskit::DataService.new_submodel
             @srv_m = Syskit::DataService.new_submodel
@@ -320,6 +327,7 @@ describe Syskit::Models::BoundDataService do
 
     describe "#find_port_for_task_port" do
         attr_reader :stub_t, :srv_m
+
         before do
             @stub_t = stub_t = stub_type "/test_t"
             @srv_m = Syskit::DataService.new_submodel do

@@ -7,6 +7,7 @@ describe Syskit::Models::Component do
     include Syskit::Fixtures::SimpleCompositionModel
 
     attr_reader :stub_t, :other_stub_t
+
     before do
         @stub_t = stub_type "/test_t"
         @other_stub_t = stub_type "/other_test_t"
@@ -22,6 +23,7 @@ describe Syskit::Models::Component do
 
     describe "#each_output_port" do
         attr_reader :component_m
+
         before do
             stub_t = self.stub_t
             @component_m = Syskit::TaskContext.new_submodel do
@@ -223,6 +225,7 @@ describe Syskit::Models::Component do
 
     describe "the dynamic service support" do
         attr_reader :task_m, :srv_m
+
         before do
             stub_t = self.stub_t
             other_stub_t = self.other_stub_t
@@ -320,6 +323,7 @@ describe Syskit::Models::Component do
         describe Syskit::Models::DynamicDataService do
             describe "#instanciate" do
                 attr_reader :dyn, :srv_m
+
                 before do
                     srv_m = @srv_m = self.srv_m
                     @dyn = task_m.dynamic_service srv_m, as: "dyn" do
@@ -385,6 +389,7 @@ describe Syskit::Models::Component do
 
             describe "#update_component_model_interface" do
                 attr_reader :subject
+
                 before do
                     @subject = flexmock(Syskit::Models::DynamicDataService)
                 end
@@ -415,6 +420,7 @@ describe Syskit::Models::Component do
             end
             describe "#directional_port_mapping" do
                 attr_reader :task_m, :port, :context
+
                 before do
                     @task_m = flexmock
                     @port = flexmock(name: "port_name", type: Object.new, type_name: "/bla/type")
@@ -448,6 +454,7 @@ describe Syskit::Models::Component do
         end
         describe Syskit::Models::DynamicDataService::InstantiationContext do
             attr_reader :dyn, :context
+
             before do
                 srv_m = self.srv_m
                 @dyn = task_m.dynamic_service srv_m, as: "dyn" do
@@ -490,6 +497,7 @@ describe Syskit::Models::Component do
 
     describe "#bind" do
         attr_reader :component_m
+
         before do
             @component_m = Syskit::Component.new_submodel(name: "component_m")
         end
@@ -517,6 +525,7 @@ describe Syskit::Models::Component do
 
     describe "#try_bind" do
         attr_reader :component_m
+
         before do
             @component_m = Syskit::Component.new_submodel(name: "component_m")
         end
@@ -770,6 +779,7 @@ describe Syskit::Models::Component do
 
         describe "the port mapping computation" do
             attr_reader :service
+
             before do
                 stub_t = self.stub_t
                 @service = Syskit::DataService.new_submodel { output_port "out", stub_t }
@@ -941,6 +951,7 @@ describe Syskit::Models::Component do
 
     describe "#find_data_service_from_type" do
         attr_reader :service, :component
+
         before do
             @service   = Syskit::DataService.new_submodel
             @component = Syskit::Component.new_submodel
@@ -998,6 +1009,7 @@ describe Syskit::Models::Component do
 
     describe "#has_input_port?" do
         attr_reader :component_m
+
         before do
             @component_m = Syskit::TaskContext.new_submodel
             flexmock(component_m)
@@ -1014,6 +1026,7 @@ describe Syskit::Models::Component do
 
     describe "#has_output_port?" do
         attr_reader :component_m
+
         before do
             @component_m = Syskit::TaskContext.new_submodel
             flexmock(component_m)
@@ -1055,6 +1068,7 @@ describe Syskit::Models::Component do
 
     describe "#find_output_port" do
         attr_reader :model, :port_model
+
         before do
         end
         it "finds a port by its name" do

@@ -112,6 +112,7 @@ module Syskit
             # The profile name
             # @return [String]
             attr_reader :name
+
             # The profile's basename
             def basename
                 name.gsub(/.*::/, "")
@@ -299,7 +300,8 @@ module Syskit
                 tags.transform_keys do |key|
                     if key.respond_to?(:to_str)
                         profile.send("#{key.gsub(/_tag$/, '')}_tag")
-                    else key
+                    else
+                        key
                     end
                 end
             end

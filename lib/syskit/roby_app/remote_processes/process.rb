@@ -10,6 +10,7 @@ module Syskit
                 # The ProcessClient instance that gives us access to the remote process
                 # server
                 attr_reader :process_client
+
                 # A string describing the host. It can be used to check if two processes
                 # are running on the same host
                 def host_id

@@ -4,8 +4,7 @@ require "syskit/test/self"
 
 module Syskit
     module Test_DataServiceModel
-        attr_reader :service_type
-        attr_reader :dsl_service_type_name
+        attr_reader :service_type, :dsl_service_type_name
 
         DataServiceModel = Syskit::Models::DataServiceModel
 
@@ -262,6 +261,7 @@ module Syskit
 
         describe "the DSL definition" do
             attr_reader :mod
+
             before do
                 @mod = Module.new
             end
@@ -375,6 +375,7 @@ module Syskit
 
         describe "the DSL definition" do
             attr_reader :mod
+
             before do
                 @mod = Module.new
             end
@@ -477,6 +478,7 @@ module Syskit
 
         describe "the dynamic service definition" do
             attr_reader :combus_m, :driver_m
+
             before do
                 @combus_m = ComBus.new_submodel message_type: "/double"
                 @driver_m = TaskContext.new_submodel do
@@ -632,6 +634,7 @@ module Syskit
 
         describe "#new_submodel" do
             attr_reader :combus
+
             before do
                 @test_t  = stub_type "/test_t"
                 @other_t = stub_type "/other_t"
@@ -687,6 +690,7 @@ module Syskit
 
         describe "the DSL definition" do
             attr_reader :mod
+
             before do
                 @mod = Module.new
             end

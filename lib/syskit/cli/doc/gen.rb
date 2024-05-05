@@ -31,7 +31,7 @@ module Syskit
             #
             # @param [Pathname] target_path the root of the documentation output path
             # @param model the model to export
-            def self.save_model(target_path, model) # rubocop:disable Metrics/CyclomaticComplexity
+            def self.save_model(target_path, model)
                 puts "Saving model #{model} in #{target_path}"
 
                 case model
@@ -379,11 +379,9 @@ module Syskit
 
                 # Fixup a mixup in dot's SVG output. The URIs that contain < and >
                 # are not properly escaped to &lt; and &gt;
-                svg = svg.gsub(/xlink:href="[^"]+"/) do |match|
+                svg.gsub(/xlink:href="[^"]+"/) do |match|
                     match.gsub("<", "&lt;").gsub(">", "&gt;")
                 end
-
-                svg
             end
         end
     end

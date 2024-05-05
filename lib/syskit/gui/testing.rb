@@ -35,10 +35,8 @@ module Syskit
 
             # The item model that represents the subprocess state
             attr_reader :item_model
-            attr_reader :test_list_ui
-            attr_reader :test_result_ui
-            attr_reader :test_result_page
-            attr_reader :exception_rendering
+            attr_reader :test_list_ui, :test_result_ui, :test_result_page,
+                        :exception_rendering
 
             # The timer used to call {#manager}.poll periodically
             attr_reader :poll_timer
@@ -151,7 +149,8 @@ module Syskit
                 start_stop_button.connect(SIGNAL("clicked()")) do
                     if running?
                         stop
-                    else start
+                    else
+                        start
                     end
                 end
 
@@ -215,7 +214,7 @@ module Syskit
                     )
                     items << ["", link]
 
-                    models = (item.slave.name[:models] || [])
+                    models = item.slave.name[:models] || []
                     unless models.empty?
                         items << %w[title Models]
                         models.sort.each do |model_name|
@@ -264,7 +263,8 @@ module Syskit
 
                     color = if r.failure_count > 0 then :red
                             elsif r.skip_count > 0 then :orange
-                            else :green
+                            else
+                                :green
                             end
                     color = SubprocessItem.html_color(color)
                     style = "padding: .1em; background-color: #{color}"
@@ -349,7 +349,8 @@ module Syskit
             def update_status_label(status_label)
                 stats = self.stats
                 state_name = if running? then "RUNNING"
-                             else "STOPPED"
+                             else
+                                 "STOPPED"
                              end
                 status_label.update_state(
                     state_name,
@@ -400,19 +401,8 @@ module Syskit
                     :failure_count, :failures, :assertions, :time
                 )
 
-                attr_reader :slave
-                attr_reader :name
-                attr_reader :test_results
-                attr_reader :exceptions
-
-                attr_reader :start_time
-                attr_reader :assertions_count
-                attr_reader :failure_count
-                attr_reader :skip_count
-
-                attr_reader :slave_exit_status
-
-                attr_reader :total_run_count
+                attr_reader :slave, :name, :test_results, :exceptions, :start_time,
+                            :assertions_count, :failure_count, :skip_count, :slave_exit_status, :total_run_count
 
                 # The count of exceptions
                 def exception_count
@@ -428,7 +418,7 @@ module Syskit
                     @executed = false
                     @slave = slave
                     @total_run_count = 0
-                    name = (slave.name[:path] || "Robot: #{app.robot_name}")
+                    name = slave.name[:path] || "Robot: #{app.robot_name}"
                     if (base_path = app.find_base_path_for(name))
                         base_path = base_path.to_s
                         name = File.basename(base_path) + ":" +
@@ -465,7 +455,7 @@ module Syskit
                 end
 
                 def finished?
-                    !!@runtime # rubocop:disable Style/DoubleNegation
+                    !!@runtime
                 end
 
                 def start
@@ -568,7 +558,8 @@ module Syskit
                     failures.each do |e|
                         if e.kind_of?(Minitest::Skip)
                             skip_count += 1
-                        else failure_count += 1
+                        else
+                            failure_count += 1
                         end
                     end
                     @skip_count += skip_count

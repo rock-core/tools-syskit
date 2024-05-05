@@ -16,6 +16,7 @@ module Syskit
                 #   from a reader model to the index in the list of samples
                 #   (and, therefore, in the block's argument list)
                 attr_reader :stream_to_index
+
                 # @return [Boolean] indicates whether #call has been received
                 #   with a new sample since the last call to #finalize
                 def has_new_sample?

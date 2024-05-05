@@ -172,7 +172,8 @@ module Syskit
                                   "deployment #{deployment} exists locally but not "\
                                   "on the remote process server #{self}"
                         end
-                    else deployment_model = deployment
+                    else
+                        deployment_model = deployment
                     end
 
                     prefix_mappings = Orocos::ProcessBase.resolve_prefix(

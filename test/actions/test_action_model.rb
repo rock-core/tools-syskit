@@ -5,6 +5,7 @@ require "syskit/test/self"
 describe Syskit::Actions::Models::Action do
     describe "#rebind" do
         attr_reader :task_m, :profile_m, :interface_m
+
         before do
             @task_m = Syskit::TaskContext.new_submodel
             @profile_m = Syskit::Actions::Profile.new
@@ -38,6 +39,7 @@ describe Syskit::Actions::Models::Action do
 
     describe "droby marshalling" do
         attr_reader :interface_m, :requirements, :action_m, :task_m
+
         before do
             @interface_m = Class.new(Roby::Actions::Interface)
             @task_m = Syskit::TaskContext.new_submodel(name: "DRobyMarshallingTest")
@@ -73,6 +75,7 @@ describe Syskit::Actions::Models::Action do
 
     describe "#plan_pattern" do
         attr_reader :req, :action_m
+
         before do
             @req = Syskit::InstanceRequirements.new
             @action_m = Syskit::Actions::Models::Action.new(req)
@@ -102,6 +105,7 @@ describe Syskit::Actions::Models::Action do
 
     describe "#run" do
         attr_reader :req, :action_m, :interface
+
         before do
             @req = Syskit::InstanceRequirements.new
             @action_m = Syskit::Actions::Models::Action.new(req)
@@ -120,6 +124,7 @@ describe Syskit::Actions::Models::Action do
 
     describe "#method_missing" do
         attr_reader :req, :action_m
+
         before do
             req = Syskit::InstanceRequirements.new
             @action_m = Syskit::Actions::Models::Action.new(req)

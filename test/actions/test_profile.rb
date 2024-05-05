@@ -57,6 +57,7 @@ module Syskit
 
             describe "#use_profile" do
                 attr_reader :definition_mock
+
                 before do
                     @definition_mock = flexmock(arguments: [], with_arguments: nil)
                     definition_mock.should_receive(:push_selections).by_default
@@ -250,6 +251,7 @@ module Syskit
 
             describe "#method_missing" do
                 attr_reader :profile, :dev_m, :driver_m
+
                 before do
                     @profile = Profile.new
                     @dev_m = Device.new_submodel
@@ -369,6 +371,7 @@ module Syskit
 
             describe "#definition" do
                 attr_reader :profile
+
                 before do
                     @profile = Profile.new
                     task_m = TaskContext.new_submodel
@@ -410,6 +413,7 @@ module Syskit
             describe Profile::Definition do
                 describe "#to_action_model" do
                     attr_reader :profile
+
                     before do
                         @profile = Profile.new
                         task_m = TaskContext.new_submodel
@@ -428,6 +432,7 @@ module Syskit
 
             describe "#resolved_definition" do
                 attr_reader :profile
+
                 before do
                     @profile = Profile.new
                     task_m = TaskContext.new_submodel
@@ -523,7 +528,7 @@ module Syskit
                         profile.use_deployment deployment_m
                         profile.define "test", task_m
 
-                        # Note: so far, deployment groups are applied only when
+                        # NOTE: so far, deployment groups are applied only when
                         # accessed through the action interface
                         syskit_run_planner_with_full_deployment do
                             task = run_planners(profile.test_def.resolve)
@@ -548,7 +553,7 @@ module Syskit
                         profile.use_ruby_tasks task_m => "test"
                         profile.define "test", task_m
 
-                        # Note: so far, deployment groups are applied only when
+                        # NOTE: so far, deployment groups are applied only when
                         # accessed through the action interface
                         syskit_run_planner_with_full_deployment do
                             run_planners(profile.test_def.resolve)
@@ -575,7 +580,7 @@ module Syskit
                         profile.use_unmanaged_task task_m => "test"
                         profile.define "test", task_m
 
-                        # Note: so far, deployment groups are applied only when
+                        # NOTE: so far, deployment groups are applied only when
                         # accessed through the action interface
                         task = syskit_run_planner_with_full_deployment do
                             run_planners(profile.test_def.resolve)
@@ -622,7 +627,7 @@ module Syskit
                         profile.use_deployments_from "test_project", on: "test"
                         profile.define "test", task_m
 
-                        # Note: so far, deployment groups are applied only when
+                        # NOTE: so far, deployment groups are applied only when
                         # accessed through the action interface
                         syskit_run_planner_with_full_deployment do
                             task = run_planners(profile.test_def.resolve)
@@ -643,7 +648,7 @@ module Syskit
                         profile.use_group group
                         profile.define "test", task_m
 
-                        # Note: so far, deployment groups are applied only when
+                        # NOTE: so far, deployment groups are applied only when
                         # accessed through the action interface
                         syskit_run_planner_with_full_deployment do
                             task = run_planners(profile.test_def.resolve)

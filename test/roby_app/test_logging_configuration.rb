@@ -81,6 +81,7 @@ module Syskit
 
                 describe "a configuration with groups" do
                     attr_reader :group0, :group1
+
                     before do
                         @group0 = flexmock(subject.create_group("group0", enabled: true))
                         @group1 = flexmock(subject.create_group("group1", enabled: false))

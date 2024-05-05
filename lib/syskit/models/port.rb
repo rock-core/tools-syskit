@@ -78,7 +78,8 @@ module Syskit
             def try_to_component_port
                 if component_model.respond_to?(:self_port_to_component_port)
                     component_model.self_port_to_component_port(self)
-                else self
+                else
+                    self
                 end
             end
 
@@ -92,7 +93,8 @@ module Syskit
             def to_component_port
                 if component_model.respond_to?(:self_port_to_component_port)
                     component_model.self_port_to_component_port(self)
-                else raise ArgumentError, "cannot resolve a port of #{component_model.short_name} into a component port"
+                else
+                    raise ArgumentError, "cannot resolve a port of #{component_model.short_name} into a component port"
                 end
             end
 
@@ -152,7 +154,8 @@ module Syskit
             def respond_to_missing?(m, include_private)
                 if !OROGEN_MODEL_EXCLUDED_FORWARDINGS.include?(m) && orogen_model.respond_to?(m)
                     true
-                else super
+                else
+                    super
                 end
             end
 
@@ -161,7 +164,8 @@ module Syskit
             def method_missing(m, *args, &block)
                 if !OROGEN_MODEL_EXCLUDED_FORWARDINGS.include?(m) && orogen_model.respond_to?(m)
                     orogen_model.public_send(m, *args, &block)
-                else super
+                else
+                    super
                 end
             end
 
@@ -271,8 +275,7 @@ module Syskit
         end
 
         class OutputReader
-            attr_reader :port
-            attr_reader :policy
+            attr_reader :port, :policy
 
             def initialize(port, policy = {})
                 @port = port
@@ -307,8 +310,7 @@ module Syskit
         end
 
         class InputWriter
-            attr_reader :port
-            attr_reader :policy
+            attr_reader :port, :policy
 
             def initialize(port, policy = {})
                 @port = port

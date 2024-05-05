@@ -315,6 +315,7 @@ end
 
 describe Syskit::Models::InvalidCompositionChildPort do
     attr_reader :cmp_m
+
     before do
         task_m = Syskit::TaskContext.new_submodel do
             input_port "in", "/double"

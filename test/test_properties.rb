@@ -5,6 +5,7 @@ require "syskit/test/self"
 module Syskit
     describe Properties do
         attr_reader :task, :property, :properties
+
         before do
             @property = flexmock(:on, Property)
             @task = flexmock(:on, TaskContext)

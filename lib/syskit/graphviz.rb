@@ -6,6 +6,7 @@ require "English"
 module Syskit
     # Used by the to_dot* methods for color allocation
     attr_reader :current_color
+
     # A set of colors to be used in graphiz graphs
     COLOR_PALETTE = %w[#FF9955 #FF0000 #bb9c21 #37c637
                        #62816e #2A7FFF #AA00D4 #D40055 #0000FF].freeze
@@ -109,7 +110,7 @@ module Syskit
         end
 
         def escape_dot(string)
-            escape_dot_uri(string).gsub(/[^\[\]&;:\w\. ]/, "_")
+            escape_dot_uri(string).gsub(/[^\[\]&;:\w. ]/, "_")
         end
 
         def annotate_tasks(annotations)

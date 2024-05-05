@@ -50,7 +50,8 @@ module Syskit
                             obj.reader
                         elsif obj.respond_to?(:port)
                             obj
-                        else raise ArgumentError, "#{obj} does not seem to be a valid data source. Expected a port or a data reader"
+                        else
+                            raise ArgumentError, "#{obj} does not seem to be a valid data source. Expected a port or a data reader"
                         end
                     end
 

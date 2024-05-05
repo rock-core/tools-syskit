@@ -7,6 +7,7 @@ module Syskit
         describe MasterDeviceInstance do
             describe "#==" do
                 attr_reader :master_device, :slave_device, :device_m, :slave_device_m, :driver_m, :robot_m
+
                 before do
                     @slave_device_m = Device.new_submodel
                     @device_m = Device.new_submodel

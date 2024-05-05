@@ -179,7 +179,7 @@ describe Syskit::Models::Composition do
         describe "#export" do
             it "promotes exported input ports by setting the new name and component model but keeps the orogen model" do
                 stub_t = self.stub_t
-                service = Syskit::DataService.new_submodel { input_port "in",  stub_t }
+                service = Syskit::DataService.new_submodel { input_port "in", stub_t }
                 composition = Syskit::Composition.new_submodel { add service, as: "srv" }
                 exported_port = composition.export composition.srv_child.in_port, as: "srv_in"
                 assert_equal Syskit::Models::InputPort.new(composition, composition.srv_child.in_port.orogen_model, "srv_in"),
@@ -362,6 +362,7 @@ describe Syskit::Models::Composition do
 
     describe "#instanciate" do
         attr_reader :cmp_m, :component_m
+
         before do
             @component_m = Syskit::TaskContext.new_submodel
             @cmp_m = Syskit::Composition.new_submodel
@@ -626,6 +627,7 @@ describe Syskit::Models::Composition do
 
         describe "dependency relation definition based on information in the child definition" do
             attr_reader :composition_m, :srv_child
+
             before do
                 @srv_child = simple_component_model.new
                 flexmock(simple_component_model).should_receive(:new)
@@ -1019,6 +1021,7 @@ describe Syskit::Models::Composition do
 
     describe "#narrow" do
         attr_reader :base_srv_m, :x_srv_m, :y_srv_m, :task_m, :cmp_m
+
         before do
             @base_srv_m = Syskit::DataService.new_submodel
             @x_srv_m = base_srv_m.new_submodel(name: "X")
@@ -1127,6 +1130,7 @@ describe Syskit::Models::Composition do
 
     describe "Port#connected_to?" do
         attr_reader :out_srv, :cmp
+
         before do
             in_srv = Syskit::DataService.new_submodel do
                 input_port "in", "int"
@@ -1170,6 +1174,7 @@ describe Syskit::Models::Composition do
 
     describe "#child_port?" do
         attr_reader :cmp_m, :task_m
+
         before do
             other_stub_t = self.other_stub_t
             srv_m = Syskit::DataService.new_submodel { output_port "out", other_stub_t }
@@ -1199,6 +1204,7 @@ describe Syskit::Models::Composition do
 
     describe "dynamic services" do
         attr_reader :cmp_m, :task_m, :srv_m
+
         before do
             stub_t = self.stub_t
             other_stub_t = self.other_stub_t

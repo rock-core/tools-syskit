@@ -98,7 +98,8 @@ module Syskit
             actual_port_name = child_selection[child_name].port_mappings[export.name]
             if child.respond_to?(:resolve_port)
                 child.resolve_port(actual_port_name)
-            else child.find_port(actual_port_name)
+            else
+                child.find_port(actual_port_name)
             end
         end
 
@@ -167,7 +168,8 @@ module Syskit
 
                 if task.model <= selected_srv.component_model
                     selected_srv
-                else selected_srv.as_real_model
+                else
+                    selected_srv.as_real_model
                 end
             end
             selected_service_m.bind(task).as(target_srv.model)
@@ -327,7 +329,6 @@ module Syskit
                 (m =~ /_port$/) || super
             end
 
-            # rubocop:disable Style/MethodMissingSuper
             def method_missing(m, *args, &block)
                 unless (matched_port = /_port$/.match(m))
                     return @child_task.send(m, *args, &block)
@@ -346,7 +347,6 @@ module Syskit
                 end
                 port
             end
-            # rubocop:enable Style/MethodMissingSuper
         end
     end
 end

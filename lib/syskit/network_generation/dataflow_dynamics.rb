@@ -56,11 +56,7 @@ module Syskit
             attr_reader :triggers
 
             class Trigger
-                attr_reader :name
-                attr_reader :period
-                attr_reader :sample_count
-
-                attr_reader :hash
+                attr_reader :name, :period, :sample_count, :hash
 
                 def initialize(name, period, sample_count)
                     @name = name.to_str
@@ -154,9 +150,7 @@ module Syskit
         # default policies for each of the existing connections in +plan+. The
         # resulting information is stored in #dynamics
         class DataFlowDynamics < DataFlowComputation
-            attr_reader :plan
-
-            attr_reader :triggers
+            attr_reader :plan, :triggers
 
             # Mapping from a deployed task name to the corresponding Roby task object
             #
@@ -365,10 +359,8 @@ module Syskit
             # Computes a task's slaves initial information
             def initial_slaves_information(task)
                 task.orogen_model.slaves.each do |orogen_slave_task|
-                    if slave_task = task_from_name[orogen_slave_task.name]
-                        unless has_information_for_task?(slave_task)
-                            initial_task_information(slave_task)
-                        end
+                    if (slave_task = task_from_name[orogen_slave_task.name]) && !has_information_for_task?(slave_task)
+                        initial_task_information(slave_task)
                     end
                 end
             end

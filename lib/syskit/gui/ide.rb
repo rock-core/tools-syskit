@@ -12,13 +12,7 @@ module Syskit
     module GUI
         # The main Syskit IDE window
         class IDE < Qt::Widget
-            attr_reader :layout
-            attr_reader :btn_reload_models
-            attr_reader :tab_widget
-            attr_reader :model_browser
-            attr_reader :runtime_state
-            attr_reader :connection_state
-            attr_reader :testing
+            attr_reader :layout, :btn_reload_models, :tab_widget, :model_browser, :runtime_state, :connection_state, :testing
 
             def initialize(parent = nil,
                 runtime_only: false,

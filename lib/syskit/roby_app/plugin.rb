@@ -623,7 +623,8 @@ module Syskit
 
                 if defined? super
                     super
-                else true
+                else
+                    true
                 end
             end
 
@@ -820,16 +821,16 @@ module Syskit
             def self.roby_engine_propagation_handlers
                 handlers = {}
                 handlers[:update_deployment_states] = [
-                    Runtime.method(:update_deployment_states), type: :external_events, description: "syskit:update_deployment_states"
+                    Runtime.method(:update_deployment_states), { type: :external_events, description: "syskit:update_deployment_states" }
                 ]
                 handlers[:update_task_states] = [
-                    Runtime.method(:update_task_states), type: :external_events, description: "syskit:update_task_states"
+                    Runtime.method(:update_task_states), { type: :external_events, description: "syskit:update_task_states" }
                 ]
                 handlers[:connection_management] = [
-                    Runtime::ConnectionManagement.method(:update), type: :propagation, late: true, description: "syskit:connection_management_update"
+                    Runtime::ConnectionManagement.method(:update), { type: :propagation, late: true, description: "syskit:connection_management_update" }
                 ]
                 handlers[:apply_requirement_modifications] = [
-                    Runtime.method(:apply_requirement_modifications), type: :propagation, late: true, description: "syskit:apply_requirement_modifications"
+                    Runtime.method(:apply_requirement_modifications), { type: :propagation, late: true, description: "syskit:apply_requirement_modifications" }
                 ]
                 handlers
             end
@@ -882,7 +883,8 @@ module Syskit
                             @handler_ids[h] = roby_engine.add_propagation_handler(all_handlers[h][1], &all_handlers[h][0])
                         end
                     end
-                else yield
+                else
+                    yield
                 end
             end
 

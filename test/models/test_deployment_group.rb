@@ -6,6 +6,7 @@ module Syskit
     module Models
         describe DeploymentGroup do
             attr_reader :conf, :loader, :group
+
             before do
                 app = Roby::Application.new
                 @conf = RobyApp::Configuration.new(app)
@@ -120,6 +121,7 @@ module Syskit
 
             describe "#task_context_deployment_candidates" do
                 attr_reader :task_m, :deployment_m
+
                 before do
                     @task_m = task_m = Syskit::TaskContext.new_submodel
                     @deployment_m = Syskit::Deployment.new_submodel do
@@ -167,6 +169,7 @@ module Syskit
 
             describe "#find_all_suitable_deployments_for" do
                 attr_reader :task_m, :deployment_m
+
                 before do
                     @task_m = task_m = Syskit::TaskContext.new_submodel
                     @deployment_m = Syskit::Deployment.new_submodel do
@@ -278,6 +281,7 @@ module Syskit
 
             describe "#use_ruby_tasks" do
                 attr_reader :deployment_m, :task_m
+
                 before do
                     @deployment_m = Syskit::Deployment.new_submodel
                     @task_m = Syskit::RubyTaskContext.new_submodel
@@ -435,6 +439,7 @@ module Syskit
 
             describe "#use_unmanaged_task" do
                 attr_reader :task_m
+
                 before do
                     conf.register_process_server("unmanaged_tasks",
                                                  RobyApp::UnmanagedTasksManager.new, "")
@@ -586,6 +591,7 @@ module Syskit
 
             describe "#use_deployment" do
                 attr_reader :task_m, :deployment_m
+
                 before do
                     @task_m = Syskit::TaskContext.new_submodel(
                         orogen_model_name: "test::Task"
@@ -829,6 +835,7 @@ module Syskit
 
             describe "#use_deployments_from" do
                 attr_reader :task_m, :deployment_m
+
                 before do
                     @task_m = Syskit::TaskContext.new_submodel(
                         orogen_model_name: "test::Task"

@@ -5,6 +5,7 @@ require "syskit/test/self"
 module Syskit
     describe RemoteStateGetter do
         attr_reader :getter, :task, :task_m
+
         before do
             @task = RemoteStateGetterStubTaskContext.new
             @getter = RemoteStateGetter.new(task)

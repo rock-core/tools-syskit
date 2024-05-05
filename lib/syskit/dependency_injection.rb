@@ -6,8 +6,7 @@ module Syskit
         extend Logger::Hierarchy
         extend Logger::Forward
 
-        attr_reader :explicit
-        attr_reader :defaults
+        attr_reader :explicit, :defaults, :resolved
 
         def hash
             [explicit, defaults].hash
@@ -32,8 +31,6 @@ module Syskit
             @defaults = Set.new
             add(*base) unless base.empty?
         end
-
-        attr_reader :resolved
 
         def initialize_copy(from)
             super
@@ -142,7 +139,8 @@ module Syskit
                 # However, when this happens, we can simply ignore the
                 # identity selection
                 if v2 == k then v1
-                else v2
+                else
+                    v2
                 end
             end
 
@@ -204,13 +202,11 @@ module Syskit
                     next
                 end
 
-                if value.respond_to?(:fullfills?)
-                    unless value.fullfills?(key)
-                        raise ArgumentError,
-                              "found #{value.name}(of class #{value.class}) "\
-                              "as a selection for #{key.name}, but "\
-                              "#{value.name} does not fullfill #{key.name}"
-                    end
+                if value.respond_to?(:fullfills?) && !value.fullfills?(key)
+                    raise ArgumentError,
+                          "found #{value.name}(of class #{value.class}) "\
+                          "as a selection for #{key.name}, but "\
+                          "#{value.name} does not fullfill #{key.name}"
                 end
 
                 if key <= Component
@@ -447,14 +443,16 @@ module Syskit
                     if !result
                         unresolved << v
                         v
-                    else result
+                    else
+                        result
                     end
 
                 elsif v.respond_to?(:resolve_names)
                     # The value is e.g. an InstanceRequirements
                     unresolved |= v.resolve_names(mapping)
                     v
-                else v
+                else
+                    v
                 end
             end
             unresolved
@@ -470,7 +468,8 @@ module Syskit
             map! do |value|
                 if value.respond_to?(:to_str)
                     nil
-                else value
+                else
+                    value
                 end
             end
         end
@@ -490,7 +489,7 @@ module Syskit
         # This method yields the [selection_key, selected_instance] pairs to
         # a block that must return a new value for the for
         # +selected_instance+. It modifies +self+
-        def map!
+        def map!(&block)
             # Invalidate the @resolved cached
             @resolved = nil
             changed = false
@@ -504,9 +503,7 @@ module Syskit
                             .resolve_recursive_selection_mapping(explicit)
             end
 
-            @defaults.map! do |v|
-                yield(v)
-            end
+            @defaults.map!(&block)
             self
         end
 
@@ -562,10 +559,8 @@ module Syskit
 
                     component_model = value.component_model
                     if (selected = spec[component_model]) &&
-                       !selected.respond_to?(:to_str)
-                        if selected != component_model
-                            new_value = selected.selected_for(value).selected_model
-                        end
+                       !selected.respond_to?(:to_str) && (selected != component_model)
+                        new_value = selected.selected_for(value).selected_model
                     end
                 when Module
                     new_value = spec[value]
@@ -654,11 +649,11 @@ module Syskit
                     next if IGNORED_MODELS.include?(m)
 
                     if selection.respond_to?(:find_all_data_services_from_type) &&
-                       m.kind_of?(Models::DataServiceModel)
+                       m.kind_of?(Models::DataServiceModel) && (selection.find_all_data_services_from_type(m).size != 1)
                         # Ignore if it is provided multiple times by the
                         # selection
 
-                        next if selection.find_all_data_services_from_type(m).size != 1
+                        next
                     end
 
                     if using_spec[m]

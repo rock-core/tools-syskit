@@ -21,15 +21,7 @@ module Syskit
         # * triggering_inputs(task)
         # * propagate_task(task)
         class DataFlowComputation
-            attr_reader :result
-
-            attr_reader :triggering_connections
-
-            attr_reader :triggering_dependencies
-
-            attr_reader :missing_ports
-
-            attr_reader :done_ports
+            attr_reader :result, :triggering_connections, :triggering_dependencies, :missing_ports, :done_ports
 
             extend Logger::Hierarchy
             include Logger::Hierarchy
@@ -66,10 +58,8 @@ module Syskit
             #
             # @raise ArgumentError if there are no information stored for the given port
             def port_info(task, port_name)
-                if result.key?(task)
-                    if result[task].key?(port_name)
-                        return result[task][port_name]
-                    end
+                if result.key?(task) && result[task].key?(port_name)
+                    return result[task][port_name]
                 end
                 if port_name
                     raise ArgumentError, "no information currently available for #{task.orocos_name}.#{port_name}"
@@ -357,10 +347,8 @@ module Syskit
                 unless done_ports[task].include?(port_name)
                     @changed = true
 
-                    if has_information_for_port?(task, port_name)
-                        if port_info(task, port_name).empty?
-                            remove_port_info(task, port_name)
-                        end
+                    if has_information_for_port?(task, port_name) && port_info(task, port_name).empty?
+                        remove_port_info(task, port_name)
                     end
 
                     done_ports[task] << port_name

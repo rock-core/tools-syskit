@@ -72,8 +72,8 @@ module Syskit
 
             def each_in_plan_by_name(plan)
                 @component_matcher.each_in_plan(plan) do |task|
-                    if (port = task.find_port(@name_filter))
-                        yield(port) if !@type_filter || @type_filter == port.type
+                    if (port = task.find_port(@name_filter)) && (!@type_filter || @type_filter == port.type)
+                        yield(port)
                     end
                 end
             end

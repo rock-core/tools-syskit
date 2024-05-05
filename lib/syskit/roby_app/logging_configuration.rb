@@ -145,7 +145,8 @@ module Syskit
             def group_by_name(name)
                 if group = groups[name.to_s]
                     group
-                else raise ArgumentError, "no group named #{name}"
+                else
+                    raise ArgumentError, "no group named #{name}"
                 end
             end
 

@@ -28,6 +28,7 @@ module Syskit
 
             describe "#deployments" do
                 attr_reader :task_m, :task
+
                 before do
                     @task_m = TaskContext.new_submodel
                     @task = syskit_stub_deploy_configure_and_start(
@@ -48,6 +49,7 @@ module Syskit
 
             describe "#restart_deployments" do
                 attr_reader :task_m, :task
+
                 before do
                     @task_m = TaskContext.new_submodel
                     @task = syskit_stub_deploy_configure_and_start(
@@ -99,6 +101,7 @@ module Syskit
 
             describe "#stop_deployments" do
                 attr_reader :task_m, :task
+
                 before do
                     @task_m = TaskContext.new_submodel
                     @task = syskit_stub_deploy_configure_and_start(
@@ -193,6 +196,7 @@ module Syskit
 
             describe "the log group management" do
                 attr_reader :group
+
                 before do
                     @group = Syskit.conf.logs.create_group "test" do |g|
                         g.add(/base.samples.frame.Frame/)

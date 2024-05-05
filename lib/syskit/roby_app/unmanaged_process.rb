@@ -222,7 +222,8 @@ module Syskit
             def dead?
                 if monitor_thread
                     !monitor_thread.alive?
-                else quitting?
+                else
+                    quitting?
                 end
             end
 

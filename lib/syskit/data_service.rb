@@ -78,7 +78,8 @@ module Syskit
             elsif !service || service.kind_of?(Syskit::Models::DataServiceModel)
                 driver_services =
                     if service then model.find_all_data_services_from_type(service)
-                    else model.each_master_driver_service.to_a
+                    else
+                        model.each_master_driver_service.to_a
                     end
                 if driver_services.empty?
                     raise ArgumentError, "#{self} is not attached to any device"
@@ -152,13 +153,11 @@ module Syskit
         # @yieldparam device [DeviceInstance] a device that is using self as
         #   a communication bus
         # @see each_attached_device
-        def each_declared_attached_device
+        def each_declared_attached_device(&block)
             return enum_for(:each_declared_attached_device) unless block_given?
 
             each_com_bus_device do |combus|
-                combus.each_attached_device do |dev|
-                    yield(dev)
-                end
+                combus.each_attached_device(&block)
             end
         end
 

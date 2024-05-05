@@ -63,6 +63,7 @@ describe Syskit::RobyApp::RemoteProcesses do
 
     describe "#loader" do
         attr_reader :loader
+
         before do
             @client, = start_and_connect_to_server
             @loader = client.loader
@@ -278,6 +279,7 @@ describe Syskit::RobyApp::RemoteProcesses do
 
     describe "stopping a remote process" do
         attr_reader :process
+
         before do
             @client, = start_and_connect_to_server
             @process = client.start(

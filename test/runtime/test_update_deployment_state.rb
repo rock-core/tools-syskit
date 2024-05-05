@@ -5,9 +5,8 @@ require "syskit/test/self"
 module Syskit
     module Runtime
         class ProcessServerFixture
-            attr_reader :loader
-            attr_reader :processes
-            attr_reader :killed_processes
+            attr_reader :loader, :processes, :killed_processes
+
             def initialize
                 @killed_processes = []
                 @processes = {}

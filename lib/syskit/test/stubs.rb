@@ -285,7 +285,6 @@ module Syskit
             # @api private
             #
             # Computes a configured deployment suitable to deploy the given task model
-            # rubocop:disable Metrics/ParameterLists
             def stub_configured_deployment(
                 task_model = nil, task_name = default_stub_name,
                 remote_task: false, read_only: [], logger_name: nil, &block
@@ -306,7 +305,6 @@ module Syskit
                     read_only: read_only, logger_name: logger_name
                 )
             end
-            # rubocop:enable Metrics/ParameterLists
 
             def stub_abstract_component_model(component_m)
                 component_m.new_submodel(name: "#{component_m.name}-stub")
@@ -315,7 +313,8 @@ module Syskit
             def stub_placeholder_model(model)
                 superclass = if model.superclass <= Syskit::TaskContext
                                  model.superclass
-                             else Syskit::TaskContext
+                             else
+                                 Syskit::TaskContext
                              end
 
                 services = model.proxied_data_service_models

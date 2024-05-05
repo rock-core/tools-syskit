@@ -68,11 +68,11 @@ module Syskit
         end
 
         # Enumerates all of this component's ports
-        def each_port
+        def each_port(&block)
             return enum_for(:each_port) unless block_given?
 
-            each_output_port { |p| yield(p) }
-            each_input_port { |p| yield(p) }
+            each_output_port(&block)
+            each_input_port(&block)
         end
 
         # Returns true if +name+ is a valid output port name for instances

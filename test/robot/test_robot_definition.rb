@@ -5,6 +5,7 @@ require "syskit/test/self"
 describe Syskit::Robot::RobotDefinition do
     describe "#device" do
         attr_reader :device_m, :driver_m
+
         before do
             @device_m = Syskit::Device.new_submodel
             @driver_m = Syskit::TaskContext.new_submodel

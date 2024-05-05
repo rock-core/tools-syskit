@@ -19,6 +19,7 @@ module Syskit
                 #   return an object that matches the description of
                 #   {Coordination::DataMonitor#predicate}
                 attr_reader :predicate
+
                 # @return [Boolean] whether instances of this model should
                 #   generate a {DataMonitoringError} when it triggers
                 # @see #raise_exception

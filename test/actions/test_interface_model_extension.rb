@@ -43,6 +43,7 @@ describe Syskit::Actions::InterfaceModelExtension do
 
     describe "#use_profile" do
         attr_reader :actions, :profile
+
         before do
             @actions = Roby::Actions::Interface.new_submodel
             @profile = Syskit::Actions::Profile.new
@@ -207,6 +208,7 @@ describe Syskit::Actions::InterfaceModelExtension do
 
     describe "the generated action method" do
         attr_reader :actions, :profile
+
         before do
             @actions = Roby::Actions::Interface.new_submodel
             @profile = Syskit::Actions::Profile.new(nil)
@@ -331,6 +333,7 @@ describe Syskit::Actions::InterfaceModelExtension do
 
     describe "overloading of definitions by actions" do
         attr_reader :actions, :profile
+
         before do
             @actions = Roby::Actions::Interface.new_submodel
             @profile = Syskit::Actions::Profile.new(nil)

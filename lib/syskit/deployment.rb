@@ -190,12 +190,10 @@ module Syskit
             syskit_task_model, scheduler_task, auto_conf: false
         )
             mapped_name = name_mappings[orogen_task_deployment_model.name]
-            if ready?
-                unless (remote_handles = remote_task_handles[mapped_name])
-                    raise InternalError,
-                          "no remote handle describing #{mapped_name} in #{self}"\
-                          "(got #{remote_task_handles.keys.sort.join(', ')})"
-                end
+            if ready? && !(remote_handles = remote_task_handles[mapped_name])
+                raise InternalError,
+                      "no remote handle describing #{mapped_name} in #{self}"\
+                      "(got #{remote_task_handles.keys.sort.join(', ')})"
             end
 
             if task_context_in_fatal?(mapped_name)

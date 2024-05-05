@@ -68,7 +68,7 @@ module Syskit
 
             # Checkboxes to select widgets options
             attr_reader :ui_hide_loggers
-            attr_reader :ui_show_expanded_job
+            attr_reader :ui_show_expanded_job, :syskit_poll
 
             define_hooks :on_connection_state_changed
             define_hooks :on_progress
@@ -361,7 +361,8 @@ module Syskit
                         elsif logger_task?(t)
                             @known_loggers << t
                             false
-                        else true
+                        else
+                            true
                         end
                     end
                 end
@@ -431,7 +432,8 @@ module Syskit
                 job_summary_layout.add_widget(@batch_manager)
                 @batch_manager.connect(SIGNAL("active(bool)")) do |active|
                     if active then @batch_manager.show
-                    else @batch_manager.hide
+                    else
+                        @batch_manager.hide
                     end
                 end
                 @batch_manager.hide
@@ -586,8 +588,6 @@ module Syskit
                 end
                 new_job_layout
             end
-
-            attr_reader :syskit_poll
 
             # @api private
             #

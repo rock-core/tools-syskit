@@ -13,6 +13,7 @@ describe Syskit::Coordination::TaskScriptExtension do
 
     describe "model-level scripts" do
         attr_reader :base_srv_m, :srv_m, :component_m, :composition_m
+
         before do
             @base_srv_m = Syskit::DataService.new_submodel do
                 input_port "base_in", "/double"
@@ -201,6 +202,7 @@ describe Syskit::Coordination::TaskScriptExtension do
 
         describe "writer disconnection at task stop" do
             attr_reader :writer, :actual_writer, :cmp
+
             before do
                 cmp_m = Syskit::Composition.new_submodel
                 cmp_m.add task_m, as: "test"
@@ -259,6 +261,7 @@ describe Syskit::Coordination::TaskScriptExtension do
 
         describe "reader disconnection at task stop" do
             attr_reader :reader, :actual_reader, :cmp
+
             before do
                 cmp_m = Syskit::Composition.new_submodel
                 cmp_m.add task_m, as: "test"

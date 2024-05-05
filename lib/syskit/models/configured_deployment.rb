@@ -158,7 +158,7 @@ module Syskit
                 model.new(**options)
             end
 
-            # rubocop:disable Metrics/CyclomaticComplexity, Metrics/PerceivedComplexity, Metrics/AbcSize
+            # rubocop:disable Metrics/CyclomaticComplexity, Metrics/AbcSize
             def ==(other)
                 return unless other.kind_of?(ConfiguredDeployment)
 
@@ -170,7 +170,7 @@ module Syskit
                     read_only == other.read_only &&
                     logger_name == other.logger_name
             end
-            # rubocop:enable Metrics/CyclomaticComplexity, Metrics/PerceivedComplexity, Metrics/AbcSize
+            # rubocop:enable Metrics/CyclomaticComplexity, Metrics/AbcSize
 
             def hash
                 [process_name, model].hash

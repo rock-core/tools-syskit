@@ -104,6 +104,7 @@ module Syskit
             # DataServiceModel#apply_block
             class BlockInstanciator < BasicObject
                 attr_reader :name
+
                 def initialize(model, name = nil)
                     unless model.orogen_model
                         raise InternalError, "no interface for #{model.short_name}"
@@ -119,7 +120,7 @@ module Syskit
                         @model.respond_to?(m)
                 end
 
-                ruby2_keywords def method_missing(m, *args, &block) # rubocop:disable Style/MethodMissingSuper, Style/MissingRespondToMissing
+                ruby2_keywords def method_missing(m, *args, &block)
                     if @orogen_model.respond_to?(m)
                         @orogen_model.public_send(m, *args, &block)
                     else
@@ -507,14 +508,8 @@ module Syskit
                 client_in_srv
             end
 
-            attr_reader :bus_base_srv
-            attr_reader :bus_in_srv
-            attr_reader :bus_out_srv
-            attr_reader :bus_srv
-
-            attr_reader :client_in_srv
-            attr_reader :client_out_srv
-            attr_reader :client_srv
+            attr_reader :bus_base_srv, :bus_in_srv, :bus_out_srv, :bus_srv,
+                        :client_in_srv, :client_out_srv, :client_srv
 
             attr_predicate :lazy_dispatch?, true
 
@@ -637,14 +632,12 @@ module Syskit
             end
 
             def provides(service_model, new_port_mappings = {})
-                if service_model.respond_to?(:message_type)
-                    if message_type && service_model.message_type &&
-                       (message_type != service_model.message_type)
-                        raise ArgumentError,
-                              "#{name} cannot provide #{service_model.name} "\
-                              "as their message type differs (resp. #{message_type} "\
-                              "and #{service_model.message_type}"
-                    end
+                if service_model.respond_to?(:message_type) && (message_type && service_model.message_type &&
+                       (message_type != service_model.message_type))
+                    raise ArgumentError,
+                          "#{name} cannot provide #{service_model.name} "\
+                          "as their message type differs (resp. #{message_type} "\
+                          "and #{service_model.message_type}"
                 end
 
                 super

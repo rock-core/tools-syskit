@@ -13,6 +13,7 @@ module Syskit
             attr_reader :service_model
             # The service definition block
             attr_reader :block
+
             # Whether this service can be dynamically added to a
             # configured/running task
             attr_predicate :addition_requires_reconfiguration?

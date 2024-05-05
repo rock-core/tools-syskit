@@ -7,9 +7,7 @@ module Syskit
             extend Logger::Hierarchy
             include Logger::Hierarchy
 
-            attr_reader :plan
-
-            attr_reader :dataflow_graph
+            attr_reader :plan, :dataflow_graph
 
             def scheduler
                 plan.execution_engine.scheduler
@@ -193,7 +191,7 @@ module Syskit
 
                     unneeded_tasks ||= plan.unneeded_tasks
                     unless unneeded_tasks.include?(syskit_task)
-                        return true
+                        true
                     end
                 end
 

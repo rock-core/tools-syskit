@@ -150,7 +150,7 @@ module Syskit
             # Find all dataset-looking folders within a root log folder
             def self.find_all_dataset_folders(root_dir)
                 candidates = root_dir.enum_for(:each_entry).map do |child|
-                    next unless /^\d{8}\-\d{4}(\.\d+)?$/.match?(child.basename.to_s)
+                    next unless /^\d{8}-\d{4}(\.\d+)?$/.match?(child.basename.to_s)
 
                     child = (root_dir / child)
                     next unless child.directory?
@@ -284,7 +284,7 @@ module Syskit
                     add_to_archive(archive_io, child_path, logger: logger)
 
                     if archive_io.tell > max_size
-                        return (complete && (i == candidates.size - 1))
+                        return complete && (i == candidates.size - 1)
                     end
                 end
 
@@ -389,7 +389,7 @@ module Syskit
                 if bytesize(name) <= 100
                     prefix = ""
                 else
-                    parts = name.split(%r{\/})
+                    parts = name.split(%r{/})
                     newname = parts.pop
 
                     nxt = ""
@@ -405,7 +405,7 @@ module Syskit
                     name = newname
                 end
 
-                [name, prefix, (bytesize(name) > 100 || bytesize(prefix) > 155)]
+                [name, prefix, bytesize(name) > 100 || bytesize(prefix) > 155]
             end
         end
     end

@@ -69,7 +69,7 @@ module Syskit
 
                 # Checkboxes to select widgets options
                 attr_reader :ui_hide_loggers
-                attr_reader :ui_show_expanded_job
+                attr_reader :ui_show_expanded_job, :syskit_poll
 
                 define_hooks :on_connection_state_changed
                 define_hooks :on_progress
@@ -343,7 +343,8 @@ module Syskit
                     job_summary_layout.add_widget(@batch_manager)
                     @batch_manager.connect(SIGNAL("active(bool)")) do |active|
                         if active then @batch_manager.show
-                        else @batch_manager.hide
+                        else
+                            @batch_manager.hide
                         end
                     end
                     @batch_manager.hide
@@ -498,8 +499,6 @@ module Syskit
                     new_job_layout
                 end
 
-                attr_reader :syskit_poll
-
                 # @api private
                 #
                 # Sets up polling on a given syskit interface
@@ -587,8 +586,8 @@ module Syskit
 
                 def polling_call(path, method_name, *args)
                     key = [path, method_name, args]
-                    if @call_guards.key?(key)
-                        return unless @call_guards[key]
+                    if @call_guards.key?(key) && !(@call_guards[key])
+                        return
                     end
 
                     @call_guards[key] = false

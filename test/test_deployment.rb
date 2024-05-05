@@ -4,9 +4,8 @@ require "syskit/test/self"
 
 module Syskit
     class ProcessServerFixture
-        attr_reader :loader
-        attr_reader :processes
-        attr_reader :killed_processes
+        attr_reader :loader, :processes, :killed_processes
+
         def initialize
             @killed_processes = []
             @processes = {}
@@ -36,11 +35,9 @@ module Syskit
 
         def disconnect; end
     end
+
     class ProcessFixture
-        attr_reader :process_server
-        attr_reader :name_mappings
-        attr_reader :ior_mappings
-        attr_reader :property_names
+        attr_reader :process_server, :name_mappings, :ior_mappings, :property_names
         attr_accessor :tasks
 
         def initialize(process_server)
@@ -459,6 +456,7 @@ module Syskit
 
             describe "monitoring for ready" do
                 attr_reader :orocos_task
+
                 before do
                     @orocos_task = Orocos.allow_blocking_calls do
                         Orocos::RubyTasks::TaskContext.new "test"
@@ -542,6 +540,7 @@ module Syskit
                     task_m = Class.new(Roby::Task) do
                         argument :orocos_name
                         attr_accessor :orocos_task
+
                         terminates
                         def initialize_remote_handles(handles); end
                     end
@@ -642,6 +641,7 @@ module Syskit
 
             describe "stop event" do
                 attr_reader :orocos_task
+
                 before do
                     process_server.should_receive(:start).and_return(process)
                     @orocos_task = Orocos.allow_blocking_calls do
@@ -729,8 +729,10 @@ module Syskit
 
         describe "#dead!" do
             attr_reader :process
+
             describe "emitted terminal events" do
                 attr_reader :orocos_task
+
                 before do
                     deployment_m.event :terminal_e, terminal: true
                     execute { plan.clear }
@@ -794,6 +796,7 @@ module Syskit
 
         describe "using the ruby process server" do
             attr_reader :task_name, :task_m, :deployment_m, :deployment
+
             before do
                 Syskit.conf.register_process_server(
                     "test", Orocos::RubyTasks::ProcessManager.new, "",
@@ -866,6 +869,7 @@ module Syskit
 
         stub_process_server_deployment_helpers = Module.new do
             attr_reader :deployment_m, :deployment0, :deployment1
+
             def setup
                 super
                 @deployment_m = Deployment.new_submodel

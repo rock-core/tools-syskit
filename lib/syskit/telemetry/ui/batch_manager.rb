@@ -138,7 +138,8 @@ module Syskit
                             action_name, action_options = dialog.result
                             start_job(action_name, action_options)
                             true
-                        else false
+                        else
+                            false
                         end
                     end
                 end

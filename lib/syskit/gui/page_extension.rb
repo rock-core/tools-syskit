@@ -54,9 +54,9 @@ module Syskit
                 svg = svg.gsub(/xlink:href="[^"]+"/) { |match| match.gsub("<", "&lt;").gsub(">", "&gt;") }
 
                 begin
-                    if match = /svg width=\"(\d+)(\w+)\" height=\"(\d+)(\w+)\"/.match(svg)
+                    if match = /svg width="(\d+)(\w+)" height="(\d+)(\w+)"/.match(svg)
                         width, w_unit, height, h_unit = *match.captures
-                        svg = match.pre_match + "svg width=\"#{(Float(width) * zoom * 0.6)}#{w_unit}\" height=\"#{(Float(height) * zoom * 0.6)}#{h_unit}\"" + match.post_match
+                        svg = match.pre_match + "svg width=\"#{Float(width) * zoom * 0.6}#{w_unit}\" height=\"#{Float(height) * zoom * 0.6}#{h_unit}\"" + match.post_match
                     end
                 rescue ArgumentError
                 end

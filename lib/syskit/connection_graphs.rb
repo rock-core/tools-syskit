@@ -113,12 +113,10 @@ module Syskit
         # input only if it is a multiplexing port
         outputs_per_input = {}
         result.each do |out_port, in_port|
-            if outputs_per_input[in_port]
-                unless in_port.multiplexes?
-                    candidates = result.map { |o, i| o if i == in_port }
-                                       .compact
-                    raise AmbiguousAutoConnection.new(in_port, candidates)
-                end
+            if outputs_per_input[in_port] && !in_port.multiplexes?
+                candidates = result.map { |o, i| o if i == in_port }
+                                   .compact
+                raise AmbiguousAutoConnection.new(in_port, candidates)
             end
             outputs_per_input[in_port] = out_port
         end
@@ -155,12 +153,14 @@ module Syskit
         output_ports =
             if source.respond_to?(:each_output_port)
                 source.each_output_port.to_a
-            else [source]
+            else
+                [source]
             end
         input_ports =
             if sink.respond_to?(:each_input_port)
                 sink.each_input_port.to_a
-            else [sink]
+            else
+                [sink]
             end
 
         connections = resolve_connections(output_ports, input_ports)

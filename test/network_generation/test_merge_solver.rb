@@ -36,6 +36,7 @@ describe Syskit::NetworkGeneration::MergeSolver do
 
     describe "#may_merge_task_contexts?" do
         attr_reader :stub_t
+
         before do
             @stub_t = stub_type "/test_t"
             create_simple_composition_model
@@ -58,6 +59,7 @@ describe Syskit::NetworkGeneration::MergeSolver do
 
     describe "may_merge_compositions?" do
         attr_reader :task_m, :cmp_m
+
         before do
             @task_m = Syskit::TaskContext.new_submodel
             @cmp_m  = Syskit::Composition.new_submodel
@@ -145,6 +147,7 @@ describe Syskit::NetworkGeneration::MergeSolver do
 
     describe "#resolve_input_matching" do
         attr_reader :task_model, :port_model
+
         before do
             @port_model =
                 flexmock
@@ -270,6 +273,7 @@ describe Syskit::NetworkGeneration::MergeSolver do
 
         describe "connections to multiplexing inputs" do
             attr_reader :merged_task_policy, :policy
+
             before do
                 port_model.should_receive(:multiplexes?).and_return(true)
                 @merged_task_policy = flexmock(empty?: false)
@@ -357,6 +361,7 @@ describe Syskit::NetworkGeneration::MergeSolver do
     describe "functional tests" do
         describe "merging compositions" do
             attr_reader :plan, :srv_m, :task_m, :cmp_m
+
             before do
                 @plan = Roby::Plan.new
                 @srv_m = Syskit::DataService.new_submodel do

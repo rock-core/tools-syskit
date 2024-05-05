@@ -1,7 +1,7 @@
 # frozen_string_literal: true
 
 require "syskit/test/self"
-require "syskit/gui/logging_configuration.rb"
+require "syskit/gui/logging_configuration"
 
 module Syskit
     module GUI
@@ -10,6 +10,7 @@ module Syskit
             attr_reader :syskit
             attr_reader :client
             attr_reader :conf
+
             before do
                 @conf = Interface::Commands::LoggingConfiguration.new true, true, {}
                 @conf.groups["images"] = Interface::Commands::LoggingGroup.new "images", true

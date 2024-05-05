@@ -23,9 +23,7 @@ module Syskit
     # Raised when a provides declaration does not match the underlying task
     # interface
     class InvalidProvides < SpecError
-        attr_reader :original_error
-        attr_reader :model
-        attr_reader :required_service
+        attr_reader :original_error, :model, :required_service
 
         def initialize(model, required_service, original_error = nil)
             @model = model
@@ -87,10 +85,7 @@ module Syskit
     # Exception raised during instanciation if there is an ambiguity for a
     # composition child
     class AmbiguousIndirectCompositionSelection < Ambiguous
-        attr_reader :composition_model
-        attr_reader :child_name
-        attr_reader :selection
-        attr_reader :candidates
+        attr_reader :composition_model, :child_name, :selection, :candidates
 
         def initialize(composition_model, child_name, selection, candidates)
             @composition_model = composition_model
@@ -185,8 +180,7 @@ module Syskit
     # Refinement of NoMatchingService for a composition child. It adds the
     # information of the composition / child name
     class NoMatchingServiceForCompositionChild < NoMatchingService
-        attr_reader :composition_model
-        attr_reader :child_name
+        attr_reader :composition_model, :child_name
 
         def initialize(composition_model, child_name, task_model, required_service)
             @composition_model = composition_model
@@ -238,8 +232,7 @@ module Syskit
     # Exception raised in composition instanciations if a selected component
     # model provides multipe services that fullfills a child's model
     class AmbiguousServiceMapping < AmbiguousServiceSelection
-        attr_reader :composition_model
-        attr_reader :child_name
+        attr_reader :composition_model, :child_name
 
         def initialize(composition_model, child_name, task_model, required_service, candidates)
             super(task_model, required_service, candidates)
@@ -257,9 +250,7 @@ module Syskit
     # Exception raised during the merge steps, if a merge is possible (i.e.
     # a task provides the required service), but ambiguous
     class AmbiguousImplicitServiceSelection < AmbiguousServiceSelection
-        attr_reader :task
-        attr_reader :merged_task
-        attr_reader :compositions
+        attr_reader :task, :merged_task, :compositions
 
         def initialize(task, merged_task, required_service, candidates)
             super(task.model, required_service, candidates)
@@ -446,9 +437,7 @@ module Syskit
     end
 
     class ConflictingDeviceAllocation < SpecError
-        attr_reader :device
-        attr_reader :tasks
-        attr_reader :inputs
+        attr_reader :device, :tasks, :inputs
 
         def can_merge?
             !!@can_merge
@@ -689,6 +678,7 @@ module Syskit
     # could be found
     class InvalidAutoConnection < RuntimeError
         attr_reader :source, :sink
+
         def initialize(source, sink)
             @source = source
             @sink = sink
@@ -788,7 +778,8 @@ module Syskit
                         value = value.each_required_model
                         value = value.map do |v|
                             if v.respond_to?(:short_name) then v.short_name
-                            else v.to_s
+                            else
+                                v.to_s
                             end
                         end
 
@@ -811,8 +802,7 @@ module Syskit
     #
     # See Models.merge_model_lists
     class IncompatibleComponentModels < RuntimeError
-        attr_reader :model_a
-        attr_reader :model_b
+        attr_reader :model_a, :model_b
 
         def initialize(model_a, model_b)
             @model_a = model_a
@@ -828,6 +818,7 @@ module Syskit
     # port directions
     class WrongPortConnectionDirection < RuntimeError
         attr_reader :source, :sink
+
         def initialize(source, sink)
             @source = source
             @sink = sink
@@ -842,6 +833,7 @@ module Syskit
     # port types
     class WrongPortConnectionDataTypes < RuntimeError
         attr_reader :source, :sink
+
         def initialize(source, sink)
             @source = source
             @sink = sink
@@ -865,6 +857,7 @@ module Syskit
     # of the same component
     class SelfConnection < RuntimeError
         attr_reader :source, :sink
+
         def initialize(source, sink)
             @source = source
             @sink = sink
@@ -878,9 +871,8 @@ module Syskit
     # Exception raised when port mappings cannot be computed because two
     # source ports have the same name
     class AmbiguousPortMappings < Ambiguous
-        attr_reader :model_a
-        attr_reader :model_b
-        attr_reader :port_name
+        attr_reader :model_a, :model_b, :port_name
+
         def initialize(model_a, model_b, port_name)
             @model_a = model_a
             @model_b = model_b
@@ -920,6 +912,7 @@ module Syskit
     # The reason is in the exception message
     class InvalidDynamicServiceBlock < RuntimeError
         attr_reader :dynamic_service
+
         def initialize(dynamic_service)
             @dynamic_service = dynamic_service
         end
@@ -931,6 +924,7 @@ module Syskit
     # services have ports with that name
     class AmbiguousPortOnCompositeModel < Ambiguous
         attr_reader :model, :models, :port_name, :candidates
+
         def initialize(model, models, port_name, candidates)
             @model = model
             @models = models
@@ -987,6 +981,7 @@ module Syskit
     # been called on a port that is being modified
     class ModifyingFinalizedPortInfo < ArgumentError
         attr_reader :task, :port_name, :done_at
+
         def initialize(task, port_name, done_at, propagation_class_name)
             @task = task
             @port_name = port_name
@@ -1015,6 +1010,7 @@ module Syskit
 
     class DataflowPropagationError < Roby::ExceptionBase
         attr_reader :task, :port_name
+
         def initialize(exception, task, port_name)
             @task = task
             @port_name = port_name

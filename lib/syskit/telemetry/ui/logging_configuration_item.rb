@@ -11,13 +11,8 @@ module Syskit
             # A QStandardItem that displays a Sysit::ShellInterface::LoggingConfiguration
             # in a tree view
             class LoggingConfigurationItem < LoggingConfigurationItemBase
-                attr_reader :options
-                attr_reader :conf_logs_item_name
-                attr_reader :conf_logs_item_value
-                attr_reader :port_logs_item_name
-                attr_reader :port_logs_item_value
-                attr_reader :groups_item_name
-                attr_reader :groups_item_value
+                attr_reader :options, :conf_logs_item_name, :conf_logs_item_value, :port_logs_item_name, :port_logs_item_value, :groups_item_name, :groups_item_value
+
                 def initialize(logging_configuration, options = {})
                     super(logging_configuration)
                     @options = options

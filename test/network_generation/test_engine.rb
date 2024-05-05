@@ -25,6 +25,7 @@ module Syskit
             end
 
             attr_reader :stub_t
+
             before do
                 @stub_t = app.default_loader.resolve_type "/int"
                 create_simple_composition_model
@@ -41,6 +42,7 @@ module Syskit
                 attr_reader :original_task
                 attr_reader :planning_task
                 attr_reader :requirements
+
                 before do
                     plan.add_mission_task(@original_task = simple_component_model.as_plan)
                     @planning_task = original_task.planning_task
@@ -92,6 +94,7 @@ module Syskit
                 attr_reader :original_task
                 attr_reader :planning_task
                 attr_reader :requirements
+
                 before do
                     plan.add_mission_task(@original_task = simple_component_model.as_plan)
                     @planning_task = original_task.planning_task
@@ -111,6 +114,7 @@ module Syskit
                 attr_reader :planning_task
                 attr_reader :final_task
                 attr_reader :required_instances
+
                 before do
                     plan.add(@original_task = simple_component_model.as_plan)
                     @planning_task = original_task.planning_task
@@ -241,6 +245,7 @@ module Syskit
 
                 describe "there is a deployment and it cannot be reused" do
                     attr_reader :task, :existing_task
+
                     before do
                         @existing_task = existing_deployment_task.task("test", record: false)
                         @task = deployment_task.task "test"
@@ -891,8 +896,7 @@ module Syskit
         end
 
         class EngineTestStubDeployment < Roby::Task
-            attr_reader :tasks
-            attr_reader :created_tasks
+            attr_reader :tasks, :created_tasks
 
             def initialize(task_m, **arguments)
                 super(**arguments)

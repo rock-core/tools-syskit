@@ -7,6 +7,7 @@ describe Syskit::InstanceSelection do
     include Syskit::Fixtures::SimpleCompositionModel
 
     attr_reader :stub_t, :other_stub_t
+
     before do
         @stub_t = stub_type "/test_t"
         @other_stub_t = stub_type "/other_test_t"

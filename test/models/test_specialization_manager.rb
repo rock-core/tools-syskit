@@ -295,6 +295,7 @@ describe Syskit::Models::SpecializationManager do
 
     describe "#find_matching_specializations" do
         attr_reader :spec0, :spec1, :spec2
+
         before do
             @spec0 = mng.specialize "test" => task_m
             @spec1 = mng.specialize "test" => cmp_m

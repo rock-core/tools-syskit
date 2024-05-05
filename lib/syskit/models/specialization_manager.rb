@@ -54,12 +54,10 @@ module Syskit
             # Enumerates all specializations defined on {#composition_model}
             #
             # @yield [CompositionSpecialization]
-            def each_specialization
+            def each_specialization(&block)
                 return enum_for(:each_specialization) unless block_given?
 
-                specializations.each_value do |spec|
-                    yield(spec)
-                end
+                specializations.each_value(&block)
             end
 
             # Specifies a modification that should be applied on
@@ -348,7 +346,8 @@ module Syskit
                 root = composition_model.root_model
                 if root == composition_model
                     (@instanciated_specializations ||= {})
-                else root.specializations.instanciated_specializations
+                else
+                    root.specializations.instanciated_specializations
                 end
             end
 
@@ -411,7 +410,7 @@ module Syskit
                 def initialize(model, reference_model)
                     @model = model
                     @reference_model = reference_model
-                    @overload_info = ::Hash.new
+                    @overload_info = {}
                 end
 
                 def apply_block(block)
@@ -425,12 +424,12 @@ module Syskit
                     model.respond_to?(symbol) || super
                 end
 
-                ruby2_keywords def method_missing(m, *args, &block) # rubocop:disable Style/MissingRespondToMissing
+                ruby2_keywords def method_missing(m, *args, &block)
                     unless m =~ /_child$/
                         return model.send(m, *args, &block)
                     end
 
-                    child_name = $`
+                    child_name = ::Regexp.last_match.pre_match
                     if (info = overload_info[child_name])
                         return info
                     end

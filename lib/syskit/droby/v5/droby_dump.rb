@@ -171,8 +171,7 @@ module Syskit
                 include Roby::DRoby::V5::ModelDumper
 
                 class DRoby < Roby::DRoby::V5::DRobyModel
-                    attr_reader :message_type
-                    attr_reader :lazy_dispatch
+                    attr_reader :message_type, :lazy_dispatch
 
                     def initialize(message_type, lazy_dispatch, *args)
                         @message_type = message_type
@@ -220,8 +219,8 @@ module Syskit
             module TypelibTypeDumper
                 # Marshalling representation of a typelib value
                 class DRoby
-                    attr_reader :byte_array
-                    attr_reader :type
+                    attr_reader :byte_array, :type
+
                     def initialize(byte_array, type)
                         @byte_array = byte_array
                         @type = type
@@ -242,6 +241,7 @@ module Syskit
                 # Class used to transfer the definition of a type
                 class DRoby
                     attr_reader :name, :xml
+
                     def initialize(name, xml)
                         @name = name
                         @xml = xml

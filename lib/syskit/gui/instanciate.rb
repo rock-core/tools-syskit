@@ -9,16 +9,7 @@ require "metaruby/gui/exception_view"
 module Syskit
     module GUI
         class Instanciate < Qt::Widget
-            attr_reader :apply_btn
-            attr_reader :instance_txt
-
-            attr_reader :display
-            attr_reader :page
-            attr_reader :rendering
-
-            attr_reader :exception_view
-
-            attr_reader :permanent
+            attr_reader :apply_btn, :instance_txt, :display, :page, :rendering, :exception_view, :permanent
 
             def plan
                 rendering.plan

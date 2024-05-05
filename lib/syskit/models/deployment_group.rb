@@ -226,11 +226,11 @@ module Syskit
             # Enumerates all the deployments registered on self
             #
             # @yieldparam [ConfiguredDeployment]
-            def each_configured_deployment
+            def each_configured_deployment(&block)
                 return enum_for(__method__) unless block_given?
 
                 deployments.each_value do |set|
-                    set.each { |c| yield(c) }
+                    set.each(&block)
                 end
             end
 
@@ -414,6 +414,7 @@ module Syskit
                 logger_name: nil,
                 **run_options
             )
+                puts run_options
                 deployment_spec = {}
                 deployment_spec = names.pop if names.last.kind_of?(Hash)
 
@@ -424,6 +425,7 @@ module Syskit
 
                 ## WORKAROUND FOR 2.7.0
                 Roby.sanitize_keywords_to_hash(deployment_spec, run_options)
+                puts "A: #{run_options}"
 
                 deployments_by_name = {}
                 names = names.map do |n|
@@ -442,7 +444,8 @@ module Syskit
                         end
                         deployments_by_name[n.orogen_model.name] = n
                         n.orogen_model
-                    else n
+                    else
+                        n
                     end
                 end
                 deployment_spec = deployment_spec.transform_keys do |k|
@@ -463,10 +466,12 @@ module Syskit
                     end
                 end
 
+                puts "B: #{run_options}"
                 new_deployments, = Orocos::Process.parse_run_options(
                     *names, deployment_spec, loader: loader, **run_options
                 )
                 new_deployments.map do |deployment_name, name_mappings, name, spawn_options|
+                    puts "C: #{spawn_options}"
                     unless (model = deployments_by_name[deployment_name])
                         orogen_model = loader.deployment_model_from_name(deployment_name)
                         model = Syskit::Deployment.find_model_by_orogen(orogen_model)

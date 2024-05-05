@@ -41,7 +41,7 @@ module Syskit
                 super
                 data_services.clear
                 dynamic_services.clear
-                # Note: the placeholder_models cache is cleared separately. The
+                # NOTE: the placeholder_models cache is cleared separately. The
                 # reason is that we need to clear it on permanent and
                 # non-permanent models alike, including component models that
                 # are defined in syskit. The normal procedure is to call
@@ -563,7 +563,7 @@ module Syskit
             #         # setup the task to create the required service
             #       end
             #     end
-            def dynamic_service( # rubocop:disable Metrics/ParameterLists
+            def dynamic_service(
                 model, as: nil,
                 addition_requires_reconfiguration: true,
                 remove_when_unused: true, **backward, &block
@@ -910,7 +910,8 @@ module Syskit
             def ensure_model_is_specialized
                 if private_specialization?
                     self
-                else specialize
+                else
+                    specialize
                 end
             end
 
@@ -1114,7 +1115,8 @@ module Syskit
                 object_real_model =
                     if object.respond_to?(:concrete_model)
                         object.concrete_model
-                    else object
+                    else
+                        object
                     end
 
                 return super if self_real_model == self
@@ -1201,7 +1203,8 @@ module Syskit
                     # designer's point of view. With the singleton class, we
                     # know that it is not
                     base_model = if specialize_if_needed then specialize
-                                 else self
+                                 else
+                                     self
                                  end
                     missing_services.each do |_, srv|
                         dynamic_service_options =
@@ -1211,7 +1214,8 @@ module Syskit
                         )
                     end
                     base_model
-                else self
+                else
+                    self
                 end
             end
 

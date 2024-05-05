@@ -68,10 +68,12 @@ module Syskit
                     else
                         selected.find_data_service_from_type(required_srv)
                     end
-                else selected.dup
+                else
+                    selected.dup
                 end
 
-            else selected.dup
+            else
+                selected.dup
             end
         end
 
@@ -152,7 +154,8 @@ module Syskit
                                 raise AmbiguousPortMappings.new(other_m, req_m, req_name)
                             end
                         end
-                    else sel_name1
+                    else
+                        sel_name1
                     end
                 end
             end
@@ -168,7 +171,8 @@ module Syskit
                 component = plan[self.component]
                 if selected_service = selected.service
                     selected_service.bind(component)
-                else component
+                else
+                    component
                 end
             else
                 selected.instanciate(plan, context, **options)

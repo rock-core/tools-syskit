@@ -5,6 +5,7 @@ require "syskit/test/self"
 module Syskit
     describe RubyTaskContext do
         attr_reader :task_m
+
         before do
             @task_m = RubyTaskContext.new_submodel do
                 input_port "in", "/double"

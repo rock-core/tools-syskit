@@ -11,6 +11,7 @@ module Syskit
             # The application that we are configuring
             # @return [Roby::Application]
             attr_reader :app
+
             # If true, we will load the component-specific code in
             # tasks/orogen/. It is true by default
             attr_predicate :load_component_extensions, true
@@ -28,6 +29,7 @@ module Syskit
             #
             # @return [Hash<String,ProcessServerConfig>]
             attr_reader :process_servers
+
             # Controls whether the orogen types should be exported as Ruby
             # constants
             attr_predicate :export_types?, true
@@ -723,6 +725,7 @@ module Syskit
 
             def use_deployment(*names, on: "localhost", **run_options)
                 Roby.sanitize_keywords_to_array(names, run_options)
+                puts run_options
                 deployment_group.use_deployment(
                     *names, on: on, process_managers: self,
                             loader: app.default_loader, **run_options

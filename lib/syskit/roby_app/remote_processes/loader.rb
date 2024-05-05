@@ -6,11 +6,8 @@ module Syskit
             # A loader object that allows to load models from a remote process
             # server
             class Loader < OroGen::Loaders::Base
-                attr_reader :client
-
-                attr_reader :available_projects
-                attr_reader :available_deployments
-                attr_reader :available_typekits
+                attr_reader :client, :available_projects, :available_deployments,
+                            :available_typekits
 
                 def initialize(client, root_loader = self)
                     @client = client

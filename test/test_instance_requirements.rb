@@ -7,6 +7,7 @@ describe Syskit::InstanceRequirements do
     include Syskit::Fixtures::SimpleCompositionModel
 
     attr_reader :stub_t
+
     before do
         @stub_t = stub_type "/test_t"
         create_simple_composition_model
@@ -14,6 +15,7 @@ describe Syskit::InstanceRequirements do
 
     describe "#with_arguments" do
         attr_reader :req, :not_marshallable
+
         before do
             @task_m = Syskit::TaskContext.new_submodel do
                 argument :key
@@ -113,6 +115,7 @@ describe Syskit::InstanceRequirements do
 
     describe "#find_port" do
         attr_reader :req
+
         before do
             @req = Syskit::InstanceRequirements.new([simple_task_model])
         end
@@ -137,6 +140,7 @@ describe Syskit::InstanceRequirements do
 
     describe "#find_data_service" do
         attr_reader :req
+
         before do
             @req = Syskit::InstanceRequirements.new([simple_task_model])
         end
@@ -152,6 +156,7 @@ describe Syskit::InstanceRequirements do
 
     describe "#find_child" do
         attr_reader :req
+
         before do
             @req = simple_composition_model.use(simple_task_model)
         end
@@ -169,6 +174,7 @@ describe Syskit::InstanceRequirements do
 
     describe "#method_missing" do
         attr_reader :req
+
         before do
             @req = Syskit::InstanceRequirements.new([simple_task_model])
         end
@@ -193,6 +199,7 @@ describe Syskit::InstanceRequirements do
 
     describe "an InstanceRequirements with a data service selected" do
         attr_reader :req
+
         before do
             spec = Syskit::InstanceRequirements.new([simple_task_model])
             @req = spec.find_data_service("srv")
@@ -207,6 +214,7 @@ describe Syskit::InstanceRequirements do
     describe "the child of an InstanceRequirements" do
         attr_reader :req
         attr_reader :child
+
         before do
             @req = simple_composition_model.use(simple_task_model)
             @child = req.find_child("srv")
@@ -274,6 +282,7 @@ describe Syskit::InstanceRequirements do
 
     describe "#use" do
         attr_reader :srv_m, :cmp_m, :task_m
+
         before do
             @srv_m = Syskit::DataService.new_submodel
             @cmp_m = Syskit::Composition.new_submodel
@@ -500,6 +509,7 @@ describe Syskit::InstanceRequirements do
 
     describe "#narrow_model" do
         attr_reader :srv_m, :task_m, :cmp_m
+
         before do
             srv_m = @srv_m = Syskit::DataService.new_submodel
             @task_m = Syskit::TaskContext.new_submodel
@@ -522,6 +532,7 @@ describe Syskit::InstanceRequirements do
 
     describe "#merge" do
         attr_reader :srv_m, :task_m, :with_service, :without_service
+
         before do
             @srv_m = Syskit::DataService.new_submodel
             @task_m = Syskit::TaskContext.new_submodel
@@ -582,6 +593,7 @@ describe Syskit::InstanceRequirements do
 
     describe "#as_plan" do
         attr_reader :task_m, :srv_m
+
         before do
             @srv_m = Syskit::DataService.new_submodel
             @task_m = Syskit::TaskContext.new_submodel
@@ -637,6 +649,7 @@ describe Syskit::InstanceRequirements do
 
     describe "#as" do
         attr_reader :parent_srv_m, :srv_m, :task_m
+
         before do
             @parent_srv_m = Syskit::DataService.new_submodel
             @srv_m = Syskit::DataService.new_submodel

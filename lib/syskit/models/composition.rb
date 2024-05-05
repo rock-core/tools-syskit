@@ -54,18 +54,20 @@ module Syskit
                 mappings_out =
                     if (child_out = children[child_out_name])
                         child_out.port_mappings
-                    else {}
+                    else
+                        {}
                     end
                 mappings_in =
                     if (child_in = children[child_in_name])
                         child_in.port_mappings
-                    else {}
+                    else
+                        {}
                     end
 
                 mapped = {}
                 mappings.each do |(port_name_out, port_name_in), options|
-                    port_name_out = (mappings_out[port_name_out] || port_name_out)
-                    port_name_in  = (mappings_in[port_name_in]   || port_name_in)
+                    port_name_out = mappings_out[port_name_out] || port_name_out
+                    port_name_in  = mappings_in[port_name_in]   || port_name_in
                     mapped[[port_name_out, port_name_in]] = options
                 end
                 [[child_out_name, child_in_name], mapped]
@@ -213,13 +215,15 @@ module Syskit
                 @exported_outputs = exported_outputs.transform_values do |port|
                     if port.component_model.child_name == name
                         child_model.find_port(port.name)
-                    else port
+                    else
+                        port
                     end
                 end
                 @exported_inputs = exported_inputs.transform_values do |port|
                     if port.component_model.child_name == name
                         child_model.find_port(port.name)
-                    else port
+                    else
+                        port
                     end
                 end
 
@@ -581,7 +585,8 @@ module Syskit
                     def respond_to_missing?(m, include_private)
                         if m.to_s =~ /_port$/
                             @child.respond_to?(m)
-                        else super
+                        else
+                            super
                         end
                     end
 
@@ -625,7 +630,8 @@ module Syskit
                 def respond_to_missing?(m, include_private)
                     if m =~ /_child$/
                         component_model.respond_to?(m)
-                    else super
+                    else
+                        super
                     end
                 end
 
@@ -896,7 +902,8 @@ module Syskit
                         return unless task # rubocop:disable Lint/NonLocalExitFromIterator
 
                         task
-                    else sel
+                    else
+                        sel
                     end
                 end
                 true
@@ -1009,7 +1016,8 @@ module Syskit
                 plan.add(self_task = new(**task_arguments))
                 conf = if self_task.has_argument?(:conf)
                            self_task.conf(self_task.arguments[:conf])
-                       else {}
+                       else
+                           {}
                        end
 
                 # This is the part of the context that is directly associated

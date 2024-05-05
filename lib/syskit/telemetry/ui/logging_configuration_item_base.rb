@@ -10,8 +10,8 @@ module Syskit
             # Base class for most items in the LoggingConfiguration widget with
             # common functionality
             class LoggingConfigurationItemBase < Vizkit::VizkitItem
-                attr_reader :current_model
-                attr_reader :editing_model
+                attr_reader :current_model, :editing_model
+
                 def initialize(model)
                     super()
                     @current_model = deep_copy(model)

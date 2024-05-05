@@ -11,9 +11,7 @@ module Syskit
             include Logger::Hierarchy
             include Roby::DRoby::EventLogging
 
-            attr_reader :plan
-            attr_reader :event_logger
-            attr_reader :merge_solver
+            attr_reader :plan, :event_logger, :merge_solver
 
             def initialize(plan,
                 event_logger: plan.event_logger,

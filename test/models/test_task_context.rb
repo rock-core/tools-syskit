@@ -354,6 +354,7 @@ module Syskit # :nodoc:
 
         describe "#instanciate" do
             attr_reader :task_model
+
             before { @task_model = TaskContext.new_submodel }
             it "returns a task using the receiver as model" do
                 task = task_model.instanciate(plan)
@@ -373,6 +374,7 @@ module Syskit # :nodoc:
 
         describe "#has_dynamic_input_port?" do
             attr_reader :task_m, :opaque_t, :intermediate_t
+
             before do
                 typekit = Models.create_orogen_typekit_model("test")
                 opaque_t = typekit.create_interface_opaque "/opaque", 0
@@ -395,6 +397,7 @@ module Syskit # :nodoc:
 
         describe "#has_dynamic_output_port?" do
             attr_reader :task_m, :opaque_t, :intermediate_t
+
             before do
                 typekit = Models.create_orogen_typekit_model("test")
                 opaque_t = typekit.create_interface_opaque "/opaque", 0

@@ -96,7 +96,8 @@ module Syskit
             def start(name, deployment_name = name, name_mappings = {}, prefix: nil, **_)
                 model = if deployment_name.respond_to?(:to_str)
                             loader.deployment_model_from_name(deployment_name)
-                        else deployment_name
+                        else
+                            deployment_name
                         end
 
                 if processes[name]

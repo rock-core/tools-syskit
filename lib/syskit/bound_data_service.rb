@@ -25,6 +25,7 @@ module Syskit
         # @return [Models::BoundDataService]
         # @see service_model
         attr_reader :model
+
         # The data service name
         #
         # @return [String]

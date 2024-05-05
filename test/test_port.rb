@@ -5,6 +5,7 @@ require "syskit/test/self"
 describe Syskit::Port do
     describe "#to_component_port" do
         attr_reader :component, :port
+
         before do
             component_model = Syskit::TaskContext.new_submodel do
                 output_port "port", "/int"
@@ -26,6 +27,7 @@ describe Syskit::Port do
 
     describe "#connect_to" do
         attr_reader :out_task, :in_task
+
         before do
             @out_task = Syskit::TaskContext.new_submodel do
                 input_port "in", "/double"
@@ -82,6 +84,7 @@ describe Syskit::Port do
 
         describe "in transaction context" do
             attr_reader :task_m, :source, :sink, :transaction
+
             before do
                 @task_m = Syskit::TaskContext.new_submodel do
                     input_port "in", "/double"
@@ -102,6 +105,7 @@ describe Syskit::Port do
     describe "#disconnect_from" do
         describe "in transaction context" do
             attr_reader :task_m, :source, :sink, :transaction
+
             before do
                 @task_m = Syskit::TaskContext.new_submodel do
                     input_port "in", "/double"
@@ -122,6 +126,7 @@ describe Syskit::Port do
 
     describe "#connected_to?" do
         attr_reader :task_m, :source, :sink, :transaction
+
         before do
             @task_m = Syskit::TaskContext.new_submodel do
                 input_port "in", "/double"
@@ -175,6 +180,7 @@ end
 
 describe Syskit::InputWriter do
     attr_reader :task_m
+
     before do
         @task_m = Syskit::TaskContext.new_submodel do
             input_port "in", "/double"
@@ -210,7 +216,7 @@ describe Syskit::InputWriter do
         cmp_m.add in_srv_m, as: "in"
         cmp_m.export cmp_m.in_child.in_port
         task_m = @task_m.specialize
-        in_srv =  task_m.require_dynamic_service "in", as: "in2"
+        in_srv = task_m.require_dynamic_service "in", as: "in2"
 
         cmp = syskit_stub_and_deploy(cmp_m.use("in" => in_srv), remote_task: false)
         port_reader = cmp.in_port.writer
@@ -262,6 +268,7 @@ describe Syskit::InputWriter do
 
     describe "#disconnect" do
         attr_reader :task, :writer
+
         before do
             @task = syskit_stub_deploy_and_configure(task_m)
             @writer = task.in_port.writer
@@ -298,6 +305,7 @@ describe Syskit::InputWriter do
 
         describe "automatic disconnection" do
             attr_reader :cmp, :child, :orocos_writer
+
             before do
                 cmp_m = Syskit::Composition.new_submodel
                 cmp_m.add task_m, as: "c"
@@ -334,6 +342,7 @@ end
 
 describe Syskit::OutputReader do
     attr_reader :task_m
+
     before do
         @task_m = Syskit::TaskContext.new_submodel do
             output_port "out", "/double"
@@ -369,7 +378,7 @@ describe Syskit::OutputReader do
         cmp_m.add out_srv_m, as: "out"
         cmp_m.export cmp_m.out_child.out_port
         task_m = @task_m.specialize
-        out_srv =  task_m.require_dynamic_service "out", as: "out2"
+        out_srv = task_m.require_dynamic_service "out", as: "out2"
 
         cmp = syskit_stub_and_deploy(cmp_m.use("out" => out_srv), remote_task: false)
         port_reader = cmp.out_port.reader
@@ -547,6 +556,7 @@ describe Syskit::OutputReader do
 
     describe "#disconnect" do
         attr_reader :task, :reader
+
         before do
             @task = syskit_stub_deploy_and_configure(task_m)
             @reader = task.out_port.reader
@@ -583,6 +593,7 @@ describe Syskit::OutputReader do
 
         describe "automatic disconnection" do
             attr_reader :cmp, :child, :orocos_reader
+
             before do
                 cmp_m = Syskit::Composition.new_submodel
                 cmp_m.add task_m, as: "c"

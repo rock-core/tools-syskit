@@ -20,6 +20,7 @@ module Syskit
             # @return [Array<Roby::Coordination::Event>] the set of events that
             #   should be emitted when this monitor triggers
             attr_reader :emitted_events
+
             # @return [Boolean] whether this monitor should generate a
             #   {DataMonitoringError} when it triggers
             attr_predicate :raises?, true

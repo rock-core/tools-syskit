@@ -307,7 +307,7 @@ module Syskit
             # @param [Boolean] register the configured deployment in the test group
             #   This makes it available to further deployments
             # @return [Syskit::Models::ConfiguredDeployment]
-            def syskit_stub_configured_deployment( # rubocop:disable Metrics/ParameterLists
+            def syskit_stub_configured_deployment(
                 task_model = nil, task_name = syskit_default_stub_name(task_model),
                 remote_task: syskit_stub_resolves_remote_tasks?,
                 register: true, read_only: [], &block
@@ -469,8 +469,8 @@ module Syskit
             end
 
             class NoConfigureFixedPoint < RuntimeError
-                attr_reader :tasks
-                attr_reader :info
+                attr_reader :tasks, :info
+
                 Info = Struct.new :ready_for_setup, :missing_arguments,
                                   :precedence, :missing
 

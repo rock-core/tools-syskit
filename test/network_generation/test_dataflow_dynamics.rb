@@ -6,6 +6,7 @@ module Syskit
     module NetworkGeneration
         describe PortDynamics::Trigger do
             attr_reader :trigger, :trigger_name, :period, :sample_count
+
             before do
                 @trigger = PortDynamics::Trigger.new(
                     @trigger_name = "trigger_test",
@@ -59,6 +60,7 @@ module Syskit
 
         describe DataFlowDynamics do
             attr_reader :dynamics
+
             before do
                 @dynamics = NetworkGeneration::DataFlowDynamics.new(plan)
             end

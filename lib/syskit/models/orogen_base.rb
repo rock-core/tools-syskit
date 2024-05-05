@@ -40,7 +40,8 @@ module Syskit
             def model_for(orogen_model)
                 if m = find_model_by_orogen(orogen_model)
                     m
-                else raise ArgumentError, "there is no syskit model for #{orogen_model.name}"
+                else
+                    raise ArgumentError, "there is no syskit model for #{orogen_model.name}"
                 end
             end
         end

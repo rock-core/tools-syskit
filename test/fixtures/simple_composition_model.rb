@@ -3,10 +3,7 @@
 module Syskit
     module Fixtures
         module SimpleCompositionModel
-            attr_reader :simple_service_model
-            attr_reader :simple_component_model
-            attr_reader :simple_task_model
-            attr_reader :simple_composition_model
+            attr_reader :simple_service_model, :simple_component_model, :simple_task_model, :simple_composition_model
 
             def create_simple_composition_model
                 stub_t = self.stub_t

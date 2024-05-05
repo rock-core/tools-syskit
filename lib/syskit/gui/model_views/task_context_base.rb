@@ -3,8 +3,7 @@
 module Syskit::GUI
     module ModelViews
         class TaskContextBase < Component
-            attr_reader :orogen_rendering
-            attr_reader :task_model_view
+            attr_reader :orogen_rendering, :task_model_view
 
             def initialize(page)
                 super(page)

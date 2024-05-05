@@ -1154,7 +1154,7 @@ Style/IfUnlessModifier:
     - 'test/test_task_context.rb'
 
 # Offense count: 3
-Style/MethodMissingSuper:
+Lint/MissingSuper:
   Exclude:
     - 'lib/syskit/gui/batch_manager.rb'
     - 'lib/syskit/telemetry/ui/batch_manager.rb'

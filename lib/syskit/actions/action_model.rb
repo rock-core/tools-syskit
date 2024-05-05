@@ -134,7 +134,8 @@ module Syskit
                         req = requirements.dup
                         req.send(m, *args, **kw, &block)
                         Actions::Models::Action.new(req, doc)
-                    else super
+                    else
+                        super
                     end
                 end
             end

@@ -6,6 +6,7 @@ module Syskit
     module Runtime
         describe ".update_task_states" do
             attr_reader :task
+
             before do
                 task_m = Syskit::TaskContext.new_submodel
                 @task = syskit_stub_and_deploy(task_m)
