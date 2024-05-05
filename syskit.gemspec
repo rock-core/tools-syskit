@@ -10,6 +10,7 @@ Gem::Specification.new do |s|
     s.authors = ["Sylvain Joyeux"]
     s.email = "sylvain.joyeux@m4x.org"
     s.summary = "Component network management extension for Roby"
+    s.required_ruby_version = ">= 2.7.0"
     s.description = <<~DESCRIPTION_TEXT
         The Roby plan manager is currently developped from within the Robot Construction
         Kit (http://rock-robotics.org). Have a look there. Additionally, the [Roby User
