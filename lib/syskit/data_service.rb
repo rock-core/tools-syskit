@@ -68,7 +68,7 @@ module Syskit
         #   exist, or if it is nil and this task context drives more than
         #   one device.
         def find_device_attached_to(service = nil)
-            if service&.respond_to?(:to_str)
+            if service.respond_to?(:to_str)
                 unless (service = find_data_service(service))
                     known_services = each_data_service.map(&:name).sort.join(", ")
                     raise ArgumentError,

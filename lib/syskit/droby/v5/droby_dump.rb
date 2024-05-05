@@ -65,7 +65,7 @@ module Syskit
                 end
 
                 def find_local_orogen_model(droby)
-                    find_local_model(droby, name: "orogen::" + droby.orogen_name)
+                    find_local_model(droby, name: "orogen::#{droby.orogen_name}")
                 end
 
                 def registered_orogen_project?(project)

@@ -46,7 +46,7 @@ module Syskit
                     date_tag ||= Time.now.strftime("%Y%m%d-%H%M")
                     basename =
                         if basename && !basename.empty?
-                            date_tag + "-" + basename
+                            "#{date_tag}-#{basename}"
                         else
                             date_tag
                         end
@@ -134,7 +134,7 @@ module Syskit
                 end
 
                 def each_client(&block)
-                    @all_ios[2..-1]&.each(&block)
+                    @all_ios[2..]&.each(&block)
                 end
 
                 def exec
@@ -335,14 +335,15 @@ module Syskit
                     cmd_code = socket.read(1)
                     return false unless cmd_code
 
-                    if cmd_code == COMMAND_GET_PID
+                    case cmd_code
+                    when COMMAND_GET_PID
                         debug "#{socket} requested PID"
                         Marshal.dump([::Process.pid], socket)
 
-                    elsif cmd_code == COMMAND_GET_INFO
+                    when COMMAND_GET_INFO
                         debug "#{socket} requested system information"
                         Marshal.dump(build_system_info, socket)
-                    elsif cmd_code == COMMAND_CREATE_LOG
+                    when COMMAND_CREATE_LOG
                         debug "#{socket} requested creating a log directory"
                         log_dir, time_tag, metadata = Marshal.load(socket)
 
@@ -360,7 +361,7 @@ module Syskit
                             socket.write(RET_NO)
                         end
 
-                    elsif cmd_code == COMMAND_START
+                    when COMMAND_START
                         name, deployment_name, name_mappings, options =
                             Marshal.load(socket)
                         options ||= {}
@@ -384,7 +385,7 @@ module Syskit
                             socket.write(RET_NO)
                             socket.write Marshal.dump(e.message)
                         end
-                    elsif cmd_code == COMMAND_END
+                    when COMMAND_END
                         name, cleanup, hard = Marshal.load(socket)
                         debug "#{socket} requested end of #{name}"
                         if (p = processes[name])
@@ -402,7 +403,7 @@ module Syskit
                             warn "no process named #{name} to end"
                             socket.write(RET_NO)
                         end
-                    elsif cmd_code == COMMAND_KILL_ALL
+                    when COMMAND_KILL_ALL
                         cleanup, hard = Marshal.load(socket)
                         debug "#{socket} requested the end of all processes"
                         processes = kill_all(cleanup: cleanup, hard: hard)
@@ -410,18 +411,18 @@ module Syskit
                         socket.write(RET_YES)
                         ret = dead.map { |dead_p, dead_s| [dead_p.name, dead_s] }
                         socket.write Marshal.dump(ret)
-                    elsif cmd_code == COMMAND_QUIT
+                    when COMMAND_QUIT
                         quit
-                    elsif cmd_code == COMMAND_LOG_UPLOAD_FILE
+                    when COMMAND_LOG_UPLOAD_FILE
                         parameters = Marshal.load(socket)
                         log_upload_file(socket, parameters)
                         socket.write(RET_YES)
 
-                    elsif cmd_code == COMMAND_LOG_UPLOAD_STATE
+                    when COMMAND_LOG_UPLOAD_STATE
                         state = log_upload_state
                         socket.write RET_YES
                         socket.write Marshal.dump(state)
-                    elsif cmd_code == COMMAND_WAIT_RUNNING
+                    when COMMAND_WAIT_RUNNING
                         result = {}
                         process_names = Marshal.load(socket)
                         process_names.each do |p_name|
@@ -600,7 +601,7 @@ module Syskit
                 def log_upload_sanitize_path(path)
                     log_path = Pathname(app.log_dir)
                     full_path = path.realpath(log_path)
-                    return full_path if full_path.to_s.start_with?(log_path.to_s + "/")
+                    return full_path if full_path.to_s.start_with?("#{log_path}/")
 
                     raise ArgumentError,
                           "cannot upload files not within the app's log directory"

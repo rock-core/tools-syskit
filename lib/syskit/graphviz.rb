@@ -695,7 +695,7 @@ module Syskit
                 "<TR><TD ROWSPAN=\"#{values.size}\" VALIGN=\"TOP\" "\
                 "ALIGN=\"RIGHT\">#{category}</TD><TD ALIGN=\"LEFT\">"\
                 "#{values.first}</TD></TR>\n" +
-                values[1..-1].map { |v| "<TR><TD ALIGN=\"LEFT\">#{v}</TD></TR>" }.join("\n")
+                values[1..].map { |v| "<TR><TD ALIGN=\"LEFT\">#{v}</TD></TR>" }.join("\n")
             end.flatten
 
             result.map { |l| "    #{l}" }.join("\n")
@@ -750,7 +750,7 @@ module Syskit
                 label << ann
             end
 
-            "    " + label.join("\n    ")
+            "    #{label.join("\n    ")}"
         end
 
         def self.dot_iolabel(name, inputs, outputs)

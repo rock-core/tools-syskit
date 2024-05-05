@@ -34,7 +34,7 @@ parser = OptionParser.new do |opt|
     opt.on("--annotate=LIST", Array, "comma-separated list of annotations that should be added to the output (defaults to #{default_annotations.to_a.join(',')}). Available annotations: #{available_annotations.to_a.sort.join(', ')}") do |ann|
         ann.each do |name|
             unless available_annotations.include?(name)
-                STDERR.puts "#{name} is not a known annotation. Known annotations are: #{available_annotations.join(', ')}"
+                $stderr.puts "#{name} is not a known annotation. Known annotations are: #{available_annotations.join(', ')}"
                 exit 1
             end
         end
@@ -77,7 +77,7 @@ end
 Scripts.common_options(parser, true)
 remaining = parser.parse(ARGV)
 if remaining.empty?
-    STDERR.puts parser
+    $stderr.puts parser
     exit(1)
 end
 direct_files, required_actions = remaining.partition do |arg|

@@ -91,7 +91,7 @@ module Syskit
                 #   configuration should be loaded
                 def self.exec(names, parent = nil, default_robot_name: "default")
                     dialog = new(names, parent, default_robot_name: default_robot_name)
-                    if Qt::Dialog::Accepted == dialog.exec
+                    if dialog.exec == Qt::Dialog::Accepted
                         [dialog.selected_name, dialog.start_controller?, dialog.single?]
                     end
                 end

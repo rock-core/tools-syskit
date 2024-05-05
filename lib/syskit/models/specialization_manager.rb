@@ -657,7 +657,7 @@ module Syskit
             # of the contained sets
             def find_common_specialization_subset(candidates)
                 result = candidates[0][1].to_set
-                candidates[1..-1].each do |merged, subset|
+                candidates[1..].each_value do |subset|
                     result &= subset.to_set
                 end
 

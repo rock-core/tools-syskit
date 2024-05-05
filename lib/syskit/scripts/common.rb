@@ -209,7 +209,7 @@ module Syskit
             end
 
             if output_file
-                STDERR.puts "exported result to #{output_file}"
+                $stderr.puts "exported result to #{output_file}"
             end
         end
 
@@ -220,10 +220,10 @@ module Syskit
                 Roby.app.filter_backtraces = false
             end
             if debug
-                Syskit.logger = ::Logger.new(STDOUT)
+                Syskit.logger = ::Logger.new($stdout)
                 Syskit.logger.formatter = Roby.logger.formatter
                 Syskit.logger.level = ::Logger::DEBUG
-                Orocos.logger = ::Logger.new(STDOUT)
+                Orocos.logger = ::Logger.new($stdout)
                 Orocos.logger.formatter = Roby.logger.formatter
                 Orocos.logger.level = ::Logger::DEBUG
             end

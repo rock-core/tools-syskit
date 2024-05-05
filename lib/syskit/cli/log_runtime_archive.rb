@@ -182,7 +182,7 @@ module Syskit
                 )
                 child_path.unlink
             rescue Exception => e # rubocop:disable Lint/RescueException
-                Roby.display_exception(STDOUT, e)
+                Roby.display_exception($stdout, e)
                 if start_pos
                     add_to_archive_rollback(archive_io, start_pos, logger: logger)
                 end
@@ -250,7 +250,7 @@ module Syskit
 
             # Create a logger that will display nothing
             def self.null_logger
-                logger = Logger.new(STDOUT)
+                logger = Logger.new($stdout)
                 logger.level = Logger::FATAL + 1
                 logger
             end

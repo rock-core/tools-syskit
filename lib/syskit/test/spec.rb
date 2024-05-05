@@ -30,8 +30,8 @@ module Syskit
 
             def teardown
                 if !passed? && app.public_logs?
-                    dataflow = __full_name__ + "-partial-dataflow.svg"
-                    hierarchy = __full_name__ + "-partial-hierarchy.svg"
+                    dataflow = "#{__full_name__}-partial-dataflow.svg"
+                    hierarchy = "#{__full_name__}-partial-hierarchy.svg"
                     dataflow, hierarchy = [dataflow, hierarchy].map do |filename|
                         filename.gsub("/", "_")
                     end

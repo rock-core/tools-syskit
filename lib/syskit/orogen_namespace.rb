@@ -32,7 +32,7 @@ module Syskit
                     )
                 end
 
-                remainder = orogen_name[prefix.size..-1]
+                remainder = orogen_name[prefix.size..]
                 if (m = NAMESPACE_PREFIX.match(remainder))
                     namespace_name = m[1]
                     namespace = (

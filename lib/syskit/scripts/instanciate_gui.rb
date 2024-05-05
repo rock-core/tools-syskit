@@ -27,7 +27,7 @@ error = Scripts.run do
     ui = Ui::OrocosSystemBuilderWidget.new(Roby.app.syskit_engine.model, Roby.app.syskit_engine.robot)
     ui.setupUi(main)
     remaining.each do |file|
-        STDERR.puts "script: #{file}"
+        $stderr.puts "script: #{file}"
         ui.append(file)
     end
     main.show

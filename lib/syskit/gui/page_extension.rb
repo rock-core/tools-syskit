@@ -62,7 +62,7 @@ module Syskit
                 end
 
                 if pattern = external_objects
-                    file = pattern % kind + ".svg"
+                    file = "#{pattern % kind}.svg"
                     File.open(file, "w") do |io|
                         io.write(svg)
                     end

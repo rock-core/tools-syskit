@@ -26,7 +26,7 @@ def minitest_set_options(test_task, name)
         if minitest_options.empty?
             ""
         else
-            "\"" + minitest_options.join("\" \"") + "\""
+            "\"#{minitest_options.join('" "')}\""
         end
     test_task.options = "#{TESTOPTS} #{minitest_args} -- --simplecov-name=#{name}"
 end

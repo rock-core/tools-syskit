@@ -49,8 +49,8 @@ module Syskit::GUI
             all = defaults + explicit
             all = all.each_with_index.map do |block, i|
                 block[0] = (i == 0 ? "  #{use_method}(" : "      ") + block[0]
-                block = [block[0]] + block[1..-1].map do |line|
-                    "      " + line
+                block = [block[0]] + block[1..].map do |line|
+                    "      #{line}"
                 end
                 block[-1] = block[-1] + (i == all.size - 1 ? ")" : ",")
                 block

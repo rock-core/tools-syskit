@@ -41,7 +41,7 @@ module Syskit
                 if (klass[:syskit] = YARD.load_metadata_for(klass.path))
                     YARD.define_definitions_accessors(klass)
                 else
-                    STDERR.puts "No Syskit information for #{klass.path}"
+                    $stderr.puts "No Syskit information for #{klass.path}"
                 end
                 klass
             end
@@ -195,7 +195,7 @@ module Syskit
         def self.define_type(type)
             types_m = ::YARD::CodeObjects::ModuleObject.new(:root, "::Types")
             type_name, = Typelib::CXX.parse_template(type.name)
-            elements = type_name.split("/")[1..-1]
+            elements = type_name.split("/")[1..]
 
             namespace_m = elements[0..-2].inject(types_m) do |ns, name|
                 ::YARD::CodeObjects::ModuleObject.new(ns, name)

@@ -73,7 +73,7 @@ module Syskit
                 end
 
                 def make_archiver(root_dir, target_dir)
-                    logger = Logger.new(STDOUT)
+                    logger = Logger.new($stdout)
 
                     Syskit::CLI::LogRuntimeArchive.new(
                         root_dir, target_dir,

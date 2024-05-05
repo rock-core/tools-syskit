@@ -77,11 +77,12 @@ module Syskit
                     else
                         event event_name,
                               terminal: %i[exception fatal_error].include?(type)
-                        if type == :fatal
+                        case type
+                        when :fatal
                             forward event_name => :fatal_error
-                        elsif type == :exception
+                        when :exception
                             forward event_name => :exception
-                        elsif type == :error
+                        when :error
                             forward event_name => :runtime_error
                         end
                     end

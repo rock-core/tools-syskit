@@ -44,7 +44,7 @@ module Syskit
                     begin
                         batch.__process
                     rescue Exception => e
-                        Roby.display_exception(STDOUT, e)
+                        Roby.display_exception($stdout, e)
 
                         Qt::MessageBox.critical(
                             self, "Syskit Process Batch",

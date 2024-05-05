@@ -43,7 +43,7 @@ module Syskit
                 begin
                     batch.__process
                 rescue Exception => e # rubocop:disable Lint/RescueException
-                    Roby.display_exception(STDOUT, e)
+                    Roby.display_exception($stdout, e)
 
                     Qt::MessageBox.critical(
                         self, "Syskit Process Batch",

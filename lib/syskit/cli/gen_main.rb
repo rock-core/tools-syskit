@@ -221,7 +221,7 @@ module Syskit
 
                         property_hash = { property_name => section[property_name] }
                         yaml = YAML.dump(property_hash)
-                        [doc, yaml.split("\n")[1..-1].join("\n")]
+                        [doc, yaml.split("\n")[1..].join("\n")]
                     end.join("\n")
                 end
             end

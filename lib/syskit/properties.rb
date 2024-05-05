@@ -42,7 +42,7 @@ module Syskit
             if p = @properties[name.to_str]
                 [false, p]
             elsif name.start_with?("raw_")
-                non_raw_name = name[4..-1]
+                non_raw_name = name[4..]
                 if p = @properties[non_raw_name]
                     [true, p]
                 else

@@ -188,7 +188,7 @@ module Syskit
                    (!key.kind_of?(Class) || !(key <= Component))
 
                     raise ArgumentError,
-                          'found #{value} as a selection key, but only names, '\
+                          "found #{value} as a selection key, but only names, "\
                           "component models and data service models are allowed"
                 end
 

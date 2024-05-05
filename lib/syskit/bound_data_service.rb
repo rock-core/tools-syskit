@@ -116,14 +116,14 @@ module Syskit
         def data_writer(*names)
             component.data_writer(
                 model.port_mappings_for_task[names.first],
-                *names[1..-1]
+                *names[1..]
             )
         end
 
         def data_reader(*names)
             component.data_reader(
                 model.port_mappings_for_task[names.first],
-                *names[1..-1]
+                *names[1..]
             )
         end
 

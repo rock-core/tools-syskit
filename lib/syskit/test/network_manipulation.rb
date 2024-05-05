@@ -263,8 +263,8 @@ module Syskit
             ensure
                 if Roby.app.public_logs?
                     filename = name.tr("/", "_")
-                    dataflow_base = filename + "-dataflow"
-                    hierarchy_base = filename + "-hierarchy"
+                    dataflow_base = "#{filename}-dataflow"
+                    hierarchy_base = "#{filename}-hierarchy"
                     if failed
                         dataflow_base += "-FAILED"
                         hierarchy_base += "-FAILED"

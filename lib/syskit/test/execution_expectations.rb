@@ -164,7 +164,7 @@ module Syskit
 
                     return msg unless @predicate
 
-                    msg + "\n  " + format_rejected_samples_message
+                    "#{msg}\n  #{format_rejected_samples_message}"
                 end
 
                 def format_rejected_samples_message

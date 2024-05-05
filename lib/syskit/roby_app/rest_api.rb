@@ -43,7 +43,7 @@ module Syskit
                     if /^orogen_default_/.match?(info.task_name)
                         info_hash[:default_deployment] = true
                     end
-                    if info.task_model_name == "logger::Logger" && (info.task_name == info.deployment_name + "_Logger")
+                    if info.task_model_name == "logger::Logger" && (info.task_name == "#{info.deployment_name}_Logger")
                         info_hash[:default_logger] = true
                     end
                     info_hash
