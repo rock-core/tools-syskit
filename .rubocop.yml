@@ -50,3 +50,6 @@ Security/MarshalLoad:
 Style/MultilineBlockChain:
   Exclude:
   - test/**/test_*.rb
+
+Style/OptionalBooleanParameter:
+  Enabled: false
