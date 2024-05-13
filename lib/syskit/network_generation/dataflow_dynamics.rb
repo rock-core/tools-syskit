@@ -420,8 +420,6 @@ module Syskit
                             all_triggers << trigger_port
                         end
                     end
-                end
-                task.model.each_output_port do |port|
                     unless @triggers.key?([task, port.name])
                         done_port_info(task, port.name)
                     end

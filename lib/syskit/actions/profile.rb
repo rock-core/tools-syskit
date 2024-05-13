@@ -130,7 +130,7 @@ module Syskit
             attr_reader :tags
             # The set of profiles that have been used in this profile with
             # {use_profile}
-            # @return [Array<Profile>]
+            # @return [Hash<Profile, [Tag]>]
             attr_reader :used_profiles
             # The DependencyInjection object that is being defined in this
             # profile
@@ -206,7 +206,7 @@ module Syskit
                 @permanent_model = false
                 @definitions = {}
                 @tags = {}
-                @used_profiles = []
+                @used_profiles = {}
                 @dependency_injection = DependencyInjection.new
                 @robot = RobotDefinition.new(self)
                 @definition_location = caller_locations
@@ -260,7 +260,7 @@ module Syskit
                 unless @di
                     di = DependencyInjectionContext.new
                     di.push(robot.to_dependency_injection)
-                    all_used_profiles.each do |prof, _|
+                    all_used_profiles.each_key do |prof|
                         di.push(prof.dependency_injection)
                     end
                     di.push(dependency_injection)
@@ -308,7 +308,7 @@ module Syskit
 
             # Whether self uses the given profile
             def uses_profile?(profile)
-                used_profiles.any? { |used_profile, _tags| used_profile == profile }
+                @used_profiles.key?(profile)
             end
 
             # Enumerate the profiles that have directly been imported in self
@@ -317,9 +317,7 @@ module Syskit
             def each_used_profile(&block)
                 return enum_for(__method__) unless block_given?
 
-                used_profiles.each do |profile, _tags|
-                    yield(profile)
-                end
+                @used_profiles.each_key(&block)
             end
 
             # Adds the given profile DI information and registered definitions
@@ -333,7 +331,7 @@ module Syskit
             def use_profile(profile, tags = {}, transform_names: ->(k) { k })
                 invalidate_dependency_injection
                 tags = resolve_tag_selection(profile, tags)
-                used_profiles.push([profile, tags])
+                @used_profiles[profile] = tags
                 deployment_group.use_group(profile.deployment_group)
 
                 # Register the definitions, but let the user override
@@ -536,22 +534,27 @@ module Syskit
 
             # Returns all profiles that are used by self
             def all_used_profiles
-                resolve_used_profiles([], Set.new)
+                resolve_used_profiles({})
             end
 
             # @api private
             #
             # Recursively lists all profiles that are used by self
-            def resolve_used_profiles(list, set)
-                new_profiles = used_profiles.find_all do |p, _|
-                    !set.include?(p)
+            #
+            # @return [Set]
+            def resolve_used_profiles(result)
+                new_profiles = []
+                @used_profiles.each do |profile, tags|
+                    next if result.key?(profile)
+
+                    new_profiles << profile
+                    result[profile] = tags
                 end
-                list.concat(new_profiles)
-                set |= new_profiles.map(&:first).to_set
-                new_profiles.each do |p, _|
-                    p.resolve_used_profiles(list, set)
+
+                new_profiles.each do |p|
+                    p.resolve_used_profiles(result)
                 end
-                list
+                result
             end
 
             # Injects the DI information registered in this profile in the given
@@ -596,7 +599,7 @@ module Syskit
                 @dependency_injection = DependencyInjection.new
                 @deployment_groups = {}
                 @deployment_group = Syskit::Models::DeploymentGroup.new
-                used_profiles.clear
+                @used_profiles.clear
                 super if defined? super
 
                 if MetaRuby::Registration.accessible_by_name?(self)

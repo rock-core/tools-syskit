@@ -1112,7 +1112,7 @@ module Syskit
                 id = object_id.abs
 
                 connections.each do |(source, sink), mappings|
-                    mappings.each do |(source_port, sink_port), _policy|
+                    mappings.each_key do |(source_port, sink_port)|
                         io << "C#{id}#{source}:#{source_port} -> "\
                               "C#{id}#{sink}:#{sink_port};"
                     end

@@ -24,7 +24,7 @@ module Syskit
 
                 # Updates the model according to a new hash
                 def update_groups(groups)
-                    @current_model.keys.each do |key|
+                    @current_model.each_key do |key|
                         unless groups.key? key
                             group_row = @items_name[key].index.row
                             @items_name[key].clear
@@ -38,7 +38,7 @@ module Syskit
                     @current_model = deep_copy(groups)
                     @editing_model = deep_copy(groups)
 
-                    @current_model.keys.each do |key|
+                    @current_model.each_key do |key|
                         unless @items_name.key? key
                             @items_name[key], @items_value[key] = add_conf_item(key)
                             @items_value[key].getter do

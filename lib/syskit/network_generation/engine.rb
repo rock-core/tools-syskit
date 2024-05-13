@@ -928,7 +928,7 @@ module Syskit
                 required_instances, plan, compute_deployments: true
             )
                 # Check that all device instances are proper tasks (not proxies)
-                required_instances.each do |_req_task, task|
+                required_instances.each_value do |task|
                     if task.transaction_proxy?
                         raise InternalError,
                               "instance definition #{instance} contains a transaction "\

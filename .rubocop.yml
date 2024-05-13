@@ -53,3 +53,6 @@ Style/MultilineBlockChain:
 
 Style/OptionalBooleanParameter:
   Enabled: false
+
+Style/HashEachMethods:
+  Enabled: false # too many false positives

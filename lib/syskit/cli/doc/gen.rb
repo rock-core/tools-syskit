@@ -18,7 +18,7 @@ module Syskit
                     end
                 end
 
-                app.default_loader.loaded_typekits.each do |_, tk|
+                app.default_loader.loaded_typekits.each_value do |tk|
                     save_typekit(target_path, tk)
                 end
 
