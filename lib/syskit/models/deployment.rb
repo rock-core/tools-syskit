@@ -42,6 +42,38 @@ module Syskit
                 task
             end
 
+            # @api private
+            #
+            # Context object used to evaluate the block given to new_submodel
+            class OroGenEvaluationContext < BasicObject
+                attr_reader :task_name_to_syskit_model
+
+                def initialize(task_m)
+                    @task_m = task_m
+                    @orogen_model = task_m.orogen_model
+                    @task_name_to_syskit_model = {}
+                end
+
+                def task(name, model)
+                    if model.respond_to?(:orogen_model)
+                        @orogen_model.task(name, model.orogen_model)
+                        @task_name_to_syskit_model[name] = model
+                    else
+                        @orogen_model.task(name, model)
+                        @task_name_to_syskit_model[name] =
+                            ::Syskit::TaskContext.model_for(model)
+                    end
+                end
+
+                def respond_to_missing?(name, _private = false)
+                    @orogen_model.respond_to?(name)
+                end
+
+                def method_missing(name, *args, **kw) # rubocop:disable Style/MethodMissingSuper
+                    @orogen_model.send(name, *args, **kw)
+                end
+            end
+
             # Creates a new deployment model
             #
             # @option options [OroGen::Spec::Deployment] orogen_model the oroGen
@@ -55,7 +87,11 @@ module Syskit
                     self.orogen_model = orogen_model ||
                         Models.create_orogen_deployment_model(name)
                     if block
-                        self.orogen_model.instance_eval(&block)
+                        ctxt = OroGenEvaluationContext.new(self)
+                        ctxt.instance_eval(&block)
+                        @task_name_to_syskit_model = ctxt.task_name_to_syskit_model
+                    else
+                        @task_name_to_syskit_model = {}
                     end
                 end
                 klass.each_deployed_task_name do |name|
@@ -91,7 +127,7 @@ module Syskit
                 orogen_model.task_activities
             end
 
-            # Enumerate the names of the tasks deployed by self
+            # Enumerate the unmapped names of the tasks deployed by self
             def each_deployed_task_name
                 return enum_for(__method__) unless block_given?
 
@@ -102,13 +138,13 @@ module Syskit
 
             # Enumerate the tasks that are deployed in self
             #
-            # @yieldparam [String] name the task name
+            # @yieldparam [String] name the unmapped task name
             # @yieldparam [Models::TaskContext] model the deployed task model
             def each_deployed_task_model
                 return enum_for(__method__) unless block_given?
 
                 each_orogen_deployed_task_context_model do |deployed_task|
-                    task_model = Syskit::TaskContext.model_for(deployed_task.task_model)
+                    task_model = @task_name_to_syskit_model.fetch(deployed_task.name)
                     yield(deployed_task.name, task_model)
                 end
             end

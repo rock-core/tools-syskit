@@ -74,20 +74,38 @@ module Syskit
     end
 end
 
-describe Syskit::Models::Deployment do
-    describe "#new_submodel" do
-        it "registers the corresponding orogen to syskit model mapping" do
-            submodel = Syskit::Deployment.new_submodel
-            subsubmodel = submodel.new_submodel
-            assert_equal subsubmodel, Syskit::Deployment.model_for(subsubmodel.orogen_model)
-        end
-    end
-    describe "#clear_submodels" do
-        it "removes the corresponding orogen to syskit model mapping" do
-            submodel = Syskit::Deployment.new_submodel
-            subsubmodel = submodel.new_submodel
-            submodel.clear_submodels
-            assert !Syskit::Deployment.has_model_for?(subsubmodel.orogen_model)
+module Syskit
+    module Models
+        describe Deployment do
+            describe "#new_submodel" do
+                it "registers the corresponding orogen to syskit model mapping" do
+                    submodel = Syskit::Deployment.new_submodel
+                    subsubmodel = submodel.new_submodel
+                    assert_equal subsubmodel,
+                                 Syskit::Deployment.model_for(subsubmodel.orogen_model)
+                end
+            end
+
+            describe "#clear_submodels" do
+                it "removes the corresponding orogen to syskit model mapping" do
+                    submodel = Syskit::Deployment.new_submodel
+                    subsubmodel = submodel.new_submodel
+                    submodel.clear_submodels
+                    assert !Syskit::Deployment.has_model_for?(subsubmodel.orogen_model)
+                end
+            end
+
+            describe "#each_deployed_task_model" do
+                it "enumerates the task names and their syskit model" do
+                    task_m = Syskit::TaskContext.new_submodel
+                    deployment_m = Syskit::Deployment.new_submodel do
+                        task "name", task_m
+                    end
+
+                    assert_equal [["name", task_m]],
+                                 deployment_m.each_deployed_task_model.to_a
+                end
+            end
         end
     end
 end

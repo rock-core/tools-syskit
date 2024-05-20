@@ -41,6 +41,7 @@ Naming/MethodParameterName:
   AllowedNames:
   - as
   - fd
+  - kw
 
 Security/MarshalLoad:
   Exclude:
