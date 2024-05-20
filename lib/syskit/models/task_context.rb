@@ -94,7 +94,8 @@ module Syskit
             # specification. The class is registered as
             # Roby::Orogen::ProjectName::ClassName.
             def define_from_orogen(orogen_model, register: false)
-                if model = find_model_by_orogen(orogen_model) # already defined, probably because of dependencies
+                # Already defined, probably because of dependencies
+                if (model = find_model_by_orogen(orogen_model))
                     return model
                 end
 
