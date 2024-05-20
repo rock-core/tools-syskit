@@ -267,6 +267,15 @@ module Syskit # :nodoc:
                 assert_same model, TaskContext.define_from_orogen(orogen)
             end
 
+            it "passes arbitrary keyword options to new_submodel" do
+                model = TaskContext.new_submodel
+                orogen = Models.create_orogen_task_context_model
+                flexmock(OroGen::RTT::TaskContext)
+                    .should_receive(:new_submodel)
+                    .with(orogen_model: orogen, some: "option").once.and_return(model)
+                assert_same model, TaskContext.define_from_orogen(orogen, some: "option")
+            end
+
             it "sets the model name to the OroGen call chain" do
                 project = OroGen::Spec::Project.new(app.default_loader)
                 project.name "test"
@@ -314,6 +323,24 @@ module Syskit # :nodoc:
                     .should_receive(:define_from_orogen).with(orogen_parent, register: false)
                     .and_return(parent_model)
                 model = TaskContext.define_from_orogen(orogen, register: false)
+                assert_same parent_model, model.superclass
+            end
+
+            it "uses an explicit supermodel if one is given" do
+                orogen_parent = Models.create_orogen_task_context_model
+                orogen = Models.create_orogen_task_context_model(subclasses: orogen_parent)
+                parent_model = TaskContext.new_submodel
+                flexmock(TaskContext)
+                    .should_receive(:define_from_orogen)
+                    .with(orogen, any)
+                    .pass_thru
+                flexmock(TaskContext)
+                    .should_receive(:define_from_orogen)
+                    .with(orogen_parent, register: false)
+                    .never
+                model = TaskContext.define_from_orogen(
+                    orogen, supermodel: parent_model, register: false
+                )
                 assert_same parent_model, model.superclass
             end
 
