@@ -63,6 +63,14 @@ module Syskit
                 )
                 assert_same model, Deployments::MotorController
             end
+
+            it "resolves the orogen-to-syskit mapping for the orogen model tasks" do
+                model = Syskit::Deployment.define_from_orogen(
+                    @orogen_deployment, register: false
+                )
+                assert_equal ["task", @syskit_task_m],
+                             model.each_deployed_task_model.first
+            end
         end
 
         def test_clear_submodels_removes_registered_submodels

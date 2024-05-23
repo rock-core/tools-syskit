@@ -86,12 +86,17 @@ module Syskit
                 klass = super(name: name, **options) do
                     self.orogen_model = orogen_model ||
                         Models.create_orogen_deployment_model(name)
+
+                    @task_name_to_syskit_model = {}
+                    self.orogen_model.task_activities.each do |act|
+                        @task_name_to_syskit_model[act.name] =
+                            ::Syskit::TaskContext.model_for(act.task_model)
+                    end
+
                     if block
                         ctxt = OroGenEvaluationContext.new(self)
                         ctxt.instance_eval(&block)
-                        @task_name_to_syskit_model = ctxt.task_name_to_syskit_model
-                    else
-                        @task_name_to_syskit_model = {}
+                        @task_name_to_syskit_model.merge!(ctxt.task_name_to_syskit_model)
                     end
                 end
                 klass.each_deployed_task_name do |name|
