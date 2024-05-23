@@ -29,28 +29,40 @@ module Syskit
             assert submodel.has_submodel?(subsubmodel)
         end
 
-        def test_define_from_orogen
-            orogen_deployment = Models.create_orogen_deployment_model
-            orogen_task = Models.create_orogen_task_context_model
-            orogen_deployment.task "task", orogen_task
-            model = Syskit::Deployment.define_from_orogen orogen_deployment, register: false
-            assert_same model.orogen_model, orogen_deployment
-        end
+        describe "#define_from_orogen" do
+            before do
+                @orogen_deployment = Models.create_orogen_deployment_model
+                orogen_task = Models.create_orogen_task_context_model
+                @orogen_deployment.task "task", orogen_task
+                @syskit_task_m = Syskit::TaskContext.define_from_orogen(orogen_task)
+            end
 
-        def test_define_from_orogen_does_not_register_anonymous_deployment
-            orogen_deployment = Models.create_orogen_deployment_model
-            orogen_task = Models.create_orogen_task_context_model
-            orogen_deployment.task "task", orogen_task
-            flexmock(::Deployments).should_receive(:const_set).never
-            Syskit::Deployment.define_from_orogen orogen_deployment, register: true
-        end
+            it "creates a subclass of Deployment that refers to the given orogen model" do
+                model = Syskit::Deployment.define_from_orogen(
+                    @orogen_deployment, register: false
+                )
+                assert_operator model, :<=, Syskit::Deployment
+                assert_same model.orogen_model, @orogen_deployment
+            end
 
-        def test_define_from_orogen_can_register_named_deployments
-            orogen_deployment = Models.create_orogen_deployment_model("motor_controller")
-            orogen_task = Models.create_orogen_task_context_model
-            orogen_deployment.task "task", orogen_task
-            model = Syskit::Deployment.define_from_orogen orogen_deployment, register: true
-            assert_same model, Deployments::MotorController
+            it "does not register anonymous deployments" do
+                Syskit::Deployment.define_from_orogen(
+                    @orogen_deployment, register: false
+                )
+                flexmock(::Deployments).should_receive(:const_set).never
+                Syskit::Deployment.define_from_orogen @orogen_deployment, register: true
+            end
+
+            it "may register named deployments" do
+                orogen_deployment = Models.create_orogen_deployment_model("motor_controller")
+                orogen_task = Models.create_orogen_task_context_model
+                orogen_deployment.task "task", orogen_task
+                Syskit::TaskContext.define_from_orogen(orogen_task)
+                model = Syskit::Deployment.define_from_orogen(
+                    orogen_deployment, register: true
+                )
+                assert_same model, Deployments::MotorController
+            end
         end
 
         def test_clear_submodels_removes_registered_submodels
