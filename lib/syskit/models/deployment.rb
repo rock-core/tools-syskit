@@ -143,6 +143,27 @@ module Syskit
                 end
             end
 
+            # @api private
+            #
+            # Resolve the Syskit task model for one of this deployment's tasks
+            def resolve_syskit_model_for_deployed_task(deployed_task)
+                task_name = deployed_task.name
+                if (registered = @task_name_to_syskit_model[task_name])
+                    return registered
+                end
+
+                # If this happens, it is most probably because the caller modified
+                # the underlying orogen model directly. Warn about that
+                Roby.warn_deprecated(
+                    "Modifying the orogen model of a deployment is deprecated. Define " \
+                    "the orogen model before the syskit model creation, or use " \
+                    "Deployment.define_deployed_task"
+                )
+
+                @task_name_to_syskit_model[task_name] =
+                    ::Syskit::TaskContext.model_for(deployed_task.task_model)
+            end
+
             # Enumerate the tasks that are deployed in self
             #
             # @yieldparam [String] name the unmapped task name
@@ -151,7 +172,7 @@ module Syskit
                 return enum_for(__method__) unless block_given?
 
                 each_orogen_deployed_task_context_model do |deployed_task|
-                    task_model = @task_name_to_syskit_model.fetch(deployed_task.name)
+                    task_model = resolve_syskit_model_for_deployed_task(deployed_task)
                     yield(deployed_task.name, task_model)
                 end
             end
