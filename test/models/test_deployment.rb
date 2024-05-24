@@ -29,6 +29,69 @@ module Syskit
             assert submodel.has_submodel?(subsubmodel)
         end
 
+        describe "the block passed to new_submodel" do
+            it "lets the caller define the deployment model, "\
+               "using orogen models for the tasks" do
+                task1_m = Syskit::TaskContext.new_submodel
+                task2_m = Syskit::TaskContext.new_submodel
+                deployment_m = Syskit::Deployment.new_submodel do
+                    task "task1", task1_m.orogen_model
+                    task "task2", task2_m.orogen_model
+                end
+
+                assert_equal [task1_m.orogen_model, task2_m.orogen_model],
+                             deployment_m.each_orogen_deployed_task_context_model
+                                         .sort_by(&:name).map(&:task_model)
+                assert_equal [["task1", task1_m], ["task2", task2_m]],
+                             deployment_m.each_deployed_task_model
+                                         .sort_by(&:first)
+            end
+
+            it "lets the caller define the deployment model, "\
+               "using orogen model names for the tasks" do
+                project = Models.create_orogen_project
+                project.name "m"
+                task1_orogen_m = project.task_context "M"
+                task1_m = Syskit::TaskContext.new_submodel(orogen_model: task1_orogen_m)
+                task2_orogen_m = project.task_context "N"
+                task2_m = Syskit::TaskContext.new_submodel(orogen_model: task2_orogen_m)
+                deployment_m = Syskit::Deployment.new_submodel do
+                    task "task1", "m::M"
+                    task "task2", "m::N"
+                end
+
+                assert_equal [task1_m.orogen_model, task2_m.orogen_model],
+                             deployment_m.each_orogen_deployed_task_context_model
+                                         .sort_by(&:name).map(&:task_model)
+                assert_equal [["task1", task1_m], ["task2", task2_m]],
+                             deployment_m.each_deployed_task_model
+                                         .sort_by(&:first)
+            end
+
+            it "lets the caller define the deployment model, "\
+               "passing the deployment orogen model" do
+                project = Models.create_orogen_project
+                project.name "m"
+                task1_orogen_m = project.task_context "M"
+                task1_m = Syskit::TaskContext.new_submodel(orogen_model: task1_orogen_m)
+                task2_orogen_m = project.task_context "N"
+                task2_m = Syskit::TaskContext.new_submodel(orogen_model: task2_orogen_m)
+                deployment_orogen_m = project.deployment "d" do
+                    task "task1", "m::M"
+                    task "task2", "m::N"
+                end
+                deployment_m =
+                    Syskit::Deployment.new_submodel(orogen_model: deployment_orogen_m)
+
+                assert_equal [task1_m.orogen_model, task2_m.orogen_model],
+                             deployment_m.each_orogen_deployed_task_context_model
+                                         .sort_by(&:name).map(&:task_model)
+                assert_equal [["task1", task1_m], ["task2", task2_m]],
+                             deployment_m.each_deployed_task_model
+                                         .sort_by(&:first)
+            end
+        end
+
         describe "#define_from_orogen" do
             before do
                 @orogen_deployment = Models.create_orogen_deployment_model

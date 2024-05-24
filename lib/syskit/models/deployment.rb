@@ -59,9 +59,9 @@ module Syskit
                         @orogen_model.task(name, model.orogen_model)
                         @task_name_to_syskit_model[name] = model
                     else
-                        @orogen_model.task(name, model)
+                        deployed_task = @orogen_model.task(name, model)
                         @task_name_to_syskit_model[name] =
-                            ::Syskit::TaskContext.model_for(model)
+                            ::Syskit::TaskContext.model_for(task.task_model)
                     end
                 end
 
