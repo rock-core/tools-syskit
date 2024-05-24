@@ -56,13 +56,15 @@ module Syskit
 
                 def task(name, model)
                     if model.respond_to?(:orogen_model)
-                        @orogen_model.task(name, model.orogen_model)
+                        deployed_task = @orogen_model.task(name, model.orogen_model)
                         @task_name_to_syskit_model[name] = model
                     else
                         deployed_task = @orogen_model.task(name, model)
                         @task_name_to_syskit_model[name] =
-                            ::Syskit::TaskContext.model_for(task.task_model)
+                            ::Syskit::TaskContext.model_for(deployed_task.task_model)
                     end
+
+                    deployed_task
                 end
 
                 def respond_to_missing?(name, _private = false)
