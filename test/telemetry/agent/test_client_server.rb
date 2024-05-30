@@ -182,7 +182,7 @@ module Syskit
                 end
 
                 DataChannel = Struct.new :op, :queue, :thread, keyword_init: true do # rubocop:disable Metrics/BlockLength
-                    def self.setup(client)
+                    def self.setup(client, timeout: 5)
                         data_op = client.data(Grpc::Void.new, return_op: true)
                         sample_queue = QueueWithTimeout.new
 
@@ -196,7 +196,10 @@ module Syskit
                             end
                         rescue GRPC::Core::CallError, GRPC::Cancelled # rubocop:disable Lint/SuppressedException
                         end
-                        channel_ready.wait
+
+                        unless channel_ready.wait(timeout)
+                            flunk("failed to get the channel ready")
+                        end
 
                         new(op: data_op, queue: sample_queue, thread: pull_thread)
                     end
