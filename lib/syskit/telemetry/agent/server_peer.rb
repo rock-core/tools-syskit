@@ -32,6 +32,9 @@ module Syskit
                 #
                 # Implementation of the enumerator needed by the GRPC streaming API
                 def self.data_channel(peer, server, call)
+                    # Send one sample to indicate that the channel is properly established
+                    yield Grpc::DataStreamValue.new(id: 0, data: "")
+
                     until call.cancelled?
                         now = Time.now
                         next_deadline = peer.poll_subscribed_streams(now) do |id, sample|

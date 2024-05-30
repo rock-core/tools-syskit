@@ -189,9 +189,10 @@ module Syskit
                         channel_ready = Concurrent::Event.new
                         pull_thread = Thread.new do
                             enum = data_op.execute
-                            channel_ready.set
                             enum.each do |sample|
-                                sample_queue.enq(sample)
+                                # We ignore the first sample. It is sent as a way to
+                                # confirm that the channel is successfully established
+                                sample_queue.enq(sample) unless channel_ready.try?
                             end
                         rescue GRPC::Core::CallError, GRPC::Cancelled # rubocop:disable Lint/SuppressedException
                         end
