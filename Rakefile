@@ -80,14 +80,14 @@ end
 protogen =
     file "lib/syskit/telemetry/agent/agent_pb.rb" =>
         ["lib/syskit/telemetry/agent/agent.proto"] do
-        system(
+        success = system(
             "grpc_tools_ruby_protoc",
             "syskit/telemetry/agent/agent.proto",
             "--ruby_out=.",
             "--grpc_out=.",
-            chdir: "lib",
-            exception: true
+            chdir: "lib"
         )
+        raise "grpc_tools_ruby_protoc call failed" unless success
     end
 task "default" => protogen if USE_GRPC
 
