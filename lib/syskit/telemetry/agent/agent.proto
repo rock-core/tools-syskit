@@ -21,6 +21,10 @@ service Server {
      * what will be written. This must be done before calling the MonitoringStart
      * and MonitoringStop functions
      *
+     * The method sends a single DataStreamValue on connection, with an ID of zero
+     * and an empty data buffer. Use this to synchronize on the channel actually been
+     * established (the GRPC call does not).
+     *
      * Cancel the call to kill the connection
      */
     rpc data(Void) returns (stream DataStreamValue) {}
