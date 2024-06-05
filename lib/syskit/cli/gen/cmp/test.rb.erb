@@ -9,7 +9,7 @@ require "<%= require_path %>"
 <%= indent %>        # here, but it is not strictly required. The syskit_stub_*
 <%= indent %>        # methods generate what is needed to have a run-able
 <%= indent %>        # composition
-<%= indent %>        cmp_task = syskit_stub_deploy_configure_and_start(
+<%= indent %>        syskit_stub_deploy_configure_and_start(
 <%= indent %>            <%= class_name.last %>
 <%= indent %>        )
 
