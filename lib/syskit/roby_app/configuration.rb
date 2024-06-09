@@ -81,6 +81,13 @@ module Syskit
             # @deprecated Unused, kept here for historical reasons
             attr_predicate :use_only_model_pack?, true
 
+            # Controls whether Models::TaskContext.model_for raises if there is more
+            # than one Syskit model matching the given orogen model
+            #
+            # This is false for backward compatibility reasons, and will eventually
+            # become the default behavior.
+            attr_predicate :strict_model_for, true
+
             # Data logging configuration
             #
             # @return [LoggingConfiguration]
@@ -144,6 +151,7 @@ module Syskit
                 @exception_transition_timeout = 20.0
                 @kill_all_on_process_server_connection = false
                 @register_self_on_name_server = (ENV["SYSKIT_REGISTER_SELF_ON_NAME_SERVER"] != "0")
+                @strict_model_for = false
 
                 @log_rotation_period = nil
                 @log_transfer = LogTransferManager::Configuration.new(

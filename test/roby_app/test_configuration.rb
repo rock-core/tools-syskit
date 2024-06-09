@@ -94,6 +94,7 @@ describe Syskit::RobyApp::Configuration do
                 @ruby_task = ruby_task = Orocos.allow_blocking_calls do
                     Orocos::RubyTasks::TaskContext.new "remote-task"
                 end
+                Syskit::TaskContext.new_submodel(orogen_model: ruby_task.model)
                 @deployment_m = Syskit::Deployment.new_submodel do
                     task "name", ruby_task.model
                 end
