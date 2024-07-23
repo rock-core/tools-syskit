@@ -601,9 +601,8 @@ module Syskit
             # and deployments they contain.
             #
             # @return [OroGen::Spec::Project]
-            def using_task_library(name, options = {})
-                options = Kernel.validate_options options, :loader => default_loader
-                options[:loader].project_model_from_name(name)
+            def using_task_library(name, loader: default_loader)
+                loader.project_model_from_name(name)
             end
 
             # Loads the required ROS package
@@ -613,8 +612,8 @@ module Syskit
             end
 
             # @deprecated use {using_task_library} instead
-            def load_orogen_project(name, options = {})
-                using_task_library(name, options)
+            def load_orogen_project(name, **options)
+                using_task_library(name, **options)
             end
 
             def autodiscover_tests_in?(path)
