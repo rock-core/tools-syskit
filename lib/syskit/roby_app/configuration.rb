@@ -752,6 +752,10 @@ module Syskit
             def register_configured_deployment(configured_deployment)
                 deployment_group.register_configured_deployment(configured_deployment)
             end
+
+            def deregister_configured_deployment(configured_deployment)
+                deployment_group.deregister_configured_deployment(configured_deployment)
+            end
         end
     end
 end
