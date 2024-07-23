@@ -167,7 +167,7 @@ module Syskit
             def self.define_default_process_managers(app)
                 Syskit.conf.register_process_server(
                     "ruby_tasks",
-                    Orocos::RubyTasks::ProcessManager.new(app.default_loader),
+                    RubyTasks::ProcessManager.new(app.default_loader),
                     app.log_dir,
                     host_id: "syskit", logging_enabled: !app.testing?,
                     register_on_name_server: !app.testing?

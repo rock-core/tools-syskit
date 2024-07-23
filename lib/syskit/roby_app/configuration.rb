@@ -435,7 +435,7 @@ module Syskit
             def sim_process_server_config_for(name)
                 sim_name = "#{name}-sim"
                 unless process_servers[sim_name]
-                    mng = Orocos::RubyTasks::ProcessManager.new(
+                    mng = RubyTasks::ProcessManager.new(
                         app.default_loader,
                         task_context_class: Orocos::RubyTasks::StubTaskContext
                     )

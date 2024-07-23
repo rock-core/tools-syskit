@@ -536,7 +536,8 @@ module Syskit
                     before do
                         Syskit.conf.register_process_server(
                             "ruby_tasks",
-                            Orocos::RubyTasks::ProcessManager.new(Roby.app.default_loader)
+                            RobyApp::RubyTasks::ProcessManager
+                            .new(Roby.app.default_loader)
                         )
                     end
 
