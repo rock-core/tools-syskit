@@ -729,6 +729,10 @@ module Syskit
                 )
             end
 
+            def use_in_process_tasks(mappings = {}, on: "in_process_tasks", **mappings_kw)
+                deployment_group.use_in_process_tasks(mappings, on: on, **mappings_kw)
+            end
+
             def use_deployment(*names, on: "localhost", **run_options)
                 Roby.sanitize_keywords_to_array(names, run_options)
                 deployment_group.use_deployment(

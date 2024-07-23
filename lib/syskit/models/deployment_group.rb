@@ -310,6 +310,125 @@ module Syskit
                 end
             end
 
+            # Deploy oroGen-generated tasks within the Syskit process itself
+            #
+            # Valid values for the `activity` parameter:
+            # * type: "periodic", period: PERIOD_IN_SECONDS
+            # * type: "triggered"
+            # * type: "slave"
+            # * type: "fd_driven"
+            #
+            # @param [Hash] model_to_name mapping of an syskit task context model to
+            #   the desired task name, e.g. `OroGen.orogen_syskit_tests.Task => "task"`
+            # @param [Hash] activity specification of an activity if the task's default
+            #   activity needs to be overriden.
+            # @param [String] on the name of the process manager that should
+            #   be used
+            # @param process_managers the object that maintains the set of
+            #   process managers
+            # @param [Boolean|#===|Array<#===>] read_only set the deployment or some of
+            #   the deployed tasks as read only. To set the whole deployment as read only,
+            #   one should pass read_only: true. To set some tasks, pass a regex that
+            #   matches the deployed task names. Defaults to false.
+            # @return [[ConfiguredDeployment]]
+            def use_in_process_tasks(
+                model_to_name = {}, on: "in_process_tasks",
+                activity: {}, read_only: false, **model_to_name_kw
+            )
+                unless model_to_name.respond_to?(:each_key)
+                    raise ArgumentError, "mappings should be given as model => name"
+                end
+
+                model_to_name = model_to_name.merge(model_to_name_kw)
+                model_to_name.each do |task_model, _name|
+                    validate_task_model_is_plain(task_model)
+                end
+
+                model_to_name.map do |task_model, name|
+                    deployed_task_model =
+                        in_process_tasks_resolve_deployed_task_model(task_model, loader)
+
+                    deployment_m = in_process_tasks_create_syskit_deployment_model(
+                        deployed_task_model, project, activity
+                    )
+
+                    configured_deployment =
+                        Models::ConfiguredDeployment
+                        .new(on, deployment_m, { deployed_task_model.name => name }, name,
+                             read_only: read_only)
+                    register_configured_deployment(configured_deployment)
+                    configured_deployment
+                end
+            end
+
+            # @api private
+            #
+            # oroGen spec for a task model's default deployment
+            #
+            # @param [Class<Syskit::TaskContext>] task_model the task model of interest
+            # @param [OroGen::Loaders::Base] loader the orogen loader used to resolve
+            #   the model
+            # @return [OroGen::Spec::TaskDeployment] the task model's default deployment
+            def in_process_tasks_resolve_deployed_task_model(task_model, loader)
+                default_deployment_name =
+                    OroGen::Spec::Project
+                    .default_deployment_name(task_model.orogen_model.name)
+
+                deployment_model =
+                    loader.deployment_model_from_name(default_deployment_name)
+
+                deployment_model
+                    .each_task.find { |t| t.name == default_deployment_name }
+            end
+
+            # @api private
+            #
+            # Create the syskit deployment model for in-process deployment
+            #
+            # @param [OroGen::Spec::TaskDeployment] deployed_task_model the orogen
+            #   specification for the deployed task
+            # @param [OroGen::Project] project
+            # @return [Class<Syskit::Deployment>] generated deployment model
+            def in_process_tasks_create_syskit_deployment_model(
+                deployed_task_model, project, activity
+            )
+                unless activity.empty?
+                    deployed_task_model = deployed_task_model.dup
+                    in_process_tasks_override_activity(deployed_task_model, activity)
+                end
+
+                orogen_deployment_m = OroGen::Spec::Deployment.new(project)
+                orogen_deployment_m.task_activities << deployed_task_model
+                Syskit::Deployment.new_submodel(
+                    orogen_model: orogen_deployment_m
+                )
+            end
+
+            # @api private
+            #
+            # Update a deployed task's activity based on {#use_in_process_tasks}'
+            # activity parameter
+            #
+            # @param [OroGen::Spec::TaskDeployment] deployed_task_model the orogen
+            #   specification for the deployed task
+            # @param [Hash] activity
+            def in_process_tasks_override_activity(deployed_task_model, activity)
+                return if activity.empty?
+
+                case activity[:type].to_sym
+                when :periodic
+                    deployed_task_model.periodic(activity.fetch(:period))
+                when :triggered
+                    deployed_task_model.triggered
+                when :fd_driven
+                    deployed_task_model.fd_driven
+                when :slave
+                    deployed_task_model.slave
+                else
+                    raise ArgumentError, "invalid activity type #{activity}"
+                end
+            end
+
             # Declare tasks that are going to be started by some other process,
             # but whose tasks are going to be integrated in the syskit network
             #
