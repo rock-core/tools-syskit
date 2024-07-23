@@ -345,16 +345,13 @@ module Syskit
                 end
 
                 model_to_name.map do |task_model, name|
-                    deployed_task_model =
-                        in_process_tasks_resolve_deployed_task_model(task_model, loader)
-
-                    deployment_m = in_process_tasks_create_syskit_deployment_model(
-                        deployed_task_model, project, activity
+                    task_name, deployment_m = in_process_tasks_create_deployment_model(
+                        task_model, activity
                     )
 
                     configured_deployment =
                         Models::ConfiguredDeployment
-                        .new(on, deployment_m, { deployed_task_model.name => name }, name,
+                        .new(on, deployment_m, { task_name => name }, name,
                              read_only: read_only)
                     register_configured_deployment(configured_deployment)
                     configured_deployment
@@ -369,39 +366,19 @@ module Syskit
             # @param [OroGen::Loaders::Base] loader the orogen loader used to resolve
             #   the model
             # @return [OroGen::Spec::TaskDeployment] the task model's default deployment
-            def in_process_tasks_resolve_deployed_task_model(task_model, loader)
+            def in_process_tasks_create_deployment_model(
+                task_model, activity
+            )
                 default_deployment_name =
                     OroGen::Spec::Project
                     .default_deployment_name(task_model.orogen_model.name)
 
-                deployment_model =
-                    loader.deployment_model_from_name(default_deployment_name)
-
-                deployment_model
-                    .each_task.find { |t| t.name == default_deployment_name }
-            end
-
-            # @api private
-            #
-            # Create the syskit deployment model for in-process deployment
-            #
-            # @param [OroGen::Spec::TaskDeployment] deployed_task_model the orogen
-            #   specification for the deployed task
-            # @param [OroGen::Project] project
-            # @return [Class<Syskit::Deployment>] generated deployment model
-            def in_process_tasks_create_syskit_deployment_model(
-                deployed_task_model, project, activity
-            )
-                unless activity.empty?
-                    deployed_task_model = deployed_task_model.dup
-                    in_process_tasks_override_activity(deployed_task_model, activity)
+                deployed_task = nil
+                syskit_deployment_m = Syskit::Deployment.new_submodel do
+                    deployed_task = task(default_deployment_name, task_model)
                 end
-
-                orogen_deployment_m = OroGen::Spec::Deployment.new(project)
-                orogen_deployment_m.task_activities << deployed_task_model
-                Syskit::Deployment.new_submodel(
-                    orogen_model: orogen_deployment_m
-                )
+                in_process_tasks_override_activity(deployed_task, activity)
+                [default_deployment_name, syskit_deployment_m]
             end
 
             # @api private
