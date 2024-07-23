@@ -373,7 +373,6 @@ module Syskit
             if arguments[:logger_task]
                 @logger_task = arguments[:logger_task]
             elsif @logger_task&.reusable?
-                @logger_task
             elsif (logger_name = self.logger_name)
                 logger_task = each_executed_task
                               .find { |t| t.orocos_name == logger_name }
@@ -385,8 +384,9 @@ module Syskit
                     end
 
                 @logger_task&.default_logger = true
-                @logger_task
             end
+
+            @logger_task ||= process_server_config.default_logger_task(plan)
         end
 
         # Instanciates a new default logger

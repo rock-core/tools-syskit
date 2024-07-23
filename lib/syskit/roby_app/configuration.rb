@@ -687,6 +687,10 @@ module Syskit
                     def register_on_name_server?
                         register_on_name_server
                     end
+
+                    def default_logger_task(plan)
+                        client.default_logger_task(plan) if client.respond_to?(:default_logger_task)
+                    end
                 end
 
             # Make a process server available to syskit
