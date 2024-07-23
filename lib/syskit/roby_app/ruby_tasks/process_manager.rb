@@ -146,6 +146,10 @@ module Syskit
 
                     terminated_deployments[deployment] = status
                 end
+
+                def default_logger_task(plan, app: Roby.app)
+                    InProcessTasksManager.default_logger_task(plan, app: app)
+                end
             end
         end
     end
