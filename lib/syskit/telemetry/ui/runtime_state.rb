@@ -122,13 +122,14 @@ module Syskit
                 # @param [Integer] poll_period how often should the syskit interface
                 #   be polled (milliseconds). Set to nil if the polling is already
                 #   done externally
-                def initialize(parent: nil, robot_name: "default",
+                def initialize(parent: nil,
                     syskit: Roby::Interface::V2::Async::Interface.new, poll_period: 50)
 
                     super(parent)
 
                     @syskit = syskit
-                    @robot_name = robot_name
+                    @syskit_run_arguments =
+                        SyskitRunArguments.new(robot: "default", set: [])
                     reset
 
                     @syskit_poll = Qt::Timer.new
@@ -203,6 +204,14 @@ module Syskit
                     end
                 end
 
+                SyskitRunArguments = Struct.new :robot, :set, keyword_init: true
+
+                def syskit_run_arguments(robot: "default", set: [])
+                    @syskit_run_arguments = SyskitRunArguments.new(
+                        robot: robot, set: set
+                    )
+                end
+
                 def monitor_syskit_startup
                     return unless @syskit_pid
 
@@ -266,20 +275,18 @@ module Syskit
                     actions
                 end
 
-                def app_start(robot_name: "default", port: nil)
+                def app_start(port: nil)
                     robot_name, start_controller, single = AppStartDialog.exec(
                         Roby.app.robots.names, self, default_robot_name: robot_name
                     )
                     return unless robot_name
 
                     extra_args = []
-                    extra_args << "-r" << robot_name unless robot_name.empty?
+                    extra_args << "-r" << @syskit_run_arguments.robot
                     extra_args << "-c" if start_controller
                     extra_args << "--port-v2=#{port}" if port
                     extra_args << "--single" if single
-                    extra_args.concat(
-                        Roby.app.argv_set.flat_map { |arg| ["--set", arg] }
-                    )
+                    extra_args.concat(@syskit_run_arguments.set.map { "--set=#{_1}" })
                     @syskit_pid =
                         Kernel.spawn Gem.ruby, "-S", "syskit", "run", "--wait-shell-connection",
                                      *extra_args,
