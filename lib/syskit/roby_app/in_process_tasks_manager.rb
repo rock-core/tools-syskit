@@ -157,7 +157,9 @@ module Syskit
             def self.find_default_logger_task(plan, app: Roby.app)
                 return unless (logger_m = app.syskit_logger_m)
 
-                plan.find_tasks(logger_m).permanent.first
+                plan.find_tasks(logger_m)
+                    .with_arguments(orocos_name: DEFAULT_LOGGER_NAME)
+                    .permanent.first
             end
 
             # The logger task

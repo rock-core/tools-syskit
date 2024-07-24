@@ -141,6 +141,12 @@ module Syskit
                     t2 = InProcessTasksManager.default_logger_task(plan)
                     assert_same t1, t2
                 end
+
+                it "selects the in-process logger specifically" do
+                    plan.add_permanent_task(Roby.app.syskit_logger_m)
+
+                    assert_nil InProcessTasksManager.find_default_logger_task(plan)
+                end
             end
 
             def create_deployment(**spec)
