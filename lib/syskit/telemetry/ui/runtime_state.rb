@@ -275,14 +275,32 @@ module Syskit
                     actions
                 end
 
+                def require_app_dir
+                    begin
+                        Roby.app.require_app_dir
+                    rescue ArgumentError
+                        Qt::MessageBox.warning(
+                            self, "Wrong current directory",
+                            "Current directory is not a Roby app, cannot start"
+                        )
+                        return
+                    end
+
+                    Roby.app.setup_robot_names_from_config_dir
+                    true
+                end
+
                 def app_start(port: nil)
+                    return unless require_app_dir
+
                     robot_name, start_controller, single = AppStartDialog.exec(
-                        Roby.app.robots.names, self, default_robot_name: robot_name
+                        Roby.app.robots.names, self,
+                        default_robot_name: @syskit_run_arguments.robot
                     )
                     return unless robot_name
 
                     extra_args = []
-                    extra_args << "-r" << @syskit_run_arguments.robot
+                    extra_args << "-r" << robot_name
                     extra_args << "-c" if start_controller
                     extra_args << "--port-v2=#{port}" if port
                     extra_args << "--single" if single
