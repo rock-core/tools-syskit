@@ -137,25 +137,9 @@ module Syskit
                             self, SLOT("poll_syskit_interface()")
 
                     @syskit_poll.start(poll_period) if poll_period
+                    @global_actions = create_app_start_actions
 
                     create_ui
-
-                    @global_actions = {}
-                    action = global_actions[:start] = Qt::Action.new("Start", self)
-                    @starting_monitor = Qt::Timer.new
-                    connect @starting_monitor, SIGNAL("timeout()"),
-                            self, SLOT("monitor_syskit_startup()")
-                    connect action, SIGNAL("triggered()") do
-                        app_start(robot_name: @robot_name, port: syskit.remote_port)
-                    end
-                    action = global_actions[:restart] = Qt::Action.new("Restart", self)
-                    connect action, SIGNAL("triggered()") do
-                        app_restart
-                    end
-                    action = global_actions[:quit] = Qt::Action.new("Quit", self)
-                    connect action, SIGNAL("triggered()") do
-                        app_quit
-                    end
 
                     @current_job = nil
                     @current_orocos_tasks = Set.new
@@ -260,6 +244,28 @@ module Syskit
                     syskit.remote_name
                 end
 
+                def create_app_start_actions
+                    actions = {}
+
+                    action = actions[:start] = Qt::Action.new("Start", self)
+                    @starting_monitor = Qt::Timer.new
+                    connect @starting_monitor, SIGNAL("timeout()"),
+                            self, SLOT("monitor_syskit_startup()")
+                    connect action, SIGNAL("triggered()") do
+                        app_start(port: syskit.remote_port)
+                    end
+                    action = actions[:restart] = Qt::Action.new("Restart", self)
+                    connect action, SIGNAL("triggered()") do
+                        app_restart
+                    end
+                    action = actions[:quit] = Qt::Action.new("Quit", self)
+                    connect action, SIGNAL("triggered()") do
+                        app_quit
+                    end
+
+                    actions
+                end
+
                 def app_start(robot_name: "default", port: nil)
                     robot_name, start_controller, single = AppStartDialog.exec(
                         Roby.app.robots.names, self, default_robot_name: robot_name
@@ -321,7 +327,9 @@ module Syskit
                     job_summary_layout = Qt::VBoxLayout.new(job_summary)
                     job_summary_layout.add_layout(@new_job_layout = create_ui_new_job)
 
-                    @connection_state = GlobalStateLabel.new(name: remote_name)
+                    @connection_state = GlobalStateLabel.new(
+                        name: remote_name, actions: @global_actions.values
+                    )
                     on_progress do |message|
                         state = connection_state.current_state.to_s
                         connection_state.update_text(format("%s - %s", state, message))
