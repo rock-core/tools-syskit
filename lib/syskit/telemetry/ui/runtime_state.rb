@@ -302,6 +302,7 @@ module Syskit
                     extra_args = []
                     extra_args << "-r" << robot_name
                     extra_args << "-c" if start_controller
+                    extra_args << "--interface-versions=2"
                     extra_args << "--port-v2=#{port}" if port
                     extra_args << "--single" if single
                     extra_args.concat(@syskit_run_arguments.set.map { "--set=#{_1}" })
