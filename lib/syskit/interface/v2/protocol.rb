@@ -36,6 +36,10 @@ module Syskit
                     protocol.add_marshaller(
                         Syskit::Deployment, &method(:marshal_deployment_task)
                     )
+                    protocol.allow_objects(
+                        Orocos::RubyTasks::TaskContext,
+                        Orocos::RubyTasks::StubTaskContext
+                    )
                 end
 
                 def self.register_remote_task_handle(name, remote_task_handle)
