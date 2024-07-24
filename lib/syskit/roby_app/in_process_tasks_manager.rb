@@ -162,6 +162,14 @@ module Syskit
                     .permanent.first
             end
 
+            def self.find_default_logger_deployment_task(plan, app: Roby.app)
+                return unless app.syskit_logger_m
+                return unless (deployment = app.syskit_in_process_logger_deployment)
+
+                plan.find_tasks(deployment.model)
+                    .permanent.first
+            end
+
             # The logger task
             def self.default_logger_task(plan, app: Roby.app)
                 return unless (deployment = app.syskit_in_process_logger_deployment)
@@ -170,7 +178,9 @@ module Syskit
                     return t
                 end
 
-                plan.add_permanent_task(deployment_t = deployment.new)
+                deployment_t = find_default_logger_deployment_task(plan, app: app)
+                plan.add_permanent_task(deployment_t = deployment.new) unless deployment_t
+
                 plan.add_permanent_task(logger_t = deployment_t.task(DEFAULT_LOGGER_NAME))
                 logger_t.default_logger = true if logger_t.respond_to?(:default_logger=)
                 logger_t

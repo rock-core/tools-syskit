@@ -147,6 +147,16 @@ module Syskit
 
                     assert_nil InProcessTasksManager.find_default_logger_task(plan)
                 end
+
+                it "reuses the in-process logger deployment if it exists" do
+                    InProcessTasksManager.register_default_logger_deployment(app)
+
+                    deployment_task = plan.add_permanent_task(
+                        Roby.app.syskit_in_process_logger_deployment.new
+                    )
+                    t = InProcessTasksManager.default_logger_task(plan)
+                    assert_same deployment_task, t.execution_agent
+                end
             end
 
             def create_deployment(**spec)
