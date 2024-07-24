@@ -622,12 +622,12 @@ module Syskit
                 def polling_call(path, method_name, *args)
                     key = [path, method_name, args]
                     if @call_guards.key?(key)
-                        return unless @call_guards[key]
+                        return if @call_guards[key]
                     end
 
-                    @call_guards[key] = false
+                    @call_guards[key] = true
                     syskit.async_call(path, method_name, *args) do |error, ret|
-                        @call_guards[key] = true
+                        @call_guards[key] = false
                         if error
                             report_app_error(error)
                         else
