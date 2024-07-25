@@ -162,10 +162,6 @@ module Syskit
             orogen_task_deployment
         end
 
-        def deployed_model_by_orogen_model(orogen_model)
-            TaskContext.model_for(orogen_model.task_model)
-        end
-
         # @api private
         #
         # Create and add a task model supported by this deployment
@@ -204,7 +200,7 @@ module Syskit
                       "from #{self}"
             end
 
-            base_syskit_task_model = deployed_model_by_orogen_model(
+            base_syskit_task_model = model.resolve_syskit_model_for_deployed_task(
                 orogen_task_deployment_model
             )
             syskit_task_model ||= base_syskit_task_model
@@ -404,7 +400,7 @@ module Syskit
                 return
             end
 
-            syskit_model = deployed_model_by_orogen_model(orogen_model)
+            syskit_model = model.resolve_syskit_model_for_deployed_task(orogen_model)
             return unless syskit_model.fullfills?(LoggerService)
 
             # Automatic setup by
