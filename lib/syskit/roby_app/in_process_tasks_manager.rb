@@ -11,35 +11,26 @@ module Syskit
 
             # Fake status class
             class Status
-                def initialize(exit_code: nil, signal: nil)
-                    @exit_code = exit_code
-                    @signal = signal
-                end
-
                 def stopped?
                     false
                 end
 
                 def exited?
-                    !@exit_code.nil?
+                    false
                 end
 
-                def exitstatus
-                    @exit_code
-                end
+                def exitstatus; end
 
                 def signaled?
-                    !@signal.nil?
+                    false
                 end
 
-                def termsig
-                    @signal
-                end
+                def termsig; end
 
                 def stopsig; end
 
                 def success?
-                    exitstatus == 0
+                    true
                 end
             end
 
@@ -126,13 +117,11 @@ module Syskit
             # Returns a hash that maps deployment names to the Status
             # object that represents their exit status.
             def wait_termination(_timeout = nil)
-                # Verify that the monitor threads are in a good state, and
-                # gather the ones that are actually dead
-                dead_processes = Set.new
+                dead_processes = {}
                 processes.delete_if do |_, process|
                     next unless process.dead?
 
-                    dead_processes << process
+                    dead_processes[process] = Status.new
                     true
                 end
                 dead_processes

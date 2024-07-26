@@ -26,6 +26,16 @@ module Syskit
                 Syskit.conf.remove_process_server("in_process_tasks")
             end
 
+            it "follows the lifecycle of a deployment" do
+                deployment_task = create_deployment(
+                    OroGen.orogen_syskit_tests.TriggeredEcho => "some_name"
+                )
+                expect_execution { deployment_task.start! }
+                    .to { emit deployment_task.ready_event }
+                expect_execution { deployment_task.stop! }
+                    .to { emit deployment_task.success_event }
+            end
+
             it "deploys a usable triggered task" do
                 task = define_and_start(
                     OroGen.orogen_syskit_tests.TriggeredEcho => "some_name"
