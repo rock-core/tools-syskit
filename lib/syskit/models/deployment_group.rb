@@ -341,15 +341,7 @@ module Syskit
                 end
 
                 model_to_name.each do |task_model, _name|
-                    is_pure_task_context_model =
-                        task_model.kind_of?(Class) &&
-                        (task_model <= Syskit::TaskContext) &&
-                        !(task_model <= Syskit::RubyTaskContext)
-                    unless is_pure_task_context_model
-                        raise ArgumentError,
-                              "expected a mapping from a task context "\
-                              "model to a name, but got #{task_model}"
-                    end
+                    validate_task_model_is_plain(task_model)
                 end
 
                 model_to_name.map do |task_model, name|
@@ -367,6 +359,26 @@ module Syskit
                     register_configured_deployment(configured_deployment)
                     configured_deployment
                 end
+            end
+
+            # Raise if a given task model is not a "plain" orogen-generated task context
+            def validate_task_model_is_plain(task_m)
+                return if plain_task_context_model?(task_m)
+
+                raise ArgumentError,
+                      "expected a mapping from a task context "\
+                      "model to a name, but got #{task_m}"
+            end
+
+            # Tests whether a given task model is a "plain" orogen-generated task context
+            def plain_task_context_model?(model)
+                model.kind_of?(Class) &&
+                    (model <= Syskit::TaskContext) &&
+                    !(model <= Syskit::RubyTaskContext)
+            end
+
+            def deployment_model?(model)
+                model.kind_of?(Class) && model <= Syskit::Deployment
             end
 
             # @api private
@@ -449,11 +461,7 @@ module Syskit
                     if k.respond_to?(:to_str)
                         k
                     else
-                        is_valid =
-                            k.kind_of?(Class) &&
-                            (k <= Syskit::TaskContext || k <= Syskit::Deployment) &&
-                            !(k <= Syskit::RubyTaskContext)
-                        unless is_valid
+                        unless plain_task_context_model?(k) || deployment_model?(k)
                             raise ArgumentError,
                                   "only deployment and task context "\
                                   "models can be deployed by use_deployment, got #{k}"
