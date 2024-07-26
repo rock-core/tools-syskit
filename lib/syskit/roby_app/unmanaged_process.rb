@@ -170,6 +170,7 @@ module Syskit
                 @ior_mappings = tasks.transform_values(&:ior)
                 @deployed_tasks = tasks
                 @monitor_thread = Thread.new { monitor(tasks) }
+                @monitor_thread.report_on_exception = false
                 @ior_mappings
             end
 
@@ -204,11 +205,7 @@ module Syskit
             # @param [Float] period polling period in seconds
             def monitor(tasks, period: 0.1)
                 until quitting?
-                    tasks.each_value do |task|
-                        task.ping
-                    rescue Orocos::ComError
-                        return # rubocop:disable Lint/NonLocalExitFromIterator
-                    end
+                    tasks.each_value(&:ping)
                     sleep period
                 end
             end
