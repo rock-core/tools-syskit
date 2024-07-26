@@ -734,6 +734,9 @@ module Syskit
                 end
 
                 def restore_from_settings(settings = self.settings)
+                    self.size = settings.value(
+                        "MainWindow/size", Qt::Variant.new(Qt::Size.new(800, 600))
+                    ).to_size
                     %w{ui_hide_loggers ui_show_expanded_job}.each do |checkbox_name|
                         default = Qt::Variant.new(send(checkbox_name).checked)
                         send(checkbox_name).checked = settings.value(checkbox_name, default).to_bool
@@ -741,6 +744,7 @@ module Syskit
                 end
 
                 def save_to_settings(settings = self.settings)
+                    settings.set_value("MainWindow/size", Qt::Variant.new(size))
                     %w(ui_hide_loggers ui_show_expanded_job).each do |checkbox_name|
                         settings.set_value checkbox_name, Qt::Variant.new(send(checkbox_name).checked)
                     end
