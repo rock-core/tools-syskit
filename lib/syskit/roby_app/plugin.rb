@@ -101,6 +101,13 @@ module Syskit
                     )
                 end
 
+                app.syskit_component_loader = Orocos::ComponentLoader.new(
+                    loader: OroGen::Loaders::PkgConfig.new(
+                        app.default_pkgconfig_loader.orocos_target,
+                        app.default_loader
+                    )
+                )
+
                 if Syskit.conf.define_default_process_managers?
                     if Syskit.conf.only_load_models?
                         define_fake_process_managers(app)
@@ -294,13 +301,6 @@ module Syskit
             def self.prepare(app)
                 app.syskit_log_transfer_prepare
                 @handler_ids = plug_engine_in_roby(app.execution_engine)
-
-                app.syskit_component_loader = Orocos::ComponentLoader.new(
-                    loader: OroGen::Loaders::PkgConfig.new(
-                        app.default_pkgconfig_loader.orocos_target,
-                        app.default_loader
-                    )
-                )
 
                 if Syskit.conf.log_rotation_period
                     @log_rotation_poll_handler =
