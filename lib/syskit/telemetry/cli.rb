@@ -12,6 +12,13 @@ module Syskit
             option :host,
                    type: :string, doc: "host[:port] to connect to",
                    default: "localhost:#{Roby::Interface::DEFAULT_PORT_V2}"
+            option :robot,
+                   aliases: "r",
+                   type: :string, doc: "robot config option to pass to `syskit run`",
+                   default: "default"
+            option :set,
+                   type: :string, doc: "--set options to pass to `syskit run`",
+                   repeatable: true, default: []
             def ui
                 roby_setup
                 host, port = parse_host_port(
@@ -46,12 +53,21 @@ module Syskit
                     [match[1], Integer(match[2])]
                 end
 
-                def runtime_state(host, port)
+                def create_async_interface(host, port)
                     Orocos.initialize
-                    interface = Roby::Interface::V2::Async::Interface
-                                .new(host, port: port)
+                    Roby::Interface::V2::Async::Interface.new(host, port: port)
+                end
+
+                def create_runtime_state_ui(host, port)
+                    interface = create_async_interface(host, port)
                     main = UI::RuntimeState.new(syskit: interface)
-                    main.window_title = "Syskit @#{options[:host]}"
+                    main.syskit_run_arguments(robot: options[:robot], set: options[:set])
+                    main.window_title = "Syskit @#{host}"
+                    main
+                end
+
+                def runtime_state(host, port)
+                    main = create_runtime_state_ui(host, port)
 
                     main.restore_from_settings
                     main.show

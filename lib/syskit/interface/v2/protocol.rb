@@ -36,9 +36,13 @@ module Syskit
                     protocol.add_marshaller(
                         Syskit::Deployment, &method(:marshal_deployment_task)
                     )
+                    protocol.allow_objects(
+                        Orocos::RubyTasks::TaskContext,
+                        Orocos::RubyTasks::StubTaskContext
+                    )
                 end
 
-                def self.register_remote_task_handle(name, remote_task_handle)
+                def self.marshal_remote_task_handle(name, remote_task_handle)
                     ior = remote_task_handle.handle.ior
                     model_name = remote_task_handle.handle.model.name
                     DeployedTask.new(
@@ -49,7 +53,7 @@ module Syskit
                 def self.marshal_deployment_task(channel, task)
                     deployed_tasks =
                         task.remote_task_handles.map do |name, remote_task_handle|
-                            register_remote_task_handle(name, remote_task_handle)
+                            marshal_remote_task_handle(name, remote_task_handle)
                         end
 
                     roby_task = Roby::Interface::V2::Protocol.marshal_task(channel, task)

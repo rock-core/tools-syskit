@@ -122,13 +122,14 @@ module Syskit
                 # @param [Integer] poll_period how often should the syskit interface
                 #   be polled (milliseconds). Set to nil if the polling is already
                 #   done externally
-                def initialize(parent: nil, robot_name: "default",
+                def initialize(parent: nil,
                     syskit: Roby::Interface::V2::Async::Interface.new, poll_period: 50)
 
                     super(parent)
 
                     @syskit = syskit
-                    @robot_name = robot_name
+                    @syskit_run_arguments =
+                        SyskitRunArguments.new(robot: "default", set: [])
                     reset
 
                     @syskit_poll = Qt::Timer.new
@@ -137,25 +138,9 @@ module Syskit
                             self, SLOT("poll_syskit_interface()")
 
                     @syskit_poll.start(poll_period) if poll_period
+                    @global_actions = create_app_start_actions
 
                     create_ui
-
-                    @global_actions = {}
-                    action = global_actions[:start] = Qt::Action.new("Start", self)
-                    @starting_monitor = Qt::Timer.new
-                    connect @starting_monitor, SIGNAL("timeout()"),
-                            self, SLOT("monitor_syskit_startup()")
-                    connect action, SIGNAL("triggered()") do
-                        app_start(robot_name: @robot_name, port: syskit.remote_port)
-                    end
-                    action = global_actions[:restart] = Qt::Action.new("Restart", self)
-                    connect action, SIGNAL("triggered()") do
-                        app_restart
-                    end
-                    action = global_actions[:quit] = Qt::Action.new("Quit", self)
-                    connect action, SIGNAL("triggered()") do
-                        app_quit
-                    end
 
                     @current_job = nil
                     @current_orocos_tasks = Set.new
@@ -219,6 +204,14 @@ module Syskit
                     end
                 end
 
+                SyskitRunArguments = Struct.new :robot, :set, keyword_init: true
+
+                def syskit_run_arguments(robot: "default", set: [])
+                    @syskit_run_arguments = SyskitRunArguments.new(
+                        robot: robot, set: set
+                    )
+                end
+
                 def monitor_syskit_startup
                     return unless @syskit_pid
 
@@ -260,20 +253,59 @@ module Syskit
                     syskit.remote_name
                 end
 
-                def app_start(robot_name: "default", port: nil)
+                def create_app_start_actions
+                    actions = {}
+
+                    action = actions[:start] = Qt::Action.new("Start", self)
+                    @starting_monitor = Qt::Timer.new
+                    connect @starting_monitor, SIGNAL("timeout()"),
+                            self, SLOT("monitor_syskit_startup()")
+                    connect action, SIGNAL("triggered()") do
+                        app_start(port: syskit.remote_port)
+                    end
+                    action = actions[:restart] = Qt::Action.new("Restart", self)
+                    connect action, SIGNAL("triggered()") do
+                        app_restart
+                    end
+                    action = actions[:quit] = Qt::Action.new("Quit", self)
+                    connect action, SIGNAL("triggered()") do
+                        app_quit
+                    end
+
+                    actions
+                end
+
+                def require_app_dir
+                    begin
+                        Roby.app.require_app_dir
+                    rescue ArgumentError
+                        Qt::MessageBox.warning(
+                            self, "Wrong current directory",
+                            "Current directory is not a Roby app, cannot start"
+                        )
+                        return
+                    end
+
+                    Roby.app.setup_robot_names_from_config_dir
+                    true
+                end
+
+                def app_start(port: nil)
+                    return unless require_app_dir
+
                     robot_name, start_controller, single = AppStartDialog.exec(
-                        Roby.app.robots.names, self, default_robot_name: robot_name
+                        Roby.app.robots.names, self,
+                        default_robot_name: @syskit_run_arguments.robot
                     )
                     return unless robot_name
 
                     extra_args = []
-                    extra_args << "-r" << robot_name unless robot_name.empty?
+                    extra_args << "-r" << robot_name
                     extra_args << "-c" if start_controller
-                    extra_args << "--port=#{port}" if port
+                    extra_args << "--interface-versions=2"
+                    extra_args << "--port-v2=#{port}" if port
                     extra_args << "--single" if single
-                    extra_args.concat(
-                        Roby.app.argv_set.flat_map { |arg| ["--set", arg] }
-                    )
+                    extra_args.concat(@syskit_run_arguments.set.map { "--set=#{_1}" })
                     @syskit_pid =
                         Kernel.spawn Gem.ruby, "-S", "syskit", "run", "--wait-shell-connection",
                                      *extra_args,
@@ -321,7 +353,9 @@ module Syskit
                     job_summary_layout = Qt::VBoxLayout.new(job_summary)
                     job_summary_layout.add_layout(@new_job_layout = create_ui_new_job)
 
-                    @connection_state = GlobalStateLabel.new(name: remote_name)
+                    @connection_state = GlobalStateLabel.new(
+                        name: remote_name, actions: @global_actions.values
+                    )
                     on_progress do |message|
                         state = connection_state.current_state.to_s
                         connection_state.update_text(format("%s - %s", state, message))
@@ -588,12 +622,12 @@ module Syskit
                 def polling_call(path, method_name, *args)
                     key = [path, method_name, args]
                     if @call_guards.key?(key)
-                        return unless @call_guards[key]
+                        return if @call_guards[key]
                     end
 
-                    @call_guards[key] = false
+                    @call_guards[key] = true
                     syskit.async_call(path, method_name, *args) do |error, ret|
-                        @call_guards[key] = true
+                        @call_guards[key] = false
                         if error
                             report_app_error(error)
                         else
@@ -700,6 +734,9 @@ module Syskit
                 end
 
                 def restore_from_settings(settings = self.settings)
+                    self.size = settings.value(
+                        "MainWindow/size", Qt::Variant.new(Qt::Size.new(800, 600))
+                    ).to_size
                     %w{ui_hide_loggers ui_show_expanded_job}.each do |checkbox_name|
                         default = Qt::Variant.new(send(checkbox_name).checked)
                         send(checkbox_name).checked = settings.value(checkbox_name, default).to_bool
@@ -707,6 +744,7 @@ module Syskit
                 end
 
                 def save_to_settings(settings = self.settings)
+                    settings.set_value("MainWindow/size", Qt::Variant.new(size))
                     %w(ui_hide_loggers ui_show_expanded_job).each do |checkbox_name|
                         settings.set_value checkbox_name, Qt::Variant.new(send(checkbox_name).checked)
                     end
