@@ -24,9 +24,9 @@ end
 # Transform 'syskit help <mode>' to 'syskit <mode> --help' if mode is not
 # handled by thor
 if ARGV[0] == "help"
-    if ((command_name = ARGV[1]) && !thor_command?(command_name))
-          ARGV.shift
-          ARGV << "--help"
+    if (command_name = ARGV[1]) && !thor_command?(command_name)
+        ARGV.shift
+        ARGV << "--help"
     end
 # Transform 'syskit <mode> --help' to 'syskit help <mode>' if mode is handled
 # by thor
