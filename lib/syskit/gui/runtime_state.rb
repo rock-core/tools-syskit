@@ -474,7 +474,7 @@ module Syskit
                 @ui_hide_loggers.checked = false
                 @ui_hide_loggers.connect SIGNAL("toggled(bool)") do |checked|
                     @known_loggers = nil
-                    update_tasks_info
+                    update_tasks_info if syskit_log_stream
                 end
                 @ui_show_expanded_job.checked = true
                 @ui_show_expanded_job.connect SIGNAL("toggled(bool)") do |checked|
