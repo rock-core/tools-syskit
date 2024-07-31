@@ -51,9 +51,10 @@ module Syskit
 
                 it "stopping the process causes the monitor thread to quit" do
                     make_deployment_ready
+                    execute { plan.remove_task(@task) }
                     monitor_thread = deployment_task.orocos_process.monitor_thread
                     expect_execution { deployment_task.stop! }
-                        .to { emit deployment_task.stop_event }
+                        .to { emit deployment_task.success_event }
                     refute deployment_task.orocos_process.monitor_thread.alive?
                     assert deployment_task.orocos_process.dead?
                     refute monitor_thread.alive?
@@ -108,8 +109,8 @@ module Syskit
                             .and_raise(RuntimeError)
                         capture_log(process, :fatal) do
                             assert_equal [process],
-                                         process_manager.wait_termination(0).to_a
-                            assert_equal Set[], process_manager.wait_termination(0)
+                                         process_manager.wait_termination(0).keys
+                            assert_equal({}, process_manager.wait_termination(0))
                         end
                     ensure (
                         process_manager.processes["unmanaged_deployment_test"] = process
@@ -125,7 +126,9 @@ module Syskit
                             # Synchronize on the monitor thread explicitely, otherwise
                             # the RTT state read might kick in first and bypass the
                             # whole purpose of the test
-                            deployment_task.orocos_process.monitor_thread.join
+                            assert_raises(Orocos::ComError) do
+                                deployment_task.orocos_process.monitor_thread.join
+                            end
                             assert deployment_task.orocos_process.dead?
                         end.to { emit deployment_task.failed_event }
                     end

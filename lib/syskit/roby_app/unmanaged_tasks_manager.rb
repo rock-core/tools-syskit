@@ -13,9 +13,8 @@ module Syskit
 
             # Fake status class
             class Status
-                def initialize(exit_code: nil, signal: nil)
-                    @exit_code = exit_code
-                    @signal = signal
+                def initialize(success)
+                    @success = success
                 end
 
                 def stopped?
@@ -23,25 +22,23 @@ module Syskit
                 end
 
                 def exited?
-                    !@exit_code.nil?
+                    !@success
                 end
 
                 def exitstatus
-                    @exit_code
+                    success ? 0 : 1
                 end
 
                 def signaled?
-                    !@signal.nil?
+                    false
                 end
 
-                def termsig
-                    @signal
-                end
+                def termsig; end
 
                 def stopsig; end
 
                 def success?
-                    exitstatus == 0
+                    @success
                 end
             end
 
@@ -134,17 +131,19 @@ module Syskit
             def wait_termination(_timeout = nil)
                 # Verify that the monitor threads are in a good state, and
                 # gather the ones that are actually dead
-                dead_processes = Set.new
+                dead_processes = {}
                 processes.delete_if do |_, process|
                     next unless process.dead?
 
-                    dead_processes << process
                     begin
                         process.verify_threads_state
+                        dead_processes[process] = Status.new(true)
                     rescue Exception => e # rubocop:disable Lint/RescueException
                         process.fatal "assuming #{process} died because the background "\
                                       "thread died with"
                         Roby.log_exception(e, process, :fatal)
+
+                        dead_processes[process] = Status.new(false)
                     end
 
                     true
