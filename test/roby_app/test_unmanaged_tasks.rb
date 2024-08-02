@@ -7,6 +7,11 @@ module Syskit
         describe UnmanagedTasksManager do
             attr_reader :process_manager, :task_model, :unmanaged_task, :deployment_task
 
+            before do
+                @unmanaged_task_name =
+                    "syskit-unmanaged_deployment_test-#{Process.pid}-#{rand}"
+            end
+
             describe "using the default name service" do
                 before do
                     @task_model = Syskit::TaskContext.new_submodel
@@ -14,7 +19,7 @@ module Syskit
                         "unmanaged_tasks", UnmanagedTasksManager.new
                     )
                     @process_manager = Syskit.conf.process_server_for("unmanaged_tasks")
-                    use_unmanaged_task task_model => "unmanaged_deployment_test"
+                    use_unmanaged_task task_model => @unmanaged_task_name
                     @task = syskit_deploy(task_model)
                     @deployment_task = @task.execution_agent
                     plan.unmark_mission_task(@task)
@@ -32,7 +37,7 @@ module Syskit
                 end
 
                 it "sets the deployment's process name's to the specified name" do
-                    assert_equal "unmanaged_deployment_test", deployment_task.process_name
+                    assert_equal @unmanaged_task_name, deployment_task.process_name
                 end
 
                 it "readies the execution agent when the task becomes available" do
@@ -45,7 +50,7 @@ module Syskit
 
                     create_unmanaged_task
                     expect_execution.to { emit deployment_task.ready_event }
-                    task = deployment_task.task("unmanaged_deployment_test")
+                    task = deployment_task.task(@unmanaged_task_name)
                     assert_equal unmanaged_task, task.orocos_task
                 end
 
@@ -93,7 +98,7 @@ module Syskit
                                       "RuntimeError (RuntimeError)"],
                                      background_thread_died
                     end
-                    assert_equal ["unmanaged_deployment_test unexpectedly died "\
+                    assert_equal ["#{@unmanaged_task_name} unexpectedly died "\
                                   "on process server unmanaged_tasks"],
                                  process_died
                 end
@@ -113,7 +118,7 @@ module Syskit
                             assert_equal({}, process_manager.wait_termination(0))
                         end
                     ensure (
-                        process_manager.processes["unmanaged_deployment_test"] = process
+                        process_manager.processes[@unmanaged_task_name] = process
                     )
                     end
                 end
@@ -132,7 +137,7 @@ module Syskit
                             assert deployment_task.orocos_process.dead?
                         end.to { emit deployment_task.failed_event }
                     end
-                    assert_equal ["unmanaged_deployment_test unexpectedly died on "\
+                    assert_equal ["#{@unmanaged_task_name} unexpectedly died on "\
                                   "process server unmanaged_tasks"],
                                  messages
                 end
@@ -161,7 +166,7 @@ module Syskit
                     )
                     @process_manager =
                         Syskit.conf.process_server_for("new_unmanaged_tasks")
-                    use_unmanaged_task(task_model => "unmanaged_deployment_test",
+                    use_unmanaged_task(task_model => @unmanaged_task_name,
                                        on: "new_unmanaged_tasks")
                     @task = syskit_deploy(task_model)
                     @deployment_task = @task.execution_agent
@@ -173,12 +178,12 @@ module Syskit
                     name_service.register @unmanaged_task
 
                     process = process_manager.start(
-                        "unmanaged_deployment_test", deployment_task.model.orogen_model
+                        @unmanaged_task_name, deployment_task.model.orogen_model
                     )
                     result = process.wait_running
-                    assert_includes(result, "unmanaged_deployment_test")
-                    assert_kind_of(String, result["unmanaged_deployment_test"])
-                    assert_match(/^IOR:/, result["unmanaged_deployment_test"])
+                    assert_includes(result, @unmanaged_task_name)
+                    assert_kind_of(String, result[@unmanaged_task_name])
+                    assert_match(/^IOR:/, result[@unmanaged_task_name])
                 end
             end
 
@@ -187,7 +192,7 @@ module Syskit
 
                 @unmanaged_task = Orocos.allow_blocking_calls do
                     Orocos::RubyTasks::TaskContext.from_orogen_model(
-                        "unmanaged_deployment_test", task_model.orogen_model
+                        @unmanaged_task_name, task_model.orogen_model
                     )
                 end
             end
