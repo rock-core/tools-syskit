@@ -39,6 +39,11 @@ module Syskit
 
             attr_writer :syskit_use_update_properties
 
+            # Object that allows in-process instantiation of RTT task contexts
+            #
+            # @return [Orocos::ComponentLoader]
+            attr_accessor :syskit_component_loader
+
             # Assume all component models have been migrated to use update_properties
             #
             # See https://www.rock-robotics.org/rock-and-syskit/deprecations/update_properties.html
@@ -95,6 +100,13 @@ module Syskit
                         File.join(app.log_dir, "properties")
                     )
                 end
+
+                app.syskit_component_loader = Orocos::ComponentLoader.new(
+                    loader: OroGen::Loaders::PkgConfig.new(
+                        app.default_pkgconfig_loader.orocos_target,
+                        app.default_loader
+                    )
+                )
 
                 if Syskit.conf.define_default_process_managers?
                     if Syskit.conf.only_load_models?
@@ -159,6 +171,14 @@ module Syskit
                 )
 
                 Syskit.conf.register_process_server(
+                    "in_process_tasks",
+                    InProcessTasksManager.new,
+                    app.log_dir,
+                    host_id: "syskit", logging_enabled: !app.testing?,
+                    register_on_name_server: !app.testing?
+                )
+
+                Syskit.conf.register_process_server(
                     "unmanaged_tasks", UnmanagedTasksManager.new, app.log_dir
                 )
 
@@ -176,6 +196,9 @@ module Syskit
                 )
                 Syskit.conf.register_process_server(
                     "unmanaged_tasks", fake_client, app.log_dir, host_id: "syskit"
+                )
+                Syskit.conf.register_process_server(
+                    "in_process_tasks", fake_client, app.log_dir, host_id: "syskit"
                 )
                 Syskit.conf.register_process_server(
                     "ros", fake_client, app.log_dir, host_id: "syskit"
