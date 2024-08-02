@@ -566,6 +566,13 @@ module Syskit
             writer.update
         end
 
+        # Deregister a data writer register
+        #
+        # @param [String] register writer name
+        def deregister_data_reader(name)
+            @registered_data_readers.delete_if { |key| key == name }
+        end
+
         # Set of {DynamicPortBinding::BoundOutputReader} registered on self
         #
         # They are added on creation from {Models::Component#data_readers}, or
@@ -662,6 +669,13 @@ module Syskit
 
             reader.attach_to_task(self)
             reader.update
+        end
+
+        # Deregister a data reader register
+        #
+        # @param [String] register reader name
+        def deregister_data_reader(name)
+            @registered_data_readers.delete_if { |key| key == name }
         end
 
         on :start do |_event|
