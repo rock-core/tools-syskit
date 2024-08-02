@@ -116,6 +116,33 @@ module Syskit
                 end
             end
 
+            describe "in-process logging" do
+                before do
+                    Roby.app.using_task_library "logger"
+                end
+
+                after do
+                    InProcessTasksManager.deregister_default_logger_deployment(app)
+                end
+
+                it "registers an in-process logger" do
+                    InProcessTasksManager.register_default_logger_deployment(app)
+
+                    t = InProcessTasksManager.default_logger_task(app.plan)
+                    assert_kind_of app.syskit_logger_m, t
+                    assert_equal InProcessTasksManager::DEFAULT_LOGGER_NAME, t.orocos_name
+                end
+
+                it "reuses an existing in-process logger" do
+                    InProcessTasksManager.register_default_logger_deployment(app)
+
+                    t1 = InProcessTasksManager.default_logger_task(plan)
+                    assert_same t1, InProcessTasksManager.find_default_logger_task(plan)
+                    t2 = InProcessTasksManager.default_logger_task(plan)
+                    assert_same t1, t2
+                end
+            end
+
             def create_deployment(**spec)
                 configured_deployment =
                     @deployment_group.use_in_process_tasks(**spec).first
