@@ -45,8 +45,8 @@ Naming/MethodParameterName:
 
 Security/MarshalLoad:
   Exclude:
-  - lib/syskit/roby_app/remote_processes/server.rb
-  - lib/syskit/roby_app/remote_processes/client.rb
+  - 'lib/syskit/process_managers/remote/manager.rb'
+  - 'lib/syskit/process_managers/remote/server/server.rb'
 
 Style/MultilineBlockChain:
   Exclude:
