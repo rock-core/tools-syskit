@@ -23,6 +23,34 @@ require "syskit/base"
 require "syskit/instance_requirements"
 
 require "syskit/orogen_namespace"
+
+module Syskit
+    # Definition of Syskit's built-in process managers
+    #
+    # Process managers are the facility that allow to execute components. {Deployment}
+    # is agnostic w.r.t the way the deployment is executed. The impedance layer is
+    # the process manager (which creates the actual deployments) and the process object
+    # (created by its manager) that manages the state of a running deployment.
+    module ProcessManagers
+        extend Logger::Hierarchy
+        include Logger::Hierarchy
+    end
+end
+
+require "syskit/roby_app/log_transfer_server"
+require "syskit/process_managers/process_base"
+require "syskit/process_managers/status"
+require "syskit/process_managers/remote/protocol"
+require "syskit/process_managers/remote/loader"
+require "syskit/process_managers/remote/manager"
+require "syskit/process_managers/remote/process"
+require "syskit/process_managers/in_process/manager"
+require "syskit/process_managers/in_process/process"
+require "syskit/process_managers/ruby_tasks/manager"
+require "syskit/process_managers/ruby_tasks/process"
+require "syskit/process_managers/unmanaged/manager"
+require "syskit/process_managers/unmanaged/process"
+
 require "syskit/roby_app"
 
 # Models

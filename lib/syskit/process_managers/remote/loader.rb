@@ -1,8 +1,8 @@
 # frozen_string_literal: true
 
 module Syskit
-    module RobyApp
-        module RemoteProcesses
+    module ProcessManagers
+        module Remote
             # A loader object that allows to load models from a remote process
             # server
             class Loader < OroGen::Loaders::Base

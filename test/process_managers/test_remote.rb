@@ -1,12 +1,9 @@
 # frozen_string_literal: true
 
-require "securerandom"
 require "syskit/test/self"
-require "syskit/roby_app/remote_processes"
-require "syskit/roby_app/remote_processes/server"
-require "syskit/roby_app/log_transfer_server"
+require "syskit/process_managers/remote/server"
 
-describe Syskit::RobyApp::RemoteProcesses do
+describe Syskit::ProcessManagers::Remote do
     attr_reader :server
     attr_reader :client
     attr_reader :root_loader
@@ -15,8 +12,8 @@ describe Syskit::RobyApp::RemoteProcesses do
         @app = Roby::Application.new
         @app.log_dir = make_tmpdir
         @__server_current_log_level =
-            Syskit::RobyApp::RemoteProcesses::Server.logger.level
-        Syskit::RobyApp::RemoteProcesses::Server.logger.level = Logger::WARN
+            Syskit::ProcessManagers::Remote::Server.logger.level
+        Syskit::ProcessManagers::Remote::Server.logger.level = Logger::WARN
         @__orocos_current_log_level = Orocos.logger.level
         Orocos.logger.level = Logger::FATAL
 
@@ -32,7 +29,7 @@ describe Syskit::RobyApp::RemoteProcesses do
         @server&.close
 
         if @__server_current_log_level
-            Syskit::RobyApp::RemoteProcesses::Server.logger.level =
+            Syskit::ProcessManagers::Remote::Server.logger.level =
                 @__server_current_log_level
         end
 
@@ -42,7 +39,7 @@ describe Syskit::RobyApp::RemoteProcesses do
     describe "#initialize" do
         it "registers the loader exactly once on the provided root loader" do
             start_server
-            client = Syskit::RobyApp::RemoteProcesses::Client.new(
+            client = Syskit::ProcessManagers::Remote::Manager.new(
                 "localhost",
                 server.port,
                 root_loader: root_loader
@@ -487,13 +484,13 @@ describe Syskit::RobyApp::RemoteProcesses do
     def start_server
         raise "server already started" if @server
 
-        @server = Syskit::RobyApp::RemoteProcesses::Server.new(@app, port: 0)
+        @server = Syskit::ProcessManagers::Remote::Server::Server.new(@app, port: 0)
         server.open
         @server_thread = Thread.new { server.listen }
     end
 
     def connect_to_server
-        client = Syskit::RobyApp::RemoteProcesses::Client.new(
+        client = Syskit::ProcessManagers::Remote::Manager.new(
             "localhost", server.port, root_loader: root_loader
         )
 

@@ -70,8 +70,8 @@ module Syskit
                 end
 
                 PROCESS_SERVER_TYPES = Hash[
-                    Syskit::RobyApp::RemoteProcesses::Client => "orocos",
-                    UnmanagedTasksManager => "unmanaged"
+                    ProcessManagers::Remote::Manager => "orocos",
+                    ProcessManagers::Unmanaged::Manager => "unmanaged"
                 ]
 
                 # Returns a string that describes the process server type

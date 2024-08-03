@@ -12,7 +12,7 @@ module Syskit
             end
             Syskit.conf.register_process_server(
                 "ruby_tasks",
-                RobyApp::RubyTasks::ProcessManager.new(Roby.app.default_loader)
+                ProcessManagers::RubyTasks::Manager.new(Roby.app.default_loader)
             )
         end
 
@@ -75,16 +75,16 @@ module Syskit
             before do
                 Roby.app.using_task_library "logger"
                 Syskit.conf.register_process_server(
-                    "in_process_tasks", RobyApp::InProcessTasksManager.new
+                    "in_process_tasks", ProcessManagers::InProcess::Manager.new
                 )
-                RobyApp::InProcessTasksManager
+                ProcessManagers::InProcess::Manager
                     .register_default_logger_deployment(Roby.app)
                 assert Roby.app.syskit_logger_m
                 assert Roby.app.syskit_in_process_logger_deployment
             end
 
             after do
-                RobyApp::InProcessTasksManager
+                ProcessManagers::InProcess::Manager
                     .deregister_default_logger_deployment(Roby.app)
             end
 

@@ -294,7 +294,7 @@ module Syskit
                     @driver_m.driver_for @device_m, as: "dev"
                     @conf = Syskit::RobyApp::Configuration.new(Roby.app)
                     @conf.register_process_server(
-                        "unmanaged_tasks", Syskit::RobyApp::UnmanagedTasksManager.new
+                        "unmanaged_tasks", ProcessManagers::Unmanaged::Manager.new
                     )
 
                     @robot_m = RobotDefinition.new

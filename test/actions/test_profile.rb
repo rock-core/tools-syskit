@@ -536,7 +536,7 @@ module Syskit
                     before do
                         Syskit.conf.register_process_server(
                             "ruby_tasks",
-                            RobyApp::RubyTasks::ProcessManager
+                            ProcessManagers::RubyTasks::Manager
                             .new(Roby.app.default_loader)
                         )
                     end
@@ -560,7 +560,7 @@ module Syskit
                 describe "#use_unmanaged_task" do
                     before do
                         Syskit.conf.register_process_server(
-                            "unmanaged_tasks", RobyApp::UnmanagedTasksManager.new
+                            "unmanaged_tasks", ProcessManagers::Unmanaged::Manager.new
                         )
                     end
 

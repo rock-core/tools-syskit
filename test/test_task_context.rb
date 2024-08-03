@@ -153,8 +153,8 @@ module Syskit
             end
 
             def create_task_from_host_id(host_id, name: flexmock)
-                process_server = RobyApp::UnmanagedTasksManager.new
-                RobyApp::UnmanagedProcess.new(process_server, "test", nil)
+                process_server = ProcessManagers::Unmanaged::Manager.new
+                ProcessManagers::Unmanaged::Process.new(process_server, "test", nil)
                 log_dir = flexmock("log_dir")
                 process_server_config = Syskit.conf.register_process_server(
                     name, process_server, log_dir, host_id: host_id
@@ -2248,7 +2248,7 @@ module Syskit
         describe "deployment shortcuts" do
             before do
                 Syskit.conf.register_process_server(
-                    "unmanaged_tasks", RobyApp::UnmanagedTasksManager.new
+                    "unmanaged_tasks", ProcessManagers::Unmanaged::Manager.new
                 )
 
                 Roby.app.using_task_library "orogen_syskit_tests"

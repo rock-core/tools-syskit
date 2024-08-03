@@ -1,6 +1,5 @@
 # frozen_string_literal: true
 
-require "orocos/ruby_process_server"
 module Syskit
     module RobyApp
         # Syskit engine configuration interface
@@ -435,7 +434,7 @@ module Syskit
             def sim_process_server_config_for(name)
                 sim_name = "#{name}-sim"
                 unless process_servers[sim_name]
-                    mng = RubyTasks::ProcessManager.new(
+                    mng = ProcessManagers::RubyTasks::Manager.new(
                         app.default_loader,
                         task_context_class: Orocos::RubyTasks::StubTaskContext
                     )
@@ -594,7 +593,7 @@ module Syskit
             # @raise [AlreadyConnected] if there is already a process server
             #   registered with that name
             def connect_to_orocos_process_server(
-                name, host, port: Syskit::RobyApp::RemoteProcesses::DEFAULT_PORT,
+                name, host, port: ProcessManagers::Remote::DEFAULT_PORT,
                 log_dir: nil, result_dir: nil, host_id: nil,
                 name_service: nil,
                 model_only_server: only_load_models? || (app.simulation? && app.single?)
@@ -645,7 +644,7 @@ module Syskit
 
                 self.disables_local_process_server = (host == "localhost")
 
-                client = Syskit::RobyApp::RemoteProcesses::Client.new(
+                client = ProcessManagers::Remote::Manager.new(
                     host, port, root_loader: app.default_loader
                 )
                 client.create_log_dir(

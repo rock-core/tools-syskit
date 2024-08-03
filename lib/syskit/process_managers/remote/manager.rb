@@ -1,17 +1,18 @@
 # frozen_string_literal: true
 
-require "orocos"
-require "syskit/roby_app/remote_processes/loader"
-
 module Syskit
-    module RobyApp
-        module RemoteProcesses
-            # Client-side API to a {Server} instance
-            #
-            # Process servers allow to start/stop and monitor processes on remote
-            # machines. Instances of this class provides access to remote process
-            # servers.
-            class Client
+    module ProcessManagers
+        # The remote process manager allows to manage orogen-created deployments managed
+        # by a Syskit process server
+        #
+        # The syskit process servers are started with `syskit process-server`. Even
+        # local orogen processes are managed this way, through a syskit-started local
+        # process server
+        #
+        # @see Configuration#use_deployment DeploymentGroup#use_deployment
+        module Remote
+            # Syskit-side interface to the remote process server
+            class Manager
                 # Emitted when an operation fails
                 class Failed < RuntimeError; end
                 class StartupFailed < RuntimeError; end
@@ -36,7 +37,7 @@ module Syskit
                 # Mapping from deployment names to the corresponding XML type registry
                 # for the typekits available on the process server
                 attr_reader :available_typekits
-                # Mapping from a deployment name to the corresponding RemoteProcess
+                # Mapping from a deployment name to the corresponding {Process}
                 # instance, for processes that have been started by this client.
                 attr_reader :processes
 
@@ -50,7 +51,7 @@ module Syskit
                 attr_reader :host_id
 
                 def to_s
-                    "#<Syskit::RobyApp::RemoteProcesses::Client #{host}:#{port}>"
+                    "#<#{self.class} #{host}:#{port}>"
                 end
 
                 def inspect
@@ -153,7 +154,7 @@ module Syskit
                 # Starts the given deployment on the remote server, without waiting for
                 # it to be ready.
                 #
-                # Returns a RemoteProcess instance that represents the process on the
+                # Returns a {Process} instance that represents the process on the
                 # remote side.
                 #
                 # Raises Failed if the server reports a startup failure
@@ -197,7 +198,9 @@ module Syskit
                             process = Process.new(
                                 process_name, deployment_model, self, pid
                             )
-                            process.name_mappings = name_mappings
+                            name_mappings.each do |a, b|
+                                process.map_name(a, b)
+                            end
                             processes[process_name] = process
                             return process
                         else
@@ -226,7 +229,7 @@ module Syskit
                 def log_upload_file(
                     host, port, certificate, user, password, localfile,
                     max_upload_rate: Float::INFINITY,
-                    implicit_ftps: LogTransferServer.use_implicit_ftps?
+                    implicit_ftps: RobyApp::LogTransferServer.use_implicit_ftps?
                 )
                     socket.write(COMMAND_LOG_UPLOAD_FILE)
                     Marshal.dump(
@@ -277,14 +280,14 @@ module Syskit
 
                     result = {}
                     @death_queue.each do |name, status|
-                        RemoteProcesses.debug "#{name} died"
+                        Process.debug "#{name} died"
                         if (p = processes.delete(name))
                             p.dead!
                             result[p] = status
                         else
-                            RemoteProcesses.warn "process server reported the exit "\
-                                                 "of '#{name}', but no process with "\
-                                                 "that name is registered"
+                            Process.warn "process server reported the exit "\
+                                         "of '#{name}', but no process with "\
+                                         "that name is registered"
                         end
                     end
                     @death_queue.clear

@@ -1,8 +1,7 @@
 # frozen_string_literal: true
 
 require "roby"
-require "syskit/roby_app/remote_processes"
-require "syskit/roby_app/remote_processes/server"
+require "syskit/process_managers/remote/server"
 
 require "optparse"
 
@@ -15,17 +14,17 @@ parser = OptionParser.new do |opt|
         Roby.app.log_dir = dir
     end
     opt.on("--debug", "turn on debug mode") do
-        Syskit::RobyApp::RemoteProcesses::Server.logger.level = Logger::DEBUG
+        Syskit::ProcessManagers::Remote::Server.logger.level = Logger::DEBUG
     end
 end
 
-server_port = Syskit::RobyApp::RemoteProcesses::DEFAULT_PORT
+server_port = Syskit::ProcessManagers::Remote::DEFAULT_PORT
 Roby::Application.host_options(parser, options)
 parser.parse(ARGV)
 
 Orocos::CORBA.name_service.ip = options[:host]
 Orocos.disable_sigchld_handler = true
 Orocos.initialize
-server = Syskit::RobyApp::RemoteProcesses::Server.new(Roby.app, port: server_port)
+server = Syskit::ProcessManagers::Remote::Server::Server.new(Roby.app, port: server_port)
 server.open(fd: options[:fd])
 server.listen

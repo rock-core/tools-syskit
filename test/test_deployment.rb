@@ -51,7 +51,7 @@ module Syskit
             @tasks = {}
         end
 
-        def get_mapped_name(name)
+        def mapped_name_of(name)
             name_mappings.fetch(name)
         end
 
@@ -796,7 +796,7 @@ module Syskit
             attr_reader :task_name, :task_m, :deployment_m, :deployment
             before do
                 Syskit.conf.register_process_server(
-                    "test", RobyApp::RubyTasks::ProcessManager.new, "",
+                    "test", ProcessManagers::RubyTasks::Manager.new, "",
                     register_on_name_server: false
                 )
                 task_m = @task_m = TaskContext.new_submodel do

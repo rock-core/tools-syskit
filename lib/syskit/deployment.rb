@@ -713,7 +713,7 @@ module Syskit
         # @api private
         def setup_task_handles(remote_tasks)
             model.each_orogen_deployed_task_context_model do |act|
-                name = orocos_process.get_mapped_name(act.name)
+                name = orocos_process.mapped_name_of(act.name)
                 unless remote_tasks.key?(name)
                     raise InternalError,
                           "expected #{orocos_process}'s reported tasks to "\

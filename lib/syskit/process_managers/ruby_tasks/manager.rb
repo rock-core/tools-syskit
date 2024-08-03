@@ -1,48 +1,11 @@
 # frozen_string_literal: true
 
 module Syskit
-    module RobyApp
+    module ProcessManagers
         module RubyTasks
-            # This is a drop-in replacement for ProcessClient. It creates Ruby tasks in
-            # the local process, based on the deployment models
-            class ProcessManager
-                # @api private
-                #
-                # Status class equivalent to Ruby's own Process::Status to report
-                # "process" end
-                class Status
-                    def initialize(exit_code: nil, signal: nil)
-                        @exit_code = exit_code
-                        @signal = signal
-                    end
-
-                    def stopped?
-                        false
-                    end
-
-                    def exited?
-                        !@exit_code.nil?
-                    end
-
-                    def exitstatus
-                        @exit_code
-                    end
-
-                    def signaled?
-                        !@signal.nil?
-                    end
-
-                    def termsig
-                        @signal
-                    end
-
-                    def stopsig; end
-
-                    def success?
-                        exitstatus == 0
-                    end
-                end
-
+            # Management of Ruby tasks, that is Rock component interfaces without
+            # computation that are driven by Syskit code
+            class Manager
                 attr_reader :deployments
                 attr_reader :loader
                 attr_reader :terminated_deployments
@@ -55,7 +18,7 @@ module Syskit
                 attr_reader :task_context_class
 
                 def initialize(
-                    loader = Orocos.default_loader,
+                    loader = Roby.app.default_loader,
                     task_context_class: Orocos::RubyTasks::TaskContext
                 )
                     @loader = loader
@@ -84,13 +47,15 @@ module Syskit
                     end
 
                     prefix_mappings = Orocos::ProcessBase.resolve_prefix(model, prefix)
-                    name_mappings = prefix_mappings.merge(name_mappings)
-
                     ruby_deployment = Process.new(
                         self, name, model,
                         task_context_class: task_context_class
                     )
-                    ruby_deployment.name_mappings = name_mappings
+
+                    prefix_mappings.merge(name_mappings).each do |a, b|
+                        ruby_deployment.map_name(a, b)
+                    end
+
                     ruby_deployment.spawn(
                         register_on_name_server: register_on_name_server
                     )
@@ -141,14 +106,14 @@ module Syskit
                     deployments[deployment_name]&.kill
                 end
 
-                def dead_deployment(deployment_name, status = Status.new(exit_code: 0))
+                def dead_deployment(deployment_name, status = Status.new(true))
                     return unless (deployment = deployments.delete(deployment_name))
 
                     terminated_deployments[deployment] = status
                 end
 
                 def default_logger_task(plan, app: Roby.app)
-                    InProcessTasksManager.default_logger_task(plan, app: app)
+                    InProcess::Manager.default_logger_task(plan, app: app)
                 end
             end
         end

@@ -12,10 +12,10 @@ module Syskit
                 @loader = OroGen::Loaders::Base.new
                 @group = DeploymentGroup.new
                 conf.register_process_server(
-                    "ruby_tasks", RobyApp::RubyTasks::ProcessManager.new(loader), ""
+                    "ruby_tasks", ProcessManagers::RubyTasks::Manager.new(loader), ""
                 )
                 conf.register_process_server(
-                    "test-mng", RobyApp::RubyTasks::ProcessManager.new(loader), ""
+                    "test-mng", ProcessManagers::RubyTasks::Manager.new(loader), ""
                 )
             end
 
@@ -436,8 +436,9 @@ module Syskit
             describe "#use_unmanaged_task" do
                 attr_reader :task_m
                 before do
-                    conf.register_process_server("unmanaged_tasks",
-                                                 RobyApp::UnmanagedTasksManager.new, "")
+                    conf.register_process_server(
+                        "unmanaged_tasks", ProcessManagers::Unmanaged::Manager.new, ""
+                    )
                     @task_m = Syskit::TaskContext.new_submodel(
                         name: "Test", orogen_model_name: "test::Task"
                     )
@@ -600,12 +601,12 @@ module Syskit
                                     .with(OroGen::Spec::Project.default_deployment_name("test::Task"))
                                     .and_return(deployment_m.orogen_model)
                     conf.register_process_server(
-                        "localhost", RobyApp::RubyTasks::ProcessManager.new(
+                        "localhost", ProcessManagers::RubyTasks::Manager.new(
                                          Roby.app.default_loader
                                      ), ""
                     )
                     conf.register_process_server(
-                        "test", RobyApp::RubyTasks::ProcessManager.new(
+                        "test", ProcessManagers::RubyTasks::Manager.new(
                                     Roby.app.default_loader
                                 ), ""
                     )

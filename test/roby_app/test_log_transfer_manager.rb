@@ -2,7 +2,7 @@
 
 require "syskit/test/self"
 require "syskit/test/roby_app_helpers"
-require "syskit/roby_app/remote_processes"
+require "syskit/process_managers/remote/server"
 
 module Syskit
     module RobyApp
@@ -92,14 +92,14 @@ module Syskit
 
             # Spawn a process server
             #
-            # @return [(RemoteProcesses::Client,Pathname)]
+            # @return [(ProcessManagers::Remote::Manager,Pathname)]
             def create_process_server
-                server = RemoteProcesses::Server.new(app, port: 0)
+                server = ProcessManagers::Remote::Server::Server.new(app, port: 0)
                 server.make_own_logger("", Logger::FATAL)
                 server.open
                 thread = Thread.new { server.listen }
 
-                client = RemoteProcesses::Client.new("localhost", server.port)
+                client = ProcessManagers::Remote::Manager.new("localhost", server.port)
                 log_dir = config_log_dir(client)
                 config = Configuration::ProcessServerConfig.new(
                     name: "test", client: client, log_dir: log_dir,

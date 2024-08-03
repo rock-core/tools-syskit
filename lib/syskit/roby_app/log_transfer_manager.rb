@@ -60,7 +60,7 @@ module Syskit
             # Transfer the given files to the FTP server configured in
             # {Configuration#log_transfer}
             #
-            # @param [Array<(String, RemoteProcesses::Client, Array<String>)>] logs
+            # @param [Array<(String,ProcessManagers::Remote::Manager,Array<String>)>] logs
             #   list of logs to transfer, per remote server
             def transfer(logs)
                 logs.each do |process_server, paths|
@@ -72,7 +72,7 @@ module Syskit
             #
             # Transfer log files of a single process server
             #
-            # @param [RemoteProcesses::Client] process_server
+            # @param [ProcessManagers::Remote::Manager] process_server
             # @param [Array<String>] logfiles
             def transfer_one_process_server_logs(process_server, paths)
                 upload_rate = @conf.max_upload_rate_for(process_server.name)
@@ -93,7 +93,7 @@ module Syskit
 
             # Wait for all pending transfers to finish
             #
-            # @return [{RemoteProcesses::Client=>Array<LogUploadState::Result>}]
+            # @return [{ProcessManagers::Remote::Manager=>Array<LogUploadState::Result>}]
             def flush(process_servers, poll_period: 0.5, timeout: 600)
                 results = {}
                 deadline = Time.now + timeout

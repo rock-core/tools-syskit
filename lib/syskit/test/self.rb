@@ -82,7 +82,7 @@ module Syskit
                     Syskit::RobyApp::Plugin.connect_to_local_process_server
                 end
 
-                stubs_process_manager = RobyApp::RubyTasks::ProcessManager.new(
+                stubs_process_manager = ProcessManagers::RubyTasks::Manager.new(
                     Roby.app.default_loader,
                     task_context_class: Orocos::RubyTasks::StubTaskContext
                 )

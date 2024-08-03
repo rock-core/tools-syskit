@@ -77,23 +77,33 @@ module Syskit
                         assert_equal "test::Task", result["deployments"][0]["default_deployment_for"]
                     end
                     it "identifies default loggers and reports them" do
-                        setup_deployed_task(OroGen::Loaders::PkgConfig::AvailableDeployedTask.new(
-                                                "test_deployment_Logger", "test_deployment", "logger::Logger", "test"
-                                            ))
+                        setup_deployed_task(
+                            OroGen::Loaders::PkgConfig::AvailableDeployedTask.new(
+                                "test_deployment_Logger", "test_deployment",
+                                "logger::Logger", "test"
+                            )
+                        )
                         result = get_json "/deployments/available"
-                        assert_equal "test_deployment_Logger", result["deployments"][0]["default_logger"]
+                        assert_equal "test_deployment_Logger",
+                                     result["deployments"][0]["default_logger"]
                     end
                     it "uses the model name to identify default loggers" do
-                        setup_deployed_task(OroGen::Loaders::PkgConfig::AvailableDeployedTask.new(
-                                                "test_deployment_Logger", "test_deployment", "something::Else", "test"
-                                            ))
+                        setup_deployed_task(
+                            OroGen::Loaders::PkgConfig::AvailableDeployedTask.new(
+                                "test_deployment_Logger", "test_deployment",
+                                "something::Else", "test"
+                            )
+                        )
                         result = get_json "/deployments/available"
                         assert_nil result["deployments"][0]["default_logger"]
                     end
                     it "uses the task name pattern to identify default loggers" do
-                        setup_deployed_task(OroGen::Loaders::PkgConfig::AvailableDeployedTask.new(
-                                                "custom_logger", "test_deployment", "logger::Logger", "test"
-                                            ))
+                        setup_deployed_task(
+                            OroGen::Loaders::PkgConfig::AvailableDeployedTask.new(
+                                "custom_logger", "test_deployment",
+                                "logger::Logger", "test"
+                            )
+                        )
                         result = get_json "/deployments/available"
                         assert_nil result["deployments"][0]["default_logger"]
                     end
@@ -102,14 +112,17 @@ module Syskit
                 describe "/registered" do
                     before do
                         @configured_deployments = []
-                        flexmock(Syskit.conf.deployment_group).should_receive(:each_configured_deployment)
-                                                              .and_return { @configured_deployments }
+                        flexmock(Syskit.conf.deployment_group)
+                            .should_receive(:each_configured_deployment)
+                            .and_return { @configured_deployments }
                         Syskit.conf.register_process_server(
                             "localhost",
-                            flexmock(:on, Syskit::RobyApp::RemoteProcesses::Client)
+                            flexmock(:on, ProcessManagers::Remote::Manager)
                         )
-                        Syskit.conf.register_process_server("unmanaged_tasks",
-                                                            flexmock(:on, UnmanagedTasksManager))
+                        Syskit.conf.register_process_server(
+                            "unmanaged_tasks",
+                            flexmock(:on, ProcessManagers::Unmanaged::Manager)
+                        )
                         Syskit.conf.register_process_server("something_else",
                                                             flexmock)
 
@@ -118,9 +131,11 @@ module Syskit
                         @syskit_task_m = Syskit::TaskContext.define_from_orogen(
                             orogen_task_m
                         )
-                        orogen_deployment_m = Models.create_orogen_deployment_model("test_deployment")
+                        orogen_deployment_m =
+                            Models.create_orogen_deployment_model("test_deployment")
                         orogen_deployment_m.task "test_task", orogen_task_m
-                        @deployment_m = Syskit::Deployment.define_from_orogen(orogen_deployment_m)
+                        @deployment_m =
+                            Syskit::Deployment.define_from_orogen(orogen_deployment_m)
                     end
                     after do
                         @syskit_task_m.clear_model

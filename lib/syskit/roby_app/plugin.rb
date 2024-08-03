@@ -155,7 +155,7 @@ module Syskit
             def self.define_default_process_managers(app)
                 Syskit.conf.register_process_server(
                     "ruby_tasks",
-                    RubyTasks::ProcessManager.new(app.default_loader),
+                    ProcessManagers::RubyTasks::Manager.new(app.default_loader),
                     app.log_dir,
                     host_id: "syskit", logging_enabled: !app.testing?,
                     register_on_name_server: !app.testing?
@@ -163,14 +163,15 @@ module Syskit
 
                 Syskit.conf.register_process_server(
                     "in_process_tasks",
-                    InProcessTasksManager.new,
+                    ProcessManagers::InProcess::Manager.new,
                     app.log_dir,
                     host_id: "syskit", logging_enabled: !app.testing?,
                     register_on_name_server: !app.testing?
                 )
 
                 Syskit.conf.register_process_server(
-                    "unmanaged_tasks", UnmanagedTasksManager.new, app.log_dir
+                    "unmanaged_tasks", ProcessManagers::Unmanaged::Manager.new,
+                    app.log_dir
                 )
 
                 if Orocos::ROS.enabled?
@@ -718,7 +719,7 @@ module Syskit
 
             def self.create_local_process_server_client(app)
                 unless @server_pid
-                    raise Syskit::RobyApp::RemoteProcesses::Client::StartupFailed,
+                    raise ProcessManagers::Remote::Manager::StartupFailed,
                           "#create_local_process_server_client got called but "\
                           "no process server is being started"
                 end
@@ -727,7 +728,7 @@ module Syskit
                 client = nil
                 until client
                     client =
-                        begin Syskit::RobyApp::RemoteProcesses::Client.new("localhost", @server_port)
+                        begin ProcessManagers::Remote::Manager.new("localhost", @server_port)
                         rescue Errno::ECONNREFUSED
                             sleep 0.1
                             is_running =
@@ -738,7 +739,7 @@ module Syskit
                                 end
 
                             unless is_running
-                                raise Syskit::RobyApp::RemoteProcesses::Client::StartupFailed,
+                                raise ProcessManagers::Remote::Manager::StartupFailed,
                                       "the local process server failed to start"
                             end
 
@@ -749,7 +750,7 @@ module Syskit
                 # Verify that the server is actually ours (i.e. check that there
                 # was not one that was still running)
                 if client.server_pid != @server_pid
-                    raise Syskit::RobyApp::RemoteProcesses::Client::StartupFailed,
+                    raise ProcessManagers::Remote::Manager::StartupFailed,
                           "failed to start the local process server. It seems that "\
                           "there is one still running as PID #{client.server_pid} "\
                           "(was expecting #{@server_pid})"

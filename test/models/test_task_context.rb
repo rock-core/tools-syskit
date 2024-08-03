@@ -554,7 +554,7 @@ module Syskit # :nodoc:
                 )
                 @conf = RobyApp::Configuration.new(Roby.app)
                 @conf.register_process_server(
-                    "unmanaged_tasks", RobyApp::UnmanagedTasksManager.new
+                    "unmanaged_tasks", ProcessManagers::Unmanaged::Manager.new
                 )
             end
 

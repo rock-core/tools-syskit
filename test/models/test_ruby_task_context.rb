@@ -12,7 +12,7 @@ module Syskit
                     )
                     Syskit.conf.register_process_server(
                         "ruby_tasks",
-                        RobyApp::RubyTasks::ProcessManager.new(Roby.app.default_loader)
+                        ProcessManagers::RubyTasks::Manager.new(Roby.app.default_loader)
                     )
                 end
 

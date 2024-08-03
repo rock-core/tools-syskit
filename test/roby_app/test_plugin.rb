@@ -2,19 +2,23 @@
 
 require "syskit/test/self"
 require "syskit/test/roby_app_helpers"
-require "syskit/roby_app/remote_processes"
+require "syskit/process_managers/remote/server"
 
 module Syskit
     module RobyApp
+        RemoteServer = ProcessManagers::Remote::Server::Server
+
         describe Plugin do
             describe "remote model loading" do
                 def create_process_server(name)
                     app = Roby::Application.new
                     loader = OroGen::Loaders::Files.new
                     OroGen::Loaders::RTT.setup_loader(loader)
-                    loader.register_orogen_file(File.join(data_dir, "plugin_remote_model_loading.orogen"))
+                    loader.register_orogen_file(
+                        File.join(data_dir, "plugin_remote_model_loading.orogen")
+                    )
 
-                    server = RemoteProcesses::Server.new(app, port: 0, loader: loader)
+                    server = RemoteServer.new(app, port: 0, loader: loader)
                     server.open
 
                     thread = Thread.new do
@@ -35,8 +39,8 @@ module Syskit
                 end
 
                 after do
-                    capture_log(Syskit::RobyApp::RemoteProcesses::Server, :fatal) do
-                        capture_log(Syskit::RobyApp::RemoteProcesses::Server, :warn) do
+                    capture_log(RemoteServer, :fatal) do
+                        capture_log(RemoteServer, :warn) do
                             @process_servers.each do |name, thread, client|
                                 client.close
                                 Syskit.conf.remove_process_server(name)
@@ -315,10 +319,10 @@ module Syskit
                     @conf = RobyApp::Configuration.new(@app)
                     @loader = OroGen::Loaders::Base.new
                     @conf.register_process_server(
-                        "localhost", Syskit::RobyApp::RubyTasks::ProcessManager.new(@loader), ""
+                        "localhost", Syskit::ProcessManagers::RubyTasks::Manager.new(@loader), ""
                     )
                     @conf.register_process_server(
-                        "test-mng", Syskit::RobyApp::RubyTasks::ProcessManager.new(@loader), ""
+                        "test-mng", Syskit::ProcessManagers::RubyTasks::Manager.new(@loader), ""
                     )
                     @group = Syskit::Models::DeploymentGroup.new
                     model_m = Syskit::TaskContext.new_submodel(

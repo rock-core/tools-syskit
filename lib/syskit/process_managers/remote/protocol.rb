@@ -1,8 +1,8 @@
 # frozen_string_literal: true
 
 module Syskit
-    module RobyApp
-        module RemoteProcesses
+    module ProcessManagers
+        module Remote
             DEFAULT_PORT = 20_202
 
             COMMAND_GET_INFO   = "I"
