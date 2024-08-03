@@ -65,7 +65,7 @@ module Syskit
 
                 deployment_model = Deployment.new_submodel(name: name,
                                                            logger_name: logger_name) do
-                    task(name, task_model.orogen_model) if task_model
+                    task(name, task_model) if task_model
                     instance_eval(&block) if block
                 end
 
