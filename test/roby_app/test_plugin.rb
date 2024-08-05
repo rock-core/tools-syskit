@@ -315,10 +315,10 @@ module Syskit
                     @conf = RobyApp::Configuration.new(@app)
                     @loader = OroGen::Loaders::Base.new
                     @conf.register_process_server(
-                        "localhost", Orocos::RubyTasks::ProcessManager.new(@loader), ""
+                        "localhost", Syskit::RobyApp::RubyTasks::ProcessManager.new(@loader), ""
                     )
                     @conf.register_process_server(
-                        "test-mng", Orocos::RubyTasks::ProcessManager.new(@loader), ""
+                        "test-mng", Syskit::RobyApp::RubyTasks::ProcessManager.new(@loader), ""
                     )
                     @group = Syskit::Models::DeploymentGroup.new
                     model_m = Syskit::TaskContext.new_submodel(

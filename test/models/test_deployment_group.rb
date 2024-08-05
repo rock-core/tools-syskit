@@ -12,10 +12,10 @@ module Syskit
                 @loader = OroGen::Loaders::Base.new
                 @group = DeploymentGroup.new
                 conf.register_process_server(
-                    "ruby_tasks", Orocos::RubyTasks::ProcessManager.new(loader), ""
+                    "ruby_tasks", RobyApp::RubyTasks::ProcessManager.new(loader), ""
                 )
                 conf.register_process_server(
-                    "test-mng", Orocos::RubyTasks::ProcessManager.new(loader), ""
+                    "test-mng", RobyApp::RubyTasks::ProcessManager.new(loader), ""
                 )
             end
 
@@ -600,12 +600,12 @@ module Syskit
                                     .with(OroGen::Spec::Project.default_deployment_name("test::Task"))
                                     .and_return(deployment_m.orogen_model)
                     conf.register_process_server(
-                        "localhost", Orocos::RubyTasks::ProcessManager.new(
+                        "localhost", RobyApp::RubyTasks::ProcessManager.new(
                                          Roby.app.default_loader
                                      ), ""
                     )
                     conf.register_process_server(
-                        "test", Orocos::RubyTasks::ProcessManager.new(
+                        "test", RobyApp::RubyTasks::ProcessManager.new(
                                     Roby.app.default_loader
                                 ), ""
                     )

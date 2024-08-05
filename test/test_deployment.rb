@@ -796,7 +796,7 @@ module Syskit
             attr_reader :task_name, :task_m, :deployment_m, :deployment
             before do
                 Syskit.conf.register_process_server(
-                    "test", Orocos::RubyTasks::ProcessManager.new, "",
+                    "test", RobyApp::RubyTasks::ProcessManager.new, "",
                     register_on_name_server: false
                 )
                 task_m = @task_m = TaskContext.new_submodel do

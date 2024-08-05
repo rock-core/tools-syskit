@@ -147,6 +147,58 @@ module Syskit
             def stop(process_name)
                 processes[process_name]&.kill
             end
+
+            DEFAULT_LOGGER_NAME = "syskit_in_process_logger"
+
+            def default_logger_task(plan, app: Roby.app)
+                self.class.default_logger_task(plan, app: app)
+            end
+
+            def self.find_default_logger_task(plan, app: Roby.app)
+                return unless (logger_m = app.syskit_logger_m)
+
+                plan.find_tasks(logger_m)
+                    .with_arguments(orocos_name: DEFAULT_LOGGER_NAME)
+                    .permanent.first
+            end
+
+            def self.find_default_logger_deployment_task(plan, app: Roby.app)
+                return unless app.syskit_logger_m
+                return unless (deployment = app.syskit_in_process_logger_deployment)
+
+                plan.find_tasks(deployment.model)
+                    .permanent.first
+            end
+
+            # The logger task
+            def self.default_logger_task(plan, app: Roby.app)
+                return unless (deployment = app.syskit_in_process_logger_deployment)
+
+                if (t = find_default_logger_task(plan))
+                    return t
+                end
+
+                deployment_t = find_default_logger_deployment_task(plan, app: app)
+                plan.add_permanent_task(deployment_t = deployment.new) unless deployment_t
+
+                plan.add_permanent_task(logger_t = deployment_t.task(DEFAULT_LOGGER_NAME))
+                logger_t.default_logger = true if logger_t.respond_to?(:default_logger=)
+                logger_t
+            end
+
+            def self.register_default_logger_deployment(app, conf: Syskit.conf)
+                return unless (logger_m = app.syskit_logger_m)
+
+                d = conf.use_in_process_tasks(logger_m => DEFAULT_LOGGER_NAME).first
+                app.syskit_in_process_logger_deployment = d
+            end
+
+            def self.deregister_default_logger_deployment(app, conf: Syskit.conf)
+                return unless (d = app.syskit_in_process_logger_deployment)
+
+                conf.deregister_configured_deployment(d)
+                app.syskit_in_process_logger_deployment = nil
+            end
         end
     end
 end

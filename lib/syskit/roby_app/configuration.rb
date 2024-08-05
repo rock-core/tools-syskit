@@ -140,6 +140,7 @@ module Syskit
                 @only_load_models = nil
                 @disables_local_process_server = false
                 @define_default_process_managers = true
+                @in_process_default_logger_support = false
                 @local_only = false
                 @permanent_deployments = true
                 @prefix_blacklist = []
@@ -201,6 +202,24 @@ module Syskit
                 @deployment_group = Models::DeploymentGroup.new
                 @logs = LoggingConfiguration.new
                 @orocos = Roby::OpenStruct.new
+            end
+
+            # Execution of a logger::Logger in-process to log ruby tasks
+            #
+            # Controls whether Syskit should instantiate a logger::Logger component
+            # in-process to log ruby tasks. It is false while the functionality is being
+            # tested to avoid unintended breakage
+            #
+            # @see in_process_default_logger_support=
+            def in_process_default_logger_support?
+                @in_process_default_logger_support
+            end
+
+            # (see start_in_process_default_logger?)
+            #
+            # @see start_in_process_default_logger?
+            def in_process_default_logger_support=(value)
+                @in_process_default_logger_support = value
             end
 
             # Controls whether Syskit sets up its default process managers
@@ -416,7 +435,7 @@ module Syskit
             def sim_process_server_config_for(name)
                 sim_name = "#{name}-sim"
                 unless process_servers[sim_name]
-                    mng = Orocos::RubyTasks::ProcessManager.new(
+                    mng = RubyTasks::ProcessManager.new(
                         app.default_loader,
                         task_context_class: Orocos::RubyTasks::StubTaskContext
                     )
@@ -667,6 +686,10 @@ module Syskit
 
                     def register_on_name_server?
                         register_on_name_server
+                    end
+
+                    def default_logger_task(plan)
+                        client.default_logger_task(plan) if client.respond_to?(:default_logger_task)
                     end
                 end
 

@@ -12,7 +12,7 @@ module Syskit
             end
             Syskit.conf.register_process_server(
                 "ruby_tasks",
-                Orocos::RubyTasks::ProcessManager.new(Roby.app.default_loader)
+                RobyApp::RubyTasks::ProcessManager.new(Roby.app.default_loader)
             )
         end
 
@@ -69,6 +69,33 @@ module Syskit
             use_ruby_tasks({ task_m => "test" }, remote_task: true)
             task = syskit_deploy_configure_and_start(task_m)
             assert_kind_of Orocos::RubyTasks::RemoteTaskContext, task.orocos_task
+        end
+
+        describe "logging" do
+            before do
+                Roby.app.using_task_library "logger"
+                Syskit.conf.register_process_server(
+                    "in_process_tasks", RobyApp::InProcessTasksManager.new
+                )
+                RobyApp::InProcessTasksManager
+                    .register_default_logger_deployment(Roby.app)
+                assert Roby.app.syskit_logger_m
+                assert Roby.app.syskit_in_process_logger_deployment
+            end
+
+            after do
+                RobyApp::InProcessTasksManager
+                    .deregister_default_logger_deployment(Roby.app)
+            end
+
+            it "uses the in-process logger if available" do
+                Roby.app.using_task_library "logger"
+
+                use_ruby_tasks({ task_m => "test" }, remote_task: true)
+                task = syskit_deploy_configure_and_start(task_m)
+                assert task.execution_agent.logging_enabled?
+                assert task.execution_agent.logger_task
+            end
         end
     end
 end

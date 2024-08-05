@@ -44,6 +44,9 @@ module Syskit
             # @return [Orocos::ComponentLoader]
             attr_accessor :syskit_component_loader
 
+            # The deployed in-process logger for ruby tasks
+            attr_accessor :syskit_in_process_logger_deployment
+
             # Assume all component models have been migrated to use update_properties
             #
             # See https://www.rock-robotics.org/rock-and-syskit/deprecations/update_properties.html
@@ -164,7 +167,7 @@ module Syskit
             def self.define_default_process_managers(app)
                 Syskit.conf.register_process_server(
                     "ruby_tasks",
-                    Orocos::RubyTasks::ProcessManager.new(app.default_loader),
+                    RubyTasks::ProcessManager.new(app.default_loader),
                     app.log_dir,
                     host_id: "syskit", logging_enabled: !app.testing?,
                     register_on_name_server: !app.testing?
@@ -425,10 +428,15 @@ module Syskit
                 orogen
             end
 
-            def syskit_utility_component?(task_context)
+            def syskit_logger_m
                 @syskit_logger_m ||= Syskit::TaskContext
                                      .find_model_from_orogen_name("logger::Logger")
-                task_context.kind_of?(@syskit_logger_m) if @syskit_logger_m
+            end
+
+            def syskit_utility_component?(task_context)
+                return unless (syskit_logger_m = self.syskit_logger_m)
+
+                task_context.kind_of?(syskit_logger_m)
             end
 
             # Load the component extension file associated with this an oroGen
