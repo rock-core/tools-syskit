@@ -27,11 +27,11 @@ module Syskit
             #
             # The deployment is created with a single task named 'task'
             def deployment_model
-                orogen_model = self.orogen_model
                 deployment_name = "Deployments::RubyTasks::#{name}"
+                task_model = self
                 @deployment_model ||=
                     Syskit::Deployment.new_submodel(name: deployment_name) do
-                        task "task", orogen_model
+                        task "task", task_model
                     end
             end
         end

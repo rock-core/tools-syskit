@@ -521,7 +521,7 @@ module Syskit
 
                     Deployment.new_submodel do
                         task_m.each_with_index do |m, i|
-                            task "task#{i}", m.orogen_model
+                            task "task#{i}", m
                         end
                     end
                 end

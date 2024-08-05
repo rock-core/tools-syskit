@@ -136,9 +136,9 @@ module Syskit
                             output_port "out", "/double"
                         end
                         deployment_m = Syskit::Deployment.new_submodel do
-                            master = task("master", task_m.orogen_model)
+                            master = task("master", task_m)
                                      .periodic(0.1)
-                            slave  = task "slave", task_m.orogen_model
+                            slave  = task "slave", task_m
                             slave.slave_of(master)
                         end
 
@@ -184,11 +184,11 @@ module Syskit
                             output_port("out", "/double").triggered_on("in")
                         end
                         deployment_m = Syskit::Deployment.new_submodel do
-                            task("source", source_m.orogen_model)
+                            task("source", source_m)
                                 .periodic(0.01)
-                            master = task("master", master_m.orogen_model)
+                            master = task("master", master_m)
                                      .periodic(0.1)
-                            slave  = task "slave", sink_m.orogen_model
+                            slave  = task "slave", sink_m
                             slave.slave_of(master)
                         end
 

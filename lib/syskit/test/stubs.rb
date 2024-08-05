@@ -63,11 +63,11 @@ module Syskit
                 task_model = task_model&.to_component_model
                 process_server = Syskit.conf.process_server_for("stubs")
 
-                deployment_model = Deployment.new_submodel(name: name,
-                                                           logger_name: logger_name) do
-                    task(name, task_model) if task_model
-                    instance_eval(&block) if block
-                end
+                deployment_model =
+                    Deployment.new_submodel(name: name, logger_name: logger_name) do
+                        task(name, task_model) if task_model
+                        instance_eval(&block) if block
+                    end
 
                 if register
                     process_server.loader.register_deployment_model(

@@ -277,8 +277,8 @@ describe Syskit::NetworkGeneration::LoggerConfigurationSupport do
         logger_m = @logger_m = create_logger_model
 
         @deployment_m = Syskit::Deployment.new_submodel(name: "deployment") do
-            task "task", task_m.orogen_model
-            task "deployment_Logger", logger_m.orogen_model
+            task "task", task_m
+            task "deployment_Logger", logger_m
         end
         syskit_stub_deployment("deployment", deployment_m, logging_enabled: true)
     end

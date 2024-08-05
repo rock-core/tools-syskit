@@ -805,7 +805,7 @@ module Syskit
                 end
                 @task_name = task_name = "syskit-ruby-tasks-test-#{Process.pid}"
                 @deployment_m = Deployment.new_submodel(name: "deployment") do
-                    task task_name, task_m.orogen_model
+                    task task_name, task_m
                 end
                 Syskit.conf.process_server_for("test")
                       .register_deployment_model(deployment_m.orogen_model)
