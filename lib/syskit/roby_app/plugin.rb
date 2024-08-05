@@ -300,10 +300,29 @@ module Syskit
                 disconnect_all_process_servers
             end
 
+            # Load all typekits needed to communicate with defined deployments
+            #
+            # This assumes that all models and
+            def syskit_load_all_used_typekits
+                typekits =
+                    default_loader
+                    .loaded_task_models.each_value
+                    .flat_map(&:used_typekits)
+                    .to_set
+
+                typekits.each do |tk|
+                    puts "Loading #{tk.name} #{tk.object_id} #{tk.virtual?}"
+                    Orocos.load_typekit tk.name unless tk.virtual?
+                    puts "Loaded #{tk.name}"
+                end
+            end
+
             # Hook called by the main application to prepare for execution
             def self.prepare(app)
                 app.syskit_log_transfer_prepare
                 @handler_ids = plug_engine_in_roby(app.execution_engine)
+
+                app.syskit_load_all_used_typekits
 
                 if Syskit.conf.log_rotation_period
                     @log_rotation_poll_handler =
