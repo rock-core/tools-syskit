@@ -795,10 +795,7 @@ module Syskit
         describe "using the ruby process server" do
             attr_reader :task_name, :task_m, :deployment_m, :deployment
             before do
-                Syskit.conf.register_process_server(
-                    "test", ProcessManagers::RubyTasks::Manager.new, "",
-                    register_on_name_server: false
-                )
+                register_ruby_tasks_manager("test")
                 task_m = @task_m = TaskContext.new_submodel do
                     input_port "in", "/double"
                     output_port "out", "/double"
@@ -868,25 +865,23 @@ module Syskit
             attr_reader :deployment_m, :deployment0, :deployment1
             def setup
                 super
+
                 @deployment_m = Deployment.new_submodel
-                @stub_process_servers = []
+                @name_sequence_id = 0
             end
 
-            def teardown
-                @stub_process_servers.each do |ps|
-                    Syskit.conf.remove_process_server(ps.name)
-                end
-                super
+            def create_unique_name
+                "#{name}-#{@name_sequence_id += 1}"
             end
 
-            def create_deployment(host_id, name: flexmock)
+            def create_deployment(host_id, name: create_unique_name)
                 process_server = ProcessServerFixture.new
                 process = ProcessFixture.new(process_server)
                 process_server.processes["mapped_task_name"] = process
                 log_dir = flexmock("log_dir")
-                process_server_config =
-                    Syskit.conf.register_process_server(name, process_server, log_dir, host_id: host_id)
-                @stub_process_servers << process_server_config
+                Syskit.conf.register_process_server(
+                    name, process_server, log_dir, host_id: host_id
+                )
                 deployment_m.new(on: name)
             end
         end

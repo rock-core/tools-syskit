@@ -153,25 +153,20 @@ module Syskit
             end
 
             def self.define_default_process_managers(app)
-                Syskit.conf.register_process_server(
+                Syskit.conf.register_ruby_tasks_manager(
                     "ruby_tasks",
-                    ProcessManagers::RubyTasks::Manager.new(app.default_loader),
-                    app.log_dir,
-                    host_id: "syskit", logging_enabled: !app.testing?,
-                    register_on_name_server: !app.testing?
+                    loader: app.default_loader, log_dir: app.log_dir,
+                    logging_enabled: !app.testing?, register_on_name_server: !app.testing?
                 )
 
-                Syskit.conf.register_process_server(
+                Syskit.conf.register_in_process_manager(
                     "in_process_tasks",
-                    ProcessManagers::InProcess::Manager.new,
-                    app.log_dir,
-                    host_id: "syskit", logging_enabled: !app.testing?,
-                    register_on_name_server: !app.testing?
+                    log_dir: app.log_dir,
+                    logging_enabled: !app.testing?, register_on_name_server: !app.testing?
                 )
 
-                Syskit.conf.register_process_server(
-                    "unmanaged_tasks", ProcessManagers::Unmanaged::Manager.new,
-                    app.log_dir
+                Syskit.conf.register_unmanaged_manager(
+                    "unmanaged_tasks", log_dir: app.log_dir
                 )
 
                 if Orocos::ROS.enabled?

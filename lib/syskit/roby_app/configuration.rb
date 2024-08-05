@@ -579,6 +579,27 @@ module Syskit
                 def disconnect; end
             end
 
+            # Create a register a remote process manager
+            #
+            # If 'host' is set to localhost, it disables the automatic startup
+            # of the process server that is used to start local proceses (i.e. sets
+            # orocos_disables_local_process_server to true)
+            #
+            # @return [ProcessServerConfig]
+            #
+            # @raise [LocalOnlyConfiguration] if host is not 'localhost' and
+            #   {#local_only?} is set
+            # @raise [AlreadyConnected] if there is already a process server
+            #   registered with that name
+            def connect_to_orocos_process_server(name, host, **kw)
+                Roby.warn_deprecated(
+                    "#{self.class}#connect_to_orocos_process_server is deprecated, "\
+                    "use register_remote_manager instead"
+                )
+
+                register_remote_manager(name, host, **kw)
+            end
+
             # Call to declare a new process server and add to the set of servers that
             # can be used by this plan manager
             #
@@ -592,11 +613,12 @@ module Syskit
             #   {#local_only?} is set
             # @raise [AlreadyConnected] if there is already a process server
             #   registered with that name
-            def connect_to_orocos_process_server(
-                name, host, port: ProcessManagers::Remote::DEFAULT_PORT,
-                log_dir: nil, result_dir: nil, host_id: nil,
-                name_service: nil,
-                model_only_server: only_load_models? || (app.simulation? && app.single?)
+            def register_remote_manager(
+                name, host,
+                port: ProcessManagers::Remote::DEFAULT_PORT,
+                log_dir: nil, result_dir: nil, host_id: nil, name_service: nil,
+                model_only_server: only_load_models? || (app.simulation? && app.single?),
+                logging_enabled: true, register_on_name_server: true
             )
                 if log_dir || result_dir
                     Syskit.warn(
@@ -653,7 +675,10 @@ module Syskit
                 )
                 client.kill_all if kill_all_on_process_server_connection?
                 config = register_process_server(
-                    name, client, log_dir, host_id: host_id || name
+                    name, client, log_dir,
+                    host_id: host_id || name,
+                    logging_enabled: logging_enabled,
+                    register_on_name_server: register_on_name_server
                 )
                 config.supports_log_transfer = true
                 client
@@ -663,6 +688,10 @@ module Syskit
                 Struct.new :name, :client, :log_dir, :host_id, :supports_log_transfer,
                            :logging_enabled, :register_on_name_server,
                            keyword_init: true do
+                    def manager
+                        client
+                    end
+
                     def on_localhost?
                         host_id == "localhost" || host_id == "syskit"
                     end
@@ -692,6 +721,70 @@ module Syskit
                     end
                 end
 
+            # Create and register a {ProcessManagers::Unmanaged::Manager}
+            #
+            # @param [String] name
+            # @return [ProcessServerConfig]
+            def register_in_process_manager(
+                name,
+                component_loader: Roby.app.syskit_component_loader,
+                host_id: "syskit", log_dir: Roby.app.log_dir,
+                logging_enabled: true, register_on_name_server: true
+            )
+                manager = ProcessManagers::InProcess::Manager.new(
+                    component_loader: component_loader
+                )
+                register_process_server(
+                    name, manager, log_dir,
+                    host_id: host_id,
+                    logging_enabled: logging_enabled,
+                    register_on_name_server: register_on_name_server
+                )
+            end
+
+            # Create and register a {ProcessManagers::Unmanaged::Manager}
+            #
+            # @param [String] name
+            # @return [ProcessServerConfig]
+            def register_ruby_tasks_manager(
+                name,
+                loader: Roby.app.default_loader,
+                host_id: "syskit",
+                log_dir: Roby.app.log_dir,
+                task_context_class: Orocos::RubyTasks::TaskContext,
+                logging_enabled: true, register_on_name_server: true
+            )
+                manager = ProcessManagers::RubyTasks::Manager.new(
+                    loader, task_context_class: task_context_class
+                )
+                register_process_server(
+                    name, manager, log_dir,
+                    host_id: host_id,
+                    logging_enabled: logging_enabled,
+                    register_on_name_server: register_on_name_server
+                )
+            end
+
+            # Create and register a {ProcessManagers::Unmanaged::Manager}
+            #
+            # @param [String] name
+            # @return [ProcessServerConfig]
+            def register_unmanaged_manager(
+                name,
+                loader: Roby.app.default_loader,
+                name_service: Orocos::CORBA.name_service,
+                log_dir: nil, host_id: name, logging_enabled: true
+            )
+                manager = ProcessManagers::Unmanaged::Manager.new(
+                    loader: loader, name_service: name_service
+                )
+                register_process_server(
+                    name, manager, log_dir,
+                    host_id: host_id,
+                    logging_enabled: logging_enabled, register_on_name_server: false
+                )
+            end
+
             # Make a process server available to syskit
             #
             # @param [String] name the process server name
@@ -704,7 +797,9 @@ module Syskit
                 logging_enabled: true, register_on_name_server: true
             )
                 if process_servers[name]
-                    raise ArgumentError, "there is already a process server registered as #{name}, call #remove_process_server first"
+                    raise ArgumentError,
+                          "there is already a process server registered as #{name}, "\
+                          "call #remove_process_server first"
                 end
 
                 ps = ProcessServerConfig.new(
@@ -716,20 +811,25 @@ module Syskit
                 ps
             end
 
+            # @deprecated use {#remove_process_server} instead
+            def remove_process_server(name)
+                remove_process_manager(name)
+            end
+
             # Deregisters a process server
             #
             # @param [String] name the process server name, as given to
             #   {register_process_server}
+            # @return [ProcessServerConfig]
             # @raise ArgumentError if there is no process server with that name
-            def remove_process_server(name)
-                ps = process_servers.delete(name)
-                unless ps
+            def remove_process_manager(name)
+                unless (ps = process_servers.delete(name))
                     raise ArgumentError, "there is no registered process server called #{name}"
                 end
 
                 app.default_loader.remove ps.client.loader
                 if app.simulation? && process_servers["#{name}-sim"]
-                    remove_process_server("#{name}-sim")
+                    remove_process_manager("#{name}-sim")
                 end
                 ps
             end

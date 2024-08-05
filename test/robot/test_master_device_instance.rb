@@ -293,16 +293,13 @@ module Syskit
                     @driver_m = driver_m
                     @driver_m.driver_for @device_m, as: "dev"
                     @conf = Syskit::RobyApp::Configuration.new(Roby.app)
-                    @conf.register_process_server(
-                        "unmanaged_tasks", ProcessManagers::Unmanaged::Manager.new
-                    )
+                    register_unmanaged_manager("unmanaged_tasks", conf: @conf)
 
                     @robot_m = RobotDefinition.new
                     @device = @robot_m.device @device_m, as: "test", using: @driver_m
                 end
 
                 after do
-                    @conf.remove_process_server("unmanaged_tasks")
                 end
 
                 it "declares an unmanaged deployment of the its driver model" do

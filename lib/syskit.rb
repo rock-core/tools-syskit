@@ -25,6 +25,8 @@ require "syskit/instance_requirements"
 require "syskit/orogen_namespace"
 
 module Syskit
+    # @api private
+    #
     # Definition of Syskit's built-in process managers
     #
     # Process managers are the facility that allow to execute components. {Deployment}

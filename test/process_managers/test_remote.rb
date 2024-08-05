@@ -40,8 +40,7 @@ describe Syskit::ProcessManagers::Remote do
         it "registers the loader exactly once on the provided root loader" do
             start_server
             client = Syskit::ProcessManagers::Remote::Manager.new(
-                "localhost",
-                server.port,
+                "localhost", server.port,
                 root_loader: root_loader
             )
             assert_equal [client.loader], root_loader.loaders

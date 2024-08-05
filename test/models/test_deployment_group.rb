@@ -11,12 +11,8 @@ module Syskit
                 @conf = RobyApp::Configuration.new(app)
                 @loader = OroGen::Loaders::Base.new
                 @group = DeploymentGroup.new
-                conf.register_process_server(
-                    "ruby_tasks", ProcessManagers::RubyTasks::Manager.new(loader), ""
-                )
-                conf.register_process_server(
-                    "test-mng", ProcessManagers::RubyTasks::Manager.new(loader), ""
-                )
+                register_ruby_tasks_manager("ruby_tasks", conf: conf, loader: @loader)
+                register_ruby_tasks_manager("test-mng", conf: conf, loader: @loader)
             end
 
             describe "#empty?" do
@@ -436,9 +432,7 @@ module Syskit
             describe "#use_unmanaged_task" do
                 attr_reader :task_m
                 before do
-                    conf.register_process_server(
-                        "unmanaged_tasks", ProcessManagers::Unmanaged::Manager.new, ""
-                    )
+                    register_unmanaged_manager("unmanaged_tasks", conf: conf)
                     @task_m = Syskit::TaskContext.new_submodel(
                         name: "Test", orogen_model_name: "test::Task"
                     )
@@ -600,16 +594,8 @@ module Syskit
                     flexmock(loader).should_receive(:deployment_model_from_name)
                                     .with(OroGen::Spec::Project.default_deployment_name("test::Task"))
                                     .and_return(deployment_m.orogen_model)
-                    conf.register_process_server(
-                        "localhost", ProcessManagers::RubyTasks::Manager.new(
-                                         Roby.app.default_loader
-                                     ), ""
-                    )
-                    conf.register_process_server(
-                        "test", ProcessManagers::RubyTasks::Manager.new(
-                                    Roby.app.default_loader
-                                ), ""
-                    )
+                    register_ruby_tasks_manager("localhost", conf: conf)
+                    register_ruby_tasks_manager("test", conf: conf)
                 end
                 it "resolves the TaskModelClass => name syntax" do
                     expected = lambda do |configured_deployment|

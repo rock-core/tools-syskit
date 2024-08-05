@@ -8,18 +8,14 @@ describe Syskit::RobyApp::Configuration do
         before do
             @task_m = Syskit::TaskContext.new_submodel(name: "test::Task")
             @conf = Syskit::RobyApp::Configuration.new(Roby.app)
-            conf.register_process_server(
-                "localhost", Syskit::ProcessManagers::RubyTasks::Manager.new
-            )
-            conf.register_process_server(
-                "test", Syskit::ProcessManagers::RubyTasks::Manager.new
-            )
+            register_ruby_tasks_manager("localhost", conf: @conf)
+            register_ruby_tasks_manager("test", conf: @conf)
         end
 
         def stub_deployment(name)
             task_m = @task_m
             Syskit::Deployment.new_submodel(name: name) do
-                task("task", task_m.orogen_model)
+                task("task", task_m)
             end
         end
 
@@ -42,9 +38,7 @@ describe Syskit::RobyApp::Configuration do
         before do
             @task_m = Syskit::RubyTaskContext.new_submodel
             @conf = Syskit::RobyApp::Configuration.new(Roby.app)
-            @conf.register_process_server(
-                "ruby_tasks", Syskit::ProcessManagers::RubyTasks::Manager.new
-            )
+            register_ruby_tasks_manager("ruby_tasks", conf: @conf)
         end
 
         it "defines a deployment for a given ruby task context model" do
@@ -59,9 +53,7 @@ describe Syskit::RobyApp::Configuration do
         before do
             @task_m = Syskit::TaskContext.new_submodel
             @conf = Syskit::RobyApp::Configuration.new(Roby.app)
-            @conf.register_process_server(
-                "unmanaged_tasks", Syskit::ProcessManagers::RubyTasks::Manager.new
-            )
+            register_unmanaged_manager("unmanaged_tasks", conf: @conf)
         end
         it "defines a configured deployment from a task model and name" do
             configured_deployments = @conf.use_unmanaged_task @task_m => "name"
@@ -74,7 +66,7 @@ describe Syskit::RobyApp::Configuration do
         end
     end
 
-    describe "#connect_to_orocos_process_server" do
+    describe "#register_remote_manager" do
         before do
             @conf = Syskit::RobyApp::Configuration.new(Roby.app)
             @mock_process = flexmock(pid: 20)
@@ -115,9 +107,10 @@ describe Syskit::RobyApp::Configuration do
             it "starts the process and reports its PID" do
                 process_server_start
 
-                client = @conf.connect_to_orocos_process_server(
+                client = register_remote_manager(
                     "test-remote", "localhost",
-                    port: process_server_port
+                    port: process_server_port,
+                    conf: @conf
                 )
 
                 process = client.start "deployment", deployment_m.orogen_model
@@ -126,9 +119,10 @@ describe Syskit::RobyApp::Configuration do
 
             it "marks the process server as supporting log transfer" do
                 process_server_start
-                @conf.connect_to_orocos_process_server(
+                register_remote_manager(
                     "test-remote", "localhost",
-                    port: process_server_port
+                    port: process_server_port,
+                    conf: @conf
                 )
                 config = @conf.process_server_config_for("test-remote")
                 assert config.supports_log_transfer?

@@ -8,10 +8,7 @@ module Syskit
             attr_reader :deployment_task
 
             before do
-                Syskit.conf.register_process_server(
-                    "in_process_tasks", InProcess::Manager.new
-                )
-                @process_manager = Syskit.conf.process_server_for("in_process_tasks")
+                @process_manager = register_in_process_manager("in_process_tasks")
 
                 Roby.app.using_task_library "orogen_syskit_tests"
                 @deployment_group = Syskit::Models::DeploymentGroup.new
@@ -22,8 +19,6 @@ module Syskit
                     expect_execution { deployment_task.stop! }
                         .to { emit deployment_task.stop_event }
                 end
-
-                Syskit.conf.remove_process_server("in_process_tasks")
             end
 
             it "follows the lifecycle of a deployment" do
