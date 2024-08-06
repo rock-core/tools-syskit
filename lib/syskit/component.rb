@@ -569,8 +569,8 @@ module Syskit
         # Deregister a data writer register
         #
         # @param [String] register writer name
-        def deregister_data_reader(name)
-            @registered_data_readers.delete_if { |key| key == name }
+        def deregister_data_writer(name)
+            @registered_data_writers.delete(name)
         end
 
         # Set of {DynamicPortBinding::BoundOutputReader} registered on self
@@ -675,7 +675,7 @@ module Syskit
         #
         # @param [String] register reader name
         def deregister_data_reader(name)
-            @registered_data_readers.delete_if { |key| key == name }
+            @registered_data_readers.delete(name)
         end
 
         on :start do |_event|
