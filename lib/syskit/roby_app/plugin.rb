@@ -311,9 +311,7 @@ module Syskit
                     .to_set
 
                 typekits.each do |tk|
-                    puts "Loading #{tk.name} #{tk.object_id} #{tk.virtual?}"
                     Orocos.load_typekit tk.name unless tk.virtual?
-                    puts "Loaded #{tk.name}"
                 end
             end
 
