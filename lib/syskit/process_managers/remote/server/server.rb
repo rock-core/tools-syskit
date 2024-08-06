@@ -201,6 +201,7 @@ module Syskit
                                     dead_processes = reap_dead_subprocesses
                                     announce_dead_processes(dead_processes)
                                 elsif cmd == INTERNAL_QUIT
+                                    @quit = true
                                     next
                                 elsif cmd
                                     warn "unknown internal communication code "\
