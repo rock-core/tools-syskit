@@ -174,7 +174,7 @@ module Syskit
                 # "Kill" this process
                 #
                 # It shuts down the tasks that are part of it
-                def kill(_wait = false, **)
+                def kill(**)
                     @deployed_tasks.each_value(&:dispose)
                     @deployed_tasks = {}
                     @killed = true

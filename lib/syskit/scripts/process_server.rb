@@ -22,9 +22,8 @@ server_port = Syskit::ProcessManagers::Remote::DEFAULT_PORT
 Roby::Application.host_options(parser, options)
 parser.parse(ARGV)
 
-Orocos::CORBA.name_service.ip = options[:host]
-Orocos.disable_sigchld_handler = true
-Orocos.initialize
-server = Syskit::ProcessManagers::Remote::Server::Server.new(Roby.app, port: server_port)
+server = Syskit::ProcessManagers::Remote::Server::Server.new(
+    Roby.app, port: server_port, name_service_ip: options[:host]
+)
 server.open(fd: options[:fd])
 server.listen

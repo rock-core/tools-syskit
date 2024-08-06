@@ -576,7 +576,7 @@ module Syskit
                     # In Syskit's case, both log dir and working directory are controlled
                     # by the process server config
                     spawn_options.delete(:working_directory)
-
+                    spawn_options.delete(:wait)
                     unless (model = deployments_by_name[deployment_name])
                         orogen_model = loader.deployment_model_from_name(deployment_name)
                         model = Syskit::Deployment.find_model_by_orogen(orogen_model)

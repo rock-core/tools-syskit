@@ -65,7 +65,8 @@ module Syskit
                 #   root for this client's loader
                 def initialize(
                     host = "localhost", port = DEFAULT_PORT,
-                    response_timeout: 10, root_loader: Orocos.default_loader,
+                    response_timeout: 10,
+                    root_loader: Orocos.default_loader,
                     register_on_name_server: true
                 )
                     @host = host
@@ -78,8 +79,8 @@ module Syskit
                                   "'#{host}:#{port}': #{e.message}"
                         end
 
-                    socket.setsockopt(Socket::IPPROTO_TCP, Socket::TCP_NODELAY, true)
-                    socket.fcntl(Fcntl::FD_CLOEXEC, 1)
+                    @socket.setsockopt(Socket::IPPROTO_TCP, Socket::TCP_NODELAY, true)
+                    @socket.fcntl(Fcntl::FD_CLOEXEC, 1)
 
                     begin
                         @server_pid = pid
@@ -173,7 +174,8 @@ module Syskit
                                   "deployment #{deployment} exists locally but not "\
                                   "on the remote process server #{self}"
                         end
-                    else deployment_model = deployment
+                    else
+                        deployment_model = deployment
                     end
 
                     prefix_mappings = Orocos::ProcessBase.resolve_prefix(
@@ -192,7 +194,7 @@ module Syskit
                         if pid_s == RET_NO
                             msg = Marshal.load(socket)
                             raise Failed,
-                                  "failed to start #{deployment_model.name}: #{msg}"
+                                  "failed to start #{process_name}: #{msg}"
                         elsif pid_s == RET_STARTED_PROCESS
                             pid = Marshal.load(socket)
                             process = Process.new(
@@ -299,17 +301,15 @@ module Syskit
                 #
                 # The call does not block until the process has quit. You will have to
                 # call #wait_termination to wait for the process end.
-                def stop(deployment_name, wait, cleanup: true, hard: false)
+                def stop(deployment_name, hard: false)
                     socket.write(COMMAND_END)
-                    Marshal.dump([deployment_name, cleanup, hard], socket)
+                    Marshal.dump([deployment_name, hard], socket)
                     raise Failed, "failed to quit #{deployment_name}" unless wait_for_ack
-
-                    join(deployment_name) if wait
                 end
 
-                def kill_all(cleanup: false, hard: true)
+                def kill_all(hard: true)
                     socket.write(COMMAND_KILL_ALL)
-                    Marshal.dump([cleanup, hard], socket)
+                    Marshal.dump([hard], socket)
                     raise Failed, "failed kill_all" unless wait_for_ack
 
                     Marshal.load(socket)

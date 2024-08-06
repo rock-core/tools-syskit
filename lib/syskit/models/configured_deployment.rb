@@ -75,7 +75,7 @@ module Syskit
             # Filters out options that are part of the spawn options but not of
             # the command-line generation options
             def filter_command_line_options(
-                oro_logfile: nil, wait: nil, output: nil,
+                oro_logfile: nil, output: nil,
                 **command_line_options
             )
                 command_line_options

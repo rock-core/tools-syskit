@@ -48,8 +48,8 @@ module Syskit
                 # Cleanly stop the process
                 #
                 # @see kill!
-                def kill(wait = true, cleanup: true, hard: false)
-                    process_client.stop(name, wait, cleanup: cleanup, hard: hard)
+                def kill(hard: false)
+                    process_client.stop(name, hard: hard)
                 end
 
                 # Wait for the
@@ -57,7 +57,7 @@ module Syskit
                     process_client.join(name)
                 end
 
-                # True if the process is running. This is an alias for running?
+                # True if the process is running. This is an alias for alive?
                 def alive?
                     @alive
                 end
@@ -71,7 +71,7 @@ module Syskit
                     model.task_activities.each_with_object({}) do |deployed_task, map|
                         mapped_name = mapped_name_of(deployed_task.name)
                         unless (ior = @ior_mappings[mapped_name])
-                            raise Orocos::IORNotRegisteredError,
+                            raise IORNotRegisteredError,
                                   "no IOR is registered for #{task_name}"
                         end
 

@@ -128,11 +128,9 @@ module Syskit
                     @ior_mappings = ior_mappings
                 end
 
-                def kill(
-                    _wait = true, status = Status.new(exit_code: 0), **
-                )
+                def kill(**)
                     deployed_tasks.each_value(&:dispose)
-                    dead!(status)
+                    dead!
                 end
 
                 def dead!(status = Status.new(exit_code: 0))
