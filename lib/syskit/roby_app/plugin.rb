@@ -185,10 +185,12 @@ module Syskit
                     "unmanaged_tasks", UnmanagedTasksManager.new, app.log_dir
                 )
 
-                Syskit.conf.register_process_server(
-                    "ros", Orocos::ROS::ProcessManager.new(app.ros_loader),
-                    app.log_dir
-                )
+                if Orocos::ROS.enabled?
+                    Syskit.conf.register_process_server(
+                        "ros", Orocos::ROS::ProcessManager.new(app.ros_loader),
+                        app.log_dir
+                    )
+                end
             end
 
             # Register the default process managers when only_load_models? is set
@@ -355,7 +357,7 @@ module Syskit
                         project_define_from_orogen(project)
                     end
                     orogen_pack_loader
-                    ros_loader
+                    ros_loader if Orocos::ROS.enabled?
                 end
                 @default_loader
             end
@@ -507,10 +509,12 @@ module Syskit
                     app.orogen_pack_loader.register_typekit dir, name
                 end
 
-                app.ros_loader.search_path
-                   .concat(Roby.app.find_dirs("models", "ROBOT", "orogen", "ros", :all => app.auto_load_all?, :order => :specific_first))
-                app.ros_loader.packs
-                   .concat(Roby.app.find_dirs("models", "ROBOT", "pack", "ros", :all => true, :order => :specific_last))
+                if Orocos::ROS.enabled?
+                    app.ros_loader.search_path
+                       .concat(Roby.app.find_dirs("models", "ROBOT", "orogen", "ros", :all => app.auto_load_all?, :order => :specific_first))
+                    app.ros_loader.packs
+                       .concat(Roby.app.find_dirs("models", "ROBOT", "pack", "ros", :all => true, :order => :specific_last))
+                end
             end
 
             def syskit_listen_to_configuration_changes
