@@ -24,7 +24,7 @@ module Syskit
                     thread = Thread.new do
                         server.listen
                     end
-                    client = Syskit.conf.connect_to_orocos_process_server(
+                    client = Syskit.conf.register_remote_manager(
                         name, "localhost", port: server.port
                     )
                     @process_servers << [name, thread, client]
@@ -260,12 +260,12 @@ module Syskit
                     app.syskit_log_transfer_prepare
 
                     conf = Syskit.conf.process_server_config_for("localhost")
+                    flexmock(conf).should_receive(on_localhost?: false)
                     flexmock(conf).should_receive(supports_log_transfer?: true)
                     assert_equal [conf], app.syskit_log_transfer_process_servers
                 end
 
-                it "ignores local process servers if they have the same directory than "\
-                   "the transfer's target dir" do
+                it "ignores local process servers" do
                     Syskit.conf.log_transfer.target_dir = app.log_dir
                     app.syskit_log_transfer_prepare
 
@@ -281,6 +281,7 @@ module Syskit
                     Syskit.conf.log_transfer.port = 42
                     Syskit.conf.log_transfer.implicit_ftps = false
                     conf = Syskit.conf.process_server_config_for("localhost")
+                    flexmock(conf).should_receive(on_localhost?: false)
                     flexmock(conf).should_receive(supports_log_transfer?: true)
                     flexmock(app)
                         .should_receive(:syskit_rotate_logs)

@@ -343,14 +343,6 @@ module Syskit
                         .join_all_waiting_work(false)
                         .to_run
                 end
-                it "passes the process server's log dir as working directory" do
-                    process_server.should_receive(:start).once
-                                  .with(any, any, any, hsh(working_directory: log_dir))
-                                  .and_return(process)
-                    expect_execution { deployment_task.start! }
-                        .join_all_waiting_work(false)
-                        .to_run
-                end
                 it "passes the model-level run command line options to the process server start command" do
                     cmdline_options = { valgrind: true }
                     deployment_m.default_run_options.merge!(cmdline_options)

@@ -341,12 +341,11 @@ module Syskit
                             Marshal.dump(build_system_info, socket)
                         elsif cmd_code == COMMAND_CREATE_LOG
                             debug "#{socket} requested creating a log directory"
-                            log_dir, time_tag, metadata = Marshal.load(socket)
+                            time_tag, metadata = Marshal.load(socket)
 
                             begin
                                 metadata ||= {} # compatible with older clients
-                                log_dir = File.expand_path(log_dir) if log_dir
-                                create_log_dir(log_dir, time_tag, metadata)
+                                create_log_dir(time_tag, metadata)
                                 socket.write(RET_YES)
                             rescue StandardError => e
                                 warn "failed to create log directory #{log_dir}: "\
@@ -461,9 +460,7 @@ module Syskit
                         false
                     end
 
-                    def create_log_dir(log_dir, time_tag, metadata = {})
-                        app.log_base_dir = log_dir if log_dir
-
+                    def create_log_dir(time_tag, metadata = {})
                         if (parent_info = metadata["parent"])
                             if (app_name = parent_info["app_name"])
                                 app.app_name = app_name

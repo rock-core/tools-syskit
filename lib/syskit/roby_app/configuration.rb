@@ -591,13 +591,38 @@ module Syskit
             #   {#local_only?} is set
             # @raise [AlreadyConnected] if there is already a process server
             #   registered with that name
-            def connect_to_orocos_process_server(name, host, **kw)
+            def connect_to_orocos_process_server(
+                name, host,
+                port: ProcessManagers::Remote::DEFAULT_PORT,
+                log_dir: nil, result_dir: nil, host_id: nil, name_service: nil,
+                model_only_server: only_load_models? || (app.simulation? && app.single?),
+                logging_enabled: true, register_on_name_server: true
+            )
                 Roby.warn_deprecated(
                     "#{self.class}#connect_to_orocos_process_server is deprecated, "\
                     "use register_remote_manager instead"
                 )
 
-                register_remote_manager(name, host, **kw)
+                if name_service
+                    Roby.warn_deprecated(
+                        "the name_service argument to connect_to_orocos_process_server is "\
+                        "unused, and will be removed in the future"
+                    )
+                end
+
+                if log_dir || result_dir
+                    Syskit.warn(
+                        "specifying log and/or result dir for remote process servers "\
+                        "is deprecated. Use 'syskit process_server' instead of "\
+                        "'orocos_process_server' which will take the log dir "\
+                        "information from the environment/configuration"
+                    )
+                end
+
+                register_remote_manager(
+                    name, host,
+                    port: port, host_id: host_id, model_only_server: model_only_server
+                )
             end
 
             # Call to declare a new process server and add to the set of servers that
@@ -615,37 +640,20 @@ module Syskit
             #   registered with that name
             def register_remote_manager(
                 name, host,
-                port: ProcessManagers::Remote::DEFAULT_PORT,
-                log_dir: nil, result_dir: nil, host_id: nil, name_service: nil,
+                port: ProcessManagers::Remote::DEFAULT_PORT, host_id: nil,
                 model_only_server: only_load_models? || (app.simulation? && app.single?),
                 logging_enabled: true, register_on_name_server: true
             )
-                if log_dir || result_dir
-                    Syskit.warn(
-                        "specifying log and/or result dir for remote process servers "\
-                        "is deprecated. Use 'syskit process_server' instead of "\
-                        "'orocos_process_server' which will take the log dir "\
-                        "information from the environment/configuration"
-                    )
-                end
-
-                if name_service
-                    Roby.warn_deprecated(
-                        "the name_service argument to connect_to_orocos_process_server is "\
-                        "unused, and will be removed in the future"
-                    )
-                end
-
                 if model_only_server
                     client = ModelOnlyServer.new(app.default_loader)
                     register_process_server(
-                        name, client, app.log_dir, host_id: host_id || "syskit"
+                        name, client, nil, host_id: host_id || "syskit"
                     )
                     return client
                 elsif app.single?
                     client = process_server_for("localhost")
                     register_process_server(
-                        name, client, app.log_dir, host_id: host_id || "localhost"
+                        name, client, nil, host_id: host_id || "localhost"
                     )
                     return client
                 end
@@ -670,12 +678,11 @@ module Syskit
                     host, port, root_loader: app.default_loader
                 )
                 client.create_log_dir(
-                    log_dir, Roby.app.time_tag,
-                    { "parent" => Roby.app.app_metadata }
+                    Roby.app.time_tag, { "parent" => Roby.app.app_metadata }
                 )
                 client.kill_all if kill_all_on_process_server_connection?
                 config = register_process_server(
-                    name, client, log_dir,
+                    name, client,
                     host_id: host_id || name,
                     logging_enabled: logging_enabled,
                     register_on_name_server: register_on_name_server
@@ -803,7 +810,7 @@ module Syskit
                 end
 
                 ps = ProcessServerConfig.new(
-                    name: name, client: client, log_dir: log_dir, host_id: host_id,
+                    name: name, client: client, host_id: host_id,
                     logging_enabled: logging_enabled,
                     register_on_name_server: register_on_name_server
                 )

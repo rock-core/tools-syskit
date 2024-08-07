@@ -218,10 +218,7 @@ module Syskit
             # @return [Configuration::ProcessServerConfig]
             def syskit_log_transfer_process_servers
                 Syskit.conf.each_process_server_config.find_all do |config|
-                    next unless config.supports_log_transfer?
-                    next(true) unless config.on_localhost?
-
-                    syskit_log_transfer_manager&.transfer_local_files_from?(config.log_dir)
+                    config.supports_log_transfer? && !config.on_localhost?
                 end
             end
 

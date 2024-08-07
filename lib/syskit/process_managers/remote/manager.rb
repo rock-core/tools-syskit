@@ -212,9 +212,9 @@ module Syskit
 
                 # Creates a new log dir, and save the given time tag in it (used later
                 # on by save_log_dir)
-                def create_log_dir(log_dir, time_tag, metadata = {})
+                def create_log_dir(time_tag, metadata = {})
                     socket.write(COMMAND_CREATE_LOG)
-                    Marshal.dump([log_dir, time_tag, metadata], socket)
+                    Marshal.dump([time_tag, metadata], socket)
                     wait_for_ack
                 end
 

@@ -291,16 +291,9 @@ module Syskit
 
             spawn_options = spawn_options.merge(
                 output: "%m-%p.txt",
-                wait: false,
                 cmdline_args: options,
                 register_on_name_server: register_on_name_server?
             )
-
-            if log_dir
-                spawn_options = spawn_options.merge(working_directory: log_dir)
-            else
-                spawn_options.delete(:working_directory)
-            end
 
             Deployment.info do
                 "starting deployment #{process_name} using "\

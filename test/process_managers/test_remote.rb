@@ -49,7 +49,7 @@ describe Syskit::ProcessManagers::Remote do
 
     describe "#pid" do
         before do
-            @client, = start_and_connect_to_server
+            @client = start_and_connect_to_server
         end
 
         it "returns the process server's PID" do
@@ -60,7 +60,7 @@ describe Syskit::ProcessManagers::Remote do
     describe "#loader" do
         attr_reader :loader
         before do
-            @client, = start_and_connect_to_server
+            @client = start_and_connect_to_server
             @loader = client.loader
         end
 
@@ -91,7 +91,7 @@ describe Syskit::ProcessManagers::Remote do
 
     describe "#start" do
         before do
-            @client, = start_and_connect_to_server
+            @client = start_and_connect_to_server
         end
 
         it "can start a process on the server" do
@@ -170,7 +170,7 @@ describe Syskit::ProcessManagers::Remote do
 
     describe "waits for the process to be running" do
         before do
-            @client, = start_and_connect_to_server
+            @client = start_and_connect_to_server
         end
 
         it "returns a hash with information about a process and its tasks" do
@@ -275,7 +275,7 @@ describe Syskit::ProcessManagers::Remote do
     describe "stopping a remote process" do
         attr_reader :process
         before do
-            @client, = start_and_connect_to_server
+            @client = start_and_connect_to_server
             @process = client.start(
                 "syskit_tests_empty", "syskit_tests_empty",
                 { "syskit_tests_empty" => "syskit_tests_empty" },
@@ -302,7 +302,7 @@ describe Syskit::ProcessManagers::Remote do
 
     describe "stopping all remote processes" do
         before do
-            @client, = start_and_connect_to_server
+            @client = start_and_connect_to_server
             @processes = 10.times.map do |i|
                 client.start(
                     "syskit_tests_empty_#{i}", "syskit_tests_empty",
@@ -335,10 +335,9 @@ describe Syskit::ProcessManagers::Remote do
 
     describe "#log_upload_file" do
         before do
-            @client, @remote_log_dir = start_and_connect_to_server
+            @client = start_and_connect_to_server
             @port, @certificate = spawn_log_transfer_server
-            remote_app_path = Pathname(@remote_log_dir).each_child.first
-            @logfile = remote_app_path / "logfile.log"
+            @logfile = Pathname(@app.log_dir) / "logfile.log"
             create_logfile(547)
         end
 
@@ -493,9 +492,8 @@ describe Syskit::ProcessManagers::Remote do
             "localhost", server.port, root_loader: root_loader
         )
 
-        log_dir = make_tmpdir
-        client.create_log_dir(log_dir, Roby.app.time_tag)
-        [client, log_dir]
+        client.create_log_dir(Roby.app.time_tag)
+        client
     end
 
     def start_and_connect_to_server
