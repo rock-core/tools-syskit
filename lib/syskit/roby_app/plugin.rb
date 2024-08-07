@@ -39,11 +39,6 @@ module Syskit
 
             attr_writer :syskit_use_update_properties
 
-            # Object that allows in-process instantiation of RTT task contexts
-            #
-            # @return [Orocos::ComponentLoader]
-            attr_accessor :syskit_component_loader
-
             # The deployed in-process logger for ruby tasks
             attr_accessor :syskit_in_process_logger_deployment
 
@@ -103,13 +98,6 @@ module Syskit
                         File.join(app.log_dir, "properties")
                     )
                 end
-
-                app.syskit_component_loader = Orocos::ComponentLoader.new(
-                    loader: OroGen::Loaders::PkgConfig.new(
-                        app.default_pkgconfig_loader.orocos_target,
-                        app.default_loader
-                    )
-                )
 
                 if Syskit.conf.define_default_process_managers?
                     if Syskit.conf.only_load_models?
@@ -360,6 +348,15 @@ module Syskit
                     ros_loader if Orocos::ROS.enabled?
                 end
                 @default_loader
+            end
+
+            def syskit_component_loader
+                @syskit_component_loader ||= Orocos::ComponentLoader.new(
+                    loader: OroGen::Loaders::PkgConfig.new(
+                        default_pkgconfig_loader.orocos_target,
+                        default_loader
+                    )
+                )
             end
 
             def default_pkgconfig_loader
