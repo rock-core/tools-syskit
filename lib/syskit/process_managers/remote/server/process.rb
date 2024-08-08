@@ -120,7 +120,7 @@ module Syskit
 
                     def setup_gdbserver(port: Process.allocate_gdb_port)
                         @arguments.unshift(@command)
-                        @arguments.unshift("0.0.0.0:#{port}")
+                        @arguments.unshift(":#{port}")
                         @command = "gdbserver"
                         @execution_mode = { type: "gdbserver", port: port }
                         self
@@ -132,7 +132,7 @@ module Syskit
                             proc do
                                 log_file_basename =
                                     resolve_file_pattern(output, ::Process.pid)
-                                "--log-file=#{log_file_basename}.valgrind"
+                                "--log-file=#{log_file_basename}"
                             end
                         )
                         @command = "valgrind"
@@ -166,7 +166,7 @@ module Syskit
                     end
 
                     def setup_execution_mode(type: nil, **options)
-                        cmd.send("setup_#{type}", **options) if type
+                        send("setup_#{type}", **options) if type
                     end
 
                     # Waits until the process dies
@@ -307,7 +307,6 @@ module Syskit
                         @ior_read_fd.close
 
                         arguments = resolve_arguments
-
                         arguments << "--ior-write-fd=#{ior_write_fd.fileno}"
 
                         apply_env(ENV)
