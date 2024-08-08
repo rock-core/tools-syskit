@@ -571,6 +571,12 @@ module Syskit
                     *names, deployment_spec, loader: loader, **run_options
                 )
                 new_deployments.map do |deployment_name, name_mappings, name, spawn_options|
+                    # Workaround until we get rid of parse_run_options
+                    #
+                    # In Syskit's case, both log dir and working directory are controlled
+                    # by the process server config
+                    spawn_options.delete(:working_directory)
+
                     unless (model = deployments_by_name[deployment_name])
                         orogen_model = loader.deployment_model_from_name(deployment_name)
                         model = Syskit::Deployment.find_model_by_orogen(orogen_model)
