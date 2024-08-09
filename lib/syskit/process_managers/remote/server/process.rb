@@ -200,6 +200,7 @@ module Syskit
 
                     # Called externally to announce a component dead.
                     def dead!(exit_status) # :nodoc:
+                        @control_write_fd.close
                         exit_status = (@exit_status ||= exit_status)
 
                         if !exit_status
@@ -265,12 +266,20 @@ module Syskit
                         @ior_message = +""
 
                         @ior_read_fd, ior_write_fd = IO.pipe
+                        control_read_fd, @control_write_fd = IO.pipe
+
                         read, write = IO.pipe
                         @pid = fork do
+                            @ior_read_fd.close
+                            @control_write_fd.close
+
                             read.close
-                            spawn_setup_forked_process_and_exec(write, ior_write_fd)
+                            spawn_setup_forked_process_and_exec(
+                                write, ior_write_fd, control_read_fd
+                            )
                         end
                         ior_write_fd.close
+                        control_read_fd.close
                         write.close
                         raise "cannot start #{@name}" if read.read
 
@@ -318,10 +327,9 @@ module Syskit
                     end
 
                     # Do the necessary work within the fork and exec the deployment
-                    def spawn_setup_forked_process_and_exec(write_pipe, ior_write_fd)
-                        @ior_read_fd.close
-
+                    def spawn_setup_forked_process_and_exec(write_pipe, ior_write_fd, control_read_fd)
                         arguments = resolve_arguments
+                        arguments << "--control-fd=#{control_read_fd.fileno}"
                         arguments << "--ior-write-fd=#{ior_write_fd.fileno}"
 
                         apply_env(ENV)
@@ -333,8 +341,9 @@ module Syskit
                         ::Process.setpgrp
                         begin
                             exec(@command, *arguments,
-                                 ior_write_fd => ior_write_fd, **output_redirect,
-                                 chdir: @working_directory)
+                                 control_read_fd => control_read_fd,
+                                 ior_write_fd => ior_write_fd,
+                                 chdir: @working_directory, **output_redirect)
                         rescue Exception => e # rubocop:disable Lint/RescueException
                             write_pipe.write("FAILED: #{e}")
                         end
@@ -347,9 +356,11 @@ module Syskit
                     #   message has been received, return it as a { task name => ior }
                     #   hash. Otherwise, returns nil
                     def wait_running
-                        loop do
-                            @ior_message += @ior_read_fd.read_nonblock(4096)
+                        until @ior_message.end_with?("\n")
+                            @ior_message += @ior_read_fd.read_nonblock(1024)
                         end
+                        @ior_read_fd.close
+                        load_ior_message(@ior_message)
                     rescue IO::WaitReadable
                         nil
                     rescue EOFError
@@ -387,20 +398,16 @@ module Syskit
                         tpid = pid
                         return unless tpid # already dead
 
-                        signal =
-                            if hard
-                                "SIGKILL"
-                            else
-                                "SIGINT"
+                        if hard
+                            puts "KILL"
+                            @expected_exit = 9
+                            begin
+                                ::Process.kill(9, tpid)
+                            rescue Errno::ESRCH # rubocop:disable Lint/SuppressedException
                             end
-
-                        expected_exit = nil
-                        Orocos.warn "sending #{signal} to #{name}" unless expected_exit
-
-                        @expected_exit = SIGNAL_NUMBERS[signal] || signal
-                        begin
-                            ::Process.kill(signal, tpid)
-                        rescue Errno::ESRCH # rubocop:disable Lint/SuppressedException
+                        else
+                            puts "control FD"
+                            @control_write_fd.write("Q")
                         end
                     end
                 end
