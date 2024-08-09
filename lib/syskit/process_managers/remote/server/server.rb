@@ -371,7 +371,7 @@ module Syskit
                             end
                         elsif cmd_code == COMMAND_END
                             name, hard = Marshal.load(socket)
-                            debug "#{socket} requested end of #{name}"
+                            debug "#{socket} requested end of #{name} (hard: #{hard})"
                             if (p = processes[name])
                                 begin
                                     end_process(p, hard: hard)
