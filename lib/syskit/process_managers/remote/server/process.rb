@@ -118,6 +118,21 @@ module Syskit
                         self
                     end
 
+                    def setup_rr
+                        @arguments.unshift(@command)
+                        @arguments.unshift(
+                            proc do
+                                trace_dir_basename =
+                                    resolve_file_pattern("rr-%m-%p", ::Process.pid)
+                                "--output-trace-dir=#{trace_dir_basename}"
+                            end
+                        )
+                        @arguments.unshift("record")
+                        @command = "rr"
+                        @execution_mode = { type: "rr" }
+                        self
+                    end
+
                     def setup_gdbserver(port: Process.allocate_gdb_port)
                         @arguments.unshift(@command)
                         @arguments.unshift(":#{port}")
