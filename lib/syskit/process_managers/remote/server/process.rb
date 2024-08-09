@@ -370,7 +370,7 @@ module Syskit
                         JSON.parse(message)
                     rescue JSON::ParserError
                         raise Orocos::InvalidIORMessage,
-                              "received IOR message is not valid JSON"
+                              "received IOR message is not valid JSON: #{message}"
                     end
 
                     SIGNAL_NUMBERS = {
