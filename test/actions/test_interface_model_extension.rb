@@ -389,7 +389,7 @@ describe Syskit::Actions::InterfaceModelExtension do
         task_m.provides srv_m, as: "test"
         profile_m = Syskit::Actions::Profile.new
         task = profile_m.define "task", task_m
-        profile_m.use_profile base_profile_m, "tag" => task
+        profile_m.use_profile(base_profile_m, { "tag" => task })
         action_m = base_action_m.new_submodel do
             use_profile profile_m
         end
