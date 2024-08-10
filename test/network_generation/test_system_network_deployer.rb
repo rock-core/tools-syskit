@@ -344,10 +344,10 @@ module Syskit
                     ]
                     @deployment_models = [
                         Deployment.new_submodel do
-                            task "task", task_models[0].orogen_model
+                            task "task", task_models[0]
                         end,
                         Deployment.new_submodel do
-                            task "other_task", task_models[1].orogen_model
+                            task "other_task", task_models[1]
                         end
                     ]
 
@@ -415,8 +415,8 @@ module Syskit
                     root.depends_on(task1 = task_m.new(orocos_name: "t1"), role: "t1")
 
                     deployment_m = Deployment.new_submodel do
-                        task "t0", task_m.orogen_model
-                        task "t1", task_m.orogen_model
+                        task "t0", task_m
+                        task "t1", task_m
                     end
 
                     task0.requirements.use_configured_deployment(

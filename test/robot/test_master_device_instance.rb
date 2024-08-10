@@ -258,7 +258,7 @@ module Syskit
                                    .default_deployment_name("test::Task")
                     @default_deployment_name = default_name
                     @deployment_m = Syskit::Deployment.new_submodel(name: "d") do
-                        task default_name, driver_m.orogen_model
+                        task default_name, driver_m
                     end
                     flexmock(@loader).should_receive(:deployment_model_from_name)
                                      .with(default_name)

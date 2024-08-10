@@ -40,7 +40,7 @@ module Syskit
                 before do
                     @task_m = task_m = Syskit::TaskContext.new_submodel
                     @deployment_m = Syskit::Deployment.new_submodel do
-                        task "task", task_m.orogen_model
+                        task "task", task_m
                     end
                     @other_group = DeploymentGroup.new
                     @other_deployment = other_group.use_deployment(
@@ -123,7 +123,7 @@ module Syskit
                 before do
                     @task_m = task_m = Syskit::TaskContext.new_submodel
                     @deployment_m = Syskit::Deployment.new_submodel do
-                        task "task", task_m.orogen_model
+                        task "task", task_m
                     end
                 end
 
@@ -170,7 +170,7 @@ module Syskit
                 before do
                     @task_m = task_m = Syskit::TaskContext.new_submodel
                     @deployment_m = Syskit::Deployment.new_submodel do
-                        task "task", task_m.orogen_model
+                        task "task", task_m
                     end
                 end
 
@@ -223,7 +223,7 @@ module Syskit
                 before do
                     @task_m = task_m = Syskit::TaskContext.new_submodel
                     @deployment_m = Syskit::Deployment.new_submodel do
-                        task "task", task_m.orogen_model
+                        task "task", task_m
                     end
                 end
 
@@ -879,7 +879,7 @@ module Syskit
             def stub_deployment(name)
                 task_m = @task_m
                 Syskit::Deployment.new_submodel(name: name) do
-                    task("task", task_m.orogen_model)
+                    task("task", task_m)
                 end
             end
         end

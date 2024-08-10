@@ -485,7 +485,7 @@ module Syskit # :nodoc:
                 default_name = OroGen::Spec::Project.default_deployment_name("test::Task")
                 @default_deployment_name = default_name
                 @deployment_m = Deployment.new_submodel(name: "test_deployment") do
-                    task default_name, task_m.orogen_model
+                    task default_name, task_m
                 end
                 flexmock(@loader).should_receive(:deployment_model_from_name)
                                  .with(default_name)

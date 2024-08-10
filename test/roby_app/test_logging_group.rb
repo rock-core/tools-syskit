@@ -12,7 +12,7 @@ module Syskit
                     output_port "out", "/double"
                 end
                 @deployment_m = Syskit::Deployment.new_submodel(name: "TestDeployment") do
-                    task "task", task_m.orogen_model
+                    task "task", task_m
                 end
             end
 
