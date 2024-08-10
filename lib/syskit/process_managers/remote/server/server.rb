@@ -287,7 +287,7 @@ module Syskit
                     #   terminated processes
                     def announce_dead_processes(dead_processes)
                         dead_processes.each do |process, exit_status|
-                            debug "announcing death of #{process.name}"
+                            debug "announcing death of #{process.name} - #{exit_status}"
                             each_client do |socket|
                                 debug "  announcing to #{socket}"
                                 socket.write(EVENT_DEAD_PROCESS)
