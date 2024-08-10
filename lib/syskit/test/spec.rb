@@ -13,14 +13,12 @@ module Syskit
             def setup
                 NetworkGeneration::Engine.on_error = :save
                 unplug_requirement_modifications
-                loader = OroGen::Loaders::Base.new(Roby.app.default_loader)
 
-                stub_manager = RobyApp::RubyTasks::ProcessManager.new(
-                    loader, task_context_class: Orocos::RubyTasks::StubTaskContext
-                )
-                Syskit.conf.register_process_server(
-                    "stubs", stub_manager, nil,
-                    host_id: "syskit", register_on_name_server: false
+                loader = OroGen::Loaders::Base.new(Roby.app.default_loader)
+                Syskit.conf.register_ruby_tasks_manager(
+                    "stubs",
+                    loader: loader,
+                    task_context_class: Orocos::RubyTasks::StubTaskContext
                 )
 
                 super

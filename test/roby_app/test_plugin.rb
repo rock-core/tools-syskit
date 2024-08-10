@@ -2,25 +2,29 @@
 
 require "syskit/test/self"
 require "syskit/test/roby_app_helpers"
-require "syskit/roby_app/remote_processes"
+require "syskit/process_managers/remote/server"
 
 module Syskit
     module RobyApp
+        RemoteServer = ProcessManagers::Remote::Server::Server
+
         describe Plugin do
             describe "remote model loading" do
                 def create_process_server(name)
                     app = Roby::Application.new
                     loader = OroGen::Loaders::Files.new
                     OroGen::Loaders::RTT.setup_loader(loader)
-                    loader.register_orogen_file(File.join(data_dir, "plugin_remote_model_loading.orogen"))
+                    loader.register_orogen_file(
+                        File.join(data_dir, "plugin_remote_model_loading.orogen")
+                    )
 
-                    server = RemoteProcesses::Server.new(app, port: 0, loader: loader)
+                    server = RemoteServer.new(app, port: 0, loader: loader)
                     server.open
 
                     thread = Thread.new do
                         server.listen
                     end
-                    client = Syskit.conf.connect_to_orocos_process_server(
+                    client = Syskit.conf.register_remote_manager(
                         name, "localhost", port: server.port
                     )
                     @process_servers << [name, thread, client]
@@ -35,8 +39,8 @@ module Syskit
                 end
 
                 after do
-                    capture_log(Syskit::RobyApp::RemoteProcesses::Server, :fatal) do
-                        capture_log(Syskit::RobyApp::RemoteProcesses::Server, :warn) do
+                    capture_log(RemoteServer, :fatal) do
+                        capture_log(RemoteServer, :warn) do
                             @process_servers.each do |name, thread, client|
                                 client.close
                                 Syskit.conf.remove_process_server(name)
@@ -256,12 +260,12 @@ module Syskit
                     app.syskit_log_transfer_prepare
 
                     conf = Syskit.conf.process_server_config_for("localhost")
+                    flexmock(conf).should_receive(on_localhost?: false)
                     flexmock(conf).should_receive(supports_log_transfer?: true)
                     assert_equal [conf], app.syskit_log_transfer_process_servers
                 end
 
-                it "ignores local process servers if they have the same directory than "\
-                   "the transfer's target dir" do
+                it "ignores local process servers" do
                     Syskit.conf.log_transfer.target_dir = app.log_dir
                     app.syskit_log_transfer_prepare
 
@@ -277,6 +281,7 @@ module Syskit
                     Syskit.conf.log_transfer.port = 42
                     Syskit.conf.log_transfer.implicit_ftps = false
                     conf = Syskit.conf.process_server_config_for("localhost")
+                    flexmock(conf).should_receive(on_localhost?: false)
                     flexmock(conf).should_receive(supports_log_transfer?: true)
                     flexmock(app)
                         .should_receive(:syskit_rotate_logs)
@@ -314,12 +319,8 @@ module Syskit
                     @app = Roby::Application.new
                     @conf = RobyApp::Configuration.new(@app)
                     @loader = OroGen::Loaders::Base.new
-                    @conf.register_process_server(
-                        "localhost", Syskit::RobyApp::RubyTasks::ProcessManager.new(@loader), ""
-                    )
-                    @conf.register_process_server(
-                        "test-mng", Syskit::RobyApp::RubyTasks::ProcessManager.new(@loader), ""
-                    )
+                    register_ruby_tasks_manager("localhost", conf: @conf)
+                    register_ruby_tasks_manager("test-mng", conf: @conf)
                     @group = Syskit::Models::DeploymentGroup.new
                     model_m = Syskit::TaskContext.new_submodel(
                         orogen_model_name: "test::Task"

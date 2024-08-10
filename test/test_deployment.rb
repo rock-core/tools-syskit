@@ -51,7 +51,7 @@ module Syskit
             @tasks = {}
         end
 
-        def get_mapped_name(name)
+        def mapped_name_of(name)
             name_mappings.fetch(name)
         end
 
@@ -338,14 +338,6 @@ module Syskit
                 it "finds the process server from Syskit.process_servers and its on: option" do
                     process_server.should_receive(:start).once
                                   .with("mapped_task_name", deployment_m.orogen_model, any, any)
-                                  .and_return(process)
-                    expect_execution { deployment_task.start! }
-                        .join_all_waiting_work(false)
-                        .to_run
-                end
-                it "passes the process server's log dir as working directory" do
-                    process_server.should_receive(:start).once
-                                  .with(any, any, any, hsh(working_directory: log_dir))
                                   .and_return(process)
                     expect_execution { deployment_task.start! }
                         .join_all_waiting_work(false)
@@ -795,10 +787,7 @@ module Syskit
         describe "using the ruby process server" do
             attr_reader :task_name, :task_m, :deployment_m, :deployment
             before do
-                Syskit.conf.register_process_server(
-                    "test", RobyApp::RubyTasks::ProcessManager.new, "",
-                    register_on_name_server: false
-                )
+                register_ruby_tasks_manager("test")
                 task_m = @task_m = TaskContext.new_submodel do
                     input_port "in", "/double"
                     output_port "out", "/double"
@@ -868,25 +857,23 @@ module Syskit
             attr_reader :deployment_m, :deployment0, :deployment1
             def setup
                 super
+
                 @deployment_m = Deployment.new_submodel
-                @stub_process_servers = []
+                @name_sequence_id = 0
             end
 
-            def teardown
-                @stub_process_servers.each do |ps|
-                    Syskit.conf.remove_process_server(ps.name)
-                end
-                super
+            def create_unique_name
+                "#{name}-#{@name_sequence_id += 1}"
             end
 
-            def create_deployment(host_id, name: flexmock)
+            def create_deployment(host_id, name: create_unique_name)
                 process_server = ProcessServerFixture.new
                 process = ProcessFixture.new(process_server)
                 process_server.processes["mapped_task_name"] = process
                 log_dir = flexmock("log_dir")
-                process_server_config =
-                    Syskit.conf.register_process_server(name, process_server, log_dir, host_id: host_id)
-                @stub_process_servers << process_server_config
+                Syskit.conf.register_process_server(
+                    name, process_server, log_dir, host_id: host_id
+                )
                 deployment_m.new(on: name)
             end
         end

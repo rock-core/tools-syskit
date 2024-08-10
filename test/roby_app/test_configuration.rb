@@ -1,7 +1,6 @@
 # frozen_string_literal: true
 
 require "syskit/test/self"
-require "syskit/roby_app/remote_processes"
 
 describe Syskit::RobyApp::Configuration do
     describe "#use_deployment" do
@@ -9,8 +8,8 @@ describe Syskit::RobyApp::Configuration do
         before do
             @task_m = Syskit::TaskContext.new_submodel(name: "test::Task")
             @conf = Syskit::RobyApp::Configuration.new(Roby.app)
-            conf.register_process_server("localhost", Syskit::RobyApp::RubyTasks::ProcessManager.new(Roby.app.default_loader), "")
-            conf.register_process_server("test", Syskit::RobyApp::RubyTasks::ProcessManager.new(Roby.app.default_loader), "")
+            register_ruby_tasks_manager("localhost", conf: @conf)
+            register_ruby_tasks_manager("test", conf: @conf)
         end
 
         def stub_deployment(name)
@@ -39,8 +38,7 @@ describe Syskit::RobyApp::Configuration do
         before do
             @task_m = Syskit::RubyTaskContext.new_submodel
             @conf = Syskit::RobyApp::Configuration.new(Roby.app)
-            @conf.register_process_server("ruby_tasks",
-                                          Syskit::RobyApp::RubyTasks::ProcessManager.new(Roby.app.default_loader), "")
+            register_ruby_tasks_manager("ruby_tasks", conf: @conf)
         end
 
         it "defines a deployment for a given ruby task context model" do
@@ -55,8 +53,7 @@ describe Syskit::RobyApp::Configuration do
         before do
             @task_m = Syskit::TaskContext.new_submodel
             @conf = Syskit::RobyApp::Configuration.new(Roby.app)
-            @conf.register_process_server("unmanaged_tasks",
-                                          Syskit::RobyApp::RubyTasks::ProcessManager.new(Roby.app.default_loader), "")
+            register_unmanaged_manager("unmanaged_tasks", conf: @conf)
         end
         it "defines a configured deployment from a task model and name" do
             configured_deployments = @conf.use_unmanaged_task @task_m => "name"
@@ -69,7 +66,7 @@ describe Syskit::RobyApp::Configuration do
         end
     end
 
-    describe "#connect_to_orocos_process_server" do
+    describe "#register_remote_manager" do
         before do
             @conf = Syskit::RobyApp::Configuration.new(Roby.app)
             @mock_process = flexmock(pid: 20)
@@ -81,7 +78,7 @@ describe Syskit::RobyApp::Configuration do
             @available_deployment_names = ["deployment"]
 
             set_log_level ::Robot, Logger::FATAL + 1
-            set_log_level Syskit::RobyApp::RemoteProcesses::Server, Logger::FATAL + 1
+            set_log_level Syskit::ProcessManagers::Remote::Server, Logger::FATAL + 1
         end
 
         after do
@@ -110,9 +107,10 @@ describe Syskit::RobyApp::Configuration do
             it "starts the process and reports its PID" do
                 process_server_start
 
-                client = @conf.connect_to_orocos_process_server(
+                client = register_remote_manager(
                     "test-remote", "localhost",
-                    port: process_server_port
+                    port: process_server_port,
+                    conf: @conf
                 )
 
                 process = client.start "deployment", deployment_m.orogen_model
@@ -121,9 +119,10 @@ describe Syskit::RobyApp::Configuration do
 
             it "marks the process server as supporting log transfer" do
                 process_server_start
-                @conf.connect_to_orocos_process_server(
+                register_remote_manager(
                     "test-remote", "localhost",
-                    port: process_server_port
+                    port: process_server_port,
+                    conf: @conf
                 )
                 config = @conf.process_server_config_for("test-remote")
                 assert config.supports_log_transfer?
@@ -142,7 +141,7 @@ describe Syskit::RobyApp::Configuration do
             @server_loader.should_receive(:each_available_project_name)
                           .and_return { @available_project_names }
 
-            @server = Syskit::RobyApp::RemoteProcesses::Server.new(
+            @server = Syskit::ProcessManagers::Remote::Server::Server.new(
                 Roby.app, port: 0, loader: @server_loader
             )
             flexmock(@server)

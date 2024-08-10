@@ -1,12 +1,13 @@
 # frozen_string_literal: true
 
-require "orocos/process"
-
 module Syskit
-    module RobyApp
-        module RemoteProcesses
-            # Representation of a remote process started with ProcessClient#start
-            class Process < Orocos::ProcessBase
+    module ProcessManagers
+        module Remote
+            # Representation of a remote process started with {Manager}
+            class Process < ProcessBase
+                extend Logger::Hierarchy
+                extend Logger::Forward
+
                 # The ProcessClient instance that gives us access to the remote process
                 # server
                 attr_reader :process_client
@@ -30,6 +31,7 @@ module Syskit
                     @pid = pid
                     @alive = true
                     @ior_mappings = {}
+
                     super(name, deployment_model)
                 end
 
@@ -66,8 +68,24 @@ module Syskit
                 end
 
                 def resolve_all_tasks
-                    Orocos::Process.resolve_all_tasks(self)
+                    model.task_activities.each_with_object({}) do |deployed_task, map|
+                        mapped_name = mapped_name_of(deployed_task.name)
+                        unless (ior = @ior_mappings[mapped_name])
+                            raise Orocos::IORNotRegisteredError,
+                                  "no IOR is registered for #{task_name}"
+                        end
+
+                        map[mapped_name] =
+                            Orocos::TaskContext.new(
+                                ior, name: mapped_name,
+                                     model: deployed_task.task_model,
+                                     process: self
+                            )
+                    end
                 end
+
+                # no-op, only here to please Orocos::TaskContext
+                def register_task(task); end
 
                 def define_ior_mappings(mappings)
                     @ior_mappings = mappings

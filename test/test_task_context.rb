@@ -142,24 +142,22 @@ module Syskit
             def setup
                 super
                 @deployment_m = Deployment.new_submodel
-                @stub_process_servers = []
+                @name_sequence_id = 0
             end
 
-            def teardown
-                @stub_process_servers.each do |ps|
-                    Syskit.conf.remove_process_server(ps.name)
-                end
-                super
+            def create_unique_name
+                "#{name}-#{@name_sequence_id += 1}"
             end
 
-            def create_task_from_host_id(host_id, name: flexmock)
-                process_server = RobyApp::UnmanagedTasksManager.new
-                RobyApp::UnmanagedProcess.new(process_server, "test", nil)
+            def create_task_from_host_id(host_id, name: create_unique_name)
                 log_dir = flexmock("log_dir")
-                process_server_config = Syskit.conf.register_process_server(
-                    name, process_server, log_dir, host_id: host_id
+                process_server_config = register_unmanaged_manager(
+                    name, log_dir: log_dir, host_id: host_id
                 )
-                @stub_process_servers << process_server_config
+
+                ProcessManagers::Unmanaged::Process.new(
+                    process_server_config.manager, "test", nil
+                )
                 deployment = deployment_m.new(on: name)
                 plan.add(task = task_m.new)
                 task.executed_by(deployment)
@@ -2247,17 +2245,12 @@ module Syskit
 
         describe "deployment shortcuts" do
             before do
-                Syskit.conf.register_process_server(
-                    "unmanaged_tasks", RobyApp::UnmanagedTasksManager.new
-                )
+                register_unmanaged_manager("unmanaged_tasks")
 
                 Roby.app.using_task_library "orogen_syskit_tests"
                 @task_m = TaskContext.find_model_from_orogen_name(
                     "orogen_syskit_tests::Empty"
                 )
-            end
-            after do
-                Syskit.conf.remove_process_server("unmanaged_tasks")
             end
 
             it "allows to declare a 'default' deployment" do

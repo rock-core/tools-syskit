@@ -10,15 +10,11 @@ module Syskit
                     @task_m = Syskit::RubyTaskContext.new_submodel(
                         orogen_model_name: "test::Task"
                     )
-                    Syskit.conf.register_process_server(
-                        "ruby_tasks",
-                        RobyApp::RubyTasks::ProcessManager.new(Roby.app.default_loader)
-                    )
+                    register_ruby_tasks_manager("ruby_tasks")
                 end
 
                 after do
                     teardown_registered_plans
-                    Syskit.conf.remove_process_server("ruby_tasks")
                 end
 
                 def self.common_behavior(c)

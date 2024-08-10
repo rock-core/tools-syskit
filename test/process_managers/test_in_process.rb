@@ -3,15 +3,12 @@
 require "syskit/test/self"
 
 module Syskit
-    module RobyApp
-        describe InProcessTasksManager do
+    module ProcessManagers
+        describe InProcess do
             attr_reader :deployment_task
 
             before do
-                Syskit.conf.register_process_server(
-                    "in_process_tasks", InProcessTasksManager.new
-                )
-                @process_manager = Syskit.conf.process_server_for("in_process_tasks")
+                @process_manager = register_in_process_manager("in_process_tasks")
 
                 Roby.app.using_task_library "orogen_syskit_tests"
                 @deployment_group = Syskit::Models::DeploymentGroup.new
@@ -22,8 +19,6 @@ module Syskit
                     expect_execution { deployment_task.stop! }
                         .to { emit deployment_task.stop_event }
                 end
-
-                Syskit.conf.remove_process_server("in_process_tasks")
             end
 
             it "follows the lifecycle of a deployment" do
@@ -122,39 +117,39 @@ module Syskit
                 end
 
                 after do
-                    InProcessTasksManager.deregister_default_logger_deployment(app)
+                    InProcess::Manager.deregister_default_logger_deployment(app)
                 end
 
                 it "registers an in-process logger" do
-                    InProcessTasksManager.register_default_logger_deployment(app)
+                    InProcess::Manager.register_default_logger_deployment(app)
 
-                    t = InProcessTasksManager.default_logger_task(app.plan)
+                    t = InProcess::Manager.default_logger_task(app.plan)
                     assert_kind_of app.syskit_logger_m, t
-                    assert_equal InProcessTasksManager::DEFAULT_LOGGER_NAME, t.orocos_name
+                    assert_equal InProcess::Manager::DEFAULT_LOGGER_NAME, t.orocos_name
                 end
 
                 it "reuses an existing in-process logger" do
-                    InProcessTasksManager.register_default_logger_deployment(app)
+                    InProcess::Manager.register_default_logger_deployment(app)
 
-                    t1 = InProcessTasksManager.default_logger_task(plan)
-                    assert_same t1, InProcessTasksManager.find_default_logger_task(plan)
-                    t2 = InProcessTasksManager.default_logger_task(plan)
+                    t1 = InProcess::Manager.default_logger_task(plan)
+                    assert_same t1, InProcess::Manager.find_default_logger_task(plan)
+                    t2 = InProcess::Manager.default_logger_task(plan)
                     assert_same t1, t2
                 end
 
                 it "selects the in-process logger specifically" do
                     plan.add_permanent_task(Roby.app.syskit_logger_m)
 
-                    assert_nil InProcessTasksManager.find_default_logger_task(plan)
+                    assert_nil InProcess::Manager.find_default_logger_task(plan)
                 end
 
                 it "reuses the in-process logger deployment if it exists" do
-                    InProcessTasksManager.register_default_logger_deployment(app)
+                    InProcess::Manager.register_default_logger_deployment(app)
 
                     deployment_task = plan.add_permanent_task(
                         Roby.app.syskit_in_process_logger_deployment.new
                     )
-                    t = InProcessTasksManager.default_logger_task(plan)
+                    t = InProcess::Manager.default_logger_task(plan)
                     assert_same deployment_task, t.execution_agent
                 end
             end

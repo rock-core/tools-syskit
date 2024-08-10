@@ -10,15 +10,7 @@ module Syskit
                 input_port "in", "/double"
                 output_port "out", "/double"
             end
-            Syskit.conf.register_process_server(
-                "ruby_tasks",
-                RobyApp::RubyTasks::ProcessManager.new(Roby.app.default_loader)
-            )
-        end
-
-        after do
-            teardown_registered_plans
-            Syskit.conf.remove_process_server("ruby_tasks")
+            @ruby_tasks_manager = register_ruby_tasks_manager("ruby_tasks")
         end
 
         it "allows to specify a component interface and have it deployed" do
@@ -74,17 +66,17 @@ module Syskit
         describe "logging" do
             before do
                 Roby.app.using_task_library "logger"
-                Syskit.conf.register_process_server(
-                    "in_process_tasks", RobyApp::InProcessTasksManager.new
-                )
-                RobyApp::InProcessTasksManager
+                register_in_process_manager("in_process_tasks")
+                ProcessManagers::InProcess::Manager
                     .register_default_logger_deployment(Roby.app)
                 assert Roby.app.syskit_logger_m
                 assert Roby.app.syskit_in_process_logger_deployment
+                @ruby_tasks_manager.logging_enabled = true
             end
 
             after do
-                RobyApp::InProcessTasksManager
+                @ruby_tasks_manager.logging_enabled = false
+                ProcessManagers::InProcess::Manager
                     .deregister_default_logger_deployment(Roby.app)
             end
 

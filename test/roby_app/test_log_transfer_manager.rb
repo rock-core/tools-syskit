@@ -2,7 +2,7 @@
 
 require "syskit/test/self"
 require "syskit/test/roby_app_helpers"
-require "syskit/roby_app/remote_processes"
+require "syskit/process_managers/remote/server"
 
 module Syskit
     module RobyApp
@@ -92,34 +92,38 @@ module Syskit
 
             # Spawn a process server
             #
-            # @return [(RemoteProcesses::Client,Pathname)]
+            # @return [(ProcessManagers::Remote::Manager,Pathname)]
             def create_process_server
-                server = RemoteProcesses::Server.new(app, port: 0)
+                app.log_base_dir = make_tmppath
+                server = ProcessManagers::Remote::Server::Server.new(app, port: 0)
                 server.make_own_logger("", Logger::FATAL)
                 server.open
                 thread = Thread.new { server.listen }
-
-                client = RemoteProcesses::Client.new("localhost", server.port)
-                log_dir = config_log_dir(client)
-                config = Configuration::ProcessServerConfig.new(
-                    name: "test", client: client, log_dir: log_dir,
-                    logging_enabled: false, register_on_name_server: false
-                )
                 @server_threads << thread
-                @process_servers << config
-                config
+
+                connect_to_process_server("localhost", server.port)
             rescue StandardError
                 server.quit_and_join
                 raise
             end
 
+            def connect_to_process_server(host, port)
+                client = ProcessManagers::Remote::Manager.new(host, port)
+                log_dir = config_log_dir(client)
+                config = Configuration::ProcessServerConfig.new(
+                    name: "test", client: client, log_dir: log_dir,
+                    logging_enabled: false, register_on_name_server: false
+                )
+                @process_servers << config
+                config
+            end
+
             def config_log_dir(client)
-                dir = make_tmppath
                 client.create_log_dir(
-                    dir.to_s, Roby.app.time_tag,
+                    Roby.app.time_tag,
                     { "parent" => Roby.app.app_metadata }
                 )
-                dir.each_child.first
+                Pathname(app.log_dir)
             end
 
             def close_process_servers

@@ -14,10 +14,10 @@ module Syskit
                     @user = "test.user"
                     @password = "test.password"
                     @certfile_path =
-                        File.join(__dir__, "..", "remote_processes", "cert.crt")
-                    private_key_path = File.join(
-                        __dir__, "..", "remote_processes", "cert-private.crt"
-                    )
+                        File.join(__dir__, "..", "..", "process_managers", "cert.crt")
+                    private_key_path =
+                        File.join(__dir__, "..", "..", "process_managers",
+                                  "cert-private.crt")
 
                     @implicit_ftps = LogTransferServer.use_implicit_ftps?
                     @server = SpawnServer.new(

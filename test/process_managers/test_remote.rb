@@ -1,12 +1,9 @@
 # frozen_string_literal: true
 
-require "securerandom"
 require "syskit/test/self"
-require "syskit/roby_app/remote_processes"
-require "syskit/roby_app/remote_processes/server"
-require "syskit/roby_app/log_transfer_server"
+require "syskit/process_managers/remote/server"
 
-describe Syskit::RobyApp::RemoteProcesses do
+describe Syskit::ProcessManagers::Remote do
     attr_reader :server
     attr_reader :client
     attr_reader :root_loader
@@ -15,8 +12,8 @@ describe Syskit::RobyApp::RemoteProcesses do
         @app = Roby::Application.new
         @app.log_dir = make_tmpdir
         @__server_current_log_level =
-            Syskit::RobyApp::RemoteProcesses::Server.logger.level
-        Syskit::RobyApp::RemoteProcesses::Server.logger.level = Logger::WARN
+            Syskit::ProcessManagers::Remote::Server.logger.level
+        Syskit::ProcessManagers::Remote::Server.logger.level = Logger::WARN
         @__orocos_current_log_level = Orocos.logger.level
         Orocos.logger.level = Logger::FATAL
 
@@ -32,7 +29,7 @@ describe Syskit::RobyApp::RemoteProcesses do
         @server&.close
 
         if @__server_current_log_level
-            Syskit::RobyApp::RemoteProcesses::Server.logger.level =
+            Syskit::ProcessManagers::Remote::Server.logger.level =
                 @__server_current_log_level
         end
 
@@ -42,9 +39,8 @@ describe Syskit::RobyApp::RemoteProcesses do
     describe "#initialize" do
         it "registers the loader exactly once on the provided root loader" do
             start_server
-            client = Syskit::RobyApp::RemoteProcesses::Client.new(
-                "localhost",
-                server.port,
+            client = Syskit::ProcessManagers::Remote::Manager.new(
+                "localhost", server.port,
                 root_loader: root_loader
             )
             assert_equal [client.loader], root_loader.loaders
@@ -53,7 +49,7 @@ describe Syskit::RobyApp::RemoteProcesses do
 
     describe "#pid" do
         before do
-            @client, = start_and_connect_to_server
+            @client = start_and_connect_to_server
         end
 
         it "returns the process server's PID" do
@@ -64,7 +60,7 @@ describe Syskit::RobyApp::RemoteProcesses do
     describe "#loader" do
         attr_reader :loader
         before do
-            @client, = start_and_connect_to_server
+            @client = start_and_connect_to_server
             @loader = client.loader
         end
 
@@ -95,7 +91,7 @@ describe Syskit::RobyApp::RemoteProcesses do
 
     describe "#start" do
         before do
-            @client, = start_and_connect_to_server
+            @client = start_and_connect_to_server
         end
 
         it "can start a process on the server" do
@@ -174,7 +170,7 @@ describe Syskit::RobyApp::RemoteProcesses do
 
     describe "waits for the process to be running" do
         before do
-            @client, = start_and_connect_to_server
+            @client = start_and_connect_to_server
         end
 
         it "returns a hash with information about a process and its tasks" do
@@ -279,7 +275,7 @@ describe Syskit::RobyApp::RemoteProcesses do
     describe "stopping a remote process" do
         attr_reader :process
         before do
-            @client, = start_and_connect_to_server
+            @client = start_and_connect_to_server
             @process = client.start(
                 "syskit_tests_empty", "syskit_tests_empty",
                 { "syskit_tests_empty" => "syskit_tests_empty" },
@@ -306,7 +302,7 @@ describe Syskit::RobyApp::RemoteProcesses do
 
     describe "stopping all remote processes" do
         before do
-            @client, = start_and_connect_to_server
+            @client = start_and_connect_to_server
             @processes = 10.times.map do |i|
                 client.start(
                     "syskit_tests_empty_#{i}", "syskit_tests_empty",
@@ -339,10 +335,9 @@ describe Syskit::RobyApp::RemoteProcesses do
 
     describe "#log_upload_file" do
         before do
-            @client, @remote_log_dir = start_and_connect_to_server
+            @client = start_and_connect_to_server
             @port, @certificate = spawn_log_transfer_server
-            remote_app_path = Pathname(@remote_log_dir).each_child.first
-            @logfile = remote_app_path / "logfile.log"
+            @logfile = Pathname(@app.log_dir) / "logfile.log"
             create_logfile(547)
         end
 
@@ -487,19 +482,18 @@ describe Syskit::RobyApp::RemoteProcesses do
     def start_server
         raise "server already started" if @server
 
-        @server = Syskit::RobyApp::RemoteProcesses::Server.new(@app, port: 0)
+        @server = Syskit::ProcessManagers::Remote::Server::Server.new(@app, port: 0)
         server.open
         @server_thread = Thread.new { server.listen }
     end
 
     def connect_to_server
-        client = Syskit::RobyApp::RemoteProcesses::Client.new(
+        client = Syskit::ProcessManagers::Remote::Manager.new(
             "localhost", server.port, root_loader: root_loader
         )
 
-        log_dir = make_tmpdir
-        client.create_log_dir(log_dir, Roby.app.time_tag)
-        [client, log_dir]
+        client.create_log_dir(Roby.app.time_tag)
+        client
     end
 
     def start_and_connect_to_server

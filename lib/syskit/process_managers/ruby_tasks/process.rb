@@ -1,14 +1,14 @@
 # frozen_string_literal: true
 
 module Syskit
-    module RobyApp
+    module ProcessManagers
         module RubyTasks
             # Representation and management of a set of ruby tasks
             #
             # This provides a {Orocos::Process}-compatible API to ruby tasks. It allows
             # to define tasks in an oroGen deployment model and "spawn" them all at
             # once, as well as dispose of them all at once.
-            class Process < Orocos::ProcessBase
+            class Process < ProcessBase
                 # The Ruby process server that spawned this process
                 #
                 # If non-nil, the object's #dead_deployment will be called when self is
@@ -88,7 +88,7 @@ module Syskit
                 # @return [void]
                 def spawn(register_on_name_server: true, **_options)
                     model.task_activities.each do |deployed_task|
-                        name = get_mapped_name(deployed_task.name)
+                        name = mapped_name_of(deployed_task.name)
                         Orocos.allow_blocking_calls do
                             deployed_tasks[name] =
                                 task_context_class.from_orogen_model(
@@ -129,13 +129,13 @@ module Syskit
                 end
 
                 def kill(
-                    _wait = true, status = ProcessManager::Status.new(exit_code: 0), **
+                    _wait = true, status = Status.new(exit_code: 0), **
                 )
                     deployed_tasks.each_value(&:dispose)
                     dead!(status)
                 end
 
-                def dead!(status = ProcessManager::Status.new(exit_code: 0))
+                def dead!(status = Status.new(exit_code: 0))
                     @alive = false
                     ruby_process_server&.dead_deployment(name, status)
                 end

@@ -3,8 +3,8 @@
 require "syskit/test/self"
 
 module Syskit
-    module RobyApp
-        describe UnmanagedTasksManager do
+    module ProcessManagers
+        describe Unmanaged do
             attr_reader :process_manager, :task_model, :unmanaged_task, :deployment_task
 
             before do
@@ -15,10 +15,7 @@ module Syskit
             describe "using the default name service" do
                 before do
                     @task_model = Syskit::TaskContext.new_submodel
-                    Syskit.conf.register_process_server(
-                        "unmanaged_tasks", UnmanagedTasksManager.new
-                    )
-                    @process_manager = Syskit.conf.process_server_for("unmanaged_tasks")
+                    @process_manager = register_unmanaged_manager("unmanaged_tasks")
                     use_unmanaged_task task_model => @unmanaged_task_name
                     @task = syskit_deploy(task_model)
                     @deployment_task = @task.execution_agent
@@ -32,8 +29,6 @@ module Syskit
                     end
 
                     unmanaged_task&.dispose
-
-                    Syskit.conf.remove_process_server("unmanaged_tasks")
                 end
 
                 it "sets the deployment's process name's to the specified name" do
@@ -160,12 +155,8 @@ module Syskit
                 before do
                     @task_model = Syskit::TaskContext.new_submodel
                     @name_service = Orocos::Local::NameService.new
-                    Syskit.conf.register_process_server(
-                        "new_unmanaged_tasks",
-                        UnmanagedTasksManager.new(name_service: name_service)
-                    )
                     @process_manager =
-                        Syskit.conf.process_server_for("new_unmanaged_tasks")
+                        register_unmanaged_manager("new_unmanaged_tasks").manager
                     use_unmanaged_task(task_model => @unmanaged_task_name,
                                        on: "new_unmanaged_tasks")
                     @task = syskit_deploy(task_model)

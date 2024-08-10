@@ -159,7 +159,7 @@ module Syskit
                             if parser.instance_eval(as_string) == obj
                                 as_string
                             end
-                        rescue Exception
+                        rescue StandardError
                         end
                     end
                 end
@@ -189,7 +189,7 @@ module Syskit
                             @error_message.hide
                             @result = Parser.parse(self.text)
                             accept
-                        rescue Exception => e
+                        rescue StandardError => e
                             @error_message.text = e.message
                             @error_message.show
                         end

@@ -82,21 +82,87 @@ module Syskit
                     Syskit::RobyApp::Plugin.connect_to_local_process_server
                 end
 
-                stubs_process_manager = RobyApp::RubyTasks::ProcessManager.new(
-                    Roby.app.default_loader,
-                    task_context_class: Orocos::RubyTasks::StubTaskContext
-                )
+                @registered_process_managers = []
 
-                Syskit.conf.register_process_server(
-                    "stubs", stubs_process_manager, "",
-                    host_id: "syskit", logging_enabled: false,
-                    register_on_name_server: false
+                register_ruby_tasks_manager(
+                    "stubs",
+                    task_context_class: Orocos::RubyTasks::StubTaskContext
                 )
                 Syskit.conf.logs.create_configuration_log(
                     File.join(app.log_dir, "properties")
                 )
 
                 Orocos.forbid_blocking_calls
+            end
+
+            RegisteredProcessManager =
+                Struct.new(:name, :manager, :conf, keyword_init: true)
+
+            def register_remote_manager( # rubocop:disable Metrics/ParameterLists
+                name, host,
+                logging_enabled: false, register_on_name_server: false,
+                conf: Syskit.conf, **options
+            )
+                manager = conf.register_remote_manager(
+                    name, host,
+                    logging_enabled: logging_enabled,
+                    register_on_name_server: register_on_name_server, **options
+                )
+                @registered_process_managers <<
+                    RegisteredProcessManager.new(name: name, manager: manager, conf: conf)
+                manager
+            end
+
+            def register_in_process_manager(
+                name,
+                logging_enabled: false, register_on_name_server: false,
+                conf: Syskit.conf, **options
+            )
+                manager = conf.register_in_process_manager(
+                    name,
+                    logging_enabled: logging_enabled,
+                    register_on_name_server: register_on_name_server, **options
+                )
+                @registered_process_managers <<
+                    RegisteredProcessManager.new(name: name, manager: manager, conf: conf)
+                manager
+            end
+
+            def register_ruby_tasks_manager(
+                name,
+                logging_enabled: false, register_on_name_server: false,
+                conf: Syskit.conf, **options
+            )
+                manager = conf.register_ruby_tasks_manager(
+                    name,
+                    logging_enabled: logging_enabled,
+                    register_on_name_server: register_on_name_server, **options
+                )
+                @registered_process_managers <<
+                    RegisteredProcessManager.new(name: name, manager: manager, conf: conf)
+                manager
+            end
+
+            def register_unmanaged_manager(
+                name, logging_enabled: false, conf: Syskit.conf, **options
+            )
+                manager = conf.register_unmanaged_manager(
+                    name, logging_enabled: logging_enabled, **options
+                )
+                @registered_process_managers <<
+                    RegisteredProcessManager.new(name: name, manager: manager, conf: conf)
+                manager
+            end
+
+            def remove_created_process_managers
+                @registered_process_managers.delete_if do |mng|
+                    # Application#cleanup also removes process servers. Only cleanup what
+                    # has not yet been deregistered
+                    if mng.conf.has_process_server?(mng.name)
+                        mng.conf.remove_process_manager(mng.name)
+                    end
+                    true
+                end
             end
 
             def plug_apply_requirement_modifications
@@ -139,6 +205,8 @@ module Syskit
                         @syskit_handler_ids.values, execution_engine
                     )
                 end
+
+                remove_created_process_managers
             end
 
             def assert_is_proxy_model_for(models, result)

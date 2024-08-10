@@ -153,24 +153,20 @@ module Syskit
             end
 
             def self.define_default_process_managers(app)
-                Syskit.conf.register_process_server(
+                Syskit.conf.register_ruby_tasks_manager(
                     "ruby_tasks",
-                    RubyTasks::ProcessManager.new(app.default_loader),
-                    app.log_dir,
-                    host_id: "syskit", logging_enabled: !app.testing?,
-                    register_on_name_server: !app.testing?
+                    loader: app.default_loader, log_dir: app.log_dir,
+                    logging_enabled: !app.testing?, register_on_name_server: !app.testing?
                 )
 
-                Syskit.conf.register_process_server(
+                Syskit.conf.register_in_process_manager(
                     "in_process_tasks",
-                    InProcessTasksManager.new,
-                    app.log_dir,
-                    host_id: "syskit", logging_enabled: !app.testing?,
-                    register_on_name_server: !app.testing?
+                    log_dir: app.log_dir,
+                    logging_enabled: !app.testing?, register_on_name_server: !app.testing?
                 )
 
-                Syskit.conf.register_process_server(
-                    "unmanaged_tasks", UnmanagedTasksManager.new, app.log_dir
+                Syskit.conf.register_unmanaged_manager(
+                    "unmanaged_tasks", log_dir: app.log_dir
                 )
 
                 if Orocos::ROS.enabled?
@@ -222,10 +218,7 @@ module Syskit
             # @return [Configuration::ProcessServerConfig]
             def syskit_log_transfer_process_servers
                 Syskit.conf.each_process_server_config.find_all do |config|
-                    next unless config.supports_log_transfer?
-                    next(true) unless config.on_localhost?
-
-                    syskit_log_transfer_manager&.transfer_local_files_from?(config.log_dir)
+                    config.supports_log_transfer? && !config.on_localhost?
                 end
             end
 
@@ -718,7 +711,7 @@ module Syskit
 
             def self.create_local_process_server_client(app)
                 unless @server_pid
-                    raise Syskit::RobyApp::RemoteProcesses::Client::StartupFailed,
+                    raise ProcessManagers::Remote::Manager::StartupFailed,
                           "#create_local_process_server_client got called but "\
                           "no process server is being started"
                 end
@@ -727,7 +720,7 @@ module Syskit
                 client = nil
                 until client
                     client =
-                        begin Syskit::RobyApp::RemoteProcesses::Client.new("localhost", @server_port)
+                        begin ProcessManagers::Remote::Manager.new("localhost", @server_port)
                         rescue Errno::ECONNREFUSED
                             sleep 0.1
                             is_running =
@@ -738,7 +731,7 @@ module Syskit
                                 end
 
                             unless is_running
-                                raise Syskit::RobyApp::RemoteProcesses::Client::StartupFailed,
+                                raise ProcessManagers::Remote::Manager::StartupFailed,
                                       "the local process server failed to start"
                             end
 
@@ -749,7 +742,7 @@ module Syskit
                 # Verify that the server is actually ours (i.e. check that there
                 # was not one that was still running)
                 if client.server_pid != @server_pid
-                    raise Syskit::RobyApp::RemoteProcesses::Client::StartupFailed,
+                    raise ProcessManagers::Remote::Manager::StartupFailed,
                           "failed to start the local process server. It seems that "\
                           "there is one still running as PID #{client.server_pid} "\
                           "(was expecting #{@server_pid})"

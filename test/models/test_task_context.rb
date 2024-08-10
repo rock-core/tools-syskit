@@ -553,13 +553,7 @@ module Syskit # :nodoc:
                     orogen_model_name: "test::Task"
                 )
                 @conf = RobyApp::Configuration.new(Roby.app)
-                @conf.register_process_server(
-                    "unmanaged_tasks", RobyApp::UnmanagedTasksManager.new
-                )
-            end
-
-            after do
-                @conf.remove_process_server("unmanaged_tasks")
+                register_unmanaged_manager("unmanaged_tasks", conf: @conf)
             end
 
             def self.common_behavior(c)
