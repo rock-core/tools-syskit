@@ -272,7 +272,7 @@ module Syskit
                         end
                         ior_write_fd.close
                         write.close
-                        raise "cannot start #{@name}" if read.read == "FAILED"
+                        raise "cannot start #{@name}" if read.read
 
                         spawn_gdb_warning if @execution_mode[:type] == "gdb"
                     end
@@ -336,8 +336,7 @@ module Syskit
                                  ior_write_fd => ior_write_fd, **output_redirect,
                                  chdir: @working_directory)
                         rescue Exception => e # rubocop:disable Lint/RescueException
-                            pp e
-                            write_pipe.write("FAILED")
+                            write_pipe.write("FAILED: #{e}")
                         end
                     end
 
