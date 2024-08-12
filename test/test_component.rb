@@ -748,10 +748,9 @@ describe Syskit::Component do
             flexmock(Syskit::DynamicPortBinding::BoundOutputReader)
         end
 
-        it "register and deresgister a data reader" do
+        it "register and deregister a data reader" do
             task = syskit_stub_deploy_and_configure(@task_m)
             reader = task.data_reader(@task_m.out_port, as: "test")
-            task.register_data_reader(reader)
             assert_equal reader, task.find_registered_data_reader(reader.name)
             task.deregister_data_reader(reader.name)
             assert_nil task.find_registered_data_reader(reader.name)
@@ -760,7 +759,6 @@ describe Syskit::Component do
         it "register and deregister a data writer" do
             task = syskit_stub_deploy_and_configure(@task_m)
             writer = task.data_writer(@task_m.in_port, as: "test")
-            task.register_data_writer(writer)
             assert_equal writer, task.find_registered_data_writer(writer.name)
             task.deregister_data_writer(writer.name)
             assert_nil task.find_registered_data_writer(writer.name)
