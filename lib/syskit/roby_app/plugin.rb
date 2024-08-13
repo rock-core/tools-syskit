@@ -517,6 +517,7 @@ module Syskit
                         ui_event "syskit_orogen_config_changed"
                     end
                 end
+                @conf_listener.only(/\.yml$/)
                 @conf_listener.start
             end
 
