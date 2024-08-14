@@ -277,11 +277,17 @@ module Syskit
                             spawn_setup_forked_process_and_exec(
                                 write, ior_write_fd, control_read_fd
                             )
+                        rescue Exception => e # rubocop:disable Lint/RescueException
+                            write_pipe.write(e.message)
+                        else
+                            write_pipe.write("failed with no message")
                         end
+
                         ior_write_fd.close
                         control_read_fd.close
                         write.close
-                        raise "cannot start #{@name}" if read.read
+                        failure_message = read.read || ""
+                        raise failure_message if !failure_message.empty?
 
                         spawn_gdb_warning if @execution_mode[:type] == "gdb"
                     end
@@ -340,14 +346,10 @@ module Syskit
 
                         ::Process.setpgrp
                         debug "command line: #{@command} #{arguments.join(' ')}"
-                        begin
-                            exec(@command, *arguments,
-                                 control_read_fd => control_read_fd,
-                                 ior_write_fd => ior_write_fd,
-                                 chdir: @working_directory, **output_redirect)
-                        rescue Exception => e # rubocop:disable Lint/RescueException
-                            write_pipe.write("FAILED: #{e}")
-                        end
+                        exec(@command, *arguments,
+                             control_read_fd => control_read_fd,
+                             ior_write_fd => ior_write_fd,
+                             chdir: @working_directory, **output_redirect)
                     end
 
                     # Read the IOR pipe and parse the received message, closing the read
