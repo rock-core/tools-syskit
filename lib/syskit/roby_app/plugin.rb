@@ -83,7 +83,7 @@ module Syskit
 
                 require "orocos/async" if Conf.ui?
 
-                if app.development_mode?
+                if app.development_mode? && !app.testing?
                     require "listen"
                     app.syskit_listen_to_configuration_changes
                 end
