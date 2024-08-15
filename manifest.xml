@@ -41,5 +41,6 @@
     <test_depend package="rubocop" />
     <test_depend package="rubocop-rock" />
     <test_depend package="tools/orogen_syskit_tests" />
+    <test_depend package="valgrind" />
 </package>
 

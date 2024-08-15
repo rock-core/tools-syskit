@@ -195,7 +195,7 @@ module Syskit
                 # "Kill" this process
                 #
                 # It shuts down the tasks that are part of it
-                def kill(_wait = false, **)
+                def kill(**)
                     # Announce we're quitting to #monitor_thread. It's used in
                     # #dead? directly if there is no monitoring thread
                     @quitting.set

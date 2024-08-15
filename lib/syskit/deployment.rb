@@ -485,7 +485,7 @@ module Syskit
             orocos_process.define_ior_mappings(ior_mappings)
             begin
                 remote_tasks = orocos_process.resolve_all_tasks
-            rescue Orocos::IORNotRegisteredError, ArgumentError => e
+            rescue ProcessManagers::IORNotRegisteredError, ArgumentError => e
                 ready_event.emit_failed(e)
                 return
             end
@@ -840,7 +840,7 @@ module Syskit
             end.on_success(description: "#{self}#stop_event - kill") do
                 ready_to_die!
                 begin
-                    orocos_process.kill(false, cleanup: false, hard: hard)
+                    orocos_process.kill(hard: hard)
                 rescue Orocos::ComError
                     # The underlying process server cannot be reached. Just emit
                     # failed ourselves

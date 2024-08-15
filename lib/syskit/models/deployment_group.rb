@@ -520,6 +520,7 @@ module Syskit
                 process_managers: Syskit.conf,
                 read_only: false,
                 logger_name: nil,
+                execution_mode: nil,
                 **run_options
             )
                 deployment_spec = {}
@@ -576,7 +577,8 @@ module Syskit
                     # In Syskit's case, both log dir and working directory are controlled
                     # by the process server config
                     spawn_options.delete(:working_directory)
-
+                    spawn_options.delete(:wait)
+                    spawn_options[:execution_mode] = execution_mode if execution_mode
                     unless (model = deployments_by_name[deployment_name])
                         orogen_model = loader.deployment_model_from_name(deployment_name)
                         model = Syskit::Deployment.find_model_by_orogen(orogen_model)

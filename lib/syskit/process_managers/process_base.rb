@@ -2,6 +2,9 @@
 
 module Syskit
     module ProcessManagers
+        # Exception raised when there is no IOR registered for a given task name.
+        class IORNotRegisteredError < Orocos::NotFound; end
+
         # Interface for processes, that is the representation of a running deployment
         #
         # This is the interface needed by {Deployment}

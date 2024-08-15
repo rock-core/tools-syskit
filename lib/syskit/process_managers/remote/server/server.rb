@@ -60,17 +60,7 @@ module Syskit
                         final_path
                     end
 
-                    DEFAULT_OPTIONS = { wait: false, output: "%m-%p.txt" }.freeze
-
-                    # Start a standalone process server using the given options and port.
-                    # The options are passed to Server.run when a new deployment is
-                    # started
-                    def self.run(options = DEFAULT_OPTIONS, port = DEFAULT_PORT)
-                        Orocos.disable_sigchld_handler = true
-                        Orocos.initialize
-                        new({ wait: false }.merge(options), port).exec
-                    rescue Interrupt # rubocop:disable Lint/SuppressedException
-                    end
+                    DEFAULT_OPTIONS = { output: "%m-%p.txt" }.freeze
 
                     # The underlying Roby::Application object we use to resolve paths
                     attr_reader :app
@@ -111,14 +101,16 @@ module Syskit
                     def initialize(
                         app,
                         port: DEFAULT_PORT,
-                        loader: self.class.create_pkgconfig_loader
+                        loader: self.class.create_pkgconfig_loader,
+                        name_service_ip: nil
                     )
                         @app = app
-                        @default_start_options = { wait: false, output: "%m-%p.txt" }
+                        @default_start_options = { output: "%m-%p.txt" }
 
                         @loader = loader
                         @required_port = port
                         @port = nil
+                        @name_service_ip = name_service_ip
                         @processes = {}
                         @all_ios = []
                         @log_upload_current = Concurrent::AtomicReference.new
@@ -313,10 +305,7 @@ module Syskit
                         info "stopping process server"
                         processes.each_value do |p|
                             info "killing #{p.name}"
-                            # Kill the process hard. If there are still processes,
-                            # it means that the normal cleanup procedure did not
-                            # work.  Not the time to call stop or whatnot
-                            p.kill(false, cleanup: false, hard: true)
+                            p.kill(hard: true)
                         end
 
                         each_client do |socket|
@@ -381,16 +370,16 @@ module Syskit
                                 socket.write Marshal.dump(e.message)
                             end
                         elsif cmd_code == COMMAND_END
-                            name, cleanup, hard = Marshal.load(socket)
+                            name, hard = Marshal.load(socket)
                             debug "#{socket} requested end of #{name}"
                             if (p = processes[name])
                                 begin
-                                    end_process(p, cleanup: cleanup, hard: hard)
+                                    end_process(p, hard: hard)
                                     socket.write(RET_YES)
                                 rescue Interrupt
                                     raise
                                 rescue Exception => e # rubocop:disable Lint/RescueException
-                                    warn "exception raised while calling #{p}#kill(false)"
+                                    warn "exception raised while calling #{p}#kill"
                                     log_pp(:warn, e)
                                     socket.write(RET_NO)
                                 end
@@ -399,9 +388,9 @@ module Syskit
                                 socket.write(RET_NO)
                             end
                         elsif cmd_code == COMMAND_KILL_ALL
-                            cleanup, hard = Marshal.load(socket)
+                            hard = Marshal.load(socket)
                             debug "#{socket} requested the end of all processes"
-                            processes = kill_all(cleanup: cleanup, hard: hard)
+                            processes = kill_all(hard: hard)
                             dead = join_all(processes)
                             socket.write(RET_YES)
                             ret = dead.map { |dead_p, dead_s| [dead_p.name, dead_s] }
@@ -422,16 +411,8 @@ module Syskit
                             process_names = Marshal.load(socket)
                             process_names.each do |p_name|
                                 if (p = @processes[p_name])
-                                    begin
-                                        iors = p.wait_running(0)
-                                        result[p_name] = ({ iors: iors } if iors)
-                                    rescue Orocos::NotFound => e
-                                        warn(e.message)
-                                        result[p_name] = { error: e.message }
-                                    rescue Orocos::InvalidIORMessage => e
-                                        warn(e.message)
-                                        result[p_name] = { error: e.message }
-                                    end
+                                    iors = p.wait_running
+                                    result[p_name] = ({ iors: iors } if iors)
                                 else
                                     msg = "no process named #{p_name} to wait running"
                                     warn(msg)
@@ -504,19 +485,41 @@ module Syskit
                     end
 
                     def start_process(name, deployment_name, name_mappings, options)
-                        options = Hash[working_directory: app.log_dir].merge(options)
+                        working_directory =
+                            options.delete(:working_directory) || app.log_dir
+                        p = Process.new(name, deployment_name, loader, working_directory)
+                        if options.delete(:gdb)
+                            options[:execution_mode] = { type: "gdbserver" }
+                        elsif options.delete(:valgrind)
+                            options[:execution_mode] = { type: "valgrind" }
+                        elsif options.fetch(:register_on_name_server, true)
+                            options[:name_service_ip] = @name_service_ip
+                        end
+                        options.delete(:register_on_name_server)
 
-                        p = Orocos::Process.new(
-                            name, deployment_name,
-                            loader: @loader,
-                            name_mappings: name_mappings
-                        )
-                        p.spawn(**default_start_options.merge(options))
+                        p.add_name_mappings(name_mappings)
+                        start_process_apply_options(p, **options)
+                        p.spawn
                         processes[name] = p
                     end
 
-                    def end_process(process, cleanup: true, hard: false)
-                        process.kill(false, cleanup: cleanup, hard: hard)
+                    def start_process_apply_options( # rubocop:disable Metrics/ParameterLists
+                        process,
+                        log_level: nil, cmdline_args: {},
+                        tracing: false, execution_mode: nil, name_service_ip: nil,
+                        oro_logfile: nil, output: nil
+                    )
+                        process.enable_tracing if tracing
+                        process.setup_log_level(log_level) if log_level
+                        process.setup_corba(name_service_ip)
+                        process.push_args_from_hash(cmdline_args)
+                        process.redirect_output(output) if output
+                        process.redirect_orocos_logger_output(oro_logfile) if oro_logfile
+                        process.setup_execution_mode(**execution_mode) if execution_mode
+                    end
+
+                    def end_process(process, hard: false)
+                        process.kill(hard: hard)
                     end
 
                     # Kill all running subprocesses
@@ -525,9 +528,9 @@ module Syskit
                     # them.
                     #
                     # @see join_all announce_dead_processes
-                    def kill_all(cleanup: false, hard: true)
+                    def kill_all(hard: true)
                         processes.each_value do |p|
-                            p.kill(false, cleanup: cleanup, hard: hard)
+                            p.kill(hard: hard)
                         end
                         processes.values
                     end
