@@ -118,7 +118,7 @@ describe Syskit::ProcessManagers::Remote do
             assert process.alive?
 
             pid = process.pid
-            path = @process_server_log_base_path.each_child.first /
+            path = @process_server_log_base_path.each_child.first / \
                    "syskit_tests_empty-#{pid}.txt"
             assert path.exist?
         end
@@ -131,10 +131,10 @@ describe Syskit::ProcessManagers::Remote do
                 execution_mode: { type: :valgrind }
             )
             assert process.alive?
-            wait_running_process(process)
+            wait_running_process(process, timeout: 60)
 
             pid = process.pid
-            path = @process_server_log_base_path.each_child.first /
+            path = @process_server_log_base_path.each_child.first / \
                    "syskit_tests_empty-#{pid}.valgrind.txt"
             assert path.exist?
         end
