@@ -83,7 +83,7 @@ module Syskit
 
                 require "orocos/async" if Conf.ui?
 
-                if app.development_mode?
+                if app.development_mode? && !app.testing?
                     require "listen"
                     app.syskit_listen_to_configuration_changes
                 end
@@ -517,6 +517,7 @@ module Syskit
                         ui_event "syskit_orogen_config_changed"
                     end
                 end
+                @conf_listener.only(/\.yml$/)
                 @conf_listener.start
             end
 
