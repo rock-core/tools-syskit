@@ -268,28 +268,39 @@ module Syskit
                         @ior_read_fd, ior_write_fd = IO.pipe
                         control_read_fd, @control_write_fd = IO.pipe
 
-                        read, write = IO.pipe
-                        @pid = fork do
-                            @ior_read_fd.close
-                            @control_write_fd.close
+                        @pid =
+                            fork_with_error_handling do
+                                @ior_read_fd.close
+                                @control_write_fd.close
 
-                            read.close
-                            spawn_setup_forked_process_and_exec(
-                                write, ior_write_fd, control_read_fd
-                            )
-                        rescue Exception => e # rubocop:disable Lint/RescueException
-                            write_pipe.write(e.message)
-                        else
-                            write_pipe.write("failed with no message")
-                        end
+                                spawn_setup_forked_process_and_exec(
+                                    ior_write_fd, control_read_fd
+                                )
+                            end
 
                         ior_write_fd.close
                         control_read_fd.close
-                        write.close
-                        failure_message = read.read || ""
-                        raise failure_message if !failure_message.empty?
 
                         spawn_gdb_warning if @execution_mode[:type] == "gdb"
+                    end
+
+                    def fork_with_error_handling
+                        read_pipe, write_pipe = IO.pipe
+                        pid =
+                            fork do
+                                read_pipe.close
+                                yield
+                            rescue Exception => e # rubocop:disable Lint/RescueException
+                                write_pipe.write(e.message)
+                            else
+                                write_pipe.write("failed with no message")
+                            end
+
+                        write_pipe.close
+                        failure_message = read_pipe.read || ""
+                        raise failure_message unless failure_message.empty?
+
+                        pid
                     end
 
                     def spawn_gdb_warning
@@ -333,7 +344,7 @@ module Syskit
                     end
 
                     # Do the necessary work within the fork and exec the deployment
-                    def spawn_setup_forked_process_and_exec(write_pipe, ior_write_fd, control_read_fd)
+                    def spawn_setup_forked_process_and_exec(ior_write_fd, control_read_fd)
                         arguments = resolve_arguments
                         arguments << "--control-fd=#{control_read_fd.fileno}"
                         arguments << "--ior-write-fd=#{ior_write_fd.fileno}"
