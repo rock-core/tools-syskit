@@ -413,7 +413,6 @@ module Syskit
                         return unless tpid # already dead
 
                         if hard
-                            puts "KILL"
                             @expected_exit = 9
                             begin
                                 ::Process.kill(9, tpid)
