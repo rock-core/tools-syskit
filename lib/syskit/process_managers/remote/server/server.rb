@@ -113,9 +113,9 @@ module Syskit
                         @name_service_ip = name_service_ip
                         @processes = {}
                         @all_ios = []
-                        @log_upload_current = Concurrent::AtomicReference.new
                         @log_upload_command_queue = Queue.new
                         @log_upload_results_queue = Queue.new
+                        @log_upload_pending = Concurrent::AtomicFixnum.new
                         @log_upload_thread = Thread.new { log_upload_main }
                     end
 
@@ -593,6 +593,7 @@ module Syskit
                                 max_upload_rate: max_upload_rate || Float::INFINITY,
                                 implicit_ftps: implicit_ftps
                             )
+                        @log_upload_pending.increment
                     end
 
                     def log_upload_sanitize_path(path)
@@ -608,9 +609,8 @@ module Syskit
 
                     def log_upload_main
                         while (transfer = @log_upload_command_queue.pop)
-                            @log_upload_current.set(transfer)
                             @log_upload_results_queue << transfer.open_and_transfer
-                            @log_upload_current.set(nil)
+                            @log_upload_pending.decrement
                         end
                     end
 
@@ -631,13 +631,7 @@ module Syskit
                             end
                         end
 
-                        # This count is not exact. However, it's designed to show
-                        # at least one transfer if there are some. I.e. the only
-                        # case where pending == 0 is when there is truly nothing to
-                        # be done
-                        pending = @log_upload_command_queue.size
-                        pending += 1 if @log_upload_current.get
-                        LogUploadState.new(pending, results)
+                        LogUploadState.new(@log_upload_pending.value, results)
                     end
                 end
             end
