@@ -12,7 +12,7 @@ module Syskit
         module Remote
             # Implementation of the syskit process server
             module Server
-                extend Logger::Root(self.class.to_s, Logger::INFO)
+                extend Logger::Root(to_s, Logger::INFO)
             end
         end
     end
