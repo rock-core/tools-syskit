@@ -478,11 +478,14 @@ module Syskit
                    "tasks raises an exception" do
                     flexmock(process)
                         .should_receive(:resolve_all_tasks)
-                        .and_raise(ProcessManagers::IORNotRegisteredError, "some error")
+                        .and_raise(StandardError, "some error")
                     expect_execution do
                         deployment_task.start!
                     end.to do
-                        flexmock(execution_engine).should_receive(:promise).never
+                        have_error_matching(
+                            Roby::EmissionFailed
+                            .match.with_origin(deployment_task.ready_event)
+                        )
                     end
                 end
 
