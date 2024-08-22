@@ -485,7 +485,7 @@ module Syskit
             orocos_process.define_ior_mappings(ior_mappings)
             begin
                 remote_tasks = orocos_process.resolve_all_tasks
-            rescue ProcessManagers::IORNotRegisteredError, ArgumentError => e
+            rescue StandardError => e
                 ready_event.emit_failed(e)
                 return
             end
