@@ -11,6 +11,13 @@ module Syskit
         #
         # @see Configuration#use_deployment DeploymentGroup#use_deployment
         module Remote
+            # Type transferred between the server and the manager to report on log updates
+            #
+            # Defined here to make sure it is actually defined. Otherwise, the log
+            # state reporting would fail at runtime, and unit-testing for this is
+            # very hard.
+            LogUploadState = Server::LogUploadState
+
             # Syskit-side interface to the remote process server
             class Manager
                 # Emitted when an operation fails
