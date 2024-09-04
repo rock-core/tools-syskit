@@ -100,6 +100,27 @@ describe Syskit::ProcessManagers::Remote do
             @client = start_and_connect_to_server
         end
 
+        it "returns a proper error message if the deployment does not exist remotely" do
+            deployment_m = Syskit::Deployment.new_submodel(name: "does_not_exist")
+            flexmock(client.root_loader)
+                .should_receive(:deployment_model_from_name)
+                .with("does_not_exist").and_return(deployment_m)
+            flexmock(client.loader)
+                .should_receive(:has_deployment?)
+                .with("does_not_exist").and_return(true)
+            e = assert_raises(Syskit::ProcessManagers::Remote::Manager::Failed) do
+                client.start(
+                    "some_name", "does_not_exist",
+                    { "does_not_exist" => "some_name" },
+                    oro_logfile: "/dev/null", output: "/dev/null"
+                )
+            end
+            assert_equal(
+                "failed to start some_name: cannot find deployment does_not_exist",
+                e.message
+            )
+        end
+
         it "can start a process on the server" do
             process = client.start(
                 "syskit_tests_empty", "syskit_tests_empty",
