@@ -337,7 +337,7 @@ module Syskit
                                 create_log_dir(time_tag, metadata)
                                 socket.write(RET_YES)
                             rescue StandardError => e
-                                warn "failed to create log directory #{log_dir}: "\
+                                warn "failed to create log directory #{app.log_dir}: "\
                                      "#{e.message}"
                                 (e.backtrace || []).each do |line|
                                     warn "   #{line}"
