@@ -43,6 +43,10 @@ module Syskit
                                 loader.available_deployments
                                       .fetch(deployment_name).binfile
                             end
+                        unless binfile
+                            raise ArgumentError,
+                                  "cannot find deployment #{deployment_name}"
+                        end
 
                         @name = name
                         @name_mappings = {}
