@@ -100,6 +100,19 @@ module Syskit
                     assert_equal src.test_def, dst.modified_test_def
                 end
 
+                it "allows to add deployment filters" do
+                    src = Profile.new
+                    src.define("test", TaskContext.new_submodel)
+                       .prefer_deployed_tasks(/src_filter/)
+                    assert_equal [/src_filter/].to_set, src.test_def.deployment_hints
+
+                    dst = Profile.new
+                    dst.use_profile src, prefer_deployed_tasks: /dst_filter/
+
+                    assert_equal [/src_filter/, /dst_filter/].to_set,
+                                 dst.test_def.deployment_hints
+                end
+
                 it "uses the existing definition's documentation as documentation "\
                    "for the imported definition" do
                     task_m = TaskContext.new_submodel
