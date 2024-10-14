@@ -1239,7 +1239,7 @@ module Syskit
                 if optional
                     action_model.optional_arg(arg_name, arg.doc || "#{arg_name} argument of #{task_model.name}", default_argument)
                 else
-                    action_model.required_arg(arg_name, arg.doc || "#{arg_name} argument of #{task_model.name}")
+                    action_model.required_arg(arg_name, arg.doc || "#{arg_name} argument of #{task_model.name}", example: arg.example)
                 end
             end
             action_model
