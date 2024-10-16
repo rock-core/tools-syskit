@@ -255,8 +255,8 @@ module Syskit
                     @interface_m = Roby::Actions::Interface.new_submodel
                 end
 
-                it "manages to deploy multiple actions that depend on each other from the "\
-                   "same action interface" do
+                it "manages to deploy multiple actions that depend on each other from " \
+                   "the same action interface" do
                     sub_task_m = Syskit::Composition.new_submodel do
                         argument :somearg, example: 20
                         argument :arg_with_default, default: 42
@@ -277,7 +277,7 @@ module Syskit
                                 .required_arg(:otherarg, "", example: 10)
                                 .returns(main_task_m)
                     @interface_m.action_state_machine :m_sub_action do
-                        beginning =  state task_with_subtask_def(an_arg: testarg)
+                        beginning = state task_with_subtask_def(an_arg: testarg)
                         final = state subtask_standalone_def(somearg: otherarg)
 
                         transition beginning.success_event, final
