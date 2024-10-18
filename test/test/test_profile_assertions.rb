@@ -247,6 +247,64 @@ module Syskit
                 end
             end
 
+            describe "syskit deploy in bulk" do
+                include ProfileAssertions
+
+                before do
+                    @profile_m = Syskit::Actions::Profile.new
+                    @interface_m = Roby::Actions::Interface.new_submodel
+                end
+
+                it "manages to deploy multiple actions that depend on each other from " \
+                   "the same action interface" do
+                    sub_task_m = Syskit::Composition.new_submodel do
+                        argument :somearg, example: 20
+                        argument :arg_with_default, default: 42
+                    end
+                    main_task_m = Syskit::Composition.new_submodel do
+                        argument :an_arg, default: 5
+
+                        add(sub_task_m, as: "sub_task")
+                            .with_arguments(somearg: from(:parent_task).an_arg)
+                    end
+                    @profile_m.define "task_with_subtask", main_task_m
+                    @profile_m.define "subtask_standalone", sub_task_m
+
+                    @interface_m.use_profile @profile_m
+
+                    @interface_m.describe(:m_sub_action)
+                                .required_arg(:testarg, "", example: 10)
+                                .required_arg(:otherarg, "", example: 10)
+                                .returns(main_task_m)
+                    @interface_m.action_state_machine :m_sub_action do
+                        beginning = state task_with_subtask_def(an_arg: testarg)
+                        final = state subtask_standalone_def(somearg: otherarg)
+
+                        transition beginning.success_event, final
+                        final.success_event.forward_to success_event
+
+                        start beginning
+                    end
+
+                    root_m = Roby::Task.new_submodel do
+                        terminates
+                    end
+                    @interface_m.describe(:m_action)
+                                .required_arg(:testarg, "", example: 10)
+                                .returns(root_m)
+                    @interface_m.define_method :m_action do |testarg:|
+                        root = root_m.new
+                        root.depends_on(m_sub_action(testarg: testarg, otherarg: 42))
+                        root
+                    end
+
+                    syskit_run_deploy_in_bulk(
+                        [@interface_m.m_action, @interface_m.m_sub_action],
+                        compute_policies: true, compute_deployments: true
+                    )
+                end
+            end
+
             describe "assert_is_self_contained" do
                 include ProfileAssertions
 
