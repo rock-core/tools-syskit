@@ -225,6 +225,22 @@ module Syskit
                                         .requirements.instanciate(plan)
                     assert_kind_of srv_task_m, task.test_child
                 end
+
+                it "forwards explicitly selected services" do
+                    srv_m = DataService.new_submodel
+                    task_m = TaskContext.new_submodel
+                    task_m.provides srv_m, as: "srv1"
+                    task_m.provides srv_m, as: "srv2"
+                    cmp_m = Composition.new_submodel
+                    cmp_m.add srv_m, as: "srv"
+                    base_profile = Profile.new
+                    base_profile.tag "srv", srv_m
+                    base_profile.define "d", cmp_m.use("srv" => base_profile.srv_tag)
+                    profile = Profile.new
+                    profile.use_profile base_profile, "srv" => task_m.srv1_srv
+
+                    profile.d_def.instanciate(plan)
+                end
             end
 
             describe "#define" do
