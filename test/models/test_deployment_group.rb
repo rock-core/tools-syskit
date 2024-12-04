@@ -877,5 +877,38 @@ module Syskit
                 end
             end
         end
+
+        describe DeploymentGroup::DeployedTask do
+            before do
+            end
+
+            it "propagates deployment permanent mark to task instance from deployment" do
+                task_model = Syskit::TaskContext.new_submodel
+
+                deployment_model =
+                    Syskit::Deployment.new_submodel do
+                        task "task", task_model
+                    end
+
+                deployment_group = Models::DeploymentGroup.new
+
+                configured_deployment = deployment_group.use_deployment(
+                        { deployment_model => "1_" },
+                        on: "stubs"
+                ).first
+
+                deployed_task = DeploymentGroup::DeployedTask.new(configured_deployment,
+                    "1_task")
+
+                permanent_task_instance, _ = deployed_task.instanciate(plan,
+                    permanent: true, propagate_permanent_to_instance: true)
+                assert plan.permanent_task? permanent_task_instance
+
+                not_permanent_task_instance, _ = deployed_task.instanciate(plan,
+                    permanent: false, propagate_permanent_to_instance: true)
+                refute plan.permanent_task? not_permanent_task_instance
+            end
+        end
+
     end
 end

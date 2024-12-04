@@ -26,7 +26,8 @@ module Syskit
                 # @param [ConfiguredDeployment=>Syskit::Deployment] already
                 #    instanciated deployment tasks, to be reused if self
                 #    is part of the same ConfiguredDeployment
-                def instanciate(plan, permanent: true, deployment_tasks: {})
+                def instanciate(plan, permanent: true, deployment_tasks: {},
+                    propagate_permanent_to_instance: false)
                     deployment_task = (
                         deployment_tasks[[configured_deployment]] ||=
                             configured_deployment.new
@@ -37,7 +38,13 @@ module Syskit
                     else
                         plan.add(deployment_task)
                     end
-                    [deployment_task.task(mapped_task_name), deployment_task]
+
+                    mapped_task_context = deployment_task.task(
+                        mapped_task_name,
+                        permanent: (permanent if propagate_permanent_to_instance)
+                    )
+
+                    [mapped_task_context, deployment_task]
                 end
             end
 

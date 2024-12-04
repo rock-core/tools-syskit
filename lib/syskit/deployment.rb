@@ -183,7 +183,7 @@ module Syskit
         # @see find_or_create_task task
         def create_deployed_task(
             orogen_task_deployment_model,
-            syskit_task_model, scheduler_task, auto_conf: false
+            syskit_task_model, scheduler_task, auto_conf: false, permanent: false
         )
             mapped_name = name_mappings[orogen_task_deployment_model.name]
             if ready? && !(remote_handles = remote_task_handles[mapped_name])
@@ -212,6 +212,7 @@ module Syskit
             task = syskit_task_model
                    .new(orocos_name: mapped_name, read_only: read_only?(mapped_name))
             plan.add(task)
+            plan.add_permanent_task(task) if permanent
             task.executed_by self
             if scheduler_task
                 task.depends_on scheduler_task, role: "scheduler"
@@ -236,7 +237,7 @@ module Syskit
         #   model that should be used to create the task, if it is not the
         #   same as the base model. This is used for specialized models (e.g.
         #   dynamic services)
-        def task(name, syskit_task_model = nil)
+        def task(name, syskit_task_model = nil, permanent: false)
             if finishing? || finished?
                 raise InvalidState,
                       "#{self} is either finishing or already " \
@@ -252,7 +253,7 @@ module Syskit
             end
             create_deployed_task(
                 orogen_task_deployment_model,
-                syskit_task_model, scheduler_task
+                syskit_task_model, scheduler_task, permanent: permanent
             )
         end
 
