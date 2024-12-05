@@ -138,6 +138,7 @@ module Syskit
 
                 merged_task_to_task.each do |merged_task, task|
                     unless merged_task.transaction_proxy?
+                        plan.copy_task_marks(from: merged_task, to: task)
                         plan.remove_task(merged_task)
                     end
                     register_replacement(merged_task, task)
