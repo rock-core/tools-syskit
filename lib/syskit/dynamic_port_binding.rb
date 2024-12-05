@@ -99,6 +99,10 @@ module Syskit
         #   the port was updated, and false otherwise. The tuple's second element
         #   is the new resolved port which may be nil if no ports can be found
         def update
+            if @resolved_port && @port_resolver&.current_selection_valid?(@resolved_port)
+                return false, @resolved_port
+            end
+
             port = @port_resolver&.update
             return false, @resolved_port if @resolved_port == port
 
@@ -292,6 +296,10 @@ module Syskit
                 @plan = plan
                 @matcher = matcher
                 @last_provider_task = nil
+            end
+
+            def current_selection_valid?(port)
+                @matcher === port
             end
 
             def update
