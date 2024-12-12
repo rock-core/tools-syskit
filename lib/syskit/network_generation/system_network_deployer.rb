@@ -56,15 +56,15 @@ module Syskit
             #   will run on the generated network
             # @return [Set] the set of tasks for which the deployer could
             #   not find a deployment
-            def deploy(validate: true)
+            def deploy(validate: true, reuse_deployments: false, deployment_tasks: {})
                 debug "Deploying the system network"
 
                 all_tasks = plan.find_local_tasks(TaskContext).to_a
                 selected_deployments, missing_deployments =
-                    select_deployments(all_tasks)
+                    select_deployments(all_tasks, reuse: reuse_deployments)
                 log_timepoint "select_deployments"
 
-                apply_selected_deployments(selected_deployments)
+                apply_selected_deployments(selected_deployments, deployment_tasks)
                 log_timepoint "apply_selected_deployments"
 
                 if validate
@@ -132,13 +132,10 @@ module Syskit
             # Find which deployments should be used for which tasks
             #
             # @param [[Component]] tasks the tasks to be deployed
-            # @param [Component=>Models::DeploymentGroup] the association
-            #   between a component and the group that should be used to
-            #   deploy it
             # @return [(Component=>Deployment,[Component])] the association
             #   between components and the deployments that should be used
             #   for them, and the list of components without deployments
-            def select_deployments(tasks)
+            def select_deployments(tasks, reuse: false)
                 used_deployments = Set.new
                 missing_deployments = Set.new
                 selected_deployments = {}
@@ -150,7 +147,7 @@ module Syskit
 
                     if !selected
                         missing_deployments << task
-                    elsif used_deployments.include?(selected)
+                    elsif !reuse && used_deployments.include?(selected)
                         debug do
                             machine, configured_deployment, task_name = *selected
                             "#{task} resolves to #{configured_deployment}.#{task_name} " \
@@ -170,8 +167,7 @@ module Syskit
             # @param [Component=>Deployment] selected_deployments the
             #   component-to-deployment association
             # @return [void]
-            def apply_selected_deployments(selected_deployments)
-                deployment_tasks = {}
+            def apply_selected_deployments(selected_deployments, deployment_tasks = {})
                 selected_deployments.each do |task, deployed_task|
                     deployed_task, = deployed_task.instanciate(
                         plan,

@@ -222,7 +222,8 @@ module Syskit
 
                 # Merges involving a deployed task can only involve a
                 # non-deployed task as well
-                if task.execution_agent && merged_task.execution_agent
+                if task.execution_agent && merged_task.execution_agent &&
+                   (task.execution_agent != merged_task.execution_agent)
                     info "rejected: deployment attribute mismatches"
                     return false
                 end

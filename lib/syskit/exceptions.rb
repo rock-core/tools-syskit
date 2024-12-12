@@ -483,6 +483,39 @@ module Syskit
         end
     end
 
+    class ConflictingDeploymentAllocation < SpecError
+        attr_reader :deployment_to_tasks
+
+        def initialize(deployment_to_tasks)
+            @deployment_to_tasks = deployment_to_tasks
+        end
+
+        def pretty_print(pp)
+            pp.text "cannot deploy the following tasks"
+            deployment_to_tasks.each do |deployed_task, tasks|
+                tasks.each do |task|
+                    pp.nest(2) do
+                        pp.breakable
+                        pp.text "#{task} (#{task.orogen_model.name})"
+                    end
+                end
+                pp.breakable
+                pp.text "because the same "
+                process_server_name = deployed_task.configured_deployment
+                                                   .process_server_name
+                orogen_model = deployed_task.configured_deployment
+                                            .orogen_model
+                pp.text(
+                    "deployed task #{deployed_task.mapped_task_name} from deployment " \
+                    "#{orogen_model.name} defined in " \
+                    "#{orogen_model.project.name} on #{process_server_name}"
+                )
+
+                pp.text " is allocated for them"
+            end
+        end
+    end
+
     # Exception raised at the end of #resolve if some tasks do not have a
     # deployed equivalent
     class MissingDeployments < SpecError

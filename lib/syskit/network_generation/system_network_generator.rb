@@ -11,11 +11,12 @@ module Syskit
             include Logger::Hierarchy
             include Roby::DRoby::EventLogging
 
-            attr_reader :plan, :event_logger, :merge_solver
+            attr_reader :plan, :event_logger, :merge_solver, :default_deployment_group
 
             def initialize(plan,
                 event_logger: plan.event_logger,
-                merge_solver: MergeSolver.new(plan))
+                merge_solver: MergeSolver.new(plan),
+                default_deployment_group: nil)
                 if merge_solver.plan != plan
                     raise ArgumentError, "gave #{merge_solver} as merge solver, which applies on #{merge_solver.plan}. Was expecting #{plan}"
                 end
@@ -23,6 +24,7 @@ module Syskit
                 @plan = plan
                 @event_logger = event_logger
                 @merge_solver = merge_solver
+                @default_deployment_group = default_deployment_group
             end
 
             # Generate the network in the plan
@@ -33,7 +35,8 @@ module Syskit
             def generate(instance_requirements,
                 garbage_collect: true,
                 validate_abstract_network: true,
-                validate_generated_network: true)
+                validate_generated_network: true,
+                early_deploy: false)
 
                 # We first generate a non-deployed network that fits all
                 # requirements.
@@ -41,7 +44,8 @@ module Syskit
                     compute_system_network(instance_requirements,
                                            garbage_collect: garbage_collect,
                                            validate_abstract_network: validate_abstract_network,
-                                           validate_generated_network: validate_generated_network)
+                                           validate_generated_network: validate_generated_network,
+                                           early_deploy: early_deploy)
                 end
             end
 
@@ -188,16 +192,35 @@ module Syskit
                 end
             end
 
+            def deploy(deployment_tasks)
+                network_deployer = SystemNetworkDeployer.new(
+                    plan,
+                    merge_solver: merge_solver,
+                    default_deployment_group: default_deployment_group
+                )
+
+                network_deployer.deploy(validate: false,
+                                        reuse_deployments: true,
+                                        deployment_tasks: deployment_tasks)
+                network_deployer.verify_all_tasks_deployed
+            end
+
             # Compute in #plan the network needed to fullfill the requirements
             #
             # This network is neither validated nor tied to actual deployments
             def compute_system_network(instance_requirements, garbage_collect: true,
                 validate_abstract_network: true,
-                validate_generated_network: true)
+                validate_generated_network: true,
+                early_deploy: false)
+
                 @toplevel_tasks = log_timepoint_group "instanciate" do
                     instanciate(instance_requirements)
                 end
+
                 @toplevel_instance_requirements = instance_requirements
+
+                deployment_tasks = {}
+                deploy(deployment_tasks) if early_deploy
 
                 merge_solver.merge_identical_tasks
                 log_timepoint "merge"
@@ -207,7 +230,11 @@ module Syskit
                 end
                 link_to_busses
                 log_timepoint "link_to_busses"
+
+                deploy(deployment_tasks) if early_deploy
+
                 merge_solver.merge_identical_tasks
+
                 log_timepoint "merge"
 
                 self.class.remove_abstract_composition_optional_children(plan)
@@ -232,9 +259,9 @@ module Syskit
 
                 # And get rid of the 'permanent' marking we use to be able to
                 # run static_garbage_collect
-                plan.each_task do |task|
-                    plan.unmark_permanent_task(task)
-                end
+                plan.permanent_tasks
+                    .find_all { |task| !task.kind_of?(Syskit::Deployment) }
+                    .each { |task| plan.unmark_permanent_task(task) }
 
                 Engine.system_network_postprocessing.each do |block|
                     block.call(self, plan)
@@ -247,7 +274,7 @@ module Syskit
                 end
 
                 if validate_generated_network
-                    self.validate_generated_network
+                    self.validate_generated_network(with_deployments: early_deploy)
                     log_timepoint "validate_generated_network"
                 end
 
@@ -343,6 +370,36 @@ module Syskit
                 end
             end
 
+            def verify_all_deployments_are_unique
+                deployment_to_task_map = {}
+                plan.find_local_tasks(Syskit::TaskContext).each do |t|
+                    deployment_to_task_map[t.orocos_name] =
+                        (deployment_to_task_map[t.orocos_name] || []) + [t]
+                end
+
+                using_same_deployment = deployment_to_task_map.select do |_, tasks|
+                    tasks.size > 1
+                end
+
+                return if using_same_deployment.empty?
+
+                deployment_to_task = using_same_deployment
+                                     .each_with_object({}) do |(orocos_name, tasks), h|
+                    deployed_tasks = default_deployment_group
+                                     .find_all_suitable_deployments_for(tasks.first)
+
+                    deployed_task = deployed_tasks.select do |d|
+                        d.mapped_task_name == orocos_name
+                    end
+
+                    h[deployed_task.first] = tasks
+                end
+
+                raise ConflictingDeploymentAllocation.new(
+                    deployment_to_task
+                ), "there are deployments used multiple times"
+            end
+
             # Validates the network generated by {#compute_system_network}
             #
             # It performs the tests that are only needed on an abstract network,
@@ -353,9 +410,10 @@ module Syskit
             end
 
             # Validates the network generated by {#compute_system_network}
-            def validate_generated_network
+            def validate_generated_network(with_deployments: false)
                 self.class.verify_task_allocation(plan)
                 self.class.verify_device_allocation(plan, toplevel_tasks_to_requirements)
+                verify_all_deployments_are_unique if with_deployments
                 super if defined? super
             end
         end
