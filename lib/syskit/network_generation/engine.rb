@@ -703,18 +703,24 @@ module Syskit
                     Engine.discover_requirement_tasks_from_plan(real_plan),
                 garbage_collect: true,
                 validate_abstract_network: true,
-                validate_generated_network: true
+                validate_generated_network: true,
+                default_deployment_group: nil,
+                early_deploy: false
             )
                 requirement_tasks = requirement_tasks.to_a
                 instance_requirements = requirement_tasks.map(&:requirements)
                 system_network_generator = SystemNetworkGenerator.new(
-                    work_plan, event_logger: event_logger, merge_solver: merge_solver
+                    work_plan,
+                    event_logger: event_logger,
+                    merge_solver: merge_solver,
+                    default_deployment_group: default_deployment_group
                 )
                 toplevel_tasks = system_network_generator.generate(
                     instance_requirements,
                     garbage_collect: garbage_collect,
                     validate_abstract_network: validate_abstract_network,
-                    validate_generated_network: validate_generated_network
+                    validate_generated_network: validate_generated_network,
+                    early_deploy: early_deploy
                 )
 
                 Hash[requirement_tasks.zip(toplevel_tasks)]
@@ -749,14 +755,17 @@ module Syskit
                 validate_deployed_network: true,
                 compute_deployments: true,
                 default_deployment_group: Syskit.conf.deployment_group,
-                compute_policies: true
+                compute_policies: true,
+                early_deploy: Syskit.conf.early_deploy?
             )
 
                 required_instances = compute_system_network(
                     requirement_tasks,
                     garbage_collect: garbage_collect,
                     validate_abstract_network: validate_abstract_network,
-                    validate_generated_network: validate_generated_network
+                    validate_generated_network: validate_generated_network,
+                    default_deployment_group: (default_deployment_group if early_deploy),
+                    early_deploy: early_deploy
                 )
 
                 if compute_deployments
@@ -804,7 +813,8 @@ module Syskit
                 validate_abstract_network: true,
                 validate_generated_network: true,
                 validate_deployed_network: true,
-                validate_final_network: true
+                validate_final_network: true,
+                early_deploy: Syskit.conf.early_deploy?
             )
                 required_instances = resolve_system_network(
                     requirement_tasks,
@@ -814,7 +824,8 @@ module Syskit
                     compute_deployments: compute_deployments,
                     default_deployment_group: default_deployment_group,
                     compute_policies: compute_policies,
-                    validate_deployed_network: validate_deployed_network
+                    validate_deployed_network: validate_deployed_network,
+                    early_deploy: early_deploy
                 )
 
                 apply_system_network_to_plan(

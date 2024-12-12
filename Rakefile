@@ -28,6 +28,28 @@ def minitest_set_options(test_task, name)
     test_task.options = "#{TESTOPTS} #{minitest_args} -- --simplecov-name=#{name}"
 end
 
+def core(early_deploy: false)
+    s = ":no-early-deploy"
+    if early_deploy
+        s = ":early-deploy"
+        early_deploy_setup = ["test/features/early_deploy.rb"]
+    end
+
+    Rake::TestTask.new("test:core#{s}") do |t|
+        t.libs << "."
+        t.libs << "lib"
+        minitest_set_options(t, "core")
+        test_files = FileList["test/**/test_*.rb", *early_deploy_setup]
+        test_files = test_files
+                     .exclude("test/ros/**/*.rb")
+                     .exclude("test/gui/**/*.rb")
+                     .exclude("test/live/**/*.rb")
+                     .exclude("test/telemetry/**/*.rb")
+        t.test_files = test_files
+        t.warning = false
+    end
+end
+
 Rake::TestTask.new("test:telemetry") do |t|
     t.libs << "."
     t.libs << "lib"
@@ -36,20 +58,7 @@ Rake::TestTask.new("test:telemetry") do |t|
     t.warning = false
 end
 
-Rake::TestTask.new("test:core") do |t|
-    t.libs << "."
-    t.libs << "lib"
-    minitest_set_options(t, "core")
-    test_files = FileList["test/**/test_*.rb"]
-    test_files = test_files
-                 .exclude("test/ros/**/*.rb")
-                 .exclude("test/gui/**/*.rb")
-                 .exclude("test/live/**/*.rb")
-                 .exclude("test/telemetry/**/*.rb")
-    t.test_files = test_files
-    t.warning = false
-end
-
+desc "Run separate tests that require a live syskit instance"
 task "test:live" do
     tests = Dir.enum_for(:glob, "test/live/test_*.rb").to_a
     unless system(File.join("test", "live", "run"), *tests)
@@ -57,6 +66,8 @@ task "test:live" do
         exit 1
     end
 end
+
+desc "run gui-only tests"
 Rake::TestTask.new("test:gui") do |t|
     t.libs << "."
     t.libs << "lib"
@@ -66,6 +77,12 @@ Rake::TestTask.new("test:gui") do |t|
     t.warning = false
 end
 
+core early_deploy: true
+core
+desc "Run core library tests, excluding GUI and live tests"
+task "test:core" => ["test:core:no-early-deploy", "test:core:early-deploy"]
+
+desc "Run all tests"
 task "test" => ["test:gui", "test:core", "test:live", "test:telemetry"]
 
 task "rubocop" do
