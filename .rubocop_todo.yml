@@ -356,7 +356,6 @@ Lint/MissingSuper:
     - 'lib/syskit/robot/master_device_instance.rb'
     - 'lib/syskit/robot/slave_device_instance.rb'
     - 'lib/syskit/telemetry/agent/server.rb'
-    - 'lib/syskit/telemetry/ui/name_service.rb'
     - 'lib/syskit/test/stub_network.rb'
 
 # Offense count: 2
