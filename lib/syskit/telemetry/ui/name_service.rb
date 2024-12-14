@@ -57,8 +57,9 @@ module Syskit
                 #
                 # @param [String,TaskContext] name The name or task
                 def deregister(name)
-                    @registered_tasks.delete(name)
+                    task = @registered_tasks.delete(name)
                     trigger_task_removed(name)
+                    task
                 end
 
                 # (see Base#cleanup)
