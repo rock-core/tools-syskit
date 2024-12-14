@@ -127,6 +127,8 @@ module Syskit
 
                     super(parent)
 
+                    @has_poll_ready_deployments = true
+
                     @task_discovery_queue = Concurrent::Hash.new
                     @task_discovery_result = Queue.new
                     @task_discovery_mtx = Mutex.new
@@ -553,7 +555,11 @@ module Syskit
                     if syskit.connected?
                         begin
                             display_current_cycle_index_and_time
+                            if @has_poll_ready_deployments
+                                query_deployment_update_v2
+                            else
                                 query_deployment_update_v1
+                            end
                             update_current_job_task_names if current_job
                         rescue Roby::Interface::ComError # rubocop:disable Lint/SuppressedException
                         end
@@ -603,6 +609,16 @@ module Syskit
                     end
                 end
 
+                def query_deployment_update_v2
+                    polling_call(
+                        ["syskit"], "poll_ready_deployments",
+                        known: @current_deployments.map(&:id)
+                    ) do |updated, removed|
+                        update_current_deployments(updated, removed)
+                        process_current_deployments
+                    end
+                end
+
                 def update_current_deployments(updated, removed)
                     @current_deployments.delete_if do |d|
                         removed.include?(d.id)
@@ -645,12 +661,12 @@ module Syskit
                     update_task_inspector([])
                 end
 
-                def polling_call(path, method_name, *args)
-                    key = [path, method_name, args]
+                def polling_call(path, method_name, *args, **kw)
+                    key = [path, method_name, args, kw]
                     return if @call_guards.key?(key) && @call_guards[key]
 
                     @call_guards[key] = true
-                    syskit.async_call(path, method_name, *args) do |error, ret|
+                    syskit.async_call(path, method_name, *args, **kw) do |error, ret|
                         @call_guards[key] = false
                         if error
                             report_app_error(error)
@@ -671,6 +687,14 @@ module Syskit
                 end
 
                 def report_app_error(error)
+                    if error.class_name == "NoMethodError" &&
+                       error.message.match?(/poll_ready_deployments/)
+                        warn "remote interface does not support poll_ready_deployments"
+                        warn "switching to old inefficient polling method"
+                        @has_poll_ready_deployments = false
+                        return
+                    end
+
                     warn error.message
                     error.backtrace.each do |line|
                         warn "  #{line}"
@@ -768,8 +792,7 @@ module Syskit
                         end
                     end
 
-                    existing.each { @name_service.deregister(_1) }
-                    @name_service.names
+                    names_discovered | names_in_discovery
                 end
 
                 def reset_name_service
