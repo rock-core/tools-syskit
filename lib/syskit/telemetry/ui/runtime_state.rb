@@ -805,9 +805,6 @@ module Syskit
                 end
 
                 def orogen_model_from_name(name)
-                    @orogen_models[name] ||= Orocos.default_loader.task_model_from_name(name)
-                rescue OroGen::NotFound
-                    Orocos.warn "#{name} is a task context of class #{name}, but I cannot find the description for it, falling back"
                     @orogen_models[name] ||= Orocos.create_orogen_task_context_model(name)
                 end
 
