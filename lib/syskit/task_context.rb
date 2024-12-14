@@ -822,7 +822,7 @@ module Syskit
 
             dynamic_ports.each do |name|
                 if existing_port_names.include?(name)
-                    Syskit.fatal(
+                    fatal(
                         "task #{orocos_task} did not clear #{name}, a dynamic input " \
                         "port, during cleanup, as it should have. Go fix it."
                     )
@@ -853,7 +853,7 @@ module Syskit
 
             dynamic_ports.each do |name|
                 if existing_port_names.include?(name)
-                    Syskit.fatal(
+                    fatal(
                         "task #{orocos_task} did not clear #{name}, a dynamic " \
                         "output port, during cleanup, as it should have. Go fix it."
                     )
@@ -986,6 +986,9 @@ module Syskit
         # (see Component#setup_failed!)_
         def setup_failed!(exception)
             unless exception.kind_of?(Orocos::StateTransitionFailed)
+                fatal "#{exception} received while configuring #{orocos_name}, " \
+                      "expected a StateTransitionFailed error. The component is " \
+                      "put in quarantine and cannot be reused"
                 execution_agent.register_task_context_in_fatal(orocos_name)
             end
 
@@ -1036,6 +1039,10 @@ module Syskit
             start_event.achieve_asynchronously(promise, emit_on_success: false)
             promise.on_error do |exception|
                 unless exception.kind_of?(Orocos::StateTransitionFailed)
+                    fatal "#{exception} received while configuring " \
+                          "#{orocos_name}, expected a StateTransitionFailed " \
+                          "error. The component is put in quarantine and " \
+                          "cannot be reused"
                     execution_agent.register_task_context_in_fatal(orocos_name)
                 end
             end
