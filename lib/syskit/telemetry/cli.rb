@@ -27,6 +27,11 @@ module Syskit
 
                 require "syskit/telemetry/ui/runtime_state"
                 $qApp.disable_threading # rubocop:disable Style/GlobalVars
+                @thread_pass_timer = Qt::Timer.new
+                @thread_pass_timer.connect(SIGNAL("timeout()")) do
+                    Thread.pass
+                end
+                @thread_pass_timer.start(0.01)
 
                 require "syskit/scripts/common"
                 Syskit::Scripts.run do
