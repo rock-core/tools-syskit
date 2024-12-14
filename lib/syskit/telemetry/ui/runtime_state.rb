@@ -782,6 +782,10 @@ module Syskit
                             model_name = deployed_task.orogen_model_name
                             task_name = deployed_task.name
 
+                            if hide_loggers? && OROGEN_LOGGER_NAMES.include?(model_name)
+                                next
+                            end
+
                             task_name = deployed_task.name
                             if names_discovered.delete(task_name)
                                 next if deployed_task.ior == @name_service.ior(task_name)
