@@ -142,7 +142,8 @@ module Syskit
 
                         @net_gen = SystemNetworkGenerator.new(
                             @net_gen_plan = Roby::Plan.new,
-                            default_deployment_group: default_deployment_group
+                            default_deployment_group: default_deployment_group,
+                            early_deploy: true
                         )
                     end
 
@@ -150,7 +151,6 @@ module Syskit
                         d = robot.device(device_m, as: "d")
                         assert net_gen.compute_system_network(
                             [cmp_m.use("device" => d), cmp_m.use("device" => d)],
-                            early_deploy: true,
                             validate_generated_network: true
                         )
                     end
@@ -162,8 +162,7 @@ module Syskit
                                 [cmp_m.use("task" => task_m.with_arguments(arg: 1),
                                            "device" => d),
                                  cmp_m.use("task" => task_m.with_arguments(arg: 2),
-                                           "device" => d)],
-                                early_deploy: true
+                                           "device" => d)]
                             )
                         end
                     end
@@ -172,7 +171,8 @@ module Syskit
                         syskit_stub_configured_deployment(task_m, "task2")
                         local_net_gen = SystemNetworkGenerator.new(
                             local_net_gen_plan = Roby::Plan.new,
-                            default_deployment_group: default_deployment_group
+                            default_deployment_group: default_deployment_group,
+                            early_deploy: true
                         )
 
                         d = robot.device(device_m, as: "d")
@@ -181,8 +181,7 @@ module Syskit
                                 cmp_m.use("task" => task_m.prefer_deployed_tasks(/task#{x}/),
                                           "device" => d)
 
-                            end,
-                            early_deploy: true
+                            end
                         )
 
                         [1, 2].each do |x|

@@ -713,14 +713,14 @@ module Syskit
                     work_plan,
                     event_logger: event_logger,
                     merge_solver: merge_solver,
-                    default_deployment_group: default_deployment_group
+                    default_deployment_group: default_deployment_group,
+                    early_deploy: early_deploy
                 )
                 toplevel_tasks = system_network_generator.generate(
                     instance_requirements,
                     garbage_collect: garbage_collect,
                     validate_abstract_network: validate_abstract_network,
-                    validate_generated_network: validate_generated_network,
-                    early_deploy: early_deploy
+                    validate_generated_network: validate_generated_network
                 )
 
                 Hash[requirement_tasks.zip(toplevel_tasks)]
