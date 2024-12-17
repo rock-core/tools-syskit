@@ -225,7 +225,7 @@ module Syskit
                 deployment_tasks = {}
                 deploy(deployment_tasks) if early_deploy
 
-                merge_solver.merge_identical_tasks
+                merge_identical_tasks
                 log_timepoint "merge"
                 Engine.instanciated_network_postprocessing.each do |block|
                     block.call(self, plan)
@@ -236,7 +236,7 @@ module Syskit
 
                 deploy(deployment_tasks) if early_deploy
 
-                merge_solver.merge_identical_tasks
+                merge_identical_tasks
 
                 log_timepoint "merge"
 
@@ -282,6 +282,17 @@ module Syskit
                 end
 
                 @toplevel_tasks
+            end
+
+            def merge_identical_tasks
+                # When early deploying MergeSolver must merge tasks with identical
+                # execution agents. This breaks a strong assumption for the solver that is
+                # if two tasks have execution agents, then they must be different. But
+                # when early deploying tasks that have the same agent are actually the
+                # same
+                merge_solver.merge_when_identical_agents = early_deploy
+                merge_solver.merge_identical_tasks
+                merge_solver.merge_when_identical_agents = false
             end
 
             def toplevel_tasks_to_requirements

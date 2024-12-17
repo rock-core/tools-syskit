@@ -34,6 +34,8 @@ module Syskit
             # information
             attr_reader :event_logger
 
+            attr_writer :merge_when_identical_agents
+
             def initialize(plan, event_logger: plan.event_logger)
                 @plan = plan
                 @event_logger = event_logger
@@ -43,12 +45,17 @@ module Syskit
                 @task_replacement_graph = Roby::Relations::BidirectionalDirectedAdjacencyGraph.new
                 @resolved_replacements = {}
                 @invalid_merges = Set.new
+                @merge_when_identical_agents = false
             end
 
             def clear
                 @task_replacement_graph.clear
                 @resolved_replacements.clear
                 @invalid_merges.clear
+            end
+
+            def merge_when_identical_agents?
+                @merge_when_identical_agents
             end
 
             # Returns the task that is used in place of the given task
@@ -222,13 +229,22 @@ module Syskit
 
                 # Merges involving a deployed task can only involve a
                 # non-deployed task as well
-                if task.execution_agent && merged_task.execution_agent &&
-                   (task.execution_agent != merged_task.execution_agent)
+                unless mergeable_agents?(merged_task, task)
                     info "rejected: deployment attribute mismatches"
                     return false
                 end
 
                 true
+            end
+
+            def mergeable_agents?(merged_task, task)
+                return true unless (task.execution_agent && merged_task.execution_agent)
+
+                return false unless merge_when_identical_agents?
+
+                return true if task.execution_agent == merged_task.execution_agent
+
+                false
             end
 
             def each_component_merge_candidate(task)
