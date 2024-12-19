@@ -80,7 +80,7 @@ module Syskit
 
                     main.restore_from_settings
                     main.show
-                    Vizkit.exec
+                    Vizkit.exec(global_shortcuts: false)
                     main.save_to_settings
                     main.settings.sync
                 end
