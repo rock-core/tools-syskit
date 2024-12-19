@@ -31,7 +31,7 @@ module Syskit
                 @thread_pass_timer.connect(SIGNAL("timeout()")) do
                     Thread.pass
                 end
-                @thread_pass_timer.start(0.01)
+                @thread_pass_timer.start(10)
 
                 require "syskit/scripts/common"
                 Syskit::Scripts.run do
