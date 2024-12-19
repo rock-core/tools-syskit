@@ -15,7 +15,7 @@ require "syskit/telemetry/ui/expanded_job_status"
 require "syskit/telemetry/ui/global_state_label"
 require "syskit/telemetry/ui/app_start_dialog"
 require "syskit/telemetry/ui/batch_manager"
-require "syskit/telemetry/ui/name_service"
+require "syskit/telemetry/async"
 require "syskit/interface/v2"
 
 module Syskit
@@ -129,16 +129,6 @@ module Syskit
 
                     @has_poll_ready_deployments = true
 
-                    @task_discovery_queue = Concurrent::Hash.new
-                    @task_discovery_result = Queue.new
-                    @task_discovery_mtx = Mutex.new
-                    @task_discovery_signal = ConditionVariable.new
-                    @task_discovery_thread = Thread.new do
-                        loop do
-                            task_discovery_thread
-                        end
-                    end
-
                     @syskit = syskit
                     @syskit_run_arguments =
                         SyskitRunArguments.new(robot: "default", set: [])
@@ -249,7 +239,7 @@ module Syskit
                     @call_guards = {}
                     @orogen_models = {}
 
-                    @name_service = NameService.new
+                    @name_service = Async::NameService.new
                     @async_name_service = Orocos::Async::NameService.new(@name_service)
                 end
 
@@ -563,14 +553,11 @@ module Syskit
                             update_current_job_task_names if current_job
                         rescue Roby::Interface::ComError # rubocop:disable Lint/SuppressedException
                         end
-
-                        task_discovery_apply_result
                     else
                         reset_current_deployments
                         reset_current_job
                         reset_name_service
                         reset_task_inspector
-                        reset_task_discovery
                     end
 
                     syskit.poll
@@ -702,106 +689,19 @@ module Syskit
                 end
 
                 def update_name_service(deployments)
-                    removed_tasks = @task_discovery_mtx.synchronize do
-                        to_remove = discover_new_tasks(deployments)
-
-                        removed_tasks = to_remove.map do
-                            @task_discovery_queue.delete(_1)
-                            @name_service.deregister(_1)
-                        end.compact
-
-                        @task_discovery_signal.broadcast
-                        removed_tasks
-                    end
-
-                    removed_tasks.each(&:dispose)
-                end
-
-                def task_discovery_thread
-                    task_name, deployed_task = @task_discovery_mtx.synchronize do
-                        until (t = @task_discovery_queue.first)
-                            @task_discovery_signal.wait(@task_discovery_mtx)
-                        end
-                        t
-                    end
-
-                    ior = deployed_task.ior
-                    task = Orocos::TaskContext.new(
-                        deployed_task.ior,
-                        name: task_name,
-                        model: orogen_model_from_name(deployed_task.orogen_model_name)
-                    )
-
-                    @task_discovery_result << [task_name, task]
-                rescue Orocos::ComError => e
-                    STDERR.puts "Failed discovery of task #{deployed_task.name}: #{e.message}"
-                ensure
-                    @task_discovery_mtx.synchronize do
-                        if ior == @task_discovery_queue[task_name]&.ior
-                            @task_discovery_queue.delete(task_name)
-                        end
-                    end
-                end
-
-                def task_discovery_apply_result
-                    loop do
-                        name, task = @task_discovery_result.pop(true)
-                        async_task = Orocos::Async::CORBA::TaskContext.new(use: task)
-                        @name_service.register(async_task, name: name)
-                    end
-                rescue ThreadError
-                end
-
-                def reset_task_discovery
-                    @task_discovery_queue.clear
-                    @task_discovery_result.clear
-                end
-
-                OROGEN_LOGGER_NAMES = %w[logger::Logger OroGen.logger.Logger]
-
-                # @api private
-                #
-                # Process the deployment information received from the syskit master,
-                # updating task discovery
-                #
-                # This method MUST be called with the mutex that protects the discovery
-                # queue taken
-                #
-                # @param [Array<Interface::V2::Protocol::DeployedTask>] deployments
-                # @return [Array<string>,Array<string>] names of the tasks that should
-                #   be added to the discovery queue, and of the tasks that should be
-                #   de-registered from the name service
-                def discover_new_tasks(deployments)
-                    # Get all the names and remove them when we find them in the
-                    # deployments. What's left is what needs to be removed
-                    names_discovered = @name_service.names
-                    names_in_discovery = @task_discovery_queue.keys
-
-                    deployments.each do |d|
-                        d.deployed_tasks.each do |deployed_task|
+                    all_deployed_tasks = deployments.flat_map do |d|
+                        d.deployed_tasks.find_all do |deployed_task|
                             model_name = deployed_task.orogen_model_name
-                            task_name = deployed_task.name
-
-                            if hide_loggers? && OROGEN_LOGGER_NAMES.include?(model_name)
-                                next
-                            end
-
-                            task_name = deployed_task.name
-                            if names_discovered.delete(task_name)
-                                next if deployed_task.ior == @name_service.ior(task_name)
-                            end
-
-                            names_in_discovery.delete(task_name)
-                            @task_discovery_queue[task_name] = deployed_task
+                            !hide_loggers? || !OROGEN_LOGGER_NAMES.include?(model_name)
                         end
                     end
-
-                    names_discovered | names_in_discovery
+                    @name_service.async_update_tasks(all_deployed_tasks)
                 end
+
+                OROGEN_LOGGER_NAMES = %w[logger::Logger OroGen.logger.Logger].freeze
 
                 def reset_name_service
-                    all = @name_service.names.dup
-                    all.each { @name_service.deregister(_1) }
+                    @name_service.cleanup
                 end
 
                 def orogen_model_from_name(name)
