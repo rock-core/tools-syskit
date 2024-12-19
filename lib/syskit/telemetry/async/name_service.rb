@@ -28,6 +28,10 @@ module Syskit
                         Concurrent::FixedThreadPool.new(thread_count)
                 end
 
+                def tasks
+                    @registered_tasks.values
+                end
+
                 def dispose
                     cleanup
                     @discovery_executor.shutdown
@@ -63,9 +67,18 @@ module Syskit
                     # We never spawn two futures to resolve the same name. Instead,
                     # when we get the feature result, we check whether the
                     # IOR has changed, and act accordingly
+                    queue_new_tasks_discovery(tasks)
+                end
+
+                # @api private
+                #
+                # Filter a list of tasks, queueing futures to discover the new ones
+                #
+                # @param [#ior,#name] tasks list of tasks to be discovered
+                def queue_new_tasks_discovery(tasks)
                     tasks.each do |t|
                         next if @discovery[t.name]
-                        next if t.ior == @registered_tasks[t.name]&.ior
+                        next if t.ior == @registered_tasks[t.name]&.identity
 
                         async_discover_task(t)
                     end
@@ -76,7 +89,7 @@ module Syskit
                 def remove_changed_tasks(iors)
                     @registered_tasks.dup.each do |name, task|
                         new_ior = iors[name]
-                        deregister(name).dispose if !new_ior || task.ior != new_ior
+                        deregister(name).dispose if !new_ior || task.identity != new_ior
                     end
                 end
 
@@ -143,7 +156,7 @@ module Syskit
                 #
                 # Remove a resolved task from the pending discoveries
                 #
-                # @return [(String,Orocos::Async::TaskContext),nil] a resolved task or nil
+                # @return [(String,TaskContext),nil] a resolved task or nil
                 #   if there are none so far
                 def pop_discovered_task
                     loop do
@@ -192,9 +205,8 @@ module Syskit
                         name: name,
                         model: orogen_model_from_name(orogen_model_name)
                     )
-                    async_task = Orocos::Async::CORBA::TaskContext.new(
-                        ior, use: task
-                    )
+
+                    async_task = TaskContext.discover(task)
 
                     [ior, async_task]
                 rescue StandardError => e
@@ -213,7 +225,7 @@ module Syskit
                 # (see NameServiceBase#get)
                 def ior(name)
                     task = @registered_tasks[name]
-                    return task.ior if task.respond_to?(:ior)
+                    return task.identity if task.respond_to?(:identity)
 
                     raise Orocos::NotFound, "task context #{name} cannot be found."
                 end

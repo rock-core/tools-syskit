@@ -54,9 +54,6 @@ module Syskit
                 attr_reader :ui_task_inspector
                 # A logging configuration widget we use to manage logging
                 attr_reader :ui_logging_configuration
-                # The list of task names of the task currently displayed by the task
-                # inspector
-                attr_reader :current_orocos_tasks
 
                 # Returns a list of actions that can be performed on the Roby
                 # instance
@@ -143,8 +140,7 @@ module Syskit
                     create_ui
 
                     @current_job = nil
-                    @current_orocos_tasks = Set.new
-                    @proxies = {}
+                    @current_tasks = Array.new
 
                     syskit.on_ui_event do |event_name, *args|
                         if (w = @ui_event_widgets[event_name])
@@ -538,12 +534,10 @@ module Syskit
                 # Sets up polling on a given syskit interface
                 def poll_syskit_interface
                     if syskit.connected?
-                        begin
-                            display_current_cycle_index_and_time
-                            query_deployment_update
-                            update_current_job_task_names if current_job
-                        rescue Roby::Interface::ComError # rubocop:disable Lint/SuppressedException
-                        end
+                        display_current_cycle_index_and_time
+                        query_deployment_update
+                        update_current_job_task_names if current_job
+                        poll_task_contexts
                     else
                         reset_current_deployments
                         reset_current_job
@@ -554,6 +548,10 @@ module Syskit
                     syskit.poll
                 end
                 slots "poll_syskit_interface()"
+
+                def poll_task_contexts
+                    @name_service.each_task(&:poll)
+                end
 
                 def display_current_cycle_index_and_time
                     return unless syskit.cycle_start_time
@@ -569,15 +567,17 @@ module Syskit
                     @current_job = nil
                     @current_job_task_names = []
 
-                    update_task_inspector(@name_service.names)
+                    update_task_inspector(@name_service.tasks)
                 end
 
                 def process_current_deployments
                     update_name_service(@current_deployments)
 
-                    names = @name_service.names
-                    names &= @current_job_task_names if @current_job
-                    update_task_inspector(names)
+                    if @current_job
+                        update_task_inspector(@current_job_tasks)
+                    else
+                        update_task_inspector(@name_service.tasks)
+                    end
                 end
 
                 def query_deployment_update
@@ -604,28 +604,24 @@ module Syskit
 
                 def update_current_job_task_names
                     polling_call [], "tasks_of_job", @current_job.job_id do |tasks|
-                        @current_job_task_names =
+                        # TODO: handle asynchronicity
+                        @current_job_tasks =
                             tasks
-                            .map { _1.arguments[:orocos_name] }
+                            .map { @name_service.get(_1.arguments[:orocos_name]) }
                             .compact
                     end
                 end
 
-                def update_task_inspector(task_names)
-                    orocos_tasks = task_names.to_set
-                    removed = current_orocos_tasks - orocos_tasks
-                    new     = orocos_tasks - current_orocos_tasks
-                    removed.each do |task_name|
-                        ui_task_inspector.remove_task(task_name)
+                def update_task_inspector(tasks)
+                    removed = @current_tasks - tasks
+                    new     = tasks - @current_tasks
+                    removed.each do |task|
+                        ui_task_inspector.remove_task(task.name)
                     end
-                    new.each do |task_name|
-                        @proxies[task_name] ||= Orocos::Async::TaskContextProxy.new(
-                            task_name, name_service: @async_name_service
-                        )
-
-                        ui_task_inspector.add_task(@proxies[task_name])
+                    new.each do |task|
+                        ui_task_inspector.add_task(task)
                     end
-                    @current_orocos_tasks = orocos_tasks.dup
+                    @current_tasks = tasks.dup
                 end
 
                 def reset_task_inspector
