@@ -417,9 +417,6 @@ module Syskit
                         @ui_task_inspector = Vizkit.default_loader.TaskInspector
                     )
                     @ui_hide_loggers.checked = false
-                    @ui_hide_loggers.connect SIGNAL("toggled(bool)") do |_checked|
-                        update_tasks_info
-                    end
                     @ui_show_expanded_job.checked = true
                     @ui_show_expanded_job.connect SIGNAL("toggled(bool)") do |checked|
                         job_expanded_status.visible = checked
