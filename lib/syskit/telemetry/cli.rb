@@ -40,8 +40,12 @@ module Syskit
             end
 
             no_commands do # rubocop:disable Metrics/BlockLength
-                def roby_setup
+                def roby_setup # rubocop:disable Metrics/AbcSize
                     Roby.app.using "syskit"
+                    Roby.app.guess_app_dir
+                    Roby.app.load_config_yaml
+                    Roby.app.require_v2_protocol_extensions
+
                     Syskit.conf.only_load_models = true
                     # We don't need the process server, win some startup time
                     Syskit.conf.disables_local_process_server = true
