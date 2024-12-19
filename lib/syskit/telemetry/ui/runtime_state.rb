@@ -127,8 +127,6 @@ module Syskit
 
                     super(parent)
 
-                    @has_poll_ready_deployments = true
-
                     @syskit = syskit
                     @syskit_run_arguments =
                         SyskitRunArguments.new(robot: "default", set: [])
@@ -545,11 +543,7 @@ module Syskit
                     if syskit.connected?
                         begin
                             display_current_cycle_index_and_time
-                            if @has_poll_ready_deployments
-                                query_deployment_update_v2
-                            else
-                                query_deployment_update_v1
-                            end
+                            query_deployment_update
                             update_current_job_task_names if current_job
                         rescue Roby::Interface::ComError # rubocop:disable Lint/SuppressedException
                         end
@@ -589,14 +583,7 @@ module Syskit
                     update_task_inspector(names)
                 end
 
-                def query_deployment_update_v1
-                    polling_call(["syskit"], "deployments") do |deployments|
-                        @current_deployments = deployments
-                        process_current_deployments
-                    end
-                end
-
-                def query_deployment_update_v2
+                def query_deployment_update
                     polling_call(
                         ["syskit"], "poll_ready_deployments",
                         known: @current_deployments.map(&:id)
@@ -674,14 +661,6 @@ module Syskit
                 end
 
                 def report_app_error(error)
-                    if error.class_name == "NoMethodError" &&
-                       error.message.match?(/poll_ready_deployments/)
-                        warn "remote interface does not support poll_ready_deployments"
-                        warn "switching to old inefficient polling method"
-                        @has_poll_ready_deployments = false
-                        return
-                    end
-
                     warn error.message
                     error.backtrace.each do |line|
                         warn "  #{line}"
