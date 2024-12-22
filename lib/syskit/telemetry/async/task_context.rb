@@ -3,6 +3,10 @@
 module Syskit
     module Telemetry
         module Async
+            # Definition of hooks for the {TaskContext} class
+            #
+            # This is made separately to allow overloading them in the main class in
+            # a natural way
             class TaskContextHooks
                 include Roby::Hooks
                 include Roby::Hooks::InstanceHooks
@@ -30,6 +34,11 @@ module Syskit
                 # @return [String]
                 attr_reader :identity
 
+                # The task model
+                #
+                # @return [OroGen::Spec::TaskContext]
+                attr_reader :model
+
                 # Discover information about a Orocos::TaskContext and create the
                 # corresponding {TaskContext}
                 #
@@ -41,33 +50,59 @@ module Syskit
                     state_reader = task.state_reader(
                         pull: true, type: :circular_buffer, size: 10
                     )
-                    puts "#{Time.now} #{task.name}: created state reader"
-                    raw_attributes = task.attribute_names.map { task.attribute(_1) }
-                    puts "#{Time.now} #{task.name}: created attributes"
-                    raw_properties = task.property_names.map { task.property(_1) }
-                    puts "#{Time.now} #{task.name}: created properties"
-                    raw_ports = task.port_names.map { task.port(_1) }
-                    puts "#{Time.now} #{task.name}: created ports"
+                    discover_attributes(async_task, task)
+                    discover_properties(async_task, task)
+                    discover_ports(async_task, task)
 
                     # We can do this here ONLY BECAUSE we're populating an initial
                     # state. Further updates need to call the `discover_` methods in
                     # the main thread
                     async_task.reachable!(task, state_reader: state_reader)
-                    async_task.discover_attributes(raw_attributes)
-                    async_task.discover_properties(raw_properties)
-                    async_task.discover_ports(raw_ports)
-                    puts "#{Time.now} #{task.name}: discovered"
                     async_task
                 end
 
-                def initialize(name)
+                # @api private
+                #
+                # Discover a remote task's attributes
+                def self.discover_attributes(async_task, task)
+                    raw_attributes = task.attribute_names.map { task.attribute(_1) }
+                    async_task.discover_attributes(raw_attributes)
+                end
+
+                # @api private
+                #
+                # Discover a remote task's properties
+                def self.discover_properties(async_task, task)
+                    raw_properties = task.property_names.map { task.property(_1) }
+                    async_task.discover_properties(raw_properties)
+                end
+
+                # @api private
+                #
+                # Discover a remote task's ports
+                def self.discover_ports(async_task, task)
+                    raw_ports = task.port_names.map { task.port(_1) }
+                    async_task.discover_ports(raw_ports)
+                end
+
+                def initialize(name, model: self.class.dummy_orogen_model(name))
+                    super()
+
                     @name = name
+                    @model = model
 
                     @attributes = {}
                     @properties = {}
                     @ports = {}
 
                     @current_state = nil
+                end
+
+                @dummy_orogen_models = Concurrent::Hash.new
+
+                def self.dummy_orogen_model(name)
+                    @dummy_orogen_models[name] ||=
+                        Orocos.create_orogen_task_context_model(name)
                 end
 
                 def to_proxy
@@ -81,22 +116,24 @@ module Syskit
                 def unreachable!
                     run_hook :on_unreachable
 
-                    @attributes.each_value do
-                        run_hook :on_attribute_unreachable, _1.name
-                        _1.unreachable!
-                    end
-
-                    @properties.each_value do
-                        run_hook :on_property_unreachable, _1.name
-                        _1.unreachable!
-                    end
-
-                    @ports.each_value do
-                        run_hook :on_port_unreachable, _1.name
-                        _1.unreachable!
-                    end
+                    run_interface_unreachable_hooks(
+                        @attributes.each_value, :on_attribute_unreachable
+                    )
+                    run_interface_unreachable_hooks(
+                        @properties.each_value, :on_property_unreachable
+                    )
+                    run_interface_unreachable_hooks(
+                        @ports.each_value, :on_port_unreachable
+                    )
 
                     dispose
+                end
+
+                def run_interface_unreachable_hooks(objects, event)
+                    objects.each do
+                        run_hook event, _1.name
+                        _1.unreachable!
+                    end
                 end
 
                 def reachable?
@@ -147,8 +184,12 @@ module Syskit
                     @ports.each_value(&block)
                 end
 
-                def each_property(&block)
-                    @properties.each_value(&block)
+                def each_input_port(&block)
+                    @ports.each_value.find_all(&:input?).each(&block)
+                end
+
+                def each_output_port(&block)
+                    @ports.each_value.find_all { !_1.input? }.each(&block)
                 end
 
                 def on_attribute_reachable(&block)
@@ -206,7 +247,15 @@ module Syskit
                 def discover_ports(raw_ports)
                     @ports =
                         raw_ports.each_with_object({}) do |p, h|
-                            async = Port.new(p.name, p.type)
+                            klass =
+                                case p
+                                when Orocos::InputPort
+                                    InputPort
+                                else
+                                    OutputPort
+                                end
+
+                            async = klass.new(p.name, p.type)
                             async.reachable!(p)
                             h[p.name] = async
                         end
@@ -233,19 +282,17 @@ module Syskit
                 end
 
                 def poll(period: 0.1)
-                    begin
-                        while (new_state = read_new_state)
-                            @current_state = new_state
-                            run_hook :on_state_change, new_state
-                        end
-                    rescue ThreadError
-                        sleep(period)
+                    while (new_state = read_new_state)
+                        @current_state = new_state
+                        run_hook :on_state_change, new_state
                     end
+                rescue ThreadError
+                    sleep(period)
                 end
 
                 def read_new_state
                     @state_read_queue.pop(true)
-                rescue ThreadError
+                rescue ThreadError # rubocop:disable Lint/SuppressedException
                 end
             end
         end

@@ -22,9 +22,45 @@ module Syskit
                         t, async = make_async_task "test"
                         assert async.reachable?
                         assert_equal t.ior, async.identity
-                        assert_equal Set["state", "in", "out"], async.each_port.to_set(&:name)
+                        assert_equal Set["state", "in", "out"],
+                                     async.each_port.to_set(&:name)
                         assert_equal ["prop"], async.each_property.map(&:name)
                         assert_includes async.each_attribute.map(&:name), "attr"
+                    end
+
+                    it "registers attributes" do
+                        _, async = make_async_task "test"
+                        attr = async.attribute("attr")
+                        assert_includes async.each_attribute.to_a, attr
+                        assert_kind_of Attribute, attr
+                        assert_equal "attr", attr.name
+                    end
+
+                    it "registers properties" do
+                        _, async = make_async_task "test"
+                        prop = async.property("prop")
+                        assert_equal [prop], async.each_property.to_a
+                        assert_kind_of Property, prop
+                        assert_equal "prop", prop.name
+                    end
+
+                    it "registers input ports" do
+                        _, async = make_async_task "test"
+                        in_p = async.port("in")
+                        assert_equal [in_p], async.each_input_port.to_a
+                        assert_includes async.each_port.to_a, in_p
+                        assert_kind_of InputPort, in_p
+                        assert_equal "in", in_p.name
+                    end
+
+                    it "registers output ports" do
+                        _, async = make_async_task "test"
+                        out_p = async.port("out")
+                        assert_equal Set[async.port("state"), out_p],
+                                     async.each_output_port.to_set
+                        assert_includes async.each_port.to_a, out_p
+                        assert_kind_of OutputPort, out_p
+                        assert_equal "out", out_p.name
                     end
                 end
 
@@ -202,15 +238,6 @@ module Syskit
                         m.should_receive(:called).once
                         async.port("in").on_unreachable { m.called }
                         async.unreachable!
-                    end
-                end
-
-                describe "ports" do
-                    it "calls the on_port_reachable hooks on registration" do
-                        _, async = make_async_task "test"
-                        ports = []
-                        async.on_port_reachable { ports << _1 }
-                        assert_equal Set["state", "in", "out"], ports.to_set(&:name)
                     end
                 end
 
