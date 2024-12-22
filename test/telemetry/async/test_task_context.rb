@@ -106,7 +106,7 @@ module Syskit
                         _, async = make_async_task "test"
                         attributes = []
                         async.on_attribute_reachable { attributes << _1 }
-                        assert_includes attributes.to_set(&:name), "attr"
+                        assert_includes attributes, "attr"
                     end
 
                     it "calls the attribute's on_reachable hook on registration" do
@@ -122,17 +122,15 @@ module Syskit
                         attributes = []
                         async.on_attribute_unreachable { attributes << _1 }
                         async.unreachable!
-                        assert_includes attributes.map(&:name), "attr"
+                        assert_includes attributes, "attr"
                     end
 
                     it "calls the attribute's on_unreachable hooks when " \
                        "the task becomes unreachable" do
                         _, async = make_async_task "test"
-                        attributes = []
-                        async.on_attribute_reachable { attributes << _1 }
                         m = flexmock
                         m.should_receive(:called).once
-                        attributes[0].on_unreachable { m.called }
+                        async.attribute("attr").on_unreachable { m.called }
                         async.unreachable!
                     end
                 end
@@ -142,7 +140,7 @@ module Syskit
                         _, async = make_async_task "test"
                         properties = []
                         async.on_property_reachable { properties << _1 }
-                        assert_equal ["prop"], properties.map(&:name)
+                        assert_equal ["prop"], properties
                     end
 
                     it "calls the property's on_reachable hook on registration" do
@@ -158,7 +156,7 @@ module Syskit
                         properties = []
                         async.on_property_unreachable { properties << _1 }
                         async.unreachable!
-                        assert_equal ["prop"], properties.map(&:name)
+                        assert_equal ["prop"], properties
                     end
 
                     it "calls the propertie's on_unreachable hooks when " \
@@ -168,7 +166,7 @@ module Syskit
                         async.on_property_reachable { properties << _1 }
                         m = flexmock
                         m.should_receive(:called).once
-                        properties[0].on_unreachable { m.called }
+                        async.property("prop").on_unreachable { m.called }
                         async.unreachable!
                     end
                 end
@@ -178,7 +176,7 @@ module Syskit
                         _, async = make_async_task "test"
                         ports = []
                         async.on_port_reachable { ports << _1 }
-                        assert_equal Set["state", "in", "out"], ports.to_set(&:name)
+                        assert_equal Set["state", "in", "out"], ports.to_set
                     end
 
                     it "calls the attribute's on_reachable hook on registration" do
@@ -194,17 +192,15 @@ module Syskit
                         ports = []
                         async.on_port_unreachable { ports << _1 }
                         async.unreachable!
-                        assert_equal Set["in", "out", "state"], ports.to_set(&:name)
+                        assert_equal Set["in", "out", "state"], ports.to_set
                     end
 
                     it "calls the port's on_unreachable hooks when " \
                        "the task becomes unreachable" do
                         _, async = make_async_task "test"
-                        ports = []
-                        async.on_port_reachable { ports << _1 }
                         m = flexmock
                         m.should_receive(:called).once
-                        ports[0].on_unreachable { m.called }
+                        async.port("in").on_unreachable { m.called }
                         async.unreachable!
                     end
                 end

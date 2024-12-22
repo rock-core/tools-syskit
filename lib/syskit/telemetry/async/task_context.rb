@@ -82,17 +82,17 @@ module Syskit
                     run_hook :on_unreachable
 
                     @attributes.each_value do
-                        run_hook :on_attribute_unreachable, _1
+                        run_hook :on_attribute_unreachable, _1.name
                         _1.unreachable!
                     end
 
                     @properties.each_value do
-                        run_hook :on_property_unreachable, _1
+                        run_hook :on_property_unreachable, _1.name
                         _1.unreachable!
                     end
 
                     @ports.each_value do
-                        run_hook :on_port_unreachable, _1
+                        run_hook :on_port_unreachable, _1.name
                         _1.unreachable!
                     end
 
@@ -154,19 +154,31 @@ module Syskit
                 def on_attribute_reachable(&block)
                     super
 
-                    @attributes.each_value { block.call(_1) }
+                    @attributes.each_key { block.call(_1) }
+                end
+
+                def attribute(name)
+                    @attributes.fetch(name)
                 end
 
                 def on_property_reachable(&block)
                     super
 
-                    @properties.each_value { block.call(_1) }
+                    @properties.each_key { block.call(_1) }
+                end
+
+                def property(name)
+                    @properties.fetch(name)
                 end
 
                 def on_port_reachable(&block)
                     super
 
-                    @ports.each_value { block.call(_1) }
+                    @ports.each_key { block.call(_1) }
+                end
+
+                def port(name)
+                    @ports.fetch(name)
                 end
 
                 def discover_attributes(raw_attributes)
