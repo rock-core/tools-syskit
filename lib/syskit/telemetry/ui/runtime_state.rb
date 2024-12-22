@@ -140,7 +140,8 @@ module Syskit
                     create_ui
 
                     @current_job = nil
-                    @current_tasks = Array.new
+                    @current_job_tasks = []
+                    @current_tasks = []
 
                     syskit.on_ui_event do |event_name, *args|
                         if (w = @ui_event_widgets[event_name])
@@ -604,11 +605,13 @@ module Syskit
 
                 def update_current_job_task_names
                     polling_call [], "tasks_of_job", @current_job.job_id do |tasks|
-                        # TODO: handle asynchronicity
+                        # TODO: handle asynchronicity, the tasks may not be already
+                        # discovered and/or the
                         @current_job_tasks =
                             tasks
-                            .map { @name_service.get(_1.arguments[:orocos_name]) }
+                            .map { _1.arguments[:orocos_name] }
                             .compact
+                            .map { @name_service.find(_1) }
                     end
                 end
 

@@ -230,9 +230,21 @@ module Syskit
                     raise Orocos::NotFound, "task context #{name} cannot be found."
                 end
 
-                # (see NameServiceBase#get)
+                # Return a task from its name, or nil if it does not exist
+                #
+                # @param [String] name
+                # @return [TaskContext,nil]
+                def find(name)
+                    @registered_tasks[name]
+                end
+
+                # Return a task from its name, or raise if it does not exist
+                #
+                # @param [String] name
+                # @return [TaskContext]
+                # @raise [Orocos::NotFound]
                 def get(name, **)
-                    task = @registered_tasks[name]
+                    task = find(name)
                     return task if task
 
                     raise Orocos::NotFound, "task context #{name} cannot be found."
