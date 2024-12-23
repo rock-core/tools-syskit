@@ -49,7 +49,7 @@ module Syskit
                 def on_reachable(&block)
                     super
 
-                    block.call if @raw_object
+                    block.call(@raw_object) if @raw_object
                 end
 
                 def once_on_reachable(&block)

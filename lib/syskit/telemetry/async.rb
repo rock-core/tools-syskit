@@ -8,6 +8,7 @@ require "syskit/telemetry/async/attribute"
 require "syskit/telemetry/async/property"
 require "syskit/telemetry/async/input_port"
 require "syskit/telemetry/async/output_port"
+require "syskit/telemetry/async/output_reader"
 
 module Syskit
     module Telemetry
