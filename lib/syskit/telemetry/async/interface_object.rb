@@ -64,9 +64,10 @@ module Syskit
                 end
 
                 def on_reachable(&block)
-                    super
+                    disposable = super
 
                     block.call(@raw_object) if @raw_object
+                    disposable
                 end
 
                 def once_on_reachable(&block)
