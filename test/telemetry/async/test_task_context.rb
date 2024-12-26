@@ -16,6 +16,20 @@ module Syskit
                     @ruby_tasks.each(&:dispose)
                 end
 
+                it "is the same as another async task with the same remote task when " \
+                   "used as hash key" do
+                    t, async = make_async_task "test"
+                    async2 = Orocos.allow_blocking_calls { TaskContext.discover(t) }
+
+                    _, async3 = make_async_task "test2"
+
+                    hash = { async => 42 }
+                    assert_equal 42, hash[async2]
+                    assert_nil hash[async3]
+                    assert_nil hash[42]
+                    assert_nil hash["test"]
+                end
+
                 describe ".discover" do
                     it "creates an async task already initialized with the remote " \
                        "task's interface" do
@@ -169,6 +183,23 @@ module Syskit
                         async.attribute("attr").on_unreachable { m.called }
                         async.unreachable!
                     end
+
+                    it "is usable as a hash key" do
+                        t, async = make_async_task "test"
+                        attr = async.attribute("attr")
+
+                        async2 = Orocos.allow_blocking_calls { TaskContext.discover(t) }
+                        attr2 = async2.attribute("attr")
+
+                        _, async3 = make_async_task "test2"
+                        attr3 = async3.attribute("attr")
+
+                        hash = { attr => 42 }
+                        assert_equal 42, hash[attr2]
+                        assert_nil hash[attr3]
+                        assert_nil hash[42]
+                        assert_nil hash["test"]
+                    end
                 end
 
                 describe "properties" do
@@ -205,6 +236,23 @@ module Syskit
                         async.property("prop").on_unreachable { m.called }
                         async.unreachable!
                     end
+
+                    it "is usable as a hash key" do
+                        t, async = make_async_task "test"
+                        prop = async.property("prop")
+
+                        async2 = Orocos.allow_blocking_calls { TaskContext.discover(t) }
+                        prop2 = async2.property("prop")
+
+                        _, async3 = make_async_task "test2"
+                        prop3 = async3.property("prop")
+
+                        hash = { prop => 42 }
+                        assert_equal 42, hash[prop2]
+                        assert_nil hash[prop3]
+                        assert_nil hash[42]
+                        assert_nil hash["test"]
+                    end
                 end
 
                 describe "ports" do
@@ -238,6 +286,23 @@ module Syskit
                         m.should_receive(:called).once
                         async.port("in").on_unreachable { m.called }
                         async.unreachable!
+                    end
+
+                    it "is usable as a hash key" do
+                        t, async = make_async_task "test"
+                        port = async.port("out")
+
+                        async2 = Orocos.allow_blocking_calls { TaskContext.discover(t) }
+                        port2 = async2.port("out")
+
+                        _, async3 = make_async_task "test2"
+                        port3 = async3.port("out")
+
+                        hash = { port => 42 }
+                        assert_equal 42, hash[port2]
+                        assert_nil hash[port3]
+                        assert_nil hash[42]
+                        assert_nil hash["test"]
                     end
                 end
 

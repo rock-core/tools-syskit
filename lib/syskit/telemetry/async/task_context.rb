@@ -39,6 +39,12 @@ module Syskit
                 # @return [OroGen::Spec::TaskContext]
                 attr_reader :model
 
+                # Hash code for this task context
+                #
+                # Two different TaskContext objects that point to the same remote object
+                # will be considered the same from the perspective of a hash key
+                attr_reader :hash
+
                 # Discover information about a Orocos::TaskContext and create the
                 # corresponding {TaskContext}
                 #
@@ -90,6 +96,11 @@ module Syskit
 
                     @name = name
                     @model = model
+                    # !!!! DO NOT add the identity to the hash code, or it will change
+                    # the hash whenever the remote task changes. From the Async
+                    # perspective, a task's identity is determined by its name
+                    # (we can't have two different tasks with the same name)
+                    @hash = name.hash
 
                     @attributes = {}
                     @properties = {}
@@ -107,6 +118,10 @@ module Syskit
 
                 def to_proxy
                     self
+                end
+
+                def eql?(other)
+                    name == other.name
                 end
 
                 # Declare that the remote task is not reachable anymore
@@ -225,7 +240,7 @@ module Syskit
                 def discover_attributes(raw_attributes)
                     @attributes =
                         raw_attributes.each_with_object({}) do |p, h|
-                            async = Attribute.new(p.name, p.type)
+                            async = Attribute.new(self, p.name, p.type)
                             async.reachable!(p)
                             h[p.name] = async
                         end
@@ -236,7 +251,7 @@ module Syskit
                 def discover_properties(raw_properties)
                     @properties =
                         raw_properties.each_with_object({}) do |p, h|
-                            async = Property.new(p.name, p.type)
+                            async = Property.new(self, p.name, p.type)
                             async.reachable!(p)
                             h[p.name] = async
                         end
@@ -255,7 +270,7 @@ module Syskit
                                     OutputPort
                                 end
 
-                            async = klass.new(p.name, p.type)
+                            async = klass.new(self, p.name, p.type)
                             async.reachable!(p)
                             h[p.name] = async
                         end
