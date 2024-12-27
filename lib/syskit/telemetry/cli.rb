@@ -49,6 +49,7 @@ module Syskit
                     Syskit.conf.only_load_models = true
                     # We don't need the process server, win some startup time
                     Syskit.conf.disables_local_process_server = true
+                    Syskit.conf.export_types = false
                     Roby.app.ignore_all_load_errors = true
                     Roby.app.development_mode = false
 
