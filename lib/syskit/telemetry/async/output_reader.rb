@@ -125,6 +125,10 @@ module Syskit
                     disconnect_on_unreachability
                 end
 
+                def disposed?
+                    @reachability_listener.disposed?
+                end
+
                 def buffer_size
                     @policy[:size]
                 end
