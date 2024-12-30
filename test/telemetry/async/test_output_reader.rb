@@ -13,10 +13,13 @@ module Syskit
                     @disconnection_executor = Test::PollingExecutor.new
                     @read_executor = Test::PollingExecutor.new
                     @ruby_tasks = []
+
+                    @port_read_manager = PortReadManager.new
                 end
 
                 after do
                     @ruby_tasks.each(&:dispose)
+                    @port_read_manager.dispose
                 end
 
                 it "asynchronously connects to the port" do
@@ -203,7 +206,7 @@ module Syskit
                 def make_async_task(name)
                     t = make_ruby_task name
                     async = Orocos.allow_blocking_calls do
-                        TaskContext.discover(t)
+                        TaskContext.discover(t, port_read_manager: @port_read_manager)
                     end
                     [t, async]
                 end

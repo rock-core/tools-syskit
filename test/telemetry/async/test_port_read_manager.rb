@@ -62,7 +62,7 @@ module Syskit
                         )
                         reader = @manager.find_poller_for_port(out_p).reader
                         refute_same orig_reader, reader
-                        assert_equal 5, reader.buffer_size
+                        assert_equal 5, reader.policy[:size]
                         assert orig_reader.disposed?
                     end
 
@@ -217,7 +217,7 @@ module Syskit
                 def make_async_task(name)
                     t = make_ruby_task name
                     async = Orocos.allow_blocking_calls do
-                        TaskContext.discover(t)
+                        TaskContext.discover(t, port_read_manager: @manager)
                     end
                     [t, async]
                 end

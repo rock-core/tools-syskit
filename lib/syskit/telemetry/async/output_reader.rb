@@ -8,9 +8,12 @@ module Syskit
                 # The async port this reader is connected to
                 attr_reader :port
 
+                # The policy hash used to create this reader
+                attr_reader :policy
+
                 def initialize(port, policy, connect_on:, disconnect_on:)
                     @port = port
-                    @policy = policy
+                    @policy = policy.dup.freeze
 
                     @cancel_event = Concurrent::Promises.resolvable_event
                     @connection_future = nil
@@ -127,10 +130,6 @@ module Syskit
 
                 def disposed?
                     @reachability_listener.disposed?
-                end
-
-                def buffer_size
-                    @policy[:size]
                 end
             end
         end

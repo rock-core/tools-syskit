@@ -9,17 +9,19 @@ module Syskit
             describe TaskContext do
                 before do
                     @ns = NameService.new
+                    @port_read_manager = PortReadManager.new
                     @ruby_tasks = []
                 end
 
                 after do
+                    @port_read_manager.dispose
                     @ruby_tasks.each(&:dispose)
                 end
 
                 it "is the same as another async task with the same remote task when " \
                    "used as hash key" do
                     t, async = make_async_task "test"
-                    async2 = Orocos.allow_blocking_calls { TaskContext.discover(t) }
+                    async2 = discover_task(t)
 
                     _, async3 = make_async_task "test2"
 
@@ -85,13 +87,13 @@ module Syskit
 
                         states = []
                         async.on_state_change { states << _1 }
-                        assert_polling_eventually(async) { states == [:PRE_OPERATIONAL] }
+                        assert_polling_eventually { states == [:PRE_OPERATIONAL] }
 
                         Orocos.allow_blocking_calls do
                             task.configure
                             task.start
                         end
-                        assert_polling_eventually(async) do
+                        assert_polling_eventually do
                             states == %I[PRE_OPERATIONAL STOPPED RUNNING]
                         end
                     end
@@ -103,7 +105,7 @@ module Syskit
                         end
                         states = []
                         async.on_state_change { states << _1 }
-                        assert_polling_eventually(async) do
+                        assert_polling_eventually do
                             states[-1] == :RUNNING
                         end
 
@@ -188,7 +190,7 @@ module Syskit
                         t, async = make_async_task "test"
                         attr = async.attribute("attr")
 
-                        async2 = Orocos.allow_blocking_calls { TaskContext.discover(t) }
+                        async2 = discover_task(t)
                         attr2 = async2.attribute("attr")
 
                         _, async3 = make_async_task "test2"
@@ -241,7 +243,7 @@ module Syskit
                         t, async = make_async_task "test"
                         prop = async.property("prop")
 
-                        async2 = Orocos.allow_blocking_calls { TaskContext.discover(t) }
+                        async2 = discover_task(t)
                         prop2 = async2.property("prop")
 
                         _, async3 = make_async_task "test2"
@@ -292,7 +294,7 @@ module Syskit
                         t, async = make_async_task "test"
                         port = async.port("out")
 
-                        async2 = Orocos.allow_blocking_calls { TaskContext.discover(t) }
+                        async2 = discover_task(t)
                         port2 = async2.port("out")
 
                         _, async3 = make_async_task "test2"
@@ -321,16 +323,19 @@ module Syskit
 
                 def make_async_task(name)
                     t = make_ruby_task name
-                    async = Orocos.allow_blocking_calls do
-                        TaskContext.discover(t)
-                    end
-                    [t, async]
+                    [t, discover_task(t)]
                 end
 
-                def assert_polling_eventually(async, period: 0.01, timeout: 2, &block)
+                def discover_task(task)
+                    Orocos.allow_blocking_calls do
+                        TaskContext.discover(task, port_read_manager: @port_read_manager)
+                    end
+                end
+
+                def assert_polling_eventually(period: 0.01, timeout: 2, &block)
                     deadline = Time.now + timeout
                     while Time.now < deadline
-                        async.poll
+                        @port_read_manager.poll
                         return if block.call
 
                         sleep(period)

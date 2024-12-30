@@ -45,17 +45,35 @@ module Syskit
                 # will be considered the same from the perspective of a hash key
                 attr_reader :hash
 
+                def states_index_to_symbols
+                    return @states_index_to_symbols if @states_index_to_symbols
+
+                    @states_index_to_symbols = []
+                    @states_index_to_symbols[Orocos::TaskContext::STATE_PRE_OPERATIONAL] =
+                        :PRE_OPERATIONAL
+                    @states_index_to_symbols[Orocos::TaskContext::STATE_STOPPED] =
+                        :STOPPED
+                    @states_index_to_symbols[Orocos::TaskContext::STATE_RUNNING] =
+                        :RUNNING
+                    @states_index_to_symbols[Orocos::TaskContext::STATE_RUNTIME_ERROR] =
+                        :RUNTIME_ERROR
+                    @states_index_to_symbols[Orocos::TaskContext::STATE_EXCEPTION] =
+                        :EXCEPTION
+                    @states_index_to_symbols[Orocos::TaskContext::STATE_FATAL_ERROR] =
+                        :FATAL_ERROR
+                    @states_index_to_symbols
+                end
+
                 # Discover information about a Orocos::TaskContext and create the
                 # corresponding {TaskContext}
                 #
                 # This is meant to be called in a separate thread
-                def self.discover(task)
-                    async_task = TaskContext.new(task.name)
+                def self.discover(task, port_read_manager:)
+                    async_task = TaskContext.new(
+                        task.name, port_read_manager: port_read_manager
+                    )
 
                     # Already do an initial discovery of all the task's interface objects
-                    state_reader = task.state_reader(
-                        pull: true, type: :circular_buffer, size: 10
-                    )
                     discover_attributes(async_task, task)
                     discover_properties(async_task, task)
                     discover_ports(async_task, task)
@@ -63,7 +81,7 @@ module Syskit
                     # We can do this here ONLY BECAUSE we're populating an initial
                     # state. Further updates need to call the `discover_` methods in
                     # the main thread
-                    async_task.reachable!(task, state_reader: state_reader)
+                    async_task.reachable!(task)
                     async_task
                 end
 
@@ -91,7 +109,9 @@ module Syskit
                     async_task.discover_ports(raw_ports)
                 end
 
-                def initialize(name, model: self.class.dummy_orogen_model(name))
+                def initialize(
+                    name, port_read_manager:, model: self.class.dummy_orogen_model(name)
+                )
                     super()
 
                     @name = name
@@ -102,6 +122,7 @@ module Syskit
                     # (we can't have two different tasks with the same name)
                     @hash = name.hash
 
+                    @port_read_manager = port_read_manager
                     @attributes = {}
                     @properties = {}
                     @ports = {}
@@ -158,10 +179,16 @@ module Syskit
                 # Set the underlying task context
                 #
                 # Must be called from the main thread
-                def reachable!(task_context, state_reader:)
+                def reachable!(task_context)
                     @raw_task_context = task_context
                     @identity = task_context.ior
-                    state_read_init(state_reader)
+
+                    @state_reader_callback =
+                        port("state").on_data(init: true, buffer_size: 20) do |new_state|
+                            new_state = states_index_to_symbols[new_state] || new_state
+                            @current_state = new_state
+                            run_hook :on_state_change, new_state
+                        end
                     run_hook :on_reachable, task_context
                 end
 
@@ -169,16 +196,6 @@ module Syskit
                     super
 
                     block.call if reachable?
-                end
-
-                def state_read_init(state_reader)
-                    @state_reader = state_reader
-
-                    @state_read_queue = queue = Queue.new
-                    @state_read_stop = event = Concurrent::Event.new
-                    @state_read_thread = Thread.new do
-                        state_read_poll_thread(state_reader, queue, event)
-                    end
                 end
 
                 def on_state_change(&block)
@@ -262,15 +279,16 @@ module Syskit
                 def discover_ports(raw_ports)
                     @ports =
                         raw_ports.each_with_object({}) do |p, h|
-                            klass =
+                            async =
                                 case p
                                 when Orocos::InputPort
-                                    InputPort
+                                    InputPort.new(self, p.name, p.type)
                                 else
-                                    OutputPort
+                                    OutputPort.new(
+                                        self, p.name, p.type, @port_read_manager
+                                    )
                                 end
 
-                            async = klass.new(self, p.name, p.type)
                             async.reachable!(p)
                             h[p.name] = async
                         end
@@ -281,33 +299,8 @@ module Syskit
                 def dispose
                     @raw_task_context = nil
 
-                    Concurrent::Promises.future(@state_reader, &:disconnect)
                     @properties.clear
-                end
-
-                def state_read_poll_thread(reader, queue, stop, period: 0.1)
-                    until stop.set?
-                        tic = Time.now
-                        while (state = reader.read_new)
-                            queue << state
-                        end
-                        remaining = period - (Time.now - tic)
-                        sleep remaining if remaining > 0.01
-                    end
-                end
-
-                def poll(period: 0.1)
-                    while (new_state = read_new_state)
-                        @current_state = new_state
-                        run_hook :on_state_change, new_state
-                    end
-                rescue ThreadError
-                    sleep(period)
-                end
-
-                def read_new_state
-                    @state_read_queue.pop(true)
-                rescue ThreadError # rubocop:disable Lint/SuppressedException
+                    @state_reader_callback.dispose
                 end
             end
         end

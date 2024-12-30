@@ -46,7 +46,7 @@ module Syskit
                 end
 
                 Callback = Struct.new(
-                    :port, :callback, :period, :buffer_size, keyword_init: true
+                    :port, :callback, :period, :buffer_size, :init, keyword_init: true
                 ) do
                     def dispatch(value)
                         callback.call(value)
@@ -101,8 +101,8 @@ module Syskit
                         self.next_time = nil
                     end
 
-                    def buffer_size
-                        reader&.buffer_size
+                    def policy
+                        reader&.policy
                     end
                 end
 
@@ -115,10 +115,10 @@ module Syskit
                 # @param [Integer] buffer_size the size of the sample buffer requested
                 #   by the callback. The actual buffer will be of *at least* that many
                 #   samples.
-                def register_callback(port, callback, period:, buffer_size:)
+                def register_callback(port, callback, period:, buffer_size:, init: false)
                     callback = Callback.new(
                         port: port, callback: callback,
-                        period: period, buffer_size: buffer_size
+                        period: period, buffer_size: buffer_size, init: init
                     )
 
                     (@callbacks[port] ||= []) << callback
@@ -152,13 +152,13 @@ module Syskit
                     poller = find_poller_for_port(port) ||
                              Poller.new(port: port)
 
-                    buffer_size = required_buffer_size_for(port)
-                    if buffer_size != poller.buffer_size
+                    policy = required_policy_for(port)
+                    if policy != poller.policy
                         poller.reader&.dispose
                         poller.reader = port.reader(
                             connect_on: @connection_executor,
                             disconnect_on: @disconnection_executor,
-                            type: :circular_buffer, pull: true, size: buffer_size
+                            **policy
                         )
                     end
 
@@ -233,10 +233,12 @@ module Syskit
                 # Return the buffer size needed by all callbacks of a port, in aggregate
                 #
                 # @return [Integer]
-                def required_buffer_size_for(port)
+                def required_policy_for(port)
                     return unless (callbacks = @callbacks[port])
 
-                    callbacks.map { _1.buffer_size }.max
+                    buffer_size = callbacks.map { _1.buffer_size }.max
+                    init = callbacks.map { _1.init }.inject(&:|)
+                    { type: :circular_buffer, size: buffer_size, init: init, pull: true }
                 end
             end
         end
