@@ -29,7 +29,7 @@ module Syskit
                 $qApp.disable_threading # rubocop:disable Style/GlobalVars
                 @thread_pass_timer = Qt::Timer.new
                 @thread_pass_timer.connect(SIGNAL("timeout()")) do
-                    Thread.pass
+                    sleep 0.01
                 end
                 @thread_pass_timer.start(10)
 
