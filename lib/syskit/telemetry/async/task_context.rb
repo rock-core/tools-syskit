@@ -299,6 +299,7 @@ module Syskit
 
                 def dispose
                     @raw_task_context = nil
+                    @current_state = nil
 
                     @properties.clear
                     @state_reader_callback.dispose
