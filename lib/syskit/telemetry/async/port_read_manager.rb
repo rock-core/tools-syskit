@@ -78,6 +78,21 @@ module Syskit
                         read_future&.result
                     end
 
+                    def to_s(relative_to: PortReadManager.monotonic_time)
+                        next_time_delta_ms = (next_time - relative_to) * 1000 if next_time
+
+                        format(
+                            "poller %<name>s: connected=%<connected>s " \
+                            "scheduled=%<scheduled>s " \
+                            "next_time=%<next_time>.3f (in %<next_time_delta_ms>i ms)",
+                            name: port.full_name,
+                            next_time: next_time || 0,
+                            next_time_delta_ms: next_time_delta_ms || 0,
+                            connected: connected? ? "yes" : "no",
+                            scheduled: read_future ? "yes" : "no"
+                        )
+                    end
+
                     def schedule_read_if_needed(now, executor)
                         return if self.next_time && self.next_time > now
 
@@ -223,6 +238,11 @@ module Syskit
 
                 # Time in seconds returned by CLOCK_MONOTONIC
                 def monotonic_time
+                    self.class.monotonic_time
+                end
+
+                # Time in seconds returned by CLOCK_MONOTONIC
+                def self.monotonic_time
                     Process.clock_gettime(Process::CLOCK_MONOTONIC)
                 end
 
