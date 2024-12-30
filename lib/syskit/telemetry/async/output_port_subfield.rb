@@ -109,6 +109,10 @@ module Syskit
                         end
                     end
                 end
+
+                def type?
+                    true
+                end
             end
         end
     end

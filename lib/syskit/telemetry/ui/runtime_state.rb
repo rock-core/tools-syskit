@@ -20,6 +20,7 @@ require "syskit/interface/v2"
 
 # Monkey patching from Vizkit
 Syskit::Telemetry::Async::OutputPort.include Orocos::QtOrocos
+Syskit::Telemetry::Async::OutputPortSubfield.include Orocos::QtOrocos
 
 module Syskit
     module Telemetry
