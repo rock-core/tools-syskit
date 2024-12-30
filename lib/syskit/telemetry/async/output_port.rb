@@ -52,6 +52,11 @@ module Syskit
                     )
                 end
 
+                # Create a port-like accessor for a field of the port
+                def sub_port(subfields)
+                    OutputPortSubfield.new(self, subfields, @port_read_manager)
+                end
+
                 def type?
                     true
                 end
