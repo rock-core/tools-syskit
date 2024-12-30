@@ -90,6 +90,14 @@ module Syskit
                 def type_name
                     @type.name
                 end
+
+                def to_proxy
+                    self
+                end
+
+                def full_name
+                    "#{@task_context.name}.#{@name}"
+                end
             end
         end
     end

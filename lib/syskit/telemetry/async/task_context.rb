@@ -183,13 +183,13 @@ module Syskit
                     @raw_task_context = task_context
                     @identity = task_context.ior
 
+                    run_hook :on_reachable, task_context
                     @state_reader_callback =
                         port("state").on_data(init: true, buffer_size: 20) do |new_state|
                             new_state = states_index_to_symbols[new_state] || new_state
                             @current_state = new_state
                             run_hook :on_state_change, new_state
                         end
-                    run_hook :on_reachable, task_context
                 end
 
                 def on_reachable(&block)
@@ -201,7 +201,8 @@ module Syskit
                 def on_state_change(&block)
                     super
 
-                    block.call(@current_state) if @current_state
+                    # Explicitly ask to send the last received value
+                    @port_read_manager.propagate_last_received_value(port("state"))
                 end
 
                 def each_attribute(&block)

@@ -51,6 +51,10 @@ module Syskit
                         connect_on: connect_on, disconnect_on: disconnect_on
                     )
                 end
+
+                def type?
+                    true
+                end
             end
         end
     end

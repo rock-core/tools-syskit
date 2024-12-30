@@ -109,9 +109,12 @@ module Syskit
                             states[-1] == :RUNNING
                         end
 
-                        states = []
-                        async.on_state_change { states << _1 }
-                        assert_equal [:RUNNING], states
+                        states2 = []
+                        async.on_state_change { states2 << _1 }
+                        assert_polling_eventually do
+                            states2[-1] == :RUNNING
+                        end
+                        assert_equal [:RUNNING], states2
                     end
 
                     it "does not call the block is no state is known" do

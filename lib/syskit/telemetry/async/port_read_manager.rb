@@ -55,6 +55,7 @@ module Syskit
 
                 Poller = Struct.new(
                     :port, :reader, :next_time, :period, :read_future,
+                    :propagate_last_received_value, :last_value,
                     keyword_init: true
                 ) do
                     def connected?
@@ -126,6 +127,11 @@ module Syskit
                     Roby.disposable do
                         deregister_callback(port, callback)
                     end
+                end
+
+                # Request that the last received value is sent to the callbacks
+                def propagate_last_received_value(port)
+                    find_poller_for_port(port)&.propagate_last_received_value = true
                 end
 
                 # @api private
@@ -224,7 +230,12 @@ module Syskit
                 def dispatch_read_result(poller)
                     fulfilled, value, reason = poller.result
                     if fulfilled
+                        if poller.propagate_last_received_value
+                            value ||= poller.last_value
+                            poller.propagate_last_received_value = false
+                        end
                         @callbacks[poller.port].each { |c| c.dispatch(value) }
+                        poller.last_value = value
                     else
                         warn "failed to read #{poller.port}: #{reason}"
                     end
