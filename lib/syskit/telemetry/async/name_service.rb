@@ -16,7 +16,8 @@ module Syskit
                 #        known by the name service.
                 # @note The namespace is always "Local"
                 def initialize(
-                    discovery_executor: Concurrent::CachedThreadPool.new(max_length: 2),
+                    discovery_executor:
+                        Concurrent::ThreadPoolExecutor.new(max_threads: 10),
                     port_read_manager: PortReadManager.new
                 )
                     super()

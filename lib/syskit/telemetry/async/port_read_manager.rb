@@ -26,21 +26,21 @@ module Syskit
 
                 def self.default_connection_executor
                     @default_connection_executor ||=
-                        Concurrent::CachedThreadPool.new(
+                        Concurrent::ThreadPoolExecutor.new(
                             max_threads: CONNECTION_DEFAULT_THREADS
                         )
                 end
 
                 def self.default_disconnection_executor
                     @default_disconnection_executor ||=
-                        Concurrent::CachedThreadPool.new(
+                        Concurrent::ThreadPoolExecutor.new(
                             max_threads: DISCONNECTION_DEFAULT_THREADS
                         )
                 end
 
                 def self.default_read_executor
                     @default_read_executor ||=
-                        Concurrent::CachedThreadPool.new(
+                        Concurrent::ThreadPoolExecutor.new(
                             max_threads: READ_DEFAULT_THREADS
                         )
                 end
@@ -94,7 +94,7 @@ module Syskit
                     end
 
                     def schedule_read_if_needed(now, executor)
-                        return if self.next_time && self.next_time > now
+                        return if next_time && next_time > now
 
                         self.read_future = reader.raw_read_new(executor)
                     end
