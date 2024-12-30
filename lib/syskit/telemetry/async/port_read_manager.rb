@@ -46,9 +46,11 @@ module Syskit
                 end
 
                 Callback = Struct.new(
-                    :port, :callback, :period, :buffer_size, :init, keyword_init: true
+                    :port, :callback, :period, :buffer_size,
+                    :init, :needs_last_received_value, keyword_init: true
                 ) do
                     def dispatch(value)
+                        self.needs_last_received_value = false
                         callback.call(value)
                     end
                 end
@@ -134,11 +136,13 @@ module Syskit
                 def register_callback(port, callback, period:, buffer_size:, init: false)
                     callback = Callback.new(
                         port: port, callback: callback,
-                        period: period, buffer_size: buffer_size, init: init
+                        period: period, buffer_size: buffer_size, init: init,
+                        needs_last_received_value: true
                     )
 
                     (@callbacks[port] ||= []) << callback
                     ensure_reader_uptodate(port)
+                    propagate_last_received_value(port)
                     Roby.disposable do
                         deregister_callback(port, callback)
                     end
@@ -225,14 +229,29 @@ module Syskit
                     @pollers.each_value do |p|
                         p.poll
 
-                        if !p.connected?
-                            p.reset_read_tracking
-                        elsif !p.scheduled_read?
-                            p.schedule_read_if_needed(now, @read_executor)
-                        elsif p.resolved_read?
-                            dispatch_read_result(p)
-                            p.prepare_next_read(now)
-                        end
+                        process_poller_state(p, now)
+                    end
+                end
+
+                # @api private
+                #
+                # Helper for {#poll} to process a single poller
+                def process_poller_state(poller, now)
+                    unless poller.connected?
+                        poller.reset_read_tracking
+                        return
+                    end
+
+                    if poller.propagate_last_received_value && poller.last_value &&
+                       !poller.resolved_read?
+                        dispatch_last_received_value(poller)
+                    end
+
+                    if !poller.scheduled_read?
+                        poller.schedule_read_if_needed(now, @read_executor)
+                    elsif poller.resolved_read?
+                        dispatch_read_result(poller)
+                        poller.prepare_next_read(now)
                     end
                 end
 
@@ -250,15 +269,20 @@ module Syskit
                 def dispatch_read_result(poller)
                     fulfilled, value, reason = poller.result
                     if fulfilled
-                        if poller.propagate_last_received_value
-                            value ||= poller.last_value
-                            poller.propagate_last_received_value = false
-                        end
                         @callbacks[poller.port].each { |c| c.dispatch(value) }
                         poller.last_value = value
+                        poller.propagate_last_received_value = false
                     else
                         warn "failed to read #{poller.port}: #{reason}"
                     end
+                end
+
+                # Send last received value to the callbacks that require it
+                def dispatch_last_received_value(poller)
+                    @callbacks[poller.port].each do |c|
+                        c.dispatch(poller.last_value)
+                    end
+                    poller.propagate_last_received_value = false
                 end
 
                 # Return the buffer size needed by all callbacks of a port, in aggregate
