@@ -158,12 +158,30 @@ module Syskit
                         assert_equal [42], @received_samples
                     end
 
-                    it "reschedules the next read based on the read period" do
+                    it "reschedules the second read based on the end of the first" do
                         execute_all(@connection_executor)
                         @manager.poll
 
                         execute_all(@read_executor)
                         @poller.read_future.wait
+                        time = freeze_monotonic_time
+
+                        @manager.poll
+                        next_t = @poller.next_time
+                        assert_in_delta time + 0.1, next_t, 1e-6
+                    end
+
+                    it "reschedules reads > 2 based on the period" do
+                        execute_all(@connection_executor)
+                        @manager.poll
+                        execute_all(@read_executor)
+                        @poller.read_future.wait
+                        @manager.poll
+                        sleep 0.2
+                        @manager.poll
+                        execute_all(@read_executor)
+                        @poller.read_future.wait
+
                         current_t = @poller.next_time
                         time = freeze_monotonic_time
 

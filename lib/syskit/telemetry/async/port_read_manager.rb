@@ -79,13 +79,13 @@ module Syskit
                     end
 
                     def schedule_read_if_needed(now, executor)
-                        self.next_time ||= now
-                        return unless self.next_time <= now
+                        return if self.next_time && self.next_time > now
 
                         self.read_future = reader.raw_read_new(executor)
                     end
 
                     def prepare_next_read(now)
+                        self.next_time ||= now
                         delta_in_periods = ((now - next_time) / period).ceil
                         # delta_in_periods == 0 should be impossible.
                         # But, you know, little cost
