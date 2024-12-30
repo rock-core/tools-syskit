@@ -95,6 +95,35 @@ module Syskit
                         )
                         assert_equal 0.05, @manager.find_poller_for_port(out_p).period
                     end
+
+                    it "returns a disposable that will clear the callback" do
+                        _, async = make_async_task("test")
+                        port = async.port("out")
+                        disposable = @manager.register_callback(
+                            port, proc {}, period: 0.1, buffer_size: 1
+                        )
+                        poller = @manager.find_poller_for_port(port)
+                        flexmock(poller).should_receive(:dispose).once.pass_thru
+                        disposable.dispose
+                        refute @manager.polling?(async.port("out"))
+                    end
+
+                    it "keeps the poller if there are callbacks remaining" do
+                        _, async = make_async_task("test")
+                        port = async.port("out")
+                        disposable = @manager.register_callback(
+                            port, proc {}, period: 0.1, buffer_size: 1
+                        )
+                        disposable2 = @manager.register_callback(
+                            port, proc {}, period: 0.1, buffer_size: 1
+                        )
+                        poller = @manager.find_poller_for_port(port)
+                        flexmock(poller).should_receive(:dispose).once.pass_thru
+                        disposable.dispose
+                        assert @manager.polling?(async.port("out"))
+                        disposable2.dispose
+                        refute @manager.polling?(async.port("out"))
+                    end
                 end
 
                 describe "#poll" do

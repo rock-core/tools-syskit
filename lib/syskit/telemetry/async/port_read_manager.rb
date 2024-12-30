@@ -61,6 +61,10 @@ module Syskit
                         reader.connected?
                     end
 
+                    def dispose
+                        reader.dispose
+                    end
+
                     def poll
                         reader.poll
                     end
@@ -119,6 +123,26 @@ module Syskit
 
                     (@callbacks[port] ||= []) << callback
                     ensure_reader_uptodate(port)
+                    Roby.disposable do
+                        deregister_callback(port, callback)
+                    end
+                end
+
+                # @api private
+                #
+                # De-registers a callback
+                #
+                # This is not meant to be called directly. Use the disposable
+                # returned by {#register_callback} instead.
+                def deregister_callback(port, callback)
+                    return unless (callbacks = @callbacks[port])
+
+                    callbacks.delete(callback)
+                    if callbacks.empty?
+                        remove_poller(port)
+                    else
+                        ensure_reader_uptodate(port)
+                    end
                 end
 
                 # Reconnect the reader for this port if needed
@@ -142,10 +166,17 @@ module Syskit
                     @pollers[port] = poller
                 end
 
+                # @api private
+                #
+                # Remove the poller for a given port
+                def remove_poller(port)
+                    return unless (poller = @pollers.delete(port))
+
+                    poller.dispose
+                end
+
                 def dispose
-                    @pollers.each_value do |p|
-                        p.reader.dispose
-                    end
+                    @pollers.each_value(&:dispose)
                     @pollers = {}
                 end
 
