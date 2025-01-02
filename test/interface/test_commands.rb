@@ -97,6 +97,74 @@ module Syskit
                 end
             end
 
+            describe "#poll_property_updates" do
+                attr_reader :task_m, :task
+
+                before do
+                    @task_m = TaskContext.new_submodel do
+                        property "p", "/double", 20
+                    end
+
+                    @task = syskit_stub_and_deploy(
+                        syskit_stub_requirements(task_m).with_conf("default")
+                    )
+                    plan.add_mission_task(task)
+                end
+
+                it "returns nothing if no task IDs are given" do
+                    now = Timecop.freeze
+                    updates = subject.poll_property_updates
+                    assert_equal now, updates.time
+                    assert updates.per_task_id.empty?
+                end
+
+                it "ignores tasks that are not yet configured" do
+                    now = Timecop.freeze
+                    task_id = @task.droby_id.id
+                    updates = subject.poll_property_updates(task_ids: [task_id])
+                    assert_equal now, updates.time
+                    assert_equal({ task_id => [] }, updates.per_task_id)
+                end
+
+                it "returns known property values" do
+                    task_id = @task.droby_id.id
+                    now = Timecop.freeze
+                    @task.property_overrides.p = 20
+                    syskit_configure(@task)
+
+                    updates = subject.poll_property_updates(task_ids: [task_id])
+                    assert_equal [task_id], updates.per_task_id.keys
+                    update = updates.per_task_id[task_id].first
+                    assert_equal now, update.time
+                    assert_equal "p", update.property_name
+                    assert_kind_of Typelib::Type, update.value
+                    assert_equal 20, Typelib.to_ruby(update.value)
+                end
+
+                it "filters out updates that are strictly after now" do
+                    task_id = @task.droby_id.id
+                    syskit_configure(@task)
+
+                    now = Timecop.freeze
+                    updates = subject.poll_property_updates(
+                        task_ids: [task_id], since: now
+                    )
+                    assert_equal({ task_id => [] }, updates.per_task_id)
+                end
+
+                it "includes updates whose timestamp is `since`" do
+                    task_id = @task.droby_id.id
+                    now = Timecop.freeze
+                    syskit_configure(@task)
+
+                    updates = subject.poll_property_updates(
+                        task_ids: [task_id], since: now
+                    )
+                    assert_equal [task_id], updates.per_task_id.keys
+                    assert_equal 1, update = updates.per_task_id[task_id].size
+                end
+            end
+
             describe "#restart_deployments" do
                 attr_reader :task_m, :task
 

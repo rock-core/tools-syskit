@@ -32,6 +32,31 @@ module Syskit
             command :poll_ready_deployments,
                     "incremental information about deployments"
 
+            PropertyUpdate = Struct.new :property_name, :time, :value, keyword_init: true
+            PropertyUpdates = Struct.new :time, :per_task_id, keyword_init: true
+
+            # Return property updates for some tasks since the given timestamp
+            #
+            # @return [(Time,Hash<Integer,Array<PropertyUpdate>>)] the current time,
+            #   and the hash of task IDs with the properties updated since `since`
+            #   (or all properties if `since` is nil). Further calls to this method
+            #   should use the given time for `since` for the same tasks
+            def poll_property_updates(task_ids: [], since: nil)
+                tasks_per_id = make_object_per_id_map(
+                    plan.find_tasks(Syskit::TaskContext)
+                        .find_all { |t| t.pending? || t.running? }
+                )
+
+                result = task_ids.each_with_object({}) do |id, updates_per_id|
+                    next unless (task = tasks_per_id[id])
+
+                    updates_per_id[id] =
+                        find_all_updated_properties_of_task(task, since: since)
+                end
+                PropertyUpdates.new(time: Time.now, per_task_id: result)
+            end
+            command :poll_property_updates,
+                    "incremental information about property updates"
 
             # The current typelib registry
             #
@@ -39,6 +64,29 @@ module Syskit
             def typelib_registry
                 app.default_loader.registry
             end
+
+            # Return the property updates for the given task since the timestamp
+            def find_all_updated_properties_of_task(task, since: nil)
+                updates = task.properties.each.map do |p|
+                    next unless (update = p.last_update)
+                    next if since && update.time < since
+
+                    PropertyUpdate.new(
+                        property_name: p.name, time: update.time, value: update.value
+                    )
+                end
+                updates.compact
+            end
+
+            # @api private
+            #
+            # Helper that converts an enumerable in a id-to-object map
+            def make_object_per_id_map(query)
+                query.each_with_object({}) do |object, result|
+                    result[object.droby_id.id] = object
+                end
+            end
+
             # Save the configuration of all running tasks of the given model to disk
             #
             # @param [String,nil] name the section name for the new configuration.
