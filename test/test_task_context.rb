@@ -1830,6 +1830,16 @@ module Syskit
                         property.write(0.1)
                         execution_engine.join_all_waiting_work
                     end
+                    it "registers a property update on the property itself" do
+                        mock_remote_property.should_receive(:write).once.with(0.1)
+                        property.write(0.1)
+                        now = Time.now
+                        execution_engine.join_all_waiting_work
+
+                        last_update = property.last_update
+                        assert_operator now, :<, last_update.time
+                        assert_equal 0.1, Typelib.to_ruby(last_update.value)
+                    end
                     it "queues only one property update even in case of multiple writes" do
                         mock_remote_property.should_receive(:write).once.with(0.3)
                         property.write(0.1)

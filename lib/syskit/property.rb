@@ -35,6 +35,13 @@ module Syskit
         # @return [nil,#write]
         attr_accessor :log_stream
 
+        Update = Struct.new :time, :value, keyword_init: true
+
+        # Information about the last time the property was written
+        #
+        # @return [Update,nil]
+        attr_reader :last_update
+
         # Whether this property is being logged
         def logged?
             log_stream
@@ -47,6 +54,7 @@ module Syskit
             @value = nil
             @log_stream = nil
             @log_metadata = {}
+            @last_update = nil
         end
 
         # Whether a value has been set with {#write}
@@ -112,8 +120,9 @@ module Syskit
             @value = nil
         end
 
-        # Update the log stream with the currently none remote value
+        # Update the log stream with the currently known remote value
         def update_log(timestamp = Time.now, value = remote_value)
+            @last_update = Update.new(time: timestamp, value: remote_value)
             log_stream.write(timestamp, timestamp, value) if logged?
         end
     end
