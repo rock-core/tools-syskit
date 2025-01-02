@@ -32,6 +32,13 @@ module Syskit
             command :poll_ready_deployments,
                     "incremental information about deployments"
 
+
+            # The current typelib registry
+            #
+            # @return [Typelib::Registry]
+            def typelib_registry
+                app.default_loader.registry
+            end
             # Save the configuration of all running tasks of the given model to disk
             #
             # @param [String,nil] name the section name for the new configuration.

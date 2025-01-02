@@ -79,6 +79,40 @@ module Syskit
                         assert_equal "Dev", marshalled.model.name
                     end
                 end
+
+                describe "a typelib value" do
+                    before do
+                        @channel = Roby::Interface::V2::Channel.new(
+                            IO.pipe.last, flexmock
+                        )
+                        Protocol.register_marshallers(@channel)
+
+                        @registry = Typelib::CXXRegistry.new
+                        @type = @registry.get("/uint64_t")
+                    end
+
+                    it "marshals the value and the type name" do
+                        value = Typelib.from_ruby(42, @type)
+                        marshalled = @channel.marshal_filter_object(value)
+                        assert_equal 42, @type.from_buffer(marshalled.bytes).to_ruby
+                        assert_equal "/uint64_t", marshalled.type_name
+                    end
+                end
+
+                describe "a typelib registry" do
+                    before do
+                        @channel = Roby::Interface::V2::Channel.new(
+                            IO.pipe.last, flexmock
+                        )
+                        Protocol.register_marshallers(@channel)
+                    end
+
+                    it "marshals the registry as XML" do
+                        registry = Typelib::CXXRegistry.new
+                        marshalled = @channel.marshal_filter_object(registry)
+                        assert_equal marshalled.xml, registry.to_xml
+                    end
+                end
             end
         end
     end

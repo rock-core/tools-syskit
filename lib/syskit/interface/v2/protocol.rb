@@ -34,6 +34,9 @@ module Syskit
                     :name, :ior, :orogen_model_name, keyword_init: true
                 )
 
+                TypelibValue = Struct.new(:bytes, :type_name, keyword_init: true)
+                TypelibRegistry = Struct.new(:xml, keyword_init: true)
+
                 def self.register_marshallers(protocol)
                     protocol.add_marshaller(
                         Syskit::Deployment, &method(:marshal_deployment_task)
@@ -41,6 +44,14 @@ module Syskit
                     protocol.add_marshaller(
                         Syskit::Robot::MasterDeviceInstance,
                         &method(:marshal_master_device_instance)
+                    )
+                    protocol.add_marshaller(
+                        Typelib::Type,
+                        &method(:marshal_typelib_value)
+                    )
+                    protocol.add_marshaller(
+                        Typelib::Registry,
+                        &method(:marshal_typelib_registry)
                     )
                     protocol.allow_objects(
                         Orocos::RubyTasks::TaskContext,
@@ -80,6 +91,17 @@ module Syskit
                         ready_since: task.ready_event.last&.time,
                         deployed_tasks: deployed_tasks
                     )
+                end
+
+                def self.marshal_typelib_value(_channel, value)
+                    TypelibValue.new(
+                        bytes: value.to_byte_array,
+                        type_name: value.class.name
+                    )
+                end
+
+                def self.marshal_typelib_registry(_channel, registry)
+                    TypelibRegistry.new(xml: registry.to_xml)
                 end
             end
         end
