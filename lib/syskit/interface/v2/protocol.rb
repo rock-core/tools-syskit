@@ -53,6 +53,10 @@ module Syskit
                         Typelib::Registry,
                         &method(:marshal_typelib_registry)
                     )
+                    protocol.add_marshaller(
+                        Interface::Commands::PropertyUpdates,
+                        &method(:marshal_property_updates)
+                    )
                     protocol.allow_objects(
                         Orocos::RubyTasks::TaskContext,
                         Orocos::RubyTasks::StubTaskContext
@@ -102,6 +106,27 @@ module Syskit
 
                 def self.marshal_typelib_registry(_channel, registry)
                     TypelibRegistry.new(xml: registry.to_xml)
+                end
+
+                PropertyUpdate =
+                    Struct.new :property_name, :time, :value, keyword_init: true
+                PropertyUpdates =
+                    Struct.new :time, :per_task_id, keyword_init: true
+
+                # @param [Interface::Commands::PropertyUpdates] update
+                def self.marshal_property_updates(channel, update)
+                    per_task_id = update.per_task_id.transform_values do |v|
+                        marshal_property_update(channel, v)
+                    end
+                    PropertyUpdates.new(time: update.time, per_task_id: per_task_id)
+                end
+
+                # @param [Interface::Commands::PropertyUpdate] update
+                def self.marshal_property_update(channel, update)
+                    PropertyUpdate.new(
+                        property_name: property_name, time: update.time,
+                        value: marshal_typelib_value(channel, update.value)
+                    )
                 end
             end
         end

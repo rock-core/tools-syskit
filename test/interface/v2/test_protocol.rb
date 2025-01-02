@@ -6,14 +6,16 @@ require "syskit/interface/v2"
 module Syskit
     module Interface
         module V2
-            module Protocol
+            describe Protocol do
+                before do
+                    @channel = Roby::Interface::V2::Channel.new(
+                        IO.pipe.last, flexmock
+                    )
+                    Protocol.register_marshallers(@channel)
+                end
+
                 describe Deployment do
                     before do
-                        @channel = Roby::Interface::V2::Channel.new(
-                            IO.pipe.last, flexmock
-                        )
-                        Protocol.register_marshallers(@channel)
-
                         deployment_m = Syskit::Deployment.new_submodel
                         @deployment = deployment_m.new(
                             process_name: "test", spawn_options: { some: "options" }
@@ -54,11 +56,6 @@ module Syskit
 
                 describe "Device support" do
                     before do
-                        @channel = Roby::Interface::V2::Channel.new(
-                            IO.pipe.last, flexmock
-                        )
-                        Protocol.register_marshallers(@channel)
-
                         @device_m = Syskit::Device.new_submodel(name: "Dev")
                         @driver_m = Syskit::TaskContext.new_submodel
                         @driver_m.driver_for @device_m, as: "driver"
@@ -73,20 +70,15 @@ module Syskit
                             @robot.master_device_dev
                         )
 
-                        assert_kind_of MasterDeviceInstance, marshalled
+                        assert_kind_of Protocol::MasterDeviceInstance, marshalled
                         assert_equal "master_device", marshalled.name
-                        assert_kind_of DeviceModel, marshalled.model
+                        assert_kind_of Protocol::DeviceModel, marshalled.model
                         assert_equal "Dev", marshalled.model.name
                     end
                 end
 
                 describe "a typelib value" do
                     before do
-                        @channel = Roby::Interface::V2::Channel.new(
-                            IO.pipe.last, flexmock
-                        )
-                        Protocol.register_marshallers(@channel)
-
                         @registry = Typelib::CXXRegistry.new
                         @type = @registry.get("/uint64_t")
                     end
@@ -100,18 +92,41 @@ module Syskit
                 end
 
                 describe "a typelib registry" do
-                    before do
-                        @channel = Roby::Interface::V2::Channel.new(
-                            IO.pipe.last, flexmock
-                        )
-                        Protocol.register_marshallers(@channel)
-                    end
-
                     it "marshals the registry as XML" do
                         registry = Typelib::CXXRegistry.new
                         marshalled = @channel.marshal_filter_object(registry)
                         assert_equal marshalled.xml, registry.to_xml
                     end
+                end
+
+                it "marshals property updates" do
+                    task_m = TaskContext.new_submodel do
+                        property "p", "/double", 20
+                    end
+
+                    task = syskit_stub_and_deploy(
+                        syskit_stub_requirements(task_m).with_conf("default")
+                    )
+                    plan.add_mission_task(task)
+                    task.property_overrides.p = 20
+                    property_time = Timecop.freeze
+                    syskit_configure(task)
+
+                    update_time = Timecop.freeze(property_time + 1)
+                    task_id = task.droby_id.id
+                    interface = Commands.new(flexmock(plan: plan))
+                    updates = interface.poll_property_updates(task_ids: [task_id])
+                    updates = @channel.marshal_filter_object(updates)
+
+                    assert_equal update_time, updates.time
+                    assert_equal [task_id], updates.per_task_id.keys
+                    update = updates.per_task_id[task_id].first
+                    assert_equal property_time, update.time
+                    assert_equal "p", update.property_name
+                    assert_kind_of Protocol::TypelibValue, update.value
+                    assert_equal "/double", update.value.type_name
+                    double_t = Typelib::CXXRegistry.new.get("/double")
+                    assert_equal 20, double_t.from_buffer(update.value.bytes)
                 end
             end
         end
