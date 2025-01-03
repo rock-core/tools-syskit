@@ -596,6 +596,18 @@ module Syskit
                     end
                 end
 
+                def query_property_updates
+                    polling_call(
+                        ["syskit"], "poll_property_updates",
+                        task_ids: @property_manager.known_task_ids,
+                        since: @property_manager.poll_since
+                    ) do |updates|
+                        with_missing_types = @property_manager.process_updates(updates)
+                        register_property_updates_with_missing_types(with_missing_types)
+                        queue_registry_update unless with_missing_types.empty?
+                    end
+                end
+
                 def update_current_deployments(updated, removed)
                     @current_deployments.delete_if do |d|
                         removed.include?(d.id)

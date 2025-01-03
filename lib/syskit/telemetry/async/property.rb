@@ -3,15 +3,8 @@
 module Syskit
     module Telemetry
         module Async
-            # Callback-based API to the orocos.rb property API
-            class Property < ReadableInterfaceObject
-                def on_raw_change(&block)
-                    on_raw_data(&block)
-                end
-
-                def on_change(&block)
-                    on_data(&block)
-                end
+            # Callback-based API to listen to changes for properties
+            class Property < PropertyLike
             end
         end
     end

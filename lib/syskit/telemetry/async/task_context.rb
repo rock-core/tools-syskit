@@ -68,9 +68,13 @@ module Syskit
                 # corresponding {TaskContext}
                 #
                 # This is meant to be called in a separate thread
-                def self.discover(task, port_read_manager:)
+                def self.discover(
+                    task, port_read_manager:, property_manager: PropertyManager.new
+                )
                     async_task = TaskContext.new(
-                        task.name, port_read_manager: port_read_manager
+                        task.name,
+                        port_read_manager: port_read_manager,
+                        property_manager: property_manager
                     )
 
                     # Already do an initial discovery of all the task's interface objects
@@ -109,8 +113,19 @@ module Syskit
                     async_task.discover_ports(raw_ports)
                 end
 
+                # Null attribute manager, until we implement the real thing
+                class DummyAttributeManager
+                    def register_callback(*)
+                        Roby.disposable {} # rubocop:disable Lint/EmptyBlock
+                    end
+                end
+
                 def initialize(
-                    name, port_read_manager:, model: self.class.dummy_orogen_model(name)
+                    name,
+                    port_read_manager:,
+                    attribute_manager: DummyAttributeManager.new,
+                    property_manager: PropertyManager.new,
+                    model: self.class.dummy_orogen_model(name)
                 )
                     super()
 
@@ -122,7 +137,10 @@ module Syskit
                     # (we can't have two different tasks with the same name)
                     @hash = name.hash
 
+                    @attribute_manager = attribute_manager
+                    @property_manager = property_manager
                     @port_read_manager = port_read_manager
+
                     @attributes = {}
                     @properties = {}
                     @ports = {}
@@ -258,7 +276,9 @@ module Syskit
                 def discover_attributes(raw_attributes)
                     @attributes =
                         raw_attributes.each_with_object({}) do |p, h|
-                            async = Attribute.new(self, p.name, p.type)
+                            async = Attribute.new(
+                                self, p.name, p.type, @attribute_manager
+                            )
                             async.reachable!(p)
                             h[p.name] = async
                         end
@@ -269,7 +289,9 @@ module Syskit
                 def discover_properties(raw_properties)
                     @properties =
                         raw_properties.each_with_object({}) do |p, h|
-                            async = Property.new(self, p.name, p.type)
+                            async = Property.new(
+                                self, p.name, p.type, @property_manager
+                            )
                             async.reachable!(p)
                             h[p.name] = async
                         end

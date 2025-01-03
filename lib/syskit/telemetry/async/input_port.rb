@@ -4,7 +4,7 @@ module Syskit
     module Telemetry
         module Async
             # Async interface compatible with the orocos.rb's API
-            class InputPort < ReadableInterfaceObject
+            class InputPort < InterfaceObject
                 def output?
                     false
                 end
