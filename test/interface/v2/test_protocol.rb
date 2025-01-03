@@ -119,10 +119,16 @@ module Syskit
                     updates = @channel.marshal_filter_object(updates)
 
                     assert_equal update_time, updates.time
-                    assert_equal [task_id], updates.per_task_id.keys
-                    update = updates.per_task_id[task_id].first
+                    assert_equal 1, updates.task_updates.size
+
+                    task_update = updates.task_updates.first
+                    assert_equal task_id, task_update.id
+                    assert_equal task.orocos_name, task_update.name
+                    assert_equal 1, task_update.properties.size
+
+                    update = task_update.properties.first
                     assert_equal property_time, update.time
-                    assert_equal "p", update.property_name
+                    assert_equal "p", update.name
                     assert_kind_of Protocol::TypelibValue, update.value
                     assert_equal "/double", update.value.type_name
                     double_t = Typelib::CXXRegistry.new.get("/double")

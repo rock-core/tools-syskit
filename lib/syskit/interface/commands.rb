@@ -32,28 +32,32 @@ module Syskit
             command :poll_ready_deployments,
                     "incremental information about deployments"
 
-            PropertyUpdate = Struct.new :property_name, :time, :value, keyword_init: true
-            PropertyUpdates = Struct.new :time, :per_task_id, keyword_init: true
+            PropertyUpdates = Struct.new :time, :task_updates, keyword_init: true
+            PropertyTaskUpdates =
+                Struct.new :id, :name, :properties, keyword_init: true
+            PropertyUpdate = Struct.new :name, :time, :value, keyword_init: true
 
             # Return property updates for some tasks since the given timestamp
             #
-            # @return [(Time,Hash<Integer,Array<PropertyUpdate>>)] the current time,
-            #   and the hash of task IDs with the properties updated since `since`
-            #   (or all properties if `since` is nil). Further calls to this method
-            #   should use the given time for `since` for the same tasks
+            # @return [PropertyUpdates] all property updates since `since`, or
+            #   all properties in the plan if `since` is nil
             def poll_property_updates(task_ids: [], since: nil)
                 tasks_per_id = make_object_per_id_map(
                     plan.find_tasks(Syskit::TaskContext)
                         .find_all { |t| t.pending? || t.running? }
                 )
 
-                result = task_ids.each_with_object({}) do |id, updates_per_id|
+                result = task_ids.map do |id|
                     next unless (task = tasks_per_id[id])
 
-                    updates_per_id[id] =
-                        find_all_updated_properties_of_task(task, since: since)
+                    updates = find_all_updated_properties_of_task(task, since: since)
+                    next if updates.empty?
+
+                    PropertyTaskUpdates.new(
+                        id: id, name: task.orocos_name, properties: updates
+                    )
                 end
-                PropertyUpdates.new(time: Time.now, per_task_id: result)
+                PropertyUpdates.new(time: Time.now, task_updates: result.compact)
             end
             command :poll_property_updates,
                     "incremental information about property updates"
@@ -72,7 +76,7 @@ module Syskit
                     next if since && update.time < since
 
                     PropertyUpdate.new(
-                        property_name: p.name, time: update.time, value: update.value
+                        name: p.name, time: update.time, value: update.value
                     )
                 end
                 updates.compact

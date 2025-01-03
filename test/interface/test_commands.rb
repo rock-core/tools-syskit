@@ -108,6 +108,7 @@ module Syskit
                     @task = syskit_stub_and_deploy(
                         syskit_stub_requirements(task_m).with_conf("default")
                     )
+                    @task_name = @task.orocos_name
                     plan.add_mission_task(task)
                 end
 
@@ -115,7 +116,7 @@ module Syskit
                     now = Timecop.freeze
                     updates = subject.poll_property_updates
                     assert_equal now, updates.time
-                    assert updates.per_task_id.empty?
+                    assert updates.task_updates.empty?
                 end
 
                 it "ignores tasks that are not yet configured" do
@@ -123,7 +124,7 @@ module Syskit
                     task_id = @task.droby_id.id
                     updates = subject.poll_property_updates(task_ids: [task_id])
                     assert_equal now, updates.time
-                    assert_equal({ task_id => [] }, updates.per_task_id)
+                    assert updates.task_updates.empty?
                 end
 
                 it "returns known property values" do
@@ -133,10 +134,16 @@ module Syskit
                     syskit_configure(@task)
 
                     updates = subject.poll_property_updates(task_ids: [task_id])
-                    assert_equal [task_id], updates.per_task_id.keys
-                    update = updates.per_task_id[task_id].first
+
+                    assert_equal 1, updates.task_updates.size
+                    task_update = updates.task_updates.first
+                    assert_equal task_id, task_update.id
+                    assert_equal @task.orocos_name, task_update.name
+
+                    assert_equal 1, task_update.properties.size
+                    update = task_update.properties.first
                     assert_equal now, update.time
-                    assert_equal "p", update.property_name
+                    assert_equal "p", update.name
                     assert_kind_of Typelib::Type, update.value
                     assert_equal 20, Typelib.to_ruby(update.value)
                 end
@@ -149,7 +156,7 @@ module Syskit
                     updates = subject.poll_property_updates(
                         task_ids: [task_id], since: now
                     )
-                    assert_equal({ task_id => [] }, updates.per_task_id)
+                    assert updates.task_updates.empty?
                 end
 
                 it "includes updates whose timestamp is `since`" do
@@ -160,8 +167,11 @@ module Syskit
                     updates = subject.poll_property_updates(
                         task_ids: [task_id], since: now
                     )
-                    assert_equal [task_id], updates.per_task_id.keys
-                    assert_equal 1, update = updates.per_task_id[task_id].size
+
+                    assert_equal 1, updates.task_updates.size
+                    task_update = updates.task_updates.first
+                    assert_equal @task_name, task_update.name
+                    assert_equal 1, task_update.properties.size
                 end
             end
 

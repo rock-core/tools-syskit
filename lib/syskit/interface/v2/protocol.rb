@@ -108,23 +108,42 @@ module Syskit
                     TypelibRegistry.new(xml: registry.to_xml)
                 end
 
-                PropertyUpdate =
-                    Struct.new :property_name, :time, :value, keyword_init: true
                 PropertyUpdates =
-                    Struct.new :time, :per_task_id, keyword_init: true
+                    Struct.new :time, :task_updates, keyword_init: true
+                PropertyTaskUpdates =
+                    Struct.new :id, :name, :properties, keyword_init: true
+                PropertyUpdate =
+                    Struct.new :name, :time, :value, keyword_init: true
 
                 # @param [Interface::Commands::PropertyUpdates] update
-                def self.marshal_property_updates(channel, update)
-                    per_task_id = update.per_task_id.transform_values do |v|
+                #
+                # @return [PropertyUpdates]
+                def self.marshal_property_updates(channel, updates)
+                    task_updates = updates.task_updates.map do |v|
+                        marshal_property_task_updates(channel, v)
+                    end
+                    PropertyUpdates.new(time: update.time, task_updates: task_updates)
+                end
+
+                # @param [Interface::Commands::PropertyUpdates] update
+                #
+                # @return [PropertyTaskUpdates]
+                def self.marshal_property_task_updates(channel, updates)
+                    properties = updates.properties.map do |v|
                         marshal_property_update(channel, v)
                     end
-                    PropertyUpdates.new(time: update.time, per_task_id: per_task_id)
+                    PropertyTaskUpdates.new(
+                        time: update.time, id: update.id, name: update.name,
+                        properties: properties
+                    )
                 end
 
                 # @param [Interface::Commands::PropertyUpdate] update
+                #
+                # @return [PropertyUpdate]
                 def self.marshal_property_update(channel, update)
                     PropertyUpdate.new(
-                        property_name: property_name, time: update.time,
+                        name: update.name, time: update.time,
                         value: marshal_typelib_value(channel, update.value)
                     )
                 end
