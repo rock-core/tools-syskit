@@ -582,7 +582,9 @@ module Syskit
                 end
 
                 it "allows deploying together with the actions or profile" do
-                    @test_profile.define("test", @cmp_m.use(@srv_m => @task_m))
+                    @test_profile.define("test", @cmp_m.use(@srv_m => \
+                        @task_m.to_instance_requirements
+                               .use_deployment(@deployment_m)))
                     assert_can_deploy(
                         @test_profile.test_def,
                         together_with: @task_m.to_instance_requirements
@@ -721,7 +723,9 @@ module Syskit
                 end
 
                 it "allows deploying together with the actions or profile" do
-                    @test_profile.define("test", @cmp_m.use(@srv_m => @task_m))
+                    @test_profile.define("test", @cmp_m.use(@srv_m => \
+                        @task_m.to_instance_requirements
+                               .use_deployment(@deployment_m)))
                     assert_can_deploy_all(
                         @test_profile.test_def,
                         together_with: @task_m.to_instance_requirements
