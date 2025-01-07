@@ -180,16 +180,13 @@ module Syskit
                             [1, 2].map do |x|
                                 cmp_m.use("task" => task_m.prefer_deployed_tasks(/task#{x}/),
                                           "device" => d)
-
                             end
                         )
 
                         [1, 2].each do |x|
                             tasks = local_net_gen_plan.find_local_tasks(TaskContext)
-                                                .select do |t|
-                                if t.respond_to? :orocos_name
-                                    t.orocos_name == "task#{x}"
-                                end
+                                                      .select do |t|
+                                t.respond_to?(:orocos_name) && t.orocos_name == "task#{x}"
                             end
                             assert tasks.size == 1
                         end

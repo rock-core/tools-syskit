@@ -28,7 +28,7 @@ module Syskit
                 @validate_deployed_network
             end
 
-            def initialize(plan,
+            def initialize(plan, # rubocop:disable Metrics/ParameterLists
                 event_logger: plan.event_logger,
                 merge_solver: MergeSolver.new(plan),
                 default_deployment_group: nil,

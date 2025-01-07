@@ -238,7 +238,7 @@ module Syskit
             end
 
             def mergeable_agents?(merged_task, task)
-                return true unless (task.execution_agent && merged_task.execution_agent)
+                return true unless task.execution_agent && merged_task.execution_agent
 
                 return false unless merge_when_identical_agents?
 
