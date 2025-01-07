@@ -440,7 +440,7 @@ module Syskit
                     assert_can_instanciate(@cmp_m.use(@srv_m => @task_m))
                 end
 
-                it "allows deploying together with the actions or profile" do
+                it "allows instantiating together with the actions or profile" do
                     @task_m.argument :bla
                     @test_profile.define "test", @cmp_m.use(@srv_m => @task_m)
                     assert_can_instanciate(
