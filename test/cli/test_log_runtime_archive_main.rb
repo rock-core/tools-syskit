@@ -157,6 +157,13 @@ module Syskit
                     @source_dir = make_tmppath
                     @server_params = server_params
                     @max_upload_rate = rate_mbps_to_bps(10)
+                    @ftp_params = LogRuntimeArchive::FTPParameters.new(
+                        host: @server_params[:host], port: @server_params[:port],
+                        certificate: File.read(@server_params[:certificate]),
+                        user:@server_params[:user], password: @server_params[:password],
+                        implicit_ftps: @server_params[:implicit_ftps],
+                        max_upload_rate: @max_upload_rate
+                    )
 
                     @server = call_create_server(make_tmppath, @server_params)
                 end
@@ -173,9 +180,7 @@ module Syskit
                         .new_instances
                         .should_receive(:process_root_folder_transfer)
                         .with(
-                            @server_params.merge(
-                                { max_upload_rate: @max_upload_rate }
-                            )
+                            @ftp_params
                         )
                         .pass_thru do
                             called += 1

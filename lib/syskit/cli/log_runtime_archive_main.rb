@@ -70,11 +70,11 @@ module Syskit
             option :max_upload_rate_mbps,
                    type: :numeric, default: 10, desc: "max upload rate in Mbps"
             def watch_transfer( # rubocop:disable Metrics/ParameterLists
-                source_dir, host, port, certificate, user, password, implicit_ftps
+                source_dir, host, port, certfile_path, user, password, implicit_ftps
             )
                 loop do
                     begin
-                        transfer(source_dir, host, port, certificate, user, password,
+                        transfer(source_dir, host, port, certfile_path, user, password,
                                  implicit_ftps)
                     rescue Errno::ENOSPC
                         next
@@ -91,13 +91,13 @@ module Syskit
             option :max_upload_rate_mbps,
                    type: :numeric, default: 10, desc: "max upload rate in Mbps"
             def transfer( # rubocop:disable Metrics/ParameterLists
-                source_dir, host, port, certificate_path, user, password, implicit_ftps
+                source_dir, host, port, certfile_path, user, password, implicit_ftps
             )
                 source_dir = validate_directory_exists(source_dir)
                 archiver = make_archiver(source_dir)
 
                 server_params = LogRuntimeArchive::FTPParameters.new(
-                    host: host, port: port, certificate: File.read(certificate_path),
+                    host: host, port: port, certificate: File.read(certfile_path),
                     user: user, password: password,
                     implicit_ftps: implicit_ftps,
                     max_upload_rate: rate_mbps_to_bps(options[:max_upload_rate_mbps])
@@ -110,7 +110,8 @@ module Syskit
             def transfer_server( # rubocop:disable Metrics/ParameterLists
                 target_dir, host, port, certfile_path, user, password, implicit_ftps
             )
-                server = create_server(target_dir, host, port, certfile_path, user, password, implicit_ftps)
+                server = create_server(target_dir, host, port, certfile_path, user,
+                                       password, implicit_ftps)
                 server.run
             end
 
