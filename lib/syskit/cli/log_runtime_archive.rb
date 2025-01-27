@@ -181,6 +181,13 @@ module Syskit
                 log_transfer_results(dataset_path, result, logger: logger)
             end
 
+            # Logs the transfer dataset results
+            #
+            # @param [String] the dataset path
+            # @param [TransferDatasetResult] the transfer dataset result
+            # @param [Logger] optional logger, if unfilled will use null logger
+            #
+            # @result [TransferDatasetResult] the received transfer dataset result
             def self.log_transfer_results(dataset_path, result, logger: null_logger)
                 failed_results = result[:transfer_results].reject do |result|
                     result.success
