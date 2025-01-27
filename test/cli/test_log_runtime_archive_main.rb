@@ -225,21 +225,23 @@ module Syskit
                     dataset_tmp_path = make_tmppath
                     root_tmp_path = make_tmppath
 
-                    call_create_server(root_tmp_path, @server_params)
+                    server = call_create_server(root_tmp_path, @server_params)
 
                     make_dataset(dataset_tmp_path, "19981222-1301")
                     make_dataset(dataset_tmp_path, "19981222-1302")
 
-                    call_transfer(dataset_tmp_path)
+                    call_transfer(dataset_tmp_path, server_port: server.port)
                     assert(File.exist?(root_tmp_path / "19981222-1301" / "test.0.log"))
                 end
 
                 # Call 'transfer' function instead of 'watch' to call transfer once
-                def call_transfer(source_dir)
+                def call_transfer(source_dir, server_port: nil)
+                    updated_server_params = @server_params
+                    updated_server_params[:port] = server_port if server_port
                     args = [
                         "transfer",
                         source_dir,
-                        *@server_params.values
+                        *updated_server_params.values
                     ]
                     LogRuntimeArchiveMain.start(args)
                 end
@@ -275,7 +277,7 @@ module Syskit
                 interface = "127.0.0.1"
                 ca = RobyApp::TmpRootCA.new(interface)
 
-                { host: interface, port: 42_429,
+                { host: interface, port: 0,
                   certificate: ca.private_certificate_path,
                   user: "nilvo", password: "nilvo123",
                   implicit_ftps: true }
