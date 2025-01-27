@@ -189,19 +189,20 @@ module Syskit
             #
             # @result [TransferDatasetResult] the received transfer dataset result
             def self.log_transfer_results(dataset_path, result, logger: null_logger)
-                failed_results = result[:transfer_results].reject do |result|
-                    result.success
-                end
+                failed_results = result[:transfer_results].reject(&:success)
 
                 if failed_results.empty?
                     logger.info(
-                        "Transfering of #{result[:complete] ? "complete" : "incomplete"}"\
-                        " #{dataset_path} finished"
+                        "Transfering of " \
+                        "#{result[:complete] ? 'complete' : 'incomplete'} " \
+                        "#{dataset_path} finished"
                     )
                 else
                     failed_results.each do |failed_result|
-                        failed_message = "with message : " +
-                                         failed_result.message if failed_result.message
+                        failed_message =
+                            if failed_result.message
+                                "with message : #{failed_result.message}"
+                            end
                         logger.info(
                             "Failed on file #{failed_result.file} #{failed_message}"
                         )
