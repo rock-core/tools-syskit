@@ -175,9 +175,33 @@ module Syskit
                     result
                 end
 
-                TransferDatasetResult.new(
+                result = TransferDatasetResult.new(
                     complete: complete, transfer_results: transfer_results
                 )
+                log_transfer_results(dataset_path, result, logger: logger)
+            end
+
+            def self.log_transfer_results(dataset_path, result, logger: null_logger)
+                failed_results = result[:transfer_results].reject do |result|
+                    result.success
+                end
+
+                if failed_results.empty?
+                    logger.info(
+                        "Transfering of #{result[:complete] ? "complete" : "incomplete"}"\
+                        " #{dataset_path} finished"
+                    )
+                else
+                    failed_results.each do |failed_result|
+                        failed_message = "with message : " +
+                                         failed_result.message if failed_result.message
+                        logger.info(
+                            "Failed on file #{failed_result.file} #{failed_message}"
+                        )
+                    end
+                end
+
+                result
             end
 
             # Transfer a file to the central log server via FTP
