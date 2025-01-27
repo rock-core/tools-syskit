@@ -680,6 +680,16 @@ module Syskit
                     assert_deleted_files([0, 1, 2, 3])
                 end
 
+                it "removes enough files to reach the freed limit in chosen directory" do
+                    different_dir = make_tmppath
+                    size_files = [6, 2, 1, 6, 7, 10, 3, 5, 8, 9]
+                    mock_files_size(size_files, directory: different_dir)
+                    mock_available_space(0.5, directory: different_dir)
+
+                    @archiver.ensure_free_space(1, 10, directory: different_dir)
+                    assert_deleted_files([0, 1, 2, 3], directory: different_dir)
+                end
+
                 it "stops removing files when there is no file in folder even if freed
                     limit is not achieved" do
                     size_files = Array.new(10, 1)
@@ -690,16 +700,18 @@ module Syskit
                     assert_deleted_files([0, 1, 2, 3, 4, 5, 6, 7, 8, 9])
                 end
 
-                def mock_files_size(sizes)
+                def mock_files_size(sizes, directory: @archive_dir)
                     @mocked_files_sizes = sizes
                     @mocked_files_sizes.each_with_index do |size, i|
-                        (@archive_dir / i.to_s).write(" " * size)
+                        (directory / i.to_s).write(" " * size)
                     end
                 end
 
-                def mock_available_space(total_available_disk_space)
+                def mock_available_space(
+                    total_available_disk_space, directory: @archive_dir
+                )
                     flexmock(Sys::Filesystem)
-                        .should_receive(:stat).with(@archive_dir)
+                        .should_receive(:stat).with(directory)
                         .and_return do
                             flexmock(
                                 bytes_available: total_available_disk_space
@@ -707,17 +719,17 @@ module Syskit
                         end
                 end
 
-                def assert_deleted_files(deleted_files)
+                def assert_deleted_files(deleted_files, directory: @archive_dir)
                     if deleted_files.empty?
-                        files = @archive_dir.each_child.select(&:file?)
+                        files = directory.each_child.select(&:file?)
                         assert_equal 10, files.size
                     else
                         (0..9).each do |i|
                             if deleted_files.include?(i)
-                                refute (@archive_dir / i.to_s).exist?,
+                                refute (directory / i.to_s).exist?,
                                        "#{i} was expected to be deleted, but has not been"
                             else
-                                assert (@archive_dir / i.to_s).exist?,
+                                assert (directory / i.to_s).exist?,
                                        "#{i} was expected to be present, but got deleted"
                             end
                         end
