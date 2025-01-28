@@ -16,6 +16,22 @@ module Syskit
             command :deployments,
                     "returns information about running deployments"
 
+            # Return incremental update about deployments
+            #
+            # @return [Protocol::Deployment]
+            def poll_ready_deployments(known: [])
+                deployments =
+                    plan.find_tasks(Syskit::Deployment).running.find_all(&:ready?)
+                deployment_ids = deployments.map { _1.droby_id.id }
+                new_deployments =
+                    deployments.find_all { !known.include?(_1.droby_id.id) }
+                removed_deployments =
+                    known.find_all { |id| !deployment_ids.include?(id) }
+                [new_deployments, removed_deployments]
+            end
+            command :poll_ready_deployments,
+                    "incremental information about deployments"
+
             # Save the configuration of all running tasks of the given model to disk
             #
             # @param [String,nil] name the section name for the new configuration.

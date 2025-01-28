@@ -47,6 +47,56 @@ module Syskit
                 end
             end
 
+            describe "#poll_ready_deployments" do
+                attr_reader :task_m, :task
+
+                before do
+                    @task_m = TaskContext.new_submodel
+                    @task = syskit_stub_deploy_configure_and_start(
+                        syskit_stub_requirements(task_m).with_conf("default")
+                    )
+                    plan.add_mission_task(task)
+                end
+
+                it "returns a deployment that is ready" do
+                    new_deployments, old_deployments = subject.poll_ready_deployments
+                    assert_equal [], old_deployments
+                    assert_equal 1, new_deployments.size
+                    deployment = new_deployments.first
+                    assert_equal @task.execution_agent, deployment
+                end
+
+                it "ignores a deployment that is not ready yet" do
+                    flexmock(@task.execution_agent).should_receive(ready?: false)
+                    new_deployments, old_deployments = subject.poll_ready_deployments
+                    assert_equal [], new_deployments
+                    assert_equal [], old_deployments
+                end
+
+                it "does not return a deployment that is already known" do
+                    new_deployments, old_deployments =
+                        subject.poll_ready_deployments(
+                            known: [@task.execution_agent.droby_id.id]
+                        )
+
+                    assert_equal [], new_deployments
+                    assert_equal [], old_deployments
+                end
+
+                it "lists deployments that have been removed" do
+                    droby_id = @task.execution_agent.droby_id.id
+                    expect_execution do
+                        plan.unmark_mission_task(task)
+                        plan.unmark_permanent_task(task.execution_agent)
+                    end.garbage_collect(true).to { emit task.execution_agent.stop_event }
+
+                    new_deployments, old_deployments =
+                        subject.poll_ready_deployments(known: [droby_id])
+                    assert_equal [], new_deployments
+                    assert_equal [droby_id], old_deployments
+                end
+            end
+
             describe "#restart_deployments" do
                 attr_reader :task_m, :task
 

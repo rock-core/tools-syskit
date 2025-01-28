@@ -27,6 +27,11 @@ module Syskit
 
                 require "syskit/telemetry/ui/runtime_state"
                 $qApp.disable_threading # rubocop:disable Style/GlobalVars
+                @thread_pass_timer = Qt::Timer.new
+                @thread_pass_timer.connect(SIGNAL("timeout()")) do
+                    sleep 0.01
+                end
+                @thread_pass_timer.start(10)
 
                 require "syskit/scripts/common"
                 Syskit::Scripts.run do
@@ -35,8 +40,12 @@ module Syskit
             end
 
             no_commands do # rubocop:disable Metrics/BlockLength
-                def roby_setup
+                def roby_setup # rubocop:disable Metrics/AbcSize
                     Roby.app.using "syskit"
+                    Roby.app.guess_app_dir
+                    Roby.app.load_config_yaml
+                    Roby.app.require_v2_protocol_extensions
+
                     Syskit.conf.only_load_models = true
                     # We don't need the process server, win some startup time
                     Syskit.conf.disables_local_process_server = true
@@ -71,7 +80,7 @@ module Syskit
 
                     main.restore_from_settings
                     main.show
-                    Vizkit.exec
+                    Vizkit.exec(global_shortcuts: false)
                     main.save_to_settings
                     main.settings.sync
                 end

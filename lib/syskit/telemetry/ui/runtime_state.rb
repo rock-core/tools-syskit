@@ -15,7 +15,7 @@ require "syskit/telemetry/ui/expanded_job_status"
 require "syskit/telemetry/ui/global_state_label"
 require "syskit/telemetry/ui/app_start_dialog"
 require "syskit/telemetry/ui/batch_manager"
-require "syskit/telemetry/ui/name_service"
+require "syskit/telemetry/async"
 require "syskit/interface/v2"
 
 module Syskit
@@ -237,7 +237,7 @@ module Syskit
                     @call_guards = {}
                     @orogen_models = {}
 
-                    @name_service = NameService.new
+                    @name_service = Async::NameService.new
                     @async_name_service = Orocos::Async::NameService.new(@name_service)
                 end
 
@@ -417,9 +417,6 @@ module Syskit
                         @ui_task_inspector = Vizkit.default_loader.TaskInspector
                     )
                     @ui_hide_loggers.checked = false
-                    @ui_hide_loggers.connect SIGNAL("toggled(bool)") do |_checked|
-                        update_tasks_info
-                    end
                     @ui_show_expanded_job.checked = true
                     @ui_show_expanded_job.connect SIGNAL("toggled(bool)") do |checked|
                         job_expanded_status.visible = checked
@@ -543,7 +540,7 @@ module Syskit
                     if syskit.connected?
                         begin
                             display_current_cycle_index_and_time
-                            update_current_deployments
+                            query_deployment_update
                             update_current_job_task_names if current_job
                         rescue Roby::Interface::ComError # rubocop:disable Lint/SuppressedException
                         end
@@ -575,15 +572,29 @@ module Syskit
                     update_task_inspector(@name_service.names)
                 end
 
-                def update_current_deployments
-                    polling_call ["syskit"], "deployments" do |deployments|
-                        @current_deployments = deployments
-                        update_name_service(deployments)
+                def process_current_deployments
+                    update_name_service(@current_deployments)
 
-                        names = @name_service.names
-                        names &= @current_job_task_names if @current_job
-                        update_task_inspector(names)
+                    names = @name_service.names
+                    names &= @current_job_task_names if @current_job
+                    update_task_inspector(names)
+                end
+
+                def query_deployment_update
+                    polling_call(
+                        ["syskit"], "poll_ready_deployments",
+                        known: @current_deployments.map(&:id)
+                    ) do |updated, removed|
+                        update_current_deployments(updated, removed)
+                        process_current_deployments
                     end
+                end
+
+                def update_current_deployments(updated, removed)
+                    @current_deployments.delete_if do |d|
+                        removed.include?(d.id)
+                    end
+                    @current_deployments.concat(updated)
                 end
 
                 def reset_current_deployments
@@ -621,12 +632,12 @@ module Syskit
                     update_task_inspector([])
                 end
 
-                def polling_call(path, method_name, *args)
-                    key = [path, method_name, args]
+                def polling_call(path, method_name, *args, **kw)
+                    key = [path, method_name, args, kw]
                     return if @call_guards.key?(key) && @call_guards[key]
 
                     @call_guards[key] = true
-                    syskit.async_call(path, method_name, *args) do |error, ret|
+                    syskit.async_call(path, method_name, *args, **kw) do |error, ret|
                         @call_guards[key] = false
                         if error
                             report_app_error(error)
@@ -654,44 +665,22 @@ module Syskit
                 end
 
                 def update_name_service(deployments)
-                    # Now remove all tasks that are not in deployments
-                    existing = @name_service.names
-
-                    deployments.each do |d|
-                        d.deployed_tasks.each do |deployed_task|
-                            task_name = deployed_task.name
-                            if existing.include?(task_name)
-                                existing.delete(task_name)
-                                next if deployed_task.ior == @name_service.ior(task_name)
-                            end
-
-                            existing.delete(task_name)
-                            task = Orocos::TaskContext.new(
-                                deployed_task.ior,
-                                name: task_name,
-                                model: orogen_model_from_name(
-                                    deployed_task.orogen_model_name
-                                )
-                            )
-
-                            async_task = Orocos::Async::CORBA::TaskContext.new(use: task)
-                            @name_service.register(async_task, name: task_name)
+                    all_deployed_tasks = deployments.flat_map do |d|
+                        d.deployed_tasks.find_all do |deployed_task|
+                            model_name = deployed_task.orogen_model_name
+                            !hide_loggers? || !OROGEN_LOGGER_NAMES.include?(model_name)
                         end
                     end
-
-                    existing.each { @name_service.deregister(_1) }
-                    @name_service.names
+                    @name_service.async_update_tasks(all_deployed_tasks)
                 end
 
+                OROGEN_LOGGER_NAMES = %w[logger::Logger OroGen.logger.Logger].freeze
+
                 def reset_name_service
-                    all = @name_service.names.dup
-                    all.each { @name_service.deregister(_1) }
+                    @name_service.cleanup
                 end
 
                 def orogen_model_from_name(name)
-                    @orogen_models[name] ||= Orocos.default_loader.task_model_from_name(name)
-                rescue OroGen::NotFound
-                    Orocos.warn "#{name} is a task context of class #{name}, but I cannot find the description for it, falling back"
                     @orogen_models[name] ||= Orocos.create_orogen_task_context_model(name)
                 end
 
