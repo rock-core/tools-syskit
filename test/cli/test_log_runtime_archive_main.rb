@@ -193,7 +193,8 @@ module Syskit
                             "watch_transfer",
                             @source_dir,
                             *@server_params.values,
-                            "--period", 0.5
+                            "--period", 0.5,
+                            "--max_upload_rate_mbps", 10
                         ]
                         LogRuntimeArchiveMain.start(args)
                     end
@@ -204,7 +205,7 @@ module Syskit
 
                 # Converts rate in Mbps to bps
                 def rate_mbps_to_bps(rate_mbps)
-                    rate_mbps / (10**6)
+                    rate_mbps * (10**6)
                 end
             end
 
