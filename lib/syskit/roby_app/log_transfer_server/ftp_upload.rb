@@ -21,6 +21,11 @@ module Syskit
                     @file = file
 
                     @max_upload_rate = Float(max_upload_rate)
+                    if @max_upload_rate <= 0
+                        raise ArgumentError,
+                              "invalid value for max_upload_rate: given " \
+                              "#{@max_upload_rate}, but should be strictly positive"
+                    end
                     @implicit_ftps = implicit_ftps
                 end
 

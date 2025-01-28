@@ -132,20 +132,12 @@ module Syskit
             describe "#transfer_server" do
                 before do
                     @server_params = server_params
-
-                    server = nil
-                    flexmock(Runtime::Server::SpawnServer)
-                        .should_receive(:new)
-                        .with_any_args
-                        .pass_thru do |arg|
-                            server = arg
-                        end
-                    call_create_server(make_tmppath, @server_params)
-                    @server = server
+                    @server = call_create_server(make_tmppath, @server_params)
                 end
 
                 after do
                     @server.stop
+                    @server.join
                 end
 
                 it "successfully creates an FTP server" do
@@ -166,15 +158,7 @@ module Syskit
                     @server_params = server_params
                     @max_upload_rate = rate_mbps_to_bps(10)
 
-                    server = nil
-                    flexmock(Runtime::Server::SpawnServer)
-                        .should_receive(:new)
-                        .with_any_args
-                        .pass_thru do |arg|
-                            server = arg
-                        end
-                    call_create_server(make_tmppath, @server_params)
-                    @server = server
+                    @server = call_create_server(make_tmppath, @server_params)
                 end
 
                 after do

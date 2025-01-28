@@ -46,10 +46,11 @@ module Syskit
             # through FTP server
             #
             # @param [Params] server_params the FTP server parameters
+            # @return [Array<TransferDatasetResult>]
             def process_root_folder_transfer(server_params)
                 candidates = self.class.find_all_dataset_folders(@root_dir)
                 running = candidates.last
-                candidates.each do |child|
+                candidates.map do |child|
                     process_dataset_transfer(
                         child, server_params, @root_dir, full: child != running
                     )
@@ -137,6 +138,18 @@ module Syskit
                 )
             end
 
+            TransferDatasetResult = Struct.new(
+                :complete, :transfer_results, keyword_init: true
+            ) do
+                def success?
+                    transfer_results.all?(&:success?)
+                end
+
+                def failures
+                    transfer_results.find_all { !_1.success? }
+                end
+            end
+
             # Transfer the given dataset
             def self.transfer_dataset(
                 dataset_path, server, root,
@@ -155,13 +168,21 @@ module Syskit
                         archive_filter_candidates_partial(candidates)
                     end
 
-                candidates.each do |child_path|
-                    transfer_file(child_path, server, root)
+                transfer_results = candidates.map do |child_path|
+                    result = transfer_file(child_path, server, root)
+                    child_path.unlink if result.success?
+
+                    result
                 end
 
-                complete
+                TransferDatasetResult.new(
+                    complete: complete, transfer_results: transfer_results
+                )
             end
 
+            # Transfer a file to the central log server via FTP
+            #
+            # @return [LogUploadState:Result]
             def self.transfer_file(file, server, root)
                 ftp = RobyApp::LogTransferServer::FTPUpload.new(
                     server.host, server.port, server.certificate, server.user,

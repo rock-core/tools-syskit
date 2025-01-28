@@ -521,15 +521,18 @@ module Syskit
                 before do
                     host = "127.0.0.1"
                     @ca = RobyApp::TmpRootCA.new(host)
-                    @params = LogRuntimeArchive::FTPParameters.new(
-                        host: host, port: 21,
+                    params = LogRuntimeArchive::FTPParameters.new(
+                        host: host, port: 0,
                         certificate: @ca.certificate,
                         user: "user", password: "password",
-                        implicit_ftps: true, max_upload_rate: rate_mbps_to_bps(10)
+                        implicit_ftps: true,
+                        max_upload_rate: 10_000_000
                     )
 
                     @target_dir = make_tmppath
-                    @server = create_server
+                    @server = create_server(params)
+                    params.port = @server.port
+                    @params = params
                     @process = LogRuntimeArchive.new(@root)
                 end
 
@@ -541,15 +544,13 @@ module Syskit
                     @server = nil
                 end
 
-                def create_server
-                    server = Runtime::Server::SpawnServer.new(
-                        @target_dir, @params.user, @params.password,
+                def create_server(params)
+                    Runtime::Server::SpawnServer.new(
+                        @target_dir, params.user, params.password,
                         @ca.private_certificate_path,
-                        interface: @params.host,
-                        implicit_ftps: @params.implicit_ftps
+                        interface: params.host,
+                        implicit_ftps: params.implicit_ftps
                     )
-                    @params.port = server.port
-                    server
                 end
 
                 describe ".process_root_folder_transfer" do
@@ -602,14 +603,41 @@ module Syskit
                 end
 
                 describe ".transfer_dataset" do
+                    before do
+                        @dataset = make_valid_folder("PATH")
+                        make_random_file "test.0.log", root: @dataset
+                    end
+
                     it "transfers a dataset through FTP" do
-                        dataset = make_valid_folder("PATH")
-                        make_random_file "test.0.log", root: dataset
-                        LogRuntimeArchive.transfer_dataset(
-                            dataset, @params, @root, full: true
+                        results = LogRuntimeArchive.transfer_dataset(
+                            @dataset, @params, @root, full: true
                         )
 
+                        assert results.success?
+                        # Datasets that have pocolog files are not complete
+                        refute results.complete
                         assert(File.exist?(@target_dir / "PATH" / "test.0.log"))
+                    end
+
+                    it "removes the source file if the transfer was successful" do
+                        results = LogRuntimeArchive.transfer_dataset(
+                            @dataset, @params, @root, full: true
+                        )
+
+                        assert results.success?
+                        refute((@dataset / "test.0.log").exist?)
+                    end
+
+                    it "does not remove the source file if the transfer failed" do
+                        flexmock(LogRuntimeArchive)
+                            .should_receive(:transfer_file)
+                            .and_return(flexmock(success?: false))
+                        results = LogRuntimeArchive.transfer_dataset(
+                            @dataset, @params, @root, full: true
+                        )
+
+                        refute results.success?
+                        assert((@dataset / "test.0.log").exist?)
                     end
                 end
 
@@ -617,17 +645,13 @@ module Syskit
                     it "transfers a file through FTP" do
                         dataset = make_valid_folder("PATH")
                         make_random_file "test.log", root: dataset
-                        LogRuntimeArchive.transfer_file(
+                        result = LogRuntimeArchive.transfer_file(
                             dataset / "test.log", @params, @root
                         )
 
                         assert(File.exist?(@target_dir / "PATH" / "test.log"))
+                        assert result.success?, "transfer failed: #{result.message}"
                     end
-                end
-
-                # Converts rate in Mbps to bps
-                def rate_mbps_to_bps(rate_mbps)
-                    rate_mbps / (10**6)
                 end
             end
 
@@ -735,7 +759,7 @@ module Syskit
             end
 
             def assert_entry_matches(entry, data, name:, content:)
-                assert entry.file?
+                assert entry.file?, "expected #{entry} to be a file"
                 assert_equal name, entry.full_name
                 assert_equal content, decompress_data(data)
             end
