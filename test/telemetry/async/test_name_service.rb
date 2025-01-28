@@ -1,7 +1,7 @@
 # frozen_string_literal: true
 
 require "syskit/test/self"
-require "syskit/telemetry/async/name_service"
+require "syskit/telemetry/async"
 
 module Syskit
     module Telemetry
@@ -23,7 +23,7 @@ module Syskit
                         @ns.async_update_tasks([deployed_task])
                         @ns.wait_for_task_discovery
                         @ns.resolve_discovered_tasks
-                        assert_equal task.ior, @ns.get("test").ior
+                        assert_equal task.ior, @ns.get("test").identity
                     end
 
                     it "does not re-resolve a registered task if the IOR matches" do
@@ -46,7 +46,7 @@ module Syskit
                         assert @ns.has_pending_discoveries?
                         @ns.wait_for_task_discovery
                         @ns.resolve_discovered_tasks
-                        assert_equal task2.ior, @ns.get("test").ior
+                        assert_equal task2.ior, @ns.get("test").identity
                     end
 
                     it "requeues the discovery if a task's IOR changed" do
@@ -58,7 +58,7 @@ module Syskit
                         @ns.async_update_tasks([deployed_task2])
                         @ns.wait_for_task_discovery
                         @ns.resolve_discovered_tasks
-                        assert_equal task2.ior, @ns.get("test").ior
+                        assert_equal task2.ior, @ns.get("test").identity
                     end
 
                     it "does not register a task if it has been removed while it was " \
@@ -244,7 +244,11 @@ module Syskit
                 describe "#ior" do
                     it "returns the IOR of a registered task" do
                         _, task = make_deployed_task("test", "some")
-                        @ns.register(task)
+                        async_task = Orocos.allow_blocking_calls do
+                            TaskContext.discover(task)
+                        end
+                        assert_equal "test", async_task.name
+                        @ns.register(async_task)
                         assert_equal task.ior, @ns.ior("test")
                     end
 

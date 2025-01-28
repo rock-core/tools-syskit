@@ -1,6 +1,13 @@
 # frozen_string_literal: true
 
 require "syskit/telemetry/async/name_service"
+require "syskit/telemetry/async/task_context"
+require "syskit/telemetry/async/interface_object"
+require "syskit/telemetry/async/readable_interface_object"
+require "syskit/telemetry/async/attribute"
+require "syskit/telemetry/async/property"
+require "syskit/telemetry/async/input_port"
+require "syskit/telemetry/async/output_port"
 
 module Syskit
     module Telemetry
