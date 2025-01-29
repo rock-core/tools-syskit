@@ -56,34 +56,47 @@ module Syskit
                 )
             end
 
+            def replace_tasks_for_stub_network(results)
+                root_tasks = results.instance_requirement_tasks.map(&:planned_task)
+                stub_network = StubNetwork.new(@test)
+
+                # NOTE: this is a run-planner equivalent to syskit_stub_network
+                # we will have to investigate whether we could implement one with
+                # the other (probably), but in the meantime we must keep both
+                # in sync
+                mapped_tasks = @plan.in_transaction do |trsc|
+                    mapped_tasks =
+                        stub_network.apply_in_transaction(trsc, root_tasks)
+                    trsc.commit_transaction
+                    mapped_tasks
+                end
+
+                stub_network.announce_replacements(mapped_tasks)
+                stub_network.remove_obsolete_tasks(mapped_tasks)
+            end
+
+            # Consider the resolution finished due to it containing any errors.
+            #
+            # This is only relevant when we arent capturing errors during the network
+            # resolution. When we are capturing errors, the capture pipeline already deals
+            # with the failed task, and can deploy the stub network safely.
+            def consider_finished_due_to_errors?(results)
+                !Syskit.conf.capture_errors_during_network_resolution? && results.error?
+            end
+
             def finished?
                 Thread.pass
 
                 if @plan.syskit_has_async_resolution?
                     return unless @plan.syskit_finished_async_resolution?
 
-                    error = @plan.syskit_apply_async_resolution_results
-                    return true if error
+                    resolution_results = @plan.syskit_apply_async_resolution_results
+                    return true if consider_finished_due_to_errors?(resolution_results)
                     return unless @test.syskit_run_planner_stub?
 
-                    root_tasks = @planning_tasks.map(&:planned_task)
-                    stub_network = StubNetwork.new(@test)
-
-                    # NOTE: this is a run-planner equivalent to syskit_stub_network
-                    # we will have to investigate whether we could implement one with
-                    # the other (probably), but in the meantime we must keep both
-                    # in sync
-                    mapped_tasks = @plan.in_transaction do |trsc|
-                        mapped_tasks =
-                            stub_network.apply_in_transaction(trsc, root_tasks)
-                        trsc.commit_transaction
-                        mapped_tasks
-                    end
-
-                    stub_network.announce_replacements(mapped_tasks)
-                    stub_network.remove_obsolete_tasks(mapped_tasks)
+                    replace_tasks_for_stub_network(resolution_results)
                 end
-                @planning_tasks.all?(&:finished?)
+                @planning_tasks.all? { |t| t.resolution_success? || t.finished? }
             end
 
             # Module that should be included in all classes meant to use the

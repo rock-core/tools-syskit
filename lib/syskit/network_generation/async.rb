@@ -119,9 +119,6 @@ module Syskit
 
             class InvalidState < RuntimeError; end
 
-            SystemNetworkPlanApplyResult =
-                Struct.new :fulfilled, :instances, :errors, keyword_init: true
-
             # Apply the result of the generation
             #
             # @return [Boolean] true if the result has been applied, and false
@@ -136,7 +133,7 @@ module Syskit
                 engine = future.engine
                 if @cancelled
                     engine.discard_work_plan
-                    SystemNetworkPlanApplyResult.new(fulfilled: false)
+                    nil
                 elsif future.fulfilled?
                     required_instances, resolution_errors = future.value
                     begin
@@ -144,7 +141,7 @@ module Syskit
                             required_instances, **@apply_system_network_options
                         )
                         SystemNetworkPlanApplyResult.new(
-                            fulfilled: true, instances: required_instances,
+                            instance_requirement_tasks: required_instances.keys,
                             errors: resolution_errors
                         )
                     rescue ::Exception => e

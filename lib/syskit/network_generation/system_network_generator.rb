@@ -359,11 +359,13 @@ module Syskit
             )
                 still_abstract = components.find_all(&:abstract?)
                 still_abstract.each do |task|
-                    exception = TaskAllocationFailed.new(self, [task])
-                    error_handler.register_resolution_failures_from_exception(
-                        [task], exception,
+                    message =
                         "could not find implementation for the following abstract " \
                         "task: #{task}"
+                    exception = TaskAllocationFailed.new(self, [task])
+                    exception = exception.exception(message)
+                    error_handler.register_resolution_failures_from_exception(
+                        task, exception
                     )
                 end
             end
@@ -483,12 +485,14 @@ module Syskit
 
                 return if using_same_deployment.empty?
 
+                message = "deployment used multiple times"
                 using_same_deployment.each do |orocos_name, tasks|
                     exception = ConflictingDeploymentAllocation.new(
                         orocos_name, tasks, toplevel_tasks_to_requirements
                     )
+                    exception = exception.exception(message)
                     error_handler.register_resolution_failures_from_exception(
-                        tasks, exception, "deployment used multiple times"
+                        tasks, exception
                     )
                 end
             end

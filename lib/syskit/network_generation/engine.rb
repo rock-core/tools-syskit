@@ -689,21 +689,16 @@ module Syskit
             # Computes the set of requirement tasks that should be used for
             # deployment within the given plan
             def self.discover_requirement_tasks_from_plan(plan)
-                req_tasks = plan.find_local_tasks(InstanceRequirementsTask)
-                req_tasks = req_tasks.find_all do |req_task|
-                    if req_task.failed? || req_task.pending?
-                        false
-                    elsif (planned_task = req_task.planned_task)
-                        !planned_task.finished? || planned_task.being_repaired?
-                    else
-                        false
-                    end
-                end
-                needed = plan.useful_tasks(with_transactions: false)
-                req_tasks.delete_if do |t|
-                    !needed.include?(t)
-                end
-                req_tasks
+                req_tasks =
+                    plan.find_local_tasks(InstanceRequirementsTask).running
+                req_tasks = req_tasks.find_all do |t|
+                    planned_task = t.planned_task
+                    next unless planned_task
+
+                    !planned_task.finished? || planned_task.being_repaired?
+                end.to_set
+                needed = plan.useful_tasks(with_transactions: false).to_set
+                req_tasks.intersection(needed)
             end
 
             def compute_system_network(
@@ -874,6 +869,8 @@ module Syskit
                     cleanup_resolution_errors: cleanup_resolution_errors
                 )
 
+                # Can only be reached if the capture_error_during_network_resolution flag
+                # is true
                 if !resolution_errors.empty? && !cleanup_resolution_errors
                     exceptions = resolution_errors.map(&:original_exception)
                     handle_resolution_exception(exceptions, on_error: on_error)
@@ -975,10 +972,10 @@ module Syskit
                             dataflow_path, hierarchy_path =
                                 Engine.autosave_plan_to_dot(work_plan, Roby.app.log_dir)
                             fatal "the generated plan has been saved"
-                            fatal "use dot -Tsvg #{dataflow_path} > #{dataflow_path}.svg " \
-                                  "to convert the dataflow to SVG"
-                            fatal "use dot -Tsvg #{hierarchy_path} > #{hierarchy_path}.svg " \
-                                  "to convert to SVG"
+                            fatal "use dot -Tsvg #{dataflow_path} > " \
+                                  "#{dataflow_path}.svg to convert the dataflow to SVG"
+                            fatal "use dot -Tsvg #{hierarchy_path} > " \
+                                  "#{hierarchy_path}.svg to convert to SVG"
                         rescue Exception => e # rubocop:disable Lint/RescueException
                             Roby.log_exception_with_backtrace(e, self, :fatal)
                         end

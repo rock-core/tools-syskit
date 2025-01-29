@@ -171,7 +171,7 @@ module Syskit
                             NetworkGeneration::RaiseErrorHandler.new
                         end
                     mapping, resolution_errors = engine.compute_system_network(
-                        tasks_to_instanciate.map(&:planning_task),
+                        planning_tasks,
                         validate_generated_network: false,
                         early_deploy: false,
                         error_handler: error_handler
@@ -188,6 +188,7 @@ module Syskit
 
                         raise NetworkGeneration::PartialNetworkResolution, resolution_errors
                     end
+
                     trsc.commit_transaction
                     mapping
                 end
@@ -196,7 +197,7 @@ module Syskit
                         replacement = task_mapping[task.planning_task]
                         plan.replace_task(task, replacement)
                         plan.remove_task(task)
-                        replacement.planning_task.success_event.emit
+                        replacement.planning_task.resolution_success_event.emit
                     end
                 end
                 root_tasks.map(&:task)
@@ -277,7 +278,7 @@ module Syskit
                             plan.remove_task(task)
                         end
                         requirement_tasks.each do |t|
-                            t.success_event.emit unless t.finished?
+                            t.resolution_success_event.emit unless t.finished?
                         end
                     end
                 else

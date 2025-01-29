@@ -51,14 +51,16 @@ module Syskit
 
                 it "returns running InstanceRequirementsTask tasks" do
                     execute { planning_task.start! }
-                    assert_equal [planning_task], Engine.discover_requirement_tasks_from_plan(plan)
+                    assert_equal [planning_task].to_set,
+                                 Engine.discover_requirement_tasks_from_plan(plan)
                 end
-                it "returns InstanceRequirementsTask tasks that successfully finished" do
+                it "returns InstanceRequirementsTask tasks that finished resolution" do
                     execute do
                         planning_task.start!
-                        planning_task.success_event.emit
+                        planning_task.resolution_success_event.emit
                     end
-                    assert_equal [planning_task], Engine.discover_requirement_tasks_from_plan(plan)
+                    assert_equal [planning_task].to_set,
+                                 Engine.discover_requirement_tasks_from_plan(plan)
                 end
                 it "ignores InstanceRequirementsTask tasks that failed" do
                     execute { planning_task.start! }
@@ -67,15 +69,16 @@ module Syskit
                         have_error_matching Roby::PlanningFailedError.match
                                                                      .with_origin(original_task)
                     end
-                    assert_equal [], Engine.discover_requirement_tasks_from_plan(plan)
+                    assert_equal Set.new, Engine.discover_requirement_tasks_from_plan(plan)
                 end
                 it "ignores InstanceRequirementsTask tasks that are pending" do
-                    assert_equal [], Engine.discover_requirement_tasks_from_plan(plan)
+                    assert_equal Set.new, Engine.discover_requirement_tasks_from_plan(plan)
                 end
                 it "ignores InstanceRequirementsTask tasks whose planned task has finished" do
                     task = syskit_stub_deploy_configure_and_start(simple_component_model)
                     expect_execution { task.stop! }.to { emit task.stop_event }
-                    assert_equal [], Engine.discover_requirement_tasks_from_plan(plan)
+                    assert_equal Set.new,
+                                 Engine.discover_requirement_tasks_from_plan(plan)
                 end
                 it "includes InstanceRequirementsTask tasks whose planned task have finished, but are being repaired" do
                     task = syskit_stub_deploy_configure_and_start(simple_component_model)
@@ -86,7 +89,8 @@ module Syskit
                         task.stop_event.handle_with(repair)
                         repair.start!
                     end.to { emit task.stop_event }
-                    assert_equal [planning_task], Engine.discover_requirement_tasks_from_plan(plan)
+                    assert_equal [planning_task].to_set,
+                                 Engine.discover_requirement_tasks_from_plan(plan)
                 end
             end
 
@@ -298,7 +302,7 @@ module Syskit
             end
 
             describe "when scheduling tasks for reconfiguration" do
-                it "ensures that the old task is gargabe collected " \
+                it "ensures that the old task is garbage collected " \
                    "when child of a composition" do
                     task_m = Syskit::TaskContext.new_submodel
                     cmp_m  = Syskit::Composition.new_submodel
@@ -307,8 +311,11 @@ module Syskit
                     syskit_stub_configured_deployment(task_m)
                     cmp = syskit_deploy(cmp_m)
                     original_task = cmp.test_child
-                    flexmock(task_m).new_instances.should_receive(:can_be_deployed_by?)
-                                    .with(->(proxy) { proxy.__getobj__ == cmp.test_child }).and_return(false)
+                    flexmock(task_m)
+                        .new_instances
+                        .should_receive(:can_be_deployed_by?)
+                        .with(->(proxy) { proxy.__getobj__ == cmp.test_child })
+                        .and_return(false)
                     new_cmp = syskit_deploy(cmp_m)
 
                     # Should have instanciated a new composition since the children
@@ -569,7 +576,7 @@ module Syskit
                     deployed = syskit_deploy(composition_model)
                     # This deregisters the task from the list of requirements in the
                     # syskit engine
-                    execute { plan.remove_task(deployed.planning_task) }
+                    execute { deployed.planning_task.success_event.emit }
 
                     syskit_stub_conf task_model, "non_default"
                     new_deployed = syskit_deploy(
@@ -595,8 +602,9 @@ module Syskit
                     assert_equal [deployed_task.stop_event],
                                  deployed_reconf.start_event.parent_objects(Roby::EventStructure::SyskitConfigurationPrecedence).to_a
                     plan.useful_tasks
-                    assert_equal([planning_task, deployed_task].to_set,
-                                 execute { plan.static_garbage_collect.to_set })
+                    expect_execution.garbage_collect(true).to do
+                        finalize planning_task, deployed_task
+                    end
                     assert(["non_default"], deployed_reconf.conf)
                 end
 
@@ -610,7 +618,8 @@ module Syskit
                     cmp, = syskit_deploy(composition_model.use("child" => task_model))
                     child = cmp.child_child.to_task
                     child.do_not_reuse
-                    execute { plan.remove_task(cmp.planning_task) }
+                    # Deregister the planning task from the list of requirements
+                    execute { cmp.planning_task.success_event.emit }
 
                     new_cmp, = syskit_deploy(composition_model.use("child" => task_model))
                     new_child = new_cmp.child_child

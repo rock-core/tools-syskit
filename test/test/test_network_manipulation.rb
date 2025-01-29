@@ -387,7 +387,7 @@ module Syskit
                 end
 
                 it "fails if the plan can't be deployed" do
-                    plan.add_mission_task(@cmp_m.use("srv" => @task_m).as_plan)
+                    plan.add_mission_task(@cmp_m.as_plan)
                     assert_raises(Roby::Test::ExecutionExpectations::UnexpectedErrors) do
                         deploy_current_plan
                     end

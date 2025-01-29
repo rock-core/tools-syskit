@@ -480,15 +480,18 @@ module Syskit
                     end
 
                     it "snapshots the task's parents at the exception point" do
-                        task_m = Syskit::TaskContext.new_submodel
-                        d0 = syskit_stub_deployment_model task_m, "task0"
+                        parent_m = Syskit::TaskContext.new_submodel
+                        child_m = Syskit::TaskContext.new_submodel
+                        parent_d = syskit_stub_deployment_model parent_m, "task0"
+                        child_d = syskit_stub_deployment_model child_m, "task1"
                         deployer.default_deployment_group
-                                .use_deployment(d0 => "test0_")
+                                .use_deployment(child_d => "test0_")
                         deployer.default_deployment_group
-                                .use_deployment(d0 => "test1_")
+                                .use_deployment(child_d => "test1_")
 
-                        plan.add(parent = task_m.new)
-                        parent.depends_on(task_m.new, role: "test")
+                        plan.add(parent_d_task = parent_d.new)
+                        plan.add(parent = parent_d_task.task("task0"))
+                        parent.depends_on(child_m.new, role: "test")
                         e = assert_raises(MissingDeployment) do
                             deployer.validate_deployed_network
                         end

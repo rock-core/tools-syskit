@@ -11,6 +11,14 @@ module Syskit
             end
         end
 
+        # Reports the result of the network generation application.
+        SystemNetworkPlanApplyResult =
+            Struct.new :instance_requirement_tasks, :errors, keyword_init: true do
+                def error?
+                    !errors.empty?
+                end
+            end
+
         # This is used to capture failures during the network generation process. Each
         # failure bundles the toplevel tasks that are related to the task that originates
         # the failure. It should be transformed into a ResolutionError for each related
@@ -24,13 +32,12 @@ module Syskit
                 # array. Optionally, one can provide the original exception and the error
                 # message as well.
                 def initialize(
-                    failed_task, original_exception, message, merge_solver, plan
+                    failed_task, original_exception, merge_solver, plan
                 )
                     self.failed_task = failed_task
                     self.merge_solver = merge_solver
                     self.plan = plan
                     self.original_exception = original_exception
-                    self.message = message
                 end
 
                 # Convert to ResolutionError by replacing the requirement of a failed task
@@ -38,7 +45,7 @@ module Syskit
                 #
                 # @return [ResolutionError]
                 def to_resolution_errors(instance)
-                    ResolutionError.new(instance, original_exception, message)
+                    ResolutionError.new(instance, original_exception)
                 end
             end
 
@@ -52,10 +59,9 @@ module Syskit
         class ResolutionError
             attr_reader :planned_task, :planning_task, :original_exception
 
-            def initialize(failed_task, original_exception, message = nil)
+            def initialize(failed_task, original_exception)
                 validate(failed_task)
 
-                original_exception = original_exception.exception(message) if message
                 @original_exception = original_exception
                 @planned_task = failed_task.planned_task
                 @planning_task = failed_task
@@ -84,21 +90,14 @@ module Syskit
                 @merge_solver = merge_solver
             end
 
-            def register_resolution_failures(failures, _exception, _message)
-                failures.each do |failure|
-                    @resolution_failures << failure
-                end
-            end
-
-            def register_resolution_failures_from_exception(
-                tasks, exception, message = nil
-            )
+            def register_resolution_failures_from_exception(tasks, exception)
                 tasks = [tasks] unless tasks.kind_of? Array
                 tasks.each do |task|
-                    failures = failures_from_exception(
-                        [task], @plan, @merge_solver, exception, message
-                    )
-                    register_resolution_failures(failures, exception, message)
+                    failures =
+                        failures_from_exception([task], @plan, @merge_solver, exception)
+                    failures.each do |failure|
+                        @resolution_failures << failure
+                    end
                 end
             end
 
@@ -144,12 +143,10 @@ module Syskit
                 indexes
             end
 
-            def failures_from_exception(
-                tasks, plan, merge_solver, exception, message = ""
-            )
+            def failures_from_exception(tasks, plan, merge_solver, exception)
                 tasks.map do |task|
                     NetworkGeneration::InternalResolutionFailure.new(
-                        task, exception, message, merge_solver.dup, plan.dup
+                        task, exception, merge_solver.dup, plan.dup
                     )
                 end
             end
@@ -210,14 +207,8 @@ module Syskit
 
         # A resolution error handler that raises instead of capturing the error
         class RaiseErrorHandler
-            def register_resolution_failures_from_exception(
-                _tasks, exception, message = nil
-            )
-                raise exception, message || ""
-            end
-
-            def register_resolution_failures(_failures, exception, message)
-                raise exception, message || ""
+            def register_resolution_failures_from_exception(_tasks, exception)
+                raise exception
             end
 
             # Noop to satisfy the resolution error handler interface. Should return no

@@ -213,14 +213,18 @@ module Syskit
 
             # Verifies that all tasks in the plan are deployed
             #
-            # @return [Array<ResolutionError>] resolution errors of all the tasks that
-            #   are missing a deployment
-            def verify_all_tasks_deployed(resolution_error_handler)
+            # @param [ResolutionErrorHandler | RaiseErrorHandler] error_handler
+            def verify_all_tasks_deployed(error_handler)
                 self.class.verify_all_tasks_deployed(
-                    plan, default_deployment_group, resolution_error_handler
+                    plan, default_deployment_group, error_handler
                 )
             end
 
+            # @see #verify_all_tasks_deployed
+            #
+            # @param [Component=>DeploymentGroup] deployment_groups which
+            #   deployment groups has been used for which task. This is used
+            #   to generate the error messages when needed.
             def self.verify_all_tasks_deployed(
                 plan, default_deployment_group, error_handler: RaiseErrorHandler.new
             )
@@ -231,9 +235,7 @@ module Syskit
                 return if not_deployed.empty?
 
                 tasks_with_candidates = {}
-                # This is reversed to give preference to child tasks, as they contain
-                # more information about the dependency context then their parents
-                not_deployed.reverse_each do |task|
+                not_deployed.each do |task|
                     candidates = find_all_suitable_deployments_for(
                         default_deployment_group,
                         task
@@ -249,12 +251,8 @@ module Syskit
                     tasks_with_candidates[task] = candidates
                 end
                 tasks_with_candidates.each do |task, candidates|
-                    message =
-                        "#{task}(#{task.orogen_model.name}) has no deployed equivalent"
-                    exception = MissingDeployment.new(task, candidates)
-                    error_handler.register_resolution_failures_from_exception(
-                        [task], exception, message
-                    )
+                    e = MissingDeployment.new(task, candidates)
+                    error_handler.register_resolution_failures_from_exception(e.task, e)
                 end
             end
 
@@ -286,8 +284,9 @@ module Syskit
                 message = "some configuration sections are used but not defined"
                 missing.each do |task, sections|
                     exception = MissingConfigurationSection.new(task, sections)
+                    exception = exception.exception(message)
                     error_handler.register_resolution_failures_from_exception(
-                        [task], exception, message
+                        task, exception
                     )
                 end
             end

@@ -74,7 +74,7 @@ describe Syskit::InstanceRequirementsTask do
         assert !resolution.transaction_committed?
     end
 
-    it "finishes successfully if the network resolution succeeds" do
+    it "emits resolution success if the network resolution succeeds" do
         cmp_m = Syskit::Composition.new_submodel
         task = plan.add_permanent_task(cmp_m.as_plan)
         req_task = task.planning_task
@@ -82,10 +82,10 @@ describe Syskit::InstanceRequirementsTask do
         capture_syskit_current_resolution { |r| resolution = r }
 
         expect_execution { req_task.start! }
-            .to { emit req_task.success_event }
+            .to { emit req_task.resolution_success_event }
         assert resolution.transaction_finalized?
         assert resolution.transaction_committed?
-        assert req_task.success?
+        assert req_task.resolution_success?
     end
 
     describe ".subplan" do

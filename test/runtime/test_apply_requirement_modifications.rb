@@ -121,7 +121,8 @@ module Syskit
                 refute plan.syskit_current_resolution
             end
 
-            it "applies the computed network and emits the planning task's success event" do
+            it "applies the computed network and emits the planning task's resolution " \
+               "success event" do
                 cmp_m = Composition.new_submodel
                 plan.add_permanent_task(requirement_task = cmp_m.to_instance_requirements.as_plan)
                 requirement_task = requirement_task.planning_task
@@ -129,7 +130,7 @@ module Syskit
                 execute { Runtime.apply_requirement_modifications(plan) }
                 plan.syskit_current_resolution.future.value
                 execute { Runtime.apply_requirement_modifications(plan) }
-                assert requirement_task.success?
+                assert requirement_task.resolution_success?
             end
 
             it "applies the computed network and emits the planning task's failed " \
@@ -182,17 +183,17 @@ module Syskit
 
                     req_task1, req_task2 = requirement_tasks
 
-                    assert req_task2.success?
+                    assert req_task2.resolution_success?
 
                     assert req_task1.failed?
-                    exceptions = req_task1.failed_event.last.context.first
+                    exceptions = req_task1.failed_event.last.context
                     assert_equal 1, exceptions.size
                     assert_kind_of Syskit::MissingDeployment, exceptions.first
                     assert_exception_can_be_pretty_printed(exceptions.first)
                 end
 
-                it "applies the computed network and emits the planning task's success " \
-                   "event" do
+                it "applies the computed network and emits the planning task's " \
+                   "resolution success event" do
                     cmp_m = Composition.new_submodel
                     requirement_task = cmp_m.to_instance_requirements.as_plan
                     plan.add_permanent_task(requirement_task)
@@ -201,7 +202,7 @@ module Syskit
                     execute { Runtime.apply_requirement_modifications(plan) }
                     plan.syskit_current_resolution.future.value
                     execute { Runtime.apply_requirement_modifications(plan) }
-                    assert requirement_task.success?
+                    assert requirement_task.resolution_success?
                 end
             end
 
