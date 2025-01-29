@@ -358,6 +358,31 @@ describe Syskit::NetworkGeneration::MergeSolver do
         end
     end
 
+    describe "#apply_merge_group" do
+        attr_reader :local_plan, :solver
+
+        before do
+            @local_plan = Roby::Plan.new
+            @solver = Syskit::NetworkGeneration::MergeSolver.new(@local_plan)
+        end
+
+        it "applyes merged task plan marks to the destination task" do
+            task1 = Roby::Task.new
+            task2 = Roby::Task.new
+
+            local_plan.add_permanent_task task1
+            local_plan.add_mission_task task1
+
+            refute local_plan.permanent_task? task2
+            refute local_plan.mission_task? task2
+
+            solver.apply_merge_group({ task1 => task2 })
+
+            assert local_plan.permanent_task? task2
+            assert local_plan.mission_task? task2
+        end
+    end
+
     describe "functional tests" do
         describe "merging compositions" do
             attr_reader :plan, :srv_m, :task_m, :cmp_m
