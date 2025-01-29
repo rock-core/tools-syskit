@@ -9,11 +9,27 @@ module Syskit
             describe TaskContext do
                 before do
                     @ns = NameService.new
+                    @port_read_manager = PortReadManager.new
                     @ruby_tasks = []
                 end
 
                 after do
+                    @port_read_manager.dispose
                     @ruby_tasks.each(&:dispose)
+                end
+
+                it "is the same as another async task with the same remote task when " \
+                   "used as hash key" do
+                    t, async = make_async_task "test"
+                    async2 = discover_task(t)
+
+                    _, async3 = make_async_task "test2"
+
+                    hash = { async => 42 }
+                    assert_equal 42, hash[async2]
+                    assert_nil hash[async3]
+                    assert_nil hash[42]
+                    assert_nil hash["test"]
                 end
 
                 describe ".discover" do
@@ -71,13 +87,13 @@ module Syskit
 
                         states = []
                         async.on_state_change { states << _1 }
-                        assert_polling_eventually(async) { states == [:PRE_OPERATIONAL] }
+                        assert_polling_eventually { states == [:PRE_OPERATIONAL] }
 
                         Orocos.allow_blocking_calls do
                             task.configure
                             task.start
                         end
-                        assert_polling_eventually(async) do
+                        assert_polling_eventually do
                             states == %I[PRE_OPERATIONAL STOPPED RUNNING]
                         end
                     end
@@ -89,13 +105,16 @@ module Syskit
                         end
                         states = []
                         async.on_state_change { states << _1 }
-                        assert_polling_eventually(async) do
+                        assert_polling_eventually do
                             states[-1] == :RUNNING
                         end
 
-                        states = []
-                        async.on_state_change { states << _1 }
-                        assert_equal [:RUNNING], states
+                        states2 = []
+                        async.on_state_change { states2 << _1 }
+                        assert_polling_eventually do
+                            states2[-1] == :RUNNING
+                        end
+                        assert_equal [:RUNNING], states2
                     end
 
                     it "does not call the block is no state is known" do
@@ -169,6 +188,23 @@ module Syskit
                         async.attribute("attr").on_unreachable { m.called }
                         async.unreachable!
                     end
+
+                    it "is usable as a hash key" do
+                        t, async = make_async_task "test"
+                        attr = async.attribute("attr")
+
+                        async2 = discover_task(t)
+                        attr2 = async2.attribute("attr")
+
+                        _, async3 = make_async_task "test2"
+                        attr3 = async3.attribute("attr")
+
+                        hash = { attr => 42 }
+                        assert_equal 42, hash[attr2]
+                        assert_nil hash[attr3]
+                        assert_nil hash[42]
+                        assert_nil hash["test"]
+                    end
                 end
 
                 describe "properties" do
@@ -205,6 +241,23 @@ module Syskit
                         async.property("prop").on_unreachable { m.called }
                         async.unreachable!
                     end
+
+                    it "is usable as a hash key" do
+                        t, async = make_async_task "test"
+                        prop = async.property("prop")
+
+                        async2 = discover_task(t)
+                        prop2 = async2.property("prop")
+
+                        _, async3 = make_async_task "test2"
+                        prop3 = async3.property("prop")
+
+                        hash = { prop => 42 }
+                        assert_equal 42, hash[prop2]
+                        assert_nil hash[prop3]
+                        assert_nil hash[42]
+                        assert_nil hash["test"]
+                    end
                 end
 
                 describe "ports" do
@@ -239,6 +292,23 @@ module Syskit
                         async.port("in").on_unreachable { m.called }
                         async.unreachable!
                     end
+
+                    it "is usable as a hash key" do
+                        t, async = make_async_task "test"
+                        port = async.port("out")
+
+                        async2 = discover_task(t)
+                        port2 = async2.port("out")
+
+                        _, async3 = make_async_task "test2"
+                        port3 = async3.port("out")
+
+                        hash = { port => 42 }
+                        assert_equal 42, hash[port2]
+                        assert_nil hash[port3]
+                        assert_nil hash[42]
+                        assert_nil hash["test"]
+                    end
                 end
 
                 def make_ruby_task(name)
@@ -256,16 +326,19 @@ module Syskit
 
                 def make_async_task(name)
                     t = make_ruby_task name
-                    async = Orocos.allow_blocking_calls do
-                        TaskContext.discover(t)
-                    end
-                    [t, async]
+                    [t, discover_task(t)]
                 end
 
-                def assert_polling_eventually(async, period: 0.01, timeout: 2, &block)
+                def discover_task(task)
+                    Orocos.allow_blocking_calls do
+                        TaskContext.discover(task, port_read_manager: @port_read_manager)
+                    end
+                end
+
+                def assert_polling_eventually(period: 0.01, timeout: 2, &block)
                     deadline = Time.now + timeout
                     while Time.now < deadline
-                        async.poll
+                        @port_read_manager.poll
                         return if block.call
 
                         sleep(period)

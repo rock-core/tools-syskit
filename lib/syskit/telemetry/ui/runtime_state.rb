@@ -18,6 +18,10 @@ require "syskit/telemetry/ui/batch_manager"
 require "syskit/telemetry/async"
 require "syskit/interface/v2"
 
+# Monkey patching from Vizkit
+Syskit::Telemetry::Async::OutputPort.include Orocos::QtOrocos
+Syskit::Telemetry::Async::OutputPortSubfield.include Orocos::QtOrocos
+
 module Syskit
     module Telemetry
         module UI
@@ -234,8 +238,13 @@ module Syskit
                     @call_guards = {}
                     @orogen_models = {}
 
-                    @name_service = Async::NameService.new
-                    @async_name_service = Orocos::Async::NameService.new(@name_service)
+                    @port_read_manager&.dispose
+                    @name_service&.dispose
+
+                    @port_read_manager = Async::PortReadManager.new
+                    @name_service = Async::NameService.new(
+                        port_read_manager: @port_read_manager
+                    )
                 end
 
                 def hide_loggers?
@@ -538,7 +547,7 @@ module Syskit
                         display_current_cycle_index_and_time
                         query_deployment_update
                         update_current_job_task_names if current_job
-                        poll_task_contexts
+                        @port_read_manager.poll
                     else
                         reset_current_deployments
                         reset_current_job
@@ -549,10 +558,6 @@ module Syskit
                     syskit.poll
                 end
                 slots "poll_syskit_interface()"
-
-                def poll_task_contexts
-                    @name_service.each_task(&:poll)
-                end
 
                 def display_current_cycle_index_and_time
                     return unless syskit.cycle_start_time

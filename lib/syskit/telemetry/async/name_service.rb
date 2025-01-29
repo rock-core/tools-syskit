@@ -15,7 +15,11 @@ module Syskit
                 # @param [Hash<String,Orocos::TaskContext>] tasks The tasks which are
                 #        known by the name service.
                 # @note The namespace is always "Local"
-                def initialize(thread_count: 1)
+                def initialize(
+                    discovery_executor:
+                        Concurrent::ThreadPoolExecutor.new(max_threads: 10),
+                    port_read_manager: PortReadManager.new
+                )
                     super()
 
                     @iors = Concurrent::AtomicReference.new({})
@@ -24,8 +28,8 @@ module Syskit
                     @task_removed_callbacks = Concurrent::Array.new
                     @orogen_models = Concurrent::Hash.new
                     @discovery = {}
-                    @discovery_executor =
-                        Concurrent::FixedThreadPool.new(thread_count)
+                    @discovery_executor = discovery_executor
+                    @port_read_manager = port_read_manager
                 end
 
                 def tasks
@@ -228,7 +232,9 @@ module Syskit
                         model: orogen_model_from_name(orogen_model_name)
                     )
 
-                    async_task = TaskContext.discover(task)
+                    async_task = TaskContext.discover(
+                        task, port_read_manager: @port_read_manager
+                    )
 
                     [ior, async_task]
                 rescue StandardError => e

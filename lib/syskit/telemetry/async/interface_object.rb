@@ -18,16 +18,33 @@ module Syskit
 
             # Callback-based API to the orocos.rb property API
             class InterfaceObject < InterfaceObjectHooks
+                # @return [TaskContext] the underlying task context
+                attr_reader :task_context
                 # @return [String] the property name
                 attr_reader :name
                 # @return [Class<Typelib::Type>] the property type
                 attr_reader :type
 
-                def initialize(name, type)
+                # Hash code
+                #
+                # Two interface objects are considered the same from a hash key
+                # perspective if they are of the same name, type and point to the
+                # same remote task, even if they are two different objects
+                attr_reader :hash
+
+                def initialize(task_context, name, type)
                     super()
 
+                    @task_context = task_context
+                    @hash = [task_context, self.class, name].hash
                     @name = name
                     @type = type
+                end
+
+                def eql?(other)
+                    other.task_context.eql?(task_context) &&
+                        other.name == name &&
+                        other.class == self.class
                 end
 
                 def reachable?
@@ -47,9 +64,10 @@ module Syskit
                 end
 
                 def on_reachable(&block)
-                    super
+                    disposable = super
 
-                    block.call if @raw_object
+                    block.call(@raw_object) if @raw_object
+                    disposable
                 end
 
                 def once_on_reachable(&block)
@@ -71,6 +89,14 @@ module Syskit
 
                 def type_name
                     @type.name
+                end
+
+                def to_proxy
+                    self
+                end
+
+                def full_name
+                    "#{@task_context.name}.#{@name}"
                 end
             end
         end

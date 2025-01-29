@@ -28,6 +28,14 @@ def minitest_set_options(test_task, name)
     test_task.options = "#{TESTOPTS} #{minitest_args} -- --simplecov-name=#{name}"
 end
 
+Rake::TestTask.new("test:telemetry") do |t|
+    t.libs << "."
+    t.libs << "lib"
+    minitest_set_options(t, "telemetry")
+    t.test_files = FileList["test/telemetry/**/test_*.rb"]
+    t.warning = false
+end
+
 Rake::TestTask.new("test:core") do |t|
     t.libs << "."
     t.libs << "lib"
@@ -37,6 +45,7 @@ Rake::TestTask.new("test:core") do |t|
                  .exclude("test/ros/**/*.rb")
                  .exclude("test/gui/**/*.rb")
                  .exclude("test/live/**/*.rb")
+                 .exclude("test/telemetry/**/*.rb")
     t.test_files = test_files
     t.warning = false
 end
@@ -57,7 +66,7 @@ Rake::TestTask.new("test:gui") do |t|
     t.warning = false
 end
 
-task "test" => ["test:gui", "test:core", "test:live"]
+task "test" => ["test:gui", "test:core", "test:live", "test:telemetry"]
 
 task "rubocop" do
     raise "rubocop failed" unless system(ENV["RUBOCOP_CMD"] || "rubocop")
