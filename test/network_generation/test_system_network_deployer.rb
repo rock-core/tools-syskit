@@ -450,7 +450,7 @@ module Syskit
                         task_m = Syskit::TaskContext.new_submodel
                         deployment_m.orogen_model.task "task", task_m.orogen_model
                         plan.add(task_m.new)
-                        assert_raises(MissingDeployments) do
+                        assert_raises(MissingDeployment) do
                             deployer.validate_deployed_network
                         end
                     end
@@ -463,19 +463,20 @@ module Syskit
                         deployer.default_deployment_group
                                 .use_deployment(d0 => "test1_")
 
-                        plan.add(task = task_m.new)
-                        e = assert_raises(MissingDeployments) do
+                        plan.add(task_m.new)
+                        e = assert_raises(MissingDeployment) do
                             deployer.validate_deployed_network
                         end
 
-                        info = e.tasks[task]
-                        assert_equal [], info[0] # parents
-                        candidates = info[1]
+                        parents = e.parents
+                        assert_equal [], parents
+                        candidates = e.candidates
+                        hints = e.deployment_hints
                         assert_equal [d0, d0],
                                      candidates.map { |c, _| c.configured_deployment.model }
                         assert_equal %w[test0_task0 test1_task0],
                                      candidates.map { |c, _| c.mapped_task_name }
-                        assert_equal Set[], info[2]
+                        assert_equal Set[], hints
                     end
 
                     it "snapshots the task's parents at the exception point" do
@@ -487,13 +488,14 @@ module Syskit
                                 .use_deployment(d0 => "test1_")
 
                         plan.add(parent = task_m.new)
-                        parent.depends_on(task = task_m.new, role: "test")
-                        e = assert_raises(MissingDeployments) do
+                        parent.depends_on(task_m.new, role: "test")
+                        e = assert_raises(MissingDeployment) do
                             deployer.validate_deployed_network
                         end
 
-                        info = e.tasks[task]
-                        assert_equal [["test", parent]], info[0] # parents
+                        parents = e.parents
+                        assert_equal [["test", parent]], parents
+                    end
                     end
                 end
 
@@ -512,8 +514,8 @@ module Syskit
                             deployer.validate_deployed_network
                         end
                         assert_equal(
-                            { task => ["something"] },
-                            e.missing_sections_by_task
+                            ["something"],
+                            e.missing_sections
                         )
                     end
 

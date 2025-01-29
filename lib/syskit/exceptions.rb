@@ -353,22 +353,20 @@ module Syskit
     # Exception raised when we could not find devices to allocate for tasks
     # that are device drivers
     class DeviceAllocationFailed < SpecError
-        # The set of tasks that failed allocation
-        attr_reader :failed_tasks
+        # The task that failed allocation
+        attr_reader :failed_task
         # A task to parents mapping for tasks involved in this error, at the
         # time of the exception creation
         attr_reader :task_parents
         # Existing candidates for this device
         attr_reader :candidates
 
-        def initialize(plan, tasks)
-            @failed_tasks = tasks.dup
+        def initialize(plan, task)
+            @failed_task = task
             @candidates = {}
             @task_parents = {}
 
-            tasks.each do |abstract_task|
-                resolve_device_task(plan, abstract_task)
-            end
+            resolve_device_task(plan, task)
         end
 
         def resolve_device_task(plan, abstract_task)
@@ -383,7 +381,7 @@ module Syskit
                     all_tasks |= candidates[srv]
                 end
             end
-            self.candidates[abstract_task] = candidates
+            @candidates = candidates
 
             all_tasks.each do |t|
                 next if task_parents.key?(t)
@@ -399,35 +397,33 @@ module Syskit
         end
 
         def pretty_print(pp)
-            pp.text "cannot find a device to tie to #{failed_tasks.size} task(s)"
+            pp.text "cannot find a device to tie to a task"
 
-            failed_tasks.each do |task|
-                parents = task_parents[task]
-                candidates = self.candidates[task]
+            parents = task_parents[failed_task]
+            candidates = self.candidates
+
+            pp.breakable
+            pp.text "for #{failed_task.to_s.gsub('Syskit::', '')}"
+            pp.nest(2) do
+                unless parents.empty?
+                    pp.breakable
+                    pp.seplist(parents) do |parent|
+                        role, parent = parent
+                        pp.text "child #{role.to_a.first} of #{parent.to_s.gsub('Syskit::', '')}"
+                    end
+                end
 
                 pp.breakable
-                pp.text "for #{task.to_s.gsub('Syskit::', '')}"
-                pp.nest(2) do
-                    unless parents.empty?
-                        pp.breakable
-                        pp.seplist(parents) do |parent|
-                            role, parent = parent
-                            pp.text "child #{role.to_a.first} of #{parent.to_s.gsub('Syskit::', '')}"
-                        end
-                    end
-
-                    pp.breakable
-                    pp.seplist(candidates) do |cand|
-                        srv, tasks = *cand
-                        if tasks.empty?
-                            pp.text "no candidates for #{srv.short_name}"
-                        else
-                            pp.text "candidates for #{srv.short_name}"
-                            pp.nest(2) do
-                                pp.breakable
-                                pp.seplist(tasks) do |cand_t|
-                                    pp.text cand_t.to_s
-                                end
+                pp.seplist(candidates) do |cand|
+                    srv, tasks = *cand
+                    if tasks.empty?
+                        pp.text "no candidates for #{srv.short_name}"
+                    else
+                        pp.text "candidates for #{srv.short_name}"
+                        pp.nest(2) do
+                            pp.breakable
+                            pp.seplist(tasks) do |cand_t|
+                                pp.text cand_t.to_s
                             end
                         end
                     end
@@ -467,122 +463,119 @@ module Syskit
     class ConflictingDeploymentAllocation < SpecError
         include Syskit::NetworkGenerationsExceptionHelpers
 
-        attr_reader :deployment_to_tasks
+        attr_reader :orocos_name
 
-        def initialize(deployment_to_tasks, toplevel_tasks_to_requirements = {})
-            @deployment_to_tasks = deployment_to_tasks
+        def initialize(orocos_name, tasks, toplevel_tasks_to_requirements = {})
+            @orocos_name = orocos_name
+            @tasks = tasks
             @toplevel_tasks_to_requirements = toplevel_tasks_to_requirements
-            @deployment_to_execution_agent = \
-                deployment_to_tasks.transform_values do |tasks|
-                    tasks.first.execution_agent
-                end
+            @agent = tasks.first.execution_agent
         end
 
         def pretty_print(pp)
-            deployment_to_tasks.each do |orocos_name, tasks|
-                agent = @deployment_to_execution_agent[orocos_name]
-                deployment_m = agent.deployed_orogen_model_by_name(orocos_name)
-                pp.text(
-                    "deployed task '#{orocos_name}' from deployment " \
-                    "'#{deployment_m.name}' defined in " \
-                    "'#{deployment_m.project.name}' on '#{agent.process_server_name}' " \
-                    "is assigned to #{tasks.size} tasks. Below is the list of " \
-                    "the dependent non-deployed actions. Right after the list " \
-                    "is a detailed explanation of why the first two tasks are not merged:"
+            deployment_m = @agent.deployed_orogen_model_by_name(orocos_name)
+            pp.text(
+                "deployed task '#{orocos_name}' from deployment " \
+                "'#{deployment_m.name}' defined in " \
+                "'#{deployment_m.project.name}' on '#{@agent.process_server_name}' " \
+                "is assigned to #{@tasks.size} tasks. Below is the list of " \
+                "the dependent non-deployed actions. Right after the list " \
+                "is a detailed explanation of why the first two tasks are not merged:"
+            )
+            @tasks.each do |t|
+                defs = find_all_related_syskit_actions(
+                    t, @toplevel_tasks_to_requirements
                 )
-                tasks.each do |t|
-                    defs = find_all_related_syskit_actions(
-                        t, @toplevel_tasks_to_requirements
-                    )
-                    print_dependent_definitions(pp, t, defs)
-                end
-                print_failed_merge_chain(pp, tasks[0], tasks[1])
+                print_dependent_definitions(pp, t, defs)
             end
+            print_failed_merge_chain(pp, @tasks[0], @tasks[1])
         end
     end
 
-    # Exception raised at the end of #resolve if some tasks do not have a
+    # Exception raised at the end of #resolve if a task does not have a
     # deployed equivalent
-    class MissingDeployments < SpecError
-        # The tasks that are not deployed, as a hash from the actual task to
+    class MissingDeployment < SpecError
+        # The tasks that is not deployed, as a hash from the actual task to
         # a set of [role_set, parent_task] pairs
         #
         # This is computed in #initialize as the dependency structure will
         # probably change afterwards
-        attr_reader :tasks
+
+        # The task that is not deployed
+        attr_reader :task
+
+        # Parent tasks of the not deployed task
+        attr_reader :parents
+        # All the available deployment candidates
+        attr_reader :candidates
+        # The deployment hints of the not deployed task
+        attr_reader :deployment_hints
 
         # Initializes this exception by providing a mapping from tasks that
-        # have no deployments to the deployment candidates
+        # have no deployments to the deployment candidates, and the specific task the
+        # error refers to.
         #
         # @param [Hash{TaskContext=>[Array<Model<Deployment>>]}] tasks_with_candidates
-        def initialize(tasks_with_candidates)
-            @tasks = {}
-            tasks_with_candidates.each do |task_to_deploy, candidates|
-                parents = task_to_deploy.dependency_context
-                candidates = candidates.map do |deployed_task, existing_tasks|
-                    existing_tasks = existing_tasks.map do |task|
-                        [task, task.dependency_context]
-                    end
-                    [deployed_task, existing_tasks]
+        def initialize(task, candidates)
+            @task = task
+            @parents = task.dependency_context
+            @candidates = candidates.map do |deployed_task, existing_tasks|
+                existing_tasks = existing_tasks.map do |task|
+                    [task, task.dependency_context]
                 end
-
-                @tasks[task_to_deploy] = [
-                    parents, candidates, task_to_deploy.deployment_hints
-                ]
+                [deployed_task, existing_tasks]
             end
+            @deployment_hints = task.deployment_hints
         end
 
         def pretty_print(pp)
-            pp.text "cannot deploy the following tasks"
-            tasks.each do |task, (parents, possible_deployments)|
+            pp.text "cannot deploy the following task"
+            pp.breakable
+            pp.text "#{task} (#{task.orogen_model.name})"
+            pp.nest(2) do
                 pp.breakable
-                pp.text "#{task} (#{task.orogen_model.name})"
-                pp.nest(2) do
-                    pp.breakable
-                    pp.seplist(parents) do |parent_task|
-                        role, parent_task = parent_task
-                        pp.text "child #{role} of #{parent_task}"
-                    end
+                pp.seplist(parents) do |parent_task|
+                    role, parent_task = parent_task
+                    pp.text "child #{role} of #{parent_task}"
                 end
             end
 
-            tasks.each do |task, (_parents, possible_deployments, deployment_hints)|
-                has_free_deployment = possible_deployments.any? { |_, existing| existing.empty? }
-                pp.breakable
-                if has_free_deployment
-                    pp.text "#{task}: multiple possible deployments, choose one with #prefer_deployed_tasks(deployed_task_name)"
-                    unless deployment_hints.empty?
-                        deployment_hints.each do |hint|
-                            pp.text "  current hints: #{deployment_hints.map(&:to_s).join(', ')}"
-                        end
-                    end
-                elsif possible_deployments.empty?
-                    pp.text "#{task}: no deployments available"
-                else
-                    pp.text "#{task}: some deployments exist, but they are already used in this network"
+            has_free_deployment = candidates.any? { |_, existing| existing.empty? }
+            pp.breakable
+            if has_free_deployment
+                pp.text "#{task}: multiple possible deployments, choose one with " \
+                        "#prefer_deployed_tasks(deployed_task_name)"
+                deployment_hints.each do |hint|
+                    pp.text "  current hints: " \
+                            "#{deployment_hints.map(&:to_s).join(', ')}"
                 end
+            elsif candidates.empty?
+                pp.text "#{task}: no deployments available"
+            else
+                pp.text "#{task}: some deployments exist, but they are already used " \
+                        "in this network"
+            end
 
-                pp.nest(2) do
-                    possible_deployments.each do |deployed_task, existing|
-                        pp.breakable
-                        process_server_name = deployed_task.configured_deployment
-                                                           .process_server_name
-                        orogen_model = deployed_task.configured_deployment
-                                                    .orogen_model
-                        pp.text(
-                            "task #{deployed_task.mapped_task_name} from deployment " \
-                            "#{orogen_model.name} defined in " \
-                            "#{orogen_model.project.name} on #{process_server_name}"
-                        )
-                        pp.nest(2) do
-                            existing.each do |task, parents|
-                                pp.breakable
-                                msg = parents.map do |parent_task|
-                                    role, parent_task = *parent_task
-                                    "child #{role} of #{parent_task}"
-                                end
-                                pp.text "already used by #{task}: #{msg.join(', ')}"
+            pp.nest(2) do
+                candidates.each do |deployed_task, existing|
+                    pp.breakable
+                    process_server_name = deployed_task.configured_deployment
+                                                       .process_server_name
+                    orogen_model = deployed_task.configured_deployment
+                                                .orogen_model
+                    pp.text(
+                        "task #{deployed_task.mapped_task_name} from deployment " \
+                        "#{orogen_model.name} defined in " \
+                        "#{orogen_model.project.name} on #{process_server_name}"
+                    )
+                    pp.nest(2) do
+                        existing.each do |task, parents|
+                            pp.breakable
+                            msg = parents.map do |parent_task|
+                                role, parent_task = *parent_task
+                                "child #{role} of #{parent_task}"
                             end
+                            pp.text "already used by #{task}: #{msg.join(', ')}"
                         end
                     end
                 end
@@ -590,24 +583,25 @@ module Syskit
         end
     end
 
-    # Exception raised at the end of #resolve if some tasks are referring to non-existing
-    # configurations
+    # Exception raised at the end of #resolve if a task is referring to non-existing
+    # configuration
     class MissingConfigurationSection < SpecError
-        # Association of tasks and the sections that are missing
-        attr_reader :missing_sections_by_task
+        # The sections that are missing
+        attr_reader :missing_sections
+        # The task with a missing configuration section
+        attr_reader :task
 
-        def initialize(missing_sections_by_task)
-            @missing_sections_by_task = missing_sections_by_task
+        def initialize(task, missing_sections)
+            @task = task
+            @missing_sections = missing_sections
         end
 
         def pretty_print(pp)
             pp.text "the following configuration sections are used but do not exist"
-            @missing_sections_by_task.each do |task, sections|
-                pp.breakable
-                pp.text "'#{sections.join('\', \'')}', in use by:"
-                pp.breakable
-                pp.text "  #{task} (#{task.orogen_model.name})"
-            end
+            pp.breakable
+            pp.text "'#{missing_sections.join('\', \'')}', in use by:"
+            pp.breakable
+            pp.text "  #{task} (#{task.orogen_model.name})"
         end
     end
 

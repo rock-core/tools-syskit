@@ -210,7 +210,7 @@ module Syskit
 
                         local_net_gen.merge_solver
                                      .merge_task_contexts_with_same_agent = true
-                        e = assert_raises(MissingDeployments) do
+                        e = assert_raises(MissingDeployment) do
                             local_net_gen.compute_system_network(
                                 [task_m.to_instance_requirements,
                                  task_m.to_instance_requirements
@@ -218,8 +218,8 @@ module Syskit
                                 validate_deployed_network: true
                             )
                         end
-
-                        assert_equal 1, e.tasks.size
+                    end
+                end
                     end
                 end
             end

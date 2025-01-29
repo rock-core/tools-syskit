@@ -121,9 +121,11 @@ module Syskit
                 assert requirement_task.success?
             end
 
-            it "applies the computed network and emits the planning task's failed event if it raises" do
+            it "applies the computed network and emits the planning task's failed " \
+               "event if it raises" do
                 task_m = TaskContext.new_submodel
-                requirement_task = plan.add_permanent_task(task_m.to_instance_requirements.as_plan)
+                requirement_task =
+                    plan.add_permanent_task(task_m.to_instance_requirements.as_plan)
                 requirement_task = requirement_task.planning_task
                 execute { requirement_task.start! }
                 execute { Runtime.apply_requirement_modifications(plan) }
@@ -131,8 +133,12 @@ module Syskit
                 expect_execution { Runtime.apply_requirement_modifications(plan) }
                     .to { have_error_matching Roby::PlanningFailedError }
                 assert requirement_task.failed?
-                assert_kind_of Syskit::MissingDeployments, requirement_task.failed_event.last.context.first
-                assert_exception_can_be_pretty_printed(requirement_task.failed_event.last.context.first)
+                exception = requirement_task.failed_event.last.context.first
+                assert_kind_of Syskit::MissingDeployment, exception
+                assert_exception_can_be_pretty_printed(
+                    requirement_task.failed_event.last.context.first
+                )
+            end
             end
 
             def assert_resolution_cancelled # rubocop:disable Metrics/AbcSize
