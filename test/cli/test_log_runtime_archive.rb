@@ -629,9 +629,12 @@ module Syskit
                     end
 
                     it "does not remove the source file if the transfer failed" do
+                        result = RobyApp::LogTransferServer::LogUploadState::Result.new(
+                            "/PATH", false, "message"
+                        )
                         flexmock(LogRuntimeArchive)
                             .should_receive(:transfer_file)
-                            .and_return(flexmock(success?: false))
+                            .and_return(result)
                         results = LogRuntimeArchive.transfer_dataset(
                             @dataset, @params, @root, full: true
                         )
