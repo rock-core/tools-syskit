@@ -151,7 +151,7 @@ module Syskit
                 archiver = make_archiver(source_dir)
 
                 source_dir.children.select(&:directory?).sort_by(&:mtime).each do |child|
-                    archiver.ensure_free_space(
+                    break if archiver.ensure_free_space(
                         options[:free_space_low_limit] * 1_000_000,
                         options[:free_space_freed_limit] * 1_000_000,
                         directory: (source_dir / child)

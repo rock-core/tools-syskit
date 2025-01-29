@@ -668,7 +668,7 @@ module Syskit
                 it "does nothing if there is enough free space" do
                     mock_available_space(2)
                     mock_mtime
-                    @archiver.ensure_free_space(1, 10)
+                    assert @archiver.ensure_free_space(1, 10)
                     assert_deleted_files([])
                 end
 
@@ -678,7 +678,7 @@ module Syskit
                     mock_available_space(0.5)
                     mock_mtime
 
-                    @archiver.ensure_free_space(1, 10)
+                    assert @archiver.ensure_free_space(1, 10)
                     assert_deleted_files([0, 1, 2, 3])
                 end
 
@@ -689,7 +689,7 @@ module Syskit
                     mock_available_space(0.5, directory: different_dir)
                     mock_mtime(directory: different_dir)
 
-                    @archiver.ensure_free_space(1, 10, directory: different_dir)
+                    assert @archiver.ensure_free_space(1, 10, directory: different_dir)
                     assert_deleted_files([0, 1, 2, 3], directory: different_dir)
                 end
 
@@ -700,7 +700,7 @@ module Syskit
                     mock_available_space(0.5, directory: different_dir)
                     mock_mtime(directory: different_dir, reverse_alphabetical: true)
 
-                    @archiver.ensure_free_space(1, 10, directory: different_dir)
+                    assert @archiver.ensure_free_space(1, 10, directory: different_dir)
                     assert_deleted_files([8, 9, 10], directory: different_dir)
                 end
 
@@ -711,7 +711,7 @@ module Syskit
                     mock_available_space(0.5)
                     mock_mtime
 
-                    @archiver.ensure_free_space(1, 15)
+                    refute @archiver.ensure_free_space(1, 15)
                     assert_deleted_files([0, 1, 2, 3, 4, 5, 6, 7, 8, 9])
                 end
 

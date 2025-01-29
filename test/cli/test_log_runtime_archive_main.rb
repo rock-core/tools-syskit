@@ -246,13 +246,16 @@ module Syskit
                     size_files = [6, 2, 1, 6, 7, 10, 3, 5, 8, 9]
                     mock_files_size(size_files, directory: @sub_directory)
                     mock_files_size(size_files, directory: @sub_directory2)
-                    mock_available_space(0.5, directory: @sub_directory)
-                    mock_available_space(0.5, directory: @sub_directory2)
+                    mock_available_space(0, directory: @sub_directory)
+                    mock_available_space(100.5, directory: @sub_directory2)
                     mock_mtime(directory: @sub_directory)
                     mock_mtime(directory: @sub_directory2)
+                    mock_mtime(directory: @directory)
 
-                    call_ensure_free_space(@directory, 1, 10)
-                    assert_deleted_files([0, 1, 2, 3], directory: @sub_directory)
+                    call_ensure_free_space(@directory, 101, 110)
+                    assert_deleted_files(
+                        [0, 1, 2, 3, 4, 5, 6, 7, 8, 9], directory: @sub_directory
+                    )
                     assert_deleted_files([0, 1, 2, 3], directory: @sub_directory2)
                 end
 
@@ -262,21 +265,14 @@ module Syskit
                     mock_files_size(size_files, directory: @sub_directory2)
                     mock_available_space(0.5, directory: @sub_directory)
                     mock_available_space(0.5, directory: @sub_directory2)
+                    mock_mtime(directory: @sub_directory)
+                    mock_mtime(directory: @sub_directory2)
                     mock_mtime(directory: @directory, reverse_alphabetical: true)
 
-                    flexmock_m = flexmock(LogRuntimeArchive)
-
-                    flexmock_m
-                        .new_instances
-                        .should_receive(:ensure_free_space)
-                        .with(1_000_000, 10_000_000, directory: @sub_directory2)
-                        .ordered
-                    flexmock_m
-                        .new_instances
-                        .should_receive(:ensure_free_space)
-                        .with(1_000_000, 10_000_000, directory: @sub_directory)
-                        .ordered
                     call_ensure_free_space(@directory, 1, 10)
+                    assert_deleted_files([0, 1, 2, 3], directory: @sub_directory2)
+                    # Does not delete any file from newest directory
+                    assert_equal 10, @sub_directory.each_child.select(&:file?).size
                 end
 
                 def call_ensure_free_space(source_dir, low_limit, freed_limit)
@@ -293,14 +289,16 @@ module Syskit
             describe "#watch_ensure_free_space" do
                 before do
                     @directory = make_tmppath
+                    @sub_directory = Pathname.new(@directory / "subdir")
+                    @sub_directory.mkdir unless @sub_directory.exist?
 
                     @mocked_files_sizes = []
-                    5.times { |i| (@directory / i.to_s).write(i.to_s) }
+                    5.times { |i| (@sub_directory / i.to_s).write(i.to_s) }
                 end
 
                 it "calls ensure free space with the specified period" do
-                    mock_files_size([], directory: @directory)
-                    mock_available_space(200, directory: @directory) # 70 MB
+                    mock_files_size([], directory: @sub_directory)
+                    mock_available_space(200, directory: @sub_directory) # 70 MB
 
                     quit = Class.new(RuntimeError)
                     called = 0

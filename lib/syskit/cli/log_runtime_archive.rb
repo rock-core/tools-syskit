@@ -82,6 +82,10 @@ module Syskit
             #   bytes, at which the archiver starts deleting the oldest log files
             # @param [integer] free_space_delete_until: post-deletion free space in bytes,
             #   at which the archiver stops deleting the oldest log files
+            #
+            # @return [Boolean] true if successfully ensured free space, meaning there is
+            # the required free space, false if deleting the files in this directory was
+            # not enough to free up the required space
             def ensure_free_space(
                 free_space_low_limit, free_space_delete_until, directory: @target_dir
             )
@@ -94,14 +98,14 @@ module Syskit
                 stat = Sys::Filesystem.stat(directory)
                 available_space = stat.bytes_available
 
-                return if available_space > free_space_low_limit
+                return true if available_space > free_space_low_limit
 
                 until available_space >= free_space_delete_until
                     files = directory.each_child.select(&:file?)
                     if files.empty?
                         Roby.warn "Cannot erase files: the folder is empty but the " \
                                   "available space is smaller than the threshold."
-                        break
+                        return false
                     end
 
                     removed_file = files.min_by(&:mtime)
@@ -109,6 +113,7 @@ module Syskit
                     removed_file.unlink
                     available_space += size_removed_file
                 end
+                true
             end
 
             def process_dataset(child, full:)
