@@ -324,8 +324,9 @@ module Syskit
                     # Should have of course created a new task
                     refute_equal new_cmp.test_child, cmp.test_child
                     # And the old tasks should be ready to garbage-collect
-                    assert_equal [cmp, original_task].to_set,
-                                 execute { plan.static_garbage_collect.to_set }
+                    expect_execution.garbage_collect(true).to do
+                        finalize cmp, original_task
+                    end
                 end
 
                 it "ensures that the old task gets garbage collected when child " \
@@ -355,8 +356,9 @@ module Syskit
                     assert_equal new_parent, parent
                     refute_equal new_child, child
                     # And the old tasks should be ready to garbage-collect
-                    assert_equal [child].to_set,
-                                 execute { plan.static_garbage_collect.to_set }
+                    expect_execution.garbage_collect(true).to do
+                        finalize child
+                    end
                 end
 
                 it "ensures that the old task gets garbage collected when child " \
@@ -392,8 +394,9 @@ module Syskit
                     refute_equal new_child, child
                     refute_equal new_child_task, child_task
                     # And the old tasks should be ready to garbage-collect
-                    assert_equal [child, child_task].to_set,
-                                 execute { plan.static_garbage_collect.to_set }
+                    expect_execution.garbage_collect(true).to do
+                        finalize child, child_task
+                    end
                 end
             end
 

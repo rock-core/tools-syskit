@@ -340,7 +340,10 @@ module Syskit
                         # Need to switch the planning relation as well, it is
                         # not done by #replace
                         placeholder_task.remove_planning_task req_task
-                        actual_task.add_planning_task req_task
+                        # When using Syskit, a toplevel task might have more than
+                        # one planning task - think different requirements that
+                        # resolve to the same place in the network
+                        actual_task.add_planning_task(req_task, {})
                     end
                 end
             end
