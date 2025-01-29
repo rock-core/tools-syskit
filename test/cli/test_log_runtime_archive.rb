@@ -667,6 +667,7 @@ module Syskit
 
                 it "does nothing if there is enough free space" do
                     mock_available_space(2)
+                    mock_mtime
                     @archiver.ensure_free_space(1, 10)
                     assert_deleted_files([])
                 end
@@ -675,6 +676,7 @@ module Syskit
                     size_files = [6, 2, 1, 6, 7, 10, 3, 5, 8, 9]
                     mock_files_size(size_files)
                     mock_available_space(0.5)
+                    mock_mtime
 
                     @archiver.ensure_free_space(1, 10)
                     assert_deleted_files([0, 1, 2, 3])
@@ -685,9 +687,21 @@ module Syskit
                     size_files = [6, 2, 1, 6, 7, 10, 3, 5, 8, 9]
                     mock_files_size(size_files, directory: different_dir)
                     mock_available_space(0.5, directory: different_dir)
+                    mock_mtime(directory: different_dir)
 
                     @archiver.ensure_free_space(1, 10, directory: different_dir)
                     assert_deleted_files([0, 1, 2, 3], directory: different_dir)
+                end
+
+                it "removes files based on modified timestamp" do
+                    different_dir = make_tmppath
+                    size_files = [6, 2, 1, 6, 7, 10, 3, 5, 8, 9]
+                    mock_files_size(size_files, directory: different_dir)
+                    mock_available_space(0.5, directory: different_dir)
+                    mock_mtime(directory: different_dir, reverse_alphabetical: true)
+
+                    @archiver.ensure_free_space(1, 10, directory: different_dir)
+                    assert_deleted_files([8, 9, 10], directory: different_dir)
                 end
 
                 it "stops removing files when there is no file in folder even if freed
@@ -695,6 +709,7 @@ module Syskit
                     size_files = Array.new(10, 1)
                     mock_files_size(size_files)
                     mock_available_space(0.5)
+                    mock_mtime
 
                     @archiver.ensure_free_space(1, 15)
                     assert_deleted_files([0, 1, 2, 3, 4, 5, 6, 7, 8, 9])
@@ -704,6 +719,22 @@ module Syskit
                     @mocked_files_sizes = sizes
                     @mocked_files_sizes.each_with_index do |size, i|
                         (directory / i.to_s).write(" " * size)
+                    end
+                end
+
+                # Mock the modification time of the files to be alphabetical order
+                # @param [String] directory the directory to mock the items modification
+                #   time
+                # @param [Bool] reverse_alphabetical true if use reverse alphabetical
+                #   order
+                def mock_mtime(directory: @archive_dir, reverse_alphabetical: false)
+                    items = directory.children
+                                     .select { |child| child.file? || child.directory? }
+
+                    items = items.sort_by(&:to_s)
+                    items = items.reverse if reverse_alphabetical
+                    items.each_with_index do |item, i|
+                        File.utime(i, i, item.to_s)
                     end
                 end
 

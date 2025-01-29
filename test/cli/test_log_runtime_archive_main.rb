@@ -230,24 +230,56 @@ module Syskit
             describe "#ensure_free_space" do
                 before do
                     @directory = make_tmppath
+                    @sub_directory = Pathname.new(@directory / "subdir")
+                    @sub_directory2 = Pathname.new(@directory / "subdir_2")
+                    @sub_directory.mkdir unless @sub_directory.exist?
+                    @sub_directory2.mkdir unless @sub_directory2.exist?
                     @mocked_files_sizes = []
 
-                    10.times { |i| (@directory / i.to_s).write(i.to_s) }
+                    10.times { |i| (@sub_directory / i.to_s).write(i.to_s) }
+                    10.times { |i| (@sub_directory2 / i.to_s).write(i.to_s) }
 
                     @archiver = LogRuntimeArchive.new(@directory)
                 end
 
                 it "removes enough files to reach the freed limit" do
                     size_files = [6, 2, 1, 6, 7, 10, 3, 5, 8, 9]
-                    mock_files_size(size_files, directory: @directory)
-                    mock_available_space(0.5, directory: @directory)
+                    mock_files_size(size_files, directory: @sub_directory)
+                    mock_files_size(size_files, directory: @sub_directory2)
+                    mock_available_space(0.5, directory: @sub_directory)
+                    mock_available_space(0.5, directory: @sub_directory2)
+                    mock_mtime(directory: @sub_directory)
+                    mock_mtime(directory: @sub_directory2)
 
                     call_ensure_free_space(@directory, 1, 10)
-                    assert_deleted_files([0, 1, 2, 3], directory: @directory)
+                    assert_deleted_files([0, 1, 2, 3], directory: @sub_directory)
+                    assert_deleted_files([0, 1, 2, 3], directory: @sub_directory2)
+                end
+
+                it "removes from directories based on modification time" do
+                    size_files = [6, 2, 1, 6, 7, 10, 3, 5, 8, 9]
+                    mock_files_size(size_files, directory: @sub_directory)
+                    mock_files_size(size_files, directory: @sub_directory2)
+                    mock_available_space(0.5, directory: @sub_directory)
+                    mock_available_space(0.5, directory: @sub_directory2)
+                    mock_mtime(directory: @directory, reverse_alphabetical: true)
+
+                    flexmock_m = flexmock(LogRuntimeArchive)
+
+                    flexmock_m
+                        .new_instances
+                        .should_receive(:ensure_free_space)
+                        .with(1_000_000, 10_000_000, directory: @sub_directory2)
+                        .ordered
+                    flexmock_m
+                        .new_instances
+                        .should_receive(:ensure_free_space)
+                        .with(1_000_000, 10_000_000, directory: @sub_directory)
+                        .ordered
+                    call_ensure_free_space(@directory, 1, 10)
                 end
 
                 def call_ensure_free_space(source_dir, low_limit, freed_limit)
-                    pp "source_dir #{source_dir}"
                     args = [
                         "ensure_free_space",
                         source_dir,
@@ -326,6 +358,20 @@ module Syskit
                             bytes_available: total_available_disk_space * 1e6
                         )
                     end
+            end
+
+            # Mock the modification time of the files to be alphabetical order
+            # @param [String] directory the directory to mock the items modification time
+            # @param [Bool] reverse_alphabetical true if use reverse alphabetical order
+            def mock_mtime(directory: @archive_dir, reverse_alphabetical: false)
+                items = directory.children
+                                 .select { |child| child.file? || child.directory? }
+
+                items = items.sort_by(&:to_s)
+                items = items.reverse if reverse_alphabetical
+                items.each_with_index do |item, i|
+                    File.utime(i, i, item.to_s)
+                end
             end
 
             def assert_deleted_files(deleted_files, directory: @archive_dir)

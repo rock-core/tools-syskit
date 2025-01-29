@@ -104,7 +104,7 @@ module Syskit
                         break
                     end
 
-                    removed_file = files.min
+                    removed_file = files.min_by(&:mtime)
                     size_removed_file = removed_file.size
                     removed_file.unlink
                     available_space += size_removed_file
