@@ -48,7 +48,6 @@ module Syskit
             root = new_spec.create_proxy_task
             planner = new(**arguments)
             planner.requirements = new_spec
-            root.should_start_after(planner)
             planner.schedule_as(root)
             root.planned_by(planner)
             root
