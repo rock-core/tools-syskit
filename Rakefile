@@ -28,18 +28,12 @@ def minitest_set_options(test_task, name)
     test_task.options = "#{TESTOPTS} #{minitest_args} -- --simplecov-name=#{name}"
 end
 
-def core(early_deploy: false)
-    s = ":no-early-deploy"
-    if early_deploy
-        s = ":early-deploy"
-        early_deploy_setup = ["test/features/early_deploy.rb"]
-    end
-
-    Rake::TestTask.new("test:core#{s}") do |t|
+def core_task(name, files_setup)
+    Rake::TestTask.new("test:core#{name}") do |t|
         t.libs << "."
         t.libs << "lib"
         minitest_set_options(t, "core")
-        test_files = FileList["test/**/test_*.rb", *early_deploy_setup]
+        test_files = FileList["test/**/test_*.rb", *files_setup]
         test_files = test_files
                      .exclude("test/ros/**/*.rb")
                      .exclude("test/gui/**/*.rb")
@@ -48,6 +42,23 @@ def core(early_deploy: false)
         t.test_files = test_files
         t.warning = false
     end
+end
+
+def core(early_deploy: false, capture_errors_during_network_resolution: false,
+    all_features: false)
+    s = ":no-features"
+    if capture_errors_during_network_resolution
+        s = ":capture-errors"
+        files_setup = ["test/features/capture_errors.rb"]
+    elsif early_deploy
+        s = ":early-deploy"
+        files_setup = ["test/features/early_deploy.rb"]
+    elsif all_features
+        s = ":all-features"
+        files_setup = ["test/features/all_features.rb"]
+    end
+
+    core_task(s, files_setup)
 end
 
 Rake::TestTask.new("test:telemetry") do |t|
@@ -78,9 +89,12 @@ Rake::TestTask.new("test:gui") do |t|
 end
 
 core early_deploy: true
+core capture_errors_during_network_resolution: true
+core all_features: true
 core
 desc "Run core library tests, excluding GUI and live tests"
-task "test:core" => ["test:core:no-early-deploy", "test:core:early-deploy"]
+task "test:core" => %w[test:core:no-features test:core:early-deploy
+                       test:core:capture-errors test:core:all-features]
 
 desc "Run all tests"
 task "test" => ["test:gui", "test:core", "test:live", "test:telemetry"]

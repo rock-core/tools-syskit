@@ -134,10 +134,19 @@ module Syskit
                 @early_deploy
             end
 
+            # Whether to capture errors during network resolution instead of raising them.
+            def capture_errors_during_network_resolution?
+                @capture_errors_during_network_resolution
+            end
+
             # Controls where the deployment stage happens
             #
             # @see early_deploy?
             attr_writer :early_deploy
+
+            # Controls whether to capture errors instead of raising them during network
+            # resolution
+            attr_writer :capture_errors_during_network_resolution
 
             # Controls whether the orogen types should be exported as Ruby
             # constants
@@ -173,6 +182,7 @@ module Syskit
                 @register_self_on_name_server = (ENV["SYSKIT_REGISTER_SELF_ON_NAME_SERVER"] != "0")
                 @strict_model_for = false
                 @early_deploy = false
+                @capture_errors_during_network_resolution = false
 
                 @log_rotation_period = nil
                 @log_transfer = LogTransferManager::Configuration.new(
