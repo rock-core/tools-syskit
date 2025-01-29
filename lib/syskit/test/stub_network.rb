@@ -105,10 +105,13 @@ module Syskit
                 trsc.static_garbage_collect(
                     protected_roots: trsc_new_roots | trsc_other_tasks
                 )
+                error_handler = NetworkGeneration::RaiseErrorHandler.new
                 NetworkGeneration::SystemNetworkGenerator
                     .verify_task_allocation(
-                        trsc, components: trsc_tasks.find_all(&:plan)
+                        trsc, error_handler: error_handler,
+                              components: trsc_tasks.find_all(&:plan)
                     )
+
                 mapped_tasks
             end
 

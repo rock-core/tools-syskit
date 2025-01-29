@@ -341,6 +341,9 @@ module Syskit
                 syskit_run_deploy_in_bulk(
                     actions, compute_policies: false, compute_deployments: false
                 )
+            rescue NetworkGeneration::PartialNetworkResolution => e
+                raise ProfileAssertionFailed.new("configure together", actions,
+                                                 e.original_exceptions)
             rescue Minitest::Assertion, StandardError => e
                 raise ProfileAssertionFailed.new("instanciate together", actions, e),
                       e.message, e.backtrace
@@ -439,6 +442,9 @@ module Syskit
                 syskit_run_deploy_in_bulk(
                     actions, compute_policies: true, compute_deployments: true
                 )
+            rescue NetworkGeneration::PartialNetworkResolution => e
+                raise ProfileAssertionFailed.new("configure together", actions,
+                                                 e.original_exceptions)
             rescue Minitest::Assertion, StandardError => e
                 raise ProfileAssertionFailed.new("deploy together", actions, e),
                       e.message, e.backtrace

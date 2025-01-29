@@ -233,13 +233,23 @@ module Syskit
                     assert_equal "test_level", task.orocos_name
                 end
 
-                it "on error, it changes the planning failed and mission failed " \
+                it "on error, it filters out the planning failed and mission failed " \
                    "error caused by itself" do
                     task_m = Syskit::TaskContext.new_submodel
                     assert_raises(Syskit::MissingDeployment) do
                         syskit_deploy(task_m)
                     end
                 end
+
+                it "when capturing errors, it changes the planning failed error into a" \
+                   "PartialNetworkResolution" do
+                    before_flag = Syskit.conf.capture_errors_during_network_resolution?
+                    Syskit.conf.capture_errors_during_network_resolution = true
+                    task_m = Syskit::TaskContext.new_submodel
+                    assert_raises(Syskit::NetworkGeneration::PartialNetworkResolution) do
+                        syskit_deploy(task_m)
+                    end
+                    Syskit.conf.capture_errors_during_network_resolution = before_flag
                 end
             end
 
@@ -377,7 +387,7 @@ module Syskit
                 end
 
                 it "fails if the plan can't be deployed" do
-                    plan.add_mission_task(@cmp_m.as_plan)
+                    plan.add_mission_task(@cmp_m.use("srv" => @task_m).as_plan)
                     assert_raises(Roby::Test::ExecutionExpectations::UnexpectedErrors) do
                         deploy_current_plan
                     end
