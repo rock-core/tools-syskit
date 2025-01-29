@@ -220,6 +220,251 @@ module Syskit
                         end
                     end
                 end
+
+                describe "resolve_system_network with error capture" do
+                    attr_reader :error_handler, :generator
+
+                    before do
+                        Syskit.conf.capture_errors_during_network_resolution = true
+                    end
+
+                    after do
+                        Syskit.conf.capture_errors_during_network_resolution = false
+                    end
+
+                    it "capture errors regarding device allocation conflicts" do
+                        device_m = Device.new_submodel(name: "D")
+                        task_m = TaskContext.new_submodel(name: "T")
+                        task_m.argument :arg
+                        task_m.driver_for device_m, as: "test"
+                        robot = Robot::RobotDefinition.new
+                        robot.device device_m, as: "test"
+                        cmp_m = Syskit::Composition.new_submodel
+                        cmp_m.add task_m.new(arg: 1), as: "t1"
+                        cmp_m.add task_m.new(arg: 2), as: "t2"
+                        t1 = cmp_m
+                             .use("t1" => task_m.new(arg: 1, test_dev: robot.test_dev),
+                                  "t2" => task_m.new(arg: 2, test_dev: robot.test_dev))
+                             .as_plan
+                        plan.add(t1)
+                        generator = make_generator
+                        requirement_tasks = [t1.planning_task]
+                        toplevel_tasks, errors = resolve_system_network(requirement_tasks)
+
+                        errors = assert_relevant_errors(
+                            errors, ConflictingDeviceAllocation, size: 2
+                        )
+
+                        expected_message = <<~PP
+                            device 'test' of type D is assigned to two tasks that cannot be merged
+                            Chain 1 cannot be merged in chain 2:
+                            Chain 1:
+                              T<id:X>
+                                no owners
+                                arguments:
+                                  arg: 2,
+                                  test_dev: MasterDeviceInstance(test[D]_dev),
+                                  conf: ["default"],
+                                  read_only: false
+                            Chain 2:
+                              T<id:X>
+                                no owners
+                                arguments:
+                                  arg: 1,
+                                  test_dev: MasterDeviceInstance(test[D]_dev),
+                                  conf: ["default"],
+                                  read_only: false
+                            T<id:X>(arg: 2, conf: ["default"], read_only: false, test_dev: device(D, as: test)) is needed by the following definitions:
+                              #<Class:0xXXXXXX>.use(t1 => T<id:X>(arg: 1, conf: ["default"], read_only: false, test_dev: device(D, as: test)), t2 => T<id:X>(arg: 2, conf: ["default"], read_only: false, test_dev: device(D, as: test)))
+                            T<id:X>(arg: 1, conf: ["default"], read_only: false, test_dev: device(D, as: test)) is needed by the following definitions:
+                              #<Class:0xXXXXXX>.use(t1 => T<id:X>(arg: 1, conf: ["default"], read_only: false, test_dev: device(D, as: test)), t2 => T<id:X>(arg: 2, conf: ["default"], read_only: false, test_dev: device(D, as: test)))
+                        PP
+                        errors.each do |err|
+                            assert_exception(err, requirement_tasks.first.planned_task,
+                                             expected_message)
+                        end
+                    end
+
+                    it "capture errors regarding missing device allocation" do
+                        srv_m = Syskit::DataService.new_submodel
+                        device_m = Device.new_submodel(name: "D")
+                        device_m.provides srv_m
+
+                        task_m = TaskContext.new_submodel(name: "T")
+                        task_m.argument :arg
+                        task_m.driver_for device_m, as: "test"
+                        cmp_m = Syskit::Composition.new_submodel
+                        cmp_m.add task_m.new(arg: 1), as: "task"
+
+                        plan.add(task1 = cmp_m.as_plan)
+                        generator = make_generator
+                        requirement_tasks = [task1.planning_task]
+                        toplevel_tasks, errors = resolve_system_network(requirement_tasks)
+
+                        error =
+                            assert_relevant_errors(errors, DeviceAllocationFailed).first
+                        expected_message = <<~MSG
+                            cannot find a device to tie to a task
+                            for T<id:X>(arg: 1, conf: ["default"], read_only: false)
+                              child task of <id:X>(conf: [])
+                              no candidates for T:test
+                        MSG
+                        assert_exception(error, requirement_tasks.first.planned_task,
+                                         expected_message)
+                    end
+
+                    it "capture errors related to task allocation" do
+                        srv_m = Syskit::DataService.new_submodel
+                        cmp_m = Syskit::Composition.new_submodel
+                        cmp_m.add srv_m, as: "task"
+
+                        plan.add(task1 = cmp_m.as_plan)
+                        generator = make_generator
+                        requirement_tasks = [task1.planning_task]
+                        toplevel_tasks, errors = resolve_system_network(
+                            requirement_tasks, garbage_collect: false
+                        )
+
+                        error = assert_relevant_errors(errors, TaskAllocationFailed).first
+                        expected_message = <<~MSG
+                            cannot find a concrete implementation for 1 task(s)
+                            Models::Placeholder<#<#<Class:0xXXXXXX>:0xXXXXXX>><id:X>()
+                              no candidates
+                              child task of <id:X>(conf: [])
+                        MSG
+                        assert_exception(error, requirement_tasks.first.planned_task,
+                                         expected_message)
+                    end
+
+                    it "capture errors related to missing deployments" do
+                        skip unless Syskit.conf.early_deploy?
+
+                        task_m = Syskit::TaskContext.new_submodel(name: "T")
+                        task_m.argument :arg
+
+                        cmp_m = Syskit::Composition.new_submodel
+                        cmp_m.add task_m.new(arg: 1), as: "task"
+
+                        plan.add(task1 = cmp_m.as_plan)
+                        generator = make_generator
+
+                        generator.merge_solver
+                                 .merge_task_contexts_with_same_agent = true
+                        requirement_tasks = [task1.planning_task]
+                        toplevel_tasks, errors = resolve_system_network(requirement_tasks)
+
+                        expected_message = <<~MSG
+                            cannot deploy the following task
+                            T<id:X>(arg: 1, conf: ["default"], read_only: false) ()
+                              child task of <id:X>(conf: [])
+                            T<id:X>(arg: 1, conf: ["default"], read_only: false): no deployments available
+                        MSG
+                        error = assert_relevant_errors(errors, MissingDeployment).first
+                        assert_exception(error, requirement_tasks.first.planned_task,
+                                         expected_message)
+                    end
+
+                    it "capture errors related to conflicting deployment allocations" do
+                        skip unless Syskit.conf.early_deploy?
+
+                        task_m = Syskit::TaskContext.new_submodel(name: "T")
+                        task_m.argument :arg
+
+                        cmp_m = Syskit::Composition.new_submodel
+                        cmp_m.add task_m, as: "task"
+
+                        syskit_stub_configured_deployment(task_m, "task1")
+
+                        task1 = cmp_m.use("task" => task_m.with_arguments(arg: 1)).as_plan
+                        task2 = cmp_m.use("task" => task_m.with_arguments(arg: 2)).as_plan
+                        plan.add(task1)
+                        plan.add(task2)
+                        generator = make_generator
+
+                        generator.merge_solver
+                                 .merge_task_contexts_with_same_agent = true
+                        requirement_tasks = [task1, task2].map(&:planning_task)
+                        toplevel_tasks, errors = resolve_system_network(requirement_tasks)
+
+                        errors = assert_relevant_errors(
+                            errors, ConflictingDeploymentAllocation, size: 2
+                        )
+
+                        expected_message = <<~MSG
+                            deployed task 'task1' from deployment 'task1' defined in '' on 'stubs' is assigned to 2 tasks. Below is the list of the dependent non-deployed actions. Right after the list is a detailed explanation of why the first two tasks are not merged:
+                            Chain 1 cannot be merged in chain 2:
+                            Chain 1:
+                              T<id:X>
+                                no owners
+                                arguments:
+                                  orocos_name: "task1",
+                                  read_only: false,
+                                  conf: ["default"],
+                                  arg: 1
+                            Chain 2:
+                              T<id:X>
+                                no owners
+                                arguments:
+                                  orocos_name: "task1",
+                                  read_only: false,
+                                  conf: ["default"],
+                                  arg: 2
+                        MSG
+                        errors.zip(requirement_tasks).each do |error, task|
+                            assert_exception(error, task.planned_task, expected_message)
+                        end
+                    end
+
+                    def assert_exception(error, expected_task, expected_message)
+                        assert_equal expected_task, error.planned_task
+
+                        exception = error.original_exception
+                        formatted = PP.pp(exception, +"")
+                        assert_equal expected_message,
+                                     formatted.gsub(/<id:\d+>/, "<id:X>")
+                                              .gsub(/Class:0x[0-9a-f]+>:0x[0-9a-f]+>/,
+                                                    "Class:0xXXXXXX>:0xXXXXXX>")
+                                              .gsub(/Class:0x[0-9a-f]+/, "Class:0xXXXXXX")
+                    end
+
+                    def resolve_system_network(requirement_tasks, garbage_collect: true)
+                        instance_requirements = requirement_tasks.map(&:requirements)
+                        toplevel_tasks, errors = execute do
+                            toplevel_tasks = generator.instanciate_system_network(
+                                instance_requirements
+                            )
+                            generator.resolve_system_network(
+                                garbage_collect: garbage_collect
+                            )
+                            required_instances =
+                                Hash[requirement_tasks.zip(toplevel_tasks)]
+                            errors = error_handler.process_failures(
+                                required_instances, cleanup_failed_tasks: true
+                            )
+                            [toplevel_tasks, errors]
+                        end
+                    end
+
+                    def assert_relevant_errors(errors, error_type, size: 1)
+                        errors = errors.find_all do |e|
+                            e.original_exception.kind_of? error_type
+                        end
+                        assert_equal size, errors.size
+                        errors
+                    end
+
+                    def make_generator
+                        work_plan = Roby::Transaction.new(plan)
+                        @merge_solver = MergeSolver.new(work_plan)
+                        @error_handler =
+                            ResolutionErrorHandler.new(work_plan, @merge_solver)
+                        @generator = SystemNetworkGenerator.new(
+                            work_plan,
+                            error_handler: error_handler,
+                            merge_solver: @merge_solver,
+                            early_deploy: Syskit.conf.early_deploy?,
+                            default_deployment_group: default_deployment_group
+                        )
                     end
                 end
             end

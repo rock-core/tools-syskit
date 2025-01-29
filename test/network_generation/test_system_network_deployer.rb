@@ -496,6 +496,24 @@ module Syskit
                         parents = e.parents
                         assert_equal [["test", parent]], parents
                     end
+
+                    it "capture errors instead of raising them" do
+                        error_handler = ResolutionErrorHandler.new(
+                            deployer.plan, deployer.merge_solver
+                        )
+                        task_m = Syskit::TaskContext.new_submodel
+                        d0 = syskit_stub_deployment_model task_m, "task0"
+                        deployer.default_deployment_group
+                                .use_deployment(d0 => "test0_")
+                        deployer.default_deployment_group
+                                .use_deployment(d0 => "test1_")
+
+                        plan.add(parent = task_m.new)
+                        parent.depends_on(task_m.new, role: "test")
+                        deployer.validate_deployed_network(error_handler: error_handler)
+                        assert error_handler.resolution_failures.any? do |f|
+                            f.original_exception.kind_of? MissingDeployment
+                        end
                     end
                 end
 
@@ -538,6 +556,25 @@ module Syskit
                               #{task} (#{task.orogen_model.name})
                         MESSAGE
                         assert_equal expected, PP.pp(e, +"")
+                    end
+
+                    it "capture errors instead of raising them" do
+                        error_handler = ResolutionErrorHandler.new(
+                            deployer.plan, deployer.merge_solver
+                        )
+                        task_m = Syskit::TaskContext.new_submodel
+                        deployment_m.orogen_model.task "task", task_m.orogen_model
+                        plan.add(
+                            deployment = deployment_m.new(
+                                name_mappings: { "task" => "task" }
+                            )
+                        )
+                        plan.add(task = deployment.task("task"))
+                        task.conf = %w[default something]
+                        deployer.validate_deployed_network(error_handler: error_handler)
+                        assert error_handler.resolution_failures.any? do |f|
+                            f.original_exception.kind_of? MissingConfigurationSection
+                        end
                     end
                 end
             end

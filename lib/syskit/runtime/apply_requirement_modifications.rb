@@ -102,14 +102,18 @@ module Syskit
                     find_tasks(Syskit::InstanceRequirementsTask).running
 
                 begin
-                    return unless syskit_current_resolution.apply
+                    resolution_apply_result = syskit_current_resolution.apply
+                    return unless resolution_apply_result.fulfilled
                 ensure
                     syskit_current_resolution_keepalive.discard_transaction
                     @syskit_current_resolution = nil
                 end
 
-                running_requirement_tasks.each do |t|
+                resolution_apply_result.instances.each_key do |t|
                     t.success_event.emit
+                end
+                resolution_apply_result.errors.group_by(&:planning_task).each do |task, e|
+                    task.failed_event.emit e.flat_map(&:original_exception)
                 end
                 nil
             rescue ::Exception => e # rubocop:disable Lint/RescueException

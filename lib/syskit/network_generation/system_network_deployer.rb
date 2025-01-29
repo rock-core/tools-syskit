@@ -39,7 +39,6 @@ module Syskit
                 event_logger: plan.event_logger,
                 merge_solver: MergeSolver.new(plan),
                 default_deployment_group: Syskit.conf.deployment_group)
-
                 @plan = plan
                 @event_logger = event_logger
                 @merge_solver = merge_solver
@@ -56,7 +55,8 @@ module Syskit
             #   will run on the generated network
             # @return [Set] the set of tasks for which the deployer could
             #   not find a deployment
-            def deploy(validate: true, reuse_deployments: false, deployment_tasks: {})
+            def deploy(error_handler: RaiseErrorHandler.new, validate: true,
+                reuse_deployments: false, deployment_tasks: {})
                 debug "Deploying the system network"
 
                 all_tasks = plan.find_local_tasks(TaskContext).to_a
@@ -68,7 +68,7 @@ module Syskit
                 log_timepoint "apply_selected_deployments"
 
                 if validate
-                    validate_deployed_network
+                    validate_deployed_network(error_handler: error_handler)
                     log_timepoint "validate_deployed_network"
                 end
 
@@ -204,24 +204,26 @@ module Syskit
             # Sanity checks to verify that the result of #deploy_system_network
             # is valid
             #
-            # @raise [MissingDeployments] if some tasks could not be deployed
-            # @raise [MissingConfigurationSection] if some configuration sections are
-            #   used but do not exist
-            def validate_deployed_network
-                verify_all_tasks_deployed
-                verify_all_configurations_exist
-            end
-
-            def verify_all_tasks_deployed
-                self.class.verify_all_tasks_deployed(plan, default_deployment_group)
+            # @return [Array<ResolutionError>] all the resolution errors of the deployed
+            #   network.
+            def validate_deployed_network(error_handler: RaiseErrorHandler.new)
+                verify_all_tasks_deployed(error_handler: error_handler)
+                verify_all_configurations_exist(error_handler: error_handler)
             end
 
             # Verifies that all tasks in the plan are deployed
             #
-            # @param [Component=>DeploymentGroup] deployment_groups which
-            #   deployment groups has been used for which task. This is used
-            #   to generate the error messages when needed.
-            def self.verify_all_tasks_deployed(plan, default_deployment_group)
+            # @return [Array<ResolutionError>] resolution errors of all the tasks that
+            #   are missing a deployment
+            def verify_all_tasks_deployed(resolution_error_handler)
+                self.class.verify_all_tasks_deployed(
+                    plan, default_deployment_group, resolution_error_handler
+                )
+            end
+
+            def self.verify_all_tasks_deployed(
+                plan, default_deployment_group, error_handler: RaiseErrorHandler.new
+            )
                 not_deployed = plan.find_local_tasks(TaskContext)
                                    .not_finished.not_abstract
                                    .find_all { |t| !t.execution_agent }
@@ -229,7 +231,9 @@ module Syskit
                 return if not_deployed.empty?
 
                 tasks_with_candidates = {}
-                not_deployed.each do |task|
+                # This is reversed to give preference to child tasks, as they contain
+                # more information about the dependency context then their parents
+                not_deployed.reverse_each do |task|
                     candidates = find_all_suitable_deployments_for(
                         default_deployment_group,
                         task
@@ -244,15 +248,21 @@ module Syskit
 
                     tasks_with_candidates[task] = candidates
                 end
-                raise MissingDeployments.new(tasks_with_candidates),
-                      "there are tasks for which it exists no deployed equivalent: " \
-                      "#{not_deployed.map { |m| "#{m}(#{m.orogen_model.name})" }}"
+                tasks_with_candidates.each do |task, candidates|
+                    message =
+                        "#{task}(#{task.orogen_model.name}) has no deployed equivalent"
+                    exception = MissingDeployment.new(task, candidates)
+                    error_handler.register_resolution_failures_from_exception(
+                        [task], exception, message
+                    )
+                end
             end
 
             # Verifies that all selected configuration sections exist
             #
-            # @raise [MissingConfigurationSection]
-            def verify_all_configurations_exist
+            # @return [Array<ResolutionError>] resolution errors of all the tasks that
+            #   are missing a configuration section
+            def verify_all_configurations_exist(error_handler: RaiseErrorHandler.new)
                 tasks = plan.find_local_tasks(TaskContext)
                             .not_finished.not_abstract
 
@@ -273,8 +283,13 @@ module Syskit
 
                 return if missing.empty?
 
-                raise MissingConfigurationSection.new(missing),
-                      "some configuration sections are used but not defined"
+                message = "some configuration sections are used but not defined"
+                missing.each do |task, sections|
+                    exception = MissingConfigurationSection.new(task, sections)
+                    error_handler.register_resolution_failures_from_exception(
+                        [task], exception, message
+                    )
+                end
             end
 
             # Try to resolve a set of deployment candidates for a given task

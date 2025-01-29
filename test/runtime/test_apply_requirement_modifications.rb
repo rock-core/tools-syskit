@@ -5,6 +5,17 @@ require "syskit/test/self"
 module Syskit
     module Runtime
         describe ".apply_requirement_modifications" do
+            before do
+                @__capture_errors_feature_flag =
+                    Syskit.conf.capture_errors_during_network_resolution?
+                Syskit.conf.capture_errors_during_network_resolution = false
+            end
+
+            after do
+                Syskit.conf.capture_errors_during_network_resolution =
+                    @__capture_errors_feature_flag
+            end
+
             it "does nothing by default" do
                 Runtime.apply_requirement_modifications(plan)
                 refute plan.syskit_current_resolution
@@ -139,6 +150,59 @@ module Syskit
                     requirement_task.failed_event.last.context.first
                 )
             end
+
+            describe "capture_errors" do
+                before do
+                    @__capture_errors_feature_flag =
+                        Syskit.conf.capture_errors_during_network_resolution?
+                    Syskit.conf.capture_errors_during_network_resolution = true
+                end
+
+                after do
+                    Syskit.conf.capture_errors_during_network_resolution =
+                        @__capture_errors_feature_flag
+                end
+
+                it "applies the computed network for the well-defined instance tasks " \
+                   "and fails with an error for badly-defined instance tasks" do
+                    task_m = TaskContext.new_submodel
+                    cmp_m = Composition.new_submodel
+                    req_task1 =
+                        plan.add_permanent_task(task_m.to_instance_requirements.as_plan)
+                    req_task2 =
+                        plan.add_permanent_task(cmp_m.to_instance_requirements.as_plan)
+                    requirement_tasks = [req_task1, req_task2].map(&:planning_task)
+                    execute do
+                        requirement_tasks.each(&:start!)
+                    end
+                    execute { Runtime.apply_requirement_modifications(plan) }
+                    plan.syskit_current_resolution.future.value
+                    expect_execution { Runtime.apply_requirement_modifications(plan) }
+                        .to { have_error_matching Roby::PlanningFailedError }
+
+                    req_task1, req_task2 = requirement_tasks
+
+                    assert req_task2.success?
+
+                    assert req_task1.failed?
+                    exceptions = req_task1.failed_event.last.context.first
+                    assert_equal 1, exceptions.size
+                    assert_kind_of Syskit::MissingDeployment, exceptions.first
+                    assert_exception_can_be_pretty_printed(exceptions.first)
+                end
+
+                it "applies the computed network and emits the planning task's success " \
+                   "event" do
+                    cmp_m = Composition.new_submodel
+                    requirement_task = cmp_m.to_instance_requirements.as_plan
+                    plan.add_permanent_task(requirement_task)
+                    requirement_task = requirement_task.planning_task
+                    execute { requirement_task.start! }
+                    execute { Runtime.apply_requirement_modifications(plan) }
+                    plan.syskit_current_resolution.future.value
+                    execute { Runtime.apply_requirement_modifications(plan) }
+                    assert requirement_task.success?
+                end
             end
 
             def assert_resolution_cancelled # rubocop:disable Metrics/AbcSize

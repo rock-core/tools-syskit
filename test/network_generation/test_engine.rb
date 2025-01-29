@@ -105,7 +105,7 @@ module Syskit
                     flexmock(requirements).should_receive(:instanciate)
                                           .and_return(instanciated_task = simple_component_model.new)
                     syskit_stub_configured_deployment(simple_component_model)
-                    mapping = syskit_engine.compute_system_network(
+                    mapping, = syskit_engine.compute_system_network(
                         [planning_task],
                         default_deployment_group: default_deployment_group
                     )
@@ -896,6 +896,96 @@ module Syskit
                         mock.should_receive(:call).never
                         plan.add_mission_task(@task_m)
                         syskit_run_planner_with_full_deployment { deploy_current_plan }
+                    end
+                end
+            end
+
+            describe "capture errors during network resolution" do
+                before do
+                    @srv_m = Syskit::DataService.new_submodel
+                    @task_m = Syskit::TaskContext.new_submodel
+                    @task_m.argument :arg
+                    @cmp_m = Syskit::Composition.new_submodel
+                    @cmp_m.add @task_m, as: "test"
+                    @cmp_m.add @srv_m, as: "other"
+                    @deployment_m = syskit_stub_configured_deployment(@task_m, "task1")
+                end
+
+                describe "#resolve_system_network" do
+                    it "capture the errors from the network generator instead of " \
+                       "raising them" do
+                        plan.add(t1 = @cmp_m.as_plan)
+                        _, errors = syskit_engine.resolve_system_network(
+                            [t1.planning_task],
+                            capture_errors_during_network_resolution: true,
+                            default_deployment_group: default_deployment_group,
+                            early_deploy: true
+                        )
+                        assert_equal 1, errors.size
+                        assert_kind_of TaskAllocationFailed,
+                                       errors.first.original_exception
+                    end
+
+                    it "capture the errors from the network deployer instead of " \
+                       "raising them" do
+                        task2_m = Syskit::TaskContext.new_submodel
+                        task2_m.provides @srv_m, as: "srv"
+                        t1 = @cmp_m.use("test" => @task_m.new(arg: 1),
+                                        "other" => task2_m.new).as_plan
+                        plan.add(t1)
+                        _, errors = syskit_engine.resolve_system_network(
+                            [t1.planning_task],
+                            capture_errors_during_network_resolution: true,
+                            default_deployment_group: default_deployment_group,
+                            early_deploy: true
+                        )
+                        assert_equal 1, errors.size
+                        assert_kind_of MissingDeployment,
+                                       errors.first.original_exception
+                    end
+
+                    it "accumulate errors from generator and deployer instead of " \
+                       "raising them" do
+                        not_deployed_task_m = Syskit::TaskContext.new_submodel
+                        not_deployed_task_m.provides @srv_m, as: "srv"
+                        @cmp_m.add @srv_m, as: "yet_another"
+
+                        t1 = @cmp_m.use("other" => not_deployed_task_m.new).as_plan
+                        plan.add(t1)
+                        _, errors = syskit_engine.resolve_system_network(
+                            [t1.planning_task],
+                            capture_errors_during_network_resolution: true,
+                            default_deployment_group: default_deployment_group,
+                            early_deploy: true
+                        )
+                        assert_equal 2, errors.size
+                        assert_kind_of TaskAllocationFailed,
+                                       errors.first.original_exception
+                        assert_kind_of MissingDeployment,
+                                       errors[1].original_exception
+                    end
+
+                    it "goes through the generation for tasks without issues even if " \
+                       "the generation fails for some of them" do
+                        task2_m = Syskit::TaskContext.new_submodel
+                        task2_m.provides @srv_m, as: "srv"
+                        syskit_stub_configured_deployment(task2_m)
+                        t1 = @cmp_m.use("test" => @task_m.new(arg: 1)).as_plan
+                        t2 = @cmp_m.use("test" => @task_m.new(arg: 1),
+                                        "other" => task2_m.new).as_plan
+                        plan.add(t1)
+                        plan.add(t2)
+                        required_instances, errors = syskit_engine.resolve_system_network(
+                            [t1.planning_task, t2.planning_task],
+                            capture_errors_during_network_resolution: true,
+                            default_deployment_group: default_deployment_group,
+                            early_deploy: true
+                        )
+                        assert_equal 1, errors.size
+                        assert_kind_of TaskAllocationFailed,
+                                       errors.first.original_exception
+
+                        assert_equal [t2.planning_task], required_instances.keys
                     end
                 end
             end

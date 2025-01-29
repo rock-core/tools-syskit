@@ -93,6 +93,7 @@ module Syskit
             def register_resolution_failures_from_exception(
                 tasks, exception, message = nil
             )
+                tasks = [tasks] unless tasks.kind_of? Array
                 tasks.each do |task|
                     failures = failures_from_exception(
                         [task], @plan, @merge_solver, exception, message

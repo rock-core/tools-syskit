@@ -16,18 +16,24 @@ module Syskit
                         :merge_solver,
                         :default_deployment_group
 
+            # The error handler to register and process resolution errors
+            attr_reader :error_handler
+
             # Indicates if deployment stage happens within network generation
             def early_deploy?
                 @early_deploy
             end
 
-            def initialize(plan,
+            def initialize(plan, # rubocop:disable Metrics/ParameterLists
                 event_logger: plan.event_logger,
                 merge_solver: MergeSolver.new(plan),
                 default_deployment_group: nil,
-                early_deploy: false)
+                early_deploy: false,
+                error_handler: RaiseErrorHandler.new)
                 if merge_solver.plan != plan
-                    raise ArgumentError, "gave #{merge_solver} as merge solver, which applies on #{merge_solver.plan}. Was expecting #{plan}"
+                    raise ArgumentError,
+                          "gave #{merge_solver} as merge solver, which applies on " \
+                          "#{merge_solver.plan}. Was expecting #{plan}"
                 end
 
                 @plan = plan
@@ -35,10 +41,12 @@ module Syskit
                 @merge_solver = merge_solver
                 @default_deployment_group = default_deployment_group
                 @early_deploy = early_deploy
+                @error_handler = error_handler
             end
 
             # Generate the network in the plan
-            # param [bool] validate_deployed_network controls whether or not the
+            #
+            # @param [bool] validate_deployed_network controls whether or not the
             # deployed network is validated, when #early_deploy? is true
             #
             # @return [Hash<Syskit::Component=>Array<InstanceRequirements>>] the
@@ -53,11 +61,13 @@ module Syskit
                 # We first generate a non-deployed network that fits all
                 # requirements.
                 log_timepoint_group "compute_system_network" do
-                    compute_system_network(instance_requirements,
-                                           garbage_collect: garbage_collect,
-                                           validate_abstract_network: validate_abstract_network,
-                                           validate_generated_network: validate_generated_network,
-                                           validate_deployed_network: validate_deployed_network)
+                    compute_system_network(
+                        instance_requirements,
+                        garbage_collect: garbage_collect,
+                        validate_abstract_network: validate_abstract_network,
+                        validate_generated_network: validate_generated_network,
+                        validate_deployed_network: validate_deployed_network
+                    )
                 end
             end
 
@@ -142,10 +152,6 @@ module Syskit
                     end
                 end
                 log_timepoint "device_allocation"
-                Engine.instanciation_postprocessing.each do |block|
-                    block.call(self, plan)
-                    log_timepoint "postprocessing:#{block}"
-                end
                 toplevel_tasks
             end
 
@@ -216,37 +222,40 @@ module Syskit
                                         deployment_tasks: deployment_tasks)
             end
 
-            # Compute in #plan the network needed to fullfill the requirements
-            #
-            # This network is neither validated nor tied to actual deployments
-            def compute_system_network(instance_requirements, garbage_collect: true,
-                validate_abstract_network: true,
-                validate_generated_network: true,
-                validate_deployed_network: true)
-
+            def instanciate_system_network(instance_requirements)
                 @toplevel_tasks = log_timepoint_group "instanciate" do
                     instanciate(instance_requirements)
                 end
-
+                Engine.instanciation_postprocessing.each do |block|
+                    block.call(self, plan)
+                    log_timepoint "postprocessing:#{block}"
+                end
                 @toplevel_instance_requirements = instance_requirements
+                @toplevel_tasks
+            end
 
+            # Compute in #plan the network needed to fullfill the requirements
+            #
+            # This network is neither validated nor tied to actual deployments
+            def resolve_system_network(error_handler: @error_handler,
+                garbage_collect: true,
+                validate_abstract_network: true,
+                validate_generated_network: true,
+                validate_deployed_network: true)
                 deployment_tasks = {}
-
                 deploy(deployment_tasks) if early_deploy?
-
                 merge_solver.merge_identical_tasks
                 log_timepoint "merge"
                 Engine.instanciated_network_postprocessing.each do |block|
                     block.call(self, plan)
                     log_timepoint "postprocessing:#{block}"
                 end
+
                 link_to_busses
                 log_timepoint "link_to_busses"
 
                 deploy(deployment_tasks) if early_deploy?
-
                 merge_solver.merge_identical_tasks
-
                 log_timepoint "merge"
 
                 self.class.remove_abstract_composition_optional_children(plan)
@@ -280,21 +289,52 @@ module Syskit
                 end
                 log_timepoint "postprocessing"
 
+                validate_network(
+                    error_handler: error_handler,
+                    validate_abstract_network: validate_abstract_network,
+                    validate_generated_network: validate_generated_network,
+                    validate_deployed_network:
+                        early_deploy? && validate_deployed_network
+                )
+                @toplevel_tasks
+            end
+
+            # Compute in #plan the network needed to fullfill the requirements
+            #
+            # This network is neither validated nor tied to actual deployments
+            def compute_system_network(instance_requirements,
+                garbage_collect: true,
+                validate_abstract_network: true,
+                validate_generated_network: true,
+                validate_deployed_network: true)
+                error_handler = RaiseErrorHandler.new
+                instanciate_system_network(instance_requirements)
+                resolve_system_network(
+                    error_handler: error_handler,
+                    garbage_collect: garbage_collect,
+                    validate_abstract_network: validate_abstract_network,
+                    validate_generated_network: validate_generated_network,
+                    validate_deployed_network: validate_deployed_network
+                )
+            end
+
+            def validate_network(error_handler: @error_handler,
+                validate_abstract_network: true,
+                validate_generated_network: true,
+                validate_deployed_network: true)
                 if validate_abstract_network
                     self.validate_abstract_network
                     log_timepoint "validate_abstract_network"
                 end
 
                 if validate_generated_network
-                    self.validate_generated_network
+                    self.validate_generated_network(error_handler: error_handler)
                     log_timepoint "validate_generated_network"
                 end
+                return unless early_deploy? && validate_deployed_network
 
-                if early_deploy? && validate_deployed_network
-                    self.validate_deployed_network
-                end
-
-                @toplevel_tasks
+                self.validate_deployed_network(error_handler: error_handler)
+                log_timepoint "validate_deployed_network"
             end
 
             def toplevel_tasks_to_requirements
@@ -304,20 +344,28 @@ module Syskit
                     .each_with_object({}) { |(t, ir), h| (h[t] ||= []) << ir }
             end
 
-            # Verifies that the task allocation is complete
+            # Verifies that the task allocation is complete. Return any
+            # resolution failure.
             #
             # @param [Roby::Plan] plan the plan on which we are working
-            # @raise [TaskAllocationFailed] if some abstract tasks are still in
-            #   the plan
+            # @param [NetworkGeneration::ResolutionErrorHandler] error_handler the error
+            #   handler object to capture or raise any exceptions
+            # @param [Array<Syskit::Component>] components the list of all the abstract
+            #   components
+            # @return [Array] the resolution failures
             def self.verify_task_allocation(
-                plan, components: plan.find_local_tasks(AbstractComponent)
+                plan, error_handler: RaiseErrorHandler.new,
+                components: plan.find_local_tasks(AbstractComponent)
             )
                 still_abstract = components.find_all(&:abstract?)
-                return if still_abstract.empty?
-
-                raise TaskAllocationFailed.new(self, still_abstract),
-                      "could not find implementation for the following abstract " \
-                      "tasks: #{still_abstract}"
+                still_abstract.each do |task|
+                    exception = TaskAllocationFailed.new(self, [task])
+                    error_handler.register_resolution_failures_from_exception(
+                        [task], exception,
+                        "could not find implementation for the following abstract " \
+                        "task: #{task}"
+                    )
+                end
             end
 
             # Verifies that there are no multiple output - single input
@@ -348,36 +396,30 @@ module Syskit
                 end
             end
 
-            # Verifies that all tasks that are device drivers have at least one
-            # device attached, and that the same device is not attached to more
-            # than one task in the plan
+            # Verifies that the same device is not attached to more than one task in the
+            # plan.
             #
-            # @param [Roby::Plan] plan the plan on which we are working
-            # @raise [DeviceAllocationFailed] if some device drivers are not
-            #   attached to any device
-            # @raise [SpecError] if some devices are assigned to more than one
-            #   task
-            def self.verify_device_allocation(plan, toplevel_tasks_to_requirements = {})
-                components = plan.find_local_tasks(Syskit::Device).to_a
-
-                # Check that all devices are properly assigned
-                missing_devices = components.find_all do |t|
-                    t.model.each_master_driver_service
-                     .any? { |srv| !t.find_device_attached_to(srv) }
-                end
-                unless missing_devices.empty?
-                    raise DeviceAllocationFailed.new(plan, missing_devices),
-                          "could not allocate devices for the following tasks: " \
-                          "#{missing_devices}"
-                end
-
+            # @param [Array<Syskit::Component>] components the list of all the abstract
+            #   components
+            # @param [Hash<Syskit::Component, Syskit::InstanceRequirementTask]
+            #   toplevel_tasks_to_requirements mappings of toplevel tasks to their
+            #   instance requirements
+            # @return [Array<InternalResolutionFailure] all resolution failures from the
+            #   components due to a conflicting device allocation
+            def self.verify_conflicting_device_allocation(
+                components, toplevel_tasks_to_requirements = {},
+                error_handler: RaiseErrorHandler.new
+            )
                 devices = {}
                 components.each do |task|
                     task.each_master_device do |dev|
                         device_name = dev.full_name
                         if (old_task = devices[device_name])
-                            raise ConflictingDeviceAllocation.new(
+                            allocation_err = ConflictingDeviceAllocation.new(
                                 dev, task, old_task, toplevel_tasks_to_requirements
+                            )
+                            error_handler.register_resolution_failures_from_exception(
+                                [task, old_task], allocation_err
                             )
                         else
                             devices[device_name] = task
@@ -386,9 +428,51 @@ module Syskit
                 end
             end
 
+            # Verifies that all tasks that are device drivers have at least one
+            # device attached, and that the same device is not attached to more
+            # than one task in the plan. Any resolution failure is stored and return.
+            #
+            # @param [Roby::Plan] plan the plan on which we are working
+            # @param [Array<Syskit::Component>] toplevel_tasks the list of all the
+            #   toplevel tasks
+            # @param [NetworkGeneration::MergeSolver] merge_solver the merge solver object
+            #    with records with the task replacements so far
+            # @param [Hash<Syskit::Component, Syskit::InstanceRequirementTask]
+            #   toplevel_tasks_to_requirements mappings of toplevel tasks to their
+            #   instance requirements
+            # @return [Array<InternalResolutionFailure] all resolution failures from the
+            #   components due to bad device allocation
+            def self.verify_device_allocation(
+                plan, toplevel_tasks_to_requirements = {},
+                error_handler: RaiseErrorHandler.new
+            )
+                components = plan.find_local_tasks(Syskit::Device).to_a
+
+                # Check that all devices are properly assigned
+                missing_devices, allocated_devices = components.partition do |t|
+                    t.model.each_master_driver_service
+                     .any? { |srv| !t.find_device_attached_to(srv) }
+                end
+                missing_devices.each do |driver_task|
+                    allocation_err = DeviceAllocationFailed.new(plan, driver_task)
+                    tasks = allocation_err.task_parents.values.flat_map do |dependency_info|
+                        dependency_info.flat_map do |parent_info|
+                            parent_info[1]
+                        end
+                    end
+                    error_handler.register_resolution_failures_from_exception(
+                        tasks, allocation_err
+                    )
+                end
+
+                verify_conflicting_device_allocation(
+                    allocated_devices, toplevel_tasks_to_requirements,
+                    error_handler: error_handler
+                )
+            end
+
             def self.verify_all_deployments_are_unique(
-                plan,
-                toplevel_tasks_to_requirements
+                plan, toplevel_tasks_to_requirements, error_handler: RaiseErrorHandler.new
             )
                 deployment_to_task_map = plan.find_local_tasks(Syskit::TaskContext)
                                              .group_by(&:orocos_name)
@@ -399,39 +483,52 @@ module Syskit
 
                 return if using_same_deployment.empty?
 
-                raise ConflictingDeploymentAllocation.new(
-                    using_same_deployment, toplevel_tasks_to_requirements
-                ), "there are deployments used multiple times"
+                using_same_deployment.each do |orocos_name, tasks|
+                    exception = ConflictingDeploymentAllocation.new(
+                        orocos_name, tasks, toplevel_tasks_to_requirements
+                    )
+                    error_handler.register_resolution_failures_from_exception(
+                        tasks, exception, "deployment used multiple times"
+                    )
+                end
             end
 
             # Validates the network generated by {#compute_system_network}
             #
             # It performs the tests that are only needed on an abstract network,
             # i.e. on a network in which some tasks are still abstract
-            def validate_abstract_network
+            def validate_abstract_network(error_handler: @error_handler)
                 self.class.verify_no_multiplexing_connections(plan)
                 super if defined? super
             end
 
             # Validates the network generated by {#compute_system_network}
-            def validate_generated_network
-                self.class.verify_task_allocation(plan)
-                self.class.verify_device_allocation(plan, toplevel_tasks_to_requirements)
-                super if defined? super
-            end
+            def validate_generated_network(error_handler: @error_handler)
+                self.class.verify_task_allocation(plan, error_handler: error_handler)
 
-            def validate_deployed_network
-                self.class.verify_all_tasks_deployed(plan, default_deployment_group)
-                self.class.verify_all_deployments_are_unique(
-                    plan, toplevel_tasks_to_requirements.dup
+                self.class.verify_device_allocation(
+                    plan, toplevel_tasks_to_requirements, error_handler: error_handler
                 )
                 super if defined? super
             end
 
-            def self.verify_all_tasks_deployed(plan, default_deployment_group)
+            def validate_deployed_network(error_handler: @error_handler)
+                self.class.verify_all_tasks_deployed(
+                    plan, default_deployment_group, error_handler: error_handler
+                )
+                self.class.verify_all_deployments_are_unique(
+                    plan, toplevel_tasks_to_requirements.dup, error_handler: error_handler
+                )
+                super if defined? super
+            end
+
+            def self.verify_all_tasks_deployed(
+                plan, default_deployment_group, error_handler: RaiseErrorHandler.new
+            )
                 SystemNetworkDeployer.verify_all_tasks_deployed(
                     plan,
-                    default_deployment_group
+                    default_deployment_group,
+                    error_handler: error_handler
                 )
             end
         end
