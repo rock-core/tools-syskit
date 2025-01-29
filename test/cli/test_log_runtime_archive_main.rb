@@ -157,6 +157,13 @@ module Syskit
                     @source_dir = make_tmppath
                     @server_params = server_params
                     @max_upload_rate = rate_mbps_to_bps(10)
+                    @ftp_params = LogRuntimeArchive::FTPParameters.new(
+                        host: @server_params[:host], port: @server_params[:port],
+                        certificate: File.read(@server_params[:certificate]),
+                        user: @server_params[:user], password: @server_params[:password],
+                        implicit_ftps: @server_params[:implicit_ftps],
+                        max_upload_rate: @max_upload_rate
+                    )
 
                     @server = call_create_server(make_tmppath, @server_params)
                 end
@@ -173,9 +180,7 @@ module Syskit
                         .new_instances
                         .should_receive(:process_root_folder_transfer)
                         .with(
-                            @server_params.merge(
-                                { max_upload_rate: @max_upload_rate }
-                            )
+                            @ftp_params
                         )
                         .pass_thru do
                             called += 1
@@ -188,7 +193,8 @@ module Syskit
                             "watch_transfer",
                             @source_dir,
                             *@server_params.values,
-                            "--period", 0.5
+                            "--period", 0.5,
+                            "--max_upload_rate_mbps", 10
                         ]
                         LogRuntimeArchiveMain.start(args)
                     end
@@ -199,7 +205,7 @@ module Syskit
 
                 # Converts rate in Mbps to bps
                 def rate_mbps_to_bps(rate_mbps)
-                    rate_mbps / (10**6)
+                    rate_mbps * (10**6)
                 end
             end
 
@@ -216,14 +222,50 @@ module Syskit
                                  e.message
                 end
 
+                it "actually transfer files" do
+                    dataset_tmp_path = make_tmppath
+                    root_tmp_path = make_tmppath
+
+                    server = call_create_server(root_tmp_path, @server_params)
+
+                    make_dataset(dataset_tmp_path, "19981222-1301")
+                    make_dataset(dataset_tmp_path, "19981222-1302")
+
+                    call_transfer(dataset_tmp_path, server_port: server.port)
+                    assert(File.exist?(root_tmp_path / "19981222-1301" / "test.0.log"))
+                end
+
                 # Call 'transfer' function instead of 'watch' to call transfer once
-                def call_transfer(source_dir)
+                def call_transfer(source_dir, server_port: nil)
+                    updated_server_params = @server_params
+                    updated_server_params[:port] = server_port if server_port
                     args = [
                         "transfer",
                         source_dir,
-                        *@server_params.values
+                        *updated_server_params.values
                     ]
                     LogRuntimeArchiveMain.start(args)
+                end
+
+                def make_dataset(path, name)
+                    dataset = (path / name)
+                    dataset.mkpath
+                    FileUtils.touch(dataset / "info.yml")
+                    make_random_file("test.0.log", root: dataset)
+                    dataset
+                end
+
+                def make_random_file(name, root: @root, size: 1024)
+                    content = Base64.encode64(Random.bytes(size))
+                    make_in_file name, content, root: root
+                    content
+                end
+
+                def make_in_file(name, content, root: @root)
+                    path = (root / name)
+                    path.write(content)
+                    [] << path
+                    path
                 end
             end
 
