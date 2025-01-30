@@ -58,15 +58,15 @@ module Syskit
                     options[:free_space_low_limit] * 1_000_000,
                     options[:free_space_freed_limit] * 1_000_000
                 )
-                archiver.process_root_folder
+                archiver.process_root_folder(
+                    max_archive_size: options[:max_size] * (1024**2)
+                )
             end
 
             desc "watch_transfer", "watches a dataset root folder \
                                     and periodically performs transfer"
             option :period,
                    type: :numeric, default: 600, desc: "polling period in seconds"
-            option :max_size,
-                   type: :numeric, default: 10_000, desc: "max log size in MB"
             option :max_upload_rate_mbps,
                    type: :numeric, default: 10, desc: "max upload rate in Mbps"
             def watch_transfer( # rubocop:disable Metrics/ParameterLists
@@ -86,8 +86,6 @@ module Syskit
             end
 
             desc "transfer", "transfers the datasets"
-            option :max_size,
-                   type: :numeric, default: 10_000, desc: "max log size in MB"
             option :max_upload_rate_mbps,
                    type: :numeric, default: 10, desc: "max upload rate in Mbps"
             def transfer( # rubocop:disable Metrics/ParameterLists
@@ -117,8 +115,6 @@ module Syskit
             desc "watch_ensure_free_space", "watches the ensure free space process"
             option :period,
                    type: :numeric, default: 10, desc: "polling period in seconds"
-            option :max_size,
-                   type: :numeric, default: 10_000, desc: "max log size in MB"
             option :free_space_low_limit,
                    type: :numeric, default: 5_000, desc: "start deleting files if \
                     available space is below this threshold (threshold in MB)"
@@ -137,8 +133,6 @@ module Syskit
 
             desc "ensure_free_space", "ensures there is free space, if not, start \
                                        deleting files"
-            option :max_size,
-                   type: :numeric, default: 10_000, desc: "max log size in MB"
             option :free_space_low_limit,
                    type: :numeric, default: 5_000, desc: "start deleting files if \
                     available space is below this threshold (threshold in MB)"
@@ -180,8 +174,7 @@ module Syskit
 
                     Syskit::CLI::LogRuntimeArchive.new(
                         root_dir,
-                        target_dir: target_dir, logger: logger,
-                        max_archive_size: options[:max_size] * (1024**2)
+                        target_dir: target_dir, logger: logger
                     )
                 end
 

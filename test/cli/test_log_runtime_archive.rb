@@ -392,9 +392,9 @@ module Syskit
                         .write(test1 = Base64.encode64(Random.bytes(1024)))
                     (dataset / "test.2.log").write(Base64.encode64(Random.bytes(1024)))
                     process = LogRuntimeArchive.new(
-                        @root, target_dir: @archive_dir, max_archive_size: 1024
+                        @root, target_dir: @archive_dir
                     )
-                    process.process_root_folder
+                    process.process_root_folder(max_archive_size: 1024)
 
                     entries = read_archive(path: @archive_dir / "20220434-2023.0.tar")
                     assert_equal 1, entries.size
@@ -420,12 +420,12 @@ module Syskit
                     (dataset / "test.2.log")
                         .write(test2 = Base64.encode64(Random.bytes(128)))
                     process = LogRuntimeArchive.new(
-                        @root, target_dir: @archive_dir, max_archive_size: 1024
+                        @root, target_dir: @archive_dir
                     )
-                    process.process_root_folder
+                    process.process_root_folder(max_archive_size: 1024)
 
                     (dataset / "test.3.log").write(Base64.encode64(Random.bytes(1024)))
-                    process.process_root_folder
+                    process.process_root_folder(max_archive_size: 1024)
 
                     entries = read_archive(path: @archive_dir / "20220434-2023.1.tar")
                     assert_equal 2, entries.size
@@ -446,12 +446,12 @@ module Syskit
                     test1 = make_random_file "test.1.log", root: dataset
                     test2 = make_random_file "test.2.log", root: dataset
                     process = LogRuntimeArchive.new(
-                        @root, target_dir: @archive_dir, max_archive_size: 1024
+                        @root, target_dir: @archive_dir
                     )
-                    process.process_root_folder
+                    process.process_root_folder(max_archive_size: 1024)
 
                     make_random_file "test.3.log", root: dataset
-                    process.process_root_folder
+                    process.process_root_folder(max_archive_size: 1024)
 
                     entries = read_archive(path: @archive_dir / "20220434-2023.1.tar")
                     assert_equal 1, entries.size
