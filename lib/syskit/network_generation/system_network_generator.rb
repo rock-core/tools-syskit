@@ -15,13 +15,15 @@ module Syskit
                         :event_logger,
                         :merge_solver,
                         :default_deployment_group,
-                        :early_deploy
+                        :early_deploy,
+                        :validate_deployed_network
 
             def initialize(plan,
                 event_logger: plan.event_logger,
                 merge_solver: MergeSolver.new(plan),
                 default_deployment_group: nil,
-                early_deploy: false)
+                early_deploy: false,
+                validate_deployed_network: false)
                 if merge_solver.plan != plan
                     raise ArgumentError, "gave #{merge_solver} as merge solver, which applies on #{merge_solver.plan}. Was expecting #{plan}"
                 end
@@ -31,6 +33,7 @@ module Syskit
                 @merge_solver = merge_solver
                 @default_deployment_group = default_deployment_group
                 @early_deploy = early_deploy
+                @validate_deployed_network = validate_deployed_network
             end
 
             # Generate the network in the plan
@@ -206,7 +209,7 @@ module Syskit
                 network_deployer.deploy(validate: false,
                                         reuse_deployments: true,
                                         deployment_tasks: deployment_tasks)
-                network_deployer.verify_all_tasks_deployed
+                network_deployer.verify_all_tasks_deployed if validate_deployed_network
             end
 
             # Compute in #plan the network needed to fullfill the requirements

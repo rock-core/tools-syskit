@@ -705,6 +705,7 @@ module Syskit
                 validate_abstract_network: true,
                 validate_generated_network: true,
                 default_deployment_group: nil,
+                validate_deployed_network: false,
                 early_deploy: false
             )
                 requirement_tasks = requirement_tasks.to_a
@@ -714,7 +715,8 @@ module Syskit
                     event_logger: event_logger,
                     merge_solver: merge_solver,
                     default_deployment_group: default_deployment_group,
-                    early_deploy: early_deploy
+                    early_deploy: early_deploy,
+                    validate_deployed_network: validate_deployed_network
                 )
                 toplevel_tasks = system_network_generator.generate(
                     instance_requirements,
@@ -765,7 +767,8 @@ module Syskit
                     validate_abstract_network: validate_abstract_network,
                     validate_generated_network: validate_generated_network,
                     default_deployment_group: (default_deployment_group if early_deploy),
-                    early_deploy: early_deploy
+                    validate_deployed_network: validate_deployed_network,
+                    early_deploy: early_deploy && compute_deployments
                 )
 
                 if compute_deployments
