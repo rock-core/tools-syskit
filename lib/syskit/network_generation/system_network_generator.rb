@@ -14,9 +14,19 @@ module Syskit
             attr_reader :plan,
                         :event_logger,
                         :merge_solver,
-                        :default_deployment_group,
-                        :early_deploy,
-                        :validate_deployed_network
+                        :default_deployment_group
+
+            # Indicates if deployment stage happens within network generation
+            def early_deploy?
+                @early_deploy
+            end
+
+            # Condition for deployment validation when early deploying
+            #
+            # @see early_deploy?
+            def validate_deployed_network?
+                @validate_deployed_network
+            end
 
             def initialize(plan,
                 event_logger: plan.event_logger,
@@ -209,7 +219,7 @@ module Syskit
                 network_deployer.deploy(validate: false,
                                         reuse_deployments: true,
                                         deployment_tasks: deployment_tasks)
-                network_deployer.verify_all_tasks_deployed if validate_deployed_network
+                network_deployer.verify_all_tasks_deployed if validate_deployed_network?
             end
 
             # Compute in #plan the network needed to fullfill the requirements
@@ -226,7 +236,8 @@ module Syskit
                 @toplevel_instance_requirements = instance_requirements
 
                 deployment_tasks = {}
-                deploy(deployment_tasks) if early_deploy
+
+                deploy(deployment_tasks) if early_deploy?
 
                 merge_identical_tasks
                 log_timepoint "merge"
@@ -237,7 +248,7 @@ module Syskit
                 link_to_busses
                 log_timepoint "link_to_busses"
 
-                deploy(deployment_tasks) if early_deploy
+                deploy(deployment_tasks) if early_deploy?
 
                 merge_identical_tasks
 
@@ -293,7 +304,7 @@ module Syskit
                 # if two tasks have execution agents, then they must be different. But
                 # when early deploying tasks that have the same agent are actually the
                 # same
-                merge_solver.merge_when_identical_agents = early_deploy
+                merge_solver.merge_when_identical_agents = early_deploy?
                 merge_solver.merge_identical_tasks
                 merge_solver.merge_when_identical_agents = false
             end
@@ -430,7 +441,7 @@ module Syskit
             def validate_generated_network
                 self.class.verify_task_allocation(plan)
                 self.class.verify_device_allocation(plan, toplevel_tasks_to_requirements)
-                verify_all_deployments_are_unique if early_deploy
+                verify_all_deployments_are_unique if early_deploy?
                 super if defined? super
             end
         end
