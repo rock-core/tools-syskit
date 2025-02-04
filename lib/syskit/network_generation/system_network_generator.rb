@@ -398,7 +398,7 @@ module Syskit
                 end
             end
 
-            def verify_all_deployments_are_unique
+            def self.verify_all_deployments_are_unique(plan, default_deployment_group)
                 deployment_to_task_map = {}
                 plan.find_local_tasks(Syskit::TaskContext).each do |t|
                     deployment_to_task_map[t.orocos_name] =
@@ -441,7 +441,11 @@ module Syskit
             def validate_generated_network
                 self.class.verify_task_allocation(plan)
                 self.class.verify_device_allocation(plan, toplevel_tasks_to_requirements)
-                verify_all_deployments_are_unique if early_deploy?
+                if early_deploy?
+                    self.class.verify_all_deployments_are_unique(
+                        plan, default_deployment_group
+                    )
+                end
                 super if defined? super
             end
         end
