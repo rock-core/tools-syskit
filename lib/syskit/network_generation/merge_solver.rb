@@ -227,9 +227,7 @@ module Syskit
             # @param [Syskit::TaskContext] target_task
             #
             # @return [false,true] if false, the merge is not possible. If
-            #   true, it is possible. If nil, the only thing that makes the
-            #   merge impossible are missing inputs, and these tasks might
-            #   therefore be merged if there was a dataflow cycle
+            #   true, it is possible.
             def may_merge_task_contexts?(merged_task, task)
                 return false unless may_merge_components?(merged_task, task)
 
