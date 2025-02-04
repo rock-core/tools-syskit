@@ -115,6 +115,51 @@ module Syskit
                 server.run
             end
 
+            desc "watch_ensure_free_space", "watches the ensure free space process"
+            option :period,
+                   type: :numeric, default: 10, desc: "polling period in seconds"
+            option :max_size,
+                   type: :numeric, default: 10_000, desc: "max log size in MB"
+            option :free_space_low_limit,
+                   type: :numeric, default: 5_000, desc: "start deleting files if \
+                    available space is below this threshold (threshold in MB)"
+            option :free_space_freed_limit,
+                   type: :numeric, default: 25_000, desc: "stop deleting files if \
+                    available space is above this threshold (threshold in MB)"
+            def watch_ensure_free_space(source_dir)
+                loop do
+                    ensure_free_space(source_dir)
+
+                    puts "Ensured free space in #{source_dir}, " \
+                         "sleeping #{options[:period]}s"
+                    sleep options[:period]
+                end
+            end
+
+            desc "ensure_free_space", "ensures there is free space, if not, start \
+                                       deleting files"
+            option :max_size,
+                   type: :numeric, default: 10_000, desc: "max log size in MB"
+            option :free_space_low_limit,
+                   type: :numeric, default: 5_000, desc: "start deleting files if \
+                    available space is below this threshold (threshold in MB)"
+            option :free_space_freed_limit,
+                   type: :numeric, default: 25_000, desc: "stop deleting files if \
+                    available space is above this threshold (threshold in MB)"
+            def ensure_free_space(source_dir)
+                source_dir = validate_directory_exists(source_dir)
+
+                archiver = make_archiver(source_dir)
+
+                source_dir.children.select(&:directory?).sort_by(&:mtime).each do |child|
+                    break if archiver.ensure_free_space(
+                        options[:free_space_low_limit] * 1_000_000,
+                        options[:free_space_freed_limit] * 1_000_000,
+                        directory: (source_dir / child)
+                    )
+                end
+            end
+
             no_commands do # rubocop:disable Metrics/BlockLength
                 # Converts rate in Mbps to bps
                 def rate_mbps_to_bps(rate_mbps)
