@@ -507,7 +507,7 @@ module Syskit
                                             .orogen_model
                 pp.text(
                     "deployed task #{deployed_task.mapped_task_name} from deployment " \
-                    "#{orogen_model.name} defined in " \
+                    "#{orogen_model.name} is defined in " \
                     "#{orogen_model.project.name} on #{process_server_name}"
                 )
 
