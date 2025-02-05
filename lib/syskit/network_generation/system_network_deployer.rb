@@ -75,13 +75,22 @@ module Syskit
                 missing_deployments
             end
 
+            def find_all_suitable_deployments_for(task, from: task)
+                self.class.find_all_suitable_deployments_for(
+                    default_deployment_group,
+                    task,
+                    from: from
+                )
+            end
+
             # Find all candidates, resolved using deployment groups in the task hierarchy
             #
             # The method falls back to the default deployment group if no
             # deployments for the task could be found in the plan itself
             #
             # @return [Set<DeploymentGroup::DeployedTask>]
-            def find_all_suitable_deployments_for(task, from: task)
+            def self.find_all_suitable_deployments_for(default_deployment_group,
+                task, from: task)
                 candidates = from.requirements.deployment_group
                                  .find_all_suitable_deployments_for(task)
                 return candidates unless candidates.empty?
@@ -93,7 +102,9 @@ module Syskit
                 end
 
                 parents.each_with_object(Set.new) do |p, s|
-                    s.merge(find_all_suitable_deployments_for(task, from: p))
+                    s.merge(find_all_suitable_deployments_for(default_deployment_group,
+                                                              task,
+                                                              from: p))
                 end
             end
 
@@ -201,12 +212,16 @@ module Syskit
                 verify_all_configurations_exist
             end
 
+            def verify_all_tasks_deployed
+                self.class.verify_all_tasks_deployed(plan, default_deployment_group)
+            end
+
             # Verifies that all tasks in the plan are deployed
             #
             # @param [Component=>DeploymentGroup] deployment_groups which
             #   deployment groups has been used for which task. This is used
             #   to generate the error messages when needed.
-            def verify_all_tasks_deployed
+            def self.verify_all_tasks_deployed(plan, default_deployment_group)
                 not_deployed = plan.find_local_tasks(TaskContext)
                                    .not_finished.not_abstract
                                    .find_all { |t| !t.execution_agent }
@@ -215,7 +230,10 @@ module Syskit
 
                 tasks_with_candidates = {}
                 not_deployed.each do |task|
-                    candidates = find_all_suitable_deployments_for(task)
+                    candidates = find_all_suitable_deployments_for(
+                        default_deployment_group,
+                        task
+                    )
                     candidates = candidates.map do |deployed_task|
                         task_name = deployed_task.mapped_task_name
                         existing_tasks =
