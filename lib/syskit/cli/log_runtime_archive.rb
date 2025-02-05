@@ -116,7 +116,7 @@ module Syskit
                 true
             end
 
-            def process_dataset(child, max_archive_size: DEFAULT_MAX_ARCHIVE_SIZE, full:)
+            def process_dataset(child, full:, max_archive_size: DEFAULT_MAX_ARCHIVE_SIZE)
                 use_existing = true
                 loop do
                     open_archive_for(
