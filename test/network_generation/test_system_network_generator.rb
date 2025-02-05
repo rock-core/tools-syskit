@@ -143,7 +143,7 @@ module Syskit
                         @net_gen = SystemNetworkGenerator.new(
                             @net_gen_plan = Roby::Plan.new,
                             default_deployment_group: default_deployment_group,
-                            early_deploy: true
+                            early_deploy: true, validate_deployed_network: true
                         )
                         @net_gen.merge_solver.merge_task_contexts_with_same_agent = true
                     end
@@ -193,6 +193,34 @@ module Syskit
                             end
                             assert tasks.size == 1
                         end
+                    end
+
+                    it "does not merge a task without deployments " \
+                       "with a compatible task that has one" do
+                        local_net_gen = SystemNetworkGenerator.new(
+                            local_net_gen_plan = Roby::Plan.new,
+                            default_deployment_group: Models::DeploymentGroup.new,
+                            early_deploy: true,
+                            validate_deployed_network: true
+                        )
+
+                        task_m = self.task_m
+                        deployment_m = Syskit::Deployment.new_submodel do
+                            task "task", task_m
+                        end
+
+                        local_net_gen.merge_solver
+                                     .merge_task_contexts_with_same_agent = true
+                        e = assert_raises(MissingDeployments) do
+                            local_net_gen.compute_system_network(
+                                [task_m.to_instance_requirements,
+                                 task_m.to_instance_requirements
+                                       .use_deployment(deployment_m)],
+                                validate_deployed_network: true
+                            )
+                        end
+
+                        assert_equal 1, e.tasks.size
                     end
                 end
             end
