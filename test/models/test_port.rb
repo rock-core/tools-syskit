@@ -72,6 +72,23 @@ describe Syskit::Models::Port do
                 out_task_m.out_port.connect_to in_task_m.in_port
             end
         end
+        it "adds 'init: true' as a default policy" do
+            policy = {}
+            flexmock(out_task_m).should_receive(:connect_ports).explicitly.once
+                                .with(in_task_m, %w[out in] => policy.merge(init: true))
+            out_task_m.out_port.connect_to in_task_m.in_port, policy
+            assert policy[:init]
+        end
+        it "adds 'init: false' if recommend_init flag is set to false" do
+            out_port_m = Syskit::Models::Port.new(out_task_m, out_task_m.orogen_model.find_port("out"))
+            out_port_m.orogen_model.recommend_init = false
+            refute out_port_m.recommend_init
+            policy = {}
+            flexmock(out_task_m).should_receive(:connect_ports).explicitly
+                                .with(in_task_m, %w[out in] => policy.merge(init: false))
+            out_task_m.out_port.connect_to in_task_m.in_port, policy
+            refute policy[:init]
+        end
     end
 
     describe "#can_connect_to?" do
