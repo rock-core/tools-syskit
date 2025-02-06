@@ -29,17 +29,14 @@ module Syskit
             #   should be nil in transfer mode, as the logs will be transferred directly
             #   to the ftp server @see process_root_folder_transfer
             # @param [Logger] logger the log structure
-            # @param [Integer] max_archive_size the max size of the archive
             def initialize(
                 root_dir, target_dir: nil,
-                logger: LogRuntimeArchive.null_logger,
-                max_archive_size: DEFAULT_MAX_ARCHIVE_SIZE
+                logger: LogRuntimeArchive.null_logger
             )
                 @last_archive_index = {}
                 @logger = logger
                 @root_dir = root_dir
                 @target_dir = target_dir
-                @max_archive_size = max_archive_size
             end
 
             # Iterate over all datasets in a Roby log root folder and transfer them
@@ -65,11 +62,14 @@ module Syskit
             # @param [Pathname] root_dir the log root folder
             # @param [Pathname] target_dir the folder in which to save the
             #   archived datasets
-            def process_root_folder
+            # @param [Integer] max_archive_size the max size of the archive
+            def process_root_folder(max_archive_size: DEFAULT_MAX_ARCHIVE_SIZE)
                 candidates = self.class.find_all_dataset_folders(@root_dir)
                 running = candidates.last
                 candidates.each do |child|
-                    process_dataset(child, full: child != running)
+                    process_dataset(
+                        child, max_archive_size: max_archive_size, full: child != running
+                    )
                 end
             end
 
@@ -116,13 +116,13 @@ module Syskit
                 true
             end
 
-            def process_dataset(child, full:)
+            def process_dataset(child, full:, max_archive_size: DEFAULT_MAX_ARCHIVE_SIZE)
                 use_existing = true
                 loop do
                     open_archive_for(
                         child.basename.to_s, use_existing: use_existing
                     ) do |io|
-                        if io.tell > @max_archive_size
+                        if io.tell > max_archive_size
                             use_existing = false
                             break
                         end
@@ -130,7 +130,7 @@ module Syskit
                         dataset_complete = self.class.archive_dataset(
                             io, child,
                             logger: @logger, full: full,
-                            max_size: @max_archive_size
+                            max_size: max_archive_size
                         )
                         return if dataset_complete
                     end
