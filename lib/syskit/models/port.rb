@@ -105,6 +105,9 @@ module Syskit
             # @raise [SelfConnection]
             def connect_to(in_port, policy = {})
                 out_port = to_component_port
+                if out_port.respond_to?(:recommend_init)
+                    policy[:init] = out_port.recommend_init
+                end
                 if out_port == self
                     if in_port.respond_to?(:to_component_port)
                         in_port = in_port.to_component_port
