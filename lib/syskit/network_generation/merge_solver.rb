@@ -242,9 +242,13 @@ module Syskit
             end
 
             def mergeable_agents?(merged_task, task)
-                return true unless task.execution_agent && merged_task.execution_agent
+                unless merge_task_contexts_with_same_agent?
+                    return true unless task.execution_agent && merged_task.execution_agent
 
-                return false unless merge_when_identical_agents?
+                    return false
+                end
+
+                return false unless task.execution_agent && merged_task.execution_agent
 
                 task.orocos_name == merged_task.orocos_name
             end

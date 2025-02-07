@@ -59,6 +59,22 @@ describe Syskit::NetworkGeneration::MergeSolver do
             assert !solver.may_merge_task_contexts?(task1, task2)
             assert !solver.may_merge_task_contexts?(task2, task1)
         end
+        it "returns false for tasks that do not have execution agents when " \
+           "merge_when_identical_agents is true" do
+            plan.add(task1 = simple_component_model.new)
+            plan.add(task2 = simple_composition_model.new)
+
+            [task1, task2].permutation.each do |t1, t2|
+                flexmock(t1).should_receive(:execution_agent).and_return(false)
+                t1.should_receive(:can_merge?).with(t2).and_return(true).once
+            end
+
+            local_solver = Syskit::NetworkGeneration::MergeSolver.new(plan)
+            local_solver.merge_task_contexts_with_same_agent = true
+
+            assert !local_solver.may_merge_task_contexts?(task1, task2)
+            assert !local_solver.may_merge_task_contexts?(task2, task1)
+        end
     end
 
     describe "may_merge_compositions?" do
