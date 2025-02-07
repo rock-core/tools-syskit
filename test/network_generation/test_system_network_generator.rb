@@ -143,7 +143,7 @@ module Syskit
                         @net_gen = SystemNetworkGenerator.new(
                             @net_gen_plan = Roby::Plan.new,
                             default_deployment_group: default_deployment_group,
-                            early_deploy: true, validate_deployed_network: true
+                            early_deploy: true
                         )
                         @net_gen.merge_solver.merge_task_contexts_with_same_agent = true
                     end
@@ -200,8 +200,7 @@ module Syskit
                         local_net_gen = SystemNetworkGenerator.new(
                             local_net_gen_plan = Roby::Plan.new,
                             default_deployment_group: Models::DeploymentGroup.new,
-                            early_deploy: true,
-                            validate_deployed_network: true
+                            early_deploy: true
                         )
 
                         task_m = self.task_m
