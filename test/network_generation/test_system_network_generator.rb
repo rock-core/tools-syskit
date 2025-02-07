@@ -115,7 +115,7 @@ module Syskit
                 describe "early deploy" do
                     attr_reader :net_gen, :device_m, :cmp_m, :task_m, :net_gen_plan
 
-                    before do
+                    before do # rubocop:disable Metrics/BlockLength
                         @device_m = Device.new_submodel(name: "D") do
                             output_port "out", "/double"
                         end
@@ -145,6 +145,7 @@ module Syskit
                             default_deployment_group: default_deployment_group,
                             early_deploy: true
                         )
+                        @net_gen.merge_solver.merge_task_contexts_with_same_agent = true
                     end
 
                     it "can merge tasks with same execution agent" do
@@ -174,6 +175,8 @@ module Syskit
                             default_deployment_group: default_deployment_group,
                             early_deploy: true
                         )
+                        local_net_gen.merge_solver
+                                     .merge_task_contexts_with_same_agent = true
 
                         d = robot.device(device_m, as: "d")
                         assert local_net_gen.compute_system_network(

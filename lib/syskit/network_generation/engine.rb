@@ -401,7 +401,7 @@ module Syskit
 
                 # This is required to merge the already existing compositions
                 # with the ones in the plan
-                merge_solver.merge_identical_tasks
+                merge_solver.merge_compositions
                 log_timepoint "merge"
 
                 [selected_deployment_tasks, reused_deployed_tasks | newly_deployed_tasks]
@@ -710,6 +710,7 @@ module Syskit
             )
                 requirement_tasks = requirement_tasks.to_a
                 instance_requirements = requirement_tasks.map(&:requirements)
+                merge_solver.merge_task_contexts_with_same_agent = early_deploy
                 system_network_generator = SystemNetworkGenerator.new(
                     work_plan,
                     event_logger: event_logger,
@@ -761,6 +762,7 @@ module Syskit
                 early_deploy: Syskit.conf.early_deploy?
             )
 
+                merge_solver.merge_task_contexts_with_same_agent = early_deploy
                 required_instances = compute_system_network(
                     requirement_tasks,
                     garbage_collect: garbage_collect,
@@ -819,6 +821,7 @@ module Syskit
                 validate_final_network: true,
                 early_deploy: Syskit.conf.early_deploy?
             )
+                merge_solver.merge_task_contexts_with_same_agent = early_deploy
                 required_instances = resolve_system_network(
                     requirement_tasks,
                     garbage_collect: garbage_collect,

@@ -34,7 +34,7 @@ module Syskit
             # information
             attr_reader :event_logger
 
-            attr_writer :merge_when_identical_agents
+            attr_writer :merge_task_contexts_with_same_agent
 
             def initialize(plan, event_logger: plan.event_logger)
                 @plan = plan
@@ -45,7 +45,7 @@ module Syskit
                 @task_replacement_graph = Roby::Relations::BidirectionalDirectedAdjacencyGraph.new
                 @resolved_replacements = {}
                 @invalid_merges = Set.new
-                @merge_when_identical_agents = false
+                @merge_task_contexts_with_same_agent = false
             end
 
             def clear
@@ -54,8 +54,8 @@ module Syskit
                 @invalid_merges.clear
             end
 
-            def merge_when_identical_agents?
-                @merge_when_identical_agents
+            def merge_task_contexts_with_same_agent?
+                @merge_task_contexts_with_same_agent
             end
 
             # Returns the task that is used in place of the given task
