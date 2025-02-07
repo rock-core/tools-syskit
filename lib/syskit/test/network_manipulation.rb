@@ -162,7 +162,8 @@ module Syskit
                     engine = NetworkGeneration::Engine.new(plan, work_plan: trsc)
                     mapping = engine.compute_system_network(
                         tasks_to_instanciate.map(&:planning_task),
-                        validate_generated_network: false
+                        validate_generated_network: false,
+                        early_deploy: false
                     )
                     trsc.commit_transaction
                     mapping
