@@ -105,13 +105,14 @@ module Syskit
             # @raise [SelfConnection]
             def connect_to(in_port, policy = {})
                 out_port = to_component_port
-                if out_port.respond_to?(:recommend_init)
-                    policy[:init] = out_port.recommend_init
+                if out_port.respond_to?(:init_policy) &&
+                    [true, false].include?(out_port.init_policy)
+                    policy = policy.merge(init: out_port.init_policy)
                 end
                 if out_port == self
                     if in_port.respond_to?(:to_component_port)
                         in_port = in_port.to_component_port
-                        validate_connection!(out_port, in_port)
+                        validate_connection(out_port, in_port)
                         component_model.connect_ports(in_port.component_model, [out_port.name, in_port.name] => policy)
                     else
                         Syskit.connect self, in_port, policy
@@ -122,7 +123,7 @@ module Syskit
                 end
             end
 
-            def validate_connection!(out_port, in_port)
+            def validate_connection(out_port, in_port)
                 unless out_port.output?
                     raise WrongPortConnectionDirection.new(self, in_port),
                           "cannot connect #{out_port} to #{in_port}: " \
