@@ -72,22 +72,29 @@ describe Syskit::Models::Port do
                 out_task_m.out_port.connect_to in_task_m.in_port
             end
         end
-        it "adds 'init: true' as a default policy" do
+        it "makes sure init policy is not set without calling recommend_init" do
             policy = {}
             flexmock(out_task_m).should_receive(:connect_ports).explicitly.once
-                                .with(in_task_m, %w[out in] => policy.merge(init: true))
+                                .with(in_task_m, %w[out in] => policy)
             out_task_m.out_port.connect_to in_task_m.in_port, policy
-            assert policy[:init]
         end
-        it "adds 'init: false' if recommend_init flag is set to false" do
+        it "adds 'init: true' policy if recommend_init was called" do
             out_port_m = Syskit::Models::Port.new(out_task_m, out_task_m.orogen_model.find_port("out"))
-            out_port_m.orogen_model.recommend_init = false
-            refute out_port_m.recommend_init
+            out_port_m.orogen_model.recommend_init
+            assert out_port_m.init_policy
             policy = {}
             flexmock(out_task_m).should_receive(:connect_ports).explicitly
-                                .with(in_task_m, %w[out in] => policy.merge(init: false))
+                                .with(in_task_m, %w[out in] => { init: true })
             out_task_m.out_port.connect_to in_task_m.in_port, policy
-            refute policy[:init]
+        end
+        it "adds 'init: false' policy if recommend_init(init: false) was called" do
+            out_port_m = Syskit::Models::Port.new(out_task_m, out_task_m.orogen_model.find_port("out"))
+            out_port_m.orogen_model.recommend_init(init: false)
+            refute out_port_m.init_policy
+            policy = {}
+            flexmock(out_task_m).should_receive(:connect_ports).explicitly
+                                .with(in_task_m, %w[out in] => { init: false })
+            out_task_m.out_port.connect_to in_task_m.in_port, policy
         end
     end
 

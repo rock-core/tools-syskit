@@ -382,6 +382,45 @@ module Syskit
             @task = syskit_stub_deploy_configure_and_start(@task_m)
         end
 
+        describe "policy" do
+            attr_reader :task, :port_binding
+
+            before do
+                @port_binding = flexmock
+                @accessor = DynamicPortBinding::Accessor.new(@port_binding)
+                flexmock(@accessor)
+                    .should_receive(:create_accessor)
+                    .explicitly
+                    .with(@task.out_port).and_return { @task.out_port.reader }
+            end
+
+            it "expects no policy if recommend_init is not called" do
+                flexmock(@task.out_port)
+                    .should_receive(:reader)
+                    .and_return({})
+
+                @accessor.create_accessor(@task.out_port)
+            end
+
+            it "expects init: true policy if recommend_init is called" do
+                @task.out_port.model.recommend_init
+                flexmock(@task.out_port)
+                    .should_receive(:reader)
+                    .and_return({ init: true })
+
+                @accessor.create_accessor(@task.out_port)
+            end
+
+            it "expects init: false policy if recommend_init(init: false) is called" do
+                @task.out_port.model.recommend_init(init: false)
+                flexmock(@task.out_port)
+                    .should_receive(:reader)
+                    .and_return({ init: false })
+
+                @accessor.create_accessor(@task.out_port)
+            end
+        end
+
         describe "#update" do
             attr_reader :task, :port_binding
 

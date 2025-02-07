@@ -240,6 +240,46 @@ module Syskit
                                  policy_graph[[task0, task1]][%w[out in]])
                 end
 
+                it "adds init: true policy if available and saves it " \
+                   "in the graph's policy_graph" do
+                    plan.add(task0 = @task_m.new)
+                    plan.add(task1 = @task_m.new)
+
+                    add_agents(tasks = [task0, task1])
+                    flexmock(@dynamics).should_receive(:propagate).with(tasks)
+
+                    task0.out_port.model.recommend_init
+                    task0.out_port.connect_to(task1.in_port)
+
+                    @dynamics.should_receive(:policy_for)
+                             .with(task0, "out", "in", task1, nil)
+                             .and_return(type: :buffer, size: 42, init: true)
+                    policy_graph = @dynamics.compute_connection_policies
+
+                    assert_equal({ type: :buffer, size: 42, init: true },
+                                 policy_graph[[task0, task1]][%w[out in]])
+                end
+
+                it "adds init: false policy if available and saves it " \
+                   "in the graph's policy_graph" do
+                    plan.add(task0 = @task_m.new)
+                    plan.add(task1 = @task_m.new)
+
+                    add_agents(tasks = [task0, task1])
+                    flexmock(@dynamics).should_receive(:propagate).with(tasks)
+
+                    task0.out_port.model.recommend_init(init: false)
+                    task0.out_port.connect_to(task1.in_port)
+
+                    @dynamics.should_receive(:policy_for)
+                             .with(task0, "out", "in", task1, nil)
+                             .and_return(type: :buffer, size: 42, init: false)
+                    policy_graph = @dynamics.compute_connection_policies
+
+                    assert_equal({ type: :buffer, size: 42, init: false },
+                                 policy_graph[[task0, task1]][%w[out in]])
+                end
+
                 it "computes the policies on the concrete connections" do
                     plan.add(task = @task_m.new)
                     cmp = @cmp_m.instanciate(plan)
