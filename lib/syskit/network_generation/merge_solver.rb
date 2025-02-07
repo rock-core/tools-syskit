@@ -243,9 +243,7 @@ module Syskit
 
             def mergeable_agents?(merged_task, task)
                 unless merge_task_contexts_with_same_agent?
-                    return true unless task.execution_agent && merged_task.execution_agent
-
-                    return false
+                    return !(task.execution_agent && merged_task.execution_agent)
                 end
 
                 return false unless task.execution_agent && merged_task.execution_agent
