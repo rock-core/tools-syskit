@@ -601,6 +601,11 @@ module Syskit
                         "#{sink_task}:#{sink_port.name}"
                 end
 
+                source_port_m = source_port.model
+                if [true, false].include?(source_port_m.init_policy)
+                    policy = policy.merge(init: source_port_m.init_policy)
+                end
+
                 sink_port_m = sink_port.model
                 if sink_port_m.needs_reliable_connection?
                     compute_reliable_connection_policy(
