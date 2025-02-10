@@ -394,7 +394,7 @@ module Syskit
                     .with(@task.out_port).and_return { @task.out_port.reader }
             end
 
-            it "expects no policy if recommend_init is not called" do
+            it "expects no policy if init_policy is not called" do
                 flexmock(@task.out_port)
                     .should_receive(:reader)
                     .and_return({})
@@ -402,8 +402,8 @@ module Syskit
                 @accessor.create_accessor(@task.out_port)
             end
 
-            it "expects init: true policy if recommend_init is called" do
-                @task.out_port.model.recommend_init
+            it "expects init: true policy if init_policy(true) is called" do
+                @task.out_port.model.init_policy(true)
                 flexmock(@task.out_port)
                     .should_receive(:reader)
                     .and_return({ init: true })
@@ -411,8 +411,8 @@ module Syskit
                 @accessor.create_accessor(@task.out_port)
             end
 
-            it "expects init: false policy if recommend_init(init: false) is called" do
-                @task.out_port.model.recommend_init(init: false)
+            it "expects init: false policy if init_policy(false) is called" do
+                @task.out_port.model.init_policy(false)
                 flexmock(@task.out_port)
                     .should_receive(:reader)
                     .and_return({ init: false })

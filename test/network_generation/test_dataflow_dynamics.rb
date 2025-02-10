@@ -248,7 +248,7 @@ module Syskit
                     add_agents(tasks = [task0, task1])
                     flexmock(@dynamics).should_receive(:propagate).with(tasks)
 
-                    task0.out_port.model.recommend_init
+                    task0.out_port.model.init_policy(true)
                     task0.out_port.connect_to(task1.in_port)
 
                     @dynamics.should_receive(:policy_for)
@@ -268,7 +268,7 @@ module Syskit
                     add_agents(tasks = [task0, task1])
                     flexmock(@dynamics).should_receive(:propagate).with(tasks)
 
-                    task0.out_port.model.recommend_init(init: false)
+                    task0.out_port.model.init_policy(false)
                     task0.out_port.connect_to(task1.in_port)
 
                     @dynamics.should_receive(:policy_for)
