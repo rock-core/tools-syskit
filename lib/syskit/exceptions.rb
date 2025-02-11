@@ -465,34 +465,34 @@ module Syskit
     end
 
     class ConflictingDeploymentAllocation < SpecError
-        attr_reader :deployment_to_tasks
+        include Syskit::NetworkGenerationsExceptionHelpers
 
-        def initialize(deployment_to_tasks)
+        attr_reader :deployment_to_tasks, :toplevel_tasks_to_requirements
+
+        def initialize(deployment_to_tasks, toplevel_tasks_to_requirements = {})
             @deployment_to_tasks = deployment_to_tasks
+            @toplevel_tasks_to_requirements = toplevel_tasks_to_requirements
         end
 
         def pretty_print(pp)
-            pp.text "cannot deploy the following tasks"
             deployment_to_tasks.each do |deployed_task, tasks|
-                tasks.each do |task|
-                    pp.nest(2) do
-                        pp.breakable
-                        pp.text "#{task} (#{task.orogen_model.name})"
-                    end
-                end
-                pp.breakable
-                pp.text "because the same "
                 process_server_name = deployed_task.configured_deployment
                                                    .process_server_name
-                orogen_model = deployed_task.configured_deployment
-                                            .orogen_model
+                orogen_model = deployed_task.configured_deployment.orogen_model
                 pp.text(
-                    "deployed task #{deployed_task.mapped_task_name} from deployment " \
-                    "#{orogen_model.name} is defined in " \
-                    "#{orogen_model.project.name} on #{process_server_name}"
+                    "deployed task '#{deployed_task.mapped_task_name}' from deployment " \
+                    "'#{orogen_model.name}' defined in " \
+                    "'#{orogen_model.project.name}' on '#{process_server_name}' is " \
+                    "assigned to multiple tasks. Here follows one merge failure " \
+                    "(it can have more):"
                 )
-
-                pp.text " is allocated for them"
+                print_failed_merge_chain(pp, tasks[0], tasks[1])
+                tasks.each do |t|
+                    defs = find_all_related_syskit_actions(
+                        t, toplevel_tasks_to_requirements
+                    )
+                    print_dependent_definitions(pp, t, defs)
+                end
             end
         end
     end

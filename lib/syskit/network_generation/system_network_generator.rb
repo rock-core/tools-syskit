@@ -386,7 +386,11 @@ module Syskit
                 end
             end
 
-            def self.verify_all_deployments_are_unique(plan, default_deployment_group)
+            def self.verify_all_deployments_are_unique(
+                plan,
+                default_deployment_group,
+                toplevel_tasks_to_requirements
+            )
                 deployment_to_task_map = {}
                 plan.find_local_tasks(Syskit::TaskContext).each do |t|
                     deployment_to_task_map[t.orocos_name] =
@@ -412,7 +416,7 @@ module Syskit
                 end
 
                 raise ConflictingDeploymentAllocation.new(
-                    deployment_to_task
+                    deployment_to_task, toplevel_tasks_to_requirements
                 ), "there are deployments used multiple times"
             end
 
@@ -435,7 +439,7 @@ module Syskit
             def validate_deployed_network
                 self.class.verify_all_tasks_deployed(plan, default_deployment_group)
                 self.class.verify_all_deployments_are_unique(
-                    plan, default_deployment_group
+                    plan, default_deployment_group, toplevel_tasks_to_requirements.dup
                 )
                 super if defined? super
             end

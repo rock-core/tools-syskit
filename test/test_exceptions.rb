@@ -168,4 +168,82 @@ module Syskit
             assert_equal expected, formatted.gsub(/<id:\d+>/, "<id:ID>").chomp
         end
     end
+
+    describe ConflictingDeploymentAllocation do
+        # This exception appears only in early_deploy context
+
+        attr_reader :net_gen, :profile
+
+        before do
+            Roby.app.using_task_library "orogen_syskit_tests"
+
+            task_m = OroGen.orogen_syskit_tests.Empty
+            cmp_m = Syskit::Composition.new_submodel
+            cmp_m.add task_m, as: "task"
+
+            @net_gen = NetworkGeneration::SystemNetworkGenerator.new(
+                @net_gen_plan = Roby::Plan.new,
+                default_deployment_group: default_deployment_group,
+                early_deploy: true
+            )
+            @net_gen.default_deployment_group.use_deployment(
+                OroGen::Deployments.syskit_tests_empty => "test_"
+            )
+            @net_gen.merge_solver.merge_task_contexts_with_same_agent = true
+
+            @profile = Actions::Profile.new("Test")
+            @profile.define("test1", cmp_m)
+                    .use("task" => task_m.with_arguments(arg: 1))
+            @profile.define("test2", cmp_m)
+                    .use("task" => task_m.with_arguments(arg: 2))
+
+            @old_early_deply = Syskit.conf.early_deploy?
+            Syskit.conf.early_deploy = true
+        end
+
+        after do
+            Syskit.conf.early_deploy = @old_early_deply
+        end
+
+        it "displays deployment allocation conflicts, depicts one failed merge chain " \
+           "and list non deployed toplevel definitions" do
+            e = assert_raises(ConflictingDeploymentAllocation) do
+                net_gen.compute_system_network(
+                    [profile.test1_def, profile.test2_def]
+                )
+            end
+            formatted = PP.pp(e, +"")
+
+            expected = <<~PP.chomp
+                deployed task 'test_syskit_tests_empty' from deployment \
+                'syskit_tests_empty' defined in 'orogen_syskit_tests' on 'localhost' is \
+                assigned to multiple tasks. Here follows one merge failure \
+                (it can have more):
+                Chain 1 cannot be merged in chain 2:
+                Chain 1:
+                  OroGen.orogen_syskit_tests.Empty<id:ID>
+                    no owners
+                    arguments:
+                      orocos_name: "test_syskit_tests_empty",
+                      read_only: false,
+                      conf: ["default"],
+                      arg: 1
+                Chain 2:
+                  OroGen.orogen_syskit_tests.Empty<id:ID>
+                    no owners
+                    arguments:
+                      orocos_name: "test_syskit_tests_empty",
+                      read_only: false,
+                      conf: ["default"],
+                      arg: 2
+                OroGen.orogen_syskit_tests.Empty<id:ID>(arg: 1, conf: ["default"], \
+                orocos_name: test_syskit_tests_empty, read_only: false) is needed by the following definitions:
+                  Test.test1_def
+                OroGen.orogen_syskit_tests.Empty<id:ID>(arg: 2, conf: ["default"], \
+                orocos_name: test_syskit_tests_empty, read_only: false) is needed by the following definitions:
+                  Test.test2_def
+            PP
+            assert_equal expected, formatted.gsub(/<id:\d+>/, "<id:ID>").chomp
+        end
+    end
 end
