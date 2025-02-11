@@ -95,9 +95,11 @@ module Syskit
                       arg: 1,
                       conf: ["default"],
                       read_only: false
-                Chain 1 is needed by the following definitions:
+                T<id:ID>(arg: 2, conf: ["default"], read_only: false, \
+                test_dev: device(D, as: test)) is needed by the following definitions:
                   Test.test2_def
-                Chain 2 is needed by the following definitions:
+                T<id:ID>(arg: 1, conf: ["default"], read_only: false, \
+                test_dev: device(D, as: test)) is needed by the following definitions:
                   Test.test1_def
             PP
             assert_equal expected, formatted.gsub(/<id:\d+>/, "<id:ID>").chomp
