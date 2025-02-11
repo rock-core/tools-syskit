@@ -21,7 +21,7 @@ module Syskit
                 @early_deploy
             end
 
-            def initialize(plan, # rubocop:disable Metrics/ParameterLists
+            def initialize(plan,
                 event_logger: plan.event_logger,
                 merge_solver: MergeSolver.new(plan),
                 default_deployment_group: nil,
