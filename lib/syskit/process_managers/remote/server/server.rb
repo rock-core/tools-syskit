@@ -25,7 +25,7 @@ module Syskit
                     #
                     # Shamelessly taken from Roby
                     def self.unique_dirname(base_dir, path_spec, date_tag = nil)
-                        if path_spec =~ %r{\/$}
+                        if path_spec =~ %r{/$}
                             basename = ""
                             dirname = path_spec
                         else
@@ -196,7 +196,7 @@ module Syskit
                                     @quit = true
                                     next
                                 elsif cmd
-                                    warn "unknown internal communication code "\
+                                    warn "unknown internal communication code " \
                                          "#{cmd.inspect}"
                                 end
                             end
@@ -337,7 +337,7 @@ module Syskit
                                 create_log_dir(time_tag, metadata)
                                 socket.write(RET_YES)
                             rescue StandardError => e
-                                warn "failed to create log directory #{app.log_dir}: "\
+                                warn "failed to create log directory #{app.log_dir}: " \
                                      "#{e.message}"
                                 (e.backtrace || []).each do |line|
                                     warn "   #{line}"
@@ -349,13 +349,13 @@ module Syskit
                             name, deployment_name, name_mappings, options =
                                 Marshal.load(socket)
                             options ||= {}
-                            debug "#{socket} requested startup of #{name} with "\
+                            debug "#{socket} requested startup of #{name} with " \
                                   "#{options} and mappings #{name_mappings}"
                             begin
                                 p = start_process(
                                     name, deployment_name, name_mappings, options
                                 )
-                                debug "#{name}, from #{deployment_name}, "\
+                                debug "#{name}, from #{deployment_name}, " \
                                       "is started (#{p.pid})"
                                 socket.write(RET_STARTED_PROCESS)
                                 Marshal.dump(p.pid, socket)
@@ -558,7 +558,7 @@ module Syskit
 
                             if Time.now > deadline
                                 raise JoinAllTimeout,
-                                      "timed out while waiting for #{processes.size} "\
+                                      "timed out while waiting for #{processes.size} " \
                                       "processes to terminate"
                             end
                             sleep poll
@@ -581,13 +581,15 @@ module Syskit
                             localfile = log_upload_sanitize_path(Pathname(localfile))
                         rescue Exception => e # rubocop:disable Lint/RescueException
                             @log_upload_results_queue <<
-                                LogUploadState::Result.new(localfile, false, e.message)
+                                RobyApp::LogTransferServer::LogUploadState::Result.new(
+                                    localfile, false, e.message
+                                )
                             return
                         end
 
                         info "queueing upload of #{localfile} to #{host}:#{port}"
                         @log_upload_command_queue <<
-                            FTPUpload.new(
+                            RobyApp::LogTransferServer::FTPUpload.new(
                                 host, port, certificate,
                                 user, password, localfile,
                                 max_upload_rate: max_upload_rate || Float::INFINITY,
@@ -631,7 +633,9 @@ module Syskit
                             end
                         end
 
-                        LogUploadState.new(@log_upload_pending.value, results)
+                        RobyApp::LogTransferServer::LogUploadState.new(
+                            @log_upload_pending.value, results
+                        )
                     end
                 end
             end

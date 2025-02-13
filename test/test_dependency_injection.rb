@@ -98,6 +98,7 @@ describe Syskit::DependencyInjection do
 
     describe "#add" do
         attr_reader :di, :explicit_m, :default_m
+
         before do
             @di = flexmock(Syskit::DependencyInjection.new)
             @explicit_m = Syskit::TaskContext.new_submodel
@@ -185,6 +186,7 @@ describe Syskit::DependencyInjection do
 
     describe "#merge" do
         attr_reader :model0, :model1, :di0, :di1
+
         before do
             @model0 = flexmock(Syskit::InstanceRequirements.new)
             @model1 = flexmock(Syskit::InstanceRequirements.new)

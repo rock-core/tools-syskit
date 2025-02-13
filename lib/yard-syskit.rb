@@ -14,10 +14,8 @@ module Syskit
         include ::YARD
 
         def self.syskit_doc_output_path
-            unless @syskit_doc_output_path
-                if (env = ENV["SYSKIT_DOC_OUTPUT_PATH"])
-                    @syskit_doc_output_path = Pathname.new(env)
-                end
+            if !@syskit_doc_output_path && (env = ENV.fetch("SYSKIT_DOC_OUTPUT_PATH", nil))
+                @syskit_doc_output_path = Pathname.new(env)
             end
 
             @syskit_doc_output_path
@@ -43,7 +41,7 @@ module Syskit
                 if (klass[:syskit] = YARD.load_metadata_for(klass.path))
                     YARD.define_definitions_accessors(klass)
                 else
-                    STDERR.puts "No Syskit information for #{klass.path}"
+                    $stderr.puts "No Syskit information for #{klass.path}"
                 end
                 klass
             end

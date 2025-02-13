@@ -15,8 +15,12 @@ require "syskit/telemetry/ui/expanded_job_status"
 require "syskit/telemetry/ui/global_state_label"
 require "syskit/telemetry/ui/app_start_dialog"
 require "syskit/telemetry/ui/batch_manager"
-require "syskit/telemetry/ui/name_service"
+require "syskit/telemetry/async"
 require "syskit/interface/v2"
+
+# Monkey patching from Vizkit
+Syskit::Telemetry::Async::OutputPort.include Orocos::QtOrocos
+Syskit::Telemetry::Async::OutputPortSubfield.include Orocos::QtOrocos
 
 module Syskit
     module Telemetry
@@ -54,9 +58,6 @@ module Syskit
                 attr_reader :ui_task_inspector
                 # A logging configuration widget we use to manage logging
                 attr_reader :ui_logging_configuration
-                # The list of task names of the task currently displayed by the task
-                # inspector
-                attr_reader :current_orocos_tasks
 
                 # Returns a list of actions that can be performed on the Roby
                 # instance
@@ -69,7 +70,7 @@ module Syskit
 
                 # Checkboxes to select widgets options
                 attr_reader :ui_hide_loggers
-                attr_reader :ui_show_expanded_job
+                attr_reader :ui_show_expanded_job, :syskit_poll
 
                 define_hooks :on_connection_state_changed
                 define_hooks :on_progress
@@ -82,8 +83,8 @@ module Syskit
                         main = index.data.toString
                         doc = index.data(Qt::UserRole).to_string || ""
                         Qt::Size.new(
-                            [fm.width(main), fm.width(doc)].max + 2 * OUTER_MARGIN,
-                            fm.height * 2 + OUTER_MARGIN * 2 + INTERLINE
+                            [fm.width(main), fm.width(doc)].max + (2 * OUTER_MARGIN),
+                            (fm.height * 2) + (OUTER_MARGIN * 2) + INTERLINE
                         )
                     end
 
@@ -101,7 +102,7 @@ module Syskit
 
                         fm = option.font_metrics
                         painter.draw_text(
-                            Qt::Rect.new(option.rect.x + OUTER_MARGIN, option.rect.y + OUTER_MARGIN, option.rect.width - 2 * OUTER_MARGIN, fm.height),
+                            Qt::Rect.new(option.rect.x + OUTER_MARGIN, option.rect.y + OUTER_MARGIN, option.rect.width - (2 * OUTER_MARGIN), fm.height),
                             Qt::AlignLeft, main, text_bounds
                         )
 
@@ -109,7 +110,7 @@ module Syskit
                         font.italic = true
                         painter.font = font
                         painter.draw_text(
-                            Qt::Rect.new(option.rect.x + OUTER_MARGIN, text_bounds.bottom + INTERLINE, option.rect.width - 2 * OUTER_MARGIN, fm.height),
+                            Qt::Rect.new(option.rect.x + OUTER_MARGIN, text_bounds.bottom + INTERLINE, option.rect.width - (2 * OUTER_MARGIN), fm.height),
                             Qt::AlignLeft, doc, text_bounds
                         )
                     ensure
@@ -143,15 +144,15 @@ module Syskit
                     create_ui
 
                     @current_job = nil
-                    @current_orocos_tasks = Set.new
-                    @proxies = {}
+                    @current_job_tasks = []
+                    @current_tasks = []
 
                     syskit.on_ui_event do |event_name, *args|
                         if (w = @ui_event_widgets[event_name])
                             w.show
                             w.update(*args)
                         else
-                            puts "don't know what to do with UI event #{event_name}, "\
+                            puts "don't know what to do with UI event #{event_name}, " \
                                  "known events: #{@ui_event_widgets}"
                         end
                     end
@@ -223,11 +224,11 @@ module Syskit
                         has_quit = true
                     end
 
-                    if has_quit
-                        @syskit_pid = nil
-                        run_hook :on_connection_state_changed, "UNREACHABLE"
-                        @starting_monitor.stop
-                    end
+                    return unless has_quit
+
+                    @syskit_pid = nil
+                    run_hook :on_connection_state_changed, "UNREACHABLE"
+                    @starting_monitor.stop
                 end
                 slots "monitor_syskit_startup()"
 
@@ -237,8 +238,13 @@ module Syskit
                     @call_guards = {}
                     @orogen_models = {}
 
-                    @name_service = NameService.new
-                    @async_name_service = Orocos::Async::NameService.new(@name_service)
+                    @port_read_manager&.dispose
+                    @name_service&.dispose
+
+                    @port_read_manager = Async::PortReadManager.new
+                    @name_service = Async::NameService.new(
+                        port_read_manager: @port_read_manager
+                    )
                 end
 
                 def hide_loggers?
@@ -320,9 +326,7 @@ module Syskit
 
                 def app_restart
                     run_hook :on_connection_state_changed, "RESTARTING"
-                    if @syskit_pid
-                        @starting_monitor.start(100)
-                    end
+                    @starting_monitor.start(100) if @syskit_pid
                     syskit.restart
                 end
 
@@ -377,7 +381,8 @@ module Syskit
                     job_summary_layout.add_widget(@batch_manager)
                     @batch_manager.connect(SIGNAL("active(bool)")) do |active|
                         if active then @batch_manager.show
-                        else @batch_manager.hide
+                        else
+                            @batch_manager.hide
                         end
                     end
                     @batch_manager.hide
@@ -418,9 +423,6 @@ module Syskit
                         @ui_task_inspector = Vizkit.default_loader.TaskInspector
                     )
                     @ui_hide_loggers.checked = false
-                    @ui_hide_loggers.connect SIGNAL("toggled(bool)") do |checked|
-                        update_tasks_info
-                    end
                     @ui_show_expanded_job.checked = true
                     @ui_show_expanded_job.connect SIGNAL("toggled(bool)") do |checked|
                         job_expanded_status.visible = checked
@@ -433,10 +435,12 @@ module Syskit
                     management_tab_widget.addTab(ui_logging_configuration, "Logging")
 
                     splitter.add_widget(management_tab_widget)
-                    job_expanded_status.set_size_policy(Qt::SizePolicy::MinimumExpanding, Qt::SizePolicy::MinimumExpanding)
+                    job_expanded_status.set_size_policy(Qt::SizePolicy::MinimumExpanding,
+                                                        Qt::SizePolicy::MinimumExpanding)
                     @main_layout.add_widget splitter, 1
                     w = splitter.size.width
-                    splitter.sizes = [Integer(w * 0.25), Integer(w * 0.50), Integer(w * 0.25)]
+                    splitter.sizes = [Integer(w * 0.25), Integer(w * 0.50),
+                                      Integer(w * 0.25)]
                     nil
                 end
 
@@ -456,7 +460,9 @@ module Syskit
                 def create_ui_event_orogen_config_changed
                     syskit_orogen_config_changed = create_ui_event_frame
                     layout = Qt::HBoxLayout.new(syskit_orogen_config_changed)
-                    layout.add_widget(Qt::Label.new("oroGen configuration files changes on disk"), 1)
+                    layout.add_widget(
+                        Qt::Label.new("oroGen configuration files changes on disk"), 1
+                    )
                     layout.add_widget(reload = create_ui_event_button("Reload"))
                     layout.add_widget(close  = create_ui_event_button("Close"))
                     reload.connect(SIGNAL("clicked()")) do
@@ -520,7 +526,8 @@ module Syskit
                 def create_ui_new_job
                     new_job_layout = Qt::HBoxLayout.new
                     label = Qt::Label.new("New Job", self)
-                    label.set_size_policy(Qt::SizePolicy::Minimum, Qt::SizePolicy::Minimum)
+                    label.set_size_policy(Qt::SizePolicy::Minimum,
+                                          Qt::SizePolicy::Minimum)
                     @action_combo = Qt::ComboBox.new(self)
                     action_combo.enabled = false
                     action_combo.item_delegate = ActionListDelegate.new(self)
@@ -532,19 +539,15 @@ module Syskit
                     new_job_layout
                 end
 
-                attr_reader :syskit_poll
-
                 # @api private
                 #
                 # Sets up polling on a given syskit interface
                 def poll_syskit_interface
                     if syskit.connected?
-                        begin
-                            display_current_cycle_index_and_time
-                            update_current_deployments
-                            update_current_job_task_names if current_job
-                        rescue Roby::Interface::ComError # rubocop:disable Lint/SuppressedException
-                        end
+                        display_current_cycle_index_and_time
+                        query_deployment_update
+                        update_current_job_task_names if current_job
+                        @port_read_manager.poll
                     else
                         reset_current_deployments
                         reset_current_job
@@ -570,18 +573,34 @@ module Syskit
                     @current_job = nil
                     @current_job_task_names = []
 
-                    update_task_inspector(@name_service.names)
+                    update_task_inspector(@name_service.tasks)
                 end
 
-                def update_current_deployments
-                    polling_call ["syskit"], "deployments" do |deployments|
-                        @current_deployments = deployments
-                        update_name_service(deployments)
+                def process_current_deployments
+                    update_name_service(@current_deployments)
 
-                        names = @name_service.names
-                        names &= @current_job_task_names if @current_job
-                        update_task_inspector(names)
+                    if @current_job
+                        update_task_inspector(@current_job_tasks)
+                    else
+                        update_task_inspector(@name_service.tasks)
                     end
+                end
+
+                def query_deployment_update
+                    polling_call(
+                        ["syskit"], "poll_ready_deployments",
+                        known: @current_deployments.map(&:id)
+                    ) do |updated, removed|
+                        update_current_deployments(updated, removed)
+                        process_current_deployments
+                    end
+                end
+
+                def update_current_deployments(updated, removed)
+                    @current_deployments.delete_if do |d|
+                        removed.include?(d.id)
+                    end
+                    @current_deployments.concat(updated)
                 end
 
                 def reset_current_deployments
@@ -591,42 +610,38 @@ module Syskit
 
                 def update_current_job_task_names
                     polling_call [], "tasks_of_job", @current_job.job_id do |tasks|
-                        @current_job_task_names =
+                        # TODO: handle asynchronicity, the tasks may not be already
+                        # discovered and/or the
+                        @current_job_tasks =
                             tasks
                             .map { _1.arguments[:orocos_name] }
                             .compact
+                            .map { @name_service.find(_1) }
                     end
                 end
 
-                def update_task_inspector(task_names)
-                    orocos_tasks = task_names.to_set
-                    removed = current_orocos_tasks - orocos_tasks
-                    new     = orocos_tasks - current_orocos_tasks
-                    removed.each do |task_name|
-                        ui_task_inspector.remove_task(task_name)
+                def update_task_inspector(tasks)
+                    removed = @current_tasks - tasks
+                    new     = tasks - @current_tasks
+                    removed.each do |task|
+                        ui_task_inspector.remove_task(task.name)
                     end
-                    new.each do |task_name|
-                        @proxies[task_name] ||= Orocos::Async::TaskContextProxy.new(
-                            task_name, name_service: @async_name_service
-                        )
-
-                        ui_task_inspector.add_task(@proxies[task_name])
+                    new.each do |task|
+                        ui_task_inspector.add_task(task)
                     end
-                    @current_orocos_tasks = orocos_tasks.dup
+                    @current_tasks = tasks.dup
                 end
 
                 def reset_task_inspector
                     update_task_inspector([])
                 end
 
-                def polling_call(path, method_name, *args)
-                    key = [path, method_name, args]
-                    if @call_guards.key?(key)
-                        return if @call_guards[key]
-                    end
+                def polling_call(path, method_name, *args, **kw)
+                    key = [path, method_name, args, kw]
+                    return if @call_guards.key?(key) && @call_guards[key]
 
                     @call_guards[key] = true
-                    syskit.async_call(path, method_name, *args) do |error, ret|
+                    syskit.async_call(path, method_name, *args, **kw) do |error, ret|
                         @call_guards[key] = false
                         if error
                             report_app_error(error)
@@ -654,44 +669,22 @@ module Syskit
                 end
 
                 def update_name_service(deployments)
-                    # Now remove all tasks that are not in deployments
-                    existing = @name_service.names
-
-                    deployments.each do |d|
-                        d.deployed_tasks.each do |deployed_task|
-                            task_name = deployed_task.name
-                            if existing.include?(task_name)
-                                existing.delete(task_name)
-                                next if deployed_task.ior == @name_service.ior(task_name)
-                            end
-
-                            existing.delete(task_name)
-                            task = Orocos::TaskContext.new(
-                                deployed_task.ior,
-                                name: task_name,
-                                model: orogen_model_from_name(
-                                    deployed_task.orogen_model_name
-                                )
-                            )
-
-                            async_task = Orocos::Async::CORBA::TaskContext.new(use: task)
-                            @name_service.register(async_task, name: task_name)
+                    all_deployed_tasks = deployments.flat_map do |d|
+                        d.deployed_tasks.find_all do |deployed_task|
+                            model_name = deployed_task.orogen_model_name
+                            !hide_loggers? || !OROGEN_LOGGER_NAMES.include?(model_name)
                         end
                     end
-
-                    existing.each { @name_service.deregister(_1) }
-                    @name_service.names
+                    @name_service.async_update_tasks(all_deployed_tasks)
                 end
 
+                OROGEN_LOGGER_NAMES = %w[logger::Logger OroGen.logger.Logger].freeze
+
                 def reset_name_service
-                    all = @name_service.names.dup
-                    all.each { @name_service.deregister(_1) }
+                    @name_service.cleanup
                 end
 
                 def orogen_model_from_name(name)
-                    @orogen_models[name] ||= Orocos.default_loader.task_model_from_name(name)
-                rescue OroGen::NotFound
-                    Orocos.warn "#{name} is a task context of class #{name}, but I cannot find the description for it, falling back"
                     @orogen_models[name] ||= Orocos.create_orogen_task_context_model(name)
                 end
 
@@ -737,16 +730,18 @@ module Syskit
                     self.size = settings.value(
                         "MainWindow/size", Qt::Variant.new(Qt::Size.new(800, 600))
                     ).to_size
-                    %w{ui_hide_loggers ui_show_expanded_job}.each do |checkbox_name|
+                    %w[ui_hide_loggers ui_show_expanded_job].each do |checkbox_name|
                         default = Qt::Variant.new(send(checkbox_name).checked)
-                        send(checkbox_name).checked = settings.value(checkbox_name, default).to_bool
+                        send(checkbox_name).checked = settings.value(checkbox_name,
+                                                                     default).to_bool
                     end
                 end
 
                 def save_to_settings(settings = self.settings)
                     settings.set_value("MainWindow/size", Qt::Variant.new(size))
-                    %w(ui_hide_loggers ui_show_expanded_job).each do |checkbox_name|
-                        settings.set_value checkbox_name, Qt::Variant.new(send(checkbox_name).checked)
+                    %w[ui_hide_loggers ui_show_expanded_job].each do |checkbox_name|
+                        settings.set_value checkbox_name,
+                                           Qt::Variant.new(send(checkbox_name).checked)
                     end
                 end
 

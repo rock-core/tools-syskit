@@ -16,7 +16,7 @@ module Syskit
             # Defined here to make sure it is actually defined. Otherwise, the log
             # state reporting would fail at runtime, and unit-testing for this is
             # very hard.
-            LogUploadState = Server::LogUploadState
+            LogUploadState = RobyApp::LogTransferServer::LogUploadState
 
             # Syskit-side interface to the remote process server
             class Manager
@@ -82,7 +82,7 @@ module Syskit
                         begin TCPSocket.new(host, port)
                         rescue Errno::ECONNREFUSED => e
                             raise e.class,
-                                  "cannot contact process server at "\
+                                  "cannot contact process server at " \
                                   "'#{host}:#{port}': #{e.message}"
                         end
 
@@ -118,7 +118,7 @@ module Syskit
                 def info(timeout: @response_timeout)
                     socket.write(COMMAND_GET_INFO)
                     unless select([socket], [], [], timeout)
-                        raise "timeout while reading process server "\
+                        raise "timeout while reading process server " \
                               "at '#{host}:#{port}'"
                     end
                     Marshal.load(socket)
@@ -169,7 +169,7 @@ module Syskit
                 def start(process_name, deployment, name_mappings = {}, options = {})
                     if processes[process_name]
                         raise ArgumentError,
-                              "this client already started a process "\
+                              "this client already started a process " \
                               "called #{process_name}"
                     end
 
@@ -178,7 +178,7 @@ module Syskit
                             loader.root_loader.deployment_model_from_name(deployment)
                         unless loader.has_deployment?(deployment)
                             raise OroGen::DeploymentModelNotFound,
-                                  "deployment #{deployment} exists locally but not "\
+                                  "deployment #{deployment} exists locally but not " \
                                   "on the remote process server #{self}"
                         end
                     else
@@ -238,7 +238,7 @@ module Syskit
                 def log_upload_file(
                     host, port, certificate, user, password, localfile,
                     max_upload_rate: Float::INFINITY,
-                    implicit_ftps: RobyApp::LogTransferServer.use_implicit_ftps?
+                    implicit_ftps: Runtime::Server.use_implicit_ftps?
                 )
                     socket.write(COMMAND_LOG_UPLOAD_FILE)
                     Marshal.dump(
@@ -294,8 +294,8 @@ module Syskit
                             p.dead!
                             result[p] = status
                         else
-                            Process.warn "process server reported the exit "\
-                                         "of '#{name}', but no process with "\
+                            Process.warn "process server reported the exit " \
+                                         "of '#{name}', but no process with " \
                                          "that name is registered"
                         end
                     end

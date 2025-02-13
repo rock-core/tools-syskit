@@ -13,7 +13,7 @@ module Syskit
 
                 model_s = @model.map(&:to_s).join(", ")
                 raise Ambiguous,
-                      "more than one port named '#{name}' exist on composite model "\
+                      "more than one port named '#{name}' exist on composite model " \
                       "#{model_s}. Select a data service explicitly to disambiguate"
             end
 
@@ -33,7 +33,7 @@ module Syskit
 
                 model_s = @model.map(&:to_s).join(", ")
                 raise ArgumentError,
-                      "no port named '#{name}' on #{model_s}, refine the "\
+                      "no port named '#{name}' on #{model_s}, refine the " \
                       "model with .which_fullfills first"
             end
 
@@ -50,7 +50,7 @@ module Syskit
                 return ds.first if ds.size <= 1
 
                 raise NotImplementedError,
-                      "more than one port named #{name} on composite model "\
+                      "more than one port named #{name} on composite model " \
                       "#{model_s}. This is likely to be a Syskit bug"
             end
 
@@ -74,7 +74,7 @@ module Syskit
 
                 model_s = @model.map(&:to_s).join(", ")
                 raise ArgumentError,
-                      "no port named '#{name}' on #{model_s}, refine the "\
+                      "no port named '#{name}' on #{model_s}, refine the " \
                       "model with .with_model first"
             end
 

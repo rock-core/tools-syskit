@@ -6,9 +6,7 @@ module Syskit
             # Management of Ruby tasks, that is Rock component interfaces without
             # computation that are driven by Syskit code
             class Manager
-                attr_reader :deployments
-                attr_reader :loader
-                attr_reader :terminated_deployments
+                attr_reader :deployments, :loader, :terminated_deployments
 
                 # The task context class that should be used on the client side
                 #
@@ -40,7 +38,8 @@ module Syskit
                 )
                     model = if deployment_name.respond_to?(:to_str)
                                 loader.deployment_model_from_name(deployment_name)
-                            else deployment_name
+                            else
+                                deployment_name
                             end
                     if deployments[name]
                         raise ArgumentError, "#{name} is already started in #{self}"

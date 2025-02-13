@@ -30,23 +30,23 @@ module Syskit
             desc.kind_of?(Roby::Actions::Action)
     end
     Roby::Test.register_spec_type Syskit::Test::TaskContextTest do |desc|
-        (desc.kind_of?(Class) && desc <= Syskit::TaskContext)
+        desc.kind_of?(Class) && desc <= Syskit::TaskContext
     end
     Roby::Test.register_spec_type Syskit::Test::RubyTaskContextTest do |desc|
-        (desc.kind_of?(Class) && desc <= Syskit::RubyTaskContext)
+        desc.kind_of?(Class) && desc <= Syskit::RubyTaskContext
     end
     Roby::Test.register_spec_type Syskit::Test::ComponentTest do |desc|
-        (desc.kind_of?(Class) &&
-         desc <= Syskit::Component &&
-         !(desc <= Syskit::TaskContext))
+        desc.kind_of?(Class) &&
+            desc <= Syskit::Component &&
+            !(desc <= Syskit::TaskContext)
     end
     Roby::Test.register_spec_type Syskit::Test::ProfileTest do |desc|
         desc.kind_of?(Syskit::Actions::Profile)
     end
     Roby::Test.register_spec_type Syskit::Test::ComponentTest do |desc|
-        (!desc.kind_of?(Class) && desc.kind_of?(Module) && desc <= Syskit::Device)
+        !desc.kind_of?(Class) && desc.kind_of?(Module) && desc <= Syskit::Device
     end
     Roby::Test.register_spec_type Syskit::Test::ActionInterfaceTest do |desc|
-        (desc.kind_of?(Class) && desc <= Roby::Actions::Interface)
+        desc.kind_of?(Class) && desc <= Roby::Actions::Interface
     end
 end

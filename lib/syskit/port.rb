@@ -96,15 +96,15 @@ module Syskit
                     in_port = in_port.to_component_port
                     if !output?
                         raise WrongPortConnectionDirection.new(self, in_port),
-                              "cannot connect #{self} to #{in_port}: "\
+                              "cannot connect #{self} to #{in_port}: " \
                               "#{self} is not an output port"
                     elsif !in_port.input?
                         raise WrongPortConnectionDirection.new(self, in_port),
-                              "cannot connect #{self} to #{in_port}: "\
+                              "cannot connect #{self} to #{in_port}: " \
                               "#{in_port} is not an input port"
                     elsif component == in_port.component
                         raise SelfConnection.new(self, in_port),
-                              "cannot connect #{self} to #{in_port}: "\
+                              "cannot connect #{self} to #{in_port}: " \
                               "they are both ports of the same component"
                     elsif type != in_port.type
                         raise WrongPortConnectionTypes.new(self, in_port),

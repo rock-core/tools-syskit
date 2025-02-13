@@ -7,6 +7,7 @@ module Syskit
         describe SystemNetworkGenerator do
             describe "#instanciate" do
                 attr_reader :component_m, :requirements
+
                 before do
                     @component_m = Syskit::Component.new_submodel
                     @requirements = component_m.to_instance_requirements
@@ -68,6 +69,7 @@ module Syskit
 
             describe "#allocate_devices" do
                 attr_reader :dev_m, :task_m, :cmp_m, :device, :cmp, :task
+
                 before do
                     dev_m = @dev_m = Syskit::Device.new_submodel name: "Driver"
                     @task_m = Syskit::TaskContext.new_submodel(name: "Task") { driver_for dev_m, as: "driver" }
@@ -114,6 +116,7 @@ module Syskit
             describe "#generate" do
                 describe "handling of optional dependencies" do
                     attr_reader :cmp_m, :srv_m, :task_m, :syskit_engine
+
                     before do
                         @srv_m = Syskit::DataService.new_submodel
                         @cmp_m = Syskit::Composition.new_submodel

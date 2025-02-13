@@ -159,10 +159,10 @@ module Syskit
                 overriden_deployment = @overrides.keys.find { |c| c.object_id == id }
                 unless overriden_deployment
                     deployment = find_registered_deployment_by_id(id)
-                    if !deployment
-                        raise NotFound, "#{id} is not an existing deployment"
-                    else
+                    if deployment
                         raise NotOverriden, "#{id} is not an overriden deployment, cannot deregister"
+                    else
+                        raise NotFound, "#{id} is not an existing deployment"
                     end
                 end
 

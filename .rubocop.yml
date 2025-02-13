@@ -10,6 +10,7 @@ inherit_mode:
 
 AllCops:
   TargetRubyVersion: "2.5"
+  NewCops: enable
   Exclude:
   - lib/syskit/telemetry/agent/*_pb.rb
 

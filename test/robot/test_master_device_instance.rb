@@ -7,6 +7,7 @@ module Syskit
         describe MasterDeviceInstance do
             describe "#==" do
                 attr_reader :device, :device_m, :driver_m, :robot_m
+
                 before do
                     @device_m = Device.new_submodel
                     @driver_m = TaskContext.new_submodel
@@ -31,7 +32,7 @@ module Syskit
                     )
                     refute(device == other_device)
                 end
-                it "returns if this is the device of a given name "\
+                it "returns if this is the device of a given name " \
                    "on the same robot object" do
                     mock = flexmock(kind_of?: true, robot: robot_m, name: device.name)
                     assert(device == mock)
@@ -95,7 +96,7 @@ module Syskit
                     assert_equal client_to_bus, @device.combus_client_out_srv
                 end
 
-                it "uses the bus-to-client and client-to-bus options as service "\
+                it "uses the bus-to-client and client-to-bus options as service " \
                    "names if they are strings" do
                     flexmock(@device).should_receive(:resolve_combus_client_srv)
                                      .with(@com_bus_m::ClientInSrv, "in_name",
@@ -183,11 +184,11 @@ module Syskit
                                 @srv_m, nil, @com_bus, "bus_to_client"
                             )
                         end
-                        assert_equal "Driver does not provide a service "\
-                                     "of type ClientInSrv, needed "\
-                                     "to connect to the bus 'com_bus'. Either disable "\
-                                     "the bus-to-client communication by passing "\
-                                     "bus_to_client: false, or change Driver's "\
+                        assert_equal "Driver does not provide a service " \
+                                     "of type ClientInSrv, needed " \
+                                     "to connect to the bus 'com_bus'. Either disable " \
+                                     "the bus-to-client communication by passing " \
+                                     "bus_to_client: false, or change Driver's " \
                                      "definition to provide the data service",
                                      e.message
                     end
@@ -200,10 +201,10 @@ module Syskit
                                 @srv_m, nil, @com_bus, "bus_to_client"
                             )
                         end
-                        assert_equal "Driver provides more than one service "\
-                                     "of type ClientInSrv "\
-                                     "to connect to the bus 'com_bus'. Select "\
-                                     "one explicitely using the bus_to_client option. "\
+                        assert_equal "Driver provides more than one service " \
+                                     "of type ClientInSrv " \
+                                     "to connect to the bus 'com_bus'. Select " \
+                                     "one explicitely using the bus_to_client option. " \
                                      "Available services: srv0, srv1",
                                      e.message
                     end
@@ -223,13 +224,13 @@ module Syskit
                                 @srv_m, "not_exist", @com_bus, "bus_to_client"
                             )
                         end
-                        assert_equal "not_exist is specified as a client service on "\
-                                     "device dev for combus com_bus, but it is not a "\
+                        assert_equal "not_exist is specified as a client service on " \
+                                     "device dev for combus com_bus, but it is not a " \
                                      "data service on Driver",
                                      e.message
                     end
 
-                    it "raises if the explicitly selected service does fullfill "\
+                    it "raises if the explicitly selected service does fullfill " \
                        "the service model" do
                         @other_srv_m = Syskit::DataService.new_submodel
                         @dev_driver_m.provides @other_srv_m, as: "srv"
@@ -238,8 +239,8 @@ module Syskit
                                 @srv_m, "srv", @com_bus, "bus_to_client"
                             )
                         end
-                        assert_equal "srv is specified as a client service on "\
-                                     "device dev for combus com_bus, but it does not "\
+                        assert_equal "srv is specified as a client service on " \
+                                     "device dev for combus com_bus, but it does not " \
                                      "provide the required service ClientInSrv",
                                      e.message
                     end

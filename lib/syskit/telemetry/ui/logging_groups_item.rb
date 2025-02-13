@@ -11,6 +11,7 @@ module Syskit
             # in a tree view
             class LoggingGroupsItem < LoggingConfigurationItemBase
                 attr_reader :items_name, :items_value
+
                 def initialize(logging_groups, label = "")
                     super(logging_groups)
 

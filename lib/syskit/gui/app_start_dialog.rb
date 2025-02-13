@@ -60,9 +60,10 @@ module Syskit
             #   configuration should be loaded
             def selected_name
                 txt = robot_names.current_text
-                if txt != NO_ROBOT
+                if txt == NO_ROBOT
+                    ""
+                else
                     txt
-                else ""
                 end
             end
 

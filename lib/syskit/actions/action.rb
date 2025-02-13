@@ -8,7 +8,7 @@ module Syskit
             #
             # @return [InstanceRequirements]
             def to_instance_requirements
-                model.to_instance_requirements(arguments)
+                model.to_instance_requirements(**arguments)
             end
 
             # Create a new action with the same arguments but the requirements
@@ -28,7 +28,8 @@ module Syskit
             def method_missing(m, *args, &block)
                 if model.requirements.respond_to?(m)
                     Action.new(model.public_send(m, *args, &block), arguments)
-                else super
+                else
+                    super
                 end
             end
         end

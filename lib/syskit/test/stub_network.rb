@@ -310,7 +310,7 @@ module Syskit
                 merge_mappings.each do |original, replacement|
                     unless replacement.can_merge?(original)
                         raise CannotStub.new(original, replacement),
-                              "cannot stub #{original} with #{replacement}, maybe "\
+                              "cannot stub #{original} with #{replacement}, maybe " \
                               "some delayed arguments are not set ?"
                     end
                     merge_solver.apply_merge_group(original => replacement)
@@ -334,7 +334,7 @@ module Syskit
                 merge_mappings.each do |original, replacement|
                     unless original.can_merge?(replacement)
                         raise CannotStub.new(original, replacement),
-                              "cannot stub #{original} with #{replacement}, maybe "\
+                              "cannot stub #{original} with #{replacement}, maybe " \
                               "some delayed arguments are not set ?"
                     end
                     # See big comment on apply_merge_group above

@@ -159,7 +159,7 @@ module Syskit
 
                 def format_error_message(reader, expected_count)
                     matching = " matching the given predicate" if @predicate
-                    msg = "#{reader} should have received #{expected_count} "\
+                    msg = "#{reader} should have received #{expected_count} " \
                           "new sample(s)#{matching}, but got #{@received_samples.size}"
 
                     return msg unless @predicate
@@ -180,8 +180,8 @@ module Syskit
                         extra_msg = ":"
                     end
 
-                    msg = +"#{samples.size} samples were rejected "\
-                          "by the #matching predicate#{extra_msg}"
+                    msg = +"#{samples.size} samples were rejected " \
+                           "by the #matching predicate#{extra_msg}"
                     samples.each do |s|
                         sample_to_s = PP.pp(s, +"")
                         msg += "\n    #{sample_to_s.split("\n").join("\n    ")}"

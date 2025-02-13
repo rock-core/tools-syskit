@@ -4,6 +4,7 @@ require "syskit/test/self"
 
 describe Syskit::Models::FacetedAccess do
     attr_reader :srv_m, :task_m, :sub_task_m, :facet, :stub_t, :other_stub_t
+
     before do
         @stub_t = stub_t = stub_type "/test_t"
         @other_stub_t = other_stub_t = stub_type "/other_test_t"

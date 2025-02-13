@@ -1,16 +1,23 @@
 # frozen_string_literal: true
 
 module Syskit
-    module RobyApp
-        module LogTransferServer
+    module Runtime
+        module Server
             # Custom write-only file system that detects collision between files
             class WriteOnlyDiskFileSystem
                 include Ftpd::DiskFileSystem::Base
+                include Ftpd::DiskFileSystem::Mkdir
                 include Ftpd::DiskFileSystem::FileWriting
                 include Ftpd::TranslateExceptions
 
                 def initialize(data_dir)
-                    set_data_dir data_dir
+                    # Ftpd base methods expect data_dir to be a string
+                    unless data_dir.respond_to?(:to_s)
+                        raise ArgumentError,
+                              "data_dir should be convertible into string"
+                    end
+
+                    set_data_dir data_dir.to_s
                 end
 
                 # Write a file to disk if it does not already exist.

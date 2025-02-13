@@ -16,7 +16,7 @@ module Syskit
                     ip: "127.0.0.1",
                     self_spawned: true,
                     max_upload_rates: {},
-                    implicit_ftps: LogTransferServer.use_implicit_ftps?
+                    implicit_ftps: Runtime::Server.use_implicit_ftps?
                 )
                 @conf.target_dir = make_tmpdir
                 @manager = nil
@@ -75,7 +75,7 @@ module Syskit
                 @conf.target_dir = target_path.to_s
                 ca = TmpRootCA.new("127.0.0.1")
                 @conf.certificate = ca.certificate
-                server = LogTransferServer::SpawnServer.new(
+                server = Runtime::Server::SpawnServer.new(
                     target_path.to_s, "user", "password",
                     ca.private_certificate_path
                 )

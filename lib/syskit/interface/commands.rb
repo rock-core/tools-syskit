@@ -16,6 +16,22 @@ module Syskit
             command :deployments,
                     "returns information about running deployments"
 
+            # Return incremental update about deployments
+            #
+            # @return [Protocol::Deployment]
+            def poll_ready_deployments(known: [])
+                deployments =
+                    plan.find_tasks(Syskit::Deployment).running.find_all(&:ready?)
+                deployment_ids = deployments.map { _1.droby_id.id }
+                new_deployments =
+                    deployments.find_all { !known.include?(_1.droby_id.id) }
+                removed_deployments =
+                    known.find_all { |id| !deployment_ids.include?(id) }
+                [new_deployments, removed_deployments]
+            end
+            command :poll_ready_deployments,
+                    "incremental information about deployments"
+
             # Save the configuration of all running tasks of the given model to disk
             #
             # @param [String,nil] name the section name for the new configuration.
@@ -35,7 +51,7 @@ module Syskit
                 "saves configuration from running tasks into yaml files",
                 model: "the model of the tasks that should be saved",
                 path: "the directory in which the configuration files should be saved",
-                name: "(optional) if given, the name of the section for the new "\
+                name: "(optional) if given, the name of the section for the new " \
                       "configuration. Defaults to the orocos task names"
             )
 
@@ -52,7 +68,7 @@ module Syskit
                 :dump_all_config,
                 "saves the configuration of all running tasks into yaml files",
                 path: "the directory in which the configuration files should be saved",
-                name: "(optional) if given, the name of the section for the new "\
+                name: "(optional) if given, the name of the section for the new " \
                       "configuration. Defaults to the orocos task names"
             )
 
@@ -93,8 +109,8 @@ module Syskit
                 end
             end
             command :stop_deployments, "stops deployment processes",
-                    models: "(optional) if given, a list of task or deployment models "\
-                            "pointing to what should be stopped. If not given, all "\
+                    models: "(optional) if given, a list of task or deployment models " \
+                            "pointing to what should be stopped. If not given, all " \
                             "deployments are stopped"
 
             # Restarts deployment processes
@@ -117,9 +133,9 @@ module Syskit
                 nil
             end
             command :restart_deployments, "restarts deployment processes",
-                    models: "(optional) if given, a list of task or deployment models "\
-                    "pointing to what should be restarted. If not given, all "\
-                    "deployments are restarted"
+                    models: "(optional) if given, a list of task or deployment models " \
+                            "pointing to what should be restarted. If not given, all " \
+                            "deployments are restarted"
 
             # @api private
             #
@@ -167,7 +183,7 @@ module Syskit
                 app.syskit_pending_reloaded_configurations
             end
             command :pending_reloaded_configurations,
-                    "returns the list of TaskContext names "\
+                    "returns the list of TaskContext names " \
                     "that are marked as needing reconfiguration",
                     "They will be reconfigured on the next redeploy or system transition"
 
@@ -180,7 +196,7 @@ module Syskit
                 nil
             end
             command :redeploy, "redeploys the current network",
-                    "It is mostly used to apply the configuration "\
+                    "It is mostly used to apply the configuration " \
                     "loaded with reload_config"
 
             def enable_log_group(string)

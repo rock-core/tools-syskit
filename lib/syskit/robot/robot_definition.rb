@@ -157,7 +157,7 @@ module Syskit
 
                 # Verify that the provided device model matches what we expect
                 unless device_model < options[:expected_model]
-                    raise ArgumentError, "#{device_model} is not a "\
+                    raise ArgumentError, "#{device_model} is not a " \
                                          "#{options[:expected_model].short_name}"
                 end
 
@@ -165,7 +165,7 @@ module Syskit
                 driver_model =
                     begin options[:using] || device_model.default_driver
                     rescue Ambiguous => e
-                        raise e, "#{e.message}, select one explicitely with the "\
+                        raise e, "#{e.message}, select one explicitely with the " \
                                  "using: option of the 'device' statement", e.backtrace
                     end
 
@@ -173,13 +173,13 @@ module Syskit
                     driver_model =
                         begin driver_model.find_data_service_from_type(device_model)
                         rescue Syskit::AmbiguousServiceSelection => e
-                            raise e, "#{e.message}, select one explicitly with the "\
+                            raise e, "#{e.message}, select one explicitly with the " \
                                      "using: option of the 'device' statement",
                                   e.backtrace
                         end
                     unless driver_model
-                        raise ArgumentError, "#{options[:using]}, given as the using: "\
-                                             "option to create #{self}, is not a driver "\
+                        raise ArgumentError, "#{options[:using]}, given as the using: " \
+                                             "option to create #{self}, is not a driver " \
                                              "for #{device_model}"
                     end
                 end

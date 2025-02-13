@@ -5,6 +5,7 @@ require "syskit/test/self"
 describe Syskit::Actions::Models::Action do
     describe "#rebind" do
         attr_reader :task_m, :profile_m, :interface_m
+
         before do
             @task_m = Syskit::TaskContext.new_submodel
             @profile_m = Syskit::Actions::Profile.new
@@ -38,6 +39,7 @@ describe Syskit::Actions::Models::Action do
 
     describe "droby marshalling" do
         attr_reader :interface_m, :requirements, :action_m, :task_m
+
         before do
             @interface_m = Class.new(Roby::Actions::Interface)
             @task_m = Syskit::TaskContext.new_submodel(name: "DRobyMarshallingTest")
@@ -57,7 +59,8 @@ describe Syskit::Actions::Models::Action do
             requirements.with_arguments(test: 10, other: flexmock(droby_dump: 20))
 
             remote_marshaller = Roby::DRoby::Marshal.new
-            reloaded = assert_droby_compatible(action_m, remote_marshaller: remote_marshaller)
+            reloaded = assert_droby_compatible(action_m,
+                                               remote_marshaller: remote_marshaller)
             reloaded_task_m = remote_marshaller.object_manager.find_model_by_name("DRobyMarshallingTest")
             assert_equal reloaded_task_m, reloaded.returned_type
             assert_equal reloaded_task_m, reloaded.requirements.model
@@ -66,13 +69,16 @@ describe Syskit::Actions::Models::Action do
         end
         it "passes along the returned type" do
             remote_marshaller = Roby::DRoby::Marshal.new
-            reloaded = assert_droby_compatible(action_m, remote_marshaller: remote_marshaller)
-            assert_equal remote_marshaller.object_manager.find_model_by_name("DRobyMarshallingTest"), reloaded.returned_type
+            reloaded = assert_droby_compatible(action_m,
+                                               remote_marshaller: remote_marshaller)
+            assert_equal remote_marshaller.object_manager.find_model_by_name("DRobyMarshallingTest"),
+                         reloaded.returned_type
         end
     end
 
     describe "#plan_pattern" do
         attr_reader :req, :action_m
+
         before do
             @req = Syskit::InstanceRequirements.new
             @action_m = Syskit::Actions::Models::Action.new(req)
@@ -102,6 +108,7 @@ describe Syskit::Actions::Models::Action do
 
     describe "#run" do
         attr_reader :req, :action_m, :interface
+
         before do
             @req = Syskit::InstanceRequirements.new
             @action_m = Syskit::Actions::Models::Action.new(req)
@@ -120,6 +127,7 @@ describe Syskit::Actions::Models::Action do
 
     describe "#method_missing" do
         attr_reader :req, :action_m
+
         before do
             req = Syskit::InstanceRequirements.new
             @action_m = Syskit::Actions::Models::Action.new(req)
@@ -135,7 +143,8 @@ describe Syskit::Actions::Models::Action do
         end
         it "does not modify the original action" do
             action_m.with_arguments(test: 10)
-            assert_equal Hash[], action_m.requirements.arguments
+            assert_equal({}, action_m.requirements.arguments,
+                         action_m.requirements.arguments)
         end
     end
 end

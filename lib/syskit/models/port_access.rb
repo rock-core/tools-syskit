@@ -31,7 +31,8 @@ module Syskit
             def port_by_name(name)
                 if p = find_port(name)
                     p
-                else raise ArgumentError, "#{self} has no port called #{name}, known ports are: #{each_port.map(&:name).sort.join(', ')}"
+                else
+                    raise ArgumentError, "#{self} has no port called #{name}, known ports are: #{each_port.map(&:name).sort.join(', ')}"
                 end
             end
 

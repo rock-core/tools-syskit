@@ -71,7 +71,7 @@ module Syskit
                     @orogen_model.respond_to?(name)
                 end
 
-                def method_missing(name, *args, **kw) # rubocop:disable Style/MethodMissingSuper
+                def method_missing(name, *args, **kw)
                     @orogen_model.send(name, *args, **kw)
                 end
             end

@@ -4,6 +4,7 @@ require "syskit/test/self"
 
 describe Syskit::Coordination::DataMonitoringTable do
     attr_reader :component_m, :table_m
+
     before do
         @component_m = Syskit::TaskContext.new_submodel { output_port "out", "/int" }
         @table_m = Syskit::Coordination::DataMonitoringTable

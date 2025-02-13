@@ -5,6 +5,7 @@ require "syskit/test/self"
 describe Syskit::Robot::MasterDeviceInstance do
     attr_reader :task_m, :device_m
     attr_reader :device
+
     before do
         device_m = @device_m = Syskit::Device.new_submodel
         @task_m = Syskit::TaskContext.new_submodel do
@@ -36,6 +37,7 @@ describe Syskit::Robot::MasterDeviceInstance do
     describe "combus attachment" do
         attr_reader :combus_m, :device_m, :driver_m
         attr_reader :robot, :bus, :dev
+
         before do
             @device_m = Syskit::Device.new_submodel
             @combus_m = Syskit::ComBus.new_submodel message_type: "/double"
@@ -158,6 +160,7 @@ end
 describe Syskit::Robot::SlaveDeviceInstance do
     attr_reader :task_m, :device_m, :slave_m
     attr_reader :device, :slave_device
+
     before do
         device_m = @device_m = Syskit::Device.new_submodel
         slave_m = @slave_m = Syskit::DataService.new_submodel

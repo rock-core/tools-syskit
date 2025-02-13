@@ -335,9 +335,7 @@ module Syskit
                     )
                     next unless file_name
 
-                    File.open(file_name, "w") do |file|
-                        file.write f.html
-                    end
+                    File.write(file_name, f.html)
                 end
             end
 

@@ -4,6 +4,7 @@ require "syskit/test/self"
 
 describe Syskit::Device do
     attr_reader :task_m, :device_m, :devices
+
     before do
         @task_m = Syskit::TaskContext.new_submodel
         @device_m = Syskit::Device.new_submodel
@@ -14,6 +15,7 @@ describe Syskit::Device do
 
     describe "#find_device_attached_to" do
         attr_reader :dev0
+
         before do
             task_m.driver_for device_m, as: "dev0"
             @dev0 = robot.device device_m, as: "DEV0"
@@ -42,6 +44,7 @@ describe Syskit::Device do
 
     describe "#each_master_device" do
         attr_reader :dev0, :dev1
+
         before do
             task_m.driver_for device_m, as: "dev0"
             task_m.driver_for device_m, as: "dev1"
@@ -90,6 +93,7 @@ end
 
 describe Syskit::ComBus do
     attr_reader :device_driver_m, :combus_driver_m, :combus_m, :combus, :device, :device_m
+
     before do
         combus_m = @combus_m = Syskit::ComBus.new_submodel(message_type: "/double")
         device_m = @device_m = Syskit::Device.new_submodel
@@ -176,6 +180,7 @@ describe Syskit::ComBus do
     describe "#attach" do
         describe "lazy_attach set" do
             attr_reader :combus_task, :device_task
+
             before do
                 combus_m.lazy_dispatch = true
                 @combus_task = combus.instanciate(plan).to_task

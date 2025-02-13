@@ -41,7 +41,7 @@ module Syskit
                 super
                 data_services.clear
                 dynamic_services.clear
-                # Note: the placeholder_models cache is cleared separately. The
+                # NOTE: the placeholder_models cache is cleared separately. The
                 # reason is that we need to clear it on permanent and
                 # non-permanent models alike, including component models that
                 # are defined in syskit. The normal procedure is to call
@@ -109,7 +109,7 @@ module Syskit
                 pattern_msg += " matching name hint #{pattern}" if pattern
                 raise AmbiguousServiceSelection.new(
                     self, target_model, master_matching_services
-                ), "there is more than one service of type #{target_model.name} "\
+                ), "there is more than one service of type #{target_model.name} " \
                    "in #{name}#{pattern_msg}"
             end
 
@@ -355,11 +355,11 @@ module Syskit
 
                     if !srv_name.respond_to?(:to_str)
                         raise ArgumentError,
-                              "unexpected value given in port mapping: #{srv_name}, "\
+                              "unexpected value given in port mapping: #{srv_name}, " \
                               "expected a string"
                     elsif !self_name.respond_to?(:to_str)
                         raise ArgumentError,
-                              "unexpected value given in port mapping: #{self_name}, "\
+                              "unexpected value given in port mapping: #{self_name}, " \
                               "expected a string"
                     elsif !service_model.find_port(srv_name)
                         raise InvalidPortMapping,
@@ -380,7 +380,7 @@ module Syskit
                     )
                     unless self_port_name
                         raise InvalidPortMapping,
-                              "cannot find an equivalent output port for "\
+                              "cannot find an equivalent output port for " \
                               "#{srv_port.name}[#{srv_port.type_name}] on #{short_name}"
                     end
 
@@ -395,7 +395,7 @@ module Syskit
                     )
                     unless self_port_name
                         raise InvalidPortMapping,
-                              "cannot find an equivalent input port for "\
+                              "cannot find an equivalent input port for " \
                               "#{srv_port.name}[#{srv_port.type_name}] on #{short_name}"
                     end
 
@@ -419,10 +419,10 @@ module Syskit
                         .join(", ")
 
                     raise InvalidPortMapping,
-                          "automatic port mapping would map multiple service ports "\
-                          "#{srv_port_names.sort.join(', ')} to the same component port "\
-                          "#{self_port_name}. This is possible, but must be specified "\
-                          "explicitly by passing this mapping: "\
+                          "automatic port mapping would map multiple service ports " \
+                          "#{srv_port_names.sort.join(', ')} to the same component port " \
+                          "#{self_port_name}. This is possible, but must be specified " \
+                          "explicitly by passing this mapping: " \
                           "#{explicit_mapping_s} explicitly"
                 end
             end
@@ -464,15 +464,15 @@ module Syskit
 
                 if self_port
                     raise InvalidPortMapping,
-                          "invalid port mapping provided from #{srv_port} to "\
+                          "invalid port mapping provided from #{srv_port} to " \
                           "#{self_port}: type mismatch"
                 else
                     known_ports = send("each_#{direction}_port")
                                   .map { |p| "#{p.name}[#{p.type.name}]" }
                     raise InvalidPortMapping,
-                          "invalid port mapping \"#{srv_port.name}\" => "\
-                          "\"#{self_port_name}\": #{self_port_name} is not a "\
-                          "#{direction} port in #{short_name}. "\
+                          "invalid port mapping \"#{srv_port.name}\" => " \
+                          "\"#{self_port_name}\": #{self_port_name} is not a " \
+                          "#{direction} port in #{short_name}. " \
                           "Known #{direction} ports are #{known_ports.sort.join(', ')}"
                 end
             end
@@ -487,8 +487,8 @@ module Syskit
                 return srv_port_name if candidates.any? { |p| p.name == srv_port_name }
 
                 raise InvalidPortMapping,
-                      "there are multiple candidates to map "\
-                      "#{srv_port.name}[#{srv_port.type.name}]: "\
+                      "there are multiple candidates to map " \
+                      "#{srv_port.name}[#{srv_port.type.name}]: " \
                       "#{candidates.map(&:name).sort.join(', ')}"
             end
 
@@ -563,24 +563,24 @@ module Syskit
             #         # setup the task to create the required service
             #       end
             #     end
-            def dynamic_service( # rubocop:disable Metrics/ParameterLists
+            def dynamic_service(
                 model, as: nil,
                 addition_requires_reconfiguration: true,
                 remove_when_unused: true, **backward, &block
             )
                 if !as
                     raise ArgumentError,
-                          "no name given to the dynamic service, "\
+                          "no name given to the dynamic service, " \
                           "please provide one with the :as option"
                 elsif !block_given?
                     raise ArgumentError,
-                          "no block given to #dynamic_service, "\
+                          "no block given to #dynamic_service, " \
                           "one must be provided and must call provides()"
                 end
 
                 if backward.key?(:dynamic)
-                    Roby.warn_deprecated "the dynamic argument to #dynamic_service has "\
-                                         "been renamed into "\
+                    Roby.warn_deprecated "the dynamic argument to #dynamic_service has " \
+                                         "been renamed into " \
                                          "addition_requires_reconfiguration"
                     addition_requires_reconfiguration = !backward[:dynamic]
                 end
@@ -630,9 +630,9 @@ module Syskit
                     return srv if srv.fullfills?(dyn.service_model)
 
                     raise ArgumentError,
-                          "there is already a service #{service_name}, but it is "\
-                          "of type #{srv.model.short_name} while the dynamic "\
-                          "service #{dynamic_service_name} expects "\
+                          "there is already a service #{service_name}, but it is " \
+                          "of type #{srv.model.short_name} while the dynamic " \
+                          "service #{dynamic_service_name} expects " \
                           "#{dyn.service_model.short_name}"
                 end
                 dyn.instanciate(service_name, **dyn_options)
@@ -646,8 +646,8 @@ module Syskit
                     each_dynamic_service.map { |n, _| n }.sort.join(", ")
 
                 raise ArgumentError,
-                      "#{short_name} has no dynamic service called "\
-                      "#{name}, available dynamic services "\
+                      "#{short_name} has no dynamic service called " \
+                      "#{name}, available dynamic services " \
                       "are: #{dynamic_service_list}"
             end
 
@@ -742,7 +742,7 @@ module Syskit
 
                 unless model.kind_of?(Roby::Models::TaskServiceModel)
                     raise ArgumentError,
-                          "expected either a task service model or a data service model "\
+                          "expected either a task service model or a data service model " \
                           "as argument, and got #{model}"
                 end
 
@@ -756,7 +756,7 @@ module Syskit
             def provides_resolve_name(as:, slave_of: nil)
                 unless as
                     raise ArgumentError,
-                          "#provides requires a name to be provided through "\
+                          "#provides requires a name to be provided through " \
                           "the 'as' option"
                 end
 
@@ -767,7 +767,7 @@ module Syskit
                     master_srv = find_data_service(slave_of)
                     unless master_srv
                         raise ArgumentError,
-                              "master data service #{slave_of} is not "\
+                              "master data service #{slave_of} is not " \
                               "registered on #{self}"
                     end
 
@@ -782,7 +782,7 @@ module Syskit
                 # Get the source name and the source model
                 if data_services[full_name]
                     raise ArgumentError,
-                          "there is already a data service named '#{full_name}' "\
+                          "there is already a data service named '#{full_name}' " \
                           "defined on '#{short_name}'"
                 end
 
@@ -792,7 +792,7 @@ module Syskit
 
                 unless model <= parent_type
                     raise ArgumentError,
-                          "#{self} has a data service named #{full_name} of type "\
+                          "#{self} has a data service named #{full_name} of type " \
                           "#{parent_type}, which is not a parent type of #{model}"
                 end
 
@@ -819,7 +819,7 @@ module Syskit
                 )
             rescue InvalidPortMapping => e
                 raise InvalidProvides.new(self, service_m, e),
-                      "#{short_name} does not provide the '#{service_m.name}' "\
+                      "#{short_name} does not provide the '#{service_m.name}' " \
                       "service's interface. #{e.message}", e.backtrace
             end
 
@@ -910,7 +910,8 @@ module Syskit
             def ensure_model_is_specialized
                 if private_specialization?
                     self
-                else specialize
+                else
+                    specialize
                 end
             end
 
@@ -967,15 +968,15 @@ module Syskit
 
             # @deprecated use {#bind} instead
             def resolve(task)
-                Roby.warn_deprecated "#{__method__} is deprecated, use "\
-                    "Models::Component#bind instead"
+                Roby.warn_deprecated "#{__method__} is deprecated, use " \
+                                     "Models::Component#bind instead"
                 bind(task)
             end
 
             # @deprecated use {#try_bind} instead
             def try_resolve(task)
-                Roby.warn_deprecated "#{__method__} is deprecated, use "\
-                    "Models::Component#try_bind instead"
+                Roby.warn_deprecated "#{__method__} is deprecated, use " \
+                                     "Models::Component#try_bind instead"
                 try_bind(task)
             end
 
@@ -1039,14 +1040,14 @@ module Syskit
 
             # @deprecated use {Models::Placeholder.create_for} instead
             def create_proxy_task_model(service_models, as: nil, extension: Placeholder)
-                Roby.warn_deprecated "Component.create_proxy_task_model is deprecated, "\
+                Roby.warn_deprecated "Component.create_proxy_task_model is deprecated, " \
                                      "use Syskit::Models::Placeholder.create_for instead"
                 extension.create_for(service_models, component_model: self, as: as)
             end
 
             # @deprecated use {Models::Placeholder.for} instead
             def proxy_task_model(service_models, as: nil, extension: Placeholder)
-                Roby.warn_deprecated "Component.proxy_task_model is deprecated, "\
+                Roby.warn_deprecated "Component.proxy_task_model is deprecated, " \
                                      "use Syskit::Models::Placeholder.for instead"
                 extension.for(service_models, component_model: self, as: as)
             end
@@ -1114,7 +1115,8 @@ module Syskit
                 object_real_model =
                     if object.respond_to?(:concrete_model)
                         object.concrete_model
-                    else object
+                    else
+                        object
                     end
 
                 return super if self_real_model == self
@@ -1156,10 +1158,10 @@ module Syskit
             def can_merge_service?(self_srv, target_srv)
                 if target_srv.model != self_srv.model
                     NetworkGeneration::MergeSolver.debug do
-                        "rejecting #{self_srv}.merge(#{target_srv}): dynamic "\
-                        "service #{self_srv.name} is of model "\
-                        "#{self_srv.model.short_name} on self and of "\
-                        "model #{target_srv.model.short_name} on the candidate task"
+                        "rejecting #{self_srv}.merge(#{target_srv}): dynamic " \
+                            "service #{self_srv.name} is of model " \
+                            "#{self_srv.model.short_name} on self and of " \
+                            "model #{target_srv.model.short_name} on the candidate task"
                     end
                     false
                 elsif target_srv.dynamic? && self_srv.dynamic?
@@ -1169,19 +1171,19 @@ module Syskit
                         true
                     else
                         NetworkGeneration::MergeSolver.debug do
-                            "rejecting #{self_srv}.merge(#{target_srv}): dynamic "\
-                            "service #{self_srv.name} has options "\
-                            "#{target_srv.dynamic_service_options} on self and "\
-                            "#{self_srv.dynamic_service_options} "\
-                            "on the candidate task"
+                            "rejecting #{self_srv}.merge(#{target_srv}): dynamic " \
+                                "service #{self_srv.name} has options " \
+                                "#{target_srv.dynamic_service_options} on self and " \
+                                "#{self_srv.dynamic_service_options} " \
+                                "on the candidate task"
                         end
                         false
                     end
                 elsif target_srv.dynamic? || self_srv.dynamic?
                     NetworkGeneration::MergeSolver.debug do
-                        "rejecting #{self_srv}.merge(#{target_srv}): "\
-                        "#{self_srv.name} is a dynamic service on self, "\
-                        "but a static one on the candidate task"
+                        "rejecting #{self_srv}.merge(#{target_srv}): " \
+                            "#{self_srv.name} is a dynamic service on self, " \
+                            "but a static one on the candidate task"
                     end
                     false
                 else
@@ -1194,14 +1196,17 @@ module Syskit
                     !find_data_service(srv.full_name)
                 end
 
-                if !missing_services.empty?
+                if missing_services.empty?
+                    self
+                else
                     # We really really need to specialize self. The reason is
                     # that self.model, even though it has private
                     # specializations, might be a reusable model from the system
                     # designer's point of view. With the singleton class, we
                     # know that it is not
                     base_model = if specialize_if_needed then specialize
-                                 else self
+                                 else
+                                     self
                                  end
                     missing_services.each do |_, srv|
                         dynamic_service_options =
@@ -1211,7 +1216,6 @@ module Syskit
                         )
                     end
                     base_model
-                else self
                 end
             end
 
@@ -1240,7 +1244,7 @@ module Syskit
 
                 else
                     raise IncompatibleComponentModels.new(self, other_model),
-                          "models #{short_name} and #{other_model.short_name} "\
+                          "models #{short_name} and #{other_model.short_name} " \
                           "are not compatible"
                 end
             end
@@ -1265,7 +1269,7 @@ module Syskit
                               "#{self} cannot dynamically create ports"
                     elsif p.type != self_p.type
                         raise InvalidPortMapping,
-                              "#{self} already has a port named #{self_name} of type "\
+                              "#{self} already has a port named #{self_name} of type " \
                               "#{self_p.type}, cannot dynamically map #{p} onto it"
                     end
                 end
@@ -1278,7 +1282,7 @@ module Syskit
                               "#{self} cannot dynamically create ports"
                     elsif p.type != self_p.type
                         raise InvalidPortMapping,
-                              "#{self} already has a port named #{self_name} of "\
+                              "#{self} already has a port named #{self_name} of " \
                               "type #{self_p.type}, cannot dynamically map #{p} onto it"
                     end
                 end
@@ -1392,7 +1396,7 @@ module Syskit
             ruby2_keywords def method_missing(name, *args, &block) # rubocop:disable Style/MissingRespondToMissing
                 if name == :orogen_model
                     raise NoMethodError,
-                          "tried to use a method to access an oroGen model, "\
+                          "tried to use a method to access an oroGen model, " \
                           "but none exists on #{self}"
                 end
 

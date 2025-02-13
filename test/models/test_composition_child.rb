@@ -160,7 +160,7 @@ describe Syskit::Models::CompositionChild do
                 e = assert_raises(ArgumentError) do
                     @cmp_m.test_child.bind(cmp.test_child.other_srv)
                 end
-                assert_equal "cannot bind Syskit::Models::Placeholder<srv_m> to "\
+                assert_equal "cannot bind Syskit::Models::Placeholder<srv_m> to " \
                              "#<BoundDataService: task_m.other>",
                              e.message
             end
@@ -188,9 +188,9 @@ describe Syskit::Models::CompositionChild do
                 e = assert_raises(ArgumentError) do
                     @cmp_m.test_child.bind(task)
                 end
-                assert_equal "cannot bind cmp_m.test_child["\
-                             "Syskit::Models::Placeholder<srv_m>] to task_m<id:X>"\
-                             "(conf: default([\"default\"]), read_only: default(false)): "\
+                assert_equal "cannot bind cmp_m.test_child[" \
+                             "Syskit::Models::Placeholder<srv_m>] to task_m<id:X>" \
+                             "(conf: default([\"default\"]), read_only: default(false)): " \
                              "it is not the child of any cmp_m composition",
                              e.message.gsub(/<id:\d+>/, "<id:X>")
             end
@@ -201,9 +201,9 @@ describe Syskit::Models::CompositionChild do
                 e = assert_raises(ArgumentError) do
                     @cmp_m.test_child.bind(task)
                 end
-                assert_equal "cannot bind cmp_m.test_child[Syskit::Models::"\
-                             "Placeholder<srv_m>] to task_m<id:X>(conf: default([\"default\"]), "\
-                             "read_only: default(false)): it is the child of one "\
+                assert_equal "cannot bind cmp_m.test_child[Syskit::Models::" \
+                             "Placeholder<srv_m>] to task_m<id:X>(conf: default([\"default\"]), " \
+                             "read_only: default(false)): it is the child of one " \
                              "or more cmp_m compositions, but not with the role 'test'",
                              e.message.gsub(/<id:\d+>/, "<id:X>")
             end
@@ -315,6 +315,7 @@ end
 
 describe Syskit::Models::InvalidCompositionChildPort do
     attr_reader :cmp_m
+
     before do
         task_m = Syskit::TaskContext.new_submodel do
             input_port "in", "/double"

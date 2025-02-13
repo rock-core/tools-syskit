@@ -112,6 +112,7 @@ module Syskit
             # The profile name
             # @return [String]
             attr_reader :name
+
             # The profile's basename
             def basename
                 name.gsub(/.*::/, "")
@@ -299,7 +300,8 @@ module Syskit
                 tags.transform_keys do |key|
                     if key.respond_to?(:to_str)
                         profile.send("#{key.gsub(/_tag$/, '')}_tag")
-                    else key
+                    else
+                        key
                     end
                 end
             end
@@ -328,7 +330,11 @@ module Syskit
             #
             # @param [Profile] profile
             # @return [void]
-            def use_profile(profile, tags = {}, transform_names: ->(k) { k })
+            def use_profile(
+                profile, tags = {},
+                transform_names: ->(k) { k },
+                prefer_deployed_tasks: nil
+            )
                 invalidate_dependency_injection
                 tags = resolve_tag_selection(profile, tags)
                 used_profiles.push([profile, tags])
@@ -341,6 +347,9 @@ module Syskit
                     name = transform_names.call(name)
                     req = promote_requirements(profile, req, tags)
                     definition = register_definition(name, req, doc: req.doc)
+                    if prefer_deployed_tasks
+                        definition.prefer_deployed_tasks(prefer_deployed_tasks)
+                    end
                     new_definitions << definition
                 end
                 new_definitions.concat(robot.use_robot(profile.robot))

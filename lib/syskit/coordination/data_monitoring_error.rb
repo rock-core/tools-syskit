@@ -5,9 +5,7 @@ module Syskit
         # Exception issued by the data monitors in {DataMonitor#poll} when
         # predicate#finalize returns true
         class DataMonitoringError < Roby::LocalizedError
-            attr_reader :monitor
-            attr_reader :time
-            attr_reader :samples
+            attr_reader :monitor, :time, :samples
 
             def initialize(task, monitor, time, samples)
                 super(task)

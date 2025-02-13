@@ -55,7 +55,7 @@ module Syskit
                 nil
             else
                 raise ArgumentError,
-                      "expected either a selection hash or a DependencyInjection "\
+                      "expected either a selection hash or a DependencyInjection " \
                       "object as base selection, got #{base}"
             end
         end
@@ -100,15 +100,15 @@ module Syskit
         #   when the execution quits the block
         # @return [void]
         def save
-            if !block_given?
-                @savepoints << stack.size
-            else
+            if block_given?
                 save
                 begin
                     yield
                 ensure
                     restore
                 end
+            else
+                @savepoints << stack.size
             end
         end
 

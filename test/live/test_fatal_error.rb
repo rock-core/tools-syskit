@@ -38,7 +38,7 @@ module Syskit
                 end
             end
 
-            it "fails during network generation when attempting "\
+            it "fails during network generation when attempting " \
                "to deploy a component that is in FATAL_ERROR" do
                 # Avoid killing the deployment altogether
                 Syskit.conf.auto_restart_deployments_with_quarantines = false
@@ -49,7 +49,7 @@ module Syskit
                 end
             end
 
-            it "auto-restarts deployments with a task in FATAL_ERROR "\
+            it "auto-restarts deployments with a task in FATAL_ERROR " \
                "if configured to do so" do
                 Syskit.conf.auto_restart_deployments_with_quarantines = true
 
@@ -70,7 +70,7 @@ module Syskit
                            .running.first
             end
 
-            it "does not auto-restart the deployment if the tasks "\
+            it "does not auto-restart the deployment if the tasks " \
                "in FATAL_ERROR are not involved in the new network" do
                 Syskit.conf.auto_restart_deployments_with_quarantines = true
 
@@ -80,7 +80,7 @@ module Syskit
                 assert_same @task2, new_task
             end
 
-            it "auto-restarts deployments with a quarantined task "\
+            it "auto-restarts deployments with a quarantined task " \
                "if configured to do so" do
                 Syskit.conf.auto_restart_deployments_with_quarantines = true
 
@@ -106,7 +106,7 @@ module Syskit
                            .running.first
             end
 
-            it "does not auto-restart the deployment if quarantined "\
+            it "does not auto-restart the deployment if quarantined " \
                "tasks are not involved in the new network" do
                 Syskit.conf.auto_restart_deployments_with_quarantines = true
 
@@ -137,7 +137,7 @@ module Syskit
                 end
             end
 
-            it "kills the deployment if the task was the only one running on it apart "\
+            it "kills the deployment if the task was the only one running on it apart " \
                "from loggers" do
                 expect_execution { task2.stop! }.to { emit task2.stop_event }
                 trigger_fatal_error(@task) do
@@ -146,7 +146,7 @@ module Syskit
                 end
             end
 
-            it "does kill a deployment with a fatal-errored task "\
+            it "does kill a deployment with a fatal-errored task " \
                "once all non-utility tasks have stopped" do
                 trigger_fatal_error(@task)
 
@@ -169,7 +169,7 @@ module Syskit
                 trigger_fatal_error(task)
             end
 
-            it "handles a delay between the fatal error and the component "\
+            it "handles a delay between the fatal error and the component " \
                "returning from stop" do
                 task_m = OroGen.orogen_syskit_tests.FatalError
                                .deployed_as(default_deployment_name)
@@ -199,7 +199,7 @@ module Syskit
                 assert deployment.task_context_in_fatal?(default_deployment_name)
             end
 
-            it "handles the asynchronicity between a possible exception event and a "\
+            it "handles the asynchronicity between a possible exception event and a " \
                "fatal error" do
                 task_m = OroGen.orogen_syskit_tests.FatalErrorAfterExceptionAndDelay
                                .deployed_as(default_deployment_name)

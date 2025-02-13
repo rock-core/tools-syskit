@@ -53,7 +53,7 @@ module Syskit
                 refute plan.syskit_current_resolution
             end
 
-            it "ignores resolution errors if all requirements have been "\
+            it "ignores resolution errors if all requirements have been " \
                "stopped in the meantime" do
                 cmp_m = Composition.new_submodel
                 requirement_task =
@@ -95,7 +95,7 @@ module Syskit
                              plan.syskit_current_resolution.future.requirement_tasks
             end
 
-            it "cancels an async resolution if one of the IR tasks "\
+            it "cancels an async resolution if one of the IR tasks " \
                "has been interrupted" do
                 cmp_m = Composition.new_submodel
                 requirement_task = plan.add_permanent_task(cmp_m)

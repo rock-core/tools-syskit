@@ -5,6 +5,7 @@ require "syskit/test/self"
 module Syskit
     describe Property do
         attr_reader :property
+
         before do
             task_m = Syskit::TaskContext.new_submodel do
                 property "test", "/double"

@@ -87,7 +87,7 @@ module Syskit
 
             # @deprecated
             def use_conf(*conf)
-                Roby.warn_deprecated "MasterDeviceInstance#use_conf is deprecated. "\
+                Roby.warn_deprecated "MasterDeviceInstance#use_conf is deprecated. " \
                                      "Use #with_conf instead"
                 with_conf(*conf)
             end
@@ -155,12 +155,12 @@ module Syskit
                 end
 
                 if (srv_name = options.delete(:in))
-                    Roby.warn_deprecated "the in: option of MasterDeviceInstance"\
+                    Roby.warn_deprecated "the in: option of MasterDeviceInstance" \
                                          "#attach_to has been renamed to bus_to_client"
                     bus_to_client = srv_name
                 end
                 if (srv_name = options.delete(:out))
-                    Roby.warn_deprecated "the out: option of MasterDeviceInstance"\
+                    Roby.warn_deprecated "the out: option of MasterDeviceInstance" \
                                          "#attach_to has been renamed to client_to_bus"
                     client_to_bus = srv_name
                 end
@@ -207,11 +207,11 @@ module Syskit
                 )
                 unless service
                     raise ArgumentError,
-                          "#{driver_task_model} does not "\
-                          "provide a service of type #{srv_model}, "\
-                          "needed to connect to the bus '#{com_bus.name}'. Either "\
-                          "disable the #{option_name.gsub('_', '-')} communication "\
-                          "by passing #{option_name}: false, or change Driver\'s "\
+                          "#{driver_task_model} does not " \
+                          "provide a service of type #{srv_model}, " \
+                          "needed to connect to the bus '#{com_bus.name}'. Either " \
+                          "disable the #{option_name.gsub('_', '-')} communication " \
+                          "by passing #{option_name}: false, or change Driver's " \
                           "definition to provide the data service"
                 end
 
@@ -224,10 +224,10 @@ module Syskit
                     .compact.sort.join(", ")
 
                 raise ArgumentError,
-                      "#{driver_task_model} provides more than one "\
-                      "service of type #{srv_model} "\
-                      "to connect to the bus \'#{com_bus.name}\'. "\
-                      "Select one explicitely using the bus_to_client "\
+                      "#{driver_task_model} provides more than one " \
+                      "service of type #{srv_model} " \
+                      "to connect to the bus '#{com_bus.name}'. " \
+                      "Select one explicitely using the bus_to_client " \
                       "option. Available services: #{possible_services}"
             end
 
@@ -246,15 +246,15 @@ module Syskit
                     result = driver_task_model.find_data_service(srv_name)
                     unless result
                         raise ArgumentError,
-                              "#{srv_name} is specified as a client service on device "\
-                              "#{name} for combus #{com_bus.name}, but it is not a data "\
+                              "#{srv_name} is specified as a client service on device " \
+                              "#{name} for combus #{com_bus.name}, but it is not a data " \
                               "service on #{driver_task_model}"
                     end
 
                     unless result.fullfills?(srv_m)
                         raise ArgumentError,
-                              "#{srv_name} is specified as a client service on device "\
-                              "#{name} for combus #{com_bus.name}, but it does not "\
+                              "#{srv_name} is specified as a client service on device " \
+                              "#{name} for combus #{com_bus.name}, but it does not " \
                               "provide the required service #{srv_m}"
                     end
 
@@ -340,7 +340,7 @@ module Syskit
                     end
                     unless srv
                         raise ArgumentError,
-                              "there is no service #{slave_name} and no dynamic "\
+                              "there is no service #{slave_name} and no dynamic " \
                               "service in #{task_model.short_name}"
                     end
 
@@ -404,7 +404,7 @@ module Syskit
             end
 
             def use_deployments(hints)
-                Roby.warn_deprecated "MasterDeviceInstance#use_deployments is "\
+                Roby.warn_deprecated "MasterDeviceInstance#use_deployments is " \
                                      "deprecated. Use #prefer_deployed_tasks instead"
                 prefer_deployed_tasks(hints)
                 self

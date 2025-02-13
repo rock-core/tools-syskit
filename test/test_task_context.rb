@@ -20,6 +20,7 @@ module Syskit
 
         describe "#can_merge?" do
             attr_reader :merging_task, :merged_task
+
             before do
                 task_m = TaskContext.new_submodel
                 @merging_task = task_m.new
@@ -139,6 +140,7 @@ module Syskit
 
         stub_process_server_deployment_helpers = Module.new do
             attr_reader :deployment_m, :deployment0, :deployment1
+
             def setup
                 super
                 @deployment_m = Deployment.new_submodel
@@ -169,6 +171,7 @@ module Syskit
             include stub_process_server_deployment_helpers
 
             attr_reader :task_m, :deployment_m
+
             before do
                 @task_m = TaskContext.new_submodel
                 @deployment_m = Deployment.new_submodel
@@ -181,8 +184,8 @@ module Syskit
                 task = create_task_from_host_id "localhost"
                 assert_equal TaskContext::D_SAME_HOST, task.distance_to_syskit
             end
-            it "returns D_DIFFERENT_HOSTS if the task is not running "\
-                "on syskit or localhost" do
+            it "returns D_DIFFERENT_HOSTS if the task is not running " \
+               "on syskit or localhost" do
                 task = create_task_from_host_id "test"
                 assert_equal TaskContext::D_DIFFERENT_HOSTS, task.distance_to_syskit
             end
@@ -192,6 +195,7 @@ module Syskit
             include stub_process_server_deployment_helpers
 
             attr_reader :task_m, :deployment_m
+
             before do
                 @task_m = TaskContext.new_submodel
                 @deployment_m = Deployment.new_submodel
@@ -202,8 +206,8 @@ module Syskit
             it "returns false if the task is running on localhost" do
                 refute create_task_from_host_id("localhost").in_process?
             end
-            it "returns false if the task is running on any other host_id "\
-                "than syskit and localhost" do
+            it "returns false if the task is running on any other host_id " \
+               "than syskit and localhost" do
                 refute create_task_from_host_id("test").in_process?
             end
         end
@@ -212,6 +216,7 @@ module Syskit
             include stub_process_server_deployment_helpers
 
             attr_reader :task_m, :deployment_m
+
             before do
                 @task_m = TaskContext.new_submodel
                 @deployment_m = Deployment.new_submodel
@@ -222,8 +227,8 @@ module Syskit
             it "returns true if the task is running on localhost" do
                 assert create_task_from_host_id("localhost").on_localhost?
             end
-            it "returns false if the task is running on any other host_id "\
-                "than syskit and localhost" do
+            it "returns false if the task is running on any other host_id " \
+               "than syskit and localhost" do
                 refute create_task_from_host_id("test").on_localhost?
             end
         end
@@ -232,6 +237,7 @@ module Syskit
             include stub_process_server_deployment_helpers
 
             attr_reader :task_m, :deployment_m
+
             before do
                 @task_m = TaskContext.new_submodel
                 @deployment_m = Deployment.new_submodel
@@ -251,8 +257,8 @@ module Syskit
                 task1 = create_task_from_host_id "test"
                 assert_equal TaskContext::D_SAME_HOST, task0.distance_to(task1)
             end
-            it "returns D_DIFFERENT_HOSTS if both tasks are from processes "\
-                "from different hosts" do
+            it "returns D_DIFFERENT_HOSTS if both tasks are from processes " \
+               "from different hosts" do
                 task0 = create_task_from_host_id "here"
                 task1 = create_task_from_host_id "there"
                 assert_equal TaskContext::D_DIFFERENT_HOSTS, task0.distance_to(task1)
@@ -267,6 +273,7 @@ module Syskit
 
         describe "#find_input_port" do
             attr_reader :task
+
             before do
                 @task = syskit_stub_deploy_and_configure "Task" do
                     input_port "in", "int"
@@ -290,6 +297,7 @@ module Syskit
 
         describe "#find_output_port" do
             attr_reader :task
+
             before do
                 @task = syskit_stub_deploy_and_configure "Task" do
                     input_port "in", "int"
@@ -313,6 +321,7 @@ module Syskit
 
         describe "start_event" do
             attr_reader :task, :task_m, :orocos_task
+
             before do
                 @task_m = TaskContext.new_submodel do
                     input_port "in", "/double"
@@ -417,6 +426,7 @@ module Syskit
 
         describe "stop_event" do
             attr_reader :task, :orocos_task
+
             before do
                 @task = syskit_stub_deploy_configure_and_start(TaskContext.new_submodel)
                 @orocos_task = flexmock(task.orocos_task)
@@ -436,8 +446,8 @@ module Syskit
                         emit task.aborted_event
                     end
             end
-            it "emits interrupt if orocos_task#stop raises StateTransitionFailed "\
-                "but the task is in a stopped state" do
+            it "emits interrupt if orocos_task#stop raises StateTransitionFailed " \
+               "but the task is in a stopped state" do
                 task.orocos_task.should_receive(:stop).and_return do
                     Orocos::TaskContext.instance_method(:stop)
                                        .call(task.orocos_task, false)
@@ -454,6 +464,7 @@ module Syskit
 
         describe "#handle_state_changes" do
             attr_reader :task, :task_m, :orocos_task
+
             before do
                 @task_m = TaskContext.new_submodel do
                     input_port "in", "/double"
@@ -486,8 +497,8 @@ module Syskit
                     not_emit task.start_event
                 end
             end
-            it "emits start as soon as a runtime state has been received, "\
-                "and emits the event mapped by #state_event" do
+            it "emits start as soon as a runtime state has been received, " \
+               "and emits the event mapped by #state_event" do
                 task.should_receive(:orogen_state).and_return(:blabla)
                 orocos_task.should_receive(:runtime_state?).with(:blabla)
                            .and_return(true)
@@ -505,8 +516,8 @@ module Syskit
                 e = assert_raises(ArgumentError) do
                     task.handle_state_changes
                 end
-                assert_equal "#{task} reports state blabla, but I don't have an event "\
-                    "for this state transition", e.message
+                assert_equal "#{task} reports state blabla, but I don't have an event " \
+                             "for this state transition", e.message
             end
             it "emits the 'running' event when transitioning out of an error state" do
                 syskit_start(task)
@@ -517,8 +528,8 @@ module Syskit
                     .to { emit task.running_event }
                 assert_equal 2, task.running_event.history.size
             end
-            it "does not emit the 'running' event if the last state "\
-                "was not an error state" do
+            it "does not emit the 'running' event if the last state " \
+               "was not an error state" do
                 syskit_start(task)
                 task.should_receive(:last_orogen_state).and_return(:BLA)
                 orocos_task.should_receive(:error_state?)
@@ -530,6 +541,7 @@ module Syskit
 
         describe "#update_orogen_state" do
             attr_reader :task, :orocos_task
+
             before do
                 @task_m = TaskContext.new_submodel
                 task = syskit_stub_and_deploy(@task_m)
@@ -568,7 +580,7 @@ module Syskit
             it "is provided a connected state reader by its execution agent" do
                 assert task.state_reader.connected?
             end
-            it "reads the last known state on initialization "\
+            it "reads the last known state on initialization " \
                "if there is no state transition" do
                 task.state_reader.should_receive(:read_new).and_return(nil)
                 task.state_reader.should_receive(:read).and_return(state = Object.new)
@@ -598,8 +610,8 @@ module Syskit
             it "returns nil if no new state has been received" do
                 refute task.update_orogen_state
             end
-            it "does not change the last and current states if no new states "\
-                "have been received" do
+            it "does not change the last and current states if no new states " \
+               "have been received" do
                 push_task_state(last_state = Object.new)
                 push_task_state(state = Object.new)
                 push_task_state(nil)
@@ -622,6 +634,7 @@ module Syskit
 
         describe "#ready_for_setup?" do
             attr_reader :task, :orocos_task
+
             before do
                 task = syskit_stub_and_deploy("Task") {}
                 syskit_start_execution_agents(task)
@@ -629,12 +642,12 @@ module Syskit
                 @orocos_task = flexmock(task.orocos_task)
             end
 
-            it "returns true for a fully instanciated task whose state "\
-                "is PRE_OPERATIONAL" do
+            it "returns true for a fully instanciated task whose state " \
+               "is PRE_OPERATIONAL" do
                 assert task.ready_for_setup?
             end
-            it "returns false if a task context representing the same component "\
-                "is being configured" do
+            it "returns false if a task context representing the same component " \
+               "is being configured" do
                 task = syskit_stub_and_deploy "ConcurrentConfigurationTask"
                 syskit_start_execution_agents(task)
                 plan.add_permanent_task(
@@ -646,8 +659,8 @@ module Syskit
                 execution_engine.join_all_waiting_work
                 assert task.ready_for_setup?
             end
-            it "returns true if a task context representing the same component "\
-                "has started configuring and the configuration failed" do
+            it "returns true if a task context representing the same component " \
+               "has started configuring and the configuration failed" do
                 task = syskit_stub_and_deploy "ConcurrentConfigurationTask"
                 syskit_start_execution_agents(task)
                 plan.add(other_task = task.execution_agent.task(task.orocos_name))
@@ -679,8 +692,8 @@ module Syskit
                 task.should_receive(:read_current_state).and_return(nil)
                 refute task.ready_for_setup?
             end
-            it "returns false if the task's current state is not one "\
-                "from which we can configure" do
+            it "returns false if the task's current state is not one " \
+               "from which we can configure" do
                 task.should_receive(:read_current_state).and_return(Object.new)
                 refute task.ready_for_setup?
             end
@@ -704,7 +717,7 @@ module Syskit
                 refute task.ready_for_setup?
             end
 
-            it "returns true if the task is read_only and the component is in a running "\
+            it "returns true if the task is read_only and the component is in a running " \
                "state" do
                 task.should_receive(:read_only?).and_return(true)
                 orocos_task.should_receive(:runtime_state?)
@@ -715,6 +728,7 @@ module Syskit
 
         describe "#read_current_state" do
             attr_reader :task, :state_reader
+
             before do
                 @task = syskit_stub_and_deploy("Task") {}
                 syskit_start_execution_agents(task)
@@ -738,6 +752,7 @@ module Syskit
 
         describe "#setup_successful!" do
             attr_reader :task
+
             before do
                 task = syskit_stub_and_deploy(TaskContext.new_submodel)
                 syskit_start_execution_agents(task)
@@ -768,6 +783,7 @@ module Syskit
 
         describe "needs_reconfiguration" do
             attr_reader :task_m
+
             before do
                 @task_m = TaskContext.new_submodel
             end
@@ -844,6 +860,7 @@ module Syskit
         describe "reconfiguration behavior" do
             describe "without #update_properties" do
                 attr_reader :task_m
+
                 before do
                     @task_m =
                         RubyTaskContext.new_submodel(name: "#{class_name}##{name}") do
@@ -885,7 +902,7 @@ module Syskit
                     messages = configure_task_with_capture(task)
                     assert_includes(
                         messages,
-                        "not reconfiguring #{task}: the task is already configured "\
+                        "not reconfiguring #{task}: the task is already configured " \
                         "as required"
                     )
                 end
@@ -922,7 +939,7 @@ module Syskit
                     messages = configure_task_with_capture(task)
                     assert_includes messages, "cleaning up #{task}"
                 end
-                it "reconfigures a task which was previously explicitly "\
+                it "reconfigures a task which was previously explicitly " \
                    "marked as needing to" do
                     warmup_to_configure(&:needs_reconfiguration!)
 
@@ -930,7 +947,7 @@ module Syskit
                     messages = configure_task_with_capture(task)
                     assert_includes messages, "cleaning up #{task}"
                 end
-                it "reconfigures if the state is STOPPED but the task "\
+                it "reconfigures if the state is STOPPED but the task " \
                    "has never been configured by Syskit" do
                     task = deploy_task
                     syskit_start_execution_agents(task)
@@ -971,6 +988,7 @@ module Syskit
 
             describe "with #update_properties" do
                 attr_reader :task_m
+
                 before do
                     @task_m = RubyTaskContext.new_submodel(name: name.upcase) do
                         property "config", "/double", 0
@@ -1011,11 +1029,11 @@ module Syskit
                     messages = capture_log(task, :info) { syskit_configure(task) }
                     assert_includes(
                         messages,
-                        "not reconfiguring #{task}: the task is already configured "\
+                        "not reconfiguring #{task}: the task is already configured " \
                         "as required"
                     )
                 end
-                it "does no reconfigure a task with an unchanged but "\
+                it "does no reconfigure a task with an unchanged but " \
                    "non-default configuration" do
                     # This is a regression test. The pre-update_properties world
                     # would reconfigure a task if its configuration was non-default
@@ -1032,7 +1050,7 @@ module Syskit
                     messages = capture_log(task, :info) { syskit_configure(task) }
                     assert_includes(
                         messages,
-                        "not reconfiguring #{task}: the task is already configured "\
+                        "not reconfiguring #{task}: the task is already configured " \
                         "as required"
                     )
                 end
@@ -1053,7 +1071,7 @@ module Syskit
                     messages = capture_log(task, :info) { syskit_configure(task) }
                     assert_includes messages, "cleaning up #{task}"
                 end
-                it "reconfigures a task which was previously explicitly "\
+                it "reconfigures a task which was previously explicitly " \
                    "marked as needing to" do
                     warmup_to_configure(&:needs_reconfiguration!)
 
@@ -1061,7 +1079,7 @@ module Syskit
                     messages = capture_log(task, :info) { syskit_configure(task) }
                     assert_includes messages, "cleaning up #{task}"
                 end
-                it "reconfigures if the state is STOPPED but the task "\
+                it "reconfigures if the state is STOPPED but the task " \
                    "has never been configured by Syskit" do
                     task = deploy_task
                     syskit_start_execution_agents(task)
@@ -1095,6 +1113,7 @@ module Syskit
 
             describe "handling of dynamic ports" do
                 attr_reader :task_m
+
                 before do
                     @task_m = RubyTaskContext.new_submodel(name: name.upcase) do
                         property "config", "/double", 0
@@ -1165,7 +1184,7 @@ module Syskit
                     warmup(test1_m) { |task| syskit_configure(task) }
                 end
 
-                it "does not reconfigure a task whose list of dynamic services "\
+                it "does not reconfigure a task whose list of dynamic services " \
                    "did not change" do
                     # NOTE: we explicitly re-specialize the model. From syskit's
                     # perspective the two specialized models are equivalent
@@ -1176,7 +1195,7 @@ module Syskit
                     syskit_configure(task)
                 end
 
-                it "reconfigures a task if two dynamic services have the same model "\
+                it "reconfigures a task if two dynamic services have the same model " \
                    "and name, but not arguments" do
                     # NOTE: we explicitly re-specialize the model. From syskit's
                     # perspective the two specialized models are equivalent
@@ -1187,7 +1206,7 @@ module Syskit
                     syskit_configure(task)
                 end
 
-                it "reconfigures a task if two dynamic services have the same name "\
+                it "reconfigures a task if two dynamic services have the same name " \
                    "and model, but from a different dynamic service" do
                     # NOTE: we explicitly re-specialize the model. From syskit's
                     # perspective the two specialized models are equivalent
@@ -1198,7 +1217,7 @@ module Syskit
                     syskit_configure(task)
                 end
 
-                it "reconfigures a task if two dynamic services have the same name "\
+                it "reconfigures a task if two dynamic services have the same name " \
                    "but the model differs" do
                     # NOTE: we explicitly re-specialize the model. From syskit's
                     # perspective the two specialized models are equivalent
@@ -1259,6 +1278,7 @@ module Syskit
 
         describe "#setup" do
             attr_reader :task, :orocos_task, :recorder
+
             before do
                 @recorder = flexmock
                 recorder.should_receive(:called)
@@ -1406,6 +1426,7 @@ module Syskit
 
         describe "interrupt_event" do
             attr_reader :task, :orocos_task, :deployment
+
             it "calls stop on the task if it has an execution agent in nominal state" do
                 task = syskit_stub_deploy_configure_and_start(TaskContext.new_submodel)
                 flexmock(task.orocos_task).should_receive(:stop).once.pass_thru
@@ -1511,6 +1532,7 @@ module Syskit
             def self.handling_of_static_ports(input: false)
                 attr_reader :transaction
                 attr_reader :source_task, :sink_task
+
                 before do
                     @source_task = syskit_stub_and_deploy "SourceTask" do
                         p = output_port("out", "int")
@@ -1527,7 +1549,8 @@ module Syskit
                 let(:source_task_p) { transaction[source_task] }
                 let(:task_p) do
                     if input then sink_task_p
-                    else source_task_p
+                    else
+                        source_task_p
                     end
                 end
 
@@ -1630,6 +1653,7 @@ module Syskit
 
         describe "property handling" do
             attr_reader :double_t, :task_m, :task
+
             before do
                 @double_t = double_t = stub_type "/double"
                 @task_m = RubyTaskContext.new_submodel do
@@ -1715,8 +1739,8 @@ module Syskit
                         assert_match(/^undefined method `does_not_exist_property' for/,
                                      exception.message)
                     end
-                    it "passes through to method resolution if the name "\
-                        "does not end with _property" do
+                    it "passes through to method resolution if the name " \
+                       "does not end with _property" do
                         stub_t = stub_type "/test"
                         task_m = TaskContext.new_submodel do
                             output_port "port_test", stub_t
@@ -1786,6 +1810,7 @@ module Syskit
             describe "property updates at runtime" do
                 describe "a running task" do
                     attr_reader :task, :property
+
                     before do
                         @task = syskit_stub_deploy_configure_and_start(task_m)
                         @property = task.test_property
@@ -1838,6 +1863,7 @@ module Syskit
 
                 describe "a non-setup task" do
                     attr_reader :task, :property
+
                     before do
                         @task = syskit_stub_and_deploy(task_m)
                         syskit_start_execution_agents(task)
@@ -1868,6 +1894,7 @@ module Syskit
 
                 describe "a setup but not started task" do
                     attr_reader :task, :property
+
                     before do
                         @task = syskit_stub_and_deploy(task_m)
                         syskit_start_execution_agents(task)
@@ -1958,6 +1985,7 @@ module Syskit
 
             describe "#commit_properties" do
                 attr_reader :task, :stub_property, :remote_test_property
+
                 before do
                     @task = syskit_stub_and_deploy(task_m)
                     syskit_start_execution_agents(task)
@@ -2106,8 +2134,8 @@ module Syskit
                         expect_execution.to { emit task.exception_event }
                     end
 
-                    it "does not do anything in the property update promise if the "\
-                       "task got in the meantime in a state in which it would not use "\
+                    it "does not do anything in the property update promise if the " \
+                       "task got in the meantime in a state in which it would not use " \
                        "the update" do
                         task.properties.test = 21
                         wait_until_promise_stops_on_barrier
@@ -2142,6 +2170,7 @@ module Syskit
 
                 describe "initial values" do
                     attr_reader :task
+
                     before do
                         task_m = Syskit::TaskContext.new_submodel do
                             property "p", "/int"
@@ -2283,6 +2312,7 @@ module Syskit
 
         describe "read_only" do
             attr_reader :deployment, :handle
+
             before do
                 task_m = TaskContext.new_submodel do
                     property "p", "/double"
@@ -2296,7 +2326,7 @@ module Syskit
                 @handle = deployment.remote_task_handles["test"].handle
             end
 
-            it "emits start when the task is create and started "\
+            it "emits start when the task is create and started " \
                "while the component is running" do
                 Orocos.allow_blocking_calls { handle.configure(false) }
                 Orocos.allow_blocking_calls { handle.start(false) }

@@ -79,6 +79,7 @@ module Syskit
 
             describe "#select_deployments" do
                 attr_reader :task_m, :task, :task_models, :deployments, :deployment_models
+
                 before do
                     @task_m = Syskit::TaskContext.new_submodel
                     plan.add(@task = task_m.new)
@@ -117,7 +118,7 @@ module Syskit
                     flexmock(deployer)
                         .should_receive(:find_suitable_deployment_for)
                         .with(task).and_return(nil)
-                    assert_equal [Hash[], Set[task]],
+                    assert_equal [{}, Set[task]],
                                  deployer.select_deployments([task])
                 end
                 it "does not select the same deployment twice" do
@@ -292,6 +293,7 @@ module Syskit
 
             describe "#find_suitable_deployment_for" do
                 attr_reader :task_m, :task
+
                 before do
                     @task_m = Syskit::TaskContext.new_submodel
                     plan.add(@task = task_m.new)
@@ -443,54 +445,98 @@ module Syskit
             end
 
             describe "#validate_deployed_network" do
-                it "raises if some tasks are not deployed" do
-                    task_m = Syskit::TaskContext.new_submodel
-                    deployment_m.orogen_model.task "task", task_m.orogen_model
-                    plan.add(task_m.new)
-                    assert_raises(MissingDeployments) do
-                        deployer.validate_deployed_network
+                describe "validation that all tasks are deployed" do
+                    it "raises if some tasks are not deployed" do
+                        task_m = Syskit::TaskContext.new_submodel
+                        deployment_m.orogen_model.task "task", task_m.orogen_model
+                        plan.add(task_m.new)
+                        assert_raises(MissingDeployments) do
+                            deployer.validate_deployed_network
+                        end
+                    end
+
+                    it "formats candidate deployments" do
+                        task_m = Syskit::TaskContext.new_submodel
+                        d0 = syskit_stub_deployment_model task_m, "task0"
+                        deployer.default_deployment_group
+                                .use_deployment(d0 => "test0_")
+                        deployer.default_deployment_group
+                                .use_deployment(d0 => "test1_")
+
+                        plan.add(task = task_m.new)
+                        e = assert_raises(MissingDeployments) do
+                            deployer.validate_deployed_network
+                        end
+
+                        info = e.tasks[task]
+                        assert_equal [], info[0] # parents
+                        candidates = info[1]
+                        assert_equal [d0, d0],
+                                     candidates.map { |c, _| c.configured_deployment.model }
+                        assert_equal %w[test0_task0 test1_task0],
+                                     candidates.map { |c, _| c.mapped_task_name }
+                        assert_equal Set[], info[2]
+                    end
+
+                    it "snapshots the task's parents at the exception point" do
+                        task_m = Syskit::TaskContext.new_submodel
+                        d0 = syskit_stub_deployment_model task_m, "task0"
+                        deployer.default_deployment_group
+                                .use_deployment(d0 => "test0_")
+                        deployer.default_deployment_group
+                                .use_deployment(d0 => "test1_")
+
+                        plan.add(parent = task_m.new)
+                        parent.depends_on(task = task_m.new, role: "test")
+                        e = assert_raises(MissingDeployments) do
+                            deployer.validate_deployed_network
+                        end
+
+                        info = e.tasks[task]
+                        assert_equal [["test", parent]], info[0] # parents
                     end
                 end
 
-                it "formats candidate deployments" do
-                    task_m = Syskit::TaskContext.new_submodel
-                    d0 = syskit_stub_deployment_model task_m, "task0"
-                    deployer.default_deployment_group
-                            .use_deployment(d0 => "test0_")
-                    deployer.default_deployment_group
-                            .use_deployment(d0 => "test1_")
-
-                    plan.add(task = task_m.new)
-                    e = assert_raises(MissingDeployments) do
-                        deployer.validate_deployed_network
+                describe "validation that all configurations are defined" do
+                    it "raises if some configurations are not defined" do
+                        task_m = Syskit::TaskContext.new_submodel
+                        deployment_m.orogen_model.task "task", task_m.orogen_model
+                        plan.add(
+                            deployment = deployment_m.new(
+                                name_mappings: { "task" => "task" }
+                            )
+                        )
+                        plan.add(task = deployment.task("task"))
+                        task.conf = %w[default something]
+                        e = assert_raises(MissingConfigurationSection) do
+                            deployer.validate_deployed_network
+                        end
+                        assert_equal(
+                            { task => ["something"] },
+                            e.missing_sections_by_task
+                        )
                     end
 
-                    info = e.tasks[task]
-                    assert_equal [], info[0] # parents
-                    candidates = info[1]
-                    assert_equal [d0, d0],
-                                 candidates.map { |c, _| c.configured_deployment.model }
-                    assert_equal %w[test0_task0 test1_task0],
-                                 candidates.map { |c, _| c.mapped_task_name }
-                    assert_equal Set[], info[2]
-                end
-
-                it "snapshots the task's parents at the exception point" do
-                    task_m = Syskit::TaskContext.new_submodel
-                    d0 = syskit_stub_deployment_model task_m, "task0"
-                    deployer.default_deployment_group
-                            .use_deployment(d0 => "test0_")
-                    deployer.default_deployment_group
-                            .use_deployment(d0 => "test1_")
-
-                    plan.add(parent = task_m.new)
-                    parent.depends_on(task = task_m.new, role: "test")
-                    e = assert_raises(MissingDeployments) do
-                        deployer.validate_deployed_network
+                    it "properly formats the MissingConfigurationSection error" do
+                        task_m = Syskit::TaskContext.new_submodel
+                        deployment_m.orogen_model.task "task", task_m.orogen_model
+                        plan.add(
+                            deployment = deployment_m.new(
+                                name_mappings: { "task" => "task" }
+                            )
+                        )
+                        plan.add(task = deployment.task("task"))
+                        task.conf = %w[default something]
+                        e = assert_raises(MissingConfigurationSection) do
+                            deployer.validate_deployed_network
+                        end
+                        expected = <<~MESSAGE
+                            the following configuration sections are used but do not exist
+                            'something', in use by:
+                              #{task} (#{task.orogen_model.name})
+                        MESSAGE
+                        assert_equal expected, PP.pp(e, +"")
                     end
-
-                    info = e.tasks[task]
-                    assert_equal [["test", parent]], info[0] # parents
                 end
             end
 

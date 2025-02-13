@@ -4,8 +4,7 @@ require "orogen/html"
 module Syskit::GUI
     module ModelViews
         class Type < Qt::Object
-            attr_reader :page
-            attr_reader :type_rendering
+            attr_reader :page, :type_rendering
 
             def initialize(page)
                 super()

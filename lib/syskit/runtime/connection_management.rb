@@ -7,9 +7,7 @@ module Syskit
             extend Logger::Hierarchy
             include Logger::Hierarchy
 
-            attr_reader :plan
-
-            attr_reader :dataflow_graph
+            attr_reader :plan, :dataflow_graph
 
             def scheduler
                 plan.execution_engine.scheduler
@@ -193,7 +191,7 @@ module Syskit
 
                     unneeded_tasks ||= plan.unneeded_tasks
                     unless unneeded_tasks.include?(syskit_task)
-                        return true
+                        true
                     end
                 end
 
@@ -476,8 +474,8 @@ module Syskit
                     elsif t.all_inputs_connected?
                         t.ready_to_start!
                         debug do
-                            "#{t} has all its inputs connected, set executable "\
-                            "to nil and executable? = #{t.executable?}"
+                            "#{t} has all its inputs connected, set executable " \
+                                "to nil and executable? = #{t.executable?}"
                         end
                         scheduler.report_action(
                             "all inputs connected, marking as ready to start", t
@@ -725,9 +723,7 @@ module Syskit
                             [main_tasks, new, removed]
                         end
 
-                    if !dataflow_graph.pending_changes
-                        debug "successfully applied pending changes"
-                    else
+                    if dataflow_graph.pending_changes
                         debug do
                             debug "some connection changes could not be applied in this pass"
                             main_tasks, new, removed = dataflow_graph.pending_changes
@@ -738,6 +734,8 @@ module Syskit
                             debug "  involving #{main_tasks.size} tasks"
                             break
                         end
+                    else
+                        debug "successfully applied pending changes"
                     end
                 end
             end

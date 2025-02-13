@@ -54,18 +54,20 @@ module Syskit
                 mappings_out =
                     if (child_out = children[child_out_name])
                         child_out.port_mappings
-                    else {}
+                    else
+                        {}
                     end
                 mappings_in =
                     if (child_in = children[child_in_name])
                         child_in.port_mappings
-                    else {}
+                    else
+                        {}
                     end
 
                 mapped = {}
                 mappings.each do |(port_name_out, port_name_in), options|
-                    port_name_out = (mappings_out[port_name_out] || port_name_out)
-                    port_name_in  = (mappings_in[port_name_in]   || port_name_in)
+                    port_name_out = mappings_out[port_name_out] || port_name_out
+                    port_name_in  = mappings_in[port_name_in]   || port_name_in
                     mapped[[port_name_out, port_name_in]] = options
                 end
                 [[child_out_name, child_in_name], mapped]
@@ -124,8 +126,8 @@ module Syskit
 
                 options = options.transform_keys do |key|
                     if key.respond_to?(:to_str) || key.respond_to?(:to_sym)
-                        Roby.warn_deprecated "calling #specialize with child names "\
-                                             "is deprecated, use _child accessors "\
+                        Roby.warn_deprecated "calling #specialize with child names " \
+                                             "is deprecated, use _child accessors " \
                                              "instead (i.e. #{key}_child here)", 5
                         key
                     elsif key.respond_to?(:child_name)
@@ -213,13 +215,15 @@ module Syskit
                 @exported_outputs = exported_outputs.transform_values do |port|
                     if port.component_model.child_name == name
                         child_model.find_port(port.name)
-                    else port
+                    else
+                        port
                     end
                 end
                 @exported_inputs = exported_inputs.transform_values do |port|
                     if port.component_model.child_name == name
                         child_model.find_port(port.name)
-                    else port
+                    else
+                        port
                     end
                 end
 
@@ -238,7 +242,7 @@ module Syskit
             def overload(child, model, **options)
                 child = child.child_name if child.respond_to?(:child_name)
                 unless find_child(child)
-                    raise ArgumentError, "#{child} is not an existing child "\
+                    raise ArgumentError, "#{child} is not an existing child " \
                                          "of #{short_name}"
                 end
 
@@ -306,7 +310,7 @@ module Syskit
                     end
 
                 unless as
-                    raise ArgumentError, "you must provide an explicit name with "\
+                    raise ArgumentError, "you must provide an explicit name with " \
                                          "the :as option"
                 end
 
@@ -451,15 +455,15 @@ module Syskit
                 existing = find_exported_input(name) || find_exported_output(name)
                 if existing
                     if port.to_component_port != existing
-                        raise ArgumentError, "#{port} is already exported as #{name} "\
-                                             "on #{short_name}, cannot override "\
+                        raise ArgumentError, "#{port} is already exported as #{name} " \
+                                             "on #{short_name}, cannot override " \
                                              "with #{port}."
                     end
                     return
                 end
 
                 unless child_port?(port)
-                    raise ArgumentError, "#{port} is not a port of one of "\
+                    raise ArgumentError, "#{port} is not a port of one of " \
                                          "#{self}'s children"
                 end
 
@@ -469,7 +473,7 @@ module Syskit
                 when OutputPort
                     exported_outputs[name] = port.to_component_port
                 else
-                    raise TypeError, "invalid attempt to export port #{port} "\
+                    raise TypeError, "invalid attempt to export port #{port} " \
                                      "of type #{port.class}"
                 end
                 find_port(name)
@@ -581,7 +585,8 @@ module Syskit
                     def respond_to_missing?(m, include_private)
                         if m.to_s =~ /_port$/
                             @child.respond_to?(m)
-                        else super
+                        else
+                            super
                         end
                     end
 
@@ -625,7 +630,8 @@ module Syskit
                 def respond_to_missing?(m, include_private)
                     if m =~ /_child$/
                         component_model.respond_to?(m)
-                    else super
+                    else
+                        super
                     end
                 end
 
@@ -896,7 +902,8 @@ module Syskit
                         return unless task # rubocop:disable Lint/NonLocalExitFromIterator
 
                         task
-                    else sel
+                    else
+                        sel
                     end
                 end
                 true
@@ -1009,7 +1016,8 @@ module Syskit
                 plan.add(self_task = new(**task_arguments))
                 conf = if self_task.has_argument?(:conf)
                            self_task.conf(self_task.arguments[:conf])
-                       else {}
+                       else
+                           {}
                        end
 
                 # This is the part of the context that is directly associated
@@ -1086,7 +1094,7 @@ module Syskit
                     if remaining_children_models.size == current_size
                         remaining_children_names = remaining_children_models
                                                    .map(&:first).sort.join(", ")
-                        raise InternalError, "cannot resolve children "\
+                        raise InternalError, "cannot resolve children " \
                                              "#{remaining_children_names}"
                     end
                 end
@@ -1105,7 +1113,7 @@ module Syskit
 
                 connections.each do |(source, sink), mappings|
                     mappings.each do |(source_port, sink_port), _policy|
-                        io << "C#{id}#{source}:#{source_port} -> "\
+                        io << "C#{id}#{source}:#{source_port} -> " \
                               "C#{id}#{sink}:#{sink_port};"
                     end
                 end
@@ -1118,8 +1126,8 @@ module Syskit
                         specialized_model.parent_models.each do |parent_compositions|
                             parent_id = parent_compositions.object_id
                             specialized_id = specialized_model.object_id
-                            io << "C#{parent_id} -> C#{specialized_id} "\
-                                  "[ltail=cluster_#{parent_id} "\
+                            io << "C#{parent_id} -> C#{specialized_id} " \
+                                  "[ltail=cluster_#{parent_id} " \
                                   "lhead=cluster_#{specialized_id} weight=2];"
                         end
                     end
@@ -1136,15 +1144,15 @@ module Syskit
                     io << "  Cinterface#{id} [label=\"#{label}\",color=blue,fontsize=15];"
 
                     exported_outputs.each do |exported_name, port|
-                        io << "C#{id}#{port.component_model.child_name}:"\
-                              "#{port.port.name} -> "\
-                              "Cinterface#{id}:#{exported_name} "\
+                        io << "C#{id}#{port.component_model.child_name}:" \
+                              "#{port.port.name} -> " \
+                              "Cinterface#{id}:#{exported_name} " \
                               "[style=dashed];"
                     end
                     exported_inputs.each do |exported_name, port|
-                        io << "Cinterface#{id}:#{exported_name} -> "\
-                              "C#{id}#{port.component_model.child_name}:"\
-                              "#{port.port.name} "\
+                        io << "Cinterface#{id}:#{exported_name} -> " \
+                              "C#{id}#{port.component_model.child_name}:" \
+                              "#{port.port.name} " \
                               "[style=dashed];"
                     end
                 end
@@ -1174,7 +1182,7 @@ module Syskit
                     if child_model.any? { |m| !m.fullfills?(Component) || m.abstract? }
                         color = ', color="red"'
                     end
-                    io << "  C#{id}#{child_name} "\
+                    io << "  C#{id}#{child_name} " \
                           "[label=\"#{label}\"#{color},fontsize=15];"
                 end
                 io << "}"
@@ -1310,9 +1318,9 @@ module Syskit
                 mappings = mappings.transform_keys do |child|
                     if child.respond_to?(:to_str)
                         conf = mappings[child]
-                        Roby.warn_deprecated "providing the child as string in #conf "\
-                            "is deprecated, use the _child accessors "\
-                            "instead (here #{child}_child => [#{conf.join(', ')}])"
+                        Roby.warn_deprecated "providing the child as string in #conf " \
+                                             "is deprecated, use the _child accessors " \
+                                             "instead (here #{child}_child => [#{conf.join(', ')}])"
                         child
                     else
                         child.child_name
@@ -1331,7 +1339,7 @@ module Syskit
                 end
 
                 if needed_specializations.empty?
-                    super(other_model)
+                    super
                 else
                     base_model = root_model.merge(other_model)
                     # If base_model is a placeholder model, we apply the
@@ -1367,7 +1375,7 @@ module Syskit
                         other_model
                     end
                 end
-                super(models)
+                super
             end
         end
     end

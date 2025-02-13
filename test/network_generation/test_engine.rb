@@ -25,6 +25,7 @@ module Syskit
             end
 
             attr_reader :stub_t
+
             before do
                 @stub_t = app.default_loader.resolve_type "/int"
                 create_simple_composition_model
@@ -41,6 +42,7 @@ module Syskit
                 attr_reader :original_task
                 attr_reader :planning_task
                 attr_reader :requirements
+
                 before do
                     plan.add_mission_task(@original_task = simple_component_model.as_plan)
                     @planning_task = original_task.planning_task
@@ -92,6 +94,7 @@ module Syskit
                 attr_reader :original_task
                 attr_reader :planning_task
                 attr_reader :requirements
+
                 before do
                     plan.add_mission_task(@original_task = simple_component_model.as_plan)
                     @planning_task = original_task.planning_task
@@ -111,6 +114,7 @@ module Syskit
                 attr_reader :planning_task
                 attr_reader :final_task
                 attr_reader :required_instances
+
                 before do
                     plan.add(@original_task = simple_component_model.as_plan)
                     @planning_task = original_task.planning_task
@@ -241,6 +245,7 @@ module Syskit
 
                 describe "there is a deployment and it cannot be reused" do
                     attr_reader :task, :existing_task
+
                     before do
                         @existing_task = existing_deployment_task.task("test", record: false)
                         @task = deployment_task.task "test"
@@ -289,7 +294,7 @@ module Syskit
             end
 
             describe "when scheduling tasks for reconfiguration" do
-                it "ensures that the old task is gargabe collected "\
+                it "ensures that the old task is gargabe collected " \
                    "when child of a composition" do
                     task_m = Syskit::TaskContext.new_submodel
                     cmp_m  = Syskit::Composition.new_submodel
@@ -312,7 +317,7 @@ module Syskit
                                  execute { plan.static_garbage_collect.to_set }
                 end
 
-                it "ensures that the old task gets garbage collected when child "\
+                it "ensures that the old task gets garbage collected when child " \
                    "of another still useful task" do
                     child_m  = Syskit::TaskContext.new_submodel
                     parent_m = Syskit::TaskContext.new_submodel
@@ -343,7 +348,7 @@ module Syskit
                                  execute { plan.static_garbage_collect.to_set }
                 end
 
-                it "ensures that the old task gets garbage collected when child "\
+                it "ensures that the old task gets garbage collected when child " \
                    "of a composition, itself child of a useful task" do
                     child_m = Syskit::TaskContext.new_submodel
                     cmp_m = Syskit::Composition.new_submodel
@@ -444,7 +449,7 @@ module Syskit
                     end
                 end
 
-                it "updates an existing deployment, proxying the existing "\
+                it "updates an existing deployment, proxying the existing " \
                    "tasks and creating new ones" do
                     deployment_m = create_deployment_model(task_count: 3)
                     existing_deployment, (task0, task1) =
@@ -562,6 +567,7 @@ module Syskit
                     # syskit engine
                     execute { plan.remove_task(deployed.planning_task) }
 
+                    syskit_stub_conf task_model, "non_default"
                     new_deployed = syskit_deploy(
                         composition_model.use("child" => task_model.with_conf("non_default"))
                     )
@@ -578,6 +584,7 @@ module Syskit
                     deployed_task = syskit_deploy(task_model)
                     planning_task = deployed_task.planning_task
                     plan.unmark_mission_task(deployed_task)
+                    syskit_stub_conf task_model, "non_default"
                     deployed_reconf = syskit_deploy(task_model.with_conf("non_default"))
                     plan.add_mission_task(deployed_reconf)
 
@@ -627,7 +634,7 @@ module Syskit
                     assert !diff, diff.to_s
                 end
 
-                it "does not change anything if asked to deploy an empty "\
+                it "does not change anything if asked to deploy an empty " \
                    "composition twice" do
                     composition_m = Syskit::Composition.new_submodel(name: "Cmp")
                     cmp1 = syskit_deploy(composition_m)
@@ -891,8 +898,7 @@ module Syskit
         end
 
         class EngineTestStubDeployment < Roby::Task
-            attr_reader :tasks
-            attr_reader :created_tasks
+            attr_reader :tasks, :created_tasks
 
             def initialize(task_m, **arguments)
                 super(**arguments)

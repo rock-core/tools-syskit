@@ -6,10 +6,10 @@ module Syskit
     module Queries
         describe DataServiceMatcher do
             before do
-                @task_m = Syskit::TaskContext.new_submodel do
+                @task_m = Syskit::TaskContext.new_submodel(name: "T") do
                     output_port "out", "/double"
                 end
-                @srv_m = Syskit::DataService.new_submodel do
+                @srv_m = Syskit::DataService.new_submodel(name: "S") do
                     output_port "srv_out", "/double"
                 end
                 @task_m.provides @srv_m, as: "test"
@@ -20,6 +20,11 @@ module Syskit
                 matcher = @task_m.match.test_srv
                 assert_equal @srv_m, matcher.data_service_model
                 assert_matcher_finds [task.test_srv], matcher
+            end
+
+            it "displays itself meaningfully string" do
+                matcher = @task_m.match.test_srv
+                assert_equal "T.data_service(model: S, name: test)", matcher.to_s
             end
 
             describe "from a bound data service model" do
@@ -58,7 +63,7 @@ module Syskit
                     assert_matcher_finds [task.test_srv.srv_out_port], port_matcher
                 end
 
-                it "accepts task matcher predicates when created "\
+                it "accepts task matcher predicates when created " \
                    "on a data service model" do
                     matcher = @srv_m.match.abstract
                     plan.add(task = @task_m.new)
@@ -104,7 +109,7 @@ module Syskit
                     e = assert_raises(ArgumentError) do
                         @task_m.test_srv.match.as(srv_m)
                     end
-                    assert_equal "cannot refine match from "\
+                    assert_equal "cannot refine match from " \
                                  "#{@derived_srv_m} to #{srv_m}", e.message
                 end
 
@@ -113,7 +118,7 @@ module Syskit
                     e = assert_raises(ArgumentError) do
                         matcher.as(@derived_srv_m)
                     end
-                    assert_equal "cannot refine match from "\
+                    assert_equal "cannot refine match from " \
                                  "#{@base_srv_m} to #{@derived_srv_m}", e.message
                 end
             end

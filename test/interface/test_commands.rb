@@ -28,6 +28,7 @@ module Syskit
 
             describe "#deployments" do
                 attr_reader :task_m, :task
+
                 before do
                     @task_m = TaskContext.new_submodel
                     @task = syskit_stub_deploy_configure_and_start(
@@ -46,8 +47,59 @@ module Syskit
                 end
             end
 
+            describe "#poll_ready_deployments" do
+                attr_reader :task_m, :task
+
+                before do
+                    @task_m = TaskContext.new_submodel
+                    @task = syskit_stub_deploy_configure_and_start(
+                        syskit_stub_requirements(task_m).with_conf("default")
+                    )
+                    plan.add_mission_task(task)
+                end
+
+                it "returns a deployment that is ready" do
+                    new_deployments, old_deployments = subject.poll_ready_deployments
+                    assert_equal [], old_deployments
+                    assert_equal 1, new_deployments.size
+                    deployment = new_deployments.first
+                    assert_equal @task.execution_agent, deployment
+                end
+
+                it "ignores a deployment that is not ready yet" do
+                    flexmock(@task.execution_agent).should_receive(ready?: false)
+                    new_deployments, old_deployments = subject.poll_ready_deployments
+                    assert_equal [], new_deployments
+                    assert_equal [], old_deployments
+                end
+
+                it "does not return a deployment that is already known" do
+                    new_deployments, old_deployments =
+                        subject.poll_ready_deployments(
+                            known: [@task.execution_agent.droby_id.id]
+                        )
+
+                    assert_equal [], new_deployments
+                    assert_equal [], old_deployments
+                end
+
+                it "lists deployments that have been removed" do
+                    droby_id = @task.execution_agent.droby_id.id
+                    expect_execution do
+                        plan.unmark_mission_task(task)
+                        plan.unmark_permanent_task(task.execution_agent)
+                    end.garbage_collect(true).to { emit task.execution_agent.stop_event }
+
+                    new_deployments, old_deployments =
+                        subject.poll_ready_deployments(known: [droby_id])
+                    assert_equal [], new_deployments
+                    assert_equal [droby_id], old_deployments
+                end
+            end
+
             describe "#restart_deployments" do
                 attr_reader :task_m, :task
+
                 before do
                     @task_m = TaskContext.new_submodel
                     @task = syskit_stub_deploy_configure_and_start(
@@ -99,6 +151,7 @@ module Syskit
 
             describe "#stop_deployments" do
                 attr_reader :task_m, :task
+
                 before do
                     @task_m = TaskContext.new_submodel
                     @task = syskit_stub_deploy_configure_and_start(
@@ -193,6 +246,7 @@ module Syskit
 
             describe "the log group management" do
                 attr_reader :group
+
                 before do
                     @group = Syskit.conf.logs.create_group "test" do |g|
                         g.add(/base.samples.frame.Frame/)
@@ -217,14 +271,14 @@ module Syskit
                     assert !group.enabled?
                 end
 
-                it "enable_log_group raises ArgumentError "\
+                it "enable_log_group raises ArgumentError " \
                    "if the log group does not exist" do
                     assert_raises(ArgumentError) do
                         subject.enable_log_group "does_not_exist"
                     end
                 end
 
-                it "disable_log_group raises ArgumentError "\
+                it "disable_log_group raises ArgumentError " \
                    "if the log group does not exist" do
                     assert_raises(ArgumentError) do
                         subject.disable_log_group "does_not_exist"
@@ -247,7 +301,7 @@ module Syskit
             #   process_execute_call
             def queue_execute_call(&block)
                 if @interface_thread
-                    raise "you must call #process_execute_call after a call "\
+                    raise "you must call #process_execute_call after a call " \
                           "to #queue_execute_call"
                 end
 
@@ -264,16 +318,16 @@ module Syskit
             # Process the work queued with {#queue_execute_call}
             def process_execute_call
                 subject.execution_engine.join_all_waiting_work
-                if !@interface_thread.alive?
+                if @interface_thread.alive?
+                    @interface_thread_sync.wait
+                    @interface_thread.join
+                else
                     # Join the thread to have it to raise an exception that
                     # would have terminated it
                     @interface_thread.join
                     # If no exception was risen, fail with a less helpful
                     # message
                     flunck("interface thread quit unexpectedly")
-                else
-                    @interface_thread_sync.wait
-                    @interface_thread.join
                 end
             ensure
                 @interface_thread = nil

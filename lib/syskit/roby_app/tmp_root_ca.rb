@@ -37,7 +37,7 @@ module Syskit
                 certificate.not_before = now
                 certificate.not_after = now + lifespan
                 add_extensions(server_ip, certificate)
-                certificate.sign(key, OpenSSL::Digest::SHA256.new)
+                certificate.sign(key, OpenSSL::Digest.new("SHA256"))
                 certificate
             end
 

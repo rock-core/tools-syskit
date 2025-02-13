@@ -72,13 +72,14 @@ module Syskit
                 unless (service = find_data_service(service))
                     known_services = each_data_service.map(&:name).sort.join(", ")
                     raise ArgumentError,
-                          "#{service} is not a known service of #{self}, "\
+                          "#{service} is not a known service of #{self}, " \
                           "known services are: #{known_services}"
                 end
             elsif !service || service.kind_of?(Syskit::Models::DataServiceModel)
                 driver_services =
                     if service then model.find_all_data_services_from_type(service)
-                    else model.each_master_driver_service.to_a
+                    else
+                        model.each_master_driver_service.to_a
                     end
                 if driver_services.empty?
                     raise ArgumentError, "#{self} is not attached to any device"
@@ -87,7 +88,7 @@ module Syskit
                 if driver_services.size > 1
                     driver_service_names = driver_services.map(&:name).sort.join(", ")
                     raise ArgumentError,
-                          "#{self} handles more than one device, you must "\
+                          "#{self} handles more than one device, you must " \
                           "specify one of #{driver_service_names} explicitely"
                 end
 
@@ -152,13 +153,11 @@ module Syskit
         # @yieldparam device [DeviceInstance] a device that is using self as
         #   a communication bus
         # @see each_attached_device
-        def each_declared_attached_device
+        def each_declared_attached_device(&block)
             return enum_for(:each_declared_attached_device) unless block_given?
 
             each_com_bus_device do |combus|
-                combus.each_attached_device do |dev|
-                    yield(dev)
-                end
+                combus.each_attached_device(&block)
             end
         end
 
@@ -191,15 +190,15 @@ module Syskit
                     client_in_srv  = dev.combus_client_in_srv
                     client_out_srv = dev.combus_client_out_srv
 
-                    if !combus_m.lazy_dispatch?
+                    if combus_m.lazy_dispatch?
+                        bus_srv = combus.require_dynamic_service_for_device(self, dev)
+                    else
                         unless (bus_srv = find_data_service(dev.name))
                             raise ArgumentError,
-                                  "combus task #{self} was expected to have "\
-                                  "a service named #{dev.name} to connect "\
+                                  "combus task #{self} was expected to have " \
+                                  "a service named #{dev.name} to connect " \
                                   "to the device of the same name, but has none"
                         end
-                    else
-                        bus_srv = combus.require_dynamic_service_for_device(self, dev)
                     end
 
                     client_out_srv.bind(task).connect_to bus_srv if dev.client_to_bus?

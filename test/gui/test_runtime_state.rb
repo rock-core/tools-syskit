@@ -14,6 +14,7 @@ module Syskit
             attr_reader :subject
             attr_reader :syskit
             attr_reader :client
+
             before do
                 @syskit = flexmock(Roby::Interface::Async::Interface.new)
                 @syskit.should_receive(:client).and_return { client }

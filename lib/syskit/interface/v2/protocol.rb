@@ -9,6 +9,8 @@ module Syskit
             module Protocol
                 ROBY_TASK_MEMBERS = Roby::Interface::V2::Protocol::Task.new.members
 
+                DeviceModel = Struct.new(:name, keyword_init: true)
+                MasterDeviceInstance = Struct.new(:name, :model, keyword_init: true)
                 Deployment = Struct.new(
                     *ROBY_TASK_MEMBERS,
                     :pid, :ready_since, :deployed_tasks, keyword_init: true
@@ -36,9 +38,24 @@ module Syskit
                     protocol.add_marshaller(
                         Syskit::Deployment, &method(:marshal_deployment_task)
                     )
+                    protocol.add_marshaller(
+                        Syskit::Robot::MasterDeviceInstance,
+                        &method(:marshal_master_device_instance)
+                    )
                     protocol.allow_objects(
                         Orocos::RubyTasks::TaskContext,
                         Orocos::RubyTasks::StubTaskContext
+                    )
+                end
+
+                def self.marshal_device_model(model)
+                    DeviceModel.new(name: model.name)
+                end
+
+                def self.marshal_master_device_instance(_channel, device)
+                    MasterDeviceInstance.new(
+                        name: device.name,
+                        model: marshal_device_model(device.device_model)
                     )
                 end
 

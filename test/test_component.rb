@@ -5,6 +5,7 @@ require "syskit/test/self"
 describe Syskit::Component do
     describe "#specialize" do
         attr_reader :task, :task_m
+
         before do
             @task_m = Syskit::TaskContext.new_submodel
             @task = task_m.new
@@ -110,6 +111,7 @@ describe Syskit::Component do
 
     describe "#require_dynamic_service" do
         attr_reader :task_m, :srv_m, :dyn, :task
+
         before do
             @task_m = Syskit::TaskContext.new_submodel do
                 output_port "out", "int"
@@ -191,6 +193,7 @@ describe Syskit::Component do
 
     describe "#can_merge?" do
         attr_reader :srv_m, :task_m, :testing_task, :tested_task
+
         before do
             srv_m = Syskit::DataService.new_submodel
             @task_m = Syskit::TaskContext.new_submodel do
@@ -241,14 +244,14 @@ describe Syskit::Component do
                       .with_arguments(arg: Roby::Task.from(:parent_task).arg)
             end
 
-            it "does not merge if the two tasks have from(:parent_task) ... arguments that "\
-                "resolve to different values" do
+            it "does not merge if the two tasks have from(:parent_task) ... arguments that " \
+               "resolve to different values" do
                 testing_cmp = @cmp_m.with_arguments(arg: 5).instanciate(plan)
                 tested_cmp  = @cmp_m.with_arguments(arg: 10).instanciate(plan)
                 refute testing_cmp.test_child.can_merge?(tested_cmp.test_child)
             end
-            it "does merge if the two tasks have from(:parent_task) ... arguments that "\
-                "resolve to the same value" do
+            it "does merge if the two tasks have from(:parent_task) ... arguments that " \
+               "resolve to the same value" do
                 testing_cmp = @cmp_m.with_arguments(arg: 10).instanciate(plan)
                 tested_cmp  = @cmp_m.with_arguments(arg: 10).instanciate(plan)
                 assert testing_cmp.test_child.can_merge?(tested_cmp.test_child)
@@ -260,6 +263,7 @@ describe Syskit::Component do
 
     describe "#merge" do
         attr_reader :srv_m, :task_m, :task, :merged_task
+
         before do
             srv_m = @srv_m = Syskit::DataService.new_submodel
             @task_m = Syskit::TaskContext.new_submodel do
@@ -348,6 +352,7 @@ describe Syskit::Component do
         end
         describe "handling of default arguments" do
             attr_reader :task_m, :default_arg
+
             before do
                 @task_m = Syskit::Component.new_submodel do
                     argument :arg
@@ -911,7 +916,7 @@ describe Syskit::Component do
                 e = assert_raises(ArgumentError) do
                     @task.data_reader("out", as: "test")
                 end
-                assert_equal "cannot provide the 'as' option to the deprecated "\
+                assert_equal "cannot provide the 'as' option to the deprecated " \
                              "string-based call to #data_reader", e.message
             end
 
@@ -935,7 +940,7 @@ describe Syskit::Component do
                 assert_equal cmp.test_child.out_port, writer.port
             end
 
-            it "falls back to Roby's notion of role if accessing children "\
+            it "falls back to Roby's notion of role if accessing children " \
                "from a non-composition" do
                 parent_task = syskit_stub_and_deploy(@task_m)
                 parent_task.depends_on @task, role: "test"
@@ -965,7 +970,7 @@ describe Syskit::Component do
 
             it "raises if the given port does not exist" do
                 e = assert_raises(ArgumentError) { @task.data_reader("does_not_exist") }
-                assert_equal "'does_not_exist' is not a port of #{@task}. Known "\
+                assert_equal "'does_not_exist' is not a port of #{@task}. Known " \
                              "ports are: in, out, state", e.message
             end
         end
@@ -1123,7 +1128,7 @@ describe Syskit::Component do
                 e = assert_raises(ArgumentError) do
                     @task.data_writer("in", as: "test")
                 end
-                assert_equal "cannot provide the 'as' option to the deprecated "\
+                assert_equal "cannot provide the 'as' option to the deprecated " \
                              "string-based call to #data_writer", e.message
             end
 
@@ -1147,7 +1152,7 @@ describe Syskit::Component do
                 assert_equal cmp.test_child.in_port, writer.port
             end
 
-            it "falls back to Roby's notion of role if accessing children "\
+            it "falls back to Roby's notion of role if accessing children " \
                "from a non-composition" do
                 parent_task = syskit_stub_and_deploy(@task_m)
                 parent_task.depends_on @task, role: "test"
@@ -1171,13 +1176,13 @@ describe Syskit::Component do
 
             it "raises if the given port is an output port" do
                 e = assert_raises(ArgumentError) { @task.data_writer("out") }
-                assert_equal "#{@task}.out is an output port, expected an input "\
+                assert_equal "#{@task}.out is an output port, expected an input " \
                              "port", e.message
             end
 
             it "raises if the given port does not exist" do
                 e = assert_raises(ArgumentError) { @task.data_writer("does_not_exist") }
-                assert_equal "'does_not_exist' is not a port of #{@task}. Known "\
+                assert_equal "'does_not_exist' is not a port of #{@task}. Known " \
                              "ports are: in, out, state", e.message
             end
         end

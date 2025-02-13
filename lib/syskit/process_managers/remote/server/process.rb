@@ -43,6 +43,10 @@ module Syskit
                                 loader.available_deployments
                                       .fetch(deployment_name).binfile
                             end
+                        unless binfile
+                            raise ArgumentError,
+                                  "cannot find deployment #{deployment_name}"
+                        end
 
                         @name = name
                         @name_mappings = {}
@@ -81,8 +85,8 @@ module Syskit
                     def setup_log_level(log_level)
                         unless VALID_LOG_LEVELS.include?(log_level)
                             raise ArgumentError,
-                                  "'#{log_level}' is not a valid log level." \
-                                  " Valid options are #{valid_levels}."
+                                  "'#{log_level}' is not a valid log level. " \
+                                  "Valid options are #{valid_levels}."
                         end
 
                         @env["BASE_LOG_LEVEL"] = log_level.to_s.upcase
@@ -210,7 +214,7 @@ module Syskit
                         elsif exit_status.signaled?
                             issue_logger_signaled_messages(exit_status)
                         else
-                            warn "deployment #{name} terminated with code "\
+                            warn "deployment #{name} terminated with code " \
                                  "#{exit_status.to_i}"
                         end
 
@@ -221,16 +225,16 @@ module Syskit
 
                     def issue_logger_signaled_messages(exit_status)
                         if @expected_exit == exit_status.termsig
-                            info "deployment #{name} terminated with signal "\
+                            info "deployment #{name} terminated with signal " \
                                  "#{exit_status.termsig}"
                         elsif @expected_exit
-                            info "deployment #{name} terminated with signal "\
-                                 "#{exit_status.termsig} but #{@expected_exit} "\
+                            info "deployment #{name} terminated with signal " \
+                                 "#{exit_status.termsig} but #{@expected_exit} " \
                                  "was expected"
                         else
-                            error "deployment #{name} unexpectedly terminated with "\
+                            error "deployment #{name} unexpectedly terminated with " \
                                   "signal #{exit_status.termsig}"
-                            error "This is normally a fault inside the component, "\
+                            error "This is normally a fault inside the component, " \
                                   "not caused by the framework."
                         end
                     end
@@ -306,8 +310,8 @@ module Syskit
                     def spawn_gdb_warning
                         gdb_port = @execution_mode[:port]
                         Orocos.warn(
-                            "process #{name} has been started under gdbserver, "\
-                            "port=#{gdb_port}. The components will not be "\
+                            "process #{name} has been started under gdbserver, " \
+                            "port=#{gdb_port}. The components will not be " \
                             "functional until you attach a GDB to the started server"
                         )
                     end

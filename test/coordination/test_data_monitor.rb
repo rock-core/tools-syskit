@@ -11,6 +11,7 @@ describe Syskit::Coordination::DataMonitor do
         end
 
         attr_reader :streams, :predicate, :data_monitor
+
         before do
             @streams = (1..3).map { StreamStub.new }
             @predicate = flexmock

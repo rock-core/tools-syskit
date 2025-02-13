@@ -25,7 +25,7 @@ describe Syskit::ROS::Node do
     end
 
     after do
-        ::Process.kill("INT", @pid)
+        Process.kill("INT", @pid)
     end
 
     describe "#initialize" do

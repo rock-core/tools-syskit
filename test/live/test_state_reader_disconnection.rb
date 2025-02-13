@@ -94,7 +94,7 @@ module Syskit
                 )
             end
 
-            it "goes into quarantine, falls back to the remote state getter and "\
+            it "goes into quarantine, falls back to the remote state getter and " \
                "attempts to stop the task" do
                 expect_execution { task.state_reader.disconnect }
                     .to do
@@ -174,7 +174,7 @@ module Syskit
             end
         end
 
-        describe "when only losing the remote state reader "\
+        describe "when only losing the remote state reader " \
                  "while processing an exception" do
             before do
                 @task.properties.hook = "exception"

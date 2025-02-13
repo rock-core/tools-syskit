@@ -241,13 +241,13 @@ module Syskit
                 (!required_host || !other_task.required_host ||
                 required_host == other_task.required_host)
 
-            if !result
+            if result
+                true
+            else
                 NetworkGeneration.debug do
                     "cannot merge #{other_task} in #{self}: different host constraints"
                 end
                 false
-            else
-                true
             end
         end
 
@@ -400,13 +400,13 @@ module Syskit
                                         .first
 
                 raise InvalidReadOnlyOperation,
-                      "attempting to write on property '#{property.name}',"\
+                      "attempting to write on property '#{property.name}'," \
                       "but it's a 'read_only' Task"
             end
 
             unless would_use_property_update?
                 raise InvalidState,
-                      "attempting to queue a property update on a finished "\
+                      "attempting to queue a property update on a finished " \
                       "or finishing task"
             end
 
@@ -542,7 +542,7 @@ module Syskit
             return unless mismatch
 
             Runtime.warn(
-                "state mismatch on #{self} between state=#{orogen_state} "\
+                "state mismatch on #{self} between state=#{orogen_state} " \
                 "and rtt_state=#{rtt_state}"
             )
             @orogen_state = rtt_state
@@ -618,8 +618,8 @@ module Syskit
                 # in which toplevel state we are. The component is unusable
                 # as is, but we can finish whatever transition it is doing
                 # (and stop it cleanly)
-                fatal "putting #{self} in quarantine, its state reader "\
-                    "#{state_reader} got disconnected"
+                fatal "putting #{self} in quarantine, its state reader " \
+                      "#{state_reader} got disconnected"
 
                 @state_reader = @remote_state_getter
                 @remote_state_getter.resume_or_start
@@ -645,7 +645,7 @@ module Syskit
                 @last_orogen_state = @orogen_state
                 @orogen_state = @pending_exception_states.shift
             elsif !@remote_state_getter.connected?
-                fatal "putting #{self} in quarantine, its remote state reader "\
+                fatal "putting #{self} in quarantine, its remote state reader " \
                       "#{@remote_state_getter} failed during exception handling"
                 quarantined!
                 # Don't stop like in #handle_state_reader_disconnection, the component
@@ -718,8 +718,8 @@ module Syskit
             return true if configurable
 
             execution_engine.scheduler.report_holdoff(
-                "task #{self} not ready, task is in state #{state}, expected "\
-                    "PRE_OPERATIONAL, STOPPED or an exception state", self
+                "task #{self} not ready, task is in state #{state}, expected " \
+                "PRE_OPERATIONAL, STOPPED or an exception state", self
             )
             false
         end
@@ -758,16 +758,16 @@ module Syskit
                     "configured and all inputs connected, marking as executable", self
                 )
                 Runtime.debug do
-                    "#{self} is setup and all its inputs are connected, "\
-                    "executable? = #{executable?}"
+                    "#{self} is setup and all its inputs are connected, " \
+                        "executable? = #{executable?}"
                 end
             else
                 execution_engine.scheduler.report_action(
                     "configured, but some connections are pending", self
                 )
                 Runtime.debug do
-                    "#{self} is setup but some of its inputs are not connected, "\
-                    "executable = #{executable?}"
+                    "#{self} is setup but some of its inputs are not connected, " \
+                        "executable = #{executable?}"
                 end
             end
 
@@ -822,8 +822,8 @@ module Syskit
 
             dynamic_ports.each do |name|
                 if existing_port_names.include?(name)
-                    Syskit.fatal(
-                        "task #{orocos_task} did not clear #{name}, a dynamic input "\
+                    fatal(
+                        "task #{orocos_task} did not clear #{name}, a dynamic input " \
                         "port, during cleanup, as it should have. Go fix it."
                     )
                 end
@@ -853,8 +853,8 @@ module Syskit
 
             dynamic_ports.each do |name|
                 if existing_port_names.include?(name)
-                    Syskit.fatal(
-                        "task #{orocos_task} did not clear #{name}, a dynamic "\
+                    fatal(
+                        "task #{orocos_task} did not clear #{name}, a dynamic " \
                         "output port, during cleanup, as it should have. Go fix it."
                     )
                 end
@@ -882,7 +882,7 @@ module Syskit
                 [properties, orocos_task.rtt_state]
             end
             promise.on_success(
-                description: "#{self}#prepare_for_setup#write properties and "\
+                description: "#{self}#prepare_for_setup#write properties and " \
                              "needs_reconfiguration"
             ) do |properties, state|
                 properties.each do |syskit_p, remote_value|
@@ -893,11 +893,11 @@ module Syskit
                     freeze_delayed_arguments
                     update_properties
                 else
-                    warn "#{model.concrete_model} does not define "\
+                    warn "#{model.concrete_model} does not define " \
                          "the #update_properties method, but does define"
-                    warn "#configure. It will be needlessly reconfigured when "\
+                    warn "#configure. It will be needlessly reconfigured when " \
                          "stopped."
-                    warn "See https://www.rock-robotics.org/rock-and-syskit/"\
+                    warn "See https://www.rock-robotics.org/rock-and-syskit/" \
                          "deprecations/update_properties.html"
                 end
 
@@ -910,7 +910,7 @@ module Syskit
                     self.properties.each.any?(&:needs_commit?)
 
                 unless needs_reconfiguration
-                    info "not reconfiguring #{self}: the task is already "\
+                    info "not reconfiguring #{self}: the task is already " \
                          "configured as required"
                 end
                 [needs_reconfiguration, state]
@@ -942,7 +942,7 @@ module Syskit
             prepare_for_setup(promise)
 
             # This calls #configure
-            super(promise)
+            super
 
             properties_updated_in_configure = false
             promise.on_success(description: "#{self}#perform_setup#log_properties") do
@@ -962,7 +962,7 @@ module Syskit
             promise.then(description: "#{self}#perform_setup#orocos_task.configure") do
                 state = orocos_task.rtt_state
                 if properties_updated_in_configure && state != :PRE_OPERATIONAL
-                    info "properties have been changed within #configure, "\
+                    info "properties have been changed within #configure, " \
                          "cleaning up #{self}"
                     orocos_task.cleanup(false)
                     state = :PRE_OPERATIONAL
@@ -986,6 +986,9 @@ module Syskit
         # (see Component#setup_failed!)_
         def setup_failed!(exception)
             unless exception.kind_of?(Orocos::StateTransitionFailed)
+                fatal "#{exception} received while configuring #{orocos_name}, " \
+                      "expected a StateTransitionFailed error. The component is " \
+                      "put in quarantine and cannot be reused"
                 execution_agent.register_task_context_in_fatal(orocos_name)
             end
 
@@ -1020,14 +1023,14 @@ module Syskit
                 expected_output_ports.each do |source_p|
                     unless port_names.include?(source_p)
                         raise Orocos::NotFound,
-                              "#{orocos_name}(#{orogen_model.name}) does "\
+                              "#{orocos_name}(#{orogen_model.name}) does " \
                               "not have a port named #{source_p}"
                     end
                 end
                 expected_input_ports.each do |sink_p|
                     unless port_names.include?(sink_p)
                         raise Orocos::NotFound,
-                              "#{orocos_name}(#{orogen_model.name}) does "\
+                              "#{orocos_name}(#{orogen_model.name}) does " \
                               "not have a port named #{sink_p}"
                     end
                 end
@@ -1036,6 +1039,10 @@ module Syskit
             start_event.achieve_asynchronously(promise, emit_on_success: false)
             promise.on_error do |exception|
                 unless exception.kind_of?(Orocos::StateTransitionFailed)
+                    fatal "#{exception} received while configuring " \
+                          "#{orocos_name}, expected a StateTransitionFailed " \
+                          "error. The component is put in quarantine and " \
+                          "cannot be reused"
                     execution_agent.register_task_context_in_fatal(orocos_name)
                 end
             end
@@ -1057,8 +1064,8 @@ module Syskit
                 if last_orogen_state && orocos_task.error_state?(last_orogen_state)
                     running_event.emit
                 elsif @last_terminal_state
-                    fatal "#{self} reports state #{orogen_state} after having "\
-                          "reported a terminal state (#{@last_terminal_state}). "\
+                    fatal "#{self} reports state #{orogen_state} after having " \
+                          "reported a terminal state (#{@last_terminal_state}). " \
                           "Syskit will try to go on, but this should not happen."
                 end
             end
@@ -1077,7 +1084,7 @@ module Syskit
                         event(event_name)
                     else
                         raise ArgumentError,
-                              "#{self} reports state #{orogen_state}, "\
+                              "#{self} reports state #{orogen_state}, " \
                               "but I don't have an event for this state transition"
                     end
                 end
@@ -1312,7 +1319,7 @@ module Syskit
                 if has_property?(name)
                     property(name).write(value)
                 else
-                    ::Robot.warn "ignoring field #{name} in configuration "\
+                    ::Robot.warn "ignoring field #{name} in configuration " \
                                  "of #{orocos_name} (#{model.name})"
                 end
             end
@@ -1323,7 +1330,7 @@ module Syskit
         def stub!(name = nil)
             if !name && !orocos_name
                 raise ArgumentError,
-                      "orocos_task is not set on #{self}, you must "\
+                      "orocos_task is not set on #{self}, you must " \
                       "provide an explicit name in #stub!"
             end
             self.orocos_name = name if name

@@ -184,13 +184,9 @@ module Syskit
         # @yieldparam selection the selected model/task in the use flag
         # @yieldreturn the value that should replaces selection
         # @return [self]
-        def map_use_selections!
-            selections.map! do |value|
-                yield(value)
-            end
-            pushed_selections.map! do |value|
-                yield(value)
-            end
+        def map_use_selections!(&block)
+            selections.map!(&block)
+            pushed_selections.map!(&block)
             invalidate_dependency_injection
             invalidate_template
             self
@@ -206,15 +202,15 @@ module Syskit
 
         # @deprecated use {#bind} instead
         def resolve(object)
-            Roby.warn_deprecated "#{__method__} is deprecated, use "\
-                "InstanceRequirements#bind instead"
+            Roby.warn_deprecated "#{__method__} is deprecated, use " \
+                                 "InstanceRequirements#bind instead"
             bind(object)
         end
 
         # @deprecated use {#try_bind} instead
         def try_resolve(task)
-            Roby.warn_deprecated "#{__method__} is deprecated, use "\
-                "InstanceRequirements#try_bind instead"
+            Roby.warn_deprecated "#{__method__} is deprecated, use " \
+                                 "InstanceRequirements#try_bind instead"
             try_bind(task)
         end
 
@@ -237,7 +233,8 @@ module Syskit
             model = self.model.to_component_model
             if model.placeholder?
                 model.proxied_component_model
-            else model
+            else
+                model
             end
         end
 
@@ -428,7 +425,8 @@ module Syskit
         def port_by_name(name)
             if p = find_port(name)
                 p
-            else raise ArgumentError, "#{self} has no port called #{name}, known ports are: #{each_port.map(&:name).sort.join(', ')}"
+            else
+                raise ArgumentError, "#{self} has no port called #{name}, known ports are: #{each_port.map(&:name).sort.join(', ')}"
             end
         end
 
@@ -630,7 +628,8 @@ module Syskit
         def simplest_model_representation
             if plain?
                 model
-            else self
+            else
+                self
             end
         end
 
@@ -694,8 +693,8 @@ module Syskit
             deprecated_from_kw ||= Roby.sanitize_keywords(arguments)
             if deprecated_arguments || !deprecated_from_kw.empty?
                 Roby.warn_deprecated(
-                    "InstanceRequirements#with_arguments: providing arguments using "\
-                    "a string is not supported anymore use key: value instead of "\
+                    "InstanceRequirements#with_arguments: providing arguments using " \
+                    "a string is not supported anymore use key: value instead of " \
                     "'key' => value"
                 )
                 deprecated_arguments&.each { |key, arg| arguments[key.to_sym] = arg }
@@ -975,7 +974,8 @@ module Syskit
                     !sel.kind_of?(DependencyInjection::SpecialDIValue)
 
                     sel.to_instance_requirements
-                else sel
+                else
+                    sel
                 end
             end
             task.update_requirements(task_requirements,
@@ -1037,10 +1037,10 @@ module Syskit
         end
 
         def pretty_print(pp)
-            if model != base_model
-                pp.text "#{model}(from #{base_model})"
-            else
+            if model == base_model
                 pp.text model.to_s
+            else
+                pp.text "#{model}(from #{base_model})"
             end
             pp.nest(2) do
                 unless pushed_selections.empty?
@@ -1063,7 +1063,7 @@ module Syskit
             return enum_for(__method__) unless block_given?
 
             unless composition_model?
-                raise "cannot call #each_child on #{self} as it does not "\
+                raise "cannot call #each_child on #{self} as it does not " \
                       "represent a composition model"
             end
 
@@ -1112,19 +1112,18 @@ module Syskit
             end
         end
 
-        def each_required_model
+        def each_required_model(&block)
             return enum_for(:each_required_model) unless block_given?
 
-            model.each_required_model do |m|
-                yield(m)
-            end
+            model.each_required_model(&block)
         end
 
         # Tests if these requirements explicitly point to a component model
         def component_model?
             if model.placeholder?
                 model.proxied_component_model != Syskit::Component
-            else true
+            else
+                true
             end
         end
 
@@ -1196,7 +1195,8 @@ module Syskit
                 arguments = @requirements.arguments.transform_values do |value|
                     if value.respond_to?(:evaluate)
                         value.evaluate(variables)
-                    else value
+                    else
+                        value
                     end
                 end
                 @requirements.as_plan(**arguments)
@@ -1239,7 +1239,7 @@ module Syskit
                 if optional
                     action_model.optional_arg(arg_name, arg.doc || "#{arg_name} argument of #{task_model.name}", default_argument)
                 else
-                    action_model.required_arg(arg_name, arg.doc || "#{arg_name} argument of #{task_model.name}")
+                    action_model.required_arg(arg_name, arg.doc || "#{arg_name} argument of #{task_model.name}", example: arg.example)
                 end
             end
             action_model

@@ -96,7 +96,7 @@ module Syskit
             return if @poll_thread
 
             raise NotYetStarted,
-                  "called an operation on a RemoteStateGetter that is not running. "\
+                  "called an operation on a RemoteStateGetter that is not running. " \
                   "call #start first"
         end
 
@@ -111,7 +111,7 @@ module Syskit
                       "error calling or within #wait: #{self} is paused"
             elsif (error = @poll_thread_error.value)
                 raise error,
-                      "error calling or within #wait: #{self}'s poll thread quit "\
+                      "error calling or within #wait: #{self}'s poll thread quit " \
                       "with #{error.message}", (error.backtrace + caller)
             elsif @exit_condition.set?
                 raise InvalidRuntimeStateError,

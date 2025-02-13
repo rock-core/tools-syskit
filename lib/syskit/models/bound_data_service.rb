@@ -162,7 +162,7 @@ module Syskit
 
                 if verify && !new_component_model.fullfills?(component_model)
                     raise ArgumentError,
-                          "cannot attach #{self} on #{new_component_model}: "\
+                          "cannot attach #{self} on #{new_component_model}: " \
                           "does not fullfill #{component_model}"
                 end
 
@@ -315,7 +315,7 @@ module Syskit
 
                 unless task.fullfills?(component_model)
                     raise ArgumentError,
-                          "cannot bind #{self} on #{task}: "\
+                          "cannot bind #{self} on #{task}: " \
                           "does not fullfill #{component_model}"
                 end
 
@@ -334,9 +334,9 @@ module Syskit
                     resolved = task.find_data_service(name)
                     if !resolved || !resolved.model.same_service?(self)
                         raise InternalError,
-                              "#{component_model} is fullfilled by #{task}, "\
-                              "but is not inherited by its model #{task.model}. "\
-                              "I didn't manage to resolve this, either as a "\
+                              "#{component_model} is fullfilled by #{task}, " \
+                              "but is not inherited by its model #{task.model}. " \
+                              "I didn't manage to resolve this, either as a " \
                               "task-to-placeholder mapping, or as a dynamic service"
                     end
 
@@ -347,7 +347,7 @@ module Syskit
             # @deprecated use {#bind} instead
             def resolve(task)
                 Roby.warn_deprecated(
-                    "#{__method__} is deprecated, use "\
+                    "#{__method__} is deprecated, use " \
                     "BoundDataService#bind instead"
                 )
                 bind(task)

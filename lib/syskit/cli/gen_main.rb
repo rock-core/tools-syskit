@@ -171,7 +171,7 @@ module Syskit
                 gen_common("profile", name, "profiles", "Profiles")
             end
 
-            desc "orogen PROJECT_NAME", "generate an extension file for the tasks "\
+            desc "orogen PROJECT_NAME", "generate an extension file for the tasks " \
                                         "of an oroGen project"
             long_desc <<~OROGEN_DESCRIPTION
                 Generates a new extension file for an oroGen project. It must be given the name
@@ -269,8 +269,8 @@ module Syskit
                 rescue RuntimeError
                     unless section
                         raise Roby::CLI::CLICommandFailed,
-                              "failed to start a component of model "\
-                              "#{task_model.orogen_model.name}, cannot create "\
+                              "failed to start a component of model " \
+                              "#{task_model.orogen_model.name}, cannot create " \
                               "a configuration file with default values"
                     end
                 end

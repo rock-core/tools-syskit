@@ -5,6 +5,8 @@ module Syskit
         # Finds a set of ports within the plan
         class PortMatcher < Roby::Queries::MatcherBase
             def initialize(component_matcher)
+                super()
+
                 @component_matcher = component_matcher.match
                 @name_filter = Roby::Queries.any
                 @type_filter = nil
@@ -55,9 +57,9 @@ module Syskit
             def ===(port)
                 return unless port.kind_of?(Port)
 
-                (@name_filter === object.name) &&
-                    (!@type_filter || @type_filter == object.type) &&
-                    (@component_matcher === object.component)
+                (@name_filter === port.name) &&
+                    (!@type_filter || @type_filter == port.type) &&
+                    (@component_matcher === port.component)
             end
 
             def each_in_plan(plan, &block)
@@ -72,8 +74,8 @@ module Syskit
 
             def each_in_plan_by_name(plan)
                 @component_matcher.each_in_plan(plan) do |task|
-                    if (port = task.find_port(@name_filter))
-                        yield(port) if !@type_filter || @type_filter == port.type
+                    if (port = task.find_port(@name_filter)) && (!@type_filter || @type_filter == port.type)
+                        yield(port)
                     end
                 end
             end

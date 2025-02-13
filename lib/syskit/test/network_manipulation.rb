@@ -72,8 +72,8 @@ module Syskit
                         writer.writer(**policy)
                     end
                 elsif !writer.respond_to?(:write)
-                    raise ArgumentError, "#{writer} does not seem to be a port "\
-                        "one can write on"
+                    raise ArgumentError, "#{writer} does not seem to be a port " \
+                                         "one can write on"
                 end
                 writer
             end
@@ -307,7 +307,7 @@ module Syskit
             # @param [Boolean] register the configured deployment in the test group
             #   This makes it available to further deployments
             # @return [Syskit::Models::ConfiguredDeployment]
-            def syskit_stub_configured_deployment( # rubocop:disable Metrics/ParameterLists
+            def syskit_stub_configured_deployment(
                 task_model = nil, task_name = syskit_default_stub_name(task_model),
                 remote_task: syskit_stub_resolves_remote_tasks?,
                 register: true, read_only: [], &block
@@ -398,9 +398,9 @@ module Syskit
 
             # @deprecated use syskit_stub_requirements instead
             def syskit_stub(*args, **options, &block)
-                Roby.warn_deprecated "syskit_stub has been renamed to "\
-                    "syskit_stub_requirements to make the difference with "\
-                    "syskit_stub_network more obvious"
+                Roby.warn_deprecated "syskit_stub has been renamed to " \
+                                     "syskit_stub_requirements to make the difference with " \
+                                     "syskit_stub_network more obvious"
                 syskit_stub_requirements(*args, **options, &block)
             end
 
@@ -469,12 +469,14 @@ module Syskit
             end
 
             class NoConfigureFixedPoint < RuntimeError
-                attr_reader :tasks
-                attr_reader :info
+                attr_reader :tasks, :info
+
                 Info = Struct.new :ready_for_setup, :missing_arguments,
                                   :precedence, :missing
 
                 def initialize(tasks)
+                    super()
+
                     @tasks = tasks
                     @info = {}
                     tasks.each do |t|
@@ -504,7 +506,7 @@ module Syskit
                             if info.missing_arguments.empty?
                                 pp.text "is fully instanciated"
                             else
-                                pp.text "missing_arguments: "\
+                                pp.text "missing_arguments: " \
                                         "#{info.missing_arguments.join(', ')}"
                             end
 
@@ -512,9 +514,9 @@ module Syskit
                             if info.precedence.empty?
                                 pp.text "has no should_configure_after constraint"
                             else
-                                pp.text "is waiting for #{info.missing.size} events "\
-                                    "to happen before continuing, among "\
-                                    "#{info.precedence.size}"
+                                pp.text "is waiting for #{info.missing.size} events " \
+                                        "to happen before continuing, among " \
+                                        "#{info.precedence.size}"
                                 pp.nest(2) do
                                     info.missing.each do |ev|
                                         pp.breakable
@@ -576,8 +578,8 @@ module Syskit
                             end
                             raise t.failure_reason if t.failed_to_start?
 
-                            assert t.setup?, "ran the setup for #{t}, but t.setup? "\
-                                "does not return true"
+                            assert t.setup?, "ran the setup for #{t}, but t.setup? " \
+                                             "does not return true"
                             true
                         else
                             t.setup?
@@ -613,6 +615,8 @@ module Syskit
                 attr_reader :tasks
 
                 def initialize(tasks)
+                    super()
+
                     @tasks = tasks
                 end
 
@@ -718,8 +722,8 @@ module Syskit
                     end
 
                     if current_pending == pending.size
-                        raise NoStartFixedPoint.new(pending), "cannot start "\
-                            "#{pending.map(&:to_s).join(', ')}"
+                        raise NoStartFixedPoint.new(pending), "cannot start " \
+                                                              "#{pending.map(&:to_s).join(', ')}"
                     end
                 end
 
@@ -729,10 +733,10 @@ module Syskit
 
                 not_started_t = tasks.find { |t| !t.running? }
                 if not_started_t
-                    raise "failed to start #{not_started_t}: "\
-                        "starting=#{not_started_t.starting?} "\
-                        "running=#{not_started_t.running?} "\
-                        "finished=#{not_started_t.finished?}"
+                    raise "failed to start #{not_started_t}: " \
+                          "starting=#{not_started_t.starting?} " \
+                          "running=#{not_started_t.running?} " \
+                          "finished=#{not_started_t.finished?}"
                 end
             ensure
                 if guard

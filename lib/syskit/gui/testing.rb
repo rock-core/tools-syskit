@@ -35,10 +35,8 @@ module Syskit
 
             # The item model that represents the subprocess state
             attr_reader :item_model
-            attr_reader :test_list_ui
-            attr_reader :test_result_ui
-            attr_reader :test_result_page
-            attr_reader :exception_rendering
+            attr_reader :test_list_ui, :test_result_ui, :test_result_page,
+                        :exception_rendering
 
             # The timer used to call {#manager}.poll periodically
             attr_reader :poll_timer
@@ -151,7 +149,8 @@ module Syskit
                 start_stop_button.connect(SIGNAL("clicked()")) do
                     if running?
                         stop
-                    else start
+                    else
+                        start
                     end
                 end
 
@@ -215,7 +214,7 @@ module Syskit
                     )
                     items << ["", link]
 
-                    models = (item.slave.name[:models] || [])
+                    models = item.slave.name[:models] || []
                     unless models.empty?
                         items << %w[title Models]
                         models.sort.each do |model_name|
@@ -257,21 +256,22 @@ module Syskit
                 item.each_test_result do |r|
                     name = "#{r.test_case_name}::#{r.test_name}"
                     info = format(
-                        "#{r.skip_count} skips, #{r.failure_count} failures "\
+                        "#{r.skip_count} skips, #{r.failure_count} failures " \
                         "and #{r.assertions} assertions executed in %<duration>.3fs",
                         duration: r.time
                     )
 
                     color = if r.failure_count > 0 then :red
                             elsif r.skip_count > 0 then :orange
-                            else :green
+                            else
+                                :green
                             end
                     color = SubprocessItem.html_color(color)
                     style = "padding: .1em; background-color: #{color}"
                     test_result_page.push(
-                        nil, "<div class=\"test_result\" style=\"#{style}\">"\
-                             "#{MetaRuby::GUI::HTML.escape_html(name)}: "\
-                             "#{MetaRuby::GUI::HTML.escape_html(info)}"\
+                        nil, "<div class=\"test_result\" style=\"#{style}\">" \
+                             "#{MetaRuby::GUI::HTML.escape_html(name)}: " \
+                             "#{MetaRuby::GUI::HTML.escape_html(info)}" \
                              "</div>"
                     )
                     all_exceptions = r.failures.flat_map do |e|
@@ -349,13 +349,14 @@ module Syskit
             def update_status_label(status_label)
                 stats = self.stats
                 state_name = if running? then "RUNNING"
-                             else "STOPPED"
+                             else
+                                 "STOPPED"
                              end
                 status_label.update_state(
                     state_name,
-                    text: "#{stats.executed_count} of #{stats.test_count} test files "\
-                          "executed, #{stats.run_count} runs, #{stats.skip_count} "\
-                          "skips, #{stats.failure_count} failures and "\
+                    text: "#{stats.executed_count} of #{stats.test_count} test files " \
+                          "executed, #{stats.run_count} runs, #{stats.skip_count} " \
+                          "skips, #{stats.failure_count} failures and " \
                           "#{stats.assertions_count} assertions"
                 )
             end
@@ -400,19 +401,8 @@ module Syskit
                     :failure_count, :failures, :assertions, :time
                 )
 
-                attr_reader :slave
-                attr_reader :name
-                attr_reader :test_results
-                attr_reader :exceptions
-
-                attr_reader :start_time
-                attr_reader :assertions_count
-                attr_reader :failure_count
-                attr_reader :skip_count
-
-                attr_reader :slave_exit_status
-
-                attr_reader :total_run_count
+                attr_reader :slave, :name, :test_results, :exceptions, :start_time,
+                            :assertions_count, :failure_count, :skip_count, :slave_exit_status, :total_run_count
 
                 # The count of exceptions
                 def exception_count
@@ -428,7 +418,7 @@ module Syskit
                     @executed = false
                     @slave = slave
                     @total_run_count = 0
-                    name = (slave.name[:path] || "Robot: #{app.robot_name}")
+                    name = slave.name[:path] || "Robot: #{app.robot_name}"
                     if (base_path = app.find_base_path_for(name))
                         base_path = base_path.to_s
                         name = File.basename(base_path) + ":" +
@@ -465,7 +455,7 @@ module Syskit
                 end
 
                 def finished?
-                    !!@runtime # rubocop:disable Style/DoubleNegation
+                    !!@runtime
                 end
 
                 def start
@@ -507,19 +497,19 @@ module Syskit
                 def status_text
                     text = []
                     if has_tested?
-                        text << "#{test_results.size} runs, #{exception_count} "\
-                                "exceptions, #{failure_count} failures and "\
+                        text << "#{test_results.size} runs, #{exception_count} " \
+                                "exceptions, #{failure_count} failures and " \
                                 "#{assertions_count} assertions"
                     end
 
                     return text unless slave_exit_status && !slave_exit_status.success?
 
                     if slave_exit_status.signaled?
-                        text << "Test process terminated with signal "\
+                        text << "Test process terminated with signal " \
                                 "#{slave_exit_status.termsig}"
                     elsif slave_exit_status.exitstatus != 1 || !has_tested? ||
                           (exception_count == 0 && failure_count == 0)
-                        text << "Test process finished with exit code "\
+                        text << "Test process finished with exit code " \
                                 "#{slave_exit_status.exitstatus}"
                     end
                     text
@@ -568,7 +558,8 @@ module Syskit
                     failures.each do |e|
                         if e.kind_of?(Minitest::Skip)
                             skip_count += 1
-                        else failure_count += 1
+                        else
+                            failure_count += 1
                         end
                     end
                     @skip_count += skip_count

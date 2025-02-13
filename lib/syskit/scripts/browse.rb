@@ -44,10 +44,10 @@ Scripts.run do
     # Select the model given on the command line (if any)
     unless model_names.empty?
         model = begin
-                    constant(model_names.first)
-                rescue NameError
-                    Syskit.warn "cannot find a model named #{remaining.first}"
-                end
+            constant(model_names.first)
+        rescue NameError
+            Syskit.warn "cannot find a model named #{remaining.first}"
+        end
         if model
             main.select_by_model(model)
         end

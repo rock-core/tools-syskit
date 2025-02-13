@@ -48,8 +48,8 @@ module Syskit
                         )
                     end
                     assert_equal(
-                        "#{[/stub/]} is not a valid deployed task name or "\
-                        "pattern. The valid deployed task names are "\
+                        "#{[/stub/]} is not a valid deployed task name or " \
+                        "pattern. The valid deployed task names are " \
                         "[\"prefixed_test\"].", e.message
                     )
                 end

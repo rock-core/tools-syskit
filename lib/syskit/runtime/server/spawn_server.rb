@@ -1,10 +1,11 @@
 # frozen_string_literal: true
 
 require "English"
+require "syskit/runtime/server/driver"
 
 module Syskit
-    module RobyApp
-        module LogTransferServer # :nodoc:
+    module Runtime
+        module Server # :nodoc:
             # Whether we should configure client and server to use implicit FTPs by
             # default
             #
@@ -20,13 +21,13 @@ module Syskit
                 attr_reader :port
 
                 # tgt_dir must be an absolute path
-                def initialize(
+                def initialize( # rubocop:disable Metrics/AbcSize, Metrics/ParameterLists
                     tgt_dir,
                     user,
                     password,
                     certfile_path,
                     interface: "127.0.0.1",
-                    implicit_ftps: LogTransferServer.use_implicit_ftps?,
+                    implicit_ftps: Server.use_implicit_ftps?,
                     port: 0,
                     session_timeout: default_session_timeout,
                     nat_ip: nil,
@@ -85,7 +86,7 @@ module Syskit
                     puts "FTP server started.  Press ENTER or c-C to stop it"
                     $stdout.flush
                     begin
-                        gets
+                        $stdin.readline
                     rescue Interrupt
                         puts "Interrupt"
                     end

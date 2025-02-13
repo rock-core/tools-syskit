@@ -30,6 +30,13 @@ module Syskit
                                      PortMatcher.new(@task_m).with_name("out_d")
             end
 
+            it "can find ports with ===" do
+                plan.add(task = @task_m.new)
+                matcher = PortMatcher.new(@task_m).with_name("out_d")
+                assert matcher === task.out_d_port
+                refute matcher === task.out_f_port
+            end
+
             it "optionally allows to filter with a name pattern" do
                 plan.add(task = @task_m.new)
                 assert_matcher_finds [task.out_d_port, task.out_f_port],
@@ -68,14 +75,14 @@ module Syskit
                     assert_nil matcher.try_resolve_type
                 end
 
-                it "returns the type of the underlying component's port "\
+                it "returns the type of the underlying component's port " \
                    "if an explicit name is given" do
                     component_matcher = @task_m.match
                     matcher = PortMatcher.new(component_matcher).with_name("out_d")
                     assert_equal "/double", matcher.try_resolve_type.name
                 end
 
-                it "returns nil if the underlying component matcher cannot "\
+                it "returns nil if the underlying component matcher cannot " \
                    "resolve the port by name" do
                     component_matcher = @task_m.match
                     flexmock(component_matcher)
@@ -106,19 +113,19 @@ module Syskit
                     assert_nil matcher.try_resolve_direction
                 end
 
-                it "returns :output if the underlying component's port "\
+                it "returns :output if the underlying component's port " \
                    "is an output and an explicit name is given" do
                     matcher = PortMatcher.new(@task_m.match).with_name("out_d")
                     assert_equal :output, matcher.try_resolve_direction
                 end
 
-                it "returns :input if the underlying component's port "\
+                it "returns :input if the underlying component's port " \
                    "is an input and an explicit name is given" do
                     matcher = PortMatcher.new(@task_m.match).with_name("in_d")
                     assert_equal :input, matcher.try_resolve_direction
                 end
 
-                it "returns nil if the underlying component matcher cannot "\
+                it "returns nil if the underlying component matcher cannot " \
                    "resolve the port by name" do
                     component_matcher = @task_m.match
                     flexmock(component_matcher)

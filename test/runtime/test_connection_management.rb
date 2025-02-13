@@ -147,6 +147,7 @@ module Syskit
             describe "#removed_connections_require_network_update?" do
                 let(:management) { ConnectionManagement.new(plan) }
                 attr_reader :source_task, :sink_task
+
                 before do
                     @source_task = syskit_stub_and_deploy("source") do
                         output_port "out", "/double"
@@ -229,6 +230,7 @@ module Syskit
             describe "#update" do
                 describe "interaction between connections and task states" do
                     attr_reader :source_task, :sink_task
+
                     before do
                         @source_task = syskit_stub_and_deploy("source") do
                             output_port "out", "/double"
@@ -252,7 +254,7 @@ module Syskit
                                                        .once.ordered.pass_thru
                         source_task.connect_to(sink_task)
                         refute sink_task.ready_for_setup?,
-                               "#{sink_task} is ready_for_setup? but its inputs are "\
+                               "#{sink_task} is ready_for_setup? but its inputs are " \
                                "not connected yet"
                         ConnectionManagement.update(plan)
                         assert sink_task.ready_for_setup?
@@ -260,8 +262,8 @@ module Syskit
                     end
 
                     describe "handling of static ports" do
-                        it "triggers a redeployment if "\
-                            "#removed_connections_require_network_update? returns true" do
+                        it "triggers a redeployment if " \
+                           "#removed_connections_require_network_update? returns true" do
                             expected = dataflow_graph.pending_changes =
                                 [Set.new, flexmock(:base, {}, empty?: false),
                                  flexmock(:base, {}, empty?: false)]
@@ -439,8 +441,8 @@ module Syskit
                                              edge_info
                             end
 
-                            it "handles an old task still present in the plan while the "\
-                                "new task's connection is added, both tasks not setup" do
+                            it "handles an old task still present in the plan while the " \
+                               "new task's connection is added, both tasks not setup" do
                                 plan.unmark_mission_task(source_task)
                                 plan.add(new_source_task = source_task
                                     .execution_agent.task(source_task.orocos_name))
@@ -455,9 +457,9 @@ module Syskit
                                              edge_info
                             end
 
-                            it "handles an old task still present in the plan while "\
-                                "the new task's connection is added, the old task "\
-                                "being running" do
+                            it "handles an old task still present in the plan while " \
+                               "the new task's connection is added, the old task " \
+                               "being running" do
                                 syskit_configure_and_start(source_task)
                                 plan.unmark_mission_task(source_task)
                                 plan.add_mission_task(new_source_task = source_task
@@ -540,8 +542,8 @@ module Syskit
                     end
                 end
 
-                it "triggers a deployment if a connection to a static port is removed "\
-                    "on an already setup task" do
+                it "triggers a deployment if a connection to a static port is removed " \
+                   "on an already setup task" do
                     task_m = TaskContext.new_submodel do
                         input_port("in", "/double").static
                         output_port "out", "/double"
@@ -562,8 +564,8 @@ module Syskit
                     refute_equal sink, sink_srv.to_task
                 end
 
-                it "detects and applies removed connections between ports, "\
-                    "even if the two underlying tasks still have connections" do
+                it "detects and applies removed connections between ports, " \
+                   "even if the two underlying tasks still have connections" do
                     source_task = syskit_stub_deploy_and_configure("source") do
                         output_port "out1", "/double"
                         output_port "out2", "/double"
@@ -708,6 +710,7 @@ module Syskit
             describe "connections involving finalized task" do
                 attr_reader :source, :sink, :task_m
                 attr_reader :source_orocos_task, :sink_orocos_task
+
                 before do
                     unplug_connection_management
                     @task_m = TaskContext.new_submodel do
@@ -763,7 +766,7 @@ module Syskit
                     stop_and_collect_execution_agents(source)
                     flexmock(ConnectionManagement)
                         .new_instances.should_receive(:warn)
-                        .with(Regexp.new("error while disconnecting|I am assuming that "\
+                        .with(Regexp.new("error while disconnecting|I am assuming that " \
                                          "the disconnection is actually effective"))
                     ConnectionManagement.update(plan)
                     assert_is_disconnected(source_alive: false)
@@ -773,7 +776,7 @@ module Syskit
                     stop_and_collect_execution_agents(sink)
                     flexmock(ConnectionManagement)
                         .new_instances.should_receive(:warn)
-                        .with(Regexp.new("error while disconnecting|I am assuming that "\
+                        .with(Regexp.new("error while disconnecting|I am assuming that " \
                                          "the disconnection is actually effective"))
                     ConnectionManagement.update(plan)
                     assert_is_disconnected(sink_alive: false)
@@ -811,6 +814,7 @@ module Syskit
 
             describe "#partition_early_late" do
                 attr_reader :manager, :connections, :source, :sink
+
                 before do
                     @manager = ConnectionManagement.new(plan)
                     @source = flexmock
@@ -1011,6 +1015,7 @@ module Syskit
 
             describe "handling of dead deployments" do
                 attr_reader :source_task, :sink_task, :source_agent, :sink_agent, :source_orocos, :sink_orocos
+
                 before do
                     unplug_connection_management
                     task_m = Syskit::TaskContext.new_submodel do
@@ -1030,7 +1035,7 @@ module Syskit
 
                 def assert_disconnection_fails_and_warns(source_orocos_task, source_port, sink_orocos_task, sink_port, reference_match = ".*")
                     first_line  = "error while disconnecting #{source_orocos_task}:#{source_port} => #{sink_orocos_task}:#{sink_port}"
-                    second_line = "I am assuming that the disconnection is actually effective, since one port does not exist anymore and\/or the task cannot be contacted \(i\.e\. assumed to be dead)"
+                    second_line = "I am assuming that the disconnection is actually effective, since one port does not exist anymore and/or the task cannot be contacted (i.e. assumed to be dead)"
                     manager = flexmock(ConnectionManagement).new_instances
                     manager.should_receive(:warn).with(/#{Regexp.quote(first_line)}: #{reference_match}/).once
                     manager.should_receive(:warn).with(second_line).once

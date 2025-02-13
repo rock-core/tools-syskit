@@ -26,7 +26,7 @@ module Syskit
                 # it if we are in stub mode, skip the test otherwise
 
                 unless app.simulation?
-                    raise "cannot deploy the abstract task context model "\
+                    raise "cannot deploy the abstract task context model " \
                           "#{task_context_m} in live mode"
                 end
 

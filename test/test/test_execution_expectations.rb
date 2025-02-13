@@ -40,7 +40,7 @@ module Syskit
                             .timeout(0.01)
                             .to { have_one_new_sample task.in_port }
                     end
-                    assert_equal "#{task.in_port} should have received 1 new "\
+                    assert_equal "#{task.in_port} should have received 1 new " \
                                  "sample(s), but got 0",
                                  e.message.split("\n")[1]
                 end
@@ -125,7 +125,7 @@ module Syskit
                             .timeout(0.01)
                             .to { have_one_new_sample(task.in_port).matching { false } }
                     end
-                    assert_equal "#{task.in_port} should have received 1 new "\
+                    assert_equal "#{task.in_port} should have received 1 new " \
                                  "sample(s) matching the given predicate, but got 0",
                                  e.message.split("\n")[1]
                 end
@@ -158,7 +158,7 @@ module Syskit
             end
 
             describe "#have_new_samples" do
-                it "passes if the task emits the required number of samples "\
+                it "passes if the task emits the required number of samples " \
                    "and returns them" do
                     value = expect_execution { syskit_write task.in_port, 10, 20 }
                             .to { have_new_samples task.in_port, 2 }
@@ -181,7 +181,7 @@ module Syskit
                             .timeout(0.01)
                             .to { have_new_samples task.in_port, 2 }
                     end
-                    assert_equal "#{task.in_port} should have received 2 new "\
+                    assert_equal "#{task.in_port} should have received 2 new " \
                                  "sample(s), but got 1", e.message.split("\n")[1]
                 end
                 it "provides the backtrace from the point of call by default" do
@@ -326,8 +326,8 @@ module Syskit
                             .timeout(0.01)
                             .to { have_no_new_sample task.in_port }
                     end
-                    assert_equal "#{task.in_port} should not have received a new "\
-                        "sample, but it received one: 10", e.message.split("\n")[1]
+                    assert_equal "#{task.in_port} should not have received a new " \
+                                 "sample, but it received one: 10", e.message.split("\n")[1]
                 end
                 it "provides the backtrace from the point of call by default" do
                     expectation = nil
@@ -375,7 +375,7 @@ module Syskit
                         .timeout(0.01)
                         .to { have_no_new_sample task.in_port }
                 end
-                it "validates if the task emits samples that don't "\
+                it "validates if the task emits samples that don't " \
                    "match the predicate" do
                     expect_execution { syskit_write task.in_port, 10 }
                         .timeout(0.01)
@@ -404,7 +404,7 @@ module Syskit
                                     .matching { |s| s == 10 }
                             end
                     end
-                    assert_equal "#{task.in_port} should not have received a new sample "\
+                    assert_equal "#{task.in_port} should not have received a new sample " \
                                  "matching the given predicate, but it received one: 10",
                                  e.message.split("\n")[1]
                 end

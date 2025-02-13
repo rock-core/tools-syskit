@@ -5,6 +5,7 @@ require "syskit/test/self"
 describe Syskit::Port do
     describe "#to_component_port" do
         attr_reader :component, :port
+
         before do
             component_model = Syskit::TaskContext.new_submodel do
                 output_port "port", "/int"
@@ -26,6 +27,7 @@ describe Syskit::Port do
 
     describe "#connect_to" do
         attr_reader :out_task, :in_task
+
         before do
             @out_task = Syskit::TaskContext.new_submodel do
                 input_port "in", "/double"
@@ -73,7 +75,7 @@ describe Syskit::Port do
                 out_task.out_port.connect_to out_task.out_port
             end
         end
-        it "raises SelfConnection if the source and sink are part "\
+        it "raises SelfConnection if the source and sink are part " \
            "of the same component" do
             assert_raises(Syskit::SelfConnection) do
                 out_task.out_port.connect_to out_task.in_port
@@ -82,6 +84,7 @@ describe Syskit::Port do
 
         describe "in transaction context" do
             attr_reader :task_m, :source, :sink, :transaction
+
             before do
                 @task_m = Syskit::TaskContext.new_submodel do
                     input_port "in", "/double"
@@ -102,6 +105,7 @@ describe Syskit::Port do
     describe "#disconnect_from" do
         describe "in transaction context" do
             attr_reader :task_m, :source, :sink, :transaction
+
             before do
                 @task_m = Syskit::TaskContext.new_submodel do
                     input_port "in", "/double"
@@ -122,6 +126,7 @@ describe Syskit::Port do
 
     describe "#connected_to?" do
         attr_reader :task_m, :source, :sink, :transaction
+
         before do
             @task_m = Syskit::TaskContext.new_submodel do
                 input_port "in", "/double"
@@ -175,6 +180,7 @@ end
 
 describe Syskit::InputWriter do
     attr_reader :task_m
+
     before do
         @task_m = Syskit::TaskContext.new_submodel do
             input_port "in", "/double"
@@ -210,7 +216,7 @@ describe Syskit::InputWriter do
         cmp_m.add in_srv_m, as: "in"
         cmp_m.export cmp_m.in_child.in_port
         task_m = @task_m.specialize
-        in_srv =  task_m.require_dynamic_service "in", as: "in2"
+        in_srv = task_m.require_dynamic_service "in", as: "in2"
 
         cmp = syskit_stub_and_deploy(cmp_m.use("in" => in_srv), remote_task: false)
         port_reader = cmp.in_port.writer
@@ -222,7 +228,7 @@ describe Syskit::InputWriter do
             achieve { port_reader.ready? }
         end
     end
-    it "queues a PortAccessFailure error on the port's component if creating "\
+    it "queues a PortAccessFailure error on the port's component if creating " \
        "the port failed" do
         error = Class.new(RuntimeError)
         task = syskit_stub_deploy_and_configure(task_m)
@@ -262,6 +268,7 @@ describe Syskit::InputWriter do
 
     describe "#disconnect" do
         attr_reader :task, :writer
+
         before do
             @task = syskit_stub_deploy_and_configure(task_m)
             @writer = task.in_port.writer
@@ -273,7 +280,7 @@ describe Syskit::InputWriter do
             expect_execution.to { achieve { !writer.connected? } }
         end
 
-        it "ensures that the port will not become ready if called "\
+        it "ensures that the port will not become ready if called " \
            "before the resolution starts" do
             task = syskit_stub_deploy_and_configure(task_m)
             writer = task.in_port.writer
@@ -298,6 +305,7 @@ describe Syskit::InputWriter do
 
         describe "automatic disconnection" do
             attr_reader :cmp, :child, :orocos_writer
+
             before do
                 cmp_m = Syskit::Composition.new_submodel
                 cmp_m.add task_m, as: "c"
@@ -320,7 +328,7 @@ describe Syskit::InputWriter do
                 expect_execution.to { achieve { !orocos_writer.connected? } }
             end
 
-            it "automatically disconnects when the port's actual component "\
+            it "automatically disconnects when the port's actual component " \
                "is finalized" do
                 cmp.remove_child child
 
@@ -334,6 +342,7 @@ end
 
 describe Syskit::OutputReader do
     attr_reader :task_m
+
     before do
         @task_m = Syskit::TaskContext.new_submodel do
             output_port "out", "/double"
@@ -369,7 +378,7 @@ describe Syskit::OutputReader do
         cmp_m.add out_srv_m, as: "out"
         cmp_m.export cmp_m.out_child.out_port
         task_m = @task_m.specialize
-        out_srv =  task_m.require_dynamic_service "out", as: "out2"
+        out_srv = task_m.require_dynamic_service "out", as: "out2"
 
         cmp = syskit_stub_and_deploy(cmp_m.use("out" => out_srv), remote_task: false)
         port_reader = cmp.out_port.reader
@@ -381,7 +390,7 @@ describe Syskit::OutputReader do
             achieve { port_reader.ready? }
         end
     end
-    it "queues a PortAccessFailure error on the port's component "\
+    it "queues a PortAccessFailure error on the port's component " \
        "if creating the port failed" do
         error = Class.new(RuntimeError)
         task = syskit_stub_deploy_and_configure(task_m)
@@ -547,6 +556,7 @@ describe Syskit::OutputReader do
 
     describe "#disconnect" do
         attr_reader :task, :reader
+
         before do
             @task = syskit_stub_deploy_and_configure(task_m)
             @reader = task.out_port.reader
@@ -558,7 +568,7 @@ describe Syskit::OutputReader do
             expect_execution.to { achieve { !reader.connected? } }
         end
 
-        it "ensures that the port will not become ready if called before the "\
+        it "ensures that the port will not become ready if called before the " \
            "resolution starts" do
             task = syskit_stub_deploy_and_configure(task_m)
             reader = task.out_port.reader
@@ -583,6 +593,7 @@ describe Syskit::OutputReader do
 
         describe "automatic disconnection" do
             attr_reader :cmp, :child, :orocos_reader
+
             before do
                 cmp_m = Syskit::Composition.new_submodel
                 cmp_m.add task_m, as: "c"
@@ -605,7 +616,7 @@ describe Syskit::OutputReader do
                 expect_execution.to { achieve { !orocos_reader.connected? } }
             end
 
-            it "automatically disconnects when the port's actual component "\
+            it "automatically disconnects when the port's actual component " \
                "is finalized" do
                 cmp.remove_child child
 

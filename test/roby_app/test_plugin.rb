@@ -31,6 +31,7 @@ module Syskit
                 end
 
                 attr_reader :server0, :server1
+
                 before do
                     Syskit.conf.only_load_models = false
                     @process_servers = []
@@ -249,7 +250,7 @@ module Syskit
                     assert_equal({ stubs => ["old_log_file.log"] }, rotated_logs)
                 end
 
-                it "returns an empty list of process servers "\
+                it "returns an empty list of process servers " \
                    "if log transfer is disabled" do
                     conf = Syskit.conf.process_server_config_for("localhost")
                     flexmock(conf).should_receive(supports_log_transfer?: true)

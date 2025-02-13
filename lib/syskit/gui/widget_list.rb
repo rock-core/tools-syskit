@@ -48,7 +48,8 @@ module Syskit
                 if i = @widgets.index { |w| w.widget == before }
                     @main_layout.insert_widget(i, widget)
                     @widgets.insert(i, ListItem.new(widget, permanent))
-                else Kernel.raise ArgumentError, "#{before} is not part of #{self}"
+                else
+                    Kernel.raise ArgumentError, "#{before} is not part of #{self}"
                 end
             end
 
@@ -60,7 +61,8 @@ module Syskit
                 if i = @widgets.index { |w| w.widget == after }
                     @main_layout.insert_widget(i + 1, widget)
                     @widgets.insert(i + 1, ListItem.new(widget, permanent))
-                else Kernel.raise ArgumentError, "#{after} is not part of #{self}"
+                else
+                    Kernel.raise ArgumentError, "#{after} is not part of #{self}"
                 end
             end
 
@@ -77,7 +79,8 @@ module Syskit
                 s = size
                 new_height = @widgets.inject(0) do |h, w|
                     h + if w.widget.hidden? then 0
-                        else w.widget.contents_height
+                        else
+                            w.widget.contents_height
                         end
                 end
                 if new_height != s.height

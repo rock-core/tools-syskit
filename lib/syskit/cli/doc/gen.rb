@@ -31,7 +31,7 @@ module Syskit
             #
             # @param [Pathname] target_path the root of the documentation output path
             # @param model the model to export
-            def self.save_model(target_path, model) # rubocop:disable Metrics/CyclomaticComplexity
+            def self.save_model(target_path, model)
                 puts "Saving model #{model} in #{target_path}"
 
                 case model
@@ -82,7 +82,7 @@ module Syskit
                         save_profile_definition_graphs(target_path, task, profile_def)
                         .map(&:to_s)
                 rescue StandardError => e
-                    Roby.warn "could not generate profile definition graph for "\
+                    Roby.warn "could not generate profile definition graph for " \
                               "#{profile_def.name}"
                     Roby.log_exception_with_backtrace(e, Roby, :warn)
                     # Make dataflow a different object than hierarchy, or psych
@@ -131,7 +131,7 @@ module Syskit
                         save_composition_graphs(target_path, composition_m)
                         .map(&:to_s)
                 rescue StandardError => e
-                    Roby.warn "could not generate composition model graph for "\
+                    Roby.warn "could not generate composition model graph for " \
                               "#{composition_m.name}"
                     Roby.log_exception_with_backtrace(e, Roby, :warn)
                     hierarchy = { "error" => e.message }
@@ -379,11 +379,9 @@ module Syskit
 
                 # Fixup a mixup in dot's SVG output. The URIs that contain < and >
                 # are not properly escaped to &lt; and &gt;
-                svg = svg.gsub(/xlink:href="[^"]+"/) do |match|
+                svg.gsub(/xlink:href="[^"]+"/) do |match|
                     match.gsub("<", "&lt;").gsub(">", "&gt;")
                 end
-
-                svg
             end
         end
     end

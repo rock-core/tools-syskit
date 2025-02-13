@@ -65,6 +65,7 @@ describe Syskit::ProcessManagers::Remote do
 
     describe "#loader" do
         attr_reader :loader
+
         before do
             @client = start_and_connect_to_server
             @loader = client.loader
@@ -98,6 +99,27 @@ describe Syskit::ProcessManagers::Remote do
     describe "#start" do
         before do
             @client = start_and_connect_to_server
+        end
+
+        it "returns a proper error message if the deployment does not exist remotely" do
+            deployment_m = Syskit::Deployment.new_submodel(name: "does_not_exist")
+            flexmock(client.root_loader)
+                .should_receive(:deployment_model_from_name)
+                .with("does_not_exist").and_return(deployment_m)
+            flexmock(client.loader)
+                .should_receive(:has_deployment?)
+                .with("does_not_exist").and_return(true)
+            e = assert_raises(Syskit::ProcessManagers::Remote::Manager::Failed) do
+                client.start(
+                    "some_name", "does_not_exist",
+                    { "does_not_exist" => "some_name" },
+                    oro_logfile: "/dev/null", output: "/dev/null"
+                )
+            end
+            assert_equal(
+                "failed to start some_name: cannot find deployment does_not_exist",
+                e.message
+            )
         end
 
         it "can start a process on the server" do
@@ -153,14 +175,14 @@ describe Syskit::ProcessManagers::Remote do
             binfile = Roby.app.default_pkgconfig_loader
                           .find_deployment_binfile("syskit_tests_empty")
             wait_for_gdb_ready(port)
-            STDERR.puts "READY"
+            $stderr.puts "READY"
             puts <<~SCRIPT
                 file #{binfile}
                 target remote 127.0.0.1:#{port}
                 continue
                 quit
             SCRIPT
-            STDIN.readline
+            $stdin.readline
             execute_gdb_script(<<~SCRIPT)
                 file #{binfile}
                 target remote 127.0.0.1:#{port}
@@ -287,6 +309,7 @@ describe Syskit::ProcessManagers::Remote do
 
     describe "stopping a remote process" do
         attr_reader :process
+
         before do
             @client = start_and_connect_to_server
             @process = client.start(
@@ -333,7 +356,7 @@ describe Syskit::ProcessManagers::Remote do
             assert_equal killed_names.to_set, @processes.map(&:name).to_set
 
             @processes.all? do |p|
-                Process.wait2(p.pid, ::Process::WNOHANG)
+                Process.wait2(p.pid, Process::WNOHANG)
                 flunk("#{p.pid} has either not been killed or not been reaped")
             rescue Errno::ECHILD
                 assert(true)
@@ -483,7 +506,7 @@ describe Syskit::ProcessManagers::Remote do
         end
     end
 
-    class TestLogTransferServer < Syskit::RobyApp::LogTransferServer::SpawnServer
+    class TestLogTransferServer < Syskit::Runtime::Server::SpawnServer
         attr_reader :certfile_path
 
         def initialize(target_dir, user, password)

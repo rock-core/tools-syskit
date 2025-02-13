@@ -99,6 +99,10 @@ module Syskit
         #   the port was updated, and false otherwise. The tuple's second element
         #   is the new resolved port which may be nil if no ports can be found
         def update
+            if @resolved_port && @port_resolver&.current_selection_valid?(@resolved_port)
+                return false, @resolved_port
+            end
+
             port = @port_resolver&.update
             return false, @resolved_port if @resolved_port == port
 
@@ -294,6 +298,10 @@ module Syskit
                 @last_provider_task = nil
             end
 
+            def current_selection_valid?(port)
+                @matcher === port
+            end
+
             def update
                 port = @matcher.each_in_plan(@plan).first
                 port&.to_actual_port
@@ -319,6 +327,10 @@ module Syskit
                 @port = port
             end
 
+            def current_selection_valid?(port)
+                !!port.component.plan
+            end
+
             def update
                 @port if @port.component.plan
             end
@@ -335,6 +347,10 @@ module Syskit
         class CompositionChildPortResolver
             def initialize(port)
                 @port = port
+            end
+
+            def current_selection_valid?(port)
+                !!port.component.to_task.plan
             end
 
             def update

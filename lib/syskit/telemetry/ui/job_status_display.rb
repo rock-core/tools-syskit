@@ -7,17 +7,7 @@ module Syskit
     module Telemetry
         module UI
             class JobStatusDisplay < Qt::Widget
-                attr_reader :job
-
-                attr_reader :ui_job_actions
-                attr_reader :ui_start
-                attr_reader :ui_restart
-                attr_reader :ui_drop
-                attr_reader :ui_clear
-                attr_reader :ui_state
-                attr_reader :exceptions
-                attr_reader :notifications
-                attr_reader :ui_notifications
+                attr_reader :job, :ui_job_actions, :ui_start, :ui_restart, :ui_drop, :ui_clear, :ui_state, :exceptions, :notifications, :ui_notifications
 
                 attr_predicate :show_actions?, true
 
@@ -140,7 +130,7 @@ module Syskit
                 end
                 signals "clicked()"
 
-                def connect_to_hooks # rubocop:disable Metrics/PerceivedComplexity
+                def connect_to_hooks
                     ui_drop.connect(SIGNAL("clicked()")) do
                         @batch_manager.drop_job(self)
                         if @actions_immediate
@@ -161,10 +151,8 @@ module Syskit
                         ui_start.connect(SIGNAL("clicked()")) do
                             arguments = job.action_arguments.dup
                             arguments.delete(:job_id)
-                            if @batch_manager.create_new_job(job.action_name, arguments)
-                                if @actions_immediate
-                                    @batch_manager.process
-                                end
+                            if @batch_manager.create_new_job(job.action_name, arguments) && @actions_immediate
+                                @batch_manager.process
                             end
                         end
                     end

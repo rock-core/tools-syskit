@@ -115,7 +115,7 @@ module Syskit
                         t
                     else
                         raise ArgumentError,
-                              "#{self} has no task called #{task_name}, known tasks: "\
+                              "#{self} has no task called #{task_name}, known tasks: " \
                               "#{deployed_tasks.keys.sort.join(', ')}"
                     end
                 end

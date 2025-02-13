@@ -48,7 +48,7 @@ module Syskit
                 def each_submodel(model)
                     if model == Syskit::TaskContext
                         model.each_submodel do |m|
-                            excluded = (!m.name || m.private_specialization?)
+                            excluded = !m.name || m.private_specialization?
                             yield(m, excluded)
                         end
                     end

@@ -16,7 +16,7 @@ module Syskit
 
                 if block
                     Roby.warn_deprecated(
-                        "calling profile do ... end in an action interface is "\
+                        "calling profile do ... end in an action interface is " \
                         "deprecated, call use_profile do .. end instead"
                     )
                     use_profile(&block)
@@ -142,7 +142,7 @@ module Syskit
                 elsif block
                     unless tag_selection.empty?
                         raise ArgumentError,
-                              "cannot provide a tag selection and a block "\
+                              "cannot provide a tag selection and a block " \
                               "at the same time"
                     end
 

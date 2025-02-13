@@ -88,7 +88,7 @@ module Syskit
                 @object.does_not_exist.Other
             end
             assert_equal(
-                "undefined method `does_not_exist' for #{@object}, "\
+                "undefined method `does_not_exist' for #{@object}, " \
                 "available OroGen projects: project",
                 e.message
             )
@@ -151,14 +151,14 @@ module Syskit
                     @m.does_not_exist
                 end
                 assert_equal(
-                    "no deployment registered with the name 'does_not_exist', "\
+                    "no deployment registered with the name 'does_not_exist', " \
                     "available deployments are: depl1, depl2",
                     e.message
                 )
             end
 
             describe "constant registration" do
-                it "registers the deployments as constants on ::Deployments if "\
+                it "registers the deployments as constants on ::Deployments if " \
                    "OroGen.syskit_model_constant_registration is set" do
                     OroGen.syskit_model_constant_registration = true
                     depl_m = Deployment.new_submodel(name: "depl")

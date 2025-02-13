@@ -43,11 +43,11 @@ module Syskit
                 begin
                     batch.__process
                 rescue Exception => e # rubocop:disable Lint/RescueException
-                    Roby.display_exception(STDOUT, e)
+                    Roby.display_exception($stdout, e)
 
                     Qt::MessageBox.critical(
                         self, "Syskit Process Batch",
-                        "failed to process batch: #{e.message}, "\
+                        "failed to process batch: #{e.message}, " \
                         "see console output for more details"
                     )
                 end
@@ -137,7 +137,8 @@ module Syskit
                         action_name, action_options = dialog.result
                         start_job(action_name, action_options)
                         true
-                    else false
+                    else
+                        false
                     end
                 end
             end

@@ -36,7 +36,7 @@ module Syskit
             end
 
             def clear_model
-                super()
+                super
                 @orogen_model = OroGen::Spec::TaskContext.new(@orogen_model.project)
                 port_mappings.clear
             end
@@ -104,6 +104,7 @@ module Syskit
             # DataServiceModel#apply_block
             class BlockInstanciator < BasicObject
                 attr_reader :name
+
                 def initialize(model, name = nil)
                     unless model.orogen_model
                         raise InternalError, "no interface for #{model.short_name}"
@@ -119,7 +120,7 @@ module Syskit
                         @model.respond_to?(m)
                 end
 
-                ruby2_keywords def method_missing(m, *args, &block) # rubocop:disable Style/MethodMissingSuper, Style/MissingRespondToMissing
+                ruby2_keywords def method_missing(m, *args, &block)
                     if @orogen_model.respond_to?(m)
                         @orogen_model.public_send(m, *args, &block)
                     else
@@ -154,7 +155,7 @@ module Syskit
             # @raise [ArgumentError] if self does not provide service_type
             def port_mappings_for(service_type)
                 unless (result = port_mappings[service_type])
-                    raise ArgumentError, "#{service_type.short_name} is not "\
+                    raise ArgumentError, "#{service_type.short_name} is not " \
                                          "provided by #{short_name}"
                 end
 
@@ -185,9 +186,9 @@ module Syskit
                 # can be provided
                 unless kind_of?(service_model.class)
                     raise ArgumentError,
-                          "a #{self.class.name} cannot provide a "\
-                          "#{service_model.class.name}. If this is really "\
-                          "what you mean, declare #{name} as a "\
+                          "a #{self.class.name} cannot provide a " \
+                          "#{service_model.class.name}. If this is really " \
+                          "what you mean, declare #{name} as a " \
                           "#{service_model.class.name} first"
                 end
 
@@ -200,10 +201,10 @@ module Syskit
                 service_model.each_port do |p|
                     if find_port(p.name) && !new_port_mappings[p.name]
                         raise SpecError,
-                              "port collision: #{self} and #{service_model} both "\
-                              "have a port named #{p.name}. If you mean to tell "\
-                              "syskit that this is the same port, you must provide "\
-                              "the mapping explicitely by adding "\
+                              "port collision: #{self} and #{service_model} both " \
+                              "have a port named #{p.name}. If you mean to tell " \
+                              "syskit that this is the same port, you must provide " \
+                              "the mapping explicitely by adding " \
                               "'#{p.name}' => '#{p.name}' to the provides statement"
                     end
                 end
@@ -211,7 +212,7 @@ module Syskit
                 new_port_mappings.each do |service_name, self_name|
                     unless (source_port = service_model.find_port(service_name))
                         raise SpecError,
-                              "#{service_name} is not a port of "\
+                              "#{service_name} is not a port of " \
                               "#{service_model.name}"
                     end
                     unless (target_port = find_port(self_name))
@@ -220,20 +221,20 @@ module Syskit
                     end
                     if target_port.type != source_port.type
                         raise SpecError,
-                              "invalid port mapping #{service_name} => #{self_name} in "\
-                              "#{name}.provides("\
-                              "#{service_model.name}): port #{source_port.name} "\
-                              "on #{name} is of type "\
-                              "#{source_port.type.name} and #{target_port.name} on "\
-                              "#{service_model.name} is of type "\
+                              "invalid port mapping #{service_name} => #{self_name} in " \
+                              "#{name}.provides(" \
+                              "#{service_model.name}): port #{source_port.name} " \
+                              "on #{name} is of type " \
+                              "#{source_port.type.name} and #{target_port.name} on " \
+                              "#{service_model.name} is of type " \
                               "#{target_port.type.name}"
                     elsif source_port.class != target_port.class
                         raise SpecError,
-                              "invalid port mapping #{service_name} => #{self_name} in "\
-                              "#{name}.provides("\
-                              "#{service_model.name}): port #{source_port.name} "\
-                              "on #{name} is a #{target_port.class.name} "\
-                              "and #{target_port.name} on #{service_model.name} "\
+                              "invalid port mapping #{service_name} => #{self_name} in " \
+                              "#{name}.provides(" \
+                              "#{service_model.name}): port #{source_port.name} " \
+                              "on #{name} is a #{target_port.class.name} " \
+                              "and #{target_port.name} on #{service_model.name} " \
                               "is of a #{source_port.class.name}"
                     end
                 end
@@ -280,14 +281,14 @@ module Syskit
 
             # @deprecated use {#placeholder_model} instead
             def proxy_task_model
-                Roby.warn_deprecated "DataService.proxy_task_model is deprecated, "\
+                Roby.warn_deprecated "DataService.proxy_task_model is deprecated, " \
                                      "use .placeholder_model instead"
                 placeholder_model
             end
 
             # @deprecated use {#create_placeholder_task} instead
             def create_proxy_task
-                Roby.warn_deprecated "DataService.create_proxy_task is deprecated, "\
+                Roby.warn_deprecated "DataService.create_proxy_task is deprecated, " \
                                      "use .create_placeholder_task instead"
                 create_placeholder_task
             end
@@ -391,7 +392,7 @@ module Syskit
                     parent_id = parent_m.object_id.abs
                     (parent_m.each_input_port.to_a + parent_m.each_output_port.to_a)
                         .each do |parent_p|
-                            io << "  C#{parent_id}:#{parent_p.name} -> "\
+                            io << "  C#{parent_id}:#{parent_p.name} -> " \
                                   "C#{id}:#{port_mappings_for(parent_m)[parent_p.name]};"
                         end
                 end
@@ -507,14 +508,8 @@ module Syskit
                 client_in_srv
             end
 
-            attr_reader :bus_base_srv
-            attr_reader :bus_in_srv
-            attr_reader :bus_out_srv
-            attr_reader :bus_srv
-
-            attr_reader :client_in_srv
-            attr_reader :client_out_srv
-            attr_reader :client_srv
+            attr_reader :bus_base_srv, :bus_in_srv, :bus_out_srv, :bus_srv,
+                        :client_in_srv, :client_out_srv, :client_srv
 
             attr_predicate :lazy_dispatch?, true
 
@@ -554,13 +549,13 @@ module Syskit
                 model.override_policy = override_policy
                 if !message_type && !model.message_type
                     raise ArgumentError,
-                          "com bus types must either have a message_type or provide "\
+                          "com bus types must either have a message_type or provide " \
                           "another com bus type that does"
                 elsif message_type && model.message_type
                     if message_type != model.message_type
                         raise ArgumentError,
-                              "cannot override message types. The current message type "\
-                              "of #{model.name} is #{model.message_type}, which "\
+                              "cannot override message types. The current message type " \
+                              "of #{model.name} is #{model.message_type}, which " \
                               "might come from another provided com bus"
                     end
                 elsif !model.message_type
@@ -611,8 +606,8 @@ module Syskit
                         client_to_bus = options.fetch(:client_to_bus)
                         bus_to_client = options.fetch(:bus_to_client)
                     rescue KeyError
-                        raise ArgumentError, "you must provide both the client_to_bus "\
-                                             "and bus_to_client option when "\
+                        raise ArgumentError, "you must provide both the client_to_bus " \
+                                             "and bus_to_client option when " \
                                              "instanciating a com bus dynamic service"
                     end
 
@@ -630,21 +625,19 @@ module Syskit
                     elsif bus_to_client
                         provides combus_m.bus_out_srv, "from_bus" => out_name
                     else
-                        raise ArgumentError, "at least one of bus_to_client or "\
+                        raise ArgumentError, "at least one of bus_to_client or " \
                                              "client_to_bus must be true"
                     end
                 end
             end
 
             def provides(service_model, new_port_mappings = {})
-                if service_model.respond_to?(:message_type)
-                    if message_type && service_model.message_type &&
-                       (message_type != service_model.message_type)
-                        raise ArgumentError,
-                              "#{name} cannot provide #{service_model.name} "\
-                              "as their message type differs (resp. #{message_type} "\
-                              "and #{service_model.message_type}"
-                    end
+                if service_model.respond_to?(:message_type) && (message_type && service_model.message_type &&
+                       (message_type != service_model.message_type))
+                    raise ArgumentError,
+                          "#{name} cannot provide #{service_model.name} " \
+                          "as their message type differs (resp. #{message_type} " \
+                          "and #{service_model.message_type}"
                 end
 
                 super

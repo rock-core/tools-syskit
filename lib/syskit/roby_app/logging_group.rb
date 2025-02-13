@@ -86,7 +86,8 @@ module Syskit
                         deployments << object
                     elsif object < Typelib::Type
                         types << object
-                    else raise ArgumentError, "unexpected model type #{object}"
+                    else
+                        raise ArgumentError, "unexpected model type #{object}"
                     end
                 when Models::Port
                     ports << object

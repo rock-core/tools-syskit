@@ -282,18 +282,18 @@ module Syskit
                 @expected_port = @cmp_m.test_child.out_port.bind(@cmp.test_child)
             end
 
-            it "returns [true, port] the first time if the underlying component "\
+            it "returns [true, port] the first time if the underlying component " \
                "is not finalized" do
                 assert_equal [true, @expected_port], @port_binding.update
             end
 
-            it "returns [false, port] the second time if the underlying component "\
+            it "returns [false, port] the second time if the underlying component " \
                "is still not finalized" do
                 @port_binding.update
                 assert_equal [false, @expected_port], @port_binding.update
             end
 
-            it "returns [false, ni] the first time if the underlying component "\
+            it "returns [false, ni] the first time if the underlying component " \
                "is already finalized" do
                 expect_execution { plan.unmark_mission_task(@cmp) }
                     .garbage_collect(true)
@@ -301,7 +301,7 @@ module Syskit
                 assert_equal [false, nil], @port_binding.update
             end
 
-            it "returns [false, ni] after a successful update if the underlying "\
+            it "returns [false, ni] after a successful update if the underlying " \
                "component is finalized" do
                 @port_binding.update
                 expect_execution { plan.unmark_mission_task(@cmp) }
@@ -337,7 +337,7 @@ module Syskit
                 @port_binding = @port_binding_m.instanciate.attach_to_task(@cmp)
             end
 
-            it "returns [true, port] the first time if the underlying component "\
+            it "returns [true, port] the first time if the underlying component " \
                "is not finalized" do
                 updated, port = @port_binding.update
                 assert updated
@@ -345,7 +345,7 @@ module Syskit
                 assert_equal @cmp.test_child.out_port, port.to_component_port
             end
 
-            it "returns [false, port] the second time if the underlying component "\
+            it "returns [false, port] the second time if the underlying component " \
                "is still not finalized" do
                 @port_binding.update
                 updated, port = @port_binding.update
@@ -354,7 +354,7 @@ module Syskit
                 assert_equal @cmp.test_child.out_port, port.to_component_port
             end
 
-            it "returns [false, ni] the first time if the underlying component "\
+            it "returns [false, ni] the first time if the underlying component " \
                "is already finalized" do
                 expect_execution { plan.unmark_mission_task(@cmp) }
                     .garbage_collect(true)
@@ -362,7 +362,7 @@ module Syskit
                 assert_equal [false, nil], @port_binding.update
             end
 
-            it "returns [false, ni] after a successful update if the underlying "\
+            it "returns [false, ni] after a successful update if the underlying " \
                "component is finalized" do
                 @port_binding.update
                 expect_execution { plan.unmark_mission_task(@cmp) }
@@ -406,7 +406,7 @@ module Syskit
                 refute @accessor.connected?
             end
 
-            it "returns true and creates an accessor to the found port if the port "\
+            it "returns true and creates an accessor to the found port if the port " \
                "matcher found something" do
                 @port_binding.should_receive(:update).and_return([true, @task.out_port])
                 assert @accessor.update
@@ -426,7 +426,7 @@ module Syskit
                 assert_same real_accessor, @accessor.resolved_accessor
             end
 
-            it "disconnects the current accessor if the current port is not matching "\
+            it "disconnects the current accessor if the current port is not matching " \
                "anymore" do
                 @port_binding.should_receive(:update)
                              .and_return([true, @task.out_port])

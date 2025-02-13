@@ -21,15 +21,7 @@ module Syskit
         # * triggering_inputs(task)
         # * propagate_task(task)
         class DataFlowComputation
-            attr_reader :result
-
-            attr_reader :triggering_connections
-
-            attr_reader :triggering_dependencies
-
-            attr_reader :missing_ports
-
-            attr_reader :done_ports
+            attr_reader :result, :triggering_connections, :triggering_dependencies, :missing_ports, :done_ports
 
             extend Logger::Hierarchy
             include Logger::Hierarchy
@@ -66,10 +58,8 @@ module Syskit
             #
             # @raise ArgumentError if there are no information stored for the given port
             def port_info(task, port_name)
-                if result.key?(task)
-                    if result[task].key?(port_name)
-                        return result[task][port_name]
-                    end
+                if result.key?(task) && result[task].key?(port_name)
+                    return result[task][port_name]
                 end
                 if port_name
                     raise ArgumentError, "no information currently available for #{task.orocos_name}.#{port_name}"
@@ -276,7 +266,9 @@ module Syskit
                     end
                 end
 
-                if !missing_ports.empty?
+                if missing_ports.empty?
+                    debug "done computing all required port information"
+                else
                     debug do
                         debug "found fixed point, breaking out of propagation loop with #{missing_ports.size} missing ports"
                         debug "removing partial port information"
@@ -301,18 +293,16 @@ module Syskit
                         end
                         port_info.empty?
                     end
-                else
-                    debug "done computing all required port information"
                 end
 
                 result
             end
 
             def set_port_info(task, port_name, info)
-                if !has_information_for_port?(task, port_name)
-                    add_port_info(task, port_name, info)
-                else
+                if has_information_for_port?(task, port_name)
                     @result[task][port_name] = info
+                else
+                    add_port_info(task, port_name, info)
                 end
             end
 
@@ -327,15 +317,15 @@ module Syskit
                     raise ModifyingFinalizedPortInfo.new(task, port_name, done_at, self.class.name), "trying to change port information for #{task}.#{port_name} after done_port_info has been called"
                 end
 
-                if !has_information_for_port?(task, port_name)
-                    @changed = true
-                    @result[task][port_name] = info
-                else
+                if has_information_for_port?(task, port_name)
                     begin
                         @changed |= @result[task][port_name].merge(info)
                     rescue Exception => e
                         raise e, "while adding information to port #{port_name} on #{task}, #{e.message}", e.backtrace
                     end
+                else
+                    @changed = true
+                    @result[task][port_name] = info
                 end
             end
 
@@ -357,10 +347,8 @@ module Syskit
                 unless done_ports[task].include?(port_name)
                     @changed = true
 
-                    if has_information_for_port?(task, port_name)
-                        if port_info(task, port_name).empty?
-                            remove_port_info(task, port_name)
-                        end
+                    if has_information_for_port?(task, port_name) && port_info(task, port_name).empty?
+                        remove_port_info(task, port_name)
                     end
 
                     done_ports[task] << port_name

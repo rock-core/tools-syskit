@@ -64,7 +64,7 @@ describe Syskit::Coordination::Models::FaultResponseTableExtension do
         end
 
         plan.use_fault_response_table table_model
-        assert_equal Array[table_model.data_monitoring_tables.first.table],
+        assert_equal [table_model.data_monitoring_tables.first.table],
                      plan.data_monitoring_tables.map(&:model)
         syskit_stub_configured_deployment(component_m)
         component = syskit_deploy_configure_and_start(component_m)

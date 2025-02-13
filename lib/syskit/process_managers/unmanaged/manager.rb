@@ -70,7 +70,8 @@ module Syskit
                 )
                     model = if deployment_name.respond_to?(:to_str)
                                 loader.deployment_model_from_name(deployment_name)
-                            else deployment_name
+                            else
+                                deployment_name
                             end
 
                     if processes[name]
@@ -117,7 +118,7 @@ module Syskit
                             dead_processes[process] = Status.new(true)
                         rescue Exception => e # rubocop:disable Lint/RescueException
                             process.fatal(
-                                "assuming #{process} died because the background "\
+                                "assuming #{process} died because the background " \
                                 "thread died with"
                             )
                             Roby.log_exception(e, process, :fatal)

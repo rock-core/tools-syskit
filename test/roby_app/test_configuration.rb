@@ -5,6 +5,7 @@ require "syskit/test/self"
 describe Syskit::RobyApp::Configuration do
     describe "#use_deployment" do
         attr_reader :task_m, :conf
+
         before do
             @task_m = Syskit::TaskContext.new_submodel(name: "test::Task")
             @conf = Syskit::RobyApp::Configuration.new(Roby.app)
@@ -77,7 +78,7 @@ describe Syskit::RobyApp::Configuration do
             @available_typekit_names = []
             @available_deployment_names = ["deployment"]
 
-            set_log_level ::Robot, Logger::FATAL + 1
+            set_log_level Robot, Logger::FATAL + 1
             set_log_level Syskit::ProcessManagers::Remote::Server, Logger::FATAL + 1
         end
 
@@ -87,6 +88,7 @@ describe Syskit::RobyApp::Configuration do
 
         describe "process startup" do
             attr_reader :ruby_task, :deployment_m
+
             before do
                 @ruby_task = ruby_task = Orocos.allow_blocking_calls do
                     Orocos::RubyTasks::TaskContext.new "remote-task"
@@ -173,7 +175,7 @@ describe Syskit::RobyApp::Configuration do
         end
 
         describe "#max_upload_rate_for" do
-            it "returns the default rate if the max_upload_rates hash "\
+            it "returns the default rate if the max_upload_rates hash " \
                "has no entry for the given server" do
                 default = flexmock
                 @log_transfer.default_max_upload_rate = default

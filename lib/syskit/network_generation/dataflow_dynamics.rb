@@ -20,7 +20,7 @@ module Syskit
             def buffer_size_margin=(value)
                 value = Float(value)
                 if value < 0
-                    raise ArgumentError, "only positive values can be used as "\
+                    raise ArgumentError, "only positive values can be used as " \
                                          "buffer_size_margin, got #{value}"
                 end
                 @buffer_size_margin = Float(value)
@@ -56,11 +56,7 @@ module Syskit
             attr_reader :triggers
 
             class Trigger
-                attr_reader :name
-                attr_reader :period
-                attr_reader :sample_count
-
-                attr_reader :hash
+                attr_reader :name, :period, :sample_count, :hash
 
                 def initialize(name, period, sample_count)
                     @name = name.to_str
@@ -95,8 +91,8 @@ module Syskit
                 return if sample_count == 0
 
                 DataFlowDynamics.debug do
-                    "  [#{self.name}]: adding trigger from #{name} -"\
-                    " #{period} #{sample_count}"
+                    "  [#{self.name}]: adding trigger from #{name} - " \
+                        "#{period} #{sample_count}"
                 end
                 triggers << Trigger.new(name, period, sample_count)
             end
@@ -154,9 +150,7 @@ module Syskit
         # default policies for each of the existing connections in +plan+. The
         # resulting information is stored in #dynamics
         class DataFlowDynamics < DataFlowComputation
-            attr_reader :plan
-
-            attr_reader :triggers
+            attr_reader :plan, :triggers
 
             # Mapping from a deployed task name to the corresponding Roby task object
             #
@@ -365,10 +359,8 @@ module Syskit
             # Computes a task's slaves initial information
             def initial_slaves_information(task)
                 task.orogen_model.slaves.each do |orogen_slave_task|
-                    if slave_task = task_from_name[orogen_slave_task.name]
-                        unless has_information_for_task?(slave_task)
-                            initial_task_information(slave_task)
-                        end
+                    if (slave_task = task_from_name[orogen_slave_task.name]) && !has_information_for_task?(slave_task)
+                        initial_task_information(slave_task)
                     end
                 end
             end
@@ -478,9 +470,9 @@ module Syskit
                         port_info(trigger_task, trigger_port)
                     else
                         DataFlowDynamics.debug do
-                            DataFlowDynamics.debug "  missing info on "\
-                                "#{trigger_task}.#{trigger_port} to compute "\
-                                "#{task}.#{port_name}"
+                            DataFlowDynamics.debug "  missing info on " \
+                                                   "#{trigger_task}.#{trigger_port} to compute " \
+                                                   "#{task}.#{port_name}"
                             break
                         end
                         return false
@@ -594,19 +586,19 @@ module Syskit
 
                 unless source_port
                     raise InternalError,
-                          "#{source_port_name} is not an output port "\
+                          "#{source_port_name} is not an output port " \
                           "of #{source_task}"
                 end
 
                 unless sink_port
                     raise InternalError,
-                          "#{sink_port_name} is not an input port "\
+                          "#{sink_port_name} is not an input port " \
                           "of #{sink_task}"
                 end
 
                 DataFlowDynamics.debug do
-                    "   #{source_task}:#{source_port.name} => "\
-                    "#{sink_task}:#{sink_port.name}"
+                    "   #{source_task}:#{source_port.name} => " \
+                        "#{sink_task}:#{sink_port.name}"
                 end
 
                 sink_port_m = sink_port.model
@@ -624,8 +616,8 @@ module Syskit
                     policy
                 else
                     raise UnsupportedConnectionType,
-                          "unknown required connection type "\
-                          "#{sink_port_m.required_connection_type} "\
+                          "unknown required connection type " \
+                          "#{sink_port_m.required_connection_type} " \
                           "on #{sink_port}"
                 end
             end
@@ -660,8 +652,8 @@ module Syskit
                     warn do
                         if has_source_dynamics
                             warn "#{sink_task} has no minimal period"
-                            warn "This is needed to compute the reading latency on "\
-                                    "#{sink_port.name}"
+                            warn "This is needed to compute the reading latency on " \
+                                 "#{sink_port.name}"
                             warn "Specified fallback policy #{fallback_policy} will be used"
                         else
                             warn "Cannot compute the period information for output port"
@@ -676,13 +668,13 @@ module Syskit
                     fallback_policy.dup
                 elsif !has_source_dynamics
                     raise SpecError,
-                          "period information for output port #{source_task}:"\
-                          "#{source_port.name} cannot be computed. This is needed "\
-                          "to compute the policy to connect to "\
+                          "period information for output port #{source_task}:" \
+                          "#{source_port.name} cannot be computed. This is needed " \
+                          "to compute the policy to connect to " \
                           "#{sink_task}:#{sink_port.name}"
                 else
                     raise SpecError,
-                          "#{sink_task} has no minimal period, needed to compute "\
+                          "#{sink_task} has no minimal period, needed to compute " \
                           "reading latency on #{sink_port.name}"
                 end
             end
@@ -705,12 +697,12 @@ module Syskit
                        source_dynamics.queue_size(reading_latency)
 
                 debug do
-                    debug "     input_period:#{source_dynamics.minimal_period} => "\
-                            "reading_latency:#{reading_latency}"
+                    debug "     input_period:#{source_dynamics.minimal_period} => " \
+                          "reading_latency:#{reading_latency}"
                     debug "     sample_size:#{source_dynamics.sample_size}"
                     source_dynamics.triggers.each do |tr|
-                        debug "     trigger(#{tr.name}): period=#{tr.period} "\
-                                "count=#{tr.sample_count}"
+                        debug "     trigger(#{tr.name}): period=#{tr.period} " \
+                              "count=#{tr.sample_count}"
                     end
                     break
                 end

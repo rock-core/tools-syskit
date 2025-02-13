@@ -6,6 +6,7 @@ module Syskit
     module Runtime
         describe ".update_task_states" do
             attr_reader :task
+
             before do
                 task_m = Syskit::TaskContext.new_submodel
                 @task = syskit_stub_and_deploy(task_m)
@@ -49,7 +50,7 @@ module Syskit
                                 Deployment::STATE_READER_BUFFER_SIZE
                 expected = []
                 expected <<
-                    "got #{state_changes.size} state updates for #{@task}, we might "\
+                    "got #{state_changes.size} state updates for #{@task}, we might " \
                     "have lost some state updates in the process. Received:"
                 state_changes.each { |s| expected << "  #{s}" }
 

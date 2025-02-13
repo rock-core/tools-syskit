@@ -157,7 +157,7 @@ module Syskit::GUI
             attr_accessor :instanciation_method
 
             def initialize(page)
-                super(page)
+                super
                 @instanciation_method = :compute_system_network
 
                 register_type Syskit::InstanceRequirements, ProfileElementView.new(page)

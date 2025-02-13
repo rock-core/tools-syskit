@@ -233,11 +233,11 @@ module Syskit
             # @return [TaskConfigurationManager]
             def configuration_manager
                 unless @configuration_manager
-                    if !concrete_model?
-                        manager = concrete_model.configuration_manager
-                    else
+                    if concrete_model?
                         manager = TaskConfigurationManager.new(Roby.app, self)
                         manager.reload
+                    else
+                        manager = concrete_model.configuration_manager
                     end
                     @configuration_manager = manager
                 end

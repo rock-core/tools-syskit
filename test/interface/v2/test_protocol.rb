@@ -51,6 +51,34 @@ module Syskit
                                      marshalled.deployed_tasks.map(&:to_h)
                     end
                 end
+
+                describe "Device support" do
+                    before do
+                        @channel = Roby::Interface::V2::Channel.new(
+                            IO.pipe.last, flexmock
+                        )
+                        Protocol.register_marshallers(@channel)
+
+                        @device_m = Syskit::Device.new_submodel(name: "Dev")
+                        @driver_m = Syskit::TaskContext.new_submodel
+                        @driver_m.driver_for @device_m, as: "driver"
+
+                        profile = Actions::Profile.new("Test")
+                        @robot = profile.robot
+                    end
+
+                    it "marshals a master device" do
+                        @robot.device @device_m, as: "master_device"
+                        marshalled = @channel.marshal_filter_object(
+                            @robot.master_device_dev
+                        )
+
+                        assert_kind_of MasterDeviceInstance, marshalled
+                        assert_equal "master_device", marshalled.name
+                        assert_kind_of DeviceModel, marshalled.model
+                        assert_equal "Dev", marshalled.model.name
+                    end
+                end
             end
         end
     end

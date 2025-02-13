@@ -42,9 +42,7 @@ module Syskit
 
             # @api private
             class Resolution < Concurrent::Future
-                attr_reader :plan
-                attr_reader :requirement_tasks
-                attr_reader :engine
+                attr_reader :plan, :requirement_tasks, :engine
 
                 def initialize(plan, event_logger, requirement_tasks, **options, &block)
                     @plan = plan
@@ -128,7 +126,7 @@ module Syskit
             def apply
                 unless future.complete?
                     raise InvalidState,
-                          "attempting to call Async#apply while processing "\
+                          "attempting to call Async#apply while processing " \
                           "is in progress"
                 end
 

@@ -10,7 +10,7 @@ module Syskit
                     @computation = DataFlowComputation.new
                 end
 
-                it "sets the port info to the new information object if it did not have "\
+                it "sets the port info to the new information object if it did not have " \
                    "any" do
                     @computation.add_port_info(@task, "port", info = flexmock)
                     assert_equal info, @computation.port_info(@task, "port")

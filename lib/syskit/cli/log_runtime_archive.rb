@@ -2,6 +2,7 @@
 
 require "archive/tar/minitar"
 require "sys/filesystem"
+require "syskit/roby_app/log_transfer_server/ftp_upload"
 
 module Syskit
     module CLI
@@ -17,16 +18,40 @@ module Syskit
         class LogRuntimeArchive
             DEFAULT_MAX_ARCHIVE_SIZE = 10_000_000_000 # 10G
 
+            FTPParameters = Struct.new(:host, :port, :certificate, :user, :password,
+                                       :implicit_ftps, :max_upload_rate,
+                                       keyword_init: true)
+
+            # Initializes the LogRuntimeArchive
+            #
+            # @param [Pathname] root_dir the logs directory
+            # @param [Pathname] target_dir the path to store the file in the archive,
+            #   should be nil in transfer mode, as the logs will be transferred directly
+            #   to the ftp server @see process_root_folder_transfer
+            # @param [Logger] logger the log structure
             def initialize(
-                root_dir, target_dir,
-                logger: LogRuntimeArchive.null_logger,
-                max_archive_size: DEFAULT_MAX_ARCHIVE_SIZE
+                root_dir, target_dir: nil,
+                logger: LogRuntimeArchive.null_logger
             )
                 @last_archive_index = {}
                 @logger = logger
                 @root_dir = root_dir
                 @target_dir = target_dir
-                @max_archive_size = max_archive_size
+            end
+
+            # Iterate over all datasets in a Roby log root folder and transfer them
+            # through FTP server
+            #
+            # @param [Params] server_params the FTP server parameters
+            # @return [Array<TransferDatasetResult>]
+            def process_root_folder_transfer(server_params)
+                candidates = self.class.find_all_dataset_folders(@root_dir)
+                running = candidates.last
+                candidates.map do |child|
+                    process_dataset_transfer(
+                        child, server_params, @root_dir, full: child != running
+                    )
+                end
             end
 
             # Iterate over all datasets in a Roby log root folder and archive them
@@ -37,11 +62,14 @@ module Syskit
             # @param [Pathname] root_dir the log root folder
             # @param [Pathname] target_dir the folder in which to save the
             #   archived datasets
-            def process_root_folder
+            # @param [Integer] max_archive_size the max size of the archive
+            def process_root_folder(max_archive_size: DEFAULT_MAX_ARCHIVE_SIZE)
                 candidates = self.class.find_all_dataset_folders(@root_dir)
                 running = candidates.last
                 candidates.each do |child|
-                    process_dataset(child, full: child != running)
+                    process_dataset(
+                        child, max_archive_size: max_archive_size, full: child != running
+                    )
                 end
             end
 
@@ -54,40 +82,47 @@ module Syskit
             #   bytes, at which the archiver starts deleting the oldest log files
             # @param [integer] free_space_delete_until: post-deletion free space in bytes,
             #   at which the archiver stops deleting the oldest log files
-            def ensure_free_space(free_space_low_limit, free_space_delete_until)
+            #
+            # @return [Boolean] true if successfully ensured free space, meaning there is
+            # the required free space, false if deleting the files in this directory was
+            # not enough to free up the required space
+            def ensure_free_space(
+                free_space_low_limit, free_space_delete_until, directory: @target_dir
+            )
                 if free_space_low_limit > free_space_delete_until
                     raise ArgumentError,
                           "cannot erase files: freed limit is smaller than " \
                           "low limit space."
                 end
 
-                stat = Sys::Filesystem.stat(@target_dir)
+                stat = Sys::Filesystem.stat(directory)
                 available_space = stat.bytes_available
 
-                return if available_space > free_space_low_limit
+                return true if available_space > free_space_low_limit
 
                 until available_space >= free_space_delete_until
-                    files = @target_dir.each_child.select(&:file?)
+                    files = directory.each_child.select(&:file?)
                     if files.empty?
-                        Roby.warn "Cannot erase files: the folder is empty but the "\
-                        "available space is smaller than the threshold."
-                        break
+                        Roby.warn "Cannot erase files: the folder is empty but the " \
+                                  "available space is smaller than the threshold."
+                        return false
                     end
 
-                    removed_file = files.min
+                    removed_file = files.min_by(&:mtime)
                     size_removed_file = removed_file.size
                     removed_file.unlink
                     available_space += size_removed_file
                 end
+                true
             end
 
-            def process_dataset(child, full:)
+            def process_dataset(child, full:, max_archive_size: DEFAULT_MAX_ARCHIVE_SIZE)
                 use_existing = true
                 loop do
                     open_archive_for(
                         child.basename.to_s, use_existing: use_existing
                     ) do |io|
-                        if io.tell > @max_archive_size
+                        if io.tell > max_archive_size
                             use_existing = false
                             break
                         end
@@ -95,13 +130,106 @@ module Syskit
                         dataset_complete = self.class.archive_dataset(
                             io, child,
                             logger: @logger, full: full,
-                            max_size: @max_archive_size
+                            max_size: max_archive_size
                         )
                         return if dataset_complete
                     end
 
                     use_existing = false
                 end
+            end
+
+            def process_dataset_transfer(child, server, root, full:)
+                self.class.transfer_dataset(
+                    child, server, root, full: full, logger: @logger
+                )
+            end
+
+            TransferDatasetResult = Struct.new(
+                :complete, :transfer_results, keyword_init: true
+            ) do
+                def success?
+                    transfer_results.all?(&:success?)
+                end
+
+                def failures
+                    transfer_results.find_all { !_1.success? }
+                end
+            end
+
+            # Transfer the given dataset
+            def self.transfer_dataset(
+                dataset_path, server, root,
+                full:, logger: null_logger
+            )
+                logger.info(
+                    "Transfering dataset #{dataset_path} in " \
+                    "#{full ? 'full' : 'partial'} mode"
+                )
+                candidates = each_file_from_path(dataset_path).to_a
+
+                complete, candidates =
+                    if full
+                        archive_filter_candidates_full(candidates)
+                    else
+                        archive_filter_candidates_partial(candidates)
+                    end
+
+                transfer_results = candidates.map do |child_path|
+                    result = transfer_file(child_path, server, root)
+                    child_path.unlink if result.success?
+
+                    result
+                end
+
+                result = TransferDatasetResult.new(
+                    complete: complete, transfer_results: transfer_results
+                )
+                log_transfer_results(dataset_path, result, logger: logger)
+            end
+
+            # Logs the transfer dataset results
+            #
+            # @param [String] the dataset path
+            # @param [TransferDatasetResult] the transfer dataset result
+            # @param [Logger] optional logger, if unfilled will use null logger
+            #
+            # @result [TransferDatasetResult] the received transfer dataset result
+            def self.log_transfer_results(dataset_path, result, logger: null_logger)
+                failed_results = result[:transfer_results].reject(&:success)
+
+                if failed_results.empty?
+                    logger.info(
+                        "Transfering of " \
+                        "#{result[:complete] ? 'complete' : 'incomplete'} " \
+                        "#{dataset_path} finished"
+                    )
+                else
+                    failed_results.each do |failed_result|
+                        failed_message =
+                            if failed_result.message
+                                "with message : #{failed_result.message}"
+                            end
+                        logger.info(
+                            "Failed on file #{failed_result.file} #{failed_message}"
+                        )
+                    end
+                end
+
+                result
+            end
+
+            # Transfer a file to the central log server via FTP
+            #
+            # @return [LogUploadState:Result]
+            def self.transfer_file(file, server, root)
+                ftp = RobyApp::LogTransferServer::FTPUpload.new(
+                    server.host, server.port, server.certificate, server.user,
+                    server.password, file,
+                    max_upload_rate: server.max_upload_rate || Float::INFINITY,
+                    implicit_ftps: server.implicit_ftps
+                )
+                ftp.open_and_transfer(root: root)
             end
 
             # Create or open an archive
@@ -150,7 +278,7 @@ module Syskit
             # Find all dataset-looking folders within a root log folder
             def self.find_all_dataset_folders(root_dir)
                 candidates = root_dir.enum_for(:each_entry).map do |child|
-                    next unless /^\d{8}\-\d{4}(\.\d+)?$/.match?(child.basename.to_s)
+                    next unless /^\d{8}-\d{4}(\.\d+)?$/.match?(child.basename.to_s)
 
                     child = (root_dir / child)
                     next unless child.directory?
@@ -182,7 +310,7 @@ module Syskit
                 )
                 child_path.unlink
             rescue Exception => e # rubocop:disable Lint/RescueException
-                Roby.display_exception(STDOUT, e)
+                Roby.display_exception($stdout, e)
                 if start_pos
                     add_to_archive_rollback(archive_io, start_pos, logger: logger)
                 end
@@ -244,13 +372,13 @@ module Syskit
             # Write necessary padding (tar requires multiples of 512 bytes)
             def self.write_padding(size, io)
                 # Move to end, compute actual size, pad to 512 bytes blocks
-                remainder = (size + 511) / 512 * 512 - size
+                remainder = ((size + 511) / 512 * 512) - size
                 io.write("\0" * remainder)
             end
 
             # Create a logger that will display nothing
             def self.null_logger
-                logger = Logger.new(STDOUT)
+                logger = Logger.new($stdout)
                 logger.level = Logger::FATAL + 1
                 logger
             end
@@ -284,7 +412,7 @@ module Syskit
                     add_to_archive(archive_io, child_path, logger: logger)
 
                     if archive_io.tell > max_size
-                        return (complete && (i == candidates.size - 1))
+                        return complete && (i == candidates.size - 1)
                     end
                 end
 
@@ -389,7 +517,7 @@ module Syskit
                 if bytesize(name) <= 100
                     prefix = ""
                 else
-                    parts = name.split(%r{\/})
+                    parts = name.split(%r{/})
                     newname = parts.pop
 
                     nxt = ""
@@ -405,7 +533,7 @@ module Syskit
                     name = newname
                 end
 
-                [name, prefix, (bytesize(name) > 100 || bytesize(prefix) > 155)]
+                [name, prefix, bytesize(name) > 100 || bytesize(prefix) > 155]
             end
         end
     end

@@ -181,7 +181,7 @@ module Syskit
                     end
                 end
 
-                DataChannel = Struct.new :op, :queue, :thread, keyword_init: true do # rubocop:disable Metrics/BlockLength
+                DataChannel = Struct.new :op, :queue, :thread, keyword_init: true do
                     def self.setup(client, timeout: 5)
                         data_op = client.data(Grpc::Void.new, return_op: true)
                         sample_queue = QueueWithTimeout.new

@@ -182,8 +182,8 @@ module Syskit
 
             if waiting_precedence_relation
                 debug do
-                    "#{self} not ready for setup: "\
-                    "waiting on #{waiting_precedence_relation}"
+                    "#{self} not ready for setup: " \
+                        "waiting on #{waiting_precedence_relation}"
                 end
             end
 
@@ -195,8 +195,8 @@ module Syskit
         def ready_for_setup? # :nodoc:
             if garbage?
                 debug do
-                    "#{self} not ready for setup: "\
-                    "garbage collected but not yet finalized"
+                    "#{self} not ready for setup: " \
+                        "garbage collected but not yet finalized"
                 end
                 return false
             elsif failed_to_start?
@@ -273,7 +273,7 @@ module Syskit
                 start_event.emit_failed(exception)
             else
                 Roby.execution_engine.add_framework_error(
-                    e, "#{self} got finalized before the setting_up! "\
+                    e, "#{self} got finalized before the setting_up! " \
                        "error handler was called"
                 )
             end
@@ -392,7 +392,7 @@ module Syskit
             missing_services.each do |_, srv|
                 unless srv.respond_to?(:dynamic_service)
                     raise InternalError,
-                          "attempting to duplicate static service "\
+                          "attempting to duplicate static service " \
                           "#{srv.name} from #{task} to #{self}"
                 end
 
@@ -539,7 +539,7 @@ module Syskit
             if port.respond_to?(:to_str)
                 if as
                     raise ArgumentError,
-                          "cannot provide the 'as' option to the deprecated "\
+                          "cannot provide the 'as' option to the deprecated " \
                           "string-based call to #data_writer"
                 end
 
@@ -642,7 +642,7 @@ module Syskit
             if port.respond_to?(:to_str)
                 if as
                     raise ArgumentError,
-                          "cannot provide the 'as' option to the deprecated "\
+                          "cannot provide the 'as' option to the deprecated " \
                           "string-based call to #data_reader"
                 end
 

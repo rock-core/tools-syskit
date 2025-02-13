@@ -51,8 +51,8 @@ module Syskit
 
             if names.size != 1
                 raise ArgumentError,
-                      "unlike with ConfigurationManager, only one configuration can "\
-                      "be selected on compositions. Attempted to select #{names} on "\
+                      "unlike with ConfigurationManager, only one configuration can " \
+                      "be selected on compositions. Attempted to select #{names} on " \
                       "#{self}"
             end
 
@@ -66,13 +66,13 @@ module Syskit
             unless found_something
                 if names == ["default"]
                     ConfigurationManager.info \
-                        "required default configuration on composition #{task}, "\
-                        "but #{task.model.short_name} has no registered "\
+                        "required default configuration on composition #{task}, " \
+                        "but #{task.model.short_name} has no registered " \
                         "default configurations"
                     return {}
                 else
-                    raise ArgumentError, "#{self} has no declared configuration "\
-                                            "called #{names.join(', ')}"
+                    raise ArgumentError, "#{self} has no declared configuration " \
+                                         "called #{names.join(', ')}"
                 end
             end
             result
@@ -98,7 +98,8 @@ module Syskit
             actual_port_name = child_selection[child_name].port_mappings[export.name]
             if child.respond_to?(:resolve_port)
                 child.resolve_port(actual_port_name)
-            else child.find_port(actual_port_name)
+            else
+                child.find_port(actual_port_name)
             end
         end
 
@@ -167,7 +168,8 @@ module Syskit
 
                 if task.model <= selected_srv.component_model
                     selected_srv
-                else selected_srv.as_real_model
+                else
+                    selected_srv.as_real_model
                 end
             end
             selected_service_m.bind(task).as(target_srv.model)
@@ -180,7 +182,7 @@ module Syskit
         def required_composition_child_from_role(role)
             selected = find_required_composition_child_from_role(role)
             unless selected
-                raise ArgumentError, "#{role} does not seem to be a proper child "\
+                raise ArgumentError, "#{role} does not seem to be a proper child " \
                                      "of this composition"
             end
             selected
@@ -327,7 +329,6 @@ module Syskit
                 (m =~ /_port$/) || super
             end
 
-            # rubocop:disable Style/MethodMissingSuper
             def method_missing(m, *args, &block)
                 unless (matched_port = /_port$/.match(m))
                     return @child_task.send(m, *args, &block)
@@ -340,13 +341,12 @@ module Syskit
                        @child_task.find_output_port(mapped_port_name)
 
                 unless port
-                    raise NoMethodError, "task #{@child_task}, child #{@child_name} "\
-                                            "of #{@composition_task}, has no port "\
-                                            "called #{port_name}"
+                    raise NoMethodError, "task #{@child_task}, child #{@child_name} " \
+                                         "of #{@composition_task}, has no port " \
+                                         "called #{port_name}"
                 end
                 port
             end
-            # rubocop:enable Style/MethodMissingSuper
         end
     end
 end

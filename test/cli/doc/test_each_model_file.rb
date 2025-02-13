@@ -45,7 +45,7 @@ module Syskit
                 end
 
                 describe "each_model_path_for_robot" do
-                    it "lists non-specific folders and specific ones if "\
+                    it "lists non-specific folders and specific ones if " \
                        "'default' is in the names" do
                         robots = flexmock
                         robots.should_receive(:has_robot?).with("gazebo").and_return(true)

@@ -2,6 +2,7 @@
 
 require "syskit/test/self"
 require "syskit/cli/log_runtime_archive"
+require "syskit/runtime/server/spawn_server"
 
 module Syskit
     module CLI
@@ -30,7 +31,7 @@ module Syskit
                     )
                 end
 
-                it "does not return paths that match the pattern but "\
+                it "does not return paths that match the pattern but " \
                    "do not have a info.yml file inside" do
                     path = (@root / "20229423-1104")
                     path.mkpath
@@ -52,7 +53,7 @@ module Syskit
             end
 
             describe ".add_to_archive" do
-                it "adds a compressed version of the input I/O to the archive "\
+                it "adds a compressed version of the input I/O to the archive " \
                    "and deletes the input file" do
                     something = make_in_file "something.txt", "something"
 
@@ -115,7 +116,7 @@ module Syskit
                     refute bli.exist?
                 end
 
-                it "restores the file as it was and keeps the input file if an "\
+                it "restores the file as it was and keeps the input file if an " \
                    "exception occurs" do
                     bla = make_in_file "bla.txt", "bla"
                     blo = make_in_file "blo.txt", "blo"
@@ -170,7 +171,7 @@ module Syskit
                     )
                 end
 
-                it "in full mode, archives the non-rotated logs "\
+                it "in full mode, archives the non-rotated logs " \
                    "if there are no rotated logs" do
                     dataset = make_valid_folder("20220434-2023")
                     make_in_file "something.txt", "something", root: dataset
@@ -265,7 +266,7 @@ module Syskit
                     )
                 end
 
-                it "always adds at least a file, "\
+                it "always adds at least a file, " \
                    "regardless of the current size of the archive" do
                     dataset = make_valid_folder("20220434-2023")
                     make_in_file "test.0.log", "test0", root: dataset
@@ -295,8 +296,8 @@ module Syskit
                     )
                 end
 
-                it "reports a complete processing in full mode if the size limit "\
-                   "is reached on the last rotated log and "\
+                it "reports a complete processing in full mode if the size limit " \
+                   "is reached on the last rotated log and " \
                    "there are no non-rotated logs" do
                     dataset = @root / "20220434-2023"
                     dataset.mkpath
@@ -318,8 +319,8 @@ module Syskit
                     )
                 end
 
-                it "reports a complete processing in full mode if the size limit "\
-                   "is reached on the last non-rotated log and "\
+                it "reports a complete processing in full mode if the size limit " \
+                   "is reached on the last non-rotated log and " \
                    "there are no rotated logs" do
                     dataset = make_valid_folder("20220434-2023")
 
@@ -339,7 +340,7 @@ module Syskit
                     )
                 end
 
-                it "reports a complete processing in partial mode if the size limit "\
+                it "reports a complete processing in partial mode if the size limit " \
                    "is reached on the last log to process" do
                     dataset = make_valid_folder("20220434-2023")
                     make_in_file "test.0.log", "test0", root: dataset
@@ -365,7 +366,7 @@ module Syskit
             describe ".process_root_folder" do
                 before do
                     @archive_dir = make_tmppath
-                    @process = LogRuntimeArchive.new(@root, @archive_dir)
+                    @process = LogRuntimeArchive.new(@root, target_dir: @archive_dir)
                 end
 
                 it "archives all folders, the last one only partially" do
@@ -391,9 +392,9 @@ module Syskit
                         .write(test1 = Base64.encode64(Random.bytes(1024)))
                     (dataset / "test.2.log").write(Base64.encode64(Random.bytes(1024)))
                     process = LogRuntimeArchive.new(
-                        @root, @archive_dir, max_archive_size: 1024
+                        @root, target_dir: @archive_dir
                     )
-                    process.process_root_folder
+                    process.process_root_folder(max_archive_size: 1024)
 
                     entries = read_archive(path: @archive_dir / "20220434-2023.0.tar")
                     assert_equal 1, entries.size
@@ -419,12 +420,12 @@ module Syskit
                     (dataset / "test.2.log")
                         .write(test2 = Base64.encode64(Random.bytes(128)))
                     process = LogRuntimeArchive.new(
-                        @root, @archive_dir, max_archive_size: 1024
+                        @root, target_dir: @archive_dir
                     )
-                    process.process_root_folder
+                    process.process_root_folder(max_archive_size: 1024)
 
                     (dataset / "test.3.log").write(Base64.encode64(Random.bytes(1024)))
-                    process.process_root_folder
+                    process.process_root_folder(max_archive_size: 1024)
 
                     entries = read_archive(path: @archive_dir / "20220434-2023.1.tar")
                     assert_equal 2, entries.size
@@ -438,19 +439,19 @@ module Syskit
                     refute (@archive_dir / "20220434-2023.2.tar").exist?
                 end
 
-                it "creates a new archive if the last archive is already "\
+                it "creates a new archive if the last archive is already " \
                    "above the limit" do
                     dataset = make_valid_folder("20220434-2023")
                     make_random_file "test.0.log", root: dataset
                     test1 = make_random_file "test.1.log", root: dataset
                     test2 = make_random_file "test.2.log", root: dataset
                     process = LogRuntimeArchive.new(
-                        @root, @archive_dir, max_archive_size: 1024
+                        @root, target_dir: @archive_dir
                     )
-                    process.process_root_folder
+                    process.process_root_folder(max_archive_size: 1024)
 
                     make_random_file "test.3.log", root: dataset
-                    process.process_root_folder
+                    process.process_root_folder(max_archive_size: 1024)
 
                     entries = read_archive(path: @archive_dir / "20220434-2023.1.tar")
                     assert_equal 1, entries.size
@@ -516,6 +517,147 @@ module Syskit
                 end
             end
 
+            describe "FTP" do
+                before do
+                    host = "127.0.0.1"
+                    @ca = RobyApp::TmpRootCA.new(host)
+                    params = LogRuntimeArchive::FTPParameters.new(
+                        host: host, port: 0,
+                        certificate: @ca.certificate,
+                        user: "user", password: "password",
+                        implicit_ftps: true,
+                        max_upload_rate: 10_000_000
+                    )
+
+                    @target_dir = make_tmppath
+                    @server = create_server(params)
+                    params.port = @server.port
+                    @params = params
+                    @process = LogRuntimeArchive.new(@root)
+                end
+
+                after do
+                    @server.stop
+                    @server.join
+                    @ca.dispose
+                    @ca = nil
+                    @server = nil
+                end
+
+                def create_server(params)
+                    Runtime::Server::SpawnServer.new(
+                        @target_dir, params.user, params.password,
+                        @ca.private_certificate_path,
+                        interface: params.host,
+                        implicit_ftps: params.implicit_ftps
+                    )
+                end
+
+                describe ".process_root_folder_transfer" do
+                    it "transfers all finished dataset files from root folder " \
+                       "through FTP" do
+                        dataset_a = make_valid_folder("20220434-2023")
+                        dataset_b = make_valid_folder("20220434-2024")
+                        make_random_file "test.0.log", root: dataset_a
+                        make_random_file "test.1.log", root: dataset_a
+                        make_random_file "test.0.log", root: dataset_b
+                        make_random_file "test.1.log", root: dataset_b
+
+                        @process.process_root_folder_transfer(@params)
+
+                        assert(File.exist?(@target_dir / "20220434-2023" / "test.0.log"))
+                        assert(File.exist?(@target_dir / "20220434-2023" / "test.1.log"))
+                        assert(File.exist?(@target_dir / "20220434-2024" / "test.0.log"))
+                        # log manager considers dataset_b logs as currently running
+                        # Because it isn't finished yet it does not transfer the last log
+                        refute(File.exist?(@target_dir / "20220434-2024" / "test.1.log"))
+                    end
+                end
+
+                describe ".process_dataset_transfer" do
+                    it "transfers all files from a folder through FTP" do
+                        dataset = make_valid_folder("PATH")
+                        make_random_file "test.0.log", root: dataset
+                        make_random_file "test.1.log", root: dataset
+                        @process.process_dataset_transfer(
+                            dataset, @params, @root, full: true
+                        )
+
+                        assert(File.exist?(@target_dir / "PATH" / "test.0.log"))
+                        assert(File.exist?(@target_dir / "PATH" / "test.1.log"))
+                    end
+
+                    it "makes sure hierarchy of dataset folders is created" do
+                        dataset = make_valid_folder("PATH/TO/DATASET")
+                        make_random_file "test.0.log", root: dataset
+                        make_random_file "test.1.log", root: dataset
+
+                        @process.process_dataset_transfer(
+                            dataset, @params, @root, full: true
+                        )
+
+                        assert(
+                            File.exist?(@target_dir / "PATH/TO/DATASET" / "test.0.log")
+                        )
+                    end
+                end
+
+                describe ".transfer_dataset" do
+                    before do
+                        @dataset = make_valid_folder("PATH")
+                        make_random_file "test.0.log", root: @dataset
+                    end
+
+                    it "transfers a dataset through FTP" do
+                        results = LogRuntimeArchive.transfer_dataset(
+                            @dataset, @params, @root, full: true
+                        )
+
+                        assert results.success?
+                        # Datasets that have pocolog files are not complete
+                        refute results.complete
+                        assert(File.exist?(@target_dir / "PATH" / "test.0.log"))
+                    end
+
+                    it "removes the source file if the transfer was successful" do
+                        results = LogRuntimeArchive.transfer_dataset(
+                            @dataset, @params, @root, full: true
+                        )
+
+                        assert results.success?
+                        refute((@dataset / "test.0.log").exist?)
+                    end
+
+                    it "does not remove the source file if the transfer failed" do
+                        result = RobyApp::LogTransferServer::LogUploadState::Result.new(
+                            "/PATH", false, "message"
+                        )
+                        flexmock(LogRuntimeArchive)
+                            .should_receive(:transfer_file)
+                            .and_return(result)
+                        results = LogRuntimeArchive.transfer_dataset(
+                            @dataset, @params, @root, full: true
+                        )
+
+                        refute results.success?
+                        assert((@dataset / "test.0.log").exist?)
+                    end
+                end
+
+                describe ".transfer_file" do
+                    it "transfers a file through FTP" do
+                        dataset = make_valid_folder("PATH")
+                        make_random_file "test.log", root: dataset
+                        result = LogRuntimeArchive.transfer_file(
+                            dataset / "test.log", @params, @root
+                        )
+
+                        assert(File.exist?(@target_dir / "PATH" / "test.log"))
+                        assert result.success?, "transfer failed: #{result.message}"
+                    end
+                end
+            end
+
             describe "#ensure_free_space" do
                 before do
                     @archive_dir = make_tmppath
@@ -523,12 +665,13 @@ module Syskit
 
                     10.times { |i| (@archive_dir / i.to_s).write(i.to_s) }
 
-                    @archiver = LogRuntimeArchive.new(@root, @archive_dir)
+                    @archiver = LogRuntimeArchive.new(@root, target_dir: @archive_dir)
                 end
 
                 it "does nothing if there is enough free space" do
                     mock_available_space(2)
-                    @archiver.ensure_free_space(1, 10)
+                    mock_mtime
+                    assert @archiver.ensure_free_space(1, 10)
                     assert_deleted_files([])
                 end
 
@@ -536,9 +679,32 @@ module Syskit
                     size_files = [6, 2, 1, 6, 7, 10, 3, 5, 8, 9]
                     mock_files_size(size_files)
                     mock_available_space(0.5)
+                    mock_mtime
 
-                    @archiver.ensure_free_space(1, 10)
+                    assert @archiver.ensure_free_space(1, 10)
                     assert_deleted_files([0, 1, 2, 3])
+                end
+
+                it "removes enough files to reach the freed limit in chosen directory" do
+                    different_dir = make_tmppath
+                    size_files = [6, 2, 1, 6, 7, 10, 3, 5, 8, 9]
+                    mock_files_size(size_files, directory: different_dir)
+                    mock_available_space(0.5, directory: different_dir)
+                    mock_mtime(directory: different_dir)
+
+                    assert @archiver.ensure_free_space(1, 10, directory: different_dir)
+                    assert_deleted_files([0, 1, 2, 3], directory: different_dir)
+                end
+
+                it "removes files based on modified timestamp" do
+                    different_dir = make_tmppath
+                    size_files = [6, 2, 1, 6, 7, 10, 3, 5, 8, 9]
+                    mock_files_size(size_files, directory: different_dir)
+                    mock_available_space(0.5, directory: different_dir)
+                    mock_mtime(directory: different_dir, reverse_alphabetical: true)
+
+                    assert @archiver.ensure_free_space(1, 10, directory: different_dir)
+                    assert_deleted_files([8, 9, 10], directory: different_dir)
                 end
 
                 it "stops removing files when there is no file in folder even if freed
@@ -546,21 +712,40 @@ module Syskit
                     size_files = Array.new(10, 1)
                     mock_files_size(size_files)
                     mock_available_space(0.5)
+                    mock_mtime
 
-                    @archiver.ensure_free_space(1, 15)
+                    refute @archiver.ensure_free_space(1, 15)
                     assert_deleted_files([0, 1, 2, 3, 4, 5, 6, 7, 8, 9])
                 end
 
-                def mock_files_size(sizes)
+                def mock_files_size(sizes, directory: @archive_dir)
                     @mocked_files_sizes = sizes
                     @mocked_files_sizes.each_with_index do |size, i|
-                        (@archive_dir / i.to_s).write(" " * size)
+                        (directory / i.to_s).write(" " * size)
                     end
                 end
 
-                def mock_available_space(total_available_disk_space)
+                # Mock the modification time of the files to be alphabetical order
+                # @param [String] directory the directory to mock the items modification
+                #   time
+                # @param [Bool] reverse_alphabetical true if use reverse alphabetical
+                #   order
+                def mock_mtime(directory: @archive_dir, reverse_alphabetical: false)
+                    items = directory.children
+                                     .select { |child| child.file? || child.directory? }
+
+                    items = items.sort_by(&:to_s)
+                    items = items.reverse if reverse_alphabetical
+                    items.each_with_index do |item, i|
+                        File.utime(i, i, item.to_s)
+                    end
+                end
+
+                def mock_available_space(
+                    total_available_disk_space, directory: @archive_dir
+                )
                     flexmock(Sys::Filesystem)
-                        .should_receive(:stat).with(@archive_dir)
+                        .should_receive(:stat).with(directory)
                         .and_return do
                             flexmock(
                                 bytes_available: total_available_disk_space
@@ -568,17 +753,17 @@ module Syskit
                         end
                 end
 
-                def assert_deleted_files(deleted_files) # rubocop:disable Metrics/AbcSize
+                def assert_deleted_files(deleted_files, directory: @archive_dir)
                     if deleted_files.empty?
-                        files = @archive_dir.each_child.select(&:file?)
+                        files = directory.each_child.select(&:file?)
                         assert_equal 10, files.size
                     else
                         (0..9).each do |i|
                             if deleted_files.include?(i)
-                                refute (@archive_dir / i.to_s).exist?,
+                                refute (directory / i.to_s).exist?,
                                        "#{i} was expected to be deleted, but has not been"
                             else
-                                assert (@archive_dir / i.to_s).exist?,
+                                assert (directory / i.to_s).exist?,
                                        "#{i} was expected to be present, but got deleted"
                             end
                         end
@@ -620,7 +805,7 @@ module Syskit
             end
 
             def assert_entry_matches(entry, data, name:, content:)
-                assert entry.file?
+                assert entry.file?, "expected #{entry} to be a file"
                 assert_equal name, entry.full_name
                 assert_equal content, decompress_data(data)
             end

@@ -20,6 +20,7 @@ module Syskit
         end
 
         attr_reader :tasks, :cmp
+
         before do
             @cmp   = []
             @tasks = []
@@ -37,6 +38,7 @@ module Syskit
 
         describe "#forward_input_ports" do
             attr_reader :cmp, :task, :dataflow_graph, :plan
+
             before do
                 @plan = Roby::Plan.new
                 @dataflow_graph = plan.task_relation_graph_for(Syskit::DataFlow)
@@ -73,6 +75,7 @@ module Syskit
 
         describe "#forward_output_ports" do
             attr_reader :cmp, :task, :dataflow_graph, :plan
+
             before do
                 @plan = Roby::Plan.new
                 @dataflow_graph = plan.task_relation_graph_for(Syskit::DataFlow)
@@ -109,6 +112,7 @@ module Syskit
 
         describe "#connect_ports" do
             attr_reader :source, :sink, :dataflow_graph, :plan
+
             before do
                 @plan = Roby::Plan.new
                 @dataflow_graph = plan.task_relation_graph_for(Syskit::DataFlow)
@@ -214,8 +218,8 @@ module Syskit
                                   .and_iterates([source1 = Object.new, "out", "in", {}],
                                                 [source2 = Object.new, "out", "in", {}])
                 expected = [
-                    [source1, task, %w[out in] => {}],
-                    [source2, task, %w[out in] => {}]
+                    [source1, task, { %w[out in] => {} }],
+                    [source2, task, { %w[out in] => {} }]
                 ]
 
                 graph = dataflow.compute_concrete_connection_graph
@@ -248,6 +252,7 @@ module Syskit
 
         describe "transaction-related behaviour" do
             attr_reader :source, :sink
+
             before do
                 @source = tasks[0]
                 @sink   = tasks[1]

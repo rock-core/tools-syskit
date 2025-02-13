@@ -5,8 +5,8 @@ require "syskit/roby_app/log_transfer_server"
 require "net/ftp"
 
 module Syskit
-    module RobyApp
-        module LogTransferServer
+    module Runtime
+        module Server
             describe SpawnServer do
                 ### AUXILIARY FUNCTIONS ###
                 def spawn_server
@@ -19,7 +19,7 @@ module Syskit
                         File.join(__dir__, "..", "..", "process_managers",
                                   "cert-private.crt")
 
-                    @implicit_ftps = LogTransferServer.use_implicit_ftps?
+                    @implicit_ftps = Server.use_implicit_ftps?
                     @server = SpawnServer.new(
                         @temp_serverdir, @user, @password,
                         private_key_path,

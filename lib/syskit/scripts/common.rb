@@ -8,11 +8,7 @@ require "syskit/roby_app"
 module Syskit
     module Scripts
         class << self
-            attr_accessor :debug
-            attr_accessor :output_file
-            attr_accessor :output_type
-            attr_accessor :robot_type
-            attr_accessor :robot_name
+            attr_accessor :debug, :output_file, :output_type, :robot_type, :robot_name
 
             # The path to the ruby-prof output, as provided to use_rprof, or nil
             # if profiling with ruby-prof is not enabled
@@ -30,7 +26,8 @@ module Syskit
         def self.toc(string = nil)
             if string
                 ::Robot.info format(string, Time.now - @tic)
-            else ::Robot.info yield(Time.now - @tic)
+            else
+                ::Robot.info yield(Time.now - @tic)
             end
         end
 
@@ -122,7 +119,7 @@ module Syskit
         def self.autodetect_output_modes
             @output_modes = %w{txt svg png dot}
 
-            has_x11_display = ENV["DISPLAY"]
+            has_x11_display = ENV.fetch("DISPLAY", nil)
             unless has_x11_display
                 @default_output_mode = "txt"
             end
@@ -158,7 +155,7 @@ module Syskit
             output_file = self.output_file
             if !DOT_DIRECT_OUTPUT.include?(output_type) && !output_file
                 @output_file =
-                    if base_name = (robot_name || robot_type)
+                    if base_name = robot_name || robot_type
                         "#{base_name}.#{output_type}"
                     else
                         "#{script_name}.#{output_type}"
@@ -212,7 +209,7 @@ module Syskit
             end
 
             if output_file
-                STDERR.puts "exported result to #{output_file}"
+                $stderr.puts "exported result to #{output_file}"
             end
         end
 
@@ -223,10 +220,10 @@ module Syskit
                 Roby.app.filter_backtraces = false
             end
             if debug
-                Syskit.logger = ::Logger.new(STDOUT)
+                Syskit.logger = ::Logger.new($stdout)
                 Syskit.logger.formatter = Roby.logger.formatter
                 Syskit.logger.level = ::Logger::DEBUG
-                Orocos.logger = ::Logger.new(STDOUT)
+                Orocos.logger = ::Logger.new($stdout)
                 Orocos.logger.formatter = Roby.logger.formatter
                 Orocos.logger.level = ::Logger::DEBUG
             end
@@ -242,10 +239,11 @@ module Syskit
         def self.run
             error = Roby.display_exception do
                 setup_error = setup
-                if !setup_error
+                if setup_error
+                    setup_error
+                else
                     yield
                     nil
-                else setup_error
                 end
             end
             @last_error = error

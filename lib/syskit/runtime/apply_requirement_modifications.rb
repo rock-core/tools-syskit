@@ -139,7 +139,7 @@ module Syskit
                 end
             end
 
-            # Note: this is NOT the 'else' clause from above. The if ... block
+            # NOTE: this is NOT the 'else' clause from above. The if ... block
             # above might resolve the current async resolution
             return if plan.syskit_has_async_resolution?
 

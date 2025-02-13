@@ -62,6 +62,7 @@ module Syskit
                     @job_status = job_status
                     ui_chronicle.clear_tasks_info
                     update_exceptions(job_status.exceptions)
+                    disconnect(self, SLOT("exceptionEvent()"))
                     connect(job_status, SIGNAL("exceptionEvent()"), self, SLOT("exceptionEvent()"))
                 end
 
@@ -93,7 +94,7 @@ module Syskit
                 # Slot used to announce that the exceptions registerd on
                 # {#job_status} have changed
                 def exceptionEvent
-                    update_exceptions(job_status.exceptions)
+                    update_exceptions(job_status.exceptions) if job_status
                 end
                 slots "exceptionEvent()"
 

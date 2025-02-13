@@ -80,7 +80,7 @@ module Syskit
             return if state_count < Deployment::STATE_READER_BUFFER_SIZE
 
             Runtime.warn(
-                "got #{state_count} state updates for #{task}, we might "\
+                "got #{state_count} state updates for #{task}, we might " \
                 "have lost some state updates in the process. Received:"
             )
             received_states.each { |s| Runtime.warn "  #{s}" }
@@ -103,11 +103,11 @@ module Syskit
                 return
             elsif !execution_agent
                 raise NotImplementedError,
-                      "#{task} is not yet finished but has no execution agent. "\
+                      "#{task} is not yet finished but has no execution agent. " \
                       "#{task}'s history is\n  #{task.history.map(&:to_s).join("\n  ")}"
             elsif !execution_agent.ready?
                 raise InternalError,
-                      "orocos_task != nil on #{task}, "\
+                      "orocos_task != nil on #{task}, " \
                       "but #{execution_agent} is not ready yet"
             end
 

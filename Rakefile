@@ -1,14 +1,11 @@
 # frozen_string_literal: true
 
-require "bundler/gem_tasks"
 require "rake/testtask"
 
 task :default
 
 TESTOPTS = ENV.delete("TESTOPTS") || ""
 
-RUBOCOP_REQUIRED = (ENV["RUBOCOP"] == "1")
-USE_RUBOCOP = (ENV["RUBOCOP"] != "0")
 USE_JUNIT = (ENV["JUNIT"] == "1")
 USE_GRPC = (ENV["SYSKIT_HAS_GRPC"] != "0")
 REPORT_DIR = ENV["REPORT_DIR"] || File.expand_path("test_reports", __dir__)
@@ -31,6 +28,14 @@ def minitest_set_options(test_task, name)
     test_task.options = "#{TESTOPTS} #{minitest_args} -- --simplecov-name=#{name}"
 end
 
+Rake::TestTask.new("test:telemetry") do |t|
+    t.libs << "."
+    t.libs << "lib"
+    minitest_set_options(t, "telemetry")
+    t.test_files = FileList["test/telemetry/**/test_*.rb"]
+    t.warning = false
+end
+
 Rake::TestTask.new("test:core") do |t|
     t.libs << "."
     t.libs << "lib"
@@ -40,6 +45,7 @@ Rake::TestTask.new("test:core") do |t|
                  .exclude("test/ros/**/*.rb")
                  .exclude("test/gui/**/*.rb")
                  .exclude("test/live/**/*.rb")
+                 .exclude("test/telemetry/**/*.rb")
     t.test_files = test_files
     t.warning = false
 end
@@ -60,22 +66,12 @@ Rake::TestTask.new("test:gui") do |t|
     t.warning = false
 end
 
-task "test" => ["test:gui", "test:core", "test:live"]
+task "test" => ["test:gui", "test:core", "test:live", "test:telemetry"]
 
-if USE_RUBOCOP
-    begin
-        require "rubocop/rake_task"
-        RuboCop::RakeTask.new do |t|
-            if USE_JUNIT
-                t.formatters << "junit"
-                t.options << "-o" << "#{REPORT_DIR}/rubocop.junit.xml"
-            end
-        end
-        task "test" => "rubocop"
-    rescue LoadError
-        raise if RUBOCOP_REQUIRED
-    end
+task "rubocop" do
+    raise "rubocop failed" unless system(ENV["RUBOCOP_CMD"] || "rubocop")
 end
+task "test" => "rubocop" if ENV["RUBOCOP"] != "0"
 
 protogen =
     file "lib/syskit/telemetry/agent/agent_pb.rb" =>

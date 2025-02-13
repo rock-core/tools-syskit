@@ -19,7 +19,7 @@ module Syskit
 end
 
 require "syskit/process_managers/remote/protocol"
-require "syskit/process_managers/remote/server/ftp_upload"
-require "syskit/process_managers/remote/server/log_upload_state"
+require "syskit/roby_app/log_transfer_server/ftp_upload"
+require "syskit/roby_app/log_transfer_server/log_upload_state"
 require "syskit/process_managers/remote/server/process"
 require "syskit/process_managers/remote/server/server"

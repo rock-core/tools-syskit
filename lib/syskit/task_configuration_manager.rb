@@ -4,8 +4,7 @@ module Syskit
     # Adapter for {Orocos::TaskConfigurations} to take into account the
     # conventions inside Syskit apps
     class TaskConfigurationManager < Orocos::TaskConfigurations
-        attr_reader :app
-        attr_reader :syskit_model
+        attr_reader :app, :syskit_model
 
         def orogen_model
             syskit_model.orogen_model

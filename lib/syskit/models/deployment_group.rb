@@ -75,7 +75,7 @@ module Syskit
                     .merge(other.deployed_tasks) do |task_name, self_d, other_d|
                         if self_d != other_d
                             raise TaskNameAlreadyInUse.new(task_name, self_d, other_d),
-                                  "there is already a deployment that "\
+                                  "there is already a deployment that " \
                                   "provides #{task_name}"
                         end
                         self_d
@@ -226,11 +226,11 @@ module Syskit
             # Enumerates all the deployments registered on self
             #
             # @yieldparam [ConfiguredDeployment]
-            def each_configured_deployment
+            def each_configured_deployment(&block)
                 return enum_for(__method__) unless block_given?
 
                 deployments.each_value do |set|
-                    set.each { |c| yield(c) }
+                    set.each(&block)
                 end
             end
 
@@ -340,7 +340,7 @@ module Syskit
                 end
 
                 model_to_name = model_to_name.merge(model_to_name_kw)
-                model_to_name.each do |task_model, _name|
+                model_to_name.each_key do |task_model|
                     validate_task_model_is_plain(task_model)
                 end
 
@@ -421,8 +421,8 @@ module Syskit
                 model_to_name = mappings.map do |task_model, name|
                     if task_model.respond_to?(:to_str)
                         Roby.warn_deprecated(
-                            "specifying the task model as string "\
-                            "is deprecated. Load the task library and use Syskit's "\
+                            "specifying the task model as string " \
+                            "is deprecated. Load the task library and use Syskit's " \
                             "task class"
                         )
                         task_model_name = task_model
@@ -462,7 +462,7 @@ module Syskit
                 return if plain_task_context_model?(task_m)
 
                 raise ArgumentError,
-                      "expected a mapping from a task context "\
+                      "expected a mapping from a task context " \
                       "model to a name, but got #{task_m}"
             end
 
@@ -542,8 +542,8 @@ module Syskit
                                   "only deployment models can be given without a name"
                         elsif n <= Syskit::TaskContext && !(n <= Syskit::RubyTaskContext)
                             raise TaskNameRequired,
-                                  "you must provide a task name when starting a "\
-                                  "component by type, as e.g. use_deployment "\
+                                  "you must provide a task name when starting a " \
+                                  "component by type, as e.g. use_deployment " \
                                   "OroGen.xsens_imu.Task => 'imu'"
                         elsif !(n <= Syskit::Deployment)
                             raise ArgumentError,
@@ -551,7 +551,8 @@ module Syskit
                         end
                         deployments_by_name[n.orogen_model.name] = n
                         n.orogen_model
-                    else n
+                    else
+                        n
                     end
                 end
                 deployment_spec = deployment_spec.transform_keys do |k|
@@ -560,7 +561,7 @@ module Syskit
                     else
                         unless plain_task_context_model?(k) || deployment_model?(k)
                             raise ArgumentError,
-                                  "only deployment and task context "\
+                                  "only deployment and task context " \
                                   "models can be deployed by use_deployment, got #{k}"
                         end
                         deployments_by_name[k.orogen_model.name] = k

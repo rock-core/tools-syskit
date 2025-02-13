@@ -13,6 +13,7 @@ module Syskit
 
                 # The root composition model in the specialization chain
                 attr_accessor :root_model
+
                 # The set of definition blocks that have been applied on +self+ in
                 # the process of specializing +root_model+
                 attribute(:definition_blocks) { [] }
@@ -134,12 +135,8 @@ module Syskit
             end
 
             def find_specialization(child_name, model)
-                if selected_models = specialized_children[child_name]
-                    if matches = selected_models.find_all { |m| m.fullfills?(model) }
-                        unless matches.empty?
-                            matches
-                        end
-                    end
+                if (selected_models = specialized_children[child_name]) && (matches = selected_models.find_all { |m| m.fullfills?(model) }) && !matches.empty?
+                    matches
                 end
             end
 
@@ -211,7 +208,8 @@ module Syskit
                     if this_selection = selection[child_name]
                         has_match = true
                         this_selection.fullfills?(child_models)
-                    else true
+                    else
+                        true
                     end
                 end
                 has_match && result

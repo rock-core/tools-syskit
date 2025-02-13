@@ -381,6 +381,7 @@ module Syskit # :nodoc:
 
         describe "#instanciate" do
             attr_reader :task_model
+
             before { @task_model = TaskContext.new_submodel }
             it "returns a task using the receiver as model" do
                 task = task_model.instanciate(plan)
@@ -400,6 +401,7 @@ module Syskit # :nodoc:
 
         describe "#has_dynamic_input_port?" do
             attr_reader :task_m, :opaque_t, :intermediate_t
+
             before do
                 typekit = Models.create_orogen_typekit_model("test")
                 opaque_t = typekit.create_interface_opaque "/opaque", 0
@@ -422,6 +424,7 @@ module Syskit # :nodoc:
 
         describe "#has_dynamic_output_port?" do
             attr_reader :task_m, :opaque_t, :intermediate_t
+
             before do
                 typekit = Models.create_orogen_typekit_model("test")
                 opaque_t = typekit.create_interface_opaque "/opaque", 0
@@ -629,8 +632,8 @@ module Syskit # :nodoc:
                 refute task_m.use_update_properties?
             end
 
-            it "ignores an update_properties methods defined by a module injected in "\
-            "the hierarchy" do
+            it "ignores an update_properties methods defined by a module injected in " \
+               "the hierarchy" do
                 task_m = TaskContext.new_submodel
                 task_m.class_eval { def configure; end }
                 mod = Module.new { def update_properties; end }
@@ -644,8 +647,8 @@ module Syskit # :nodoc:
                 assert task_m.use_update_properties?
             end
 
-            it "returns true if the submodel defines both #configure and "\
-            "#update_properties" do
+            it "returns true if the submodel defines both #configure and " \
+               "#update_properties" do
                 task_m = TaskContext.new_submodel
                 task_m.class_eval do
                     def update_properties; end

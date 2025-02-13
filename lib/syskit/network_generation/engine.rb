@@ -372,7 +372,7 @@ module Syskit
 
                     if existing_deployment_tasks.size > 1
                         raise InternalError,
-                              "more than one task for #{process_name} "\
+                              "more than one task for #{process_name} " \
                               "present in the plan: #{existing_deployment_tasks}"
                     end
 
@@ -419,8 +419,8 @@ module Syskit
             #   otherwise (can't have the same deployment running twice)
             def handle_required_deployment(required, usable, not_reusable)
                 debug do
-                    debug "  looking to reuse a deployment for "\
-                            "#{required.process_name} (#{required})"
+                    debug "  looking to reuse a deployment for " \
+                          "#{required.process_name} (#{required})"
                     debug "  candidate: #{usable}"
                     debug "  not reusable deployment: #{not_reusable}"
                     break
@@ -463,7 +463,7 @@ module Syskit
                 return [nil, usable] unless non_reusable
 
                 raise InternalError,
-                      "non-nil non_reusable_deployment found in #{__method__} while "\
+                      "non-nil non_reusable_deployment found in #{__method__} while " \
                       "existing_deployment_needs_restart? returned true"
             end
 
@@ -530,10 +530,10 @@ module Syskit
                                           t.find_input_port(sink_port)
                             !both_output && !both_input
                         end
-                        if !connections.empty?
-                            dataflow_graph.set_edge_info(source_t, t, connections)
-                        else
+                        if connections.empty?
                             dataflow_graph.remove_edge(source_t, t)
+                        else
+                            dataflow_graph.set_edge_info(source_t, t, connections)
                         end
                     end
                 end
@@ -583,8 +583,8 @@ module Syskit
                     next unless t.transaction_modifies_static_ports?
 
                     debug do
-                        "#{t} was selected as deployment, but it would require "\
-                        "modifications on static ports, spawning a new task"
+                        "#{t} was selected as deployment, but it would require " \
+                            "modifications on static ports, spawning a new task"
                     end
 
                     new_task = t.execution_agent.task(t.orocos_name, t.concrete_model)
@@ -611,7 +611,7 @@ module Syskit
 
                 if tasks.size > 1
                     raise InternalError,
-                          "could not find the current task in "\
+                          "could not find the current task in " \
                           "#{deployed_tasks.map(&:to_s).sort.join(', ')}"
                 end
 
@@ -644,12 +644,12 @@ module Syskit
 
                     if !existing_task || !task.can_be_deployed_by?(existing_task)
                         debug do
-                            if !existing_task
-                                "  task #{task.orocos_name} has not yet been deployed"
+                            if existing_task
+                                "  task #{task.orocos_name} has been deployed, but " \
+                                    "I can't merge with the existing deployment " \
+                                    "(#{existing_task})"
                             else
-                                "  task #{task.orocos_name} has been deployed, but "\
-                                "I can't merge with the existing deployment "\
-                                "(#{existing_task})"
+                                "  task #{task.orocos_name} has not yet been deployed"
                             end
                         end
 
@@ -661,8 +661,8 @@ module Syskit
 
                         existing_tasks.each do |previous_task|
                             debug do
-                                "  #{new_task} needs to wait for #{existing_task} "\
-                                "to finish before reconfiguring"
+                                "  #{new_task} needs to wait for #{existing_task} " \
+                                    "to finish before reconfiguring"
                             end
 
                             new_task.should_configure_after(previous_task.stop_event)
@@ -909,9 +909,9 @@ module Syskit
                         dataflow_path, hierarchy_path =
                             Engine.autosave_plan_to_dot(work_plan, Roby.app.log_dir)
                         fatal "the generated plan has been saved"
-                        fatal "use dot -Tsvg #{dataflow_path} > #{dataflow_path}.svg "\
+                        fatal "use dot -Tsvg #{dataflow_path} > #{dataflow_path}.svg " \
                               "to convert the dataflow to SVG"
-                        fatal "use dot -Tsvg #{hierarchy_path} > #{hierarchy_path}.svg "\
+                        fatal "use dot -Tsvg #{hierarchy_path} > #{hierarchy_path}.svg " \
                               "to convert to SVG"
                     rescue Exception => e # rubocop:disable Lint/RescueException
                         Roby.log_exception_with_backtrace(e, self, :fatal)
@@ -931,7 +931,7 @@ module Syskit
                 required_instances.each do |_req_task, task|
                     if task.transaction_proxy?
                         raise InternalError,
-                              "instance definition #{instance} contains a transaction "\
+                              "instance definition #{instance} contains a transaction " \
                               "proxy: #{instance.task}"
                     elsif !task.plan
                         raise InternalError,
@@ -952,9 +952,7 @@ module Syskit
                                       dot_index, mode)
 
                     path = File.join(dir, basename)
-                    File.open(path, "w") do |io|
-                        io.write Graphviz.new(plan).send(mode, dot_options)
-                    end
+                    File.write(path, Graphviz.new(plan).send(mode, dot_options))
                     path
                 end
             end

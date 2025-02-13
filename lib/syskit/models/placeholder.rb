@@ -48,15 +48,13 @@ module Syskit
                 result
             end
 
-            def each_required_model
+            def each_required_model(&block)
                 return enum_for(:each_required_model) unless block_given?
 
                 if component_model?
                     yield(proxied_component_model)
                 end
-                proxied_data_service_models.each do |m|
-                    yield(m)
-                end
+                proxied_data_service_models.each(&block)
             end
 
             def merge(other_model)
@@ -87,27 +85,27 @@ module Syskit
                 Placeholder.for(model_list, component_model: task_model)
             end
 
-            def each_output_port
+            def each_output_port(&block)
                 return enum_for(:each_output_port) unless block_given?
 
                 @output_port_models.each_value do |list|
-                    list.each { |p| yield(p) }
+                    list.each(&block)
                 end
             end
 
-            def each_input_port
+            def each_input_port(&block)
                 return enum_for(:each_input_port) unless block_given?
 
                 @input_port_models.each_value do |list|
-                    list.each { |p| yield(p) }
+                    list.each(&block)
                 end
             end
 
-            def each_port
+            def each_port(&block)
                 return enum_for(:each_port) unless block_given?
 
-                each_output_port { |p| yield(p) }
-                each_input_port { |p| yield(p) }
+                each_output_port(&block)
+                each_input_port(&block)
             end
 
             def find_output_port(name)
@@ -138,7 +136,7 @@ module Syskit
                     m.each_output_port do |port|
                         (@output_port_models[port.name] ||= []) << port.attach(self)
                     end
-                    m.each_input_port  do |port|
+                    m.each_input_port do |port|
                         (@input_port_models[port.name] ||= []) << port.attach(self)
                     end
                 end
@@ -265,7 +263,8 @@ module Syskit
 
                     if service
                         service.attach(proxy_component_model)
-                    else proxy_component_model
+                    else
+                        proxy_component_model
                     end
                 end
 
@@ -308,7 +307,8 @@ module Syskit
 
                             service = m
                             m.component_model
-                        else m
+                        else
+                            m
                         end
                     end
                     task_models, service_models = models.partition { |t| t <= Syskit::Component }

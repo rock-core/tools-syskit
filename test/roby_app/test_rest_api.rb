@@ -61,7 +61,7 @@ module Syskit
                         expected = Hash[
                             "name" => "test_deployment",
                             "project_name" => "test",
-                            "tasks" => Array[
+                            "tasks" => [
                                 Hash["task_name" => "test_task", "task_model_name" => "test::Task"]
                             ],
                             "default_deployment_for" => nil,
@@ -171,7 +171,7 @@ module Syskit
 
                     it "returns a deployment type of 'orocos' for an orocos remote process server" do
                         configured_deployment = Models::ConfiguredDeployment.new(
-                            "localhost", @deployment_m, Hash[], "test_deployment"
+                            "localhost", @deployment_m, {}, "test_deployment"
                         )
                         @configured_deployments << configured_deployment
                         assert_equal "orocos",
@@ -180,7 +180,7 @@ module Syskit
 
                     it "returns a deployment type of 'unmanaged' for an unmanaged task" do
                         configured_deployment = Models::ConfiguredDeployment.new(
-                            "unmanaged_tasks", @deployment_m, Hash[], "test_deployment"
+                            "unmanaged_tasks", @deployment_m, {}, "test_deployment"
                         )
                         @configured_deployments << configured_deployment
                         assert_equal "unmanaged",
@@ -189,7 +189,7 @@ module Syskit
 
                     it "ignores tasks whose process server type is not exported" do
                         configured_deployment = Models::ConfiguredDeployment.new(
-                            "something_else", @deployment_m, Hash[], "test_deployment"
+                            "something_else", @deployment_m, {}, "test_deployment"
                         )
                         @configured_deployments << configured_deployment
                         assert_equal [], get_json("/deployments/registered")["registered_deployments"]
@@ -197,7 +197,7 @@ module Syskit
 
                     it "reports if a deployment has not been created by the REST API" do
                         configured_deployment = Models::ConfiguredDeployment.new(
-                            "localhost", @deployment_m, Hash[], "test_deployment"
+                            "localhost", @deployment_m, {}, "test_deployment"
                         )
                         @configured_deployments << configured_deployment
                         flexmock(RESTDeploymentManager).new_instances
@@ -209,7 +209,7 @@ module Syskit
 
                     it "reports if a deployment has been created by the REST API" do
                         configured_deployment = Models::ConfiguredDeployment.new(
-                            "localhost", @deployment_m, Hash[], "test_deployment"
+                            "localhost", @deployment_m, {}, "test_deployment"
                         )
                         @configured_deployments << configured_deployment
                         flexmock(RESTDeploymentManager).new_instances
@@ -221,10 +221,10 @@ module Syskit
 
                     it "reports overriden deployments but not the tasks they are replaced by" do
                         configured_deployment = Models::ConfiguredDeployment.new(
-                            "unmanaged_tasks", @deployment_m, Hash[], "test_deployment"
+                            "unmanaged_tasks", @deployment_m, {}, "test_deployment"
                         )
                         overriden = Models::ConfiguredDeployment.new(
-                            "localhost", @deployment_m, Hash[], "test_deployment"
+                            "localhost", @deployment_m, {}, "test_deployment"
                         )
                         @configured_deployments << configured_deployment
                         mock = flexmock(RESTDeploymentManager).new_instances

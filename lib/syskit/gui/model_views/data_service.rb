@@ -4,7 +4,7 @@ module Syskit::GUI
     module ModelViews
         class DataService < Component
             def initialize(page)
-                super(page)
+                super
                 buttons = []
                 buttons.concat(self.class.common_graph_buttons("interface"))
                 interface_options[:buttons] = buttons

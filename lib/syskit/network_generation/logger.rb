@@ -76,11 +76,11 @@ module Syskit
                                   .find_all { |p| !p.type }
                 if ports.size > 1
                     raise InternalError,
-                          "valid logger task contexts should have only one catch-all "\
+                          "valid logger task contexts should have only one catch-all " \
                           "dynamic input port, #{task_model} got #{ports.size}"
                 elsif ports.empty?
                     raise InternalError,
-                          "valid logger task contexts should have one catch-all "\
+                          "valid logger task contexts should have one catch-all " \
                           "dynamic input port, and #{task_model} has none"
                 end
 
@@ -128,8 +128,8 @@ module Syskit
                     end
 
                     unless (logger_task = deployment.logger_task)
-                        warn "deployment #{deployment.process_name} has no usable "\
-                             "logger (default logger name would be "\
+                        warn "deployment #{deployment.process_name} has no usable " \
+                             "logger (default logger name would be " \
                              "#{deployment.process_name}_Logger)"
                         next
                     end

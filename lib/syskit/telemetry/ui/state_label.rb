@@ -196,7 +196,8 @@ module Syskit
                     @current_text = text
                     self.text =
                         if name then format(TEXT_WITH_NAME, name, text)
-                        else format(TEXT_WITHOUT_NAME, text)
+                        else
+                            format(TEXT_WITHOUT_NAME, text)
                         end
                 end
 

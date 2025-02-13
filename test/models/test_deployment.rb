@@ -30,7 +30,7 @@ module Syskit
         end
 
         describe "the block passed to new_submodel" do
-            it "lets the caller define the deployment model, "\
+            it "lets the caller define the deployment model, " \
                "using orogen models for the tasks" do
                 task1_m = Syskit::TaskContext.new_submodel
                 task2_m = Syskit::TaskContext.new_submodel
@@ -47,7 +47,7 @@ module Syskit
                                          .sort_by(&:first)
             end
 
-            it "lets the caller define the deployment model, "\
+            it "lets the caller define the deployment model, " \
                "using orogen model names for the tasks" do
                 project = Models.create_orogen_project
                 project.name "m"
@@ -68,7 +68,7 @@ module Syskit
                                          .sort_by(&:first)
             end
 
-            it "lets the caller define the deployment model, "\
+            it "lets the caller define the deployment model, " \
                "passing the deployment orogen model" do
                 project = Models.create_orogen_project
                 project.name "m"

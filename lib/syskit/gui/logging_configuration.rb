@@ -14,6 +14,7 @@ module Syskit
         # manage basic Syskit's logging configuration
         class LoggingConfiguration < Qt::Widget
             attr_reader :model, :tree_view, :syskit, :item_name, :item_value, :pending_call
+
             def initialize(syskit, parent = nil)
                 super(parent)
                 main_layout = Qt::VBoxLayout.new(self)

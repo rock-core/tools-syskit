@@ -68,7 +68,7 @@ module Syskit
 
             # Checkboxes to select widgets options
             attr_reader :ui_hide_loggers
-            attr_reader :ui_show_expanded_job
+            attr_reader :ui_show_expanded_job, :syskit_poll
 
             define_hooks :on_connection_state_changed
             define_hooks :on_progress
@@ -81,8 +81,8 @@ module Syskit
                     main = index.data.toString
                     doc = index.data(Qt::UserRole).to_string || ""
                     Qt::Size.new(
-                        [fm.width(main), fm.width(doc)].max + 2 * OUTER_MARGIN,
-                        fm.height * 2 + OUTER_MARGIN * 2 + INTERLINE
+                        [fm.width(main), fm.width(doc)].max + (2 * OUTER_MARGIN),
+                        (fm.height * 2) + (OUTER_MARGIN * 2) + INTERLINE
                     )
                 end
 
@@ -100,7 +100,7 @@ module Syskit
 
                     fm = option.font_metrics
                     painter.draw_text(
-                        Qt::Rect.new(option.rect.x + OUTER_MARGIN, option.rect.y + OUTER_MARGIN, option.rect.width - 2 * OUTER_MARGIN, fm.height),
+                        Qt::Rect.new(option.rect.x + OUTER_MARGIN, option.rect.y + OUTER_MARGIN, option.rect.width - (2 * OUTER_MARGIN), fm.height),
                         Qt::AlignLeft, main, text_bounds
                     )
 
@@ -108,7 +108,7 @@ module Syskit
                     font.italic = true
                     painter.font = font
                     painter.draw_text(
-                        Qt::Rect.new(option.rect.x + OUTER_MARGIN, text_bounds.bottom + INTERLINE, option.rect.width - 2 * OUTER_MARGIN, fm.height),
+                        Qt::Rect.new(option.rect.x + OUTER_MARGIN, text_bounds.bottom + INTERLINE, option.rect.width - (2 * OUTER_MARGIN), fm.height),
                         Qt::AlignLeft, doc, text_bounds
                     )
                 ensure
@@ -361,7 +361,8 @@ module Syskit
                         elsif logger_task?(t)
                             @known_loggers << t
                             false
-                        else true
+                        else
+                            true
                         end
                     end
                 end
@@ -431,7 +432,8 @@ module Syskit
                 job_summary_layout.add_widget(@batch_manager)
                 @batch_manager.connect(SIGNAL("active(bool)")) do |active|
                     if active then @batch_manager.show
-                    else @batch_manager.hide
+                    else
+                        @batch_manager.hide
                     end
                 end
                 @batch_manager.hide
@@ -586,8 +588,6 @@ module Syskit
                 end
                 new_job_layout
             end
-
-            attr_reader :syskit_poll
 
             # @api private
             #

@@ -5,6 +5,7 @@ require "syskit/test/self"
 describe Syskit::Models::Port do
     describe "#to_component_port" do
         attr_reader :component_model
+
         before do
             @component_model = Syskit::TaskContext.new_submodel { output_port "port", "/int" }
         end
@@ -22,6 +23,7 @@ describe Syskit::Models::Port do
 
     describe "#connect_to" do
         attr_reader :out_task_m, :in_task_m
+
         before do
             @out_task_m = Syskit::TaskContext.new_submodel do
                 input_port "in", "/double"
@@ -74,6 +76,7 @@ describe Syskit::Models::Port do
 
     describe "#can_connect_to?" do
         attr_reader :srv_out, :srv_in
+
         before do
             @srv_out = Syskit::DataService.new_submodel do
                 output_port "int", "int"

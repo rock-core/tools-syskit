@@ -9,6 +9,7 @@ describe Syskit::InstanceRequirementsTask do
     attr_reader :cmp_m
 
     attr_reader :stub_t
+
     before do
         @stub_t = stub_type "/test_t"
         create_simple_composition_model

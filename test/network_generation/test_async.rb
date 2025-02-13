@@ -81,7 +81,7 @@ module Syskit
                     subject.apply
                 end
 
-                it "carries forward options passed to prepare "\
+                it "carries forward options passed to prepare " \
                    "that are relevant to the apply step" do
                     requirements = Set[flexmock]
                     resolution = subject.prepare(

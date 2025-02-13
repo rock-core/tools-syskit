@@ -60,8 +60,8 @@ module Syskit
                 end
                 super
             rescue ::NoMethodError => e
-                ::Kernel.raise e, "no task #{m} on #{project_name}, available tasks: "\
-                    "#{@registered_objects.keys.map(&:to_s).sort.join(', ')}"
+                ::Kernel.raise e, "no task #{m} on #{project_name}, available tasks: " \
+                                  "#{@registered_objects.keys.map(&:to_s).sort.join(', ')}"
             end
         end
 
@@ -118,7 +118,7 @@ module Syskit
                 if (m = @deployments[name.to_s])
                     unless args.empty? && kw.empty?
                         raise ArgumentError,
-                              "wrong number of arguments, given #{args.size} and #{kw.size} "\
+                              "wrong number of arguments, given #{args.size} and #{kw.size} " \
                               "keyword arguments, expected 0"
                     end
 
@@ -129,7 +129,7 @@ module Syskit
             rescue NoMethodError
                 deployments_s = @deployments.keys.join(", ")
                 raise NoMethodError.new(name),
-                      "no deployment registered with the name '#{name}', "\
+                      "no deployment registered with the name '#{name}', " \
                       "available deployments are: #{deployments_s}"
             end
         end
@@ -185,7 +185,7 @@ module Syskit
 
             project
         rescue NoMethodError => e
-            raise e, "#{e.message}, available OroGen projects: "\
+            raise e, "#{e.message}, available OroGen projects: " \
                      "#{@project_namespaces.keys.map(&:to_s).join(', ')}"
         end
 

@@ -28,7 +28,8 @@ module Syskit
             def self.method_missing(m, *args, &block)
                 if subject_syskit_model.find_action_by_name(m)
                     subject_syskit_model.public_send(m, *args, &block)
-                else super
+                else
+                    super
                 end
             end
 
@@ -39,7 +40,8 @@ module Syskit
             def method_missing(m, *args, &block)
                 if subject_syskit_model.find_action_by_name(m)
                     subject_syskit_model.public_send(m, *args, &block)
-                else super
+                else
+                    super
                 end
             end
         end

@@ -45,10 +45,10 @@ module Syskit
 
             def find_data_service_from_type(type)
                 srv = required.find_data_service_from_type(type)
-                if !required.each_required_model.to_a.include?(srv.model)
-                    find_data_service(srv.name)
-                else
+                if required.each_required_model.to_a.include?(srv.model)
                     srv
+                else
+                    find_data_service(srv.name)
                 end
             end
 
@@ -107,20 +107,16 @@ module Syskit
                 end
             end
 
-            def each_input_port
+            def each_input_port(&block)
                 return enum_for(:each_input_port) unless block_given?
 
-                each_port_helper :each_input_port do |p|
-                    yield(p)
-                end
+                each_port_helper :each_input_port, &block
             end
 
-            def each_output_port
+            def each_output_port(&block)
                 return enum_for(:each_output_port) unless block_given?
 
-                each_port_helper :each_output_port do |p|
-                    yield(p)
-                end
+                each_port_helper :each_output_port, &block
             end
 
             def each_port

@@ -20,8 +20,8 @@ module Syskit
                     @task_m.provides @srv_m, as: "test"
                 end
 
-                it "resolves data services through the matcher returned "\
-                "by the _srv accessor" do
+                it "resolves data services through the matcher returned " \
+                   "by the _srv accessor" do
                     plan.add(task = @task_m.new)
                     assert_matcher_finds [task.test_srv], @task_m.match.test_srv
                 end
@@ -49,7 +49,7 @@ module Syskit
                     plan.add(@task = @task_m.new)
                 end
 
-                it "resolves task context ports through the matcher returned "\
+                it "resolves task context ports through the matcher returned " \
                    "by the _port accessor" do
                     assert_matcher_finds [@task.out_port], @task_m.match.out_port
                 end
@@ -66,8 +66,8 @@ module Syskit
                     matcher = ComponentMatcher.new.with_model([@task_m, other_srv_m])
                     e = assert_raises(Ambiguous) { matcher.out_port }
                     assert_equal(
-                        "more than one port named 'out' exist on composite model "\
-                        "#{@task_m}, #{other_srv_m}. Select a data service explicitly "\
+                        "more than one port named 'out' exist on composite model " \
+                        "#{@task_m}, #{other_srv_m}. Select a data service explicitly " \
                         "to disambiguate", e.message
                     )
                 end

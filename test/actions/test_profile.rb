@@ -9,7 +9,7 @@ module Syskit
     module Actions
         describe Profile do
             describe "#initialize" do
-                it "does not register the profile as a submodel of the Profile "\
+                it "does not register the profile as a submodel of the Profile " \
                    "module by default" do
                     new_profile = Profile.new
                     refute Profile.each_submodel.to_a.include?(new_profile)
@@ -36,13 +36,13 @@ module Syskit
                     assert Profile.each_submodel.to_a.include?(new_profile)
                 end
 
-                it "registers the newly created profile as a constant "\
+                it "registers the newly created profile as a constant " \
                    "on the context module" do
                     new_profile = @context.profile("Test") {}
                     assert_same @context::Test, new_profile
                 end
 
-                it "evaluates the block on an already registered constant with "\
+                it "evaluates the block on an already registered constant with " \
                    "the same name" do
                     test_profile = @context.profile("Test") {}
                     flexmock(Profile).should_receive(:new).never
@@ -57,6 +57,7 @@ module Syskit
 
             describe "#use_profile" do
                 attr_reader :definition_mock
+
                 before do
                     @definition_mock = flexmock(arguments: [], with_arguments: nil)
                     definition_mock.should_receive(:push_selections).by_default
@@ -100,7 +101,20 @@ module Syskit
                     assert_equal src.test_def, dst.modified_test_def
                 end
 
-                it "uses the existing definition's documentation as documentation "\
+                it "allows to add deployment filters" do
+                    src = Profile.new
+                    src.define("test", TaskContext.new_submodel)
+                       .prefer_deployed_tasks(/src_filter/)
+                    assert_equal [/src_filter/].to_set, src.test_def.deployment_hints
+
+                    dst = Profile.new
+                    dst.use_profile src, prefer_deployed_tasks: /dst_filter/
+
+                    assert_equal [/src_filter/, /dst_filter/].to_set,
+                                 dst.test_def.deployment_hints
+                end
+
+                it "uses the existing definition's documentation as documentation " \
                    "for the imported definition" do
                     task_m = TaskContext.new_submodel
                     src = Profile.new
@@ -115,7 +129,7 @@ module Syskit
                     dst.use_profile src
                 end
 
-                it "does not import definitions that are already existing "\
+                it "does not import definitions that are already existing " \
                    "on the receiver" do
                     task_m = TaskContext.new_submodel
                     src = Profile.new
@@ -127,7 +141,7 @@ module Syskit
                     dst.use_profile src
                 end
 
-                it "pushes selections before defining on the receiver if "\
+                it "pushes selections before defining on the receiver if " \
                    "the model is a composition" do
                     cmp_m = Composition.new_submodel
                     src = Profile.new
@@ -250,6 +264,7 @@ module Syskit
 
             describe "#method_missing" do
                 attr_reader :profile, :dev_m, :driver_m
+
                 before do
                     @profile = Profile.new
                     @dev_m = Device.new_submodel
@@ -330,7 +345,7 @@ module Syskit
                 assert_same new_remote, remote
             end
 
-            it "gets its cached dependency injection object invalidated "\
+            it "gets its cached dependency injection object invalidated " \
                "when the robot is modified" do
                 profile = Profile.new
                 flexmock(profile)
@@ -369,6 +384,7 @@ module Syskit
 
             describe "#definition" do
                 attr_reader :profile
+
                 before do
                     @profile = Profile.new
                     task_m = TaskContext.new_submodel
@@ -410,6 +426,7 @@ module Syskit
             describe Profile::Definition do
                 describe "#to_action_model" do
                     attr_reader :profile
+
                     before do
                         @profile = Profile.new
                         task_m = TaskContext.new_submodel
@@ -417,7 +434,7 @@ module Syskit
                         profile.define "test", task_m
                     end
 
-                    it "applies changes done to the requirement "\
+                    it "applies changes done to the requirement " \
                        "to the generated action model" do
                         d = profile.resolved_definition("test").with_arguments(arg: 10)
                         task = d.to_action_model.instanciate(plan)
@@ -428,6 +445,7 @@ module Syskit
 
             describe "#resolved_definition" do
                 attr_reader :profile
+
                 before do
                     @profile = Profile.new
                     task_m = TaskContext.new_submodel
@@ -514,7 +532,7 @@ module Syskit
 
             describe "the deployment group interface" do
                 describe "#use_deployment" do
-                    it "selects the deployment for deployment on the "\
+                    it "selects the deployment for deployment on the " \
                        "profile definitions" do
                         task_m = TaskContext.new_submodel(name: "Test")
                         deployment_m = syskit_stub_deployment_model(task_m)
@@ -523,7 +541,7 @@ module Syskit
                         profile.use_deployment deployment_m
                         profile.define "test", task_m
 
-                        # Note: so far, deployment groups are applied only when
+                        # NOTE: so far, deployment groups are applied only when
                         # accessed through the action interface
                         syskit_run_planner_with_full_deployment do
                             task = run_planners(profile.test_def.resolve)
@@ -537,7 +555,7 @@ module Syskit
                         register_ruby_tasks_manager("ruby_tasks")
                     end
 
-                    it "selects the ruby task for deployment "\
+                    it "selects the ruby task for deployment " \
                        "on the profile definitions" do
                         task_m = RubyTaskContext.new_submodel(name: "Test")
 
@@ -545,7 +563,7 @@ module Syskit
                         profile.use_ruby_tasks task_m => "test"
                         profile.define "test", task_m
 
-                        # Note: so far, deployment groups are applied only when
+                        # NOTE: so far, deployment groups are applied only when
                         # accessed through the action interface
                         syskit_run_planner_with_full_deployment do
                             run_planners(profile.test_def.resolve)
@@ -558,7 +576,7 @@ module Syskit
                         register_unmanaged_manager("unmanaged_tasks")
                     end
 
-                    it "selects the unmanaged task for deployment "\
+                    it "selects the unmanaged task for deployment " \
                        "on the profile definitions" do
                         task_m = TaskContext.new_submodel(name: "Test")
 
@@ -566,7 +584,7 @@ module Syskit
                         profile.use_unmanaged_task task_m => "test"
                         profile.define "test", task_m
 
-                        # Note: so far, deployment groups are applied only when
+                        # NOTE: so far, deployment groups are applied only when
                         # accessed through the action interface
                         task = syskit_run_planner_with_full_deployment do
                             run_planners(profile.test_def.resolve)
@@ -613,7 +631,7 @@ module Syskit
                         profile.use_deployments_from "test_project", on: "test"
                         profile.define "test", task_m
 
-                        # Note: so far, deployment groups are applied only when
+                        # NOTE: so far, deployment groups are applied only when
                         # accessed through the action interface
                         syskit_run_planner_with_full_deployment do
                             task = run_planners(profile.test_def.resolve)
@@ -623,7 +641,7 @@ module Syskit
                 end
 
                 describe "#use_group" do
-                    it "registers the group's deployments for usage on the profile "\
+                    it "registers the group's deployments for usage on the profile " \
                        "definitions" do
                         task_m = TaskContext.new_submodel(name: "Test")
                         deployment_m = syskit_stub_deployment_model(task_m)
@@ -634,7 +652,7 @@ module Syskit
                         profile.use_group group
                         profile.define "test", task_m
 
-                        # Note: so far, deployment groups are applied only when
+                        # NOTE: so far, deployment groups are applied only when
                         # accessed through the action interface
                         syskit_run_planner_with_full_deployment do
                             task = run_planners(profile.test_def.resolve)

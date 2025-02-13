@@ -155,8 +155,8 @@ module Syskit
                 mappings = name_mappings
                            .map { |k, v| "#{k} => #{v}" }.join(", ")
                 raise ArgumentError,
-                      "no task called #{name} in "\
-                      "#{self.class.deployment_name}, available tasks are "\
+                      "no task called #{name} in " \
+                      "#{self.class.deployment_name}, available tasks are " \
                       "#{available} using name mappings #{mappings}"
             end
             orogen_task_deployment
@@ -186,17 +186,15 @@ module Syskit
             syskit_task_model, scheduler_task, auto_conf: false
         )
             mapped_name = name_mappings[orogen_task_deployment_model.name]
-            if ready?
-                unless (remote_handles = remote_task_handles[mapped_name])
-                    raise InternalError,
-                          "no remote handle describing #{mapped_name} in #{self}"\
-                          "(got #{remote_task_handles.keys.sort.join(', ')})"
-                end
+            if ready? && !(remote_handles = remote_task_handles[mapped_name])
+                raise InternalError,
+                      "no remote handle describing #{mapped_name} in #{self}" \
+                      "(got #{remote_task_handles.keys.sort.join(', ')})"
             end
 
             if task_context_in_fatal?(mapped_name)
                 raise TaskContextInFatal.new(self, mapped_name),
-                      "trying to create task for FATAL_ERROR component #{mapped_name} "\
+                      "trying to create task for FATAL_ERROR component #{mapped_name} " \
                       "from #{self}"
             end
 
@@ -206,8 +204,8 @@ module Syskit
             syskit_task_model ||= base_syskit_task_model
             unless syskit_task_model <= base_syskit_task_model
                 raise ArgumentError,
-                      "incompatible explicit selection of task model "\
-                      "#{syskit_task_model} for the model of #{mapped_name} in #{self}, "\
+                      "incompatible explicit selection of task model " \
+                      "#{syskit_task_model} for the model of #{mapped_name} in #{self}, " \
                       "expected #{base_syskit_task_model} or one of its subclasses"
             end
 
@@ -241,7 +239,7 @@ module Syskit
         def task(name, syskit_task_model = nil)
             if finishing? || finished?
                 raise InvalidState,
-                      "#{self} is either finishing or already "\
+                      "#{self} is either finishing or already " \
                       "finished, you cannot call #task"
             end
 
@@ -296,9 +294,9 @@ module Syskit
             )
 
             Deployment.info do
-                "starting deployment #{process_name} using "\
-                "#{model.deployment_name} on #{arguments[:on]} with "\
-                "#{spawn_options} and mappings #{name_mappings}"
+                "starting deployment #{process_name} using " \
+                    "#{model.deployment_name} on #{arguments[:on]} with " \
+                    "#{spawn_options} and mappings #{name_mappings}"
             end
 
             @orocos_process = process_server_config.client.start(
@@ -709,9 +707,9 @@ module Syskit
                 name = orocos_process.mapped_name_of(act.name)
                 unless remote_tasks.key?(name)
                     raise InternalError,
-                          "expected #{orocos_process}'s reported tasks to "\
-                          "include '#{name}' (mapped from '#{act.name}'), "\
-                          "but got handles only for "\
+                          "expected #{orocos_process}'s reported tasks to " \
+                          "include '#{name}' (mapped from '#{act.name}'), " \
+                          "but got handles only for " \
                           "#{remote_tasks.keys.sort.join(' ')}"
                 end
             end
@@ -725,8 +723,8 @@ module Syskit
                     task.initialize_remote_handles(remote_handles)
                 else
                     root_exception = InternalError.exception(
-                        "#{task} is supported by #{self} but there does "\
-                        "not seem to be any task called #{task.orocos_name} "\
+                        "#{task} is supported by #{self} but there does " \
+                        "not seem to be any task called #{task.orocos_name} " \
                         "on this deployment"
                     )
                     task.failed_to_start!(

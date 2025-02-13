@@ -26,18 +26,18 @@ module Syskit
                     e = assert_raises(ArgumentError) do
                         Models::DynamicPortBinding.create_from_matcher(@matcher)
                     end
-                    assert_equal "cannot create a dynamic data source from a matcher "\
-                                "whose type cannot be inferred", e.message
+                    assert_equal "cannot create a dynamic data source from a matcher " \
+                                 "whose type cannot be inferred", e.message
                 end
 
-                it "raises if the matcher's direction cannot be inferred "\
+                it "raises if the matcher's direction cannot be inferred " \
                    "and 'direction' is :auto" do
                     flexmock(@matcher).should_receive(try_resolve_direction: nil)
                     e = assert_raises(ArgumentError) do
                         Models::DynamicPortBinding.create_from_matcher(@matcher)
                     end
-                    assert_equal "cannot create a dynamic data source from a matcher "\
-                                "whose direction cannot be inferred", e.message
+                    assert_equal "cannot create a dynamic data source from a matcher " \
+                                 "whose direction cannot be inferred", e.message
                 end
 
                 it "sets the direction if the matcher's resolves it to :output" do
@@ -75,7 +75,7 @@ module Syskit
                             @matcher, direction: :something
                         )
                     end
-                    assert_equal "'something' is not a valid value for the 'direction' "\
+                    assert_equal "'something' is not a valid value for the 'direction' " \
                                  "option. Should be one of :auto, :input or :output",
                                  e.message
                 end
@@ -248,8 +248,8 @@ module Syskit
                         assert_equal 20, @resolver.field.__resolve(s)
                     end
 
-                    it "raises NoMethodError if trying to access a field that does not "\
-                    "exist" do
+                    it "raises NoMethodError if trying to access a field that does not " \
+                       "exist" do
                         e = assert_raises(NoMethodError) do
                             @resolver.does_not_exist
                         end
@@ -433,13 +433,13 @@ module Syskit
                                      e.message
                     end
 
-                    it "raises if trying to access a subfield after "\
+                    it "raises if trying to access a subfield after " \
                        "a transform block is set" do
                         resolver = @resolver.transform(&:field)
                         e = assert_raises(ArgumentError) do
                             resolver.field
                         end
-                        assert_equal "cannot refine a resolver on which "\
+                        assert_equal "cannot refine a resolver on which " \
                                      ".transform has been called", e.message
                     end
                 end

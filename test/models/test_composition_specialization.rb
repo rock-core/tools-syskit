@@ -8,6 +8,7 @@ describe Syskit::Models::CompositionSpecialization do
     include Syskit::Fixtures::SimpleCompositionModel
 
     attr_reader :stub_t
+
     before do
         @stub_t = stub_type "/test_t"
         create_simple_composition_model

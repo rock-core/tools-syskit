@@ -75,8 +75,8 @@ module Syskit
                         .to { emit deployment_task.stop_event }
                 end
 
-                it "aborts the execution agent if the monitor thread fails "\
-                "in unexpected ways" do
+                it "aborts the execution agent if the monitor thread fails " \
+                   "in unexpected ways" do
                     make_deployment_ready
 
                     process_died = capture_log(deployment_task, :warn) do
@@ -88,12 +88,12 @@ module Syskit
                                         .raise RuntimeError
                                 end.to { emit deployment_task.failed_event }
                             end
-                        assert_equal ["assuming #{deployment_task.orocos_process} died "\
+                        assert_equal ["assuming #{deployment_task.orocos_process} died " \
                                       "because the background thread died with",
                                       "RuntimeError (RuntimeError)"],
                                      background_thread_died
                     end
-                    assert_equal ["#{@unmanaged_task_name} unexpectedly died "\
+                    assert_equal ["#{@unmanaged_task_name} unexpectedly died " \
                                   "on process server unmanaged_tasks"],
                                  process_died
                 end
@@ -132,7 +132,7 @@ module Syskit
                             assert deployment_task.orocos_process.dead?
                         end.to { emit deployment_task.failed_event }
                     end
-                    assert_equal ["#{@unmanaged_task_name} unexpectedly died on "\
+                    assert_equal ["#{@unmanaged_task_name} unexpectedly died on " \
                                   "process server unmanaged_tasks"],
                                  messages
                 end
@@ -152,6 +152,7 @@ module Syskit
 
             describe "specifying the name service" do
                 attr_reader :name_service
+
                 before do
                     @task_model = Syskit::TaskContext.new_submodel
                     @name_service = Orocos::Local::NameService.new

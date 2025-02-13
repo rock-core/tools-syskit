@@ -13,6 +13,7 @@ module Syskit
             attr_reader :service_model
             # The service definition block
             attr_reader :block
+
             # Whether this service can be dynamically added to a
             # configured/running task
             attr_predicate :addition_requires_reconfiguration?
@@ -98,21 +99,21 @@ module Syskit
                 def provides(service_model, port_mappings = {}, as: nil, **arguments)
                     if service
                         raise ArgumentError,
-                              "this dynamic service instantiation block already "\
+                              "this dynamic service instantiation block already " \
                               "created one new service"
                     end
 
                     unless service_model.fullfills?(dynamic_service.service_model)
                         raise ArgumentError,
-                              "#{service_model.short_name} does not fullfill the "\
-                              "model for the dynamic service #{dynamic_service.name}, "\
+                              "#{service_model.short_name} does not fullfill the " \
+                              "model for the dynamic service #{dynamic_service.name}, " \
                               "#{dynamic_service.service_model.short_name}"
                     end
 
                     if as && as != name
                         raise ArgumentError,
-                              "the as: argument was given (with value #{as}) but it "\
-                              "is required to be #{name}. Note that it can be omitted "\
+                              "the as: argument was given (with value #{as}) but it " \
+                              "is required to be #{name}. Note that it can be omitted " \
                               "in a dynamic service block"
                     end
 

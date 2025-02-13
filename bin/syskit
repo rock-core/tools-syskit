@@ -31,7 +31,7 @@ if ARGV[0] == "help"
 # Transform 'syskit <mode> --help' to 'syskit help <mode>' if mode is handled
 # by thor
 elsif ["-h", "--help"].include?(ARGV[1])
-    STDERR.puts "WARN: syskit <mode> --help is deprecated, use syskit help <mode> instead"
+    $stderr.puts "WARN: syskit <mode> --help is deprecated, use syskit help <mode> instead"
     if thor_command?(ARGV[0])
         ARGV.delete_at(1)
         ARGV.unshift "help"
@@ -46,7 +46,7 @@ if ARGV.first
             Syskit::CLI::Main.start(ARGV)
             exit 0
         rescue Roby::CLI::CLIException => e
-            STDERR.puts Roby.color(e.message, :red)
+            $stderr.puts Roby.color(e.message, :red)
             exit 1
         end
     end
@@ -78,7 +78,7 @@ else
         begin
             require "roby/app/scripts/#{mode}"
         rescue LoadError
-            STDERR.puts "unknown mode '#{mode}'"
+            $stderr.puts "unknown mode '#{mode}'"
             exit(1)
         end
     end

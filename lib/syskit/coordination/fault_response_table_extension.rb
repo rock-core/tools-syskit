@@ -34,7 +34,8 @@ module Syskit
                     data_args = tbl.arguments.transform_values do |fault_arg|
                         if fault_arg.kind_of?(Roby::Coordination::Models::Variable)
                             arguments[fault_arg.name]
-                        else fault_arg
+                        else
+                            fault_arg
                         end
                     end
                     data_monitoring_tables << plan.use_data_monitoring_table(tbl.table, data_args)

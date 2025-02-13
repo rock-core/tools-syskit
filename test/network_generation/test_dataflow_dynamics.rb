@@ -6,6 +6,7 @@ module Syskit
     module NetworkGeneration
         describe PortDynamics::Trigger do
             attr_reader :trigger, :trigger_name, :period, :sample_count
+
             before do
                 @trigger = PortDynamics::Trigger.new(
                     @trigger_name = "trigger_test",
@@ -59,6 +60,7 @@ module Syskit
 
         describe DataFlowDynamics do
             attr_reader :dynamics
+
             before do
                 @dynamics = NetworkGeneration::DataFlowDynamics.new(plan)
             end
@@ -103,7 +105,7 @@ module Syskit
                         @device.attach_to(@bus, client_to_bus: false)
                     end
 
-                    it "uses the attached device's information as initial information "\
+                    it "uses the attached device's information as initial information " \
                        "for the bus port" do
                         @device.period 42
                         @device.burst 21
@@ -338,7 +340,7 @@ module Syskit
                         @dynamics.policy_for(@source_t, "does_not_exist",
                                              "in", @sink_t, nil)
                     end
-                    assert_equal "does_not_exist is not an output port "\
+                    assert_equal "does_not_exist is not an output port " \
                                  "of #{@source_t}", e.message
                 end
 
@@ -347,7 +349,7 @@ module Syskit
                         @dynamics.policy_for(@source_t, "out",
                                              "does_not_exist", @sink_t, nil)
                     end
-                    assert_equal "does_not_exist is not an input port "\
+                    assert_equal "does_not_exist is not an input port " \
                                  "of #{@sink_t}", e.message
                 end
 
@@ -356,7 +358,7 @@ module Syskit
                     assert_equal :data, policy[:type]
                 end
 
-                it "returns a buffer connection of size 1 if the sink's required "\
+                it "returns a buffer connection of size 1 if the sink's required " \
                    'connection type is "buffer"' do
                     @sink_task_m.in_port.needs_buffered_connection
                     policy = @dynamics.policy_for(@source_t, "out", "in", @sink_t, nil)
@@ -364,7 +366,7 @@ module Syskit
                     assert_equal 1, policy[:size]
                 end
 
-                it "raises if the required connection type is unknown and "\
+                it "raises if the required connection type is unknown and " \
                    "needs_reliable_connection is not set" do
                     flexmock(@sink_task_m.in_port)
                         .should_receive(:required_connection_type).explicitly
@@ -374,8 +376,8 @@ module Syskit
                     end
                 end
 
-                it "returns the value from compute_reliable_connection_policy if "\
-                    "the sink port is marked as needs_reliable_connection" do
+                it "returns the value from compute_reliable_connection_policy if " \
+                   "the sink port is marked as needs_reliable_connection" do
                     @sink_task_m.in_port.needs_reliable_connection
                     fallback_policy = flexmock
                     flexmock(@dynamics)
@@ -405,7 +407,7 @@ module Syskit
                     @source_dynamics.add_trigger("test", 1, 1)
                 end
 
-                it "computes the buffer size given the source dynamics and sink "\
+                it "computes the buffer size given the source dynamics and sink " \
                    "reading latency" do
                     @dynamics.add_port_info(@source_t, "out", @source_dynamics)
                     @dynamics.done_port_info(@source_t, "out")
