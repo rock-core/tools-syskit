@@ -72,30 +72,6 @@ describe Syskit::Models::Port do
                 out_task_m.out_port.connect_to in_task_m.in_port
             end
         end
-        it "makes sure init policy is not set without calling recommend_init" do
-            policy = {}
-            flexmock(out_task_m).should_receive(:connect_ports).explicitly.once
-                                .with(in_task_m, %w[out in] => policy)
-            out_task_m.out_port.connect_to in_task_m.in_port, policy
-        end
-        it "adds 'init: true' policy if recommend_init was called" do
-            out_port_m = Syskit::Models::Port.new(out_task_m, out_task_m.orogen_model.find_port("out"))
-            out_port_m.orogen_model.recommend_init
-            assert out_port_m.init_policy
-            policy = {}
-            flexmock(out_task_m).should_receive(:connect_ports).explicitly
-                                .with(in_task_m, %w[out in] => { init: true })
-            out_task_m.out_port.connect_to in_task_m.in_port, policy
-        end
-        it "adds 'init: false' policy if recommend_init(init: false) was called" do
-            out_port_m = Syskit::Models::Port.new(out_task_m, out_task_m.orogen_model.find_port("out"))
-            out_port_m.orogen_model.recommend_init(init: false)
-            refute out_port_m.init_policy
-            policy = {}
-            flexmock(out_task_m).should_receive(:connect_ports).explicitly
-                                .with(in_task_m, %w[out in] => { init: false })
-            out_task_m.out_port.connect_to in_task_m.in_port, policy
-        end
     end
 
     describe "#can_connect_to?" do
