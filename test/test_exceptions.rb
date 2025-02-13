@@ -217,8 +217,15 @@ module Syskit
             expected = <<~PP.chomp
                 deployed task 'test_syskit_tests_empty' from deployment \
                 'syskit_tests_empty' defined in 'orogen_syskit_tests' on 'localhost' is \
-                assigned to multiple tasks. Here follows one merge failure \
-                (it can have more):
+                assigned to 2 tasks. Bellow is the list of \
+                the dependent non-deployed actions. Right after the list is \
+                is a detailed explanation of why the first two tasks are not merged:
+                OroGen.orogen_syskit_tests.Empty<id:ID>(arg: 1, conf: ["default"], \
+                orocos_name: test_syskit_tests_empty, read_only: false) is needed by the following definitions:
+                  Test.test1_def
+                OroGen.orogen_syskit_tests.Empty<id:ID>(arg: 2, conf: ["default"], \
+                orocos_name: test_syskit_tests_empty, read_only: false) is needed by the following definitions:
+                  Test.test2_def
                 Chain 1 cannot be merged in chain 2:
                 Chain 1:
                   OroGen.orogen_syskit_tests.Empty<id:ID>
@@ -236,12 +243,6 @@ module Syskit
                       read_only: false,
                       conf: ["default"],
                       arg: 2
-                OroGen.orogen_syskit_tests.Empty<id:ID>(arg: 1, conf: ["default"], \
-                orocos_name: test_syskit_tests_empty, read_only: false) is needed by the following definitions:
-                  Test.test1_def
-                OroGen.orogen_syskit_tests.Empty<id:ID>(arg: 2, conf: ["default"], \
-                orocos_name: test_syskit_tests_empty, read_only: false) is needed by the following definitions:
-                  Test.test2_def
             PP
             assert_equal expected, formatted.gsub(/<id:\d+>/, "<id:ID>").chomp
         end

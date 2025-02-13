@@ -388,14 +388,10 @@ module Syskit
 
             def self.verify_all_deployments_are_unique(
                 plan,
-                default_deployment_group,
                 toplevel_tasks_to_requirements
             )
-                deployment_to_task_map = {}
-                plan.find_local_tasks(Syskit::TaskContext).each do |t|
-                    deployment_to_task_map[t.orocos_name] =
-                        (deployment_to_task_map[t.orocos_name] || []) + [t]
-                end
+                deployment_to_task_map = plan.find_local_tasks(Syskit::TaskContext)
+                                             .group_by(&:orocos_name)
 
                 using_same_deployment = deployment_to_task_map.select do |_, tasks|
                     tasks.size > 1
@@ -403,20 +399,8 @@ module Syskit
 
                 return if using_same_deployment.empty?
 
-                deployment_to_task = using_same_deployment
-                                     .each_with_object({}) do |(orocos_name, tasks), h|
-                    deployed_tasks = default_deployment_group
-                                     .find_all_suitable_deployments_for(tasks.first)
-
-                    deployed_task = deployed_tasks.select do |d|
-                        d.mapped_task_name == orocos_name
-                    end
-
-                    h[deployed_task.first] = tasks
-                end
-
                 raise ConflictingDeploymentAllocation.new(
-                    deployment_to_task, toplevel_tasks_to_requirements
+                    using_same_deployment, toplevel_tasks_to_requirements
                 ), "there are deployments used multiple times"
             end
 
@@ -439,7 +423,7 @@ module Syskit
             def validate_deployed_network
                 self.class.verify_all_tasks_deployed(plan, default_deployment_group)
                 self.class.verify_all_deployments_are_unique(
-                    plan, default_deployment_group, toplevel_tasks_to_requirements.dup
+                    plan, toplevel_tasks_to_requirements.dup
                 )
                 super if defined? super
             end

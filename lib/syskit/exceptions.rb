@@ -475,24 +475,24 @@ module Syskit
         end
 
         def pretty_print(pp)
-            deployment_to_tasks.each do |deployed_task, tasks|
-                process_server_name = deployed_task.configured_deployment
-                                                   .process_server_name
-                orogen_model = deployed_task.configured_deployment.orogen_model
+            deployment_to_tasks.each do |orocos_name, tasks|
+                agent = tasks.first.execution_agent
+                deployment_m = agent.deployed_orogen_model_by_name(orocos_name)
                 pp.text(
-                    "deployed task '#{deployed_task.mapped_task_name}' from deployment " \
-                    "'#{orogen_model.name}' defined in " \
-                    "'#{orogen_model.project.name}' on '#{process_server_name}' is " \
-                    "assigned to multiple tasks. Here follows one merge failure " \
-                    "(it can have more):"
+                    "deployed task '#{orocos_name}' from deployment " \
+                    "'#{deployment_m.name}' defined in " \
+                    "'#{deployment_m.project.name}' on '#{agent.process_server_name}' " \
+                    "is assigned to #{tasks.size} tasks. Bellow is the list of " \
+                    "the dependent non-deployed actions. Right after the list is " \
+                    "is a detailed explanation of why the first two tasks are not merged:"
                 )
-                print_failed_merge_chain(pp, tasks[0], tasks[1])
                 tasks.each do |t|
                     defs = find_all_related_syskit_actions(
                         t, toplevel_tasks_to_requirements
                     )
                     print_dependent_definitions(pp, t, defs)
                 end
+                print_failed_merge_chain(pp, tasks[0], tasks[1])
             end
         end
     end
