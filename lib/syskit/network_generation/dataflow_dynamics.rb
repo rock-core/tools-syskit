@@ -601,30 +601,26 @@ module Syskit
                         "#{sink_task}:#{sink_port.name}"
                 end
 
-                source_port_m = source_port.model
-                if [true, false].include?(source_port_m.init_policy)
-                    policy = policy.merge(init: source_port_m.init_policy)
-                end
-
                 sink_port_m = sink_port.model
                 if sink_port_m.needs_reliable_connection?
-                    compute_reliable_connection_policy(
+                    policy = compute_reliable_connection_policy(
                         source_port, sink_port, fallback_policy
                     )
                 elsif sink_port_m.required_connection_type == :data
                     policy = Orocos::Port.prepare_policy(type: :data)
                     DataFlowDynamics.debug { "     result: #{policy}" }
-                    policy
                 elsif sink_port_m.required_connection_type == :buffer
                     policy = Orocos::Port.prepare_policy(type: :buffer, size: 1)
                     DataFlowDynamics.debug { "     result: #{policy}" }
-                    policy
                 else
                     raise UnsupportedConnectionType,
                           "unknown required connection type " \
                           "#{sink_port_m.required_connection_type} " \
                           "on #{sink_port}"
                 end
+
+                source_port_m = source_port.model
+                policy.merge(init: source_port_m.init_policy)
             end
 
             def compute_reliable_connection_policy(
