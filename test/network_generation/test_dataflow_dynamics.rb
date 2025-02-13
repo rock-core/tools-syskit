@@ -420,14 +420,48 @@ module Syskit
                    "the sink port is marked as needs_reliable_connection" do
                     @sink_task_m.in_port.needs_reliable_connection
                     fallback_policy = flexmock
+                    expected_policy = flexmock
+
+                    expected_policy
+                        .should_receive(:merge)
+                        .and_return(expected_policy)
+
                     flexmock(@dynamics)
                         .should_receive(:compute_reliable_connection_policy)
                         .with(@source_t.out_port, @sink_t.in_port, fallback_policy)
-                        .once.and_return(expected_policy = flexmock)
+                        .once.and_return(expected_policy)
                     policy = @dynamics.policy_for(
                         @source_t, "out", "in", @sink_t, fallback_policy
                     )
                     assert_equal expected_policy, policy
+                end
+
+                it "merges init policy when sink requires reliable connection" do
+                    @sink_task_m.in_port.needs_reliable_connection
+                    @source_t.out_port.model.init_policy(true)
+
+                    fallback_policy = flexmock
+                    flexmock(@dynamics)
+                        .should_receive(:compute_reliable_connection_policy)
+                        .with(@source_t.out_port, @sink_t.in_port, fallback_policy)
+                        .once.and_return({ init: true })
+
+                    policy = @dynamics.policy_for(
+                        @source_t, "out", "in", @sink_t, fallback_policy
+                    )
+
+                    assert_equal true, policy[:init]
+                end
+
+                it "merges init policy when sink requires 'buffer' connection type" do
+                    @sink_task_m.in_port.needs_buffered_connection
+                    @source_t.out_port.model.init_policy(true)
+
+                    policy = @dynamics.policy_for(@source_t, "out", "in", @sink_t, nil)
+
+                    assert_equal true, policy[:init]
+                    assert_equal :buffer, policy[:type]
+                    assert_equal 1, policy[:size]
                 end
             end
 
