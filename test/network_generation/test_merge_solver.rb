@@ -56,8 +56,8 @@ describe Syskit::NetworkGeneration::MergeSolver do
                 flexmock(t1).should_receive(:execution_agent).and_return(true)
                 t1.should_receive(:can_merge?).with(t2).and_return(true).once
             end
-            assert !solver.may_merge_task_contexts?(task1, task2)
-            assert !solver.may_merge_task_contexts?(task2, task1)
+            refute solver.may_merge_task_contexts?(task1, task2)
+            refute solver.may_merge_task_contexts?(task2, task1)
         end
         it "returns false for tasks that do not have execution agents when " \
            "merge_when_identical_agents is true" do
@@ -72,8 +72,8 @@ describe Syskit::NetworkGeneration::MergeSolver do
             local_solver = Syskit::NetworkGeneration::MergeSolver.new(plan)
             local_solver.merge_task_contexts_with_same_agent = true
 
-            assert !local_solver.may_merge_task_contexts?(task1, task2)
-            assert !local_solver.may_merge_task_contexts?(task2, task1)
+            refute local_solver.may_merge_task_contexts?(task1, task2)
+            refute local_solver.may_merge_task_contexts?(task2, task1)
         end
     end
 
