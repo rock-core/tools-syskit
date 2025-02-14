@@ -483,7 +483,7 @@ module Syskit
                     "'#{deployment_m.name}' defined in " \
                     "'#{deployment_m.project.name}' on '#{agent.process_server_name}' " \
                     "is assigned to #{tasks.size} tasks. Below is the list of " \
-                    "the dependent non-deployed actions. Right after the list is " \
+                    "the dependent non-deployed actions. Right after the list " \
                     "is a detailed explanation of why the first two tasks are not merged:"
                 )
                 tasks.each do |t|
