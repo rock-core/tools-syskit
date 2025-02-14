@@ -467,16 +467,20 @@ module Syskit
     class ConflictingDeploymentAllocation < SpecError
         include Syskit::NetworkGenerationsExceptionHelpers
 
-        attr_reader :deployment_to_tasks, :toplevel_tasks_to_requirements
+        attr_reader :deployment_to_tasks
 
         def initialize(deployment_to_tasks, toplevel_tasks_to_requirements = {})
             @deployment_to_tasks = deployment_to_tasks
             @toplevel_tasks_to_requirements = toplevel_tasks_to_requirements
+            @deployment_to_execution_agent = \
+                deployment_to_tasks.transform_values do |tasks|
+                    tasks.first.execution_agent
+                end
         end
 
         def pretty_print(pp)
             deployment_to_tasks.each do |orocos_name, tasks|
-                agent = tasks.first.execution_agent
+                agent = @deployment_to_execution_agent[orocos_name]
                 deployment_m = agent.deployed_orogen_model_by_name(orocos_name)
                 pp.text(
                     "deployed task '#{orocos_name}' from deployment " \
@@ -488,7 +492,7 @@ module Syskit
                 )
                 tasks.each do |t|
                     defs = find_all_related_syskit_actions(
-                        t, toplevel_tasks_to_requirements
+                        t, @toplevel_tasks_to_requirements
                     )
                     print_dependent_definitions(pp, t, defs)
                 end
