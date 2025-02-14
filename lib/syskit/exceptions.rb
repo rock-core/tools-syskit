@@ -482,7 +482,7 @@ module Syskit
                     "deployed task '#{orocos_name}' from deployment " \
                     "'#{deployment_m.name}' defined in " \
                     "'#{deployment_m.project.name}' on '#{agent.process_server_name}' " \
-                    "is assigned to #{tasks.size} tasks. Bellow is the list of " \
+                    "is assigned to #{tasks.size} tasks. Below is the list of " \
                     "the dependent non-deployed actions. Right after the list is " \
                     "is a detailed explanation of why the first two tasks are not merged:"
                 )
