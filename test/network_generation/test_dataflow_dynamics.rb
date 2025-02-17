@@ -240,46 +240,6 @@ module Syskit
                                  policy_graph[[task0, task1]][%w[out in]])
                 end
 
-                it "adds init: true policy if available and saves it " \
-                   "in the graph's policy_graph" do
-                    plan.add(task0 = @task_m.new)
-                    plan.add(task1 = @task_m.new)
-
-                    add_agents(tasks = [task0, task1])
-                    flexmock(@dynamics).should_receive(:propagate).with(tasks)
-
-                    task0.out_port.model.init_policy(true)
-                    task0.out_port.connect_to(task1.in_port)
-
-                    @dynamics.should_receive(:policy_for)
-                             .with(task0, "out", "in", task1, nil)
-                             .and_return(type: :buffer, size: 42, init: true)
-                    policy_graph = @dynamics.compute_connection_policies
-
-                    assert_equal({ type: :buffer, size: 42, init: true },
-                                 policy_graph[[task0, task1]][%w[out in]])
-                end
-
-                it "adds init: false policy if available and saves it " \
-                   "in the graph's policy_graph" do
-                    plan.add(task0 = @task_m.new)
-                    plan.add(task1 = @task_m.new)
-
-                    add_agents(tasks = [task0, task1])
-                    flexmock(@dynamics).should_receive(:propagate).with(tasks)
-
-                    task0.out_port.model.init_policy(false)
-                    task0.out_port.connect_to(task1.in_port)
-
-                    @dynamics.should_receive(:policy_for)
-                             .with(task0, "out", "in", task1, nil)
-                             .and_return(type: :buffer, size: 42, init: false)
-                    policy_graph = @dynamics.compute_connection_policies
-
-                    assert_equal({ type: :buffer, size: 42, init: false },
-                                 policy_graph[[task0, task1]][%w[out in]])
-                end
-
                 it "computes the policies on the concrete connections" do
                     plan.add(task = @task_m.new)
                     cmp = @cmp_m.instanciate(plan)
@@ -420,53 +380,14 @@ module Syskit
                    "the sink port is marked as needs_reliable_connection" do
                     @sink_task_m.in_port.needs_reliable_connection
                     fallback_policy = flexmock
-                    expected_policy = flexmock
-
-                    expected_policy
-                        .should_receive(:merge)
-                        .and_return(expected_policy)
-
                     flexmock(@dynamics)
                         .should_receive(:compute_reliable_connection_policy)
                         .with(@source_t.out_port, @sink_t.in_port, fallback_policy)
-                        .once.and_return(expected_policy)
+                        .once.and_return(expected_policy = flexmock)
                     policy = @dynamics.policy_for(
                         @source_t, "out", "in", @sink_t, fallback_policy
                     )
                     assert_equal expected_policy, policy
-                end
-
-                it "merges init policy when sink requires reliable connection" do
-                    @sink_task_m.in_port.needs_reliable_connection
-                    @source_t.out_port.model.init_policy(true)
-
-                    fallback_policy = flexmock
-                    flexmock(@dynamics)
-                        .should_receive(:compute_reliable_connection_policy)
-                        .with(@source_t.out_port, @sink_t.in_port, fallback_policy)
-                        .once.and_return({ init: true })
-
-                    policy = @dynamics.policy_for(
-                        @source_t, "out", "in", @sink_t, fallback_policy
-                    )
-
-                    assert_equal true, policy[:init]
-                end
-
-                it "merges init policy when sink requires 'buffer' connection type" do
-                    @sink_task_m.in_port.needs_buffered_connection
-
-                    flexmock(@source_t.out_port.model)
-                        .should_receive(:init_policy).explicitly
-                        .and_return(true)
-
-                    @source_t.out_port.model.init_policy(true)
-
-                    policy = @dynamics.policy_for(@source_t, "out", "in", @sink_t, nil)
-
-                    assert_equal true, policy[:init]
-                    assert_equal :buffer, policy[:type]
-                    assert_equal 1, policy[:size]
                 end
             end
 
