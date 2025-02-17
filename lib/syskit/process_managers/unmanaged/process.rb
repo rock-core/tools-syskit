@@ -119,9 +119,12 @@ module Syskit
 
                     result = {}
                     until expected_names.empty?
+                        sleep 0.1
+
                         expected_names.delete_if do |name|
                             result[name] = name_service.get(name)
                         rescue Orocos::NotFound
+                            ::Robot.warn "could not find unmanaged task #{name}"
                             false
                         end
                     end
