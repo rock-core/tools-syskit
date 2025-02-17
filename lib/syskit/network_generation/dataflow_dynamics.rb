@@ -620,10 +620,7 @@ module Syskit
                 end
 
                 source_port_m = source_port.model
-                unless source_port_m.init_policy.nil?
-                    policy.merge(init: source_port_m.init_policy)
-                end
-                policy
+                policy.merge(init: source_port_m.init_policy?)
             end
 
             def compute_reliable_connection_policy(
