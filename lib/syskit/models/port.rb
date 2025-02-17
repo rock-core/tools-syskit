@@ -108,16 +108,7 @@ module Syskit
                 if out_port == self
                     if in_port.respond_to?(:to_component_port)
                         in_port = in_port.to_component_port
-                        if !out_port.output?
-                            raise WrongPortConnectionDirection.new(self, in_port), "cannot connect #{out_port} to #{in_port}: #{out_port} is not an output port"
-                        elsif !in_port.input?
-                            raise WrongPortConnectionDirection.new(self, in_port), "cannot connect #{out_port} to #{in_port}: #{in_port} is not an input port"
-                        elsif out_port.component_model == in_port.component_model
-                            raise SelfConnection.new(out_port, in_port), "cannot connect #{out_port} to #{in_port}: they are both ports of the same component"
-                        elsif out_port.type != in_port.type
-                            raise WrongPortConnectionTypes.new(self, in_port), "cannot connect #{out_port} to #{in_port}: types mismatch"
-                        end
-
+                        validate_connection(out_port, in_port)
                         component_model.connect_ports(in_port.component_model, [out_port.name, in_port.name] => policy)
                     else
                         Syskit.connect self, in_port, policy
@@ -125,6 +116,28 @@ module Syskit
 
                 else
                     out_port.connect_to(in_port, policy)
+                end
+            end
+
+            def validate_connection(out_port, in_port)
+                unless out_port.output?
+                    raise WrongPortConnectionDirection.new(self, in_port),
+                          "cannot connect #{out_port} to #{in_port}: " \
+                          "#{out_port} is not an output port"
+                end
+                unless in_port.input?
+                    raise WrongPortConnectionDirection.new(self, in_port),
+                          "cannot connect #{out_port} to #{in_port}: " \
+                          "#{in_port} is not an input port"
+                end
+                if out_port.component_model == in_port.component_model
+                    raise SelfConnection.new(out_port, in_port),
+                          "cannot connect #{out_port} to #{in_port}: " \
+                          "they are both ports of the same component"
+                end
+                unless out_port.type == in_port.type
+                    raise WrongPortConnectionTypes.new(self, in_port),
+                          "cannot connect #{out_port} to #{in_port}: types mismatch"
                 end
             end
 
