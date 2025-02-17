@@ -455,6 +455,11 @@ module Syskit
 
                 it "merges init policy when sink requires 'buffer' connection type" do
                     @sink_task_m.in_port.needs_buffered_connection
+
+                    flexmock(@source_t.out_port.model)
+                        .should_receive(:init_policy).explicitly
+                        .and_return(true)
+
                     @source_t.out_port.model.init_policy(true)
 
                     policy = @dynamics.policy_for(@source_t, "out", "in", @sink_t, nil)
