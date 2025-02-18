@@ -553,6 +553,16 @@ module Syskit
                 policy_graph
             end
 
+            def merge_policy(explicit_policy, computed_policy)
+                merged_policy = computed_policy.merge(explicit_policy)
+
+                if merged_policy[:type] == :data
+                    merged_policy.delete(:size)
+                end
+
+                merged_policy
+            end
+
             # @api private
             #
             # Compute the policies for all connections starting from a given task
@@ -563,13 +573,10 @@ module Syskit
                         mappings.each_with_object({}) do |(port_pair, policy), h|
                             policy = policy.dup
                             fallback_policy = policy.delete(:fallback_policy)
-                            if policy.empty?
-                                h[port_pair] =
-                                    policy_for(source_task, *port_pair, sink_task,
-                                               fallback_policy)
-                            else
-                                h[port_pair] = policy
-                            end
+                            computed_policy = policy_for(
+                                source_task, *port_pair, sink_task, fallback_policy
+                            )
+                            h[port_pair] = merge_policy(policy, computed_policy)
                         end
                     policy_graph[[source_task, sink_task]] = computed_policies
                 end
