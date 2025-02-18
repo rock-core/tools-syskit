@@ -111,22 +111,29 @@ module Syskit
                 # Calls the name service until all of the tasks are resolved. Ignores
                 # whenever a Orocos::NotFound exception is raised.
                 #
+                # @param [Float] warning_period period for warning message in seconds
+                #
                 # @raises RuntimeError
                 # @raises Orocos::CORBA::ComError
                 # @return [Hash<String, Orocos::TaskContext>]
-                def name_service_get_all_tasks
+                def name_service_get_all_tasks(warning_period: 5.0)
                     expected_names = mapped_task_names.dup
 
                     result = {}
-                    until expected_names.empty?
-                        sleep 0.1
+                    warning_time_deadline = Time.at(0)
 
+                    until expected_names.empty?
                         expected_names.delete_if do |name|
                             result[name] = name_service.get(name)
                         rescue Orocos::NotFound
-                            ::Robot.warn "could not find unmanaged task #{name}"
+                            if Time.now > warning_time_deadline
+                                ::Robot.warn "could not find unmanaged task #{name}"
+                                warning_time_deadline = Time.now + warning_period
+                            end
                             false
                         end
+
+                        sleep 0.1 if expected_names.any?
                     end
                     result
                 end
