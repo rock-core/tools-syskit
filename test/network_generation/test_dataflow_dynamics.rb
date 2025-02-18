@@ -298,7 +298,7 @@ module Syskit
                                  policy_graph[[cmp.c_child, task]][%w[out in]])
                 end
 
-                it "uses in-graph policies over the computed ones" do
+                it "merges in-graph policies with the computed ones" do
                     plan.add(task0 = @task_m.new)
                     plan.add(task1 = @task_m.new)
 
@@ -307,10 +307,13 @@ module Syskit
 
                     task0.out_port.connect_to(task1.in_port, type: :buffer, size: 42)
 
-                    @dynamics.should_receive(:policy_for).never
+                    @dynamics
+                        .should_receive(:policy_for)
+                        .with(task0, "out", "in", task1, nil)
+                        .and_return(type: :buffer, size: 10, init: nil)
                     policy_graph = @dynamics.compute_connection_policies
 
-                    assert_equal({ type: :buffer, size: 42 },
+                    assert_equal({ type: :buffer, size: 42, init: nil },
                                  policy_graph[[task0, task1]][%w[out in]])
                 end
 
@@ -359,6 +362,64 @@ module Syskit
                     tasks.each { |t| plan.add(t) }
                     add_agents(tasks[0, 2])
                     flexmock(@dynamics).should_receive(:propagate).with(tasks[0, 2])
+                end
+
+                it "handles the case where the explicit policy sets the type to :data" do
+                    plan.add(task0 = @task_m.new)
+                    plan.add(task1 = @task_m.new)
+
+                    add_agents(tasks = [task0, task1])
+                    flexmock(@dynamics).should_receive(:propagate).with(tasks)
+
+                    task0.out_port.connect_to task1.in_port, type: :data
+
+                    flexmock(@dynamics)
+                        .should_receive(:policy_for)
+                        .with(task0, "out", "in", task1, nil)
+                        .and_return(type: :buffer, size: 10, init: true)
+
+                    policy_graph = @dynamics.compute_connection_policies
+                    expected_policy = { type: :data, init: true }
+                    assert_equal(expected_policy,
+                                 policy_graph[[task0, task1]][%w[out in]])
+                end
+            end
+
+            describe "merge_policy" do
+                before do
+                    @dynamics = NetworkGeneration::DataFlowDynamics.new(plan)
+                end
+
+                it "merges policies by preferring explicit values over " \
+                   "computed values" do
+                    explicit_policy = { type: :buffer, size: 20, init: true }
+                    computed_policy = { type: :buffer, size: 10, init: true }
+
+                    merged_policy =
+                        @dynamics.merge_policy(explicit_policy, computed_policy)
+
+                    assert_equal({ type: :buffer, size: 20, init: true }, merged_policy)
+                end
+
+                it "removes the size value when the type is set to :data" do
+                    explicit_policy = { type: :data, init: true }
+                    computed_policy = { type: :buffer, size: 10, init: true }
+
+                    merged_policy =
+                        @dynamics.merge_policy(explicit_policy, computed_policy)
+
+                    assert_equal({ type: :data, init: true }, merged_policy)
+                end
+
+                it "falls back to computed values when explicit values " \
+                   "are not provided" do
+                    explicit_policy = {}
+                    computed_policy = { type: :buffer, size: 10, init: true }
+
+                    merged_policy =
+                        @dynamics.merge_policy(explicit_policy, computed_policy)
+
+                    assert_equal({ type: :buffer, size: 10, init: true }, merged_policy)
                 end
             end
 
