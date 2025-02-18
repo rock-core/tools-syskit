@@ -111,6 +111,117 @@ module Syskit
                     flexmock(generator).should_receive(:validate_generated_network).once
                     generator.compute_system_network([], validate_generated_network: true)
                 end
+
+                describe "early deploy" do
+                    attr_reader :net_gen, :device_m, :cmp_m, :task_m, :net_gen_plan
+
+                    before do # rubocop:disable Metrics/BlockLength
+                        @device_m = Device.new_submodel(name: "D") do
+                            output_port "out", "/double"
+                        end
+                        device_m = @device_m
+                        driver_m = TaskContext.new_submodel(name: "Driver") do
+                            output_port "out", "/double"
+                            driver_for device_m, as: "test"
+                        end
+
+                        @task_m = TaskContext.new_submodel(name: "Task") do
+                            argument :arg
+                            input_port "in", "/double"
+                        end
+                        task_m = @task_m
+
+                        @cmp_m = Syskit::Composition.new_submodel
+                        cmp_m = @cmp_m
+                        cmp_m.add device_m, as: "device"
+                        cmp_m.add task_m, as: "task"
+                        cmp_m.device_child.connect_to cmp_m.task_child
+
+                        syskit_stub_configured_deployment(driver_m)
+                        syskit_stub_configured_deployment(task_m, "task1")
+
+                        @net_gen = SystemNetworkGenerator.new(
+                            @net_gen_plan = Roby::Plan.new,
+                            default_deployment_group: default_deployment_group,
+                            early_deploy: true
+                        )
+                        @net_gen.merge_solver.merge_task_contexts_with_same_agent = true
+                    end
+
+                    it "can merge tasks with same execution agent" do
+                        d = robot.device(device_m, as: "d")
+                        assert net_gen.compute_system_network(
+                            [cmp_m.use("device" => d), cmp_m.use("device" => d)],
+                            validate_generated_network: true
+                        )
+                    end
+
+                    it "raises when a deployment is used more than once" do
+                        d = robot.device(device_m, as: "d")
+                        assert_raises(ConflictingDeploymentAllocation) do
+                            net_gen.compute_system_network(
+                                [cmp_m.use("task" => task_m.with_arguments(arg: 1),
+                                           "device" => d),
+                                 cmp_m.use("task" => task_m.with_arguments(arg: 2),
+                                           "device" => d)]
+                            )
+                        end
+                    end
+
+                    it "early resolves deployments with hints" do
+                        syskit_stub_configured_deployment(task_m, "task2")
+                        local_net_gen = SystemNetworkGenerator.new(
+                            local_net_gen_plan = Roby::Plan.new,
+                            default_deployment_group: default_deployment_group,
+                            early_deploy: true
+                        )
+                        local_net_gen.merge_solver
+                                     .merge_task_contexts_with_same_agent = true
+
+                        d = robot.device(device_m, as: "d")
+                        assert local_net_gen.compute_system_network(
+                            [1, 2].map do |x|
+                                cmp_m.use("task" => task_m.prefer_deployed_tasks(/task#{x}/),
+                                          "device" => d)
+                            end
+                        )
+
+                        [1, 2].each do |x|
+                            tasks = local_net_gen_plan.find_local_tasks(TaskContext)
+                                                      .select do |t|
+                                t.respond_to?(:orocos_name) && t.orocos_name == "task#{x}"
+                            end
+                            assert tasks.size == 1
+                        end
+                    end
+
+                    it "does not merge a task without deployments " \
+                       "with a compatible task that has one" do
+                        local_net_gen = SystemNetworkGenerator.new(
+                            local_net_gen_plan = Roby::Plan.new,
+                            default_deployment_group: Models::DeploymentGroup.new,
+                            early_deploy: true
+                        )
+
+                        task_m = self.task_m
+                        deployment_m = Syskit::Deployment.new_submodel do
+                            task "task", task_m
+                        end
+
+                        local_net_gen.merge_solver
+                                     .merge_task_contexts_with_same_agent = true
+                        e = assert_raises(MissingDeployments) do
+                            local_net_gen.compute_system_network(
+                                [task_m.to_instance_requirements,
+                                 task_m.to_instance_requirements
+                                       .use_deployment(deployment_m)],
+                                validate_deployed_network: true
+                            )
+                        end
+
+                        assert_equal 1, e.tasks.size
+                    end
+                end
             end
 
             describe "#generate" do

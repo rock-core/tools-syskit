@@ -11,11 +11,21 @@ module Syskit
             include Logger::Hierarchy
             include Roby::DRoby::EventLogging
 
-            attr_reader :plan, :event_logger, :merge_solver
+            attr_reader :plan,
+                        :event_logger,
+                        :merge_solver,
+                        :default_deployment_group
+
+            # Indicates if deployment stage happens within network generation
+            def early_deploy?
+                @early_deploy
+            end
 
             def initialize(plan,
                 event_logger: plan.event_logger,
-                merge_solver: MergeSolver.new(plan))
+                merge_solver: MergeSolver.new(plan),
+                default_deployment_group: nil,
+                early_deploy: false)
                 if merge_solver.plan != plan
                     raise ArgumentError, "gave #{merge_solver} as merge solver, which applies on #{merge_solver.plan}. Was expecting #{plan}"
                 end
@@ -23,9 +33,13 @@ module Syskit
                 @plan = plan
                 @event_logger = event_logger
                 @merge_solver = merge_solver
+                @default_deployment_group = default_deployment_group
+                @early_deploy = early_deploy
             end
 
             # Generate the network in the plan
+            # param [bool] validate_deployed_network controls whether or not the
+            # deployed network is validated, when #early_deploy? is true
             #
             # @return [Hash<Syskit::Component=>Array<InstanceRequirements>>] the
             #   list of toplevel tasks mapped to the instance requirements it
@@ -33,7 +47,8 @@ module Syskit
             def generate(instance_requirements,
                 garbage_collect: true,
                 validate_abstract_network: true,
-                validate_generated_network: true)
+                validate_generated_network: true,
+                validate_deployed_network: true)
 
                 # We first generate a non-deployed network that fits all
                 # requirements.
@@ -41,7 +56,8 @@ module Syskit
                     compute_system_network(instance_requirements,
                                            garbage_collect: garbage_collect,
                                            validate_abstract_network: validate_abstract_network,
-                                           validate_generated_network: validate_generated_network)
+                                           validate_generated_network: validate_generated_network,
+                                           validate_deployed_network: validate_deployed_network)
                 end
             end
 
@@ -188,16 +204,35 @@ module Syskit
                 end
             end
 
+            def deploy(deployment_tasks)
+                network_deployer = SystemNetworkDeployer.new(
+                    plan,
+                    merge_solver: merge_solver,
+                    default_deployment_group: default_deployment_group
+                )
+
+                network_deployer.deploy(validate: false,
+                                        reuse_deployments: true,
+                                        deployment_tasks: deployment_tasks)
+            end
+
             # Compute in #plan the network needed to fullfill the requirements
             #
             # This network is neither validated nor tied to actual deployments
             def compute_system_network(instance_requirements, garbage_collect: true,
                 validate_abstract_network: true,
-                validate_generated_network: true)
+                validate_generated_network: true,
+                validate_deployed_network: true)
+
                 @toplevel_tasks = log_timepoint_group "instanciate" do
                     instanciate(instance_requirements)
                 end
+
                 @toplevel_instance_requirements = instance_requirements
+
+                deployment_tasks = {}
+
+                deploy(deployment_tasks) if early_deploy?
 
                 merge_solver.merge_identical_tasks
                 log_timepoint "merge"
@@ -207,7 +242,11 @@ module Syskit
                 end
                 link_to_busses
                 log_timepoint "link_to_busses"
+
+                deploy(deployment_tasks) if early_deploy?
+
                 merge_solver.merge_identical_tasks
+
                 log_timepoint "merge"
 
                 self.class.remove_abstract_composition_optional_children(plan)
@@ -232,9 +271,9 @@ module Syskit
 
                 # And get rid of the 'permanent' marking we use to be able to
                 # run static_garbage_collect
-                plan.each_task do |task|
-                    plan.unmark_permanent_task(task)
-                end
+                plan.permanent_tasks
+                    .find_all { |task| !task.kind_of?(Syskit::Deployment) }
+                    .each { |task| plan.unmark_permanent_task(task) }
 
                 Engine.system_network_postprocessing.each do |block|
                     block.call(self, plan)
@@ -249,6 +288,10 @@ module Syskit
                 if validate_generated_network
                     self.validate_generated_network
                     log_timepoint "validate_generated_network"
+                end
+
+                if early_deploy? && validate_deployed_network
+                    self.validate_deployed_network
                 end
 
                 @toplevel_tasks
@@ -343,6 +386,24 @@ module Syskit
                 end
             end
 
+            def self.verify_all_deployments_are_unique(
+                plan,
+                toplevel_tasks_to_requirements
+            )
+                deployment_to_task_map = plan.find_local_tasks(Syskit::TaskContext)
+                                             .group_by(&:orocos_name)
+
+                using_same_deployment = deployment_to_task_map.select do |_, tasks|
+                    tasks.size > 1
+                end
+
+                return if using_same_deployment.empty?
+
+                raise ConflictingDeploymentAllocation.new(
+                    using_same_deployment, toplevel_tasks_to_requirements
+                ), "there are deployments used multiple times"
+            end
+
             # Validates the network generated by {#compute_system_network}
             #
             # It performs the tests that are only needed on an abstract network,
@@ -357,6 +418,21 @@ module Syskit
                 self.class.verify_task_allocation(plan)
                 self.class.verify_device_allocation(plan, toplevel_tasks_to_requirements)
                 super if defined? super
+            end
+
+            def validate_deployed_network
+                self.class.verify_all_tasks_deployed(plan, default_deployment_group)
+                self.class.verify_all_deployments_are_unique(
+                    plan, toplevel_tasks_to_requirements.dup
+                )
+                super if defined? super
+            end
+
+            def self.verify_all_tasks_deployed(plan, default_deployment_group)
+                SystemNetworkDeployer.verify_all_tasks_deployed(
+                    plan,
+                    default_deployment_group
+                )
             end
         end
     end

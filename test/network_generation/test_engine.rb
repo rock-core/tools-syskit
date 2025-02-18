@@ -104,7 +104,11 @@ module Syskit
                 it "saves the mapping from requirement task in real_plan to instanciated task in work_plan" do
                     flexmock(requirements).should_receive(:instanciate)
                                           .and_return(instanciated_task = simple_component_model.new)
-                    mapping = syskit_engine.compute_system_network([planning_task])
+                    syskit_stub_configured_deployment(simple_component_model)
+                    mapping = syskit_engine.compute_system_network(
+                        [planning_task],
+                        default_deployment_group: default_deployment_group
+                    )
                     assert_equal instanciated_task, mapping[planning_task]
                 end
             end

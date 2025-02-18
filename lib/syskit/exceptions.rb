@@ -437,6 +437,8 @@ module Syskit
     end
 
     class ConflictingDeviceAllocation < SpecError
+        include Syskit::NetworkGenerationsExceptionHelpers
+
         attr_reader :device, :tasks, :inputs
 
         def can_merge?
@@ -447,38 +449,54 @@ module Syskit
             @device = device
             @tasks = [task0, task1]
 
-            solver = NetworkGeneration::MergeSolver.new(task0.plan)
-            @merge_result = solver.resolve_merge(task0, task1, {})
             @involved_definitions = @tasks.map do |t|
                 find_all_related_syskit_actions(t, toplevel_tasks_to_requirements)
             end
         end
 
-        def find_all_related_syskit_actions(task, toplevel_tasks_to_requirements)
-            result = []
-            while task
-                result.concat(toplevel_tasks_to_requirements[task] || [])
-                task = task.each_parent_task.first
-            end
-            result
-        end
-
         def pretty_print(pp)
             pp.text "device '#{device.name}' of type #{device.model} is assigned "
             pp.text "to two tasks that cannot be merged"
-            pp.breakable
-            @merge_result.pretty_print_failure(pp)
-            @involved_definitions.each_with_index do |defs, i|
-                next if defs.empty?
+            print_failed_merge_chain(pp, *@tasks)
+            @tasks.zip(@involved_definitions).each do |t, defs|
+                print_dependent_definitions(pp, t, defs)
+            end
+        end
+    end
 
-                pp.breakable
-                pp.text "Chain #{i + 1} is needed by the following definitions:"
-                pp.nest(2) do
-                    defs.each do |d|
-                        pp.breakable
-                        pp.text d.to_s
-                    end
+    class ConflictingDeploymentAllocation < SpecError
+        include Syskit::NetworkGenerationsExceptionHelpers
+
+        attr_reader :deployment_to_tasks
+
+        def initialize(deployment_to_tasks, toplevel_tasks_to_requirements = {})
+            @deployment_to_tasks = deployment_to_tasks
+            @toplevel_tasks_to_requirements = toplevel_tasks_to_requirements
+            @deployment_to_execution_agent = \
+                deployment_to_tasks.transform_values do |tasks|
+                    tasks.first.execution_agent
                 end
+        end
+
+        def pretty_print(pp)
+            deployment_to_tasks.each do |orocos_name, tasks|
+                agent = @deployment_to_execution_agent[orocos_name]
+                deployment_m = agent.deployed_orogen_model_by_name(orocos_name)
+                pp.text(
+                    "deployed task '#{orocos_name}' from deployment " \
+                    "'#{deployment_m.name}' defined in " \
+                    "'#{deployment_m.project.name}' on '#{agent.process_server_name}' " \
+                    "is assigned to #{tasks.size} tasks. Below is the list of " \
+                    "the dependent non-deployed actions. Right after the list " \
+                    "is a detailed explanation of why the first two tasks are not merged:"
+                )
+                tasks.each do |t|
+                    defs = find_all_related_syskit_actions(
+                        t, @toplevel_tasks_to_requirements
+                    )
+                    print_dependent_definitions(pp, t, defs)
+                end
+                print_failed_merge_chain(pp, tasks[0], tasks[1])
             end
         end
     end

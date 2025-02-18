@@ -2,6 +2,7 @@
 
 require "logger"
 require "utilrb/logger"
+require "syskit/network_generation_exception_helpers"
 require "syskit/exceptions"
 require "facets/string/snakecase"
 

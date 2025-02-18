@@ -320,7 +320,8 @@ describe Syskit::Coordination::TaskScriptExtension do
         it "does port mapping if necessary" do
             composition_m = Syskit::Composition.new_submodel
             composition_m.add srv_m, as: "test"
-            composition = syskit_deploy_and_configure(composition_m.use("test" => component))
+            syskit_stub_configured_deployment task_m
+            composition = syskit_deploy_and_configure(composition_m.use("test" => task_m))
 
             reader = nil
             composition.script do
@@ -328,7 +329,7 @@ describe Syskit::Coordination::TaskScriptExtension do
             end
 
             syskit_start(composition)
-            component.orocos_task.local_ruby_task.out.write(10)
+            composition.test_child.orocos_task.local_ruby_task.out.write(10)
             assert_equal 10, reader.read
         end
 

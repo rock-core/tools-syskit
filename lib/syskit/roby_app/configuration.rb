@@ -121,6 +121,24 @@ module Syskit
             # likely want this
             attr_predicate :kill_all_on_process_server_connection?, true
 
+            # Indicates where the deployment stage happens
+            #
+            # If false, it will happen at the end of the whole network generation
+            # (the historical behaviour). If true, it will happen just after
+            # instantiation
+            #
+            # The default is false
+            #
+            # @see early_deploy=
+            def early_deploy?
+                @early_deploy
+            end
+
+            # Controls where the deployment stage happens
+            #
+            # @see early_deploy?
+            attr_writer :early_deploy
+
             # Controls whether the orogen types should be exported as Ruby
             # constants
             #
@@ -154,6 +172,7 @@ module Syskit
                 @kill_all_on_process_server_connection = false
                 @register_self_on_name_server = (ENV["SYSKIT_REGISTER_SELF_ON_NAME_SERVER"] != "0")
                 @strict_model_for = false
+                @early_deploy = false
 
                 @log_rotation_period = nil
                 @log_transfer = LogTransferManager::Configuration.new(

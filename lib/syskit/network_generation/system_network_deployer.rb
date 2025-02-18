@@ -56,15 +56,15 @@ module Syskit
             #   will run on the generated network
             # @return [Set] the set of tasks for which the deployer could
             #   not find a deployment
-            def deploy(validate: true)
+            def deploy(validate: true, reuse_deployments: false, deployment_tasks: {})
                 debug "Deploying the system network"
 
                 all_tasks = plan.find_local_tasks(TaskContext).to_a
                 selected_deployments, missing_deployments =
-                    select_deployments(all_tasks)
+                    select_deployments(all_tasks, reuse: reuse_deployments)
                 log_timepoint "select_deployments"
 
-                apply_selected_deployments(selected_deployments)
+                apply_selected_deployments(selected_deployments, deployment_tasks)
                 log_timepoint "apply_selected_deployments"
 
                 if validate
@@ -75,13 +75,22 @@ module Syskit
                 missing_deployments
             end
 
+            def find_all_suitable_deployments_for(task, from: task)
+                self.class.find_all_suitable_deployments_for(
+                    default_deployment_group,
+                    task,
+                    from: from
+                )
+            end
+
             # Find all candidates, resolved using deployment groups in the task hierarchy
             #
             # The method falls back to the default deployment group if no
             # deployments for the task could be found in the plan itself
             #
             # @return [Set<DeploymentGroup::DeployedTask>]
-            def find_all_suitable_deployments_for(task, from: task)
+            def self.find_all_suitable_deployments_for(default_deployment_group,
+                task, from: task)
                 candidates = from.requirements.deployment_group
                                  .find_all_suitable_deployments_for(task)
                 return candidates unless candidates.empty?
@@ -93,7 +102,9 @@ module Syskit
                 end
 
                 parents.each_with_object(Set.new) do |p, s|
-                    s.merge(find_all_suitable_deployments_for(task, from: p))
+                    s.merge(find_all_suitable_deployments_for(default_deployment_group,
+                                                              task,
+                                                              from: p))
                 end
             end
 
@@ -132,13 +143,10 @@ module Syskit
             # Find which deployments should be used for which tasks
             #
             # @param [[Component]] tasks the tasks to be deployed
-            # @param [Component=>Models::DeploymentGroup] the association
-            #   between a component and the group that should be used to
-            #   deploy it
             # @return [(Component=>Deployment,[Component])] the association
             #   between components and the deployments that should be used
             #   for them, and the list of components without deployments
-            def select_deployments(tasks)
+            def select_deployments(tasks, reuse: false)
                 used_deployments = Set.new
                 missing_deployments = Set.new
                 selected_deployments = {}
@@ -150,7 +158,7 @@ module Syskit
 
                     if !selected
                         missing_deployments << task
-                    elsif used_deployments.include?(selected)
+                    elsif !reuse && used_deployments.include?(selected)
                         debug do
                             machine, configured_deployment, task_name = *selected
                             "#{task} resolves to #{configured_deployment}.#{task_name} " \
@@ -170,8 +178,7 @@ module Syskit
             # @param [Component=>Deployment] selected_deployments the
             #   component-to-deployment association
             # @return [void]
-            def apply_selected_deployments(selected_deployments)
-                deployment_tasks = {}
+            def apply_selected_deployments(selected_deployments, deployment_tasks = {})
                 selected_deployments.each do |task, deployed_task|
                     deployed_task, = deployed_task.instanciate(
                         plan,
@@ -205,12 +212,16 @@ module Syskit
                 verify_all_configurations_exist
             end
 
+            def verify_all_tasks_deployed
+                self.class.verify_all_tasks_deployed(plan, default_deployment_group)
+            end
+
             # Verifies that all tasks in the plan are deployed
             #
             # @param [Component=>DeploymentGroup] deployment_groups which
             #   deployment groups has been used for which task. This is used
             #   to generate the error messages when needed.
-            def verify_all_tasks_deployed
+            def self.verify_all_tasks_deployed(plan, default_deployment_group)
                 not_deployed = plan.find_local_tasks(TaskContext)
                                    .not_finished.not_abstract
                                    .find_all { |t| !t.execution_agent }
@@ -219,7 +230,10 @@ module Syskit
 
                 tasks_with_candidates = {}
                 not_deployed.each do |task|
-                    candidates = find_all_suitable_deployments_for(task)
+                    candidates = find_all_suitable_deployments_for(
+                        default_deployment_group,
+                        task
+                    )
                     candidates = candidates.map do |deployed_task|
                         task_name = deployed_task.mapped_task_name
                         existing_tasks =

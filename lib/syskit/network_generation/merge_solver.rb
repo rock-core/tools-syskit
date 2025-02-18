@@ -7,7 +7,7 @@ module Syskit
         #
         # This is the core of the system deployment algorithm implemented in
         # Engine
-        class MergeSolver
+        class MergeSolver # rubocop:disable Metrics/ClassLength
             extend Logger::Hierarchy
             include Logger::Hierarchy
             include Roby::DRoby::EventLogging
@@ -34,6 +34,8 @@ module Syskit
             # information
             attr_reader :event_logger
 
+            attr_writer :merge_task_contexts_with_same_agent
+
             def initialize(plan, event_logger: plan.event_logger)
                 @plan = plan
                 @event_logger = event_logger
@@ -43,12 +45,17 @@ module Syskit
                 @task_replacement_graph = Roby::Relations::BidirectionalDirectedAdjacencyGraph.new
                 @resolved_replacements = {}
                 @invalid_merges = Set.new
+                @merge_task_contexts_with_same_agent = false
             end
 
             def clear
                 @task_replacement_graph.clear
                 @resolved_replacements.clear
                 @invalid_merges.clear
+            end
+
+            def merge_task_contexts_with_same_agent?
+                @merge_task_contexts_with_same_agent
             end
 
             # Returns the task that is used in place of the given task
@@ -198,16 +205,7 @@ module Syskit
                 solver.merge_identical_tasks
             end
 
-            # Tests whether task.merge(target_task) is a valid operation
-            #
-            # @param [Syskit::TaskContext] task
-            # @param [Syskit::TaskContext] target_task
-            #
-            # @return [false,true] if false, the merge is not possible. If
-            #   true, it is possible. If nil, the only thing that makes the
-            #   merge impossible are missing inputs, and these tasks might
-            #   therefore be merged if there was a dataflow cycle
-            def may_merge_task_contexts?(merged_task, task)
+            def may_merge_components?(merged_task, task)
                 can_merge = log_nest(2) do
                     task.can_merge?(merged_task)
                 end
@@ -220,14 +218,37 @@ module Syskit
                     return false
                 end
 
+                true
+            end
+
+            # Tests whether task.merge(target_task) is a valid operation
+            #
+            # @param [Syskit::TaskContext] task
+            # @param [Syskit::TaskContext] target_task
+            #
+            # @return [false,true] if false, the merge is not possible. If
+            #   true, it is possible.
+            def may_merge_task_contexts?(merged_task, task)
+                return false unless may_merge_components?(merged_task, task)
+
                 # Merges involving a deployed task can only involve a
                 # non-deployed task as well
-                if task.execution_agent && merged_task.execution_agent
+                unless mergeable_agents?(merged_task, task)
                     info "rejected: deployment attribute mismatches"
                     return false
                 end
 
                 true
+            end
+
+            def mergeable_agents?(merged_task, task)
+                unless merge_task_contexts_with_same_agent?
+                    return !(task.execution_agent && merged_task.execution_agent)
+                end
+
+                return false unless task.execution_agent && merged_task.execution_agent
+
+                task.orocos_name == merged_task.orocos_name
             end
 
             def each_component_merge_candidate(task)
@@ -329,9 +350,7 @@ module Syskit
             end
 
             def may_merge_compositions?(merged_task, task)
-                unless may_merge_task_contexts?(merged_task, task)
-                    return false
-                end
+                return false unless may_merge_components?(merged_task, task)
 
                 merged_task_children = composition_children_by_role(merged_task)
                 task_children        = composition_children_by_role(task)
@@ -446,6 +465,22 @@ module Syskit
                 :source_task, :source_port, :policy, :sink_port, :sink_task
             )
 
+            def may_merge?(merged_task, task)
+                case merged_task
+                when TaskContext
+                    may_merge_task_contexts?(merged_task, task)
+                when Composition
+                    may_merge_compositions?(merged_task, task)
+                when Placeholder
+                    may_merge_components?(merged_task, task)
+                else
+                    raise ArgumentError,
+                          "may_merge? called with #{merged_task} of type " \
+                          "#{merged_task.class}, expected either TaskContext, " \
+                          "Composition or Placeholder"
+                end
+            end
+
             # Resolve merge between N tasks with the given tasks as seeds
             #
             # The method will cycle through the task's mismatching inputs (if
@@ -462,7 +497,7 @@ module Syskit
             #
             # @return [MergeResolution]
             def resolve_merge(merged_task, task, mappings)
-                unless may_merge_task_contexts?(merged_task, task)
+                unless may_merge?(merged_task, task)
                     return MergeResolution.new(mappings, merged_task, task, [], [])
                 end
 
