@@ -438,7 +438,7 @@ module Syskit
                                 source_task.out_port.connect_to sink_task.in_port,
                                                                 type: :buffer
                                 ConnectionManagement.update(plan)
-                                edge_info = Runtime::ActualDataFlow.edge_info(
+                                edge_info = Runtime::ActualDataFlow.connections_of_tasks(
                                     source_task.orocos_task, sink_task.orocos_task
                                 )
                                 assert_equal Hash[%w[out in] => Hash[type: :buffer]],
@@ -454,7 +454,7 @@ module Syskit
                                                .connect_to sink_task.in_port, type: :data
                                 ConnectionManagement.update(plan)
                                 assert source_task.out_port.connected_to?(sink_task.in_port)
-                                edge_info = Runtime::ActualDataFlow.edge_info(
+                                edge_info = Runtime::ActualDataFlow.connections_of_tasks(
                                     new_source_task.orocos_task, sink_task.orocos_task
                                 )
                                 assert_equal Hash[%w[out in] => Hash[type: :data]],
@@ -490,7 +490,7 @@ module Syskit
                                 expect_execution.garbage_collect(true).scheduler(true)
                                                 .to { emit new_source_task.start_event }
 
-                                edge_info = Runtime::ActualDataFlow.edge_info(
+                                edge_info = Runtime::ActualDataFlow.connections_of_tasks(
                                     new_source_task.orocos_task, sink_task.orocos_task
                                 )
                                 assert_equal Hash[%w[out in] => Hash[type: :data]],
@@ -503,7 +503,7 @@ module Syskit
                                 source_task.out_port
                                            .connect_to sink_task.in_port, type: :buffer
                                 ConnectionManagement.update(plan)
-                                edge_info = Runtime::ActualDataFlow.edge_info(
+                                edge_info = Runtime::ActualDataFlow.connections_of_tasks(
                                     source_task.orocos_task, sink_task.orocos_task
                                 )
                                 assert_equal Hash[%w[out in] => Hash[type: :buffer]],
@@ -516,7 +516,7 @@ module Syskit
                                 source_task.out_port.connect_to new_sink_task.in_port, type: :data
                                 ConnectionManagement.update(plan)
                                 assert source_task.out_port.connected_to?(sink_task.in_port)
-                                assert_equal Hash[%w[out in] => Hash[type: :data]], Runtime::ActualDataFlow.edge_info(source_task.orocos_task, new_sink_task.orocos_task)
+                                assert_equal Hash[%w[out in] => Hash[type: :data]], Runtime::ActualDataFlow.connections_of_tasks(source_task.orocos_task, new_sink_task.orocos_task)
                             end
 
                             it "handles an old task still present in the plan while the new task's connection is added, the old task being running" do
@@ -540,7 +540,7 @@ module Syskit
                                         .pass_thru
                                 ConnectionManagement.update(plan)
                                 expect_execution.garbage_collect(true).scheduler(true).to { emit new_sink_task.start_event }
-                                assert_equal Hash[%w[out in] => Hash[type: :data]], Runtime::ActualDataFlow.edge_info(source_task.orocos_task, new_sink_task.orocos_task)
+                                assert_equal Hash[%w[out in] => Hash[type: :data]], Runtime::ActualDataFlow.connections_of_tasks(source_task.orocos_task, new_sink_task.orocos_task)
                             end
                         end
                     end
@@ -735,7 +735,7 @@ module Syskit
                 end
 
                 def assert_is_disconnected(source_alive: true, sink_alive: true)
-                    assert Runtime::ActualDataFlow.edges.empty?
+                    assert Runtime::ActualDataFlow.empty?
                     if source_alive
                         Orocos.allow_blocking_calls do
                             assert !source_orocos_task.out.connected?
@@ -1070,7 +1070,7 @@ module Syskit
                 describe "connection add/remove hooks" do
                     it "calls them on the remaining sinks" do
                         stop_and_collect_tasks source_task
-                        assert Runtime::ActualDataFlow.has_edge?(source_orocos, sink_orocos)
+                        assert Runtime::ActualDataFlow.tasks_connected?(source_orocos, sink_orocos)
                         flexmock(sink_task).should_receive(:removing_input_port_connection)
                                            .with(source_orocos, "out", "in").once.globally.ordered
                         flexmock(sink_task).should_receive(:removed_input_port_connection)
@@ -1081,7 +1081,7 @@ module Syskit
 
                     it "calls them on the remaining sources" do
                         stop_and_collect_tasks sink_task
-                        assert Runtime::ActualDataFlow.has_edge?(source_orocos, sink_orocos)
+                        assert Runtime::ActualDataFlow.tasks_connected?(source_orocos, sink_orocos)
                         flexmock(source_task).should_receive(:removing_output_port_connection)
                                              .with("out", sink_orocos, "in").once.globally.ordered
                         flexmock(source_task).should_receive(:removed_output_port_connection)

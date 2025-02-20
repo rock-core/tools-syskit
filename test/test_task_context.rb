@@ -829,9 +829,9 @@ module Syskit
                 Runtime::ActualDataFlow.add_connections(
                     *orocos_tasks, Hash[%w[dynamic dynamic] => [{}, false, false]]
                 )
-                assert Runtime::ActualDataFlow.has_edge?(*orocos_tasks)
+                assert Runtime::ActualDataFlow.tasks_connected?(*orocos_tasks)
                 task.clean_dynamic_port_connections([])
-                assert !Runtime::ActualDataFlow.has_edge?(*orocos_tasks)
+                refute Runtime::ActualDataFlow.tasks_connected?(*orocos_tasks)
             end
             it "removes connections that relate to the task's dynamic output ports" do
                 srv_m = DataService.new_submodel { output_port "p", "/double" }
@@ -853,9 +853,9 @@ module Syskit
                 Runtime::ActualDataFlow.add_connections(
                     *orocos_tasks, Hash[%w[dynamic dynamic] => [{}, false, false]]
                 )
-                assert Runtime::ActualDataFlow.has_edge?(*orocos_tasks)
+                assert Runtime::ActualDataFlow.tasks_connected?(*orocos_tasks)
                 task.clean_dynamic_port_connections([])
-                refute Runtime::ActualDataFlow.has_edge?(*orocos_tasks)
+                refute Runtime::ActualDataFlow.tasks_connected?(*orocos_tasks)
             end
         end
 

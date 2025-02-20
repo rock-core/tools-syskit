@@ -1,7 +1,7 @@
 # frozen_string_literal: true
 
 module Syskit
-    module Runtime
+    module Runtime # :nodoc:
         # (see ConnectionGraph)
         ActualDataFlow = ActualDataFlowGraph.new
         ActualDataFlow.name = "Syskit::ActualDataFlow"
@@ -126,16 +126,19 @@ module Syskit
 
                 update_required_dataflow_graph(tasks)
                 new_edges, removed_edges, updated_edges =
-                    RequiredDataFlow.difference(ActualDataFlow, tasks, &:orocos_task)
+                    RequiredDataFlow.difference(ActualDataFlow.to_graph, tasks, &:orocos_task)
 
                 new = {}
                 new_edges.each do |source_task, sink_task|
-                    new[[source_task, sink_task]] = RequiredDataFlow.edge_info(source_task, sink_task)
+                    new[[source_task, sink_task]] =
+                        RequiredDataFlow.edge_info(source_task, sink_task)
                 end
 
                 removed = {}
                 removed_edges.each do |source_task, sink_task|
-                    removed[[source_task, sink_task]] = ActualDataFlow.edge_info(source_task, sink_task).keys.to_set
+                    removed[[source_task, sink_task]] =
+                        ActualDataFlow
+                        .connections_of_tasks(source_task, sink_task).keys.to_set
                 end
 
                 # We have to work on +updated+. The graphs are between tasks,
@@ -149,7 +152,9 @@ module Syskit
                 # recreate other ones between other components
                 updated_edges.each do |source_task, sink_task|
                     new_mapping = RequiredDataFlow.edge_info(source_task, sink_task)
-                    old_mapping = ActualDataFlow.edge_info(source_task.orocos_task, sink_task.orocos_task)
+                    old_mapping = ActualDataFlow.connections_of_tasks(
+                        source_task.orocos_task, sink_task.orocos_task
+                    )
 
                     new_connections     = {}
                     removed_connections = Set.new
@@ -173,7 +178,8 @@ module Syskit
                         new[[source_task, sink_task]] = new_connections
                     end
                     unless removed_connections.empty?
-                        removed[[source_task.orocos_task, sink_task.orocos_task]] = removed_connections
+                        removed[[source_task.orocos_task, sink_task.orocos_task]] =
+                            removed_connections
                     end
                 end
 
@@ -640,16 +646,12 @@ module Syskit
             #
             # @return [Hash]
             def dangling_task_cleanup
-                removed = {}
-                ActualDataFlow.each_vertex do |parent_t|
-                    unless @orocos_task_to_syskit_tasks.key?(parent_t)
-                        ActualDataFlow.each_out_neighbour(parent_t) do |child_t|
-                            mappings = ActualDataFlow.edge_info(parent_t, child_t)
-                            removed[[parent_t, child_t]] = mappings.keys.to_set
-                        end
+                ActualDataFlow
+                    .each_task
+                    .find_all { |t| !@orocos_task_to_syskit_tasks.key?(t) }
+                    .each_with_object({}) do |t, result|
+                        result.merge!(ActualDataFlow.output_connections_of_task(t))
                     end
-                end
-                removed
             end
 
             def active_task?(t)
