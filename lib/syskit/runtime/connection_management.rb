@@ -2,6 +2,16 @@
 
 module Syskit
     module Runtime
+        # (see ConnectionGraph)
+        ActualDataFlow = ActualDataFlowGraph.new
+        ActualDataFlow.name = "Syskit::ActualDataFlow"
+        ActualDataFlow.extend Roby::DRoby::V5::DRobyConstant::Dump
+
+        # (see ConnectionGraph)
+        RequiredDataFlow = ConnectionGraph.new
+        RequiredDataFlow.name = "Syskit::RequiredDataFlow"
+        RequiredDataFlow.extend Roby::DRoby::V5::DRobyConstant::Dump
+
         # Connection management at runtime
         class ConnectionManagement
             extend Logger::Hierarchy

@@ -804,7 +804,7 @@ module Syskit
             to_remove.merge!(dynamic_output_port_connections(port_names))
             relation_graph_for(Flows::DataFlow).modified_tasks << self
             to_remove.each do |(source_t, sink_t), connections|
-                ActualDataFlow.remove_connections(source_t, sink_t, connections)
+                Runtime::ActualDataFlow.remove_connections(source_t, sink_t, connections)
             end
         end
 
@@ -829,8 +829,8 @@ module Syskit
                 end
             end
 
-            ActualDataFlow.each_in_neighbour(orocos_task) do |source_t|
-                mappings = ActualDataFlow.edge_info(source_t, orocos_task)
+            Runtime::ActualDataFlow.each_in_neighbour(orocos_task) do |source_t|
+                mappings = Runtime::ActualDataFlow.edge_info(source_t, orocos_task)
                 to_remove[[source_t, orocos_task]] =
                     mappings.each_key.find_all do |_, sink_p|
                         dynamic_ports.include?(sink_p)
@@ -860,8 +860,8 @@ module Syskit
                 end
             end
 
-            ActualDataFlow.each_out_neighbour(orocos_task) do |sink_t|
-                mappings = ActualDataFlow.edge_info(orocos_task, sink_t)
+            Runtime::ActualDataFlow.each_out_neighbour(orocos_task) do |sink_t|
+                mappings = Runtime::ActualDataFlow.edge_info(orocos_task, sink_t)
                 to_remove[[orocos_task, sink_t]] =
                     mappings.each_key.find_all do |source_p, _|
                         dynamic_ports.include?(source_p)
@@ -1409,25 +1409,25 @@ module Syskit
                 end
 
                 current_connections_to_static = {}
-                ActualDataFlow.each_in_neighbour(orocos_task) do |source_t|
+                Runtime::ActualDataFlow.each_in_neighbour(orocos_task) do |source_t|
                     # Transactions neither touch ActualDataFlow nor the
                     # task-to-orocos_task mapping. It's safe to check it
                     # straight.
-                    connections = ActualDataFlow.edge_info(source_t, orocos_task)
+                    connections = Runtime::ActualDataFlow.edge_info(source_t, orocos_task)
                     connections.each_key do |source_p, sink_p|
-                        if ActualDataFlow.static?(orocos_task, sink_p)
+                        if Runtime::ActualDataFlow.static?(orocos_task, sink_p)
                             sources = (current_connections_to_static[sink_p] ||= Set.new)
                             sources << [source_t.name, source_p]
                         end
                     end
                 end
-                ActualDataFlow.each_out_neighbour(orocos_task) do |sink_t|
+                Runtime::ActualDataFlow.each_out_neighbour(orocos_task) do |sink_t|
                     # Transactions neither touch ActualDataFlow nor the
                     # task-to-orocos_task mapping. It's safe to check it
                     # straight.
-                    connections = ActualDataFlow.edge_info(orocos_task, sink_t)
+                    connections = Runtime::ActualDataFlow.edge_info(orocos_task, sink_t)
                     connections.each_key do |source_p, sink_p|
-                        if ActualDataFlow.static?(orocos_task, source_p)
+                        if Runtime::ActualDataFlow.static?(orocos_task, source_p)
                             sinks = (current_connections_to_static[source_p] ||= Set.new)
                             sinks << [sink_t.name, sink_p]
                         end

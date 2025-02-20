@@ -1,16 +1,6 @@
 # frozen_string_literal: true
 
 module Syskit
-    # (see ConnectionGraph)
-    ActualDataFlow = ActualDataFlowGraph.new
-    ActualDataFlow.name = "Syskit::ActualDataFlow"
-    ActualDataFlow.extend Roby::DRoby::V5::DRobyConstant::Dump
-
-    # (see ConnectionGraph)
-    RequiredDataFlow = ConnectionGraph.new
-    RequiredDataFlow.name = "Syskit::RequiredDataFlow"
-    RequiredDataFlow.extend Roby::DRoby::V5::DRobyConstant::Dump
-
     def self.update_connection_policy(old, new)
         old = old.dup
         new = new.dup

@@ -850,7 +850,7 @@ module Syskit
 
                         assert_equal(
                             { %w[out in] => { type: :buffer, size: 20 } },
-                            RequiredDataFlow.edge_info(cmp.source_child, cmp.sink_child)
+                            Runtime::RequiredDataFlow.edge_info(cmp.source_child, cmp.sink_child)
                         )
                     end
 
@@ -864,7 +864,7 @@ module Syskit
 
                         assert_equal(
                             { %w[out in] => { type: :buffer, size: 4 } },
-                            RequiredDataFlow.edge_info(cmp.source_child, cmp.sink_child)
+                            Runtime::RequiredDataFlow.edge_info(cmp.source_child, cmp.sink_child)
                         )
                     end
                 end

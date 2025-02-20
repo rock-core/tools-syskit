@@ -6,14 +6,14 @@ module Syskit
     # mappings from [source_port_name, sink_port_name] pairs to the
     # connection policy between these ports.
     #
-    # Syskit::ActualDataFlow is the actual global graph instance
+    # {Runtime::ActualDataFlow} is the actual global graph instance
     # in which the overall system connections are maintained in practice.
     # Its vertices are Orocos::TaskContext and the edge information a
     # mapping of the form
     #
     #   (source_port_name, sink_port_name) => policy
     #
-    # Syskit::RequiredDataFlow is the graph instance that manages concrete
+    # {Runtime::RequiredDataFlow} is the graph instance that manages concrete
     # connections between Syskit::TaskContext (i.e. where all the forwarding
     # through compositions has been removed). It is updated as needed by
     # {Runtime::ConnectionManagement#update_required_dataflow_graph}. Its

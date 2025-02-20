@@ -19,7 +19,7 @@ class Decoder < Roby::LogReplay::PlanRebuilder
 
     def removed_task_child(time, parent, rel, child)
         parent, rel, child = super
-        raise if rel == Syskit::RequiredDataFlow
+        raise if rel == Syskit::Runtime::RequiredDataFlow
 
         if rel == Syskit::Flows::DataFlow
             puts "#{time}: removed #{parent.model.short_name} => #{child.model.short_name}"
