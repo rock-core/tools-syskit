@@ -193,7 +193,24 @@ module Syskit
                 result = TransferDatasetResult.new(
                     complete: complete, transfer_results: transfer_results
                 )
-                log_transfer_results(dataset_path, result, logger: logger)
+                results = log_transfer_results(dataset_path, result, logger: logger)
+                remove_dataset_folder_if_empty(dataset_path, logger)
+                results
+            end
+
+            def self.remove_dataset_folder_if_empty(dataset_path, logger)
+                remaining_files = Dir.children(dataset_path) - ["info.yml"]
+                if remaining_files.empty?
+                    begin
+                        FileUtils.remove_dir(dataset_path)
+                        logger.info("Deleted empty dataset folder: #{dataset_path}")
+                    rescue StandardError => e
+                        logger.error("Failed to delete empty dataset folder " \
+                                     "#{dataset_path}: #{e.message}")
+                    end
+                else
+                    logger.info("Skipping folder deletion: #{dataset_path} is not empty")
+                end
             end
 
             # Logs the transfer dataset results
