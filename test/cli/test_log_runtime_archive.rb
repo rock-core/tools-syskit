@@ -656,6 +656,71 @@ module Syskit
                         assert result.success?, "transfer failed: #{result.message}"
                     end
                 end
+
+                describe "empty log folder deletion" do
+                    it "transfers all files and deletes the folder if only info.yml " \
+                       "remains" do
+                        dataset = make_valid_folder("PATH")
+                        make_random_file "test.0.log", root: dataset
+                        make_random_file "test.1.log", root: dataset
+                        make_random_file "info.yml", root: dataset
+
+                        @process.process_dataset_transfer(
+                            dataset, @params, @root, full: true
+                        )
+
+                        assert(File.exist?(@target_dir / "PATH" / "test.0.log"))
+                        assert(File.exist?(@target_dir / "PATH" / "test.1.log"))
+                        refute(File.exist?(dataset))
+                    end
+
+                    it "does not delete folder if other files remain" do
+                        dataset = make_valid_folder("PATH")
+                        make_random_file "test.0.log", root: dataset
+                        make_random_file "test.1.log", root: dataset
+                        make_random_file "info.yml", root: dataset
+                        make_random_file "bla.txt", root: dataset
+
+                        @process.process_dataset_transfer(
+                            dataset, @params, @root, full: true
+                        )
+
+                        assert(File.exist?(@target_dir / "PATH" / "test.0.log"))
+                        assert(File.exist?(@target_dir / "PATH" / "test.1.log"))
+                        assert(File.exist?(dataset))
+                    end
+
+                    it "deletes the folder if it is completely empty" do
+                        dataset = make_valid_folder("PATH")
+
+                        @process.process_dataset_transfer(
+                            dataset, @params, @root, full: true
+                        )
+
+                        refute(File.exist?(dataset))
+                    end
+
+                    it "does not delete folder if transfer fails" do
+                        dataset = make_valid_folder("PATH")
+                        make_random_file "test.0.log", root: dataset
+
+                        result = RobyApp::LogTransferServer::LogUploadState::Result.new(
+                            "/PATH", false, "message"
+                        )
+
+                        flexmock(LogRuntimeArchive)
+                            .should_receive(:transfer_file)
+                            .and_return(result)
+
+                        results = LogRuntimeArchive.transfer_dataset(
+                            dataset, @params, @root, full: true
+                        )
+
+                        refute results.success?
+                        assert((dataset / "test.0.log").exist?)
+                        assert(File.exist?(dataset))
+                    end
+                end
             end
 
             describe "#ensure_free_space" do
