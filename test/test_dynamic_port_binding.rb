@@ -559,7 +559,21 @@ module Syskit
             reader.attach_to_task(task)
             reader.update
 
-            assert_equal({ type: :buffer, size: 20 }, reader.resolved_accessor.policy)
+            assert_equal({ type: :buffer, size: 20, init: nil },
+                         reader.resolved_accessor.policy)
+        end
+
+        it "does not override existing :init value in policy" do
+            reader = Models::DynamicPortBinding
+                     .create(@task_m.out_port)
+                     .instanciate
+                     .to_data_accessor(type: :buffer, size: 20, init: true)
+            task = syskit_stub_deploy_and_configure(@task_m)
+            reader.attach_to_task(task)
+            reader.update
+
+            assert_equal({ type: :buffer, size: 20, init: true },
+                         reader.resolved_accessor.policy)
         end
 
         describe "#read_new" do
