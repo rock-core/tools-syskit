@@ -459,7 +459,7 @@ module Syskit
                     flexmock(@source_t.out_port.model)
                         .should_receive(:init_policy?).explicitly
                         .and_return(true)
-                        
+
                     @source_t.out_port.model.init_policy(true)
                     policy = @dynamics.policy_for(@source_t, "out", "in", @sink_t, nil)
 
