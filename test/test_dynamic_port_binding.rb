@@ -382,7 +382,7 @@ module Syskit
             @task = syskit_stub_deploy_configure_and_start(@task_m)
         end
 
-        describe "policy" do
+        describe "init policy" do
             attr_reader :task, :port_binding
 
             before do
@@ -397,7 +397,7 @@ module Syskit
             it "expects no policy if init_policy is not called" do
                 flexmock(@task.out_port)
                     .should_receive(:reader)
-                    .and_return({})
+                    .with({})
 
                 @accessor.create_accessor(@task.out_port)
             end
@@ -406,7 +406,7 @@ module Syskit
                 @task.out_port.model.init_policy(true)
                 flexmock(@task.out_port)
                     .should_receive(:reader)
-                    .and_return({ init: true })
+                    .with({ init: true })
 
                 @accessor.create_accessor(@task.out_port)
             end
@@ -415,7 +415,7 @@ module Syskit
                 @task.out_port.model.init_policy(false)
                 flexmock(@task.out_port)
                     .should_receive(:reader)
-                    .and_return({ init: false })
+                    .with({ init: false })
 
                 @accessor.create_accessor(@task.out_port)
             end
