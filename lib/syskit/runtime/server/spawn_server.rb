@@ -86,7 +86,7 @@ module Syskit
                     puts "FTP server started.  Press ENTER or c-C to stop it"
                     $stdout.flush
                     begin
-                        $stdin.readline
+                        sleep
                     rescue Interrupt
                         puts "Interrupt"
                     end

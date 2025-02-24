@@ -109,7 +109,7 @@ module Syskit
                 target_dir, host, port, certfile_path, user, password, implicit_ftps
             )
                 server = create_server(target_dir, host, port, certfile_path, user,
-                                       password, implicit_ftps)
+                                       password, implicit_ftps == "true")
                 server.run
             end
 

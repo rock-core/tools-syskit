@@ -70,9 +70,9 @@ module Syskit
                 end
 
                 def chdir_to_file_directory(ftp, root)
-                    dataset_path = File.dirname(@file.relative_path_from(root))
+                    dataset_path = @file.relative_path_from(root).dirname
 
-                    dataset_path.split("/") do |folder|
+                    dataset_path.each_filename do |folder|
                         ftp.chdir(folder)
                     rescue Net::FTPPermError => _e
                         ftp.mkdir(folder)
