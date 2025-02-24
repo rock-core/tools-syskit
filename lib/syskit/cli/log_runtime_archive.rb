@@ -286,7 +286,7 @@ module Syskit
                     child if (child / "info.yml").file?
                 end
 
-                candidates.compact.sort_by { |a| a.basename.to_s } 
+                candidates.compact.sort_by { |a| a.basename.to_s }
             end
 
             # Safely add an entry into an archive, compressing it with zstd
