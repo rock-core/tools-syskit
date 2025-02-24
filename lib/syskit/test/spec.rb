@@ -48,8 +48,8 @@ module Syskit
 
             def teardown_registered_plans
                 super
-                Syskit::RequiredDataFlow.clear
-                Syskit::ActualDataFlow.clear
+                Runtime::RequiredDataFlow.clear
+                Runtime::ActualDataFlow.clear
             end
 
             # Override the task model that should by default in tests such as

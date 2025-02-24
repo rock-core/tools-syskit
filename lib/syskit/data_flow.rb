@@ -469,9 +469,9 @@ module Syskit
                     end
 
                     is_connected =
-                        ActualDataFlow.has_edge?(source_task.orocos_task, orocos_task) &&
-                        ActualDataFlow.edge_info(source_task.orocos_task, orocos_task)
-                                      .key?([source_port, sink_port])
+                        Runtime::ActualDataFlow.ports_connected?(
+                            source_task.orocos_task, source_port, orocos_task, sink_port
+                        )
 
                     unless is_connected
                         logger.debug do
