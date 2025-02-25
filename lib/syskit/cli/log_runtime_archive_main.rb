@@ -28,6 +28,7 @@ module Syskit
                    type: :numeric, default: 25_000, desc: "stop deleting files if \
                     available space is above this threshold (threshold in MB)"
             default_task def watch(root_dir, target_dir)
+                logger = create_logger
                 loop do
                     begin
                         archive(root_dir, target_dir)
@@ -35,7 +36,7 @@ module Syskit
                         next
                     end
 
-                    puts "Archived pending logs, sleeping #{options[:period]}s"
+                    logger.info("Archived pending logs, sleeping #{options[:period]}s")
                     sleep options[:period]
                 end
             end
@@ -72,6 +73,7 @@ module Syskit
             def watch_transfer( # rubocop:disable Metrics/ParameterLists
                 source_dir, host, port, certificate_path, user, password, implicit_ftps
             )
+                logger = create_logger
                 loop do
                     begin
                         transfer(source_dir, host, port, certificate_path, user, password,
@@ -80,7 +82,7 @@ module Syskit
                         next
                     end
 
-                    puts "Transferred pending logs, sleeping #{options[:period]}s"
+                    logger.info("Transferred pending logs, sleeping #{options[:period]}s")
                     sleep options[:period]
                 end
             end
@@ -123,11 +125,14 @@ module Syskit
                    type: :numeric, default: 25_000, desc: "stop deleting files if \
                     available space is above this threshold (threshold in MB)"
             def watch_ensure_free_space(source_dir)
+                logger = create_logger
                 loop do
                     ensure_free_space(source_dir)
 
-                    puts "Ensured free space in #{source_dir}, " \
-                         "sleeping #{options[:period]}s"
+                    logger.info(
+                        "Ensured free space in #{source_dir}, sleeping " \
+                        "#{options[:period]}s"
+                    )
                     sleep options[:period]
                 end
             end
@@ -189,6 +194,11 @@ module Syskit
                         port: port,
                         implicit_ftps: implicit_ftps
                     )
+                end
+
+                def create_logger
+                    $stdout.sync = true
+                    Logger.new($stdout)
                 end
             end
         end
