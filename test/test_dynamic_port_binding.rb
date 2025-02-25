@@ -382,6 +382,45 @@ module Syskit
             @task = syskit_stub_deploy_configure_and_start(@task_m)
         end
 
+        describe "init policy" do
+            attr_reader :task, :port_binding
+
+            before do
+                @port_binding = flexmock
+                @accessor = DynamicPortBinding::Accessor.new(@port_binding)
+                flexmock(@accessor)
+                    .should_receive(:create_accessor)
+                    .explicitly
+                    .with(@task.out_port).and_return { @task.out_port.reader }
+            end
+
+            it "expects no policy if init_policy is not called" do
+                flexmock(@task.out_port)
+                    .should_receive(:reader)
+                    .with({})
+
+                @accessor.create_accessor(@task.out_port)
+            end
+
+            it "expects init: true policy if init_policy(true) is called" do
+                @task.out_port.model.init_policy(true)
+                flexmock(@task.out_port)
+                    .should_receive(:reader)
+                    .with({ init: true })
+
+                @accessor.create_accessor(@task.out_port)
+            end
+
+            it "expects init: false policy if init_policy(false) is called" do
+                @task.out_port.model.init_policy(false)
+                flexmock(@task.out_port)
+                    .should_receive(:reader)
+                    .with({ init: false })
+
+                @accessor.create_accessor(@task.out_port)
+            end
+        end
+
         describe "#update" do
             attr_reader :task, :port_binding
 
@@ -520,7 +559,21 @@ module Syskit
             reader.attach_to_task(task)
             reader.update
 
-            assert_equal({ type: :buffer, size: 20 }, reader.resolved_accessor.policy)
+            assert_equal({ type: :buffer, size: 20, init: nil },
+                         reader.resolved_accessor.policy)
+        end
+
+        it "does not override existing :init value in policy" do
+            reader = Models::DynamicPortBinding
+                     .create(@task_m.out_port)
+                     .instanciate
+                     .to_data_accessor(type: :buffer, size: 20, init: true)
+            task = syskit_stub_deploy_and_configure(@task_m)
+            reader.attach_to_task(task)
+            reader.update
+
+            assert_equal({ type: :buffer, size: 20, init: true },
+                         reader.resolved_accessor.policy)
         end
 
         describe "#read_new" do

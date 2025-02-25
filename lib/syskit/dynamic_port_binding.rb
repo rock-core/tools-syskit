@@ -203,6 +203,7 @@ module Syskit
             # Method called by {Accessor} to create the accessor object from a
             # port
             def create_accessor(port)
+                @policy = { init: port.model.init_policy? }.merge(@policy)
                 port.reader(**policy)
             end
 
