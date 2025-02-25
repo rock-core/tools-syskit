@@ -64,6 +64,7 @@ module Syskit
                 # @return [LogUploadState::Result]
                 def open_and_transfer(root: nil)
                     open { |ftp| transfer(ftp, root) }
+
                     LogUploadState::Result.new(@file, true, nil)
                 rescue StandardError => e
                     LogUploadState::Result.new(@file, false, e.message)
@@ -87,13 +88,18 @@ module Syskit
                 def transfer(ftp, root)
                     last = Time.now
                     chdir_to_file_directory(ftp, root) if root
-                    File.open(@file) do |file_io|
-                        ftp.storbinary("STOR #{File.basename(@file)}",
-                                       file_io, Net::FTP::DEFAULT_BLOCKSIZE) do |buf|
-                            now = Time.now
-                            rate_limit(buf.size, now, last)
-                            last = Time.now
+                    begin
+                        File.open(@file) do |file_io|
+                            ftp.storbinary("STOR #{File.basename(@file)}",
+                                        file_io, Net::FTP::DEFAULT_BLOCKSIZE) do |buf|
+                                now = Time.now
+                                rate_limit(buf.size, now, last)
+                                last = Time.now
+                            end
                         end
+                        ftp.rename("#{File.basename(@file)}.partial", File.basename(@file))
+                    rescue StandardError => e
+                        LogUploadState::Result.new(@file, false, e.message)
                     end
                 end
 
