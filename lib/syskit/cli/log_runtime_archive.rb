@@ -46,10 +46,10 @@ module Syskit
             # @return [Array<TransferDatasetResult>]
             def process_root_folder_transfer(server_params)
                 candidates = self.class.find_all_dataset_folders(@root_dir)
-                running = candidates.last
                 candidates.map do |child|
                     process_dataset_transfer(
-                        child, server_params, @root_dir, full: child != running
+                        child, server_params, @root_dir,
+                        full: !Roby::Application.log_dir_locked?(child.basename)
                     )
                 end
             end
@@ -65,10 +65,10 @@ module Syskit
             # @param [Integer] max_archive_size the max size of the archive
             def process_root_folder(max_archive_size: DEFAULT_MAX_ARCHIVE_SIZE)
                 candidates = self.class.find_all_dataset_folders(@root_dir)
-                running = candidates.last
                 candidates.each do |child|
                     process_dataset(
-                        child, max_archive_size: max_archive_size, full: child != running
+                        child, max_archive_size: max_archive_size,
+                               full: !Roby::Application.log_dir_locked?(child.basename)
                     )
                 end
             end

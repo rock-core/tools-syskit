@@ -96,6 +96,37 @@ describe Syskit::ProcessManagers::Remote do
         end
     end
 
+    describe "#create_log_dir" do
+        before do
+            start_server
+            @client = Syskit::ProcessManagers::Remote::Manager.new(
+                "localhost", server.port, root_loader: root_loader
+            )
+            @lock_file = File.join(Roby.app.log_dir, ".lock")
+        end
+
+        it "locks the directory when it is being created" do
+            client.create_log_dir(Roby.app.time_tag)
+
+            assert Roby::Application.log_dir_locked?(app.log_dir)
+        end
+
+        it "releases the lock when the client's socket gets closed" do
+            client.create_log_dir(Roby.app.time_tag)
+            server.quit_and_join
+
+            refute Roby::Application.log_dir_locked?(app.log_dir)
+        end
+
+        it "releases the lock when the client requests a new folder" do
+            client.create_log_dir(Roby.app.time_tag)
+            assert Roby::Application.log_dir_locked?(app.log_dir)
+
+            server.handle_new_folder_request            
+            refute Roby::Application.log_dir_locked?(app.log_dir)
+        end
+    end
+
     describe "#start" do
         before do
             @client = start_and_connect_to_server

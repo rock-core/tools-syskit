@@ -10,7 +10,7 @@ module Syskit
                 # client/server way.
                 #
                 # Use {ProcessClient} to access a server
-                class Server
+                class Server # rubocop:disable Metrics/ClassLength
                     extend Logger::Forward
                     extend Logger::Hierarchy
                     include Logger::Forward
@@ -204,7 +204,7 @@ module Syskit
                             readable_sockets.each do |socket|
                                 unless handle_command(socket)
                                     debug "#{socket} closed or errored"
-                                    socket.close
+                                    close_client(socket)
                                     @all_ios.delete(socket)
                                 end
                             end
@@ -221,6 +221,11 @@ module Syskit
                         end
                     ensure
                         quit_and_join
+                    end
+
+                    def close_client(socket)
+                        socket.close
+                        app.unlock_log_dir
                     end
 
                     # Check if a specific subprocess terminated and deregister it
@@ -309,7 +314,7 @@ module Syskit
                         end
 
                         each_client do |socket|
-                            socket.close
+                            close_client(socket)
                         rescue SystemCallError, IOError # rubocop:disable Lint/SuppressedException
                         end
 
@@ -453,20 +458,29 @@ module Syskit
                         socket.write(Marshal.dump(message))
                     end
 
-                    def create_log_dir(time_tag, metadata = {})
-                        if (parent_info = metadata["parent"])
-                            if (app_name = parent_info["app_name"])
-                                app.app_name = app_name
-                            end
-                            if (robot_name = parent_info["robot_name"])
-                                app.robot(
-                                    robot_name, parent_info["robot_type"] || robot_name
-                                )
-                            end
+                    def handle_new_folder_request(metadata = {})
+                        app.unlock_log_dir
+
+                        return unless (parent_info = metadata["parent"])
+
+                        if (app_name = parent_info["app_name"])
+                            app.app_name = app_name
                         end
+                        if (robot_name = parent_info["robot_name"])
+                            app.robot(
+                                robot_name, parent_info["robot_type"] || robot_name
+                            )
+                        end
+                    end
+
+                    def create_log_dir(time_tag, metadata = {})
+                        handle_new_folder_request(metadata)
 
                         app.add_app_metadata(metadata)
                         app.find_and_create_log_dir(time_tag)
+
+                        app.lock_log_dir
+
                         if (parent_info = metadata["parent"])
                             info "created #{app.log_dir} on behalf of"
                             YAML.dump(parent_info).each_line do |line|
