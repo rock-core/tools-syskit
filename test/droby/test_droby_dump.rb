@@ -4,6 +4,20 @@ require "syskit/test/self"
 
 module Syskit
     module DRoby
+        module TestConstants
+            class DRobyMarshallableObject
+                def droby_dump(_peer)
+                    DRobyMarshalledObject.new
+                end
+            end
+
+            class DRobyMarshalledObject
+                def proxy(_peer)
+                    DRobyMarshallableObject.new
+                end
+            end
+        end
+
         describe V5 do
             attr_reader :local_id, :remote_id, :remote_object_id, :object_manager, :marshal
 
@@ -107,6 +121,26 @@ module Syskit
                     unmarshalled = marshal.local_object(marshalled)
                     assert_equal 0xDDCCBB, Typelib.to_ruby(unmarshalled)
                 end
+            end
+        end
+
+        describe V5::InstanceRequirementsDumper do
+            it "marshals the requirement's arguments" do
+                ir = InstanceRequirements.new
+                ir.with_arguments(a: TestConstants::DRobyMarshallableObject.new)
+                marshalled = droby_to_remote(ir)
+                assert_kind_of V5::InstanceRequirementsDumper::DRoby, marshalled
+                assert_kind_of TestConstants::DRobyMarshalledObject,
+                               marshalled.arguments[:a]
+            end
+
+            it "unmarshals the requirement's arguments" do
+                ir = InstanceRequirements.new
+                ir.with_arguments(a: TestConstants::DRobyMarshallableObject.new)
+                unmarshalled = droby_transfer(ir)
+                assert_kind_of InstanceRequirements, unmarshalled
+                assert_kind_of TestConstants::DRobyMarshallableObject,
+                               unmarshalled.arguments[:a]
             end
         end
 
