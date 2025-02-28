@@ -434,7 +434,8 @@ module Syskit
 
             it "is not emitted by the interruption command" do
                 expect_execution { task.stop! }
-                    .timeout(0).to { not_emit task.stop_event }
+                    .timeout(0).join_all_waiting_work(false)
+                    .to { not_emit task.stop_event }
                 assert task.finishing?
             end
             it "is quarantined if orocos_task#stop raises ComError" do
