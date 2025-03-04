@@ -270,6 +270,8 @@ module Syskit
 
             module InstanceRequirementsDumper
                 class DRoby
+                    attr_reader :arguments
+
                     def initialize(name, model, arguments)
                         @name = name
                         @model = model
@@ -277,17 +279,16 @@ module Syskit
                     end
 
                     def proxy(peer)
-                        requirements = InstanceRequirements.new([peer.local_object(@model)])
+                        requirements =
+                            InstanceRequirements.new([peer.local_object(@model)])
                         requirements.name = @name
-                        requirements.with_arguments(**@arguments)
+                        requirements.with_arguments(**peer.local_object(@arguments))
                         requirements
                     end
                 end
 
                 def droby_dump(peer)
-                    DRoby.new(name,
-                              peer.dump(model),
-                              peer.dump(arguments))
+                    DRoby.new(name, peer.dump(model), peer.dump(arguments))
                 end
             end
 
