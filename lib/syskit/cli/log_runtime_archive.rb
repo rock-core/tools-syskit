@@ -116,6 +116,10 @@ module Syskit
                     size_removed_file = removed_file.size
                     removed_file.unlink
                     available_space += size_removed_file
+                    @logger.info(
+                        "Removed file: #{removed_file}. Freed space[" \
+                        "#{size_removed_file}]. Available space[#{available_space}]"
+                    )
                 end
                 true
             end
