@@ -583,10 +583,12 @@ module Syskit
                 policy_graph
             end
 
-            # Given the current knowledge about the port dynamics, returns the
-            # policy for the provided connection
-            def policy_for(
-                source_task, source_port_name, sink_port_name, sink_task, fallback_policy
+            def policy_default_init_flag(policy, model)
+                policy.merge(init: model.init_policy?)
+            end
+
+            def policy_compute_data_element(
+                source_task, source_port_name, sink_task, sink_port_name, fallback_policy
             )
                 source_port = source_task.find_output_port(source_port_name)
                 sink_port   = sink_task.find_input_port(sink_port_name)
@@ -625,9 +627,22 @@ module Syskit
                           "#{sink_port_m.required_connection_type} " \
                           "on #{sink_port}"
                 end
+                policy
+            end
 
-                source_port_m = source_port.model
-                policy.merge(init: source_port_m.init_policy?)
+            def policy_for(
+                source_task, source_port_name, sink_port_name, sink_task, fallback_policy
+            )
+                policy = {}
+                unless policy[:type]
+                    policy = policy_compute_data_element(
+                        source_task, source_port_name, sink_task,
+                        sink_port_name, fallback_policy
+                    )
+                end
+
+                model = source_task.find_output_port(source_port_name).model
+                policy_default_init_flag(policy, model)
             end
 
             def compute_reliable_connection_policy(
