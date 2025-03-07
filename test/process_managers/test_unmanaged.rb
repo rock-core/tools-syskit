@@ -173,8 +173,8 @@ module Syskit
                 # This is really a heisentest .... previous versions of
                 # UnmanagedProcess would fail when this happened but the current
                 # implementation should be completely imprevious
-                it "handles concurrently having the monitor fail and #kill being called" \
-                do
+                it "handles concurrently having the monitor fail " \
+                   "and #kill being called" do
                     make_deployment_ready
                     expect_execution do
                         delete_unmanaged_task
