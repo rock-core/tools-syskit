@@ -35,6 +35,17 @@ module Syskit
                     assert_equal @unmanaged_task_name, deployment_task.process_name
                 end
 
+                it "stops the discovery thread if killed during discovery" do
+                    expect_execution { deployment_task.start! }
+                        .join_all_waiting_work(false)
+                        .to { emit deployment_task.start_event }
+                    assert deployment_task.orocos_process.discovering?
+
+                    expect_execution { deployment_task.stop! }
+                        .to { emit deployment_task.stop_event }
+                    refute deployment_task.orocos_process.discovering?
+                end
+
                 it "readies the execution agent when the task becomes available" do
                     expect_execution { deployment_task.start! }
                         .join_all_waiting_work(false)

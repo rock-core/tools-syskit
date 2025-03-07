@@ -121,8 +121,9 @@ module Syskit
 
                     result = {}
                     warning_time_deadline = Time.at(0)
+                    loop do
+                        return if quitting?
 
-                    until expected_names.empty?
                         expected_names.delete_if do |name|
                             result[name] = name_service.get(name)
                         rescue Orocos::NotFound
@@ -133,7 +134,9 @@ module Syskit
                             false
                         end
 
-                        sleep 0.1 if expected_names.any?
+                        break if expected_names.empty?
+
+                        sleep 0.1
                     end
                     result
                 end
