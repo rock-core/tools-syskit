@@ -423,6 +423,93 @@ module Syskit
                 end
             end
 
+            describe "#policy_compute_data_element" do
+                before do
+                    @task_m = Syskit::TaskContext.new_submodel do
+                        input_port "in", "/double"
+                        output_port "out", "/double"
+                    end
+                    @source_task_m = @task_m.new_submodel
+                    @sink_task_m = @task_m.new_submodel
+                    plan.add(@source_t = @source_task_m.new)
+                    plan.add(@sink_t = @sink_task_m.new)
+                end
+
+                it "returns a data connection by default" do
+                    policy = @dynamics.policy_compute_data_element(
+                        @source_t, "out", @sink_t, "in", nil
+                    )
+                    assert_equal :data, policy[:type]
+                end
+
+                it "returns a buffer connection of size 1 if the sink's " \
+                   "required connection type is 'buffer'" do
+                    @sink_task_m.in_port.needs_buffered_connection
+                    policy = @dynamics.policy_compute_data_element(
+                        @source_t, "out", @sink_t, "in", nil
+                    )
+                    assert_equal :buffer, policy[:type]
+                    assert_equal 1, policy[:size]
+                end
+
+                it "raises if the required connection type is unknown " \
+                   "and needs_reliable_connection is not set" do
+                    flexmock(@sink_task_m.in_port)
+                        .should_receive(:required_connection_type).explicitly
+                        .and_return(:something)
+                    assert_raises(UnsupportedConnectionType) do
+                        @dynamics.policy_compute_data_element(
+                            @source_t, "out", @sink_t, "in", nil
+                        )
+                    end
+                end
+
+                it "returns the value from compute_reliable_connection_policy " \
+                   "if the sink port is marked as needs_reliable_connection" do
+                    @sink_task_m.in_port.needs_reliable_connection
+                    fallback_policy = flexmock
+                    expected_policy = flexmock
+
+                    expected_policy
+                        .should_receive(:merge)
+                        .and_return(expected_policy)
+
+                    flexmock(@dynamics)
+                        .should_receive(:compute_reliable_connection_policy)
+                        .with(@source_t.out_port, @sink_t.in_port, fallback_policy)
+                        .once.and_return(expected_policy)
+                    policy = @dynamics.policy_compute_data_element(
+                        @source_t, "out", @sink_t, "in", fallback_policy
+                    )
+                    assert_equal expected_policy, policy
+                end
+            end
+
+            describe "#policy_default_init_flag" do
+                before do
+                    @task_m = Syskit::TaskContext.new_submodel do
+                        input_port "in", "/double"
+                        output_port "out", "/double"
+                    end
+                    @source_task_m = @task_m.new_submodel
+                    @sink_task_m = @task_m.new_submodel
+                    plan.add(@source_t = @source_task_m.new)
+                    plan.add(@sink_t = @sink_task_m.new)
+                end
+
+                it "merges the init flag from the source port's model" do
+                    flexmock(@source_t.out_port.model)
+                        .should_receive(:init_policy?).explicitly
+                        .and_return(true)
+
+                    policy = { type: :data }
+                    updated_policy = @dynamics.policy_default_init_flag(
+                        policy, @source_t.out_port.model
+                    )
+                    assert updated_policy[:init]
+                end
+            end
+
             describe "#policy_for" do
                 before do
                     @task_m = Syskit::TaskContext.new_submodel do
@@ -524,6 +611,17 @@ module Syskit
                     @source_t.out_port.model.init_policy(true)
                     policy = @dynamics.policy_for(@source_t, "out", "in", @sink_t, nil)
 
+                    assert policy[:init]
+                end
+
+                it "always applies the init flag from the source port's model" do
+                    flexmock(@source_t.out_port.model)
+                        .should_receive(:init_policy?).explicitly
+                        .and_return(true)
+
+                    policy = @dynamics.policy_for(
+                        @source_t, "out", "in", @sink_t, nil
+                    )
                     assert policy[:init]
                 end
             end
