@@ -239,8 +239,12 @@ module Syskit
                     if monitor_thread
                         !monitor_thread.alive?
                     else
-                        quitting?
+                        quitting? && !discovering?
                     end
+                end
+
+                def discovering?
+                    @iors_future && !@iors_future.fulfilled?
                 end
 
                 # Returns true if the tasks have been successfully discovered
