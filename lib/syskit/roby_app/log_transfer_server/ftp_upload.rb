@@ -92,7 +92,7 @@ module Syskit
                     target_name = File.basename(@file)
                     File.open(@file) do |file_io|
                         ftp.storbinary("STOR #{target_name}.partial",
-                                    file_io, Net::FTP::DEFAULT_BLOCKSIZE) do |buf|
+                                       file_io, Net::FTP::DEFAULT_BLOCKSIZE) do |buf|
                             now = Time.now
                             rate_limit(buf.size, now, last)
                             last = Time.now

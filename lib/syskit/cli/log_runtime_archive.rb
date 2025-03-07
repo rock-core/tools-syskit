@@ -174,7 +174,9 @@ module Syskit
                     "Transfering dataset #{dataset_path} in " \
                     "#{full ? 'full' : 'partial'} mode"
                 )
-                candidates = each_file_from_path(dataset_path).to_a
+                candidates =
+                    each_file_from_path(dataset_path)
+                    .reject { |p| p.extname == ".partial" }
 
                 complete, candidates =
                     if full
@@ -398,9 +400,9 @@ module Syskit
             # @param [Boolean] full whether we're arching the complete dataset (true),
             #   or only the files that we know are not being written to (for log
             #   directories of running Syskit instances)
-            # @return [Boolean] true if we're done processing this dataset. False
-            #   if processing was interrupted by e.g. an archive that reached the
-            #   max_archive_size limit
+            # @return [Boolean] whether the archiver needs another pass right now (false)
+            #   or not (true). It is used by the toplevel loop to determine if
+            #   {archive_dataset} should be called back.
             def self.archive_dataset(
                 archive_io, path,
                 full:, logger: null_logger, max_size: DEFAULT_MAX_ARCHIVE_SIZE
@@ -408,23 +410,40 @@ module Syskit
                 logger.info(
                     "Archiving dataset #{path} in #{full ? 'full' : 'partial'} mode"
                 )
-                candidates = each_file_from_path(path).to_a
-                complete, candidates =
-                    if full
-                        archive_filter_candidates_full(candidates)
-                    else
-                        archive_filter_candidates_partial(candidates)
-                    end
 
-                candidates.each_with_index do |child_path, i|
+                complete, paths_to_archive =
+                    archive_dataset_resolve_paths_to_archive(path, full)
+
+                paths_to_archive.each_with_index do |child_path, i|
                     add_to_archive(archive_io, child_path, logger: logger)
 
                     if archive_io.tell > max_size
-                        return complete && (i == candidates.size - 1)
+                        return complete && (i == paths_to_archive.size - 1)
                     end
                 end
 
                 complete
+            end
+
+            # @api private
+            #
+            # Determine which files should be archived in this run
+            #
+            # @param [Pathname] path the path of the dataset folder
+            # @param [Boolean] whether we run in full or partial mode
+            # @return [(Boolean,[Pathname])] the boolean says whether the archiver needs
+            #   another pass right now (false) or not (true). It is used by the toplevel
+            #   loop to determine if {archive_dataset} should be called back. The list
+            #   of paths are the paths to archive
+            def self.archive_dataset_resolve_paths_to_archive(path, full)
+                all_candidates = each_file_from_path(path).to_a
+                partials, candidates =
+                    all_candidates.partition { |file| file.extname == ".partial" }
+                if full && partials.empty?
+                    archive_filter_candidates_full(candidates)
+                else
+                    archive_filter_candidates_partial(candidates)
+                end
             end
 
             # Enumerate the children of a path that are files

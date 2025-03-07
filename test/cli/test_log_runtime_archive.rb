@@ -361,6 +361,35 @@ module Syskit
                         *entries[0], name: "test.0.log.zst", content: "test0"
                     )
                 end
+
+                it "ignores archives whose extension is .partial" do
+                    dataset = make_valid_folder("20220434-2023")
+                    make_in_file "test.0.log", "test0", root: dataset
+                    make_in_file "test.1.log.partial", "test0", root: dataset
+                    make_in_file "something.txt", "something", root: dataset
+
+                    ret = @archive_path.open("w") do |archive_io|
+                        LogRuntimeArchive.archive_dataset(archive_io, dataset, full: true)
+                    end
+                    assert ret
+
+                    entries = read_archive
+                    assert_equal 0, entries.size
+                end
+
+                it "does a partial archive processing if there are partial transfers" do
+                    dataset = make_valid_folder("20220434-2023")
+                    make_in_file "test.0.log", "test0", root: dataset
+                    make_in_file "test.1.log.partial", "test0", root: dataset
+                    make_in_file "something.txt", "something", root: dataset
+
+                    @archive_path.open("w") do |archive_io|
+                        flexmock(LogRuntimeArchive)
+                            .should_receive(:archive_filter_candidates_partial)
+                            .once.pass_thru
+                        LogRuntimeArchive.archive_dataset(archive_io, dataset, full: true)
+                    end
+                end
             end
 
             describe ".process_root_folder" do

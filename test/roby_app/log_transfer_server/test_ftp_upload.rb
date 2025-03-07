@@ -45,7 +45,7 @@ module Syskit
 
                     refute (@target_dir / "file.partial").exist?
                     assert_equal "test", (@target_dir / "file").read
-               end
+                end
 
                 def create_ftp_upload(file)
                     FTPUpload.new(
