@@ -192,19 +192,6 @@ module Syskit
                     @ior_mappings
                 end
 
-                # @api private
-                #
-                # Helper method to kill a thread
-                def terminate_and_join_thread(thread)
-                    return unless thread.alive?
-
-                    thread.raise TerminateThread
-                    begin
-                        thread.join
-                    rescue TerminateThread # rubocop:disable Lint/SuppressedException
-                    end
-                end
-
                 # "Kill" this process
                 #
                 # It shuts down the tasks that are part of it
