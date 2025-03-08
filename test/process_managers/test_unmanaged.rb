@@ -35,6 +35,39 @@ module Syskit
                     assert_equal @unmanaged_task_name, deployment_task.process_name
                 end
 
+                it "declares the process dead during discovery only when the discovery " \
+                   "thread has returned" do
+                    expect_execution { deployment_task.start! }
+                        .join_all_waiting_work(false)
+                        .to { emit deployment_task.start_event }
+
+                    flexmock(deployment_task.orocos_process)
+                        .should_receive(:discovering?)
+                        .and_return(true, false)
+
+                    deployment_task.orocos_process.kill
+                    refute deployment_task.orocos_process.dead?
+                    deployment_task.orocos_process.wait_running
+                    assert deployment_task.orocos_process.dead?
+
+                    plan.unmark_permanent_task(deployment_task)
+                    expect_execution.to do
+                        emit deployment_task.stop_event
+                        have_error_matching Roby::EmissionFailed.match
+                    end
+                end
+
+                it "stops the discovery thread if killed during discovery" do
+                    expect_execution { deployment_task.start! }
+                        .join_all_waiting_work(false)
+                        .to { emit deployment_task.start_event }
+                    assert deployment_task.orocos_process.discovering?
+
+                    expect_execution { deployment_task.stop! }
+                        .to { emit deployment_task.stop_event }
+                    refute deployment_task.orocos_process.discovering?
+                end
+
                 it "readies the execution agent when the task becomes available" do
                     expect_execution { deployment_task.start! }
                         .join_all_waiting_work(false)
@@ -140,8 +173,8 @@ module Syskit
                 # This is really a heisentest .... previous versions of
                 # UnmanagedProcess would fail when this happened but the current
                 # implementation should be completely imprevious
-                it "handles concurrently having the monitor fail and #kill being called" \
-                do
+                it "handles concurrently having the monitor fail " \
+                   "and #kill being called" do
                     make_deployment_ready
                     expect_execution do
                         delete_unmanaged_task

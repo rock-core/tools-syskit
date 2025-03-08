@@ -121,8 +121,9 @@ module Syskit
 
                     result = {}
                     warning_time_deadline = Time.at(0)
+                    loop do
+                        return if quitting?
 
-                    until expected_names.empty?
                         expected_names.delete_if do |name|
                             result[name] = name_service.get(name)
                         rescue Orocos::NotFound
@@ -133,7 +134,9 @@ module Syskit
                             false
                         end
 
-                        sleep 0.1 if expected_names.any?
+                        break if expected_names.empty?
+
+                        sleep 0.1
                     end
                     result
                 end
@@ -189,19 +192,6 @@ module Syskit
                     @ior_mappings
                 end
 
-                # @api private
-                #
-                # Helper method to kill a thread
-                def terminate_and_join_thread(thread)
-                    return unless thread.alive?
-
-                    thread.raise TerminateThread
-                    begin
-                        thread.join
-                    rescue TerminateThread # rubocop:disable Lint/SuppressedException
-                    end
-                end
-
                 # "Kill" this process
                 #
                 # It shuts down the tasks that are part of it
@@ -236,8 +226,12 @@ module Syskit
                     if monitor_thread
                         !monitor_thread.alive?
                     else
-                        quitting?
+                        quitting? && !discovering?
                     end
+                end
+
+                def discovering?
+                    @iors_future && !@iors_future.fulfilled?
                 end
 
                 # Returns true if the tasks have been successfully discovered
