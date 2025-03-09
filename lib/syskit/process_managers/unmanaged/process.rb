@@ -117,28 +117,39 @@ module Syskit
                 # @raises Orocos::CORBA::ComError
                 # @return [Hash<String, Orocos::TaskContext>]
                 def name_service_get_all_tasks(warning_period: 5.0)
-                    expected_names = mapped_task_names.dup
+                    missing_names = mapped_task_names
 
                     result = {}
                     warning_time_deadline = Time.at(0)
                     loop do
                         return if quitting?
 
-                        expected_names.delete_if do |name|
-                            result[name] = name_service.get(name)
-                        rescue Orocos::NotFound
-                            if Time.now > warning_time_deadline
-                                ::Robot.warn "could not find unmanaged task #{name}"
-                                warning_time_deadline = Time.now + warning_period
-                            end
-                            false
-                        end
+                        resolved, missing_names =
+                            name_service_try_get_tasks(missing_names)
 
-                        break if expected_names.empty?
+                        result.merge!(resolved)
+                        break if missing_names.empty?
+
+                        if Time.now > warning_time_deadline
+                            ::Robot.warn "could not find unmanaged tasks " \
+                                         "#{missing_names.join(', ')}"
+                            warning_time_deadline = Time.now + warning_period
+                        end
 
                         sleep 0.1
                     end
                     result
+                end
+
+                def name_service_try_get_tasks(names)
+                    resolved = {}
+                    missing = names.find_all do |name|
+                        resolved[name] = name_service.get(name)
+                        false
+                    rescue Orocos::NotFound
+                        true
+                    end
+                    [resolved, missing]
                 end
 
                 # Verifies that the monitor thread is alive and well, or that the
