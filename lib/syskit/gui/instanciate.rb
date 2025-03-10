@@ -9,7 +9,7 @@ require "metaruby/gui/exception_view"
 module Syskit
     module GUI
         class Instanciate < Qt::Widget
-            attr_reader :apply_btn, :instance_txt, :display, :page, :rendering, :exception_view, :permanent
+            attr_reader :update_btn, :instance_txt, :display, :page, :rendering, :exception_view, :permanent
 
             def plan
                 rendering.plan
@@ -41,9 +41,7 @@ module Syskit
                 splitter.add_widget exception_view
                 splitter.set_stretch_factor 1, 1
 
-                @apply_btn.connect(SIGNAL("clicked()")) do
-                    Roby.app.clear_exceptions
-                    Roby.app.reload_models
+                @update_btn.connect(SIGNAL("clicked()")) do
                     compute
                 end
 
@@ -53,9 +51,9 @@ module Syskit
 
             def create_toolbar
                 toolbar_layout = Qt::HBoxLayout.new
-                @apply_btn = Qt::PushButton.new("Reload && Apply", self)
+                @update_btn = Qt::PushButton.new("Update", self)
                 @instance_txt = Qt::LineEdit.new(self)
-                toolbar_layout.add_widget(@apply_btn)
+                toolbar_layout.add_widget(@update_btn)
                 toolbar_layout.add_widget(@instance_txt)
                 toolbar_layout
             end
