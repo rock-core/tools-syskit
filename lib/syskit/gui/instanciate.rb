@@ -105,7 +105,11 @@ module Syskit
                         begin
                             _, act = ::Robot.action_from_name(action_name)
                         rescue ArgumentError
-                            act = eval(action_name).to_action # rubocop:disable Security/Eval
+                            act = eval(action_name) # rubocop:disable Security/Eval
+                            if act.respond_to?(:to_instance_requirements)
+                                act = act.to_instance_requirements
+                            end
+                            act = act.to_action
                         end
 
                         # Instanciate the action, and find out if it is actually
