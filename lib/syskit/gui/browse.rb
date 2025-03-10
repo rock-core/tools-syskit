@@ -1,6 +1,7 @@
 # frozen_string_literal: true
 
 require "syskit/gui/model_browser"
+require "syskit/gui/instanciate"
 module Syskit
     module GUI
         # Main widget for model browsing
@@ -22,13 +23,14 @@ module Syskit
 
             def initialize(parent = nil)
                 super
-                @main_layout = Qt::VBoxLayout.new(self)
 
-                @model_browser = ModelBrowser.new(self)
+                @main_layout = Qt::VBoxLayout.new(self)
+                @tabs = Qt::TabWidget.new(self)
+
                 @btn_reload_models = Qt::PushButton.new("Reload Models", self)
 
                 main_layout.add_widget btn_reload_models
-                main_layout.add_widget model_browser
+                main_layout.add_widget @tabs
 
                 btn_reload_models.connect(SIGNAL("clicked()")) do
                     model_browser.registered_exceptions.clear
@@ -37,6 +39,19 @@ module Syskit
                     model_browser.update_exceptions
                     model_browser.reload
                 end
+
+                add_model_browser
+                add_instanciation
+            end
+
+            def add_model_browser
+                @model_browser = ModelBrowser.new(self)
+                @tabs.add_tab @model_browser, "Browse"
+            end
+
+            def add_instanciation
+                @instanciate_gui = Instanciate.new(self)
+                @tabs.add_tab @instanciate_gui, "Instanciate"
             end
 
             # Select the current model using its module
