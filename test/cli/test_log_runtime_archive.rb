@@ -658,22 +658,6 @@ module Syskit
                 end
 
                 describe "empty log folder deletion" do
-                    it "transfers all files and deletes the folder if only info.yml " \
-                       "remains" do
-                        dataset = make_valid_folder("PATH")
-                        make_random_file "test.0.log", root: dataset
-                        make_random_file "test.1.log", root: dataset
-                        make_random_file "info.yml", root: dataset
-
-                        @process.process_dataset_transfer(
-                            dataset, @params, @root, full: true
-                        )
-
-                        assert(File.exist?(@target_dir / "PATH" / "test.0.log"))
-                        assert(File.exist?(@target_dir / "PATH" / "test.1.log"))
-                        refute(File.exist?(dataset))
-                    end
-
                     it "does not delete folder if other files remain" do
                         dataset = make_valid_folder("PATH")
                         make_random_file "test.0.log", root: dataset

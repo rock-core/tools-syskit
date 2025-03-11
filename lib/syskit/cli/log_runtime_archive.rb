@@ -199,8 +199,7 @@ module Syskit
             end
 
             def self.remove_dataset_folder_if_empty(dataset_path, logger)
-                remaining_files = Dir.children(dataset_path) - ["info.yml"]
-                if remaining_files.empty?
+                if Dir.empty?(dataset_path)
                     begin
                         FileUtils.remove_dir(dataset_path)
                         logger.info("Deleted empty dataset folder: #{dataset_path}")
