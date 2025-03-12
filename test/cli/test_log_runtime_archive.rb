@@ -655,6 +655,29 @@ module Syskit
                         assert(File.exist?(@target_dir / "PATH" / "test.log"))
                         assert result.success?, "transfer failed: #{result.message}"
                     end
+
+                    it "fails file transfer if free space is lower than threshold" do
+                        dataset = make_valid_folder("PATH")
+                        make_random_file "test.log", root: dataset
+                        LogRuntimeArchive::FREE_SPACE_THRESHOLD_FOR_TRANSFER = 666
+                        mock_available_space(665)
+
+                        assert_raises(StandardError) do
+                            LogRuntimeArchive.transfer_file(
+                                dataset / "test.log", @params, @root
+                            )
+                        end
+                    end
+
+                    def mock_available_space(free_space, directory: @root)
+                        flexmock(Sys::Filesystem)
+                            .should_receive(:stat).with(directory)
+                            .and_return do
+                                flexmock(
+                                    bytes_available: free_space
+                                )
+                            end
+                    end
                 end
             end
 

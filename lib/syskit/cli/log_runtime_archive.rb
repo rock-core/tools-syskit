@@ -18,6 +18,8 @@ module Syskit
         class LogRuntimeArchive
             DEFAULT_MAX_ARCHIVE_SIZE = 10_000_000_000 # 10G
 
+            FREE_SPACE_THRESHOLD_FOR_TRANSFER = 10_000_000_000 # 10G
+
             FTPParameters = Struct.new(:host, :port, :certificate, :user, :password,
                                        :implicit_ftps, :max_upload_rate,
                                        keyword_init: true)
@@ -231,6 +233,15 @@ module Syskit
             #
             # @return [LogUploadState:Result]
             def self.transfer_file(file, server, root)
+                free_space = Sys::Filesystem.stat(root).bytes_available
+
+                if free_space < FREE_SPACE_THRESHOLD_FOR_TRANSFER
+                    server.raise_error(
+                        552, "Requested file transfer aborted for #{file}. " \
+                             "Exceeded storage allocation for root dir."
+                    )
+                end
+
                 ftp = RobyApp::LogTransferServer::FTPUpload.new(
                     server.host, server.port, server.certificate, server.user,
                     server.password, file,
