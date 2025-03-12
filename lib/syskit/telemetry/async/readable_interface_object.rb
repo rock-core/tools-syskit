@@ -25,6 +25,10 @@ module Syskit
                         @disposable = @object.send(@event, &@block)
                     end
 
+                    def listening?
+                        @disposable
+                    end
+
                     def stop
                         @disposable&.dispose
                         @disposable = nil
