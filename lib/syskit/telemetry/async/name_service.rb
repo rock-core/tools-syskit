@@ -129,7 +129,9 @@ module Syskit
                 def async_discover_task(task)
                     future = Concurrent::Promises.future_on(@discovery_executor) do
                         ior = @iors.get[task.name]
-                        discover_task(task.name, ior, task.orogen_model_name)
+                        # ior will be nil if the task has been removed from the task
+                        # set while the future was pending
+                        discover_task(task.name, ior, task.orogen_model_name) if ior
                     end
                     @discovery[task.name] = AsyncDiscovery.new(task: task, future: future)
                 end
@@ -202,6 +204,8 @@ module Syskit
                 #
                 # @param [AsyncDiscovery] async_discovery
                 def finished_discovery_validate_ior(async_discovery)
+                    return unless async_discovery.task
+
                     current_ior = @iors.get[async_discovery.task.name]
                     return unless current_ior
 
@@ -239,6 +243,9 @@ module Syskit
                     [ior, async_task]
                 rescue StandardError => e
                     warn "Failed discovery of task #{name}: #{e.message}"
+                    e.backtrace.each do |line|
+                        warn "  #{line}"
+                    end
                     [ior, nil]
                 end
 
