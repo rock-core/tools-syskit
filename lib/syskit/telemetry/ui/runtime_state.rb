@@ -145,6 +145,7 @@ module Syskit
 
                     @current_job = nil
                     @current_job_tasks = []
+                    @current_job_task_names = []
                     @current_tasks = []
 
                     syskit.on_ui_event do |event_name, *args|
@@ -571,6 +572,7 @@ module Syskit
 
                 def reset_current_job
                     @current_job = nil
+                    @current_job_tasks = []
                     @current_job_task_names = []
 
                     update_task_inspector(@name_service.tasks)
@@ -610,13 +612,14 @@ module Syskit
 
                 def update_current_job_task_names
                     polling_call [], "tasks_of_job", @current_job.job_id do |tasks|
-                        # TODO: handle asynchronicity, the tasks may not be already
-                        # discovered and/or the
-                        @current_job_tasks =
+                        @current_job_task_names =
                             tasks
                             .map { _1.arguments[:orocos_name] }
                             .compact
+                        @current_job_tasks =
+                            @current_job_task_names
                             .map { @name_service.find(_1) }
+                            .compact
                     end
                 end
 
@@ -669,13 +672,24 @@ module Syskit
                 end
 
                 def update_name_service(deployments)
-                    all_deployed_tasks = deployments.flat_map do |d|
+                    deployed_tasks = deployments.flat_map do |d|
                         d.deployed_tasks.find_all do |deployed_task|
                             model_name = deployed_task.orogen_model_name
                             !hide_loggers? || !OROGEN_LOGGER_NAMES.include?(model_name)
                         end
                     end
-                    @name_service.async_update_tasks(all_deployed_tasks)
+
+                    if @current_job
+                        # If we are focussing, keep the tasks that have already been
+                        # discovered, but resolve the ones that interest the user first
+                        focussed_names =
+                            (@name_service.names + @current_job_task_names).to_set
+                        deployed_tasks.delete_if do |t|
+                            !focussed_names.include?(t.name)
+                        end
+                    end
+
+                    @name_service.async_update_tasks(deployed_tasks)
                 end
 
                 OROGEN_LOGGER_NAMES = %w[logger::Logger OroGen.logger.Logger].freeze
