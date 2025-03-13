@@ -18,8 +18,6 @@ module Syskit
         class LogRuntimeArchive
             DEFAULT_MAX_ARCHIVE_SIZE = 10_000_000_000 # 10G
 
-            FREE_SPACE_THRESHOLD_FOR_TRANSFER = 10_000_000_000 # 10G
-
             FTPParameters = Struct.new(:host, :port, :certificate, :user, :password,
                                        :implicit_ftps, :max_upload_rate,
                                        keyword_init: true)
@@ -45,13 +43,16 @@ module Syskit
             # through FTP server
             #
             # @param [Params] server_params the FTP server parameters
+            # #param [Integer] min_free_space the minimum required space
+            #   in the root_dir to perform transfer
             # @return [Array<TransferDatasetResult>]
-            def process_root_folder_transfer(server_params)
+            def process_root_folder_transfer(server_params, min_free_space)
                 candidates = self.class.find_all_dataset_folders(@root_dir)
                 running = candidates.last
                 candidates.map do |child|
                     process_dataset_transfer(
-                        child, server_params, @root_dir, full: child != running
+                        child, server_params, @root_dir, full: child != running,
+                        thresh: min_free_space
                     )
                 end
             end
@@ -149,9 +150,10 @@ module Syskit
                 end
             end
 
-            def process_dataset_transfer(child, server, root, full:)
+            def process_dataset_transfer(child, server, root, full:, thresh:)
                 self.class.transfer_dataset(
-                    child, server, root, full: full, logger: @logger
+                    child, server, root,
+                    full: full, thresh: thresh, logger: @logger
                 )
             end
 
@@ -170,7 +172,7 @@ module Syskit
             # Transfer the given dataset
             def self.transfer_dataset(
                 dataset_path, server, root,
-                full:, logger: null_logger
+                full:, thresh:, logger: null_logger
             )
                 logger.info(
                     "Transfering dataset #{dataset_path} in " \
@@ -186,7 +188,7 @@ module Syskit
                     end
 
                 transfer_results = candidates.map do |child_path|
-                    result = transfer_file(child_path, server, root)
+                    result = transfer_file(child_path, server, root, thresh)
                     child_path.unlink if result.success?
 
                     result
@@ -232,10 +234,10 @@ module Syskit
             # Transfer a file to the central log server via FTP
             #
             # @return [LogUploadState:Result]
-            def self.transfer_file(file, server, root)
+            def self.transfer_file(file, server, root, thresh)
                 free_space = Sys::Filesystem.stat(root).bytes_available
 
-                if free_space < FREE_SPACE_THRESHOLD_FOR_TRANSFER
+                if free_space < thresh
                     server.raise_error(
                         552, "Requested file transfer aborted for #{file}. " \
                              "Exceeded storage allocation for root dir."
