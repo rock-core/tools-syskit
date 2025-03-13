@@ -16,7 +16,8 @@ module Syskit
                 true
             end
 
-            desc "watch", "watch a dataset root folder and call archiver"
+            desc "watch ROOT_DIR TARGET_DIR",
+                 "watch a dataset root folder and call archiver"
             option :period,
                    type: :numeric, default: 600, desc: "polling period in seconds"
             option :max_size,
@@ -40,7 +41,8 @@ module Syskit
                 end
             end
 
-            desc "archive", "archive the datasets and manages disk space"
+            desc "archive ROOT_DIR TARGET_DIR",
+                 "archive the datasets and manages disk space"
             option :max_size,
                    type: :numeric, default: 10_000, desc: "max log size in MB"
             option :free_space_low_limit,
@@ -63,8 +65,8 @@ module Syskit
                 )
             end
 
-            desc "watch_transfer", "watches a dataset root folder \
-                                    and periodically performs transfer"
+            desc "watch_transfer SOURCE_DIR HOST PORT CERTIFICATE_PATH USER PASSWORD",
+                 "watches a dataset root folder and periodically performs transfer"
             option :period,
                    type: :numeric, default: 600, desc: "polling period in seconds"
             option :max_upload_rate_mbps,
@@ -88,7 +90,8 @@ module Syskit
                 end
             end
 
-            desc "transfer", "transfers the datasets"
+            desc "transfer SOURCE_DIR HOST PORT CERTIFICATE_PATH USER PASSWORD",
+                 "transfers the datasets"
             option :max_upload_rate_mbps,
                    type: :numeric, default: 1_000, desc: "max upload rate in Mbps"
             option :implicit_ftps,
@@ -110,7 +113,7 @@ module Syskit
                 archiver.process_root_folder_transfer(server_params)
             end
 
-            desc "transfer_server TARGET_DIR HOST CERFILE_PATH PASSWORD",
+            desc "transfer_server TARGET_DIR HOST PORT CERTFILE_PATH USER PASSWORD",
                  "creates the log transfer FTP server that runs on the main computer"
             option :implicit_ftps,
                    type: :boolean, default: true,
@@ -124,7 +127,8 @@ module Syskit
                 server.run
             end
 
-            desc "watch_ensure_free_space", "watches the ensure free space process"
+            desc "watch_ensure_free_space SOURCE_DIR",
+                 "watches the ensure free space process"
             option :period,
                    type: :numeric, default: 10, desc: "polling period in seconds"
             option :free_space_low_limit,
@@ -143,8 +147,8 @@ module Syskit
                 end
             end
 
-            desc "ensure_free_space", "ensures there is free space, if not, start \
-                                       deleting files"
+            desc "ensure_free_space SOURCE_DIR",
+                 "ensures there is free space, if not, start deleting files"
             option :free_space_low_limit,
                    type: :numeric, default: 5_000, desc: "start deleting files if \
                     available space is below this threshold (threshold in MB)"
