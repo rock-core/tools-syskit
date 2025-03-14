@@ -180,7 +180,8 @@ module Syskit
                         .new_instances
                         .should_receive(:process_root_folder_transfer)
                         .with(
-                            @ftp_params
+                            @ftp_params,
+                            10_000
                         )
                         .pass_thru do
                             called += 1
@@ -203,7 +204,8 @@ module Syskit
                             *updated_server_params.values,
                             "--period", 0.5,
                             "--max_upload_rate_mbps", 10,
-                            implicit_ftps_arg
+                            implicit_ftps_arg,
+                            "--min_required_space", 10_000
                         ]
                         LogRuntimeArchiveMain.start(args)
                     end

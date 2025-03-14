@@ -43,16 +43,16 @@ module Syskit
             # through FTP server
             #
             # @param [Params] server_params the FTP server parameters
-            # #param [Integer] min_free_space the minimum required space
+            # #param [Integer] min_required_space the minimum free space
             #   in the root_dir to perform transfer
             # @return [Array<TransferDatasetResult>]
-            def process_root_folder_transfer(server_params, min_free_space)
+            def process_root_folder_transfer(server_params, min_required_space)
                 candidates = self.class.find_all_dataset_folders(@root_dir)
                 running = candidates.last
                 candidates.map do |child|
                     process_dataset_transfer(
-                        child, server_params, @root_dir, full: child != running,
-                        thresh: min_free_space
+                        child, server_params, @root_dir,
+                        full: child != running, min_required_space: min_required_space
                     )
                 end
             end
@@ -150,10 +150,10 @@ module Syskit
                 end
             end
 
-            def process_dataset_transfer(child, server, root, full:, thresh:)
+            def process_dataset_transfer(child, server, root, full:, min_required_space:)
                 self.class.transfer_dataset(
                     child, server, root,
-                    full: full, thresh: thresh, logger: @logger
+                    full: full, min_required_space: min_required_space, logger: @logger
                 )
             end
 
@@ -170,9 +170,9 @@ module Syskit
             end
 
             # Transfer the given dataset
-            def self.transfer_dataset(
+            def self.transfer_dataset( # rubocop:disable Metrics/ParameterLists
                 dataset_path, server, root,
-                full:, thresh:, logger: null_logger
+                full:, min_required_space:, logger: null_logger
             )
                 logger.info(
                     "Transfering dataset #{dataset_path} in " \
@@ -188,7 +188,7 @@ module Syskit
                     end
 
                 transfer_results = candidates.map do |child_path|
-                    result = transfer_file(child_path, server, root, thresh)
+                    result = transfer_file(child_path, server, root, min_required_space)
                     child_path.unlink if result.success?
 
                     result
@@ -234,10 +234,10 @@ module Syskit
             # Transfer a file to the central log server via FTP
             #
             # @return [LogUploadState:Result]
-            def self.transfer_file(file, server, root, thresh)
+            def self.transfer_file(file, server, root, min_required_space)
                 free_space = Sys::Filesystem.stat(root).bytes_available
 
-                if free_space < thresh
+                if free_space < min_required_space
                     server.raise_error(
                         552, "Requested file transfer aborted for #{file}. " \
                              "Exceeded storage allocation for root dir."

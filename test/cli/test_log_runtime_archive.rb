@@ -534,7 +534,7 @@ module Syskit
                     params.port = @server.port
                     @params = params
                     @process = LogRuntimeArchive.new(@root)
-                    @min_free_space = 666
+                    @min_required_space = 666
                 end
 
                 after do
@@ -564,7 +564,8 @@ module Syskit
                         make_random_file "test.0.log", root: dataset_b
                         make_random_file "test.1.log", root: dataset_b
 
-                        @process.process_root_folder_transfer(@params, @min_free_space)
+                        @process.process_root_folder_transfer(@params,
+                                                              @min_required_space)
 
                         assert(File.exist?(@target_dir / "20220434-2023" / "test.0.log"))
                         assert(File.exist?(@target_dir / "20220434-2023" / "test.1.log"))
@@ -581,7 +582,8 @@ module Syskit
                         make_random_file "test.0.log", root: dataset
                         make_random_file "test.1.log", root: dataset
                         @process.process_dataset_transfer(
-                            dataset, @params, @root, full: true, thresh: @min_free_space
+                            dataset, @params, @root,
+                            full: true, min_required_space: @min_required_space
                         )
 
                         assert(File.exist?(@target_dir / "PATH" / "test.0.log"))
@@ -594,7 +596,8 @@ module Syskit
                         make_random_file "test.1.log", root: dataset
 
                         @process.process_dataset_transfer(
-                            dataset, @params, @root, full: true, thresh: @min_free_space
+                            dataset, @params, @root,
+                            full: true, min_required_space: @min_required_space
                         )
 
                         assert(
@@ -612,7 +615,8 @@ module Syskit
 
                     it "transfers a dataset through FTP" do
                         results = LogRuntimeArchive.transfer_dataset(
-                            @dataset, @params, @root, full: true, thresh: @min_free_space
+                            @dataset, @params, @root,
+                            full: true, min_required_space: @min_required_space
                         )
 
                         assert results.success?
@@ -623,7 +627,8 @@ module Syskit
 
                     it "removes the source file if the transfer was successful" do
                         results = LogRuntimeArchive.transfer_dataset(
-                            @dataset, @params, @root, full: true, thresh: @min_free_space
+                            @dataset, @params, @root,
+                            full: true, min_required_space: @min_required_space
                         )
 
                         assert results.success?
@@ -638,7 +643,8 @@ module Syskit
                             .should_receive(:transfer_file)
                             .and_return(result)
                         results = LogRuntimeArchive.transfer_dataset(
-                            @dataset, @params, @root, full: true, thresh: @min_free_space
+                            @dataset, @params, @root,
+                            full: true, min_required_space: @min_required_space
                         )
 
                         refute results.success?
@@ -651,7 +657,7 @@ module Syskit
                         dataset = make_valid_folder("PATH")
                         make_random_file "test.log", root: dataset
                         result = LogRuntimeArchive.transfer_file(
-                            dataset / "test.log", @params, @root, @min_free_space
+                            dataset / "test.log", @params, @root, @min_required_space
                         )
 
                         assert(File.exist?(@target_dir / "PATH" / "test.log"))
@@ -665,7 +671,7 @@ module Syskit
 
                         assert_raises(StandardError) do
                             LogRuntimeArchive.transfer_file(
-                                dataset / "test.log", @params, @root, @min_free_space
+                                dataset / "test.log", @params, @root, @min_required_space
                             )
                         end
                     end
