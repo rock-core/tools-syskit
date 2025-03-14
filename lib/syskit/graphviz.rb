@@ -189,10 +189,9 @@ module Syskit
             additional_edges << [from, to, label]
         end
 
-        def run_dot_with_retries(retry_count, command)
+        def run_dot_with_retries(retry_count, command, dot_graph)
             retry_count.times do |i|
                 Tempfile.open("roby_orocos_graphviz") do |io|
-                    dot_graph = yield
                     io.write dot_graph
                     io.flush
 
@@ -208,23 +207,14 @@ module Syskit
         # Generate a svg file representing the current state of the
         # deployment
         def to_file(kind, format, output_io, graphviz_tool: "dot", **display_options)
-            graph = run_dot_with_retries(20, "#{graphviz_tool} -T#{format} %s") do
-                send(kind, display_options)
-            end
-            graph ||= run_dot_with_retries(20, "#{graphviz_tool} -Tpng %s") do
-                send(kind, display_options)
-            end
+            graph = send(kind, display_options)
+            if format != "dot"
+                converted_graph =
+                    run_dot_with_retries(20, "#{graphviz_tool} -T#{format} %s", graph)
+                converted_graph ||=
+                    run_dot_with_retries(20, "#{graphviz_tool} -Tpng %s", graph)
 
-            unless graph
-                Syskit.debug do
-                    i = 0
-                    pattern = "syskit_graphviz_%i.dot"
-                    i += 1 while File.file?(format(pattern, i))
-                    path = format(pattern, i)
-                    File.write(path, send(kind, display_options))
-                    "saved graphviz input in #{path}"
-                end
-                raise DotFailedError, "dot reported an error generating the graph"
+                graph = converted_graph if converted_graph
             end
 
             if output_io.respond_to?(:to_str)

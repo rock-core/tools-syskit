@@ -303,23 +303,29 @@ module Syskit
                     filename = name.tr("/", "_")
                     dataflow_base = filename + "-dataflow"
                     hierarchy_base = filename + "-hierarchy"
+                    format = "dot"
+
                     if failed
                         dataflow_base += "-FAILED"
                         hierarchy_base += "-FAILED"
+                        format = "svg"
                     end
-                    dataflow = File.join(Roby.app.log_dir, "#{dataflow_base}.svg")
-                    hierarchy = File.join(Roby.app.log_dir, "#{hierarchy_base}.svg")
+
+                    dataflow = File.join(Roby.app.log_dir, "#{dataflow_base}.#{format}")
+                    hierarchy = File.join(Roby.app.log_dir, "#{hierarchy_base}.#{format}")
                     while File.file?(dataflow) || File.file?(hierarchy)
                         i ||= 1
-                        dataflow = File.join(Roby.app.log_dir,
-                                             "#{dataflow_base}.#{i}.svg")
-                        hierarchy = File.join(Roby.app.log_dir,
-                                              "#{hierarchy_base}.#{i}.svg")
+                        dataflow = File.join(
+                            Roby.app.log_dir, "#{dataflow_base}.#{i}.#{format}"
+                        )
+                        hierarchy = File.join(
+                            Roby.app.log_dir, "#{hierarchy_base}.#{i}.#{format}"
+                        )
                         i += 1
                     end
 
-                    Graphviz.new(plan).to_file("dataflow", "svg", dataflow)
-                    Graphviz.new(plan).to_file("hierarchy", "svg", hierarchy)
+                    Graphviz.new(plan).to_file("dataflow", format, dataflow)
+                    Graphviz.new(plan).to_file("hierarchy", format, hierarchy)
                 end
             end
 
