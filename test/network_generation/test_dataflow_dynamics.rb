@@ -232,7 +232,8 @@ module Syskit
                     task0.out_port.connect_to(task1.in_port)
 
                     @dynamics.should_receive(:policy_for)
-                             .with(task0, "out", "in", task1, nil)
+                             .with(task0, "out", "in", task1, nil,
+                                   explicit_policy: {})
                              .and_return(type: :buffer, size: 42)
                     policy_graph = @dynamics.compute_connection_policies
 
@@ -252,7 +253,8 @@ module Syskit
                     task0.out_port.connect_to(task1.in_port)
 
                     @dynamics.should_receive(:policy_for)
-                             .with(task0, "out", "in", task1, nil)
+                             .with(task0, "out", "in", task1, nil,
+                                   explicit_policy: {})
                              .and_return(type: :buffer, size: 42, init: true)
                     policy_graph = @dynamics.compute_connection_policies
 
@@ -272,7 +274,8 @@ module Syskit
                     task0.out_port.connect_to(task1.in_port)
 
                     @dynamics.should_receive(:policy_for)
-                             .with(task0, "out", "in", task1, nil)
+                             .with(task0, "out", "in", task1, nil,
+                                   explicit_policy: {})
                              .and_return(type: :buffer, size: 42, init: false)
                     policy_graph = @dynamics.compute_connection_policies
 
@@ -290,7 +293,8 @@ module Syskit
                     cmp.c_child.out_port.connect_to(task.in_port)
 
                     @dynamics.should_receive(:policy_for)
-                             .with(cmp.c_child, "out", "in", task, nil)
+                             .with(cmp.c_child, "out", "in", task, nil,
+                                   explicit_policy: {})
                              .and_return(type: :buffer, size: 42)
                     policy_graph = @dynamics.compute_connection_policies
 
@@ -308,7 +312,7 @@ module Syskit
                     task0.out_port.connect_to(task1.in_port, type: :buffer, size: 42)
 
                     @dynamics
-                        .should_receive(:policy_for)
+                        .should_receive(:policy_compute_data_element)
                         .with(task0, "out", "in", task1, nil)
                         .and_return(type: :buffer, size: 10, init: nil)
                     policy_graph = @dynamics.compute_connection_policies
@@ -329,12 +333,13 @@ module Syskit
                     )
 
                     @dynamics.should_receive(:policy_for)
-                             .with(task0, "out", "in", task1, { type: :data })
-                             .and_return(type: :buffer, size: 42)
+                             .with(task0, "out", "in", task1, { type: :data },
+                                   explicit_policy: {})
+                             .and_return(type: :buffer, size: 42, init: nil)
 
                     policy_graph = @dynamics.compute_connection_policies
 
-                    assert_equal({ type: :buffer, size: 42 },
+                    assert_equal({ type: :buffer, size: 42, init: nil },
                                  policy_graph[[task0, task1]][%w[out in]])
                 end
 
@@ -351,9 +356,11 @@ module Syskit
                         fallback_policy: { type: :data }
                     )
 
-                    @dynamics.should_receive(:policy_for).never
+                    @dynamics.should_receive(:policy_compute_data_element)
+                             .with(task0, "out", "in", task1, { type: :data })
+                             .and_return({ type: :buffer, size: 42 })
                     policy_graph = @dynamics.compute_connection_policies
-                    assert_equal({ type: :buffer, size: 42 },
+                    assert_equal({ type: :buffer, size: 42, init: nil },
                                  policy_graph[[task0, task1]][%w[out in]])
                 end
 
@@ -374,12 +381,31 @@ module Syskit
                     task0.out_port.connect_to task1.in_port, type: :data
 
                     flexmock(@dynamics)
-                        .should_receive(:policy_for)
-                        .with(task0, "out", "in", task1, nil)
-                        .and_return(type: :buffer, size: 10, init: true)
+                        .should_receive(:policy_compute_data_element)
+                        .never
 
                     policy_graph = @dynamics.compute_connection_policies
-                    expected_policy = { type: :data, init: true }
+                    expected_policy = { type: :data, init: nil }
+                    assert_equal(expected_policy,
+                                 policy_graph[[task0, task1]][%w[out in]])
+                end
+
+                it "makes sure the size is not overridden when explicit policy " \
+                   "sets the type to :buffer" do
+                    plan.add(task0 = @task_m.new)
+                    plan.add(task1 = @task_m.new)
+
+                    add_agents(tasks = [task0, task1])
+                    flexmock(@dynamics).should_receive(:propagate).with(tasks)
+
+                    task0.out_port.connect_to task1.in_port, type: :buffer, size: 42
+
+                    flexmock(@dynamics)
+                        .should_receive(:policy_compute_data_element)
+                        .never
+
+                    policy_graph = @dynamics.compute_connection_policies
+                    expected_policy = { type: :buffer, size: 42, init: nil }
                     assert_equal(expected_policy,
                                  policy_graph[[task0, task1]][%w[out in]])
                 end
@@ -568,20 +594,29 @@ module Syskit
                    "the sink port is marked as needs_reliable_connection" do
                     @sink_task_m.in_port.needs_reliable_connection
                     fallback_policy = flexmock
-                    expected_policy = flexmock
+                    connection_policy = flexmock
+                    computed_policy = flexmock
+                    merged_policy = flexmock
 
-                    expected_policy
-                        .should_receive(:merge)
-                        .and_return(expected_policy)
+                    flexmock(@dynamics)
+                        .should_receive(:merge_policy)
+                        .with({}, computed_policy)
+                        .and_return(merged_policy)
+
+                    flexmock(@dynamics)
+                        .should_receive(:policy_default_init_flag)
+                        .with(connection_policy, @source_t.out_port.model)
+                        .once.and_return(computed_policy)
 
                     flexmock(@dynamics)
                         .should_receive(:compute_reliable_connection_policy)
                         .with(@source_t.out_port, @sink_t.in_port, fallback_policy)
-                        .once.and_return(expected_policy)
+                        .once.and_return(connection_policy)
+
                     policy = @dynamics.policy_for(
                         @source_t, "out", "in", @sink_t, fallback_policy
                     )
-                    assert_equal expected_policy, policy
+                    assert_equal merged_policy, policy
                 end
 
                 it "merges init policy when sink requires reliable connection" do
