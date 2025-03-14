@@ -838,7 +838,7 @@ module Syskit
                         syskit_configure(cmp)
 
                         assert_equal(
-                            { %w[out in] => { type: :buffer, size: 20 } },
+                            { %w[out in] => { type: :buffer, size: 20, init: nil } },
                             RequiredDataFlow.edge_info(cmp.source_child, cmp.sink_child)
                         )
                     end
