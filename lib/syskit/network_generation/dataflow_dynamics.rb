@@ -571,12 +571,12 @@ module Syskit
                     mappings = connection_graph.edge_info(source_task, sink_task)
                     computed_policies =
                         mappings.each_with_object({}) do |(port_pair, policy), h|
-                            policy = policy.dup
-                            fallback_policy = policy.delete(:fallback_policy)
-                            computed_policy = policy_for(
-                                source_task, *port_pair, sink_task, fallback_policy
+                            explicit_policy = policy.dup
+                            fallback_policy = explicit_policy.delete(:fallback_policy)
+                            h[port_pair] = policy_for(
+                                source_task, *port_pair, sink_task,
+                                fallback_policy, explicit_policy: explicit_policy
                             )
-                            h[port_pair] = merge_policy(policy, computed_policy)
                         end
                     policy_graph[[source_task, sink_task]] = computed_policies
                 end
@@ -631,18 +631,23 @@ module Syskit
             end
 
             def policy_for(
-                source_task, source_port_name, sink_port_name, sink_task, fallback_policy
+                source_task, source_port_name, sink_port_name, sink_task,
+                fallback_policy, explicit_policy: {}
             )
-                policy = {}
-                unless policy[:type]
-                    policy = policy_compute_data_element(
-                        source_task, source_port_name, sink_task,
-                        sink_port_name, fallback_policy
-                    )
-                end
+                computed_policy =
+                    if explicit_policy[:type]
+                        {}
+                    else
+                        policy_compute_data_element(
+                            source_task, source_port_name, sink_task,
+                            sink_port_name, fallback_policy
+                        )
+                    end
 
                 model = source_task.find_output_port(source_port_name).model
-                policy_default_init_flag(policy, model)
+                computed_policy = policy_default_init_flag(computed_policy, model)
+
+                merge_policy(explicit_policy, computed_policy)
             end
 
             def compute_reliable_connection_policy(
