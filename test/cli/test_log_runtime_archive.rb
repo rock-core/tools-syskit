@@ -658,51 +658,76 @@ module Syskit
                 end
 
                 describe "empty log folder deletion" do
-                    it "does not delete folder if other files remain" do
+                    it "does not delete the folder if it contains multiple files" do
                         dataset = make_valid_folder("PATH")
                         make_random_file "test.0.log", root: dataset
-                        make_random_file "test.1.log", root: dataset
                         make_random_file "info.yml", root: dataset
-                        make_random_file "bla.txt", root: dataset
-
+                
                         @process.process_dataset_transfer(
                             dataset, @params, @root, full: true
                         )
-
-                        assert(File.exist?(@target_dir / "PATH" / "test.0.log"))
-                        assert(File.exist?(@target_dir / "PATH" / "test.1.log"))
+                
                         assert(File.exist?(dataset))
                     end
-
-                    it "deletes the folder if it is completely empty" do
+                
+                    it "does not delete the folder if it contains a .lock.tmp file" do
                         dataset = make_valid_folder("PATH")
-
+                        make_random_file ".lock.tmp", root: dataset
+                
                         @process.process_dataset_transfer(
                             dataset, @params, @root, full: true
                         )
+                
+                        assert(File.exist?(dataset))
+                    end
+                
+                    it "deletes the folder if it is completely empty and unlocked" do
+                        dataset = make_valid_folder("PATH")
 
+                        flexmock(Roby::Application)
+                            .should_receive(:log_dir_locked?)
+                            .with(dataset)
+                            .and_return(false)
+                
+                        @process.process_dataset_transfer(
+                            dataset, @params, @root, full: true
+                        )
+                
                         refute(File.exist?(dataset))
                     end
-
-                    it "does not delete folder if transfer fails" do
+                
+                    it "does not delete the folder if it contains only a .lock " \
+                       "file and is locked" do
                         dataset = make_valid_folder("PATH")
-                        make_random_file "test.0.log", root: dataset
-
-                        result = RobyApp::LogTransferServer::LogUploadState::Result.new(
-                            "/PATH", false, "message"
-                        )
-
-                        flexmock(LogRuntimeArchive)
-                            .should_receive(:transfer_file)
-                            .and_return(result)
-
-                        results = LogRuntimeArchive.transfer_dataset(
+                        make_random_file ".lock", root: dataset
+                
+                        flexmock(Roby::Application)
+                            .should_receive(:log_dir_locked?)
+                            .with(dataset)
+                            .and_return(true)
+                
+                        @process.process_dataset_transfer(
                             dataset, @params, @root, full: true
                         )
-
-                        refute results.success?
-                        assert((dataset / "test.0.log").exist?)
+                
                         assert(File.exist?(dataset))
+                    end
+                
+                    it "deletes the folder if it contains only a .lock file " \
+                       "and is unlocked" do
+                        dataset = make_valid_folder("PATH")
+                        make_random_file ".lock", root: dataset
+                
+                        flexmock(Roby::Application)
+                            .should_receive(:log_dir_locked?)
+                            .with(dataset)
+                            .and_return(false)
+                
+                        @process.process_dataset_transfer(
+                            dataset, @params, @root, full: true
+                        )
+                
+                        refute(File.exist?(dataset))
                     end
                 end
             end
