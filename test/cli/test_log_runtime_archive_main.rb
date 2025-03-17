@@ -190,7 +190,12 @@ module Syskit
                     tic = Time.now
                     assert_raises(quit) do
                         updated_server_params = @server_params
-                        implicit_ftps = updated_server_params[:implicit_ftps]
+                        implicit_ftps_arg =
+                            if updated_server_params[:implicit_ftps]
+                                "--implicit_ftps"
+                            else
+                                "--no-implicit_ftps"
+                            end
                         updated_server_params.delete(:implicit_ftps)
                         args = [
                             "watch_transfer",
@@ -198,7 +203,7 @@ module Syskit
                             *updated_server_params.values,
                             "--period", 0.5,
                             "--max_upload_rate_mbps", 10,
-                            "--implicit_ftps", implicit_ftps
+                            implicit_ftps_arg
                         ]
                         LogRuntimeArchiveMain.start(args)
                     end
@@ -242,14 +247,19 @@ module Syskit
                 # Call 'transfer' function instead of 'watch' to call transfer once
                 def call_transfer(source_dir, server_port: nil)
                     updated_server_params = @server_params
-                    implicit_ftps = updated_server_params[:implicit_ftps]
+                    implicit_ftps_arg =
+                        if updated_server_params[:implicit_ftps]
+                            "--implicit_ftps"
+                        else
+                            "--no-implicit_ftps"
+                        end
                     updated_server_params.delete(:implicit_ftps)
                     updated_server_params[:port] = server_port if server_port
                     args = [
                         "transfer",
                         source_dir,
                         *updated_server_params.values,
-                        "--implicit_ftps", implicit_ftps
+                        implicit_ftps_arg
                     ]
                     LogRuntimeArchiveMain.start(args)
                 end

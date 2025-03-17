@@ -72,7 +72,7 @@ module Syskit
             option :max_upload_rate_mbps,
                    type: :numeric, default: 1_000, desc: "max upload rate in Mbps"
             option :implicit_ftps,
-                   type: :boolean, default: true,
+                   type: :boolean, default: false,
                    desc: "use implicit connection method for ftps " \
                          "(disable for 2.5 clients on 2.7 servers)"
             def watch_transfer( # rubocop:disable Metrics/ParameterLists
@@ -95,7 +95,7 @@ module Syskit
             option :max_upload_rate_mbps,
                    type: :numeric, default: 1_000, desc: "max upload rate in Mbps"
             option :implicit_ftps,
-                   type: :boolean, default: true,
+                   type: :boolean, default: false,
                    desc: "use implicit connection method for ftps " \
                          "(disable for 2.5 clients on 2.7 servers)"
             def transfer( # rubocop:disable Metrics/ParameterLists
@@ -116,7 +116,7 @@ module Syskit
             desc "transfer_server TARGET_DIR HOST PORT CERTFILE_PATH USER PASSWORD",
                  "creates the log transfer FTP server that runs on the main computer"
             option :implicit_ftps,
-                   type: :boolean, default: true,
+                   type: :boolean, default: false,
                    desc: "use implicit connection method for ftps " \
                          "(disable for 2.5 clients on 2.7 servers)"
             def transfer_server( # rubocop:disable Metrics/ParameterLists
