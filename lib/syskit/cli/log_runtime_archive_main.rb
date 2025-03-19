@@ -16,7 +16,8 @@ module Syskit
                 true
             end
 
-            desc "watch", "watch a dataset root folder and call archiver"
+            desc "watch ROOT_DIR TARGET_DIR",
+                 "watch a dataset root folder and call archiver"
             option :period,
                    type: :numeric, default: 600, desc: "polling period in seconds"
             option :max_size,
@@ -41,7 +42,8 @@ module Syskit
                 end
             end
 
-            desc "archive", "archive the datasets and manages disk space"
+            desc "archive ROOT_DIR TARGET_DIR",
+                 "archive the datasets and manages disk space"
             option :max_size,
                    type: :numeric, default: 10_000, desc: "max log size in MB"
             option :free_space_low_limit,
@@ -64,20 +66,23 @@ module Syskit
                 )
             end
 
-            desc "watch_transfer", "watches a dataset root folder \
-                                    and periodically performs transfer"
+            desc "watch_transfer SOURCE_DIR HOST PORT CERTIFICATE_PATH USER PASSWORD",
+                 "watches a dataset root folder and periodically performs transfer"
             option :period,
                    type: :numeric, default: 600, desc: "polling period in seconds"
             option :max_upload_rate_mbps,
                    type: :numeric, default: 1_000, desc: "max upload rate in Mbps"
+            option :implicit_ftps,
+                   type: :boolean, default: false,
+                   desc: "use implicit connection method for ftps " \
+                         "(disable for 2.5 clients on 2.7 servers)"
             def watch_transfer( # rubocop:disable Metrics/ParameterLists
-                source_dir, host, port, certificate_path, user, password, implicit_ftps
+                source_dir, host, port, certificate_path, user, password
             )
                 logger = create_logger
                 loop do
                     begin
-                        transfer(source_dir, host, port, certificate_path, user, password,
-                                 implicit_ftps)
+                        transfer(source_dir, host, port, certificate_path, user, password)
                     rescue Errno::ENOSPC
                         next
                     end
@@ -87,11 +92,16 @@ module Syskit
                 end
             end
 
-            desc "transfer", "transfers the datasets"
+            desc "transfer SOURCE_DIR HOST PORT CERTIFICATE_PATH USER PASSWORD",
+                 "transfers the datasets"
             option :max_upload_rate_mbps,
                    type: :numeric, default: 1_000, desc: "max upload rate in Mbps"
+            option :implicit_ftps,
+                   type: :boolean, default: false,
+                   desc: "use implicit connection method for ftps " \
+                         "(disable for 2.5 clients on 2.7 servers)"
             def transfer( # rubocop:disable Metrics/ParameterLists
-                source_dir, host, port, certificate_path, user, password, implicit_ftps
+                source_dir, host, port, certificate_path, user, password
             )
                 source_dir = validate_directory_exists(source_dir)
                 archiver = make_archiver(source_dir)
@@ -99,23 +109,28 @@ module Syskit
                 server_params = LogRuntimeArchive::FTPParameters.new(
                     host: host, port: port, certificate: File.read(certificate_path),
                     user: user, password: password,
-                    implicit_ftps: implicit_ftps,
+                    implicit_ftps: options[:implicit_ftps],
                     max_upload_rate: rate_mbps_to_bps(options[:max_upload_rate_mbps])
                 )
                 archiver.process_root_folder_transfer(server_params)
             end
 
-            desc "transfer_server", "creates the log transfer FTP server \
-                                     that runs on the main computer"
+            desc "transfer_server TARGET_DIR HOST PORT CERTFILE_PATH USER PASSWORD",
+                 "creates the log transfer FTP server that runs on the main computer"
+            option :implicit_ftps,
+                   type: :boolean, default: false,
+                   desc: "use implicit connection method for ftps " \
+                         "(disable for 2.5 clients on 2.7 servers)"
             def transfer_server( # rubocop:disable Metrics/ParameterLists
-                target_dir, host, port, certfile_path, user, password, implicit_ftps
+                target_dir, host, port, certfile_path, user, password
             )
                 server = create_server(target_dir, host, port, certfile_path, user,
-                                       password, implicit_ftps == "true")
+                                       password, options[:implicit_ftps])
                 server.run
             end
 
-            desc "watch_ensure_free_space", "watches the ensure free space process"
+            desc "watch_ensure_free_space SOURCE_DIR",
+                 "watches the ensure free space process"
             option :period,
                    type: :numeric, default: 10, desc: "polling period in seconds"
             option :free_space_low_limit,
@@ -137,8 +152,8 @@ module Syskit
                 end
             end
 
-            desc "ensure_free_space", "ensures there is free space, if not, start \
-                                       deleting files"
+            desc "ensure_free_space SOURCE_DIR",
+                 "ensures there is free space, if not, start deleting files"
             option :free_space_low_limit,
                    type: :numeric, default: 5_000, desc: "start deleting files if \
                     available space is below this threshold (threshold in MB)"
