@@ -10,55 +10,11 @@ module Syskit
                 # client/server way.
                 #
                 # Use {ProcessClient} to access a server
-                class Server # rubocop:disable Metrics/ClassLength
+                class Server
                     extend Logger::Forward
                     extend Logger::Hierarchy
                     include Logger::Forward
                     include Logger::Hierarchy
-
-                    # Returns a unique directory name as a subdirectory of
-                    # +base_dir+, based on +path_spec+. The generated name
-                    # is of the form
-                    #   <base_dir>/a/b/c/YYYYMMDD-HHMM-basename
-                    # if <tt>path_spec = "a/b/c/basename"</tt>. A .<number> suffix
-                    # is appended if the path already exists.
-                    #
-                    # Shamelessly taken from Roby
-                    def self.unique_dirname(base_dir, path_spec, date_tag = nil)
-                        if path_spec =~ %r{/$}
-                            basename = ""
-                            dirname = path_spec
-                        else
-                            basename = File.basename(path_spec)
-                            dirname  = File.dirname(path_spec)
-                        end
-
-                        date_tag ||= Time.now.strftime("%Y%m%d-%H%M")
-                        basename =
-                            if basename && !basename.empty?
-                                date_tag + "-" + basename
-                            else
-                                date_tag
-                            end
-
-                        # Check if +basename+ already exists, and if it is the case add a
-                        # .x suffix to it
-                        full_path = File.expand_path(
-                            File.join(dirname, basename), base_dir
-                        )
-                        base_dir = File.dirname(full_path)
-
-                        FileUtils.mkdir_p(base_dir) unless File.exist?(base_dir)
-
-                        final_path = full_Path
-                        i = 0
-                        while File.exist?(final_path)
-                            i += 1
-                            final_path = full_path + ".#{i}"
-                        end
-
-                        final_path
-                    end
 
                     DEFAULT_OPTIONS = { output: "%m-%p.txt" }.freeze
 
