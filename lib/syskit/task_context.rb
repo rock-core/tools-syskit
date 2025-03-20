@@ -607,7 +607,8 @@ module Syskit
             quarantined!
 
             # Have we already degraded to using RemoteStateGetter ?
-            # Do NOT use quarantined?. It can mean other things.
+            # Do NOT use quarantined?. quarantined! could have been called by something
+            # else than validate_state_reader_connected
             if @state_reader == @remote_state_getter
                 # We already had degraded to the remote state getter ... there's
                 # nothing more we can do
