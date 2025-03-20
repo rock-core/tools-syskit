@@ -414,23 +414,23 @@ module Syskit
                         socket.write(Marshal.dump(message))
                     end
 
-                    def handle_new_folder_request(metadata = {})
-                        app.unlock_log_dir
+                    def setup_app_name_from_log_dir_metadata(metadata)
+                        return unless (app_name = metadata.dig("parent", "app_name"))
 
-                        return unless (parent_info = metadata["parent"])
+                        app.app_name = app_name
+                    end
 
-                        if (app_name = parent_info["app_name"])
-                            app.app_name = app_name
-                        end
-                        if (robot_name = parent_info["robot_name"])
-                            app.robot(
-                                robot_name, parent_info["robot_type"] || robot_name
-                            )
-                        end
+                    def setup_app_robot_from_log_dir_metadata(metadata)
+                        return unless (robot_name = metadata.dig("parent", "robot_name"))
+
+                        robot_type = metadata.dig("parent", "robot_type") || robot_name
+                        app.robot(robot_name, robot_type)
                     end
 
                     def create_log_dir(time_tag, metadata = {})
-                        handle_new_folder_request(metadata)
+                        app.unlock_log_dir
+                        setup_app_name_from_log_dir_metadata(metadata)
+                        setup_app_robot_from_log_dir_metadata(metadata)
 
                         app.add_app_metadata(metadata)
                         app.find_and_create_log_dir(time_tag)
