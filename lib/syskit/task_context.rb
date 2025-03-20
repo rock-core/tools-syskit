@@ -604,7 +604,6 @@ module Syskit
             return true if state_reader.connected?
 
             queue_last_chance_to_stop if running? && !stop_event.pending?
-            quarantined!
 
             # Have we already degraded to using RemoteStateGetter ?
             # Do NOT use quarantined?. quarantined! could have been called by something
@@ -626,18 +625,23 @@ module Syskit
 
                 false
             else
+                quarantined!(reason: "the task's state reader got disconnected")
+
                 # Switch to the remote state getter to at least figure out
                 # in which toplevel state we are. The component is unusable
                 # as is, but we can finish whatever transition it is doing
                 # (and stop it cleanly)
-                fatal "putting #{self} in quarantine, its state reader " \
-                      "#{state_reader} got disconnected"
-
                 @state_reader = @remote_state_getter
                 @remote_state_getter.resume_or_start
 
                 true
             end
+        end
+
+        # Whether self is waiting for the component to stop after it entered
+        # an exception state
+        def waiting_for_stop_after_exception?
+            @exception_transition_deadline
         end
 
         # @api private
@@ -666,9 +670,10 @@ module Syskit
                 @last_orogen_state = @orogen_state
                 @orogen_state = @pending_exception_states.shift
             elsif !@remote_state_getter.connected?
-                fatal "putting #{self} in quarantine, its remote state reader " \
-                      "#{@remote_state_getter} failed during exception handling"
-                quarantined!
+                quarantined!(
+                    reason: "the task's remote state getter got disconnected " \
+                            "during exception handling"
+                )
                 # Don't stop like in #handle_state_reader_disconnection, the component
                 # is currently transitioning to exception, a.k.a. already stopping
             end
