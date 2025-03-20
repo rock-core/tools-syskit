@@ -82,6 +82,13 @@ module Syskit
             end
 
             it "uses the in-process logger if available" do
+                # Needed in tests now that logger::Logger uses the base
+                # typekit in its interface
+                #
+                # Note that normally this is done by Syskit's setup process
+                # (which loads all required typekits), so not a bug of the
+                # in-process manager
+                Orocos.load_typekit "base"
                 Roby.app.using_task_library "logger"
 
                 use_ruby_tasks({ task_m => "test" }, remote_task: true)
