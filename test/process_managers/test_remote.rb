@@ -98,32 +98,36 @@ describe Syskit::ProcessManagers::Remote do
 
     describe "#create_log_dir" do
         before do
-            start_server
-            @client = Syskit::ProcessManagers::Remote::Manager.new(
-                "localhost", server.port, root_loader: root_loader
-            )
-            @lock_file = File.join(Roby.app.log_dir, ".lock")
+            @client = start_and_connect_to_server
         end
 
         it "locks the directory when it is being created" do
-            client.create_log_dir(Roby.app.time_tag)
-
             assert Roby::Application.log_dir_locked?(app.log_dir)
         end
 
-        it "releases the lock when the client's socket gets closed" do
-            client.create_log_dir(Roby.app.time_tag)
+        it "releases the lock when the server quits" do
             server.quit_and_join
 
             refute Roby::Application.log_dir_locked?(app.log_dir)
         end
 
-        it "releases the lock when the client requests a new folder" do
-            client.create_log_dir(Roby.app.time_tag)
-            assert Roby::Application.log_dir_locked?(app.log_dir)
+        it "releases the lock when a new folder is created" do
+            original_log_dir = app.log_dir
+            assert Roby::Application.log_dir_locked?(original_log_dir)
 
-            server.handle_new_folder_request            
-            refute Roby::Application.log_dir_locked?(app.log_dir)
+            client.create_log_dir("tag2")
+            refute_equal original_log_dir, app.log_dir
+            refute Roby::Application.log_dir_locked?(original_log_dir)
+        end
+
+        it "releases the lock when the client socket is closed" do
+            original_log_dir = app.log_dir
+            assert Roby::Application.log_dir_locked?(original_log_dir)
+
+            @client.close
+            assert_eventually do
+                !Roby::Application.log_dir_locked?(original_log_dir)
+            end
         end
     end
 
@@ -628,5 +632,16 @@ describe Syskit::ProcessManagers::Remote do
         sleep 1
 
         @gdb_pid = spawn("gdb", "-x", @gdb_script.path)
+    end
+
+    def assert_eventually(timeout: 5, &block)
+        deadline = Time.now + timeout
+        while Time.now < deadline
+            return if yield
+
+            sleep 0.01
+        end
+
+        flunk("#{block} did not return true in #{timeout} seconds")
     end
 end
