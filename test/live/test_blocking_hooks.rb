@@ -157,10 +157,12 @@ module Syskit
 
                     synchronize_on_sleep(task) { task.start! }
 
-                    expect_execution { task.stop! }.timeout(5).to do
-                        quarantine task
-                    end
+                    expect_execution { task.stop! }
+                        .timeout(5)
+                        .to_quarantine(task)
                     refute @deployment.task_context_in_fatal?(@task.orocos_name)
+                    assert_equal "task's stop call raised: Timeout",
+                                 @task.quarantine_reason
                 end
 
                 it "stops the task if the stop eventually works" do
@@ -172,7 +174,7 @@ module Syskit
 
                     expect_execution { task.stop! }
                         .timeout(1.5).join_all_waiting_work(false)
-                        .to { quarantine task }
+                        .to_quarantine(task)
                     expect_execution.to { emit task.stop_event }
                     refute @deployment.task_context_in_fatal?(@task.orocos_name)
                 end
@@ -197,6 +199,11 @@ module Syskit
                         emit task.aborted_event
                         emit deployment.kill_event
                     end
+
+                    assert_match(
+                        /task's stop call raised: Communication failed with corba/,
+                        @task.quarantine_reason
+                    )
                 end
             end
 
@@ -224,9 +231,11 @@ module Syskit
                     Orocos::CORBA.call_timeout = 1_000
                     syskit_configure_and_start(@task)
 
-                    expect_execution { task.stop! }.timeout(5).to do
-                        quarantine task
-                    end
+                    expect_execution { task.stop! }
+                        .timeout(5)
+                        .to_quarantine(task)
+                    assert_equal "task's stop call raised: Timeout",
+                                 @task.quarantine_reason
                     refute @deployment.task_context_in_fatal?(@task.orocos_name)
                 end
 
@@ -237,8 +246,10 @@ module Syskit
 
                     expect_execution { task.stop! }
                         .timeout(1.5).join_all_waiting_work(false)
-                        .to { quarantine task }
+                        .to_quarantine(task)
                     expect_execution.to { emit task.stop_event }
+                    assert_equal "task's stop call raised: Timeout",
+                                 @task.quarantine_reason
                     refute @deployment.task_context_in_fatal?(@task.orocos_name)
                 end
 
@@ -248,7 +259,7 @@ module Syskit
                     syskit_configure_and_start(task)
 
                     start = Time.now
-                    expect_execution { task.stop! }.join_all_waiting_work(false).to do
+                    expect_execution { task.stop! }.to do
                         poll do
                             kill_agent_once_in_poll(task) if (Time.now - start) > 1
                         end
@@ -260,6 +271,10 @@ module Syskit
                         emit task.aborted_event
                         emit deployment.kill_event
                     end
+                    assert_match(
+                        /task's stop call raised: Communication failed with corba/,
+                        @task.quarantine_reason
+                    )
                 end
             end
 
@@ -285,9 +300,13 @@ module Syskit
                     Syskit.conf.exception_transition_timeout = 1
                     syskit_configure_and_start(@task)
 
-                    expect_execution.timeout(5).to do
-                        quarantine task
-                    end
+                    expect_execution.timeout(5).to_quarantine(task)
+                    assert_equal(
+                        "time out reached while waiting for the task to stop " \
+                        "after it indicated a transition to an exception state. " \
+                        "Received state updates: EXCEPTION",
+                        task.quarantine_reason
+                    )
                     refute @deployment.task_context_in_fatal?(@task.orocos_name)
                 end
 
@@ -305,18 +324,24 @@ module Syskit
 
                 it "handles the task being killed in the middle of a long transition" do
                     @task.properties.time = 10
-                    Syskit.conf.exception_transition_timeout = 2
+                    Syskit.conf.exception_transition_timeout = 1
                     syskit_configure_and_start(task)
 
                     start = Time.now
                     expect_execution.join_all_waiting_work(false).to do
                         poll do
-                            kill_agent_once_in_poll(task) if (Time.now - start) > 1
+                            kill_agent_once_in_poll(task) if (Time.now - start) > 2
                         end
                         ignore_errors_from quarantine(task)
                         emit task.aborted_event
                         emit deployment.kill_event
                     end
+
+                    assert_equal(
+                        "time out reached while waiting for the task to stop " \
+                        "after it indicated a transition to an exception state. " \
+                        "Received state updates: EXCEPTION", task.quarantine_reason
+                    )
                 end
             end
 

@@ -661,7 +661,14 @@ module Syskit
         # RTT state, we make sure that the component is actually stopped *and* that
         # catch other state transitions, such as FATAL_ERROR
         def update_orogen_state_in_exception(state)
-            quarantined! if Time.now > @exception_transition_deadline
+            if Time.now > @exception_transition_deadline
+                quarantined!(
+                    reason: "time out reached while waiting for the task to stop " \
+                            "after it indicated a transition to an exception state. " \
+                            "Received state updates: " \
+                            "#{@pending_exception_states.map(&:to_s).join(', ')}"
+                )
+            end
 
             push_pending_exception_state(state) if state
             @exception_confirmation_received ||= has_exception_confirmation?
@@ -1046,7 +1053,8 @@ module Syskit
         def setup_failed!(exception)
             unless exception.kind_of?(Orocos::StateTransitionFailed)
                 fatal "Unexpected error '#{exception}' received while configuring"
-                fatal "Component #{self} is put in quarantine and cannot be reused"
+                fatal "Component #{self} is put in quarantine and cannot be reused " \
+                      "until its deployment has been restarted"
                 execution_agent.register_task_context_in_fatal(orocos_name)
             end
 
@@ -1099,8 +1107,8 @@ module Syskit
                 unless exception.kind_of?(Orocos::StateTransitionFailed)
                     fatal "#{exception} received while starting " \
                           "#{orocos_name}, expected a StateTransitionFailed " \
-                          "error. The component is put in quarantine and " \
-                          "cannot be reused"
+                          "error. The component cannot be reused until its deployment " \
+                          "has been restarted"
                     execution_agent.register_task_context_in_fatal(orocos_name)
                 end
 
@@ -1211,7 +1219,7 @@ module Syskit
                     end
                 promise.on_error(description: "#{self}#interrupt#error") do |error|
                     if execution_agent && !error.kind_of?(Orocos::StateTransitionFailed)
-                        quarantined!
+                        quarantined!(reason: "task's stop call raised: #{error}")
                     end
                 end
 
