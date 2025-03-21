@@ -236,9 +236,20 @@ module Syskit
                 it "on error, it filters out the planning failed and mission failed " \
                    "error caused by itself" do
                     task_m = Syskit::TaskContext.new_submodel
-                    assert_raises(MissingDeployments) do
+                    assert_raises(Syskit::MissingDeployment) do
                         syskit_deploy(task_m)
                     end
+                end
+
+                it "when capturing errors, it changes the planning failed error into a" \
+                   "PartialNetworkResolution" do
+                    before_flag = Syskit.conf.capture_errors_during_network_resolution?
+                    Syskit.conf.capture_errors_during_network_resolution = true
+                    task_m = Syskit::TaskContext.new_submodel
+                    assert_raises(Syskit::NetworkGeneration::PartialNetworkResolution) do
+                        syskit_deploy(task_m)
+                    end
+                    Syskit.conf.capture_errors_during_network_resolution = before_flag
                 end
             end
 

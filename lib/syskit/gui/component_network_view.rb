@@ -150,11 +150,11 @@ module Syskit
                 begin
                     if method == :compute_system_network
                         tic = Time.now
-                        @task = compute_system_network(model, plan)
+                        @task, = compute_system_network(model, plan)
                         timing = Time.now - tic
                     elsif method == :compute_deployed_network
                         tic = Time.now
-                        @task = compute_deployed_network(model, plan)
+                        @task, = compute_deployed_network(model, plan)
                         timing = Time.now - tic
                     else
                         @task = instanciate_model(model, plan, instanciate_options)

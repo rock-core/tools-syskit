@@ -524,7 +524,7 @@ module Syskit
                     end
 
                     assert_match(
-                        /cannot deploy the following tasks.*Task.*child test of Cmp/m,
+                        /cannot deploy the following task.*Task.*child test of Cmp/m,
                         PP.pp(e.each_original_exception.first, +"")
                     )
                 end
@@ -665,8 +665,8 @@ module Syskit
                     end
 
                     assert_match(
-                        /cannot deploy the following tasks.*Task.*child test of Cmp/m,
-                        PP.pp(e.each_original_exception.first, +"")
+                        /cannot deploy the following task.*Task.*child test of Cmp/m,
+                        PP.pp(e.original_exceptions.first, +"")
                     )
                 end
 

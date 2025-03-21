@@ -93,10 +93,13 @@ module Syskit
             #
             # This does not access {#real_plan}
             def compute_deployed_network(
+                error_handler: RaiseErrorHandler.new,
+                required_instances: [],
                 default_deployment_group: Syskit.conf.deployment_group,
                 compute_policies: true,
                 validate_deployed_network: true
             )
+                resolution_errors = []
                 log_timepoint_group "deploy_system_network" do
                     deployer = SystemNetworkDeployer.new(
                         work_plan,
@@ -105,7 +108,12 @@ module Syskit
                         default_deployment_group: default_deployment_group
                     )
 
-                    deployer.deploy(validate: validate_deployed_network)
+                    deployer.deploy(
+                        error_handler: error_handler, validate: validate_deployed_network
+                    )
+                    resolution_errors = error_handler.process_failures(
+                        required_instances, cleanup_failed_tasks: true
+                    )
                 end
 
                 # Now that we have a deployed network, we can compute the
@@ -122,7 +130,7 @@ module Syskit
                 @deployment_tasks = work_plan.find_local_tasks(Deployment).to_set
                 @deployed_tasks = work_plan.find_local_tasks(Component).to_set
 
-                nil
+                resolution_errors
             end
 
             # Apply the deployed network created with
@@ -332,7 +340,10 @@ module Syskit
                         # Need to switch the planning relation as well, it is
                         # not done by #replace
                         placeholder_task.remove_planning_task req_task
-                        actual_task.add_planning_task req_task
+                        # When using Syskit, a toplevel task might have more than
+                        # one planning task - think different requirements that
+                        # resolve to the same place in the network
+                        actual_task.add_planning_task(req_task, {})
                     end
                 end
             end
@@ -681,52 +692,59 @@ module Syskit
             # Computes the set of requirement tasks that should be used for
             # deployment within the given plan
             def self.discover_requirement_tasks_from_plan(plan)
-                req_tasks = plan.find_local_tasks(InstanceRequirementsTask)
-                req_tasks = req_tasks.find_all do |req_task|
-                    if req_task.failed? || req_task.pending?
-                        false
-                    elsif (planned_task = req_task.planned_task)
-                        !planned_task.finished? || planned_task.being_repaired?
-                    else
-                        false
-                    end
-                end
-                needed = plan.useful_tasks(with_transactions: false)
-                req_tasks.delete_if do |t|
-                    !needed.include?(t)
-                end
-                req_tasks
+                req_tasks =
+                    plan.find_local_tasks(InstanceRequirementsTask).running
+                req_tasks = req_tasks.find_all do |t|
+                    planned_task = t.planned_task
+                    next unless planned_task
+
+                    !planned_task.finished? || planned_task.being_repaired?
+                end.to_set
+                needed = plan.useful_tasks(with_transactions: false).to_set
+                req_tasks.intersection(needed)
             end
 
             def compute_system_network(
                 requirement_tasks =
                     Engine.discover_requirement_tasks_from_plan(real_plan),
+                error_handler: RaiseErrorHandler.new,
                 garbage_collect: true,
                 validate_abstract_network: true,
                 validate_generated_network: true,
                 default_deployment_group: Syskit.conf.deployment_group,
-                validate_deployed_network: (true if Syskit.conf.early_deploy?),
-                early_deploy: Syskit.conf.early_deploy?
+                early_deploy: Syskit.conf.early_deploy?,
+                validate_deployed_network: early_deploy,
+                cleanup_resolution_errors: true
             )
                 requirement_tasks = requirement_tasks.to_a
                 instance_requirements = requirement_tasks.map(&:requirements)
                 merge_solver.merge_task_contexts_with_same_agent = early_deploy
+
                 system_network_generator = SystemNetworkGenerator.new(
                     work_plan,
+                    error_handler: error_handler,
                     event_logger: event_logger,
                     merge_solver: merge_solver,
                     default_deployment_group: default_deployment_group,
                     early_deploy: early_deploy
                 )
-                toplevel_tasks = system_network_generator.generate(
-                    instance_requirements,
+                toplevel_tasks =
+                    system_network_generator.instanciate_system_network(
+                        instance_requirements
+                    )
+
+                system_network_generator.resolve_system_network(
                     garbage_collect: garbage_collect,
                     validate_abstract_network: validate_abstract_network,
                     validate_generated_network: validate_generated_network,
                     validate_deployed_network: validate_deployed_network
                 )
+                required_instances = Hash[requirement_tasks.zip(toplevel_tasks)]
 
-                Hash[requirement_tasks.zip(toplevel_tasks)]
+                resolution_errors = error_handler.process_failures(
+                    required_instances, cleanup_failed_tasks: cleanup_resolution_errors
+                )
+                [required_instances, resolution_errors]
             end
 
             # Computes the system network, that is the network that fullfills
@@ -759,30 +777,44 @@ module Syskit
                 compute_deployments: true,
                 default_deployment_group: Syskit.conf.deployment_group,
                 compute_policies: true,
-                early_deploy: Syskit.conf.early_deploy?
+                early_deploy: Syskit.conf.early_deploy?,
+                capture_errors_during_network_resolution:
+                    Syskit.conf.capture_errors_during_network_resolution?,
+                cleanup_resolution_errors: true
             )
-
                 merge_solver.merge_task_contexts_with_same_agent = early_deploy
-                required_instances = compute_system_network(
+
+                error_handler = if capture_errors_during_network_resolution
+                                    ResolutionErrorHandler.new(work_plan, merge_solver)
+                                else
+                                    RaiseErrorHandler.new
+                                end
+                required_instances, resolution_errors = compute_system_network(
                     requirement_tasks,
+                    error_handler: error_handler,
                     garbage_collect: garbage_collect,
                     validate_abstract_network: validate_abstract_network,
                     validate_generated_network: validate_generated_network,
                     default_deployment_group: (default_deployment_group if early_deploy),
                     validate_deployed_network: validate_deployed_network,
-                    early_deploy: early_deploy && compute_deployments
+                    early_deploy: early_deploy && compute_deployments,
+                    cleanup_resolution_errors: cleanup_resolution_errors
                 )
 
                 if compute_deployments
                     log_timepoint_group "compute_deployed_network" do
-                        compute_deployed_network(
-                            default_deployment_group: default_deployment_group,
-                            compute_policies: compute_policies,
-                            validate_deployed_network: validate_deployed_network
-                        )
+                        deployment_resolution_errors =
+                            compute_deployed_network(
+                                error_handler: error_handler,
+                                required_instances: required_instances,
+                                default_deployment_group: default_deployment_group,
+                                compute_policies: compute_policies,
+                                validate_deployed_network: validate_deployed_network
+                            )
+                        resolution_errors.concat(deployment_resolution_errors)
                     end
                 end
-                required_instances
+                [required_instances, resolution_errors]
             end
 
             # Generate the deployment according to the current requirements, and
@@ -819,10 +851,13 @@ module Syskit
                 validate_generated_network: true,
                 validate_deployed_network: true,
                 validate_final_network: true,
-                early_deploy: Syskit.conf.early_deploy?
+                early_deploy: Syskit.conf.early_deploy?,
+                capture_errors_during_network_resolution:
+                    Syskit.conf.capture_errors_during_network_resolution?,
+                cleanup_resolution_errors: on_error != :commit
             )
                 merge_solver.merge_task_contexts_with_same_agent = early_deploy
-                required_instances = resolve_system_network(
+                required_instances, resolution_errors = resolve_system_network(
                     requirement_tasks,
                     garbage_collect: garbage_collect,
                     validate_abstract_network: validate_abstract_network,
@@ -831,8 +866,19 @@ module Syskit
                     default_deployment_group: default_deployment_group,
                     compute_policies: compute_policies,
                     validate_deployed_network: validate_deployed_network,
-                    early_deploy: early_deploy
+                    early_deploy: early_deploy,
+                    capture_errors_during_network_resolution:
+                        capture_errors_during_network_resolution,
+                    cleanup_resolution_errors: cleanup_resolution_errors
                 )
+
+                # Can only be reached if the capture_error_during_network_resolution flag
+                # is true
+                if !resolution_errors.empty? && !cleanup_resolution_errors
+                    exceptions = resolution_errors.map(&:original_exception)
+                    handle_resolution_exception(exceptions, on_error: on_error)
+                    return resolution_errors
+                end
 
                 apply_system_network_to_plan(
                     required_instances,
@@ -840,6 +886,7 @@ module Syskit
                     garbage_collect: garbage_collect,
                     validate_final_network: validate_final_network
                 )
+                resolution_errors
             rescue Exception => e # rubocop:disable Lint/RescueException
                 handle_resolution_exception(e, on_error: on_error)
                 raise
@@ -916,22 +963,25 @@ module Syskit
                 end
             end
 
-            def handle_resolution_exception(e, on_error: :discard)
+            def handle_resolution_exception(exceptions, on_error: :discard)
                 return if work_plan.finalized? || work_plan == real_plan
 
+                exceptions = [exceptions] unless exceptions.kind_of? Array
                 if on_error == :save
-                    log_pp(:fatal, e)
-                    fatal "Engine#resolve failed"
-                    begin
-                        dataflow_path, hierarchy_path =
-                            Engine.autosave_plan_to_dot(work_plan, Roby.app.log_dir)
-                        fatal "the generated plan has been saved"
-                        fatal "use dot -Tsvg #{dataflow_path} > #{dataflow_path}.svg " \
-                              "to convert the dataflow to SVG"
-                        fatal "use dot -Tsvg #{hierarchy_path} > #{hierarchy_path}.svg " \
-                              "to convert to SVG"
-                    rescue Exception => e # rubocop:disable Lint/RescueException
-                        Roby.log_exception_with_backtrace(e, self, :fatal)
+                    exceptions.each do |e|
+                        log_pp(:fatal, e)
+                        fatal "Engine#resolve failed"
+                        begin
+                            dataflow_path, hierarchy_path =
+                                Engine.autosave_plan_to_dot(work_plan, Roby.app.log_dir)
+                            fatal "the generated plan has been saved"
+                            fatal "use dot -Tsvg #{dataflow_path} > " \
+                                  "#{dataflow_path}.svg to convert the dataflow to SVG"
+                            fatal "use dot -Tsvg #{hierarchy_path} > " \
+                                  "#{hierarchy_path}.svg to convert to SVG"
+                        rescue Exception => e # rubocop:disable Lint/RescueException
+                            Roby.log_exception_with_backtrace(e, self, :fatal)
+                        end
                     end
                 elsif on_error == :commit
                     work_plan.commit_transaction

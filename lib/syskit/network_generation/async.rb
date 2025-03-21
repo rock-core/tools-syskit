@@ -133,14 +133,17 @@ module Syskit
                 engine = future.engine
                 if @cancelled
                     engine.discard_work_plan
-                    false
+                    nil
                 elsif future.fulfilled?
-                    required_instances = future.value
+                    required_instances, resolution_errors = future.value
                     begin
                         engine.apply_system_network_to_plan(
                             required_instances, **@apply_system_network_options
                         )
-                        true
+                        SystemNetworkPlanApplyResult.new(
+                            instance_requirement_tasks: required_instances.keys,
+                            errors: resolution_errors
+                        )
                     rescue ::Exception => e
                         engine.handle_resolution_exception(e, on_error: Engine.on_error)
                         raise e

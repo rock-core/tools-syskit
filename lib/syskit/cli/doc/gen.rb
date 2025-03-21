@@ -266,7 +266,7 @@ module Syskit
                 main_plan.add(original_task = model.as_plan)
                 engine = Syskit::NetworkGeneration::Engine.new(main_plan)
                 planning_task = original_task.planning_task
-                mapping = engine.compute_system_network([planning_task], **options)
+                mapping, = engine.compute_system_network([planning_task], **options)
 
                 if engine.work_plan.respond_to?(:commit_transaction)
                     engine.work_plan.commit_transaction

@@ -71,9 +71,16 @@ module Syskit
                    .use("test" => robot.test_dev.with_arguments(arg: 2))
 
             self.syskit_run_planner_validate_network = true
-            e = assert_raises(ConflictingDeviceAllocation) do
-                run_planners([profile.test1_def, profile.test2_def])
-            end
+            e = if Syskit.conf.capture_errors_during_network_resolution?
+                    expect_execution do
+                        run_planners([profile.test1_def, profile.test2_def])
+                    end.to { have_error_matching Roby::PlanningFailedError.match }
+                        .exception.original_exceptions.first
+                else
+                    assert_raises(ConflictingDeviceAllocation) do
+                        run_planners([profile.test1_def, profile.test2_def])
+                    end
+                end
 
             formatted = PP.pp(e, +"")
             expected = <<~PP.chomp

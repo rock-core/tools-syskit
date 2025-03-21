@@ -51,14 +51,16 @@ module Syskit
 
                 it "returns running InstanceRequirementsTask tasks" do
                     execute { planning_task.start! }
-                    assert_equal [planning_task], Engine.discover_requirement_tasks_from_plan(plan)
+                    assert_equal [planning_task].to_set,
+                                 Engine.discover_requirement_tasks_from_plan(plan)
                 end
-                it "returns InstanceRequirementsTask tasks that successfully finished" do
+                it "returns InstanceRequirementsTask tasks that finished resolution" do
                     execute do
                         planning_task.start!
-                        planning_task.success_event.emit
+                        planning_task.resolution_success_event.emit
                     end
-                    assert_equal [planning_task], Engine.discover_requirement_tasks_from_plan(plan)
+                    assert_equal [planning_task].to_set,
+                                 Engine.discover_requirement_tasks_from_plan(plan)
                 end
                 it "ignores InstanceRequirementsTask tasks that failed" do
                     execute { planning_task.start! }
@@ -67,15 +69,16 @@ module Syskit
                         have_error_matching Roby::PlanningFailedError.match
                                                                      .with_origin(original_task)
                     end
-                    assert_equal [], Engine.discover_requirement_tasks_from_plan(plan)
+                    assert_equal Set.new, Engine.discover_requirement_tasks_from_plan(plan)
                 end
                 it "ignores InstanceRequirementsTask tasks that are pending" do
-                    assert_equal [], Engine.discover_requirement_tasks_from_plan(plan)
+                    assert_equal Set.new, Engine.discover_requirement_tasks_from_plan(plan)
                 end
                 it "ignores InstanceRequirementsTask tasks whose planned task has finished" do
                     task = syskit_stub_deploy_configure_and_start(simple_component_model)
                     expect_execution { task.stop! }.to { emit task.stop_event }
-                    assert_equal [], Engine.discover_requirement_tasks_from_plan(plan)
+                    assert_equal Set.new,
+                                 Engine.discover_requirement_tasks_from_plan(plan)
                 end
                 it "includes InstanceRequirementsTask tasks whose planned task have finished, but are being repaired" do
                     task = syskit_stub_deploy_configure_and_start(simple_component_model)
@@ -86,7 +89,8 @@ module Syskit
                         task.stop_event.handle_with(repair)
                         repair.start!
                     end.to { emit task.stop_event }
-                    assert_equal [planning_task], Engine.discover_requirement_tasks_from_plan(plan)
+                    assert_equal [planning_task].to_set,
+                                 Engine.discover_requirement_tasks_from_plan(plan)
                 end
             end
 
@@ -105,7 +109,7 @@ module Syskit
                     flexmock(requirements).should_receive(:instanciate)
                                           .and_return(instanciated_task = simple_component_model.new)
                     syskit_stub_configured_deployment(simple_component_model)
-                    mapping = syskit_engine.compute_system_network(
+                    mapping, = syskit_engine.compute_system_network(
                         [planning_task],
                         default_deployment_group: default_deployment_group
                     )
@@ -298,7 +302,7 @@ module Syskit
             end
 
             describe "when scheduling tasks for reconfiguration" do
-                it "ensures that the old task is gargabe collected " \
+                it "ensures that the old task is garbage collected " \
                    "when child of a composition" do
                     task_m = Syskit::TaskContext.new_submodel
                     cmp_m  = Syskit::Composition.new_submodel
@@ -307,8 +311,11 @@ module Syskit
                     syskit_stub_configured_deployment(task_m)
                     cmp = syskit_deploy(cmp_m)
                     original_task = cmp.test_child
-                    flexmock(task_m).new_instances.should_receive(:can_be_deployed_by?)
-                                    .with(->(proxy) { proxy.__getobj__ == cmp.test_child }).and_return(false)
+                    flexmock(task_m)
+                        .new_instances
+                        .should_receive(:can_be_deployed_by?)
+                        .with(->(proxy) { proxy.__getobj__ == cmp.test_child })
+                        .and_return(false)
                     new_cmp = syskit_deploy(cmp_m)
 
                     # Should have instanciated a new composition since the children
@@ -317,8 +324,9 @@ module Syskit
                     # Should have of course created a new task
                     refute_equal new_cmp.test_child, cmp.test_child
                     # And the old tasks should be ready to garbage-collect
-                    assert_equal [cmp, original_task].to_set,
-                                 execute { plan.static_garbage_collect.to_set }
+                    expect_execution.garbage_collect(true).to do
+                        finalize cmp, original_task
+                    end
                 end
 
                 it "ensures that the old task gets garbage collected when child " \
@@ -348,8 +356,9 @@ module Syskit
                     assert_equal new_parent, parent
                     refute_equal new_child, child
                     # And the old tasks should be ready to garbage-collect
-                    assert_equal [child].to_set,
-                                 execute { plan.static_garbage_collect.to_set }
+                    expect_execution.garbage_collect(true).to do
+                        finalize child
+                    end
                 end
 
                 it "ensures that the old task gets garbage collected when child " \
@@ -385,8 +394,9 @@ module Syskit
                     refute_equal new_child, child
                     refute_equal new_child_task, child_task
                     # And the old tasks should be ready to garbage-collect
-                    assert_equal [child, child_task].to_set,
-                                 execute { plan.static_garbage_collect.to_set }
+                    expect_execution.garbage_collect(true).to do
+                        finalize child, child_task
+                    end
                 end
             end
 
@@ -569,7 +579,7 @@ module Syskit
                     deployed = syskit_deploy(composition_model)
                     # This deregisters the task from the list of requirements in the
                     # syskit engine
-                    execute { plan.remove_task(deployed.planning_task) }
+                    execute { deployed.planning_task.success_event.emit }
 
                     syskit_stub_conf task_model, "non_default"
                     new_deployed = syskit_deploy(
@@ -595,8 +605,9 @@ module Syskit
                     assert_equal [deployed_task.stop_event],
                                  deployed_reconf.start_event.parent_objects(Roby::EventStructure::SyskitConfigurationPrecedence).to_a
                     plan.useful_tasks
-                    assert_equal([planning_task, deployed_task].to_set,
-                                 execute { plan.static_garbage_collect.to_set })
+                    expect_execution.garbage_collect(true).to do
+                        finalize planning_task, deployed_task
+                    end
                     assert(["non_default"], deployed_reconf.conf)
                 end
 
@@ -610,7 +621,8 @@ module Syskit
                     cmp, = syskit_deploy(composition_model.use("child" => task_model))
                     child = cmp.child_child.to_task
                     child.do_not_reuse
-                    execute { plan.remove_task(cmp.planning_task) }
+                    # Deregister the planning task from the list of requirements
+                    execute { cmp.planning_task.success_event.emit }
 
                     new_cmp, = syskit_deploy(composition_model.use("child" => task_model))
                     new_child = new_cmp.child_child
@@ -896,6 +908,96 @@ module Syskit
                         mock.should_receive(:call).never
                         plan.add_mission_task(@task_m)
                         syskit_run_planner_with_full_deployment { deploy_current_plan }
+                    end
+                end
+            end
+
+            describe "capture errors during network resolution" do
+                before do
+                    @srv_m = Syskit::DataService.new_submodel
+                    @task_m = Syskit::TaskContext.new_submodel
+                    @task_m.argument :arg
+                    @cmp_m = Syskit::Composition.new_submodel
+                    @cmp_m.add @task_m, as: "test"
+                    @cmp_m.add @srv_m, as: "other"
+                    @deployment_m = syskit_stub_configured_deployment(@task_m, "task1")
+                end
+
+                describe "#resolve_system_network" do
+                    it "capture the errors from the network generator instead of " \
+                       "raising them" do
+                        plan.add(t1 = @cmp_m.as_plan)
+                        _, errors = syskit_engine.resolve_system_network(
+                            [t1.planning_task],
+                            capture_errors_during_network_resolution: true,
+                            default_deployment_group: default_deployment_group,
+                            early_deploy: true
+                        )
+                        assert_equal 1, errors.size
+                        assert_kind_of TaskAllocationFailed,
+                                       errors.first.original_exception
+                    end
+
+                    it "capture the errors from the network deployer instead of " \
+                       "raising them" do
+                        task2_m = Syskit::TaskContext.new_submodel
+                        task2_m.provides @srv_m, as: "srv"
+                        t1 = @cmp_m.use("test" => @task_m.new(arg: 1),
+                                        "other" => task2_m.new).as_plan
+                        plan.add(t1)
+                        _, errors = syskit_engine.resolve_system_network(
+                            [t1.planning_task],
+                            capture_errors_during_network_resolution: true,
+                            default_deployment_group: default_deployment_group,
+                            early_deploy: true
+                        )
+                        assert_equal 1, errors.size
+                        assert_kind_of MissingDeployment,
+                                       errors.first.original_exception
+                    end
+
+                    it "accumulate errors from generator and deployer instead of " \
+                       "raising them" do
+                        not_deployed_task_m = Syskit::TaskContext.new_submodel
+                        not_deployed_task_m.provides @srv_m, as: "srv"
+                        @cmp_m.add @srv_m, as: "yet_another"
+
+                        t1 = @cmp_m.use("other" => not_deployed_task_m.new).as_plan
+                        plan.add(t1)
+                        _, errors = syskit_engine.resolve_system_network(
+                            [t1.planning_task],
+                            capture_errors_during_network_resolution: true,
+                            default_deployment_group: default_deployment_group,
+                            early_deploy: true
+                        )
+                        assert_equal 2, errors.size
+                        assert_kind_of TaskAllocationFailed,
+                                       errors.first.original_exception
+                        assert_kind_of MissingDeployment,
+                                       errors[1].original_exception
+                    end
+
+                    it "goes through the generation for tasks without issues even if " \
+                       "the generation fails for some of them" do
+                        task2_m = Syskit::TaskContext.new_submodel
+                        task2_m.provides @srv_m, as: "srv"
+                        syskit_stub_configured_deployment(task2_m)
+                        t1 = @cmp_m.use("test" => @task_m.new(arg: 1)).as_plan
+                        t2 = @cmp_m.use("test" => @task_m.new(arg: 1),
+                                        "other" => task2_m.new).as_plan
+                        plan.add(t1)
+                        plan.add(t2)
+                        required_instances, errors = syskit_engine.resolve_system_network(
+                            [t1.planning_task, t2.planning_task],
+                            capture_errors_during_network_resolution: true,
+                            default_deployment_group: default_deployment_group,
+                            early_deploy: true
+                        )
+                        assert_equal 1, errors.size
+                        assert_kind_of TaskAllocationFailed,
+                                       errors.first.original_exception
+
+                        assert_equal [t2.planning_task], required_instances.keys
                     end
                 end
             end

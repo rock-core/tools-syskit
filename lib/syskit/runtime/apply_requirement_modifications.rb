@@ -102,21 +102,29 @@ module Syskit
                     find_tasks(Syskit::InstanceRequirementsTask).running
 
                 begin
-                    return unless syskit_current_resolution.apply
+                    resolution_apply_result = syskit_current_resolution.apply
+
+                    return unless resolution_apply_result
                 ensure
                     syskit_current_resolution_keepalive.discard_transaction
                     @syskit_current_resolution = nil
                 end
 
-                running_requirement_tasks.each do |t|
-                    t.success_event.emit
+                resolution_apply_result.instance_requirement_tasks.each do |t|
+                    t.resolution_success_event.emit
                 end
-                nil
+                resolution_apply_result.errors.group_by(&:planning_task).each do |t, e|
+                    t.failed_event.emit(*e.flat_map(&:original_exception)) if t.running?
+                end
+                resolution_apply_result
             rescue ::Exception => e # rubocop:disable Lint/RescueException
                 running_requirement_tasks.each do |t|
                     t.failed_event.emit(e)
                 end
-                e
+                NetworkGeneration::SystemNetworkPlanApplyResult.new(
+                    errors: [e],
+                    instance_requirement_tasks: running_requirement_tasks
+                )
             end
         end
 
@@ -146,7 +154,7 @@ module Syskit
             needs_resolution =
                 force || plan.find_tasks(Syskit::InstanceRequirementsTask)
                              .running
-                             .any? { true }
+                             .any? { |t| !t.resolution_success? }
             return unless needs_resolution
 
             requirement_tasks ||= NetworkGeneration::Engine

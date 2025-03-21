@@ -1,5 +1,6 @@
 # frozen_string_literal: true
 
+require "roby/standard_errors"
 require "syskit/test/stubs"
 require "syskit/test/stub_network"
 require "syskit/test/instance_requirement_planning_handler"
@@ -160,11 +161,34 @@ module Syskit
                 end
                 task_mapping = plan.in_transaction do |trsc|
                     engine = NetworkGeneration::Engine.new(plan, work_plan: trsc)
-                    mapping = engine.compute_system_network(
-                        tasks_to_instanciate.map(&:planning_task),
+                    planning_tasks = tasks_to_instanciate.map(&:planning_task)
+                    error_handler =
+                        if Syskit.conf.capture_errors_during_network_resolution?
+                            NetworkGeneration::ResolutionErrorHandler.new(
+                                engine.work_plan, engine.merge_solver
+                            )
+                        else
+                            NetworkGeneration::RaiseErrorHandler.new
+                        end
+                    mapping, resolution_errors = engine.compute_system_network(
+                        planning_tasks,
                         validate_generated_network: false,
-                        early_deploy: false
+                        early_deploy: false,
+                        error_handler: error_handler
                     )
+                    unless resolution_errors.empty?
+                        execute do
+                            resolution_errors.each do |error|
+                                t = error.planning_task
+                                next unless t.running?
+
+                                t.failed_event.emit(error.original_exception)
+                            end
+                        end
+
+                        raise NetworkGeneration::PartialNetworkResolution, resolution_errors
+                    end
+
                     trsc.commit_transaction
                     mapping
                 end
@@ -173,7 +197,7 @@ module Syskit
                         replacement = task_mapping[task.planning_task]
                         plan.replace_task(task, replacement)
                         plan.remove_task(task)
-                        replacement.planning_task.success_event.emit
+                        replacement.planning_task.resolution_success_event.emit
                     end
                 end
                 root_tasks.map(&:task)
@@ -227,7 +251,7 @@ module Syskit
                     .to { emit(*not_running.map(&:start_event)) }
 
                 resolve_options = Hash[on_error: :commit].merge(resolve_options)
-                begin
+                resolution_errors = begin
                     syskit_engine_resolve_handle_plan_export do
                         syskit_engine ||= Syskit::NetworkGeneration::Engine.new(plan)
                         syskit_engine.resolve(
@@ -236,6 +260,8 @@ module Syskit
                         )
                     end
                 rescue StandardError => e
+                    # The rescue is relevant when the
+                    # capture_errors_during_network_resolution feature flag is off
                     expect_execution do
                         requirement_tasks.each { |t| t.failed_event.emit(e) }
                     end.to do
@@ -246,12 +272,23 @@ module Syskit
                     end
                     raise
                 end
-
-                execute do
-                    placeholder_tasks.each do |task|
-                        plan.remove_task(task)
+                if resolution_errors.empty?
+                    execute do
+                        placeholder_tasks.each do |task|
+                            plan.remove_task(task)
+                        end
+                        requirement_tasks.each do |t|
+                            t.resolution_success_event.emit unless t.finished?
+                        end
                     end
-                    requirement_tasks.each { |t| t.success_event.emit unless t.finished? }
+                else
+                    resolution_errors.each do |error|
+                        t = error.planned_task
+                        expect_execution do
+                            t.failed_event.emit(error.original_exception)
+                        end
+                    end
+                    raise NetworkGeneration::PartialNetworkResolution, resolution_errors
                 end
             end
 

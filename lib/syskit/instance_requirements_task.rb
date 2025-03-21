@@ -21,6 +21,10 @@ module Syskit
         # @return [InstanceRequirements]
         attr_accessor :requirements
 
+        # Marks the successful end of one network resolution that included this instance
+        # requirement
+        event :resolution_success
+
         # This task is executable only if a requirement object has been set
         #
         # We don't use task arguments here as InstanceRequirements is not (yet)
@@ -40,10 +44,10 @@ module Syskit
             unless new_spec.kind_of?(InstanceRequirements)
                 new_spec = InstanceRequirements.new([new_spec])
             end
+
             root = new_spec.create_proxy_task
             planner = new(**arguments)
             planner.requirements = new_spec
-            root.should_start_after(planner)
             planner.schedule_as(root)
             root.planned_by(planner)
             root

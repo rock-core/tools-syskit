@@ -450,7 +450,7 @@ module Syskit
                         task_m = Syskit::TaskContext.new_submodel
                         deployment_m.orogen_model.task "task", task_m.orogen_model
                         plan.add(task_m.new)
-                        assert_raises(MissingDeployments) do
+                        assert_raises(MissingDeployment) do
                             deployer.validate_deployed_network
                         end
                     end
@@ -463,22 +463,47 @@ module Syskit
                         deployer.default_deployment_group
                                 .use_deployment(d0 => "test1_")
 
-                        plan.add(task = task_m.new)
-                        e = assert_raises(MissingDeployments) do
+                        plan.add(task_m.new)
+                        e = assert_raises(MissingDeployment) do
                             deployer.validate_deployed_network
                         end
 
-                        info = e.tasks[task]
-                        assert_equal [], info[0] # parents
-                        candidates = info[1]
+                        parents = e.parents
+                        assert_equal [], parents
+                        candidates = e.candidates
+                        hints = e.deployment_hints
                         assert_equal [d0, d0],
                                      candidates.map { |c, _| c.configured_deployment.model }
                         assert_equal %w[test0_task0 test1_task0],
                                      candidates.map { |c, _| c.mapped_task_name }
-                        assert_equal Set[], info[2]
+                        assert_equal Set[], hints
                     end
 
                     it "snapshots the task's parents at the exception point" do
+                        parent_m = Syskit::TaskContext.new_submodel
+                        child_m = Syskit::TaskContext.new_submodel
+                        parent_d = syskit_stub_deployment_model parent_m, "task0"
+                        child_d = syskit_stub_deployment_model child_m, "task1"
+                        deployer.default_deployment_group
+                                .use_deployment(child_d => "test0_")
+                        deployer.default_deployment_group
+                                .use_deployment(child_d => "test1_")
+
+                        plan.add(parent_d_task = parent_d.new)
+                        plan.add(parent = parent_d_task.task("task0"))
+                        parent.depends_on(child_m.new, role: "test")
+                        e = assert_raises(MissingDeployment) do
+                            deployer.validate_deployed_network
+                        end
+
+                        parents = e.parents
+                        assert_equal [["test", parent]], parents
+                    end
+
+                    it "capture errors instead of raising them" do
+                        error_handler = ResolutionErrorHandler.new(
+                            deployer.plan, deployer.merge_solver
+                        )
                         task_m = Syskit::TaskContext.new_submodel
                         d0 = syskit_stub_deployment_model task_m, "task0"
                         deployer.default_deployment_group
@@ -487,13 +512,11 @@ module Syskit
                                 .use_deployment(d0 => "test1_")
 
                         plan.add(parent = task_m.new)
-                        parent.depends_on(task = task_m.new, role: "test")
-                        e = assert_raises(MissingDeployments) do
-                            deployer.validate_deployed_network
+                        parent.depends_on(task_m.new, role: "test")
+                        deployer.validate_deployed_network(error_handler: error_handler)
+                        assert error_handler.resolution_failures.any? do |f|
+                            f.original_exception.kind_of? MissingDeployment
                         end
-
-                        info = e.tasks[task]
-                        assert_equal [["test", parent]], info[0] # parents
                     end
                 end
 
@@ -512,8 +535,8 @@ module Syskit
                             deployer.validate_deployed_network
                         end
                         assert_equal(
-                            { task => ["something"] },
-                            e.missing_sections_by_task
+                            ["something"],
+                            e.missing_sections
                         )
                     end
 
@@ -536,6 +559,25 @@ module Syskit
                               #{task} (#{task.orogen_model.name})
                         MESSAGE
                         assert_equal expected, PP.pp(e, +"")
+                    end
+
+                    it "capture errors instead of raising them" do
+                        error_handler = ResolutionErrorHandler.new(
+                            deployer.plan, deployer.merge_solver
+                        )
+                        task_m = Syskit::TaskContext.new_submodel
+                        deployment_m.orogen_model.task "task", task_m.orogen_model
+                        plan.add(
+                            deployment = deployment_m.new(
+                                name_mappings: { "task" => "task" }
+                            )
+                        )
+                        plan.add(task = deployment.task("task"))
+                        task.conf = %w[default something]
+                        deployer.validate_deployed_network(error_handler: error_handler)
+                        assert error_handler.resolution_failures.any? do |f|
+                            f.original_exception.kind_of? MissingConfigurationSection
+                        end
                     end
                 end
             end

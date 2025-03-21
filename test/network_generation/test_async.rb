@@ -68,7 +68,8 @@ module Syskit
                     resolution = subject.prepare(requirements)
                     engine = flexmock(resolution.engine, :strict)
                     engine.should_receive(:resolve_system_network)
-                          .with(requirements, any).once.and_return(ret = flexmock)
+                          .with(requirements, any).once
+                          .and_return(ret = { requirements => [] })
 
                     if RUBY_VERSION >= "2.7"
                         engine.should_receive(:apply_system_network_to_plan).with(ret).once
@@ -89,7 +90,8 @@ module Syskit
                     )
                     engine = flexmock(resolution.engine, :strict)
                     engine.should_receive(:resolve_system_network)
-                          .with(requirements, any).once.and_return(ret = flexmock)
+                          .with(requirements, any).once
+                          .and_return(ret = { requirements => [] })
                     engine.should_receive(:apply_system_network_to_plan)
                           .with(ret, compute_deployments: false).once
                     resolution.execute
