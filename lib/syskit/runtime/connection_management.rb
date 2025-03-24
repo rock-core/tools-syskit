@@ -231,32 +231,49 @@ module Syskit
             end
 
             def perform_disconnections(disconnections)
-                success = Concurrent::Array.new
-                failure = Concurrent::Array.new
-                port_cache = Concurrent::Map.new
-                promises = disconnections.map do |syskit_from_task, from_task, from_port, syskit_to_task, to_task, to_port|
-                    execution_engine = plan.execution_engine
-                    execution_engine.promise(description: "disconnect #{from_task.name}##{from_port} -> #{to_task.name}##{to_port}") do
-                        begin
-                            from_orocos_port =
-                                (port_cache[[from_task, from_port]] ||= from_task.raw_port(from_port))
-                            to_orocos_port   =
-                                (port_cache[[to_task, to_port]] ||= to_task.raw_port(to_port))
-                            unless from_orocos_port.disconnect_from(to_orocos_port)
-                                warn "while disconnecting #{from_task}:#{from_port} => #{to_task}:#{to_port} returned false"
-                                warn "I assume that the ports are disconnected, but this should not have happened"
-                            end
-                            execution_engine.log(:syskit_disconnect, from_task.name, from_port, to_task.name, to_port)
+                port_cache_lock = Concurrent::ReadWriteLock.new
+                port_cache = {}
+                promises = disconnections.map do |connection|
+                    _, from_task, from_port,
+                        _, to_task, to_port = connection
 
-                            success << [syskit_from_task, from_task, from_port, syskit_to_task, to_task, to_port]
+                    execution_engine = plan.execution_engine
+                    promise = execution_engine.promise(
+                        description: "disconnect #{from_task.name}##{from_port} -> " \
+                                     "#{to_task.name}##{to_port}"
+                    ) do
+                        begin
+                            from_orocos_port = resolve_port_with_cache(
+                                port_cache_lock, port_cache, from_task, from_port
+                            )
+                            to_orocos_port = resolve_port_with_cache(
+                                port_cache_lock, port_cache, to_task, to_port
+                            )
+
+                            unless from_orocos_port.disconnect_from(to_orocos_port)
+                                warn "while disconnecting #{from_task}:#{from_port} " \
+                                     "=> #{to_task}:#{to_port} returned false"
+                                warn "I assume that the ports are disconnected, " \
+                                     "but this should not have happened"
+                            end
+                            execution_engine.log(
+                                :syskit_disconnect,
+                                from_task.name, from_port, to_task.name, to_port
+                            )
+
+                            nil
                         rescue Exception => e
-                            failure << [syskit_from_task, from_task, from_port, syskit_to_task, to_task, to_port, e]
+                            e
                         end
                     end
+
+                    [promise, connection]
                 end
+
                 log_timepoint_group "apply_remote_disconnections" do
-                    promises.each(&:execute)
+                    promises.each { |p,| p.execute }
                 end
+
                 # This is cheating around the "do not allow blocking calls in
                 # main thread" principle. It's good because it parallelizes
                 # disconnection - which speeds up network setup quite a bit - but
@@ -264,8 +281,26 @@ module Syskit
                 #
                 # The "blocking calls should not affect Syskit" tests should
                 # catch this
-                promises.each { |p| p.promise.value! }
+                success = []
+                failure = []
+                promises.each do |p, connection|
+                    p.wait
+                    if (e = p.value!)
+                        failure << (connection + [e])
+                    else
+                        success << connection
+                    end
+                end
                 [success, failure]
+            end
+
+            def resolve_port_with_cache(lock, port_cache, task, port_name)
+                key = [task, port_name]
+                port = lock.with_read_lock { port_cache[key] }
+                port || lock.with_write_lock do
+                    # Entry might have been added in the meantime
+                    (port_cache[key] ||= task.raw_port(port_name))
+                end
             end
 
             def post_disconnect_success(disconnections)
@@ -401,28 +436,27 @@ module Syskit
             #   array. The failure array gets in addition the exception as last
             #   argument.
             def perform_connections(connections)
-                success = Concurrent::Array.new
-                failure = Concurrent::Array.new
-                port_cache = Concurrent::Map.new
-                promises = connections.map do |from_task, from_port, to_task, to_port, policy, distance|
+                port_cache_lock = Concurrent::ReadWriteLock.new
+                port_cache = {}
+                promises = connections.map do |*connection, distance|
+                    from_task, from_port, to_task, to_port, policy = connection
                     execution_engine = plan.execution_engine
-                    execution_engine.promise(description: "connect #{from_task.orocos_name}##{from_port} -> #{to_task.orocos_name}##{to_port}") do
+                    promise = execution_engine.promise(description: "connect #{from_task.orocos_name}##{from_port} -> #{to_task.orocos_name}##{to_port}") do
                         begin
-                            from_orocos_port =
-                                (port_cache[[from_task, from_port]] ||= from_task.orocos_task.raw_port(from_port))
-                            to_orocos_port   =
-                                (port_cache[[to_task, to_port]] ||= to_task.orocos_task.raw_port(to_port))
+                            from_orocos_port = resolve_port_with_cache(port_cache_lock, port_cache, from_task.orocos_task, from_port)
+                            to_orocos_port = resolve_port_with_cache(port_cache_lock, port_cache, to_task.orocos_task, to_port)
                             from_orocos_port.connect_to(to_orocos_port, distance: distance, **policy)
                             execution_engine.log(:syskit_connect, :success, from_task.orocos_name, from_port, to_task.orocos_name, to_port, policy)
-                            success << [from_task, from_port, to_task, to_port, policy]
+                            nil
                         rescue Exception => e
                             execution_engine.log(:syskit_connect, :failure, from_task.orocos_name, from_port, to_task.orocos_name, to_port, policy)
-                            failure << [from_task, from_port, to_task, to_port, policy, e]
+                            e
                         end
                     end
+                    [promise, connection]
                 end
                 log_timepoint_group "apply_remote_connections" do
-                    promises.each(&:execute)
+                    promises.each { |p,| p.execute }
                 end
                 # This is cheating around the "do not allow blocking calls in
                 # main thread" principle. It's good because it parallelizes
@@ -431,7 +465,16 @@ module Syskit
                 #
                 # The "blocking calls should not affect Syskit" tests should
                 # catch this
-                promises.each { |p| p.promise.value! }
+                success = []
+                failure = []
+                promises.each do |p, connection|
+                    p.wait
+                    if (e = p.value!)
+                        failure << (connection + [e])
+                    else
+                        success << connection
+                    end
+                end
                 [success, failure]
             end
 
