@@ -1,6 +1,5 @@
 # frozen_string_literal: true
 
-require "roby/standalone"
 require "syskit/scripts/common"
 require "Qt"
 require "syskit/gui/browse"
@@ -13,11 +12,8 @@ parser = OptionParser.new do |opt|
         Usage: browse [file] [options]
         Loads the models from this bundle and allows to browse them. If a file is given, only this file is loaded.
     BANNER_TEXT
-
-    opt.on "--all", "-a", "Load all models from all active bundles instead of only the ones from the current" do
-        load_all = true
-    end
 end
+Roby.app.require_app_dir
 Scripts.common_options(parser, true)
 remaining = parser.parse(ARGV)
 
@@ -26,13 +22,15 @@ Roby.app.using "syskit"
 Syskit.conf.only_load_models = true
 Syskit.conf.disables_local_process_server = true
 Roby.app.ignore_all_load_errors = true
+Roby.app.development_mode = false
 
 direct_files, model_names = remaining.partition do |arg|
     File.file?(arg)
 end
+
 # Load all task libraries if we don't get a file to require
 Roby.app.auto_load_all = load_all
-Roby.app.auto_load_models = direct_files.empty?
+Roby.app.auto_load_models = false
 Roby.app.additional_model_files.concat(direct_files)
 
 app = Qt::Application.new(ARGV)

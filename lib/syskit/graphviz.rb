@@ -371,19 +371,18 @@ module Syskit
             policy_graph = dataflow_graph.policy_graph
             policy_annotations = {}
             plan.find_local_tasks(TaskContext).each do |source_task|
-                source_task.each_output_connection do |source_port, sink_port, sink_task, policy|
-                    key = [source_task, source_port, sink_task, sink_port]
-                    policy_annotations[key] = policy_to_string(policy)
-                end
-
                 source_task.each_concrete_output_connection do |source_port, sink_port, sink_task, _|
                     key = [source_task, source_port, sink_task, sink_port]
-                    next if policy_annotations[key]
-
                     if (task_policies = policy_graph[[source_task, sink_task]])
                         policy = task_policies[[source_port, sink_port]]
                     end
-                    policy_annotations[key] = policy_to_string(policy || {})
+                    policy_annotations[key] = policy_to_string(
+                        policy || policy_annotations[key] || {}
+                    )
+                end
+                source_task.each_output_connection do |source_port, sink_port, sink_task, policy|
+                    key = [source_task, source_port, sink_task, sink_port]
+                    policy_annotations[key] ||= policy_to_string(policy)
                 end
             end
 
