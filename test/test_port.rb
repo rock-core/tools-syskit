@@ -196,6 +196,31 @@ describe Syskit::InputWriter do
         assert_equal Orocos.allow_blocking_calls { task.orocos_task.port("in") },
                      port_writer.writer.port
     end
+    it "ignores resolution errors if the component has been finalized in the meantime" do
+        task = syskit_stub_deploy_configure_and_start(task_m)
+        barrier = Concurrent::CyclicBarrier.new(2)
+        # Try very hard to make sure we're doing remote calls on removed objects
+        # It is not 100%, but 80% wit this code
+        flexmock(Syskit::InputWriter)
+            .new_instances
+            .should_receive(:resolve_orocos_accessor)
+            .with(
+                ->(port) { barrier.wait; true },
+                any
+            ).pass_thru
+
+        port_writer = task.in_port.writer
+        expect_execution.join_all_waiting_work(false)
+            .to_achieve { barrier.number_waiting == 1 }
+
+        plan.unmark_mission_task(task)
+        expect_execution { task.stop! }
+            .garbage_collect(true)
+            .join_all_waiting_work(false) # to avoid synchronizing on the writer
+            .to_emit task.stop_event
+        barrier.wait
+        expect_execution.to_run
+    end
     it "waits for the underlying component to be configured if the port is dynamic" do
         in_srv_m = Syskit::DataService.new_submodel do
             input_port "in", "/double"
@@ -357,6 +382,31 @@ describe Syskit::OutputReader do
         assert_equal task.out_port, port_reader.resolved_port
         assert_equal Orocos.allow_blocking_calls { task.orocos_task.port("out") },
                      port_reader.reader.port
+    end
+    it "ignores resolution errors if the component has been finalized in the meantime" do
+        task = syskit_stub_deploy_configure_and_start(task_m)
+        barrier = Concurrent::CyclicBarrier.new(2)
+        # Try very hard to make sure we're doing remote calls on removed objects
+        # It is not 100%, but 80% wit this code
+        flexmock(Syskit::OutputReader)
+            .new_instances
+            .should_receive(:resolve_orocos_accessor)
+            .with(
+                ->(port) { barrier.wait; true },
+                any
+            ).pass_thru
+
+        port_writer = task.out_port.reader
+        expect_execution.join_all_waiting_work(false)
+            .to_achieve { barrier.number_waiting == 1 }
+
+        plan.unmark_mission_task(task)
+        expect_execution { task.stop! }
+            .garbage_collect(true)
+            .join_all_waiting_work(false) # to avoid synchronizing on the writer
+            .to_emit task.stop_event
+        barrier.wait
+        expect_execution.to_run
     end
     it "waits for the underlying component to be configured if the port is dynamic" do
         out_srv_m = Syskit::DataService.new_submodel do
