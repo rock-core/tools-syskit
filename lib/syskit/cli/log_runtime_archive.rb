@@ -103,8 +103,12 @@ module Syskit
                 until available_space >= free_space_delete_until
                     files = directory.each_child.select(&:file?)
                     if files.empty?
-                        Roby.warn "Cannot erase files: the folder is empty but the " \
-                                  "available space is smaller than the threshold."
+                        @logger.warn(
+                            "The available space (#{available_space}) is below the " \
+                            "free space threshold (#{free_space_low_limit}), but there " \
+                            "are no files left in the archiving folder #{directory} to " \
+                            "delete. Cannot free up space."
+                        )
                         return false
                     end
 
@@ -112,6 +116,10 @@ module Syskit
                     size_removed_file = removed_file.size
                     removed_file.unlink
                     available_space += size_removed_file
+                    @logger.info(
+                        "Removed file: #{removed_file}. Freed space[" \
+                        "#{size_removed_file}]. Available space[#{available_space}]"
+                    )
                 end
                 true
             end
