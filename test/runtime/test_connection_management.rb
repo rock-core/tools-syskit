@@ -559,7 +559,7 @@ module Syskit
 
                     sink_srv = sink.as_service
                     ConnectionManagement.update(plan)
-                    plan.syskit_join_current_resolution
+                    execute { plan.syskit_join_current_resolution }
                     ConnectionManagement.update(plan)
                     refute_equal sink, sink_srv.to_task
                 end
