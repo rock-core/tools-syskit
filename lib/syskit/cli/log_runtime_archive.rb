@@ -150,9 +150,11 @@ module Syskit
                 end
             end
 
-            def process_dataset_transfer(child, server, root, full:, min_required_space:)
+            def process_dataset_transfer(
+                child, server_params, root, full:, min_required_space:
+            )
                 self.class.transfer_dataset(
-                    child, server, root,
+                    child, server_params, root,
                     full: full, min_required_space: min_required_space, logger: @logger
                 )
             end
@@ -171,7 +173,7 @@ module Syskit
 
             # Transfer the given dataset
             def self.transfer_dataset( # rubocop:disable Metrics/ParameterLists
-                dataset_path, server, root,
+                dataset_path, server_params, root,
                 full:, min_required_space:, logger: null_logger
             )
                 logger.info(
@@ -188,7 +190,8 @@ module Syskit
                     end
 
                 transfer_results = candidates.map do |child_path|
-                    result = transfer_file(child_path, server, root, min_required_space)
+                    result = transfer_file(child_path, server_params, root,
+                                           min_required_space)
                     child_path.unlink if result.success?
 
                     result
@@ -234,21 +237,12 @@ module Syskit
             # Transfer a file to the central log server via FTP
             #
             # @return [LogUploadState:Result]
-            def self.transfer_file(file, server, root, min_required_space)
-                free_space = Sys::Filesystem.stat(root).bytes_available
-
-                if free_space < min_required_space
-                    server.raise_error(
-                        552, "Requested file transfer aborted for #{file}. " \
-                             "Exceeded storage allocation for root dir."
-                    )
-                end
-
+            def self.transfer_file(file, server_params, root, min_required_space)
                 ftp = RobyApp::LogTransferServer::FTPUpload.new(
-                    server.host, server.port, server.certificate, server.user,
-                    server.password, file,
-                    max_upload_rate: server.max_upload_rate || Float::INFINITY,
-                    implicit_ftps: server.implicit_ftps
+                    server_params.host, server_params.port, server_params.certificate,
+                    server_params.user, server_params.password, file,
+                    max_upload_rate: server_params.max_upload_rate || Float::INFINITY,
+                    implicit_ftps: server_params.implicit_ftps
                 )
                 ftp.open_and_transfer(root: root)
             end
