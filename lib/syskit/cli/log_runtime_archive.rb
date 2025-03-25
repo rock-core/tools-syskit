@@ -244,6 +244,14 @@ module Syskit
                     max_upload_rate: server_params.max_upload_rate || Float::INFINITY,
                     implicit_ftps: server_params.implicit_ftps
                 )
+
+                free_space = ftp.query_free_space
+                if free_space < min_required_space
+                    raise 522, "Not enough free space on server. " \
+                               "Required: #{min_required_space}, " \
+                               "Available: #{free_space}"
+                end
+
                 ftp.open_and_transfer(root: root)
             end
 

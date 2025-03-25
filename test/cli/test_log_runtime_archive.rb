@@ -676,14 +676,11 @@ module Syskit
                         end
                     end
 
-                    def mock_available_space(free_space, directory: @root)
-                        flexmock(Sys::Filesystem)
-                            .should_receive(:stat).with(directory)
-                            .and_return do
-                                flexmock(
-                                    bytes_available: free_space
-                                )
-                            end
+                    def mock_available_space(free_space)
+                        flexmock(RobyApp::LogTransferServer::FTPUpload)
+                            .new_instances
+                            .should_receive(:query_free_space)
+                            .and_return(free_space)
                     end
                 end
             end

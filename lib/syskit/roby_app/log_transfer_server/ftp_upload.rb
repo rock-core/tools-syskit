@@ -110,6 +110,10 @@ module Syskit
 
                     sleep(exp_duration - duration)
                 end
+
+                def query_free_space
+                    open { |ftp| Sys::Filesystem.stat(ftp.pwd).bytes_available }
+                end
             end
         end
     end

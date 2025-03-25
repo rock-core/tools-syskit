@@ -77,8 +77,8 @@ module Syskit
                    desc: "use implicit connection method for ftps " \
                          "(disable for 2.5 clients on 2.7 servers)"
             option :min_required_space,
-                   type: :numeric, default: 10_000_000_000,
-                   desc: "min space in source_dir required to perform transfer"
+                   type: :numeric, default: 10_000,
+                   desc: "min space in source_dir, in MB, required to perform transfer"
             def watch_transfer( # rubocop:disable Metrics/ParameterLists
                 source_dir, host, port, certificate_path, user, password
             )
@@ -106,7 +106,7 @@ module Syskit
             option :min_required_space,
                    type: :numeric,
                    default: 10_000,
-                   desc: "min space in source_dir, in Mbs, required to perform transfer"
+                   desc: "min space in source_dir, in MB, required to perform transfer"
             def transfer( # rubocop:disable Metrics/ParameterLists
                 source_dir, host, port, certificate_path, user, password
             )
