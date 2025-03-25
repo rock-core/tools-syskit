@@ -168,26 +168,19 @@ module Syskit
             # Transfer the given dataset
             def self.transfer_dataset(
                 dataset_path, server, root,
-                full:, logger: null_logger
+                info_name: "info", full:, logger: null_logger
             )
                 logger.info(
                     "Transfering dataset #{dataset_path} in " \
                     "#{full ? 'full' : 'partial'} mode"
                 )
-                candidates =
-                    each_file_from_path(dataset_path)
-                    .reject { |p| p.extname == ".partial" }
+                complete, paths_to_transfer =
+                    transfer_compute_paths(dataset_path, full, info_name)
 
-                complete, candidates =
-                    if full
-                        archive_filter_candidates_full(candidates)
-                    else
-                        archive_filter_candidates_partial(candidates)
-                    end
-
-                transfer_results = candidates.map do |child_path|
-                    result = transfer_file(child_path, server, root)
-                    child_path.unlink if result.success?
+                transfer_results = paths_to_transfer.map do |source_path, target_name|
+                    result =
+                        transfer_file(source_path, server, root, target_name: target_name)
+                    source_path.unlink if result.success?
 
                     result
                 end
@@ -196,6 +189,51 @@ module Syskit
                     complete: complete, transfer_results: transfer_results
                 )
                 log_transfer_results(dataset_path, result, logger: logger)
+            end
+
+            # @api private
+            #
+            # Compute paths to the files that should be transferred in a given dataset dir
+            #
+            # @param [Pathname] dataset_path the path to the dataset dir
+            # @param [Boolean] full if the transfer should be in full mode (all files
+            #   are transferred) or partial mode (only already rotated pocolog files
+            #   are transferred)
+            # @param [String] info_name name that should be given to the `info.yml`
+            #   file on the target machine
+            # @return [(Boolean,Array<Pathname>)] the boolean indicates whether this pass
+            #   is complete or not. The caller should call transfer_dataset until
+            #   the flag is true. The array is the list of paths to be transferred
+            #   in this pass
+            def self.transfer_compute_paths(dataset_path, full, info_name)
+                candidates =
+                    each_file_from_path(dataset_path)
+                    .reject { |p| p.extname == ".partial" }
+
+                complete, paths_to_transfer =
+                    if full
+                        archive_filter_candidates_full(candidates)
+                    else
+                        archive_filter_candidates_partial(candidates)
+                    end
+
+                paths_to_transfer =
+                    transfer_compute_remote_names(paths_to_transfer, info_name)
+
+                [complete, paths_to_transfer]
+            end
+
+            # Renames the info.yml file
+            def self.transfer_compute_remote_names(paths, info_name)
+                paths.map do |p|
+                    basename = p.basename.to_s
+
+                    if basename == "info.yml"
+                        [p, "#{info_name}.yml"]
+                    else
+                        [p, basename]
+                    end
+                end
             end
 
             # Logs the transfer dataset results
@@ -232,10 +270,11 @@ module Syskit
             # Transfer a file to the central log server via FTP
             #
             # @return [LogUploadState:Result]
-            def self.transfer_file(file, server, root)
+            def self.transfer_file(file, server, root, target_name: File.basename(file))
                 ftp = RobyApp::LogTransferServer::FTPUpload.new(
                     server.host, server.port, server.certificate, server.user,
                     server.password, file,
+                    target_name: target_name,
                     max_upload_rate: server.max_upload_rate || Float::INFINITY,
                     implicit_ftps: server.implicit_ftps
                 )
