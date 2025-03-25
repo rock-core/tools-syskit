@@ -22,6 +22,10 @@ module Syskit
                     @disposable = @register_with.call
                 end
 
+                def listening?
+                    @disposable
+                end
+
                 # De-registers the callback
                 #
                 # Does nothing if the listener is already started

@@ -13,7 +13,7 @@ module Syskit
                     read_executor: self.class.default_read_executor
                 )
                     @callbacks = {}
-                    @pollers = {}
+                    @pollers = Concurrent::AtomicReference.new({})
 
                     @connection_executor = connection_executor
                     @disconnection_executor = disconnection_executor
@@ -188,26 +188,30 @@ module Syskit
                     end
 
                     update_poller_period(poller)
-                    @pollers[port] = poller
+                    @pollers.update { |h| h.merge(port => poller) }
                 end
 
                 # @api private
                 #
                 # Remove the poller for a given port
                 def remove_poller(port)
-                    return unless (poller = @pollers.delete(port))
+                    poller = nil
+                    @pollers.update do |h|
+                        result = h.dup
+                        poller = result.delete(port)
+                        result
+                    end
 
-                    poller.dispose
+                    poller&.dispose
                 end
 
                 def dispose
-                    @pollers.each_value(&:dispose)
-                    @pollers = {}
+                    @pollers.get_and_set({}).each_value(&:dispose)
                 end
 
                 # Whether we are currently polling the given port
                 def polling?(port)
-                    @pollers.key?(port)
+                    @pollers.get.key?(port)
                 end
 
                 # Update a poller's period to match the callbacks currently listening
@@ -220,13 +224,13 @@ module Syskit
                 #
                 # @return [Reader,nil]
                 def find_poller_for_port(port)
-                    @pollers[port]
+                    @pollers.get[port]
                 end
 
                 # Method called regularly to update the asynchronous class state
                 def poll
                     now = monotonic_time
-                    @pollers.each_value do |p|
+                    @pollers.get.each_value do |p|
                         p.poll
 
                         process_poller_state(p, now)
