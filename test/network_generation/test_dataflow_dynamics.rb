@@ -232,8 +232,7 @@ module Syskit
                     task0.out_port.connect_to(task1.in_port)
 
                     @dynamics.should_receive(:policy_for)
-                             .with(task0, "out", "in", task1, nil,
-                                   explicit_policy: {})
+                             .with(task0, "out", "in", task1, nil, {})
                              .and_return(type: :buffer, size: 42)
                     policy_graph = @dynamics.compute_connection_policies
 
@@ -253,8 +252,7 @@ module Syskit
                     task0.out_port.connect_to(task1.in_port)
 
                     @dynamics.should_receive(:policy_for)
-                             .with(task0, "out", "in", task1, nil,
-                                   explicit_policy: {})
+                             .with(task0, "out", "in", task1, nil, {})
                              .and_return(type: :buffer, size: 42, init: true)
                     policy_graph = @dynamics.compute_connection_policies
 
@@ -274,8 +272,7 @@ module Syskit
                     task0.out_port.connect_to(task1.in_port)
 
                     @dynamics.should_receive(:policy_for)
-                             .with(task0, "out", "in", task1, nil,
-                                   explicit_policy: {})
+                             .with(task0, "out", "in", task1, nil, {})
                              .and_return(type: :buffer, size: 42, init: false)
                     policy_graph = @dynamics.compute_connection_policies
 
@@ -293,8 +290,7 @@ module Syskit
                     cmp.c_child.out_port.connect_to(task.in_port)
 
                     @dynamics.should_receive(:policy_for)
-                             .with(cmp.c_child, "out", "in", task, nil,
-                                   explicit_policy: {})
+                             .with(cmp.c_child, "out", "in", task, nil, {})
                              .and_return(type: :buffer, size: 42)
                     policy_graph = @dynamics.compute_connection_policies
 
@@ -333,8 +329,7 @@ module Syskit
                     )
 
                     @dynamics.should_receive(:policy_for)
-                             .with(task0, "out", "in", task1, { type: :data },
-                                   explicit_policy: {})
+                             .with(task0, "out", "in", task1, { type: :data }, {})
                              .and_return(type: :buffer, size: 42, init: nil)
 
                     policy_graph = @dynamics.compute_connection_policies

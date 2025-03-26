@@ -575,7 +575,7 @@ module Syskit
                             fallback_policy = explicit_policy.delete(:fallback_policy)
                             h[port_pair] = policy_for(
                                 source_task, *port_pair, sink_task,
-                                fallback_policy, explicit_policy: explicit_policy
+                                fallback_policy, explicit_policy
                             )
                         end
                     policy_graph[[source_task, sink_task]] = computed_policies
@@ -632,7 +632,7 @@ module Syskit
 
             def policy_for(
                 source_task, source_port_name, sink_port_name, sink_task,
-                fallback_policy, explicit_policy: {}
+                fallback_policy, explicit_policy = {}
             )
                 computed_policy =
                     if explicit_policy[:type]
