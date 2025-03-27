@@ -1,4 +1,4 @@
-#! /bin/sh -e
+#! /bin/sh -ex
 
 if test -n "$SYSKIT_LIVE_TEST_LOG_DIR"; then
     dir=$SYSKIT_LIVE_TEST_LOG_DIR
@@ -6,7 +6,7 @@ else
     dir=$(mktemp -d)
 fi
 
-syskit gen app "$dir/app"
+test -d "$dir/app" || syskit gen app "$dir/app"
 ROBY_BASE_LOG_DIR="$dir/app/logs"
 syskit orogen-test --workdir "$dir/app" "$@"
 
