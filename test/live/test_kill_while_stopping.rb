@@ -7,6 +7,17 @@ module Syskit
     class KillWhileStopping < Syskit::Test::ComponentTest
         run_live
 
+        before do
+            @__opportunistic_recovery_from_quarantine =
+                Syskit.conf.opportunistic_recovery_from_quarantine?
+            Syskit.conf.opportunistic_recovery_from_quarantine = false
+        end
+
+        after do
+            Syskit.conf.opportunistic_recovery_from_quarantine =
+                @__opportunistic_recovery_from_quarantine
+        end
+
         it "can concurrently kill the deployment while the task is being stopped" do
             fatal_error_m = OroGen.orogen_syskit_tests.FatalErrorAfterExceptionAndDelay
                                   .deployed_as("fatal_error_testcase")
