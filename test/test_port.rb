@@ -205,12 +205,15 @@ describe Syskit::InputWriter do
             .new_instances
             .should_receive(:resolve_orocos_accessor)
             .with(
-                ->(port) { barrier.wait; true },
-                any
+                proc do
+                    barrier.wait
+                    true
+                end, any
             ).pass_thru
 
-        port_writer = task.in_port.writer
-        expect_execution.join_all_waiting_work(false)
+        _port_writer = task.in_port.writer
+        expect_execution
+            .join_all_waiting_work(false)
             .to_achieve { barrier.number_waiting == 1 }
 
         plan.unmark_mission_task(task)
@@ -392,12 +395,15 @@ describe Syskit::OutputReader do
             .new_instances
             .should_receive(:resolve_orocos_accessor)
             .with(
-                ->(port) { barrier.wait; true },
-                any
+                proc do
+                    barrier.wait
+                    true
+                end, any
             ).pass_thru
 
-        port_writer = task.out_port.reader
-        expect_execution.join_all_waiting_work(false)
+        _port_writer = task.out_port.reader
+        expect_execution
+            .join_all_waiting_work(false)
             .to_achieve { barrier.number_waiting == 1 }
 
         plan.unmark_mission_task(task)
