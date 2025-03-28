@@ -328,20 +328,25 @@ module Syskit
 
             resolver =
                 main.promise(description: "#{port}##{@accessor_method} for #{self}") do
-                    port.to_orocos_port.public_send(
-                        @accessor_method, distance: distance, **policy
-                    )
+                    resolve_orocos_accessor(port, distance)
                 end
             resolver.on_success(description: "#{self}#resolve#ready") do |obj|
                 @orocos_accessor = obj unless @disconnected
             end
             resolver.on_error(description: "#{self}#resolve#failed") do |error|
                 actual_component = port.component
-                actual_component
-                    .execution_engine
-                    .add_error(PortAccessFailure.new(error, actual_component))
+                # Ignore the error if the component has been finalized in the meantime
+                if (engine = actual_component.execution_engine)
+                    engine.add_error(PortAccessFailure.new(error, actual_component))
+                end
             end
             resolver.execute
+        end
+
+        def resolve_orocos_accessor(port, distance)
+            port.to_orocos_port.public_send(
+                @accessor_method, distance: distance, **policy
+            )
         end
     end
 

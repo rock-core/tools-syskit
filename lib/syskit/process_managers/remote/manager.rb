@@ -153,9 +153,13 @@ module Syskit
                 def wait_for_ack
                     wait_for_answer do |reply|
                         return true if reply == RET_YES
-                        return false if reply == RET_NO
 
-                        raise InternalError, "unexpected reply #{reply}"
+                        if reply != RET_NO
+                            raise InternalError, "unexpected reply #{reply}"
+                        end
+
+                        msg = Marshal.load(socket)
+                        raise Failed, "failed command: #{msg}"
                     end
                 end
 
@@ -311,13 +315,13 @@ module Syskit
                 def stop(deployment_name, hard: false)
                     socket.write(COMMAND_END)
                     Marshal.dump([deployment_name, hard], socket)
-                    raise Failed, "failed to quit #{deployment_name}" unless wait_for_ack
+                    wait_for_ack
                 end
 
                 def kill_all(hard: true)
                     socket.write(COMMAND_KILL_ALL)
                     Marshal.dump([hard], socket)
-                    raise Failed, "failed kill_all" unless wait_for_ack
+                    wait_for_ack
 
                     Marshal.load(socket)
                 end

@@ -698,7 +698,7 @@ describe Syskit::Models::Composition do
                 assert_dependency_contains consider_in_pending: true
             end
             it "uses failure: [:stop] as default dependency option" do
-                composition_model({})
+                composition_model
                 task = instanciate
                 assert_dependency_contains failure: :start.never.or(:stop.to_unbound_task_predicate)
             end

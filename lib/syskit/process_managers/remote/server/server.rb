@@ -335,14 +335,14 @@ module Syskit
                             begin
                                 metadata ||= {} # compatible with older clients
                                 create_log_dir(time_tag, metadata)
-                                socket.write(RET_YES)
+                                send_ack(socket)
                             rescue StandardError => e
                                 warn "failed to create log directory #{app.log_dir}: " \
                                      "#{e.message}"
                                 (e.backtrace || []).each do |line|
                                     warn "   #{line}"
                                 end
-                                socket.write(RET_NO)
+                                send_nack(socket, e.message)
                             end
 
                         elsif cmd_code == COMMAND_START
@@ -366,8 +366,7 @@ module Syskit
                                 (e.backtrace || []).each do |line|
                                     warn "   #{line}"
                                 end
-                                socket.write(RET_NO)
-                                socket.write Marshal.dump(e.message)
+                                send_nack(socket, e.message)
                             end
                         elsif cmd_code == COMMAND_END
                             name, hard = Marshal.load(socket)
@@ -375,17 +374,17 @@ module Syskit
                             if (p = processes[name])
                                 begin
                                     end_process(p, hard: hard)
-                                    socket.write(RET_YES)
+                                    send_ack(socket)
                                 rescue Interrupt
                                     raise
                                 rescue Exception => e # rubocop:disable Lint/RescueException
                                     warn "exception raised while calling #{p}#kill"
                                     log_pp(:warn, e)
-                                    socket.write(RET_NO)
+                                    send_nack(socket, e.message)
                                 end
                             else
                                 warn "no process named #{name} to end"
-                                socket.write(RET_NO)
+                                send_nack(socket, "no process named #{name} to end")
                             end
                         elsif cmd_code == COMMAND_KILL_ALL
                             hard = Marshal.load(socket)
@@ -399,8 +398,12 @@ module Syskit
                             quit
                         elsif cmd_code == COMMAND_LOG_UPLOAD_FILE
                             parameters = Marshal.load(socket)
-                            log_upload_file(socket, parameters)
-                            socket.write(RET_YES)
+                            begin
+                                log_upload_file(socket, parameters)
+                                send_ack(socket)
+                            rescue StandardError => e
+                                send_nack(socket, e.message)
+                            end
 
                         elsif cmd_code == COMMAND_LOG_UPLOAD_STATE
                             state = log_upload_state
@@ -439,6 +442,15 @@ module Syskit
                             fatal "  #{bt}"
                         end
                         false
+                    end
+
+                    def send_ack(socket)
+                        socket.write(RET_YES)
+                    end
+
+                    def send_nack(socket, message)
+                        socket.write(RET_NO)
+                        socket.write(Marshal.dump(message))
                     end
 
                     def create_log_dir(time_tag, metadata = {})
