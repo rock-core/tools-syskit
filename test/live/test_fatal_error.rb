@@ -216,6 +216,40 @@ module Syskit
                         emit task.fatal_error_event
                     end
             end
+
+            it "waits for the final transition to be present on the state connection " \
+               "to stop the task" do
+                task_m = OroGen.orogen_syskit_tests.FatalErrorAfterExceptionAndDelay
+                               .deployed_as(default_deployment_name)
+                task = syskit_deploy(task_m)
+                task.properties.update_delay_ms = 0
+                task.properties.stop_delay_ms = 0
+                syskit_configure(task)
+
+                FlexMock.use(task) do |task_mock|
+                    task_mock
+                        .should_receive(:update_orogen_state_in_exception)
+                        .with(nil).pass_thru
+
+                    task_mock
+                        .should_receive(:update_orogen_state_in_exception)
+                        .with(:FATAL_ERROR)
+
+                    expect_execution { task.start! }
+                        .to do
+                            not_emit task.exception_event, within: 1
+                            not_emit task.fatal_error_event, within: 1
+                        end
+                end
+
+                # :FATAL_ERROR won't come by itself. Cheat
+                task.push_pending_exception_state(:FATAL_ERROR)
+                expect_execution
+                    .to do
+                        emit task.exception_event
+                        emit task.fatal_error_event
+                    end
+            end
         end
 
         def trigger_fatal_error(task, &block)

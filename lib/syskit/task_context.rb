@@ -630,6 +630,13 @@ module Syskit
 
         # @api private
         #
+        # Purely for testing reasons
+        def push_pending_exception_state(state)
+            @pending_exception_states << state
+        end
+
+        # @api private
+        #
         # Wait for confirmation of the component shutdown once we received an
         # exception state
         #
@@ -640,8 +647,20 @@ module Syskit
         def update_orogen_state_in_exception(state)
             quarantined! if Time.now > @exception_transition_deadline
 
-            @pending_exception_states << state if state
-            if %I[EXCEPTION FATAL_ERROR].include?(@remote_state_getter.read)
+            push_pending_exception_state(state) if state
+            direct_state = @remote_state_getter.read
+
+            # Last sanity check ... async stuff sucks
+            #
+            # We might be receiving the direct state change from @remote_state_getter
+            # before it gets to us from the port connection
+            #
+            # Make sure we wait for it
+            @exception_confirmation_received =
+                %I[EXCEPTION FATAL_ERROR].include?(direct_state) &&
+                @pending_exception_states.include?(direct_state)
+
+            if @exception_confirmation_received
                 @last_orogen_state = @orogen_state
                 @orogen_state = @pending_exception_states.shift
             elsif !@remote_state_getter.connected?
