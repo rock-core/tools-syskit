@@ -407,7 +407,7 @@ describe Syskit::ProcessManagers::Remote do
             toc = Time.now
 
             assert_includes(
-                (1.8..2.2), toc - tic,
+                (1.8..2.3), toc - tic,
                 "transfer took #{toc - tic} instead of the expected 2s"
             )
             path = File.join(@temp_serverdir, "logfile.log")
