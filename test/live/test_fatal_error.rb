@@ -120,24 +120,10 @@ module Syskit
                     # Kill the deployment ourselves to avoid warnings on teardown
                     expect_execution { task.execution_agent.stop! }
                         .to do
+                            emit task.execution_agent.stop_event
                             emit task.aborted_event
                             emit task2.aborted_event
                         end
-                end
-
-                it "kills the deployment if the only non-utility tasks " \
-                   "are in quarantine" do
-                    expect_execution do
-                        task.quarantined!
-                        task2.quarantined!
-                    end.to do
-                        quarantine task
-                        quarantine task2
-                        emit task.aborted_event
-                        emit task2.aborted_event
-                        emit deployment.kill_event
-                        emit deployment.signaled_event
-                    end
                 end
             end
 
@@ -165,6 +151,23 @@ module Syskit
                             emit deployment.kill_event
                             emit deployment.signaled_event
                         end
+                end
+
+                it "kills the deployment if the only non-utility tasks " \
+                   "are in quarantine" do
+                    plan.unmark_mission_task(task)
+                    plan.unmark_mission_task(task2)
+                    expect_execution do
+                        task.quarantined!
+                        task2.quarantined!
+                    end.to do
+                        quarantine task
+                        quarantine task2
+                        emit task.aborted_event
+                        emit task2.aborted_event
+                        emit deployment.kill_event
+                        emit deployment.signaled_event
+                    end
                 end
             end
         end
