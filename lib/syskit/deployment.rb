@@ -51,6 +51,7 @@ module Syskit
         def initialize(**options)
             super
 
+            @scheduled_for_kill = false
             @has_fatal_errors = false
             @has_quarantines = false
             @quit_ready_event_monitor = Concurrent::Event.new
@@ -935,6 +936,40 @@ module Syskit
                 process_server_config.register_on_name_server?
             else
                 register_on_name_server
+            end
+        end
+
+        # Mark this deployment to be killed in the next execution cycle
+        #
+        # This is used within transactions when a deployment needs to be stopped
+        # while it has attached tasks (e.g. quarantined tasks)
+        def scheduled_for_kill!
+            @scheduled_for_kill = true
+        end
+
+        # Check whether this deployment is to be killed in the next execution cycle
+        #
+        # This is used within transactions when a deployment needs to be stopped
+        # while it has attached tasks (e.g. quarantined tasks)
+        def scheduled_for_kill?
+            @scheduled_for_kill
+        end
+
+        def kill!
+            kill_event.call
+        end
+
+        poll do
+            kill! if scheduled_for_kill? && !kill_event.pending?
+        end
+
+        module Proxying
+            proxy_for Deployment
+
+            def commit_transaction
+                super
+
+                __getobj__.scheduled_for_kill! if scheduled_for_kill?
             end
         end
     end
