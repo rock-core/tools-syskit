@@ -199,21 +199,21 @@ module Syskit
             end
 
             def self.folder_unlocked?(files, path)
+                return false if Roby::Application.log_dir_locked?(path)
+
+                return true if files.empty?
+
                 return false if files.size > 1
 
-                return false if files.first&.end_with?(".lock.tmp")
+                return false if files.first.end_with?(".lock.tmp")
 
-                pp Roby::Application.log_dir_locked?(path)
-                if !Roby::Application.log_dir_locked?(path)
-                    return true if files.empty? || files.first.end_with?(".lock")
-                end
-                false
+                files.first.end_with?(".lock")
             end
 
             def self.remove_dataset_folder_if_empty_and_unlocked(dataset_path, logger)
                 files = Dir.children(dataset_path)
 
-                if self.folder_unlocked?(files, dataset_path)
+                if folder_unlocked?(files, dataset_path)
                     begin
                         FileUtils.remove_dir(dataset_path)
                         logger.info("Deleted empty dataset folder: #{dataset_path}")
