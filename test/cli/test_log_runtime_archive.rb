@@ -662,25 +662,25 @@ module Syskit
                         dataset = make_valid_folder("PATH")
                         make_random_file "test.0.log", root: dataset
                         make_random_file "info.yml", root: dataset
-                
+
                         @process.process_dataset_transfer(
                             dataset, @params, @root, full: true
                         )
-                
+
                         assert(File.exist?(dataset))
                     end
-                
+
                     it "does not delete the folder if it contains a .lock.tmp file" do
                         dataset = make_valid_folder("PATH")
                         make_random_file ".lock.tmp", root: dataset
-                
+
                         @process.process_dataset_transfer(
                             dataset, @params, @root, full: true
                         )
-                
+
                         assert(File.exist?(dataset))
                     end
-                
+
                     it "deletes the folder if it is completely empty and unlocked" do
                         dataset = make_valid_folder("PATH")
 
@@ -688,45 +688,45 @@ module Syskit
                             .should_receive(:log_dir_locked?)
                             .with(dataset)
                             .and_return(false)
-                
+
                         @process.process_dataset_transfer(
                             dataset, @params, @root, full: true
                         )
-                
+
                         refute(File.exist?(dataset))
                     end
-                
+
                     it "does not delete the folder if it contains only a .lock " \
                        "file and is locked" do
                         dataset = make_valid_folder("PATH")
                         make_random_file ".lock", root: dataset
-                
+
                         flexmock(Roby::Application)
                             .should_receive(:log_dir_locked?)
                             .with(dataset)
                             .and_return(true)
-                
+
                         @process.process_dataset_transfer(
                             dataset, @params, @root, full: true
                         )
-                
+
                         assert(File.exist?(dataset))
                     end
-                
+
                     it "deletes the folder if it contains only a .lock file " \
                        "and is unlocked" do
                         dataset = make_valid_folder("PATH")
                         make_random_file ".lock", root: dataset
-                
+
                         flexmock(Roby::Application)
                             .should_receive(:log_dir_locked?)
                             .with(dataset)
                             .and_return(false)
-                
+
                         @process.process_dataset_transfer(
                             dataset, @params, @root, full: true
                         )
-                
+
                         refute(File.exist?(dataset))
                     end
                 end
