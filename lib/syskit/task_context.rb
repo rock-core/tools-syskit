@@ -412,7 +412,11 @@ module Syskit
 
             return if @has_pending_property_updates
 
-            commit_properties.execute
+            promise = commit_properties
+            promise.on_error do |e|
+                plan&.add_error(e)
+            end
+            promise.execute
         end
 
         # Create a promise that will apply the properties stored Syskit-side
@@ -433,7 +437,11 @@ module Syskit
         # @see commit_properties
         def commit_properties_if_needed(*args)
             if would_use_property_update?
-                commit_properties(*args)
+                promise = commit_properties(*args)
+                promise.on_error do |e|
+                    plan&.add_error(e)
+                end
+                promise
             else
                 Roby::Promise.null
             end
@@ -491,18 +499,20 @@ module Syskit
             promise.on_success(
                 description: "#{self}#commit_properties#update_log"
             ) do |result|
-                result.map do |timestamp, property, value, error|
+                errors = result.map do |timestamp, property, value, error|
                     if error
-                        execution_engine.add_error(
-                            PropertyUpdateError.new(error, property)
-                        )
-                        nil
+                        [property, error]
                     else
                         property.update_remote_value(value)
                         property.update_log(timestamp)
-                        property
+                        nil
                     end
                 end.compact
+
+                unless errors.empty?
+                    raise PropertyUpdatesError.new(self, Hash[errors]),
+                          "task configuration failed because of property update errors"
+                end
             end
 
             @has_pending_property_updates = true
@@ -1005,9 +1015,8 @@ module Syskit
         # (see Component#setup_failed!)_
         def setup_failed!(exception)
             unless exception.kind_of?(Orocos::StateTransitionFailed)
-                fatal "#{exception} received while configuring #{orocos_name}, " \
-                      "expected a StateTransitionFailed error. The component is " \
-                      "put in quarantine and cannot be reused"
+                fatal "Unexpected error #{exception} received while configuring " \
+                      "The component is put in quarantine and cannot be reused"
                 execution_agent.register_task_context_in_fatal(orocos_name)
             end
 

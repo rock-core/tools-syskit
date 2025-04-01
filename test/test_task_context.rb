@@ -1854,11 +1854,19 @@ module Syskit
                     it "reports PropertyUpdateError on a failed write" do
                         error_m = Class.new(RuntimeError)
                         property.write(0.1)
-                        mock_remote_property.should_receive(:write).once
-                                            .and_raise(error_m)
-                        expect_execution.to do
-                            have_internal_error task, PropertyUpdateError.match.with_original_exception(error_m)
-                        end
+                        mock_remote_property
+                            .should_receive(:write).once.and_raise(error_m)
+
+                        plan.unmark_mission_task(task)
+                        event, error =
+                            expect_execution
+                            .to do
+                                event = emit task.internal_error_event
+                                error = have_error_matching PropertyUpdatesError
+                                [event, error]
+                            end
+                        assert_equal [error], event.context
+                        assert_equal task, error.failed_task
                     end
                 end
 
@@ -2158,14 +2166,21 @@ module Syskit
                 end
 
                 describe "the update during setup" do
-                    it "reports PropertyUpdateError on a failed write" do
+                    it "reports a failed to start on a failed write" do
                         error_m = Class.new(RuntimeError)
                         stub_property.write(0.1)
-                        mock_remote_property.should_receive(:write).once
-                                            .and_raise(error_m)
+                        mock_remote_property
+                            .should_receive(:write).once.and_raise(error_m)
+                        task.properties.test = 10
 
-                        expect_execution { task.commit_properties.execute }
-                            .to { have_error_matching PropertyUpdateError.match.with_origin(task).with_original_exception(error_m) }
+                        plan.unmark_mission_task(task)
+                        e = expect_execution { @guard.emit }
+                            .scheduler(true)
+                            .to { fail_to_start task }
+                        assert_kind_of(PropertyUpdatesError, e)
+                        assert_equal task, e.failed_task
+                        assert_equal [task.property("test")], e.property_update_errors.keys
+                        assert_kind_of error_m, e.property_update_errors.values.first
                     end
                 end
 
