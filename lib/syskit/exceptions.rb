@@ -1059,17 +1059,27 @@ module Syskit
         end
     end
 
-    class PropertyUpdateError < Roby::CodeError
-        attr_reader :property
+    class PropertyUpdatesError < Roby::InternalTaskError
+        # Mapping from a property to the error that appeared during its update
+        attr_reader :property_update_errors
 
-        def initialize(error, property)
-            @property = property
-            super(error, property.task_context)
+        def initialize(task, errors)
+            super(task)
+
+            @property_update_errors = errors
         end
 
         def pretty_print(pp)
-            pp.text "#{self.class.name}: updating property #{property.name} failed with"
-            failure_point.pretty_print(pp)
+            pp.text "#{@property_update_errors.size} property updates failed on "
+            failed_task.pretty_print(pp)
+            property_update_errors.each do |property, e|
+                pp.breakable
+                pp.text "updating property '#{property.name}' failed with"
+                pp.nest(2) do
+                    pp.breakable
+                    e.pretty_print(pp)
+                end
+            end
         end
     end
 
