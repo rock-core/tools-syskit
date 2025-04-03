@@ -458,7 +458,8 @@ module Syskit
         #
         # @return [Roby::Promise]
         def commit_properties(
-            promise = self.promise(description: "promise:#{self}#commit_properties")
+            promise = self.promise(description: "promise:#{self}#commit_properties"),
+            error_location: self
         )
             promise.on_success(description: "#{self}#commit_properties#init") do
                 if would_use_property_update?
@@ -510,7 +511,7 @@ module Syskit
                 end.compact
 
                 unless errors.empty?
-                    raise PropertyUpdatesError.new(self, Hash[errors]),
+                    raise PropertyUpdatesError.new(error_location, errors.to_h),
                           "task configuration failed because of property update errors"
                 end
             end
@@ -986,7 +987,7 @@ module Syskit
                     properties.each.any?(&:needs_commit?)
             end
 
-            commit_properties(promise)
+            commit_properties(promise, error_location: start_event)
 
             promise.then(description: "#{self}#perform_setup#orocos_task.configure") do
                 state = orocos_task.rtt_state
@@ -1073,6 +1074,8 @@ module Syskit
                           "cannot be reused"
                     execution_agent.register_task_context_in_fatal(orocos_name)
                 end
+
+                plan.add_error(exception) if exception.kind_of?(Roby::LocalizedError)
             end
         end
 
