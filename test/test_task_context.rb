@@ -2176,6 +2176,7 @@ module Syskit
                         plan.unmark_mission_task(task)
                         e = expect_execution { @guard.emit }
                             .scheduler(true)
+                            .filter_out_related_errors(false)
                             .to { fail_to_start task }
                         assert_kind_of(PropertyUpdatesError, e)
                         assert_equal task, e.failed_task
