@@ -33,6 +33,20 @@ module Syskit
                     refute (@target_dir / "file").exist?
                 end
 
+                it "adds a .partial extension to the uploaded files " \
+                   "until the transfer finishes" do
+                    ftp = create_ftp_upload(@source_dir / "file")
+                    (@source_dir / "file").write("test")
+                    flexmock(ftp).should_receive(:rate_limit).pass_thru do
+                        refute (@target_dir / "file").exist?, "final file exists"
+                    end
+                    result = ftp.open_and_transfer
+                    assert result.success?, "transfer failed: #{result.message}"
+
+                    refute (@target_dir / "file.partial").exist?
+                    assert_equal "test", (@target_dir / "file").read
+               end
+
                 def create_ftp_upload(file)
                     FTPUpload.new(
                         "127.0.0.1", @server.port, @ca.certificate,
