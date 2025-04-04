@@ -186,7 +186,7 @@ module Syskit
                     flexmock(LogRuntimeArchive)
                         .new_instances
                         .should_receive(:process_root_folder_transfer)
-                        .with(ftp_params)
+                        .with(ftp_params, info_name: "something")
                         .and_raise(quit)
 
                     assert_raises(quit) do
@@ -197,7 +197,8 @@ module Syskit
                              "user", "password",
                              "--period", 0.5,
                              "--max_upload_rate_mbps", 10,
-                             "--implicit-ftps"]
+                             "--implicit-ftps",
+                             "--info-name", "something"]
                         )
                     end
                 end

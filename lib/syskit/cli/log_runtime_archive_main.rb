@@ -76,6 +76,11 @@ module Syskit
                    type: :boolean, default: false,
                    desc: "use implicit connection method for ftps " \
                          "(disable for 2.5 clients on 2.7 servers)"
+            option :info_name,
+                   type: :string, default: "info",
+                   desc: "basename (without extension) under which the info.yml " \
+                         "metadata file should be uploaded. Use for instance the " \
+                         "machine name"
             def watch_transfer( # rubocop:disable Metrics/ParameterLists
                 source_dir, host, port, certificate_path, user, password
             )
@@ -100,6 +105,11 @@ module Syskit
                    type: :boolean, default: false,
                    desc: "use implicit connection method for ftps " \
                          "(disable for 2.5 clients on 2.7 servers)"
+            option :info_name,
+                   type: :string, default: "info",
+                   desc: "basename (without extension) under which the info.yml " \
+                         "metadata file should be uploaded. Use for instance the " \
+                         "machine name"
             def transfer( # rubocop:disable Metrics/ParameterLists
                 source_dir, host, port, certificate_path, user, password
             )
@@ -112,7 +122,9 @@ module Syskit
                     implicit_ftps: options[:implicit_ftps],
                     max_upload_rate: rate_mbps_to_bps(options[:max_upload_rate_mbps])
                 )
-                archiver.process_root_folder_transfer(server_params)
+                archiver.process_root_folder_transfer(
+                    server_params, info_name: options[:info_name]
+                )
             end
 
             desc "transfer_server TARGET_DIR HOST PORT CERTFILE_PATH USER PASSWORD",

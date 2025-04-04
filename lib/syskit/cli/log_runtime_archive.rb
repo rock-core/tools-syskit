@@ -44,12 +44,13 @@ module Syskit
             #
             # @param [Params] server_params the FTP server parameters
             # @return [Array<TransferDatasetResult>]
-            def process_root_folder_transfer(server_params)
+            def process_root_folder_transfer(server_params, info_name: "info")
                 candidates = self.class.find_all_dataset_folders(@root_dir)
                 candidates.map do |child|
                     process_dataset_transfer(
                         child, server_params, @root_dir,
-                        full: !Roby::Application.log_dir_locked?(child.basename)
+                        full: !Roby::Application.log_dir_locked?(child.basename),
+                        info_name: info_name
                     )
                 end
             end
@@ -147,9 +148,10 @@ module Syskit
                 end
             end
 
-            def process_dataset_transfer(child, server, root, full:)
+            def process_dataset_transfer(child, server, root, full:, info_name: "info")
                 self.class.transfer_dataset(
-                    child, server, root, full: full, logger: @logger
+                    child, server, root,
+                    full: full, logger: @logger, info_name: info_name
                 )
             end
 
@@ -166,9 +168,9 @@ module Syskit
             end
 
             # Transfer the given dataset
-            def self.transfer_dataset(
+            def self.transfer_dataset( # rubocop:disable Metrics/ParameterLists
                 dataset_path, server, root,
-                info_name: "info", full:, logger: null_logger
+                full:, info_name: "info", logger: null_logger
             )
                 logger.info(
                     "Transfering dataset #{dataset_path} in " \
