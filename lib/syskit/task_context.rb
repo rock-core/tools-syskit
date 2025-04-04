@@ -659,17 +659,7 @@ module Syskit
             quarantined! if Time.now > @exception_transition_deadline
 
             push_pending_exception_state(state) if state
-            direct_state = @remote_state_getter.read
-
-            # Last sanity check ... async stuff sucks
-            #
-            # We might be receiving the direct state change from @remote_state_getter
-            # before it gets to us from the port connection
-            #
-            # Make sure we wait for it
-            @exception_confirmation_received =
-                %I[EXCEPTION FATAL_ERROR].include?(direct_state) &&
-                @pending_exception_states.include?(direct_state)
+            @exception_confirmation_received ||= has_exception_confirmation?
 
             if @exception_confirmation_received
                 @last_orogen_state = @orogen_state
@@ -681,6 +671,39 @@ module Syskit
                 # Don't stop like in #handle_state_reader_disconnection, the component
                 # is currently transitioning to exception, a.k.a. already stopping
             end
+        end
+
+        # @api privatae
+        #
+        # Check whether the component's real state matches the information from the
+        # state reader
+        #
+        # This is a helper for {#update_orogen_state_in_exception}. The whole process
+        # is meant to wait for the component to actually transition to a exception/
+        # fatal error state after a notification from state_reader (said notification
+        # being sent *before* the transition actually happens)
+        #
+        # This method actually does the check
+        def has_exception_confirmation?
+            direct_state = @remote_state_getter.read
+            return true if @pending_exception_states.include?(direct_state)
+
+            # oroGen does *not* send a plain state after a custom one (i.e.
+            # if 'io_error' is a custom exception state, we'll receive only :IO_ERROR
+            # and not :EXCEPTION
+            #
+            # What we want to guard here is missing a transition between categories
+            # (namely, essentially, missing a transition from an exception state to
+            # fatal error). Check explicitly for that
+            if direct_state == :EXCEPTION
+                return @pending_exception_states
+                       .any? { |s| orocos_task.exception_state?(s) }
+            elsif direct_state == :FATAL_ERROR
+                return @pending_exception_states
+                       .any? { |s| orocos_task.fatal_error_state?(s) }
+            end
+
+            false
         end
 
         # @api private

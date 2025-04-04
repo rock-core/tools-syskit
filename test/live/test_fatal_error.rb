@@ -93,7 +93,10 @@ module Syskit
 
                     # DO NOT use syskit_configure_and_start, it forcefully starts
                     # the execution agent, which does not work here.
-                    new_task = syskit_deploy(@task_m)
+                    new_task = FlexMock.use(@deployment) do |deployment_mock|
+                        deployment_mock.should_receive(scheduled_for_kill?: false)
+                        syskit_deploy(@task_m)
+                    end
 
                     refute_equal @deployment, new_task.execution_agent
                     assert_equal "#{Process.pid}a", new_task.orocos_name
