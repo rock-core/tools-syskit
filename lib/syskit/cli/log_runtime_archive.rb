@@ -30,8 +30,8 @@ module Syskit
             #   to the ftp server @see process_root_folder_transfer
             # @param [Logger] logger the log structure
             def initialize(
-                root_dir, target_dir: nil,
-                logger: LogRuntimeArchive.null_logger
+                root_dir,
+                target_dir: nil, logger: LogRuntimeArchive.null_logger
             )
                 @last_archive_index = {}
                 @logger = logger
