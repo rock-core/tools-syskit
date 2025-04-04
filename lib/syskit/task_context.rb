@@ -1016,8 +1016,8 @@ module Syskit
         # (see Component#setup_failed!)_
         def setup_failed!(exception)
             unless exception.kind_of?(Orocos::StateTransitionFailed)
-                fatal "Unexpected error #{exception} received while configuring " \
-                      "The component is put in quarantine and cannot be reused"
+                fatal "Unexpected error '#{exception}' received while configuring"
+                fatal "Component #{self} is put in quarantine and cannot be reused"
                 execution_agent.register_task_context_in_fatal(orocos_name)
             end
 
