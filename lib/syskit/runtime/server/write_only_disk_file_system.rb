@@ -8,6 +8,7 @@ module Syskit
                 include Ftpd::DiskFileSystem::Base
                 include Ftpd::DiskFileSystem::Mkdir
                 include Ftpd::DiskFileSystem::FileWriting
+                include Ftpd::DiskFileSystem::Rename
                 include Ftpd::TranslateExceptions
 
                 def initialize(data_dir)
