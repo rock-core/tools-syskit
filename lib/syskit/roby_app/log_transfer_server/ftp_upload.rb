@@ -88,18 +88,14 @@ module Syskit
                 def transfer(ftp, root)
                     last = Time.now
                     chdir_to_file_directory(ftp, root) if root
-                    begin
-                        File.open(@file) do |file_io|
-                            ftp.storbinary("STOR #{File.basename(@file)}",
-                                        file_io, Net::FTP::DEFAULT_BLOCKSIZE) do |buf|
-                                now = Time.now
-                                rate_limit(buf.size, now, last)
-                                last = Time.now
-                            end
+
+                    File.open(@file) do |file_io|
+                        ftp.storbinary("STOR #{File.basename(@file)}",
+                                    file_io, Net::FTP::DEFAULT_BLOCKSIZE) do |buf|
+                            now = Time.now
+                            rate_limit(buf.size, now, last)
+                            last = Time.now
                         end
-                        ftp.rename("#{File.basename(@file)}.partial", File.basename(@file))
-                    rescue StandardError => e
-                        LogUploadState::Result.new(@file, false, e.message)
                     end
                 end
 
