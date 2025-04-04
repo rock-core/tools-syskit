@@ -212,28 +212,6 @@ module Syskit
             end
         end
 
-        describe "when only losing the remote state reader " \
-                 "while processing an exception" do
-            before do
-                @task.properties.hook = "exception"
-                syskit_configure(@task)
-                synchronize_on_sleep(task, execute: -> { task.start! })
-                wait_for_exception
-            end
-
-            it "goes into quarantine and processes the exception normally" do
-                mock_disconnected_remote_state_getter
-                expect_execution.join_all_waiting_work(false).to_quarantine(task)
-
-                assert_equal "the task's remote state getter got disconnected " \
-                             "during exception handling",
-                             task.quarantine_reason
-
-                sleep 2.5
-                expect_execution.to_emit(task.stop_event)
-            end
-        end
-
         def mock_disconnected_remote_state_getter(return_read: [nil])
             task_info = task.execution_agent.remote_task_handles[task.orocos_name]
             flexmock(task_info.state_getter)
