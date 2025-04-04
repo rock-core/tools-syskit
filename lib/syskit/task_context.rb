@@ -1068,7 +1068,7 @@ module Syskit
             start_event.achieve_asynchronously(promise, emit_on_success: false)
             promise.on_error do |exception|
                 unless exception.kind_of?(Orocos::StateTransitionFailed)
-                    fatal "#{exception} received while configuring " \
+                    fatal "#{exception} received while starting " \
                           "#{orocos_name}, expected a StateTransitionFailed " \
                           "error. The component is put in quarantine and " \
                           "cannot be reused"
