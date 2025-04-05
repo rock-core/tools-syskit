@@ -131,13 +131,14 @@ module Syskit
 
             describe "#transfer_server" do
                 before do
+                    setup_ca
                     @server_params = server_params
                     @server = call_create_server(make_tmppath, @server_params)
                 end
 
                 after do
-                    @server.stop
-                    @server.join
+                    @server&.stop
+                    @server&.join
                 end
 
                 it "successfully creates an FTP server" do
@@ -154,23 +155,51 @@ module Syskit
 
             describe "#watch_transfer" do
                 before do
+                    setup_ca
                     @source_dir = make_tmppath
                     @server_params = server_params
-                    @max_upload_rate = rate_mbps_to_bps(10)
+                    @server = call_create_server(make_tmppath, @server_params)
                     @ftp_params = LogRuntimeArchive::FTPParameters.new(
-                        host: @server_params[:host], port: @server_params[:port],
-                        certificate: File.read(@server_params[:certificate]),
-                        user: @server_params[:user], password: @server_params[:password],
-                        implicit_ftps: @server_params[:implicit_ftps],
+                        host: "127.0.0.1", port: @server.port,
+                        certificate: @ca.certificate,
+                        user: "user", password: "password",
+                        implicit_ftps: true,
                         max_upload_rate: @max_upload_rate
                     )
-
-                    @server = call_create_server(make_tmppath, @server_params)
                 end
 
                 after do
                     @server.stop
                     @server.join
+                end
+
+                it "forwards the command line arguments" do
+                    ftp_params = LogRuntimeArchive::FTPParameters.new(
+                        host: "127.0.0.1", port: @server.port,
+                        certificate: @ca.certificate,
+                        user: "user", password: "password",
+                        implicit_ftps: true,
+                        max_upload_rate: 10_000_000
+                    )
+
+                    quit = Class.new(RuntimeError)
+                    flexmock(LogRuntimeArchive)
+                        .new_instances
+                        .should_receive(:process_root_folder_transfer)
+                        .with(ftp_params)
+                        .and_raise(quit)
+
+                    assert_raises(quit) do
+                        LogRuntimeArchiveMain.start(
+                            ["watch_transfer",
+                             @source_dir.to_s,
+                             "127.0.0.1", @server.port, @certificate_path,
+                             "user", "password",
+                             "--period", 0.5,
+                             "--max_upload_rate_mbps", 10,
+                             "--implicit-ftps"]
+                        )
+                    end
                 end
 
                 it "calls transfer with the specified period" do
@@ -179,9 +208,6 @@ module Syskit
                     flexmock(LogRuntimeArchive)
                         .new_instances
                         .should_receive(:process_root_folder_transfer)
-                        .with(
-                            @ftp_params
-                        )
                         .pass_thru do
                             called += 1
                             raise quit if called == 3
@@ -189,21 +215,11 @@ module Syskit
 
                     tic = Time.now
                     assert_raises(quit) do
-                        updated_server_params = @server_params
-                        implicit_ftps_arg =
-                            if updated_server_params[:implicit_ftps]
-                                "--implicit_ftps"
-                            else
-                                "--no-implicit_ftps"
-                            end
-                        updated_server_params.delete(:implicit_ftps)
                         args = [
                             "watch_transfer",
-                            @source_dir,
-                            *updated_server_params.values,
-                            "--period", 0.5,
-                            "--max_upload_rate_mbps", 10,
-                            implicit_ftps_arg
+                            @source_dir.to_s,
+                            "127.0.0.1", @server.port, @certificate_path,
+                            "user", "password", "--period", 0.5
                         ]
                         LogRuntimeArchiveMain.start(args)
                     end
@@ -211,21 +227,24 @@ module Syskit
                     assert called == 3
                     assert_operator(Time.now - tic, :>, 0.9)
                 end
-
-                # Converts rate in Mbps to bps
-                def rate_mbps_to_bps(rate_mbps)
-                    rate_mbps * (10**6)
-                end
             end
 
             describe "#transfer" do
                 before do
+                    setup_ca
                     @server_params = server_params
+                end
+
+                after do
+                    @server&.stop
+                    @server&.join
                 end
 
                 it "raises ArgumentError if source_dir does not exist" do
                     e = assert_raises ArgumentError do
-                        call_transfer("/does/not/exist")
+                        # We actually do not start a server for this test, the sanity
+                        # checks should trigger earlier than when we need it
+                        call_transfer("/does/not/exist", server_port: 0)
                     end
                     assert_equal "/does/not/exist does not exist, or is not a directory",
                                  e.message
@@ -235,54 +254,27 @@ module Syskit
                     dataset_tmp_path = make_tmppath
                     root_tmp_path = make_tmppath
 
-                    server = call_create_server(root_tmp_path, @server_params)
+                    @server = call_create_server(root_tmp_path, @server_params)
 
                     make_dataset(dataset_tmp_path, "19981222-1301")
                     make_dataset(dataset_tmp_path, "19981222-1302")
 
-                    call_transfer(dataset_tmp_path, server_port: server.port)
+                    call_transfer(dataset_tmp_path)
                     assert(File.exist?(root_tmp_path / "19981222-1301" / "test.0.log"))
                 end
 
                 # Call 'transfer' function instead of 'watch' to call transfer once
-                def call_transfer(source_dir, server_port: nil)
-                    updated_server_params = @server_params
-                    implicit_ftps_arg =
-                        if updated_server_params[:implicit_ftps]
-                            "--implicit_ftps"
-                        else
-                            "--no-implicit_ftps"
-                        end
-                    updated_server_params.delete(:implicit_ftps)
-                    updated_server_params[:port] = server_port if server_port
-                    args = [
-                        "transfer",
-                        source_dir,
-                        *updated_server_params.values,
-                        implicit_ftps_arg
-                    ]
-                    LogRuntimeArchiveMain.start(args)
-                end
-
-                def make_dataset(path, name)
-                    dataset = (path / name)
-                    dataset.mkpath
-                    FileUtils.touch(dataset / "info.yml")
-                    make_random_file("test.0.log", root: dataset)
-                    dataset
-                end
-
-                def make_random_file(name, root: @root, size: 1024)
-                    content = Base64.encode64(Random.bytes(size))
-                    make_in_file name, content, root: root
-                    content
-                end
-
-                def make_in_file(name, content, root: @root)
-                    path = (root / name)
-                    path.write(content)
-                    [] << path
-                    path
+                def call_transfer(source_dir, server_port: @server.port)
+                    LogRuntimeArchiveMain.start(
+                        ["transfer",
+                         source_dir.to_s,
+                         "127.0.0.1",
+                         server_port,
+                         @certificate_path,
+                         "user",
+                         "password",
+                         "--implicit-ftps"]
+                    )
                 end
             end
 
@@ -381,18 +373,26 @@ module Syskit
                 end
             end
 
-            def call_create_server(tgt_dir, server_params)
+            def call_create_server(target_dir, server_params, **options)
                 cli = LogRuntimeArchiveMain.new
-                cli.create_server(tgt_dir, *server_params.values)
+                cli.create_server(target_dir, *server_params.merge(options).values)
+            end
+
+            def setup_ca
+                @ca = RobyApp::TmpRootCA.new("127.0.0.1")
+                @certificate_io = Tempfile.open
+                @certificate_io.write @ca.certificate
+                @certificate_io.flush
+                @certificate_path = @certificate_io.path
             end
 
             def server_params
                 interface = "127.0.0.1"
-                ca = RobyApp::TmpRootCA.new(interface)
+                ca = @ca || RobyApp::TmpRootCA.new(interface)
 
                 { host: interface, port: 0,
                   certificate: ca.private_certificate_path,
-                  user: "nilvo", password: "nilvo123",
+                  user: "user", password: "password",
                   implicit_ftps: true }
             end
 
@@ -446,6 +446,27 @@ module Syskit
                         end
                     end
                 end
+            end
+
+            def make_dataset(path, name)
+                dataset = (path / name)
+                dataset.mkpath
+                FileUtils.touch(dataset / "info.yml")
+                make_random_file("test.0.log", root: dataset)
+                dataset
+            end
+
+            def make_random_file(name, root: @root, size: 1024)
+                content = Base64.encode64(Random.bytes(size))
+                make_in_file name, content, root: root
+                content
+            end
+
+            def make_in_file(name, content, root: @root)
+                path = (root / name)
+                path.write(content)
+                [] << path
+                path
             end
         end
     end
