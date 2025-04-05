@@ -7,10 +7,11 @@ module Syskit
         module Server
             # Driver for log transfer FTP server
             class Driver
-                def initialize(user, password, data_dir)
+                def initialize(user, password, data_dir, min_free_space: 0)
                     @user = user
                     @password = password
                     @data_dir = data_dir
+                    @min_free_space = min_free_space
                 end
 
                 # Return true if the user should be allowed to log in.
@@ -35,7 +36,9 @@ module Syskit
                 # @return A file system driver
 
                 def file_system(_user)
-                    WriteOnlyDiskFileSystem.new(@data_dir)
+                    WriteOnlyDiskFileSystem.new(
+                        @data_dir, min_free_space: @min_free_space
+                    )
                 end
             end
         end

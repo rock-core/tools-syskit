@@ -133,7 +133,7 @@ module Syskit
                 before do
                     setup_ca
                     @server_params = server_params
-                    @server = call_create_server(make_tmppath, @server_params)
+                    @target_dir = make_tmppath
                 end
 
                 after do
@@ -142,6 +142,8 @@ module Syskit
                 end
 
                 it "successfully creates an FTP server" do
+                    @server = call_create_server(@target_dir, @server_params)
+
                     Net::FTP.open(
                         @server_params[:host],
                         port: @server.port,
@@ -150,6 +152,36 @@ module Syskit
                     ) do |ftp|
                         ftp.login(@server_params[:user], @server_params[:password])
                     end
+                end
+
+                it "sets up the min-free-space scheme" do
+                    @server = call_create_server(
+                        @target_dir, @server_params, min_free_space: 500
+                    )
+
+                    source_path = make_tmppath
+                    make_random_file("testfile", root: source_path)
+
+                    # Default min-free-space is zero. Transfer should fail if we
+                    # set bytes_available to below 500
+                    bytes_available = 1000
+                    flexmock(Sys::Filesystem)
+                        .should_receive(:stat)
+                        .and_return { flexmock(bytes_available: bytes_available) }
+
+                    upload = RobyApp::LogTransferServer::FTPUpload.new(
+                        "127.0.0.1", @server.port, @ca.certificate, "user", "password",
+                        source_path / "testfile",
+                        implicit_ftps: true
+                    )
+                    result = upload.open_and_transfer
+                    assert result.success?, "upload failed: #{result.message}"
+                    (@target_dir / "testfile").unlink
+
+                    bytes_available = 300
+                    result = upload.open_and_transfer
+                    refute result.success?
+                    assert_match(/less than 500 bytes/, result.message)
                 end
             end
 
@@ -403,7 +435,7 @@ module Syskit
                 { host: interface, port: 0,
                   certificate: ca.private_certificate_path,
                   user: "user", password: "password",
-                  implicit_ftps: true }
+                  implicit_ftps: true, min_free_space: 0 }
             end
 
             # Mock files sizes in bytes

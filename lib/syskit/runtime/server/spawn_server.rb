@@ -33,10 +33,13 @@ module Syskit
                     nat_ip: nil,
                     passive_ports: nil,
                     debug: false,
-                    verbose: false
+                    verbose: false,
+                    min_free_space: 0
                 )
                     @debug = debug
-                    driver = Driver.new(user, password, tgt_dir)
+                    driver = Driver.new(
+                        user, password, tgt_dir, min_free_space: min_free_space
+                    )
                     server = Ftpd::FtpServer.new(driver)
                     server.interface = interface
                     server.port = port
