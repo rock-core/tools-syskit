@@ -655,12 +655,15 @@ module Syskit
                         make_random_file "test.0.log", root: dataset
                         make_random_file "test.1.log", root: dataset
 
-                        @process.process_dataset_transfer(
+                        result = @process.process_dataset_transfer(
                             dataset, @params, @root, full: true
                         )
+                        result.validate!
 
                         assert(
-                            File.exist?(@target_dir / "PATH/TO/DATASET" / "test.0.log")
+                            File.exist?(
+                                @target_dir / "PATH" / "TO" / "DATASET" / "test.0.log"
+                            )
                         )
                     end
                 end
