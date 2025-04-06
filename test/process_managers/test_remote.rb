@@ -451,7 +451,7 @@ describe Syskit::ProcessManagers::Remote do
             result = state.each_result.first
             assert_equal @logfile, result.file
             refute result.success?
-            assert_match(/File already exists/, result.message)
+            assert_match(/Already exists/, result.message)
             # Does not delete the file
             assert File.file?(@logfile)
         end

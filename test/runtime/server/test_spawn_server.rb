@@ -10,8 +10,8 @@ module Syskit
             describe SpawnServer do
                 ### TESTS ###
                 before do
-                    @source_dir = make_tmpdir
-                    @target_dir = make_tmpdir
+                    @source_dir = make_tmppath
+                    @target_dir = make_tmppath
                     spawn_server
                 end
 
@@ -61,8 +61,15 @@ module Syskit
                 end
 
                 it "refuses to upload a file that already exists" do
+                    (@target_dir / "testfile").write("")
+                    e = assert_raises(Net::FTPPermError) { upload_testfile }
+                    assert_match(/Already exist/, e.message)
+                end
+
+                it "assumes a transfer did not finish if the partial file is present, " \
+                   "and allows overwriting" do
+                    (@target_dir / "testfile.partial").write("")
                     upload_testfile
-                    assert_raises(Net::FTPPermError) { upload_testfile }
                 end
 
                 it "refuses to GET a file" do
