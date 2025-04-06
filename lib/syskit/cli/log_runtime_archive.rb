@@ -270,8 +270,9 @@ module Syskit
                             if failed_result.message
                                 "with message : #{failed_result.message}"
                             end
-                        logger.info(
-                            "Failed on file #{failed_result.file} #{failed_message}"
+                        logger.warn(
+                            "Log transfer failed on file #{failed_result.file}: " \
+                            "#{failed_message}"
                         )
                     end
                 end
