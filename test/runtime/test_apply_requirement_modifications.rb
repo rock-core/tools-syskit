@@ -152,6 +152,30 @@ module Syskit
                 )
             end
 
+            it "keeps old running tasks when an exception was raised during planning" do
+                task_m = Composition.new_submodel
+                requirement_task =
+                    plan.add_permanent_task(task_m.to_instance_requirements.as_plan)
+                requirement_task = requirement_task.planning_task
+                execute { requirement_task.start! }
+                execute { Runtime.apply_requirement_modifications(plan) }
+                plan.syskit_current_resolution.future.value
+                execute { Runtime.apply_requirement_modifications(plan) }
+                assert requirement_task.resolution_success?
+
+                other_task_m = TaskContext.new_submodel
+                other_requirement_task =
+                    plan.add_permanent_task(other_task_m.to_instance_requirements.as_plan)
+                other_requirement_task = other_requirement_task.planning_task
+                execute { other_requirement_task.start! }
+                execute { Runtime.apply_requirement_modifications(plan) }
+                plan.syskit_current_resolution.future.value
+                expect_execution { Runtime.apply_requirement_modifications(plan) }
+                    .to { have_error_matching Roby::PlanningFailedError }
+                refute requirement_task.failed?
+                assert other_requirement_task.failed?
+            end
+
             describe "capture_errors" do
                 before do
                     @__capture_errors_feature_flag =
