@@ -16,50 +16,6 @@ module Syskit
                     include Logger::Forward
                     include Logger::Hierarchy
 
-                    # Returns a unique directory name as a subdirectory of
-                    # +base_dir+, based on +path_spec+. The generated name
-                    # is of the form
-                    #   <base_dir>/a/b/c/YYYYMMDD-HHMM-basename
-                    # if <tt>path_spec = "a/b/c/basename"</tt>. A .<number> suffix
-                    # is appended if the path already exists.
-                    #
-                    # Shamelessly taken from Roby
-                    def self.unique_dirname(base_dir, path_spec, date_tag = nil)
-                        if path_spec =~ %r{/$}
-                            basename = ""
-                            dirname = path_spec
-                        else
-                            basename = File.basename(path_spec)
-                            dirname  = File.dirname(path_spec)
-                        end
-
-                        date_tag ||= Time.now.strftime("%Y%m%d-%H%M")
-                        basename =
-                            if basename && !basename.empty?
-                                date_tag + "-" + basename
-                            else
-                                date_tag
-                            end
-
-                        # Check if +basename+ already exists, and if it is the case add a
-                        # .x suffix to it
-                        full_path = File.expand_path(
-                            File.join(dirname, basename), base_dir
-                        )
-                        base_dir = File.dirname(full_path)
-
-                        FileUtils.mkdir_p(base_dir) unless File.exist?(base_dir)
-
-                        final_path = full_Path
-                        i = 0
-                        while File.exist?(final_path)
-                            i += 1
-                            final_path = full_path + ".#{i}"
-                        end
-
-                        final_path
-                    end
-
                     DEFAULT_OPTIONS = { output: "%m-%p.txt" }.freeze
 
                     # The underlying Roby::Application object we use to resolve paths
@@ -204,7 +160,7 @@ module Syskit
                             readable_sockets.each do |socket|
                                 unless handle_command(socket)
                                     debug "#{socket} closed or errored"
-                                    socket.close
+                                    close_client(socket)
                                     @all_ios.delete(socket)
                                 end
                             end
@@ -221,6 +177,11 @@ module Syskit
                         end
                     ensure
                         quit_and_join
+                    end
+
+                    def close_client(socket)
+                        socket.close
+                        app.unlock_log_dir
                     end
 
                     # Check if a specific subprocess terminated and deregister it
@@ -309,7 +270,7 @@ module Syskit
                         end
 
                         each_client do |socket|
-                            socket.close
+                            close_client(socket)
                         rescue SystemCallError, IOError # rubocop:disable Lint/SuppressedException
                         end
 
@@ -453,20 +414,29 @@ module Syskit
                         socket.write(Marshal.dump(message))
                     end
 
+                    def setup_app_name_from_log_dir_metadata(metadata)
+                        return unless (app_name = metadata.dig("parent", "app_name"))
+
+                        app.app_name = app_name
+                    end
+
+                    def setup_app_robot_from_log_dir_metadata(metadata)
+                        return unless (robot_name = metadata.dig("parent", "robot_name"))
+
+                        robot_type = metadata.dig("parent", "robot_type") || robot_name
+                        app.robot(robot_name, robot_type)
+                    end
+
                     def create_log_dir(time_tag, metadata = {})
-                        if (parent_info = metadata["parent"])
-                            if (app_name = parent_info["app_name"])
-                                app.app_name = app_name
-                            end
-                            if (robot_name = parent_info["robot_name"])
-                                app.robot(
-                                    robot_name, parent_info["robot_type"] || robot_name
-                                )
-                            end
-                        end
+                        app.unlock_log_dir
+                        setup_app_name_from_log_dir_metadata(metadata)
+                        setup_app_robot_from_log_dir_metadata(metadata)
 
                         app.add_app_metadata(metadata)
                         app.find_and_create_log_dir(time_tag)
+
+                        app.lock_log_dir
+
                         if (parent_info = metadata["parent"])
                             info "created #{app.log_dir} on behalf of"
                             YAML.dump(parent_info).each_line do |line|

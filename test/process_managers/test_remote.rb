@@ -96,6 +96,41 @@ describe Syskit::ProcessManagers::Remote do
         end
     end
 
+    describe "#create_log_dir" do
+        before do
+            @client = start_and_connect_to_server
+        end
+
+        it "locks the directory when it is being created" do
+            assert Roby::Application.log_dir_locked?(app.log_dir)
+        end
+
+        it "releases the lock when the server quits" do
+            server.quit_and_join
+
+            refute Roby::Application.log_dir_locked?(app.log_dir)
+        end
+
+        it "releases the lock when a new folder is created" do
+            original_log_dir = app.log_dir
+            assert Roby::Application.log_dir_locked?(original_log_dir)
+
+            client.create_log_dir("tag2")
+            refute_equal original_log_dir, app.log_dir
+            refute Roby::Application.log_dir_locked?(original_log_dir)
+        end
+
+        it "releases the lock when the client socket is closed" do
+            original_log_dir = app.log_dir
+            assert Roby::Application.log_dir_locked?(original_log_dir)
+
+            @client.close
+            assert_eventually do
+                !Roby::Application.log_dir_locked?(original_log_dir)
+            end
+        end
+    end
+
     describe "#start" do
         before do
             @client = start_and_connect_to_server
@@ -597,5 +632,16 @@ describe Syskit::ProcessManagers::Remote do
         sleep 1
 
         @gdb_pid = spawn("gdb", "-x", @gdb_script.path)
+    end
+
+    def assert_eventually(timeout: 5, &block)
+        deadline = Time.now + timeout
+        while Time.now < deadline
+            return if yield
+
+            sleep 0.01
+        end
+
+        flunk("#{block} did not return true in #{timeout} seconds")
     end
 end

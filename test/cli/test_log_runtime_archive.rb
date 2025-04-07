@@ -374,6 +374,19 @@ module Syskit
                     dataset1 = make_valid_folder("20220434-2024")
                     dataset2 = make_valid_folder("20220434-2025")
 
+                    flexmock(Roby::Application)
+                        .should_receive(:log_dir_locked?)
+                        .with(dataset0.basename)
+                        .and_return(false)
+                    flexmock(Roby::Application)
+                        .should_receive(:log_dir_locked?)
+                        .with(dataset1.basename)
+                        .and_return(false)
+                    flexmock(Roby::Application)
+                        .should_receive(:log_dir_locked?)
+                        .with(dataset2.basename)
+                        .and_return(true)
+
                     should_archive_dataset(dataset0, "20220434-2023.0.tar", full: true)
                     should_archive_dataset(dataset1, "20220434-2024.0.tar", full: true)
                     should_archive_dataset(dataset2, "20220434-2025.0.tar", full: false)
@@ -386,6 +399,7 @@ module Syskit
 
                 it "splits the archive according to the max size" do
                     dataset = make_valid_folder("20220434-2023")
+                    make_random_file "20220434-2023/.lock"
                     (dataset / "test.0.log")
                         .write(test0 = Base64.encode64(Random.bytes(1024)))
                     (dataset / "test.1.log")
@@ -413,6 +427,7 @@ module Syskit
 
                 it "appends to the last created archive" do
                     dataset = make_valid_folder("20220434-2023")
+                    make_random_file "20220434-2023/.lock"
                     (dataset / "test.0.log")
                         .write(Base64.encode64(Random.bytes(1024)))
                     (dataset / "test.1.log")
@@ -442,6 +457,7 @@ module Syskit
                 it "creates a new archive if the last archive is already " \
                    "above the limit" do
                     dataset = make_valid_folder("20220434-2023")
+                    make_random_file "20220434-2023/.lock"
                     make_random_file "test.0.log", root: dataset
                     test1 = make_random_file "test.1.log", root: dataset
                     test2 = make_random_file "test.2.log", root: dataset
@@ -489,12 +505,21 @@ module Syskit
 
                 it "gathers all non-rotated logs in the very last archive" do
                     dataset = make_valid_folder("20220434-2023")
-                    make_valid_folder("20220434-2024")
+                    last_dataset = make_valid_folder("20220434-2024")
                     make_random_file "test.0.log", root: dataset
                     make_random_file "test.1.log", root: dataset
                     make_random_file "test.2.log", root: dataset
                     make_random_file "test.txt", root: dataset
                     make_random_file "test-PID.txt", root: dataset
+
+                    flexmock(Roby::Application)
+                        .should_receive(:log_dir_locked?)
+                        .with(dataset.basename)
+                        .and_return(false)
+                    flexmock(Roby::Application)
+                        .should_receive(:log_dir_locked?)
+                        .with(last_dataset.basename)
+                        .and_return(true)
 
                     @process.process_root_folder
 
@@ -562,6 +587,15 @@ module Syskit
                         make_random_file "test.1.log", root: dataset_a
                         make_random_file "test.0.log", root: dataset_b
                         make_random_file "test.1.log", root: dataset_b
+
+                        flexmock(Roby::Application)
+                            .should_receive(:log_dir_locked?)
+                            .with(dataset_a.basename)
+                            .and_return(false)
+                        flexmock(Roby::Application)
+                            .should_receive(:log_dir_locked?)
+                            .with(dataset_b.basename)
+                            .and_return(true)
 
                         @process.process_root_folder_transfer(@params)
 
