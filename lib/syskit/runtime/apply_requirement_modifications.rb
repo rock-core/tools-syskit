@@ -111,7 +111,7 @@ module Syskit
                 end
 
                 resolution_apply_result.instance_requirement_tasks.each do |t|
-                    t.resolution_success_event.emit
+                    t.resolution_success_event.emit unless t.resolution_success?
                 end
                 resolution_apply_result.errors.group_by(&:planning_task).each do |t, e|
                     t.failed_event.emit(*e.flat_map(&:original_exception)) if t.running?
