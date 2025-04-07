@@ -693,7 +693,7 @@ module Syskit
             # deployment within the given plan
             def self.discover_requirement_tasks_from_plan(plan)
                 req_tasks =
-                    plan.find_local_tasks(InstanceRequirementsTask).running
+                    plan.find_local_tasks(InstanceRequirementsTask).running.filter { !_1.resolution_success?}
                 req_tasks = req_tasks.find_all do |t|
                     planned_task = t.planned_task
                     next unless planned_task
