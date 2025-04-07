@@ -8,6 +8,8 @@ module Syskit
                 include Ftpd::DiskFileSystem::Base
                 include Ftpd::DiskFileSystem::Mkdir
                 include Ftpd::DiskFileSystem::FileWriting
+                include Ftpd::DiskFileSystem::Rename
+                include Ftpd::Error
                 include Ftpd::TranslateExceptions
 
                 def initialize(data_dir)
@@ -31,10 +33,12 @@ module Syskit
                 # If missing, then these commands are not supported.
 
                 def write(ftp_path, stream)
-                    if Pathname.new(@data_dir + ftp_path).exist?
-                        raise Ftpd::PermanentFileSystemError,
-                              "Can't upload: File already exists"
-                    end
+                    full_path = File.join(@data_dir, ftp_path)
+                    final_path = File.join(
+                        File.dirname(full_path),
+                        File.basename(full_path, ".partial")
+                    )
+                    error "Already exists", 550 if File.exist?(final_path)
 
                     write_file ftp_path, stream, "wb"
                 end
