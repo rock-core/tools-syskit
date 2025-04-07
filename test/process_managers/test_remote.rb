@@ -528,7 +528,7 @@ describe Syskit::ProcessManagers::Remote do
                 end
 
                 state = client.log_upload_state
-                return state if state.pending_count == 0
+                return state if state.each_result.first
 
                 sleep poll_period
             end
