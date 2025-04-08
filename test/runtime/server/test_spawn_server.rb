@@ -83,12 +83,19 @@ module Syskit
                     assert_match(/less than 0 bytes available/, e.message)
                 end
 
-                it "validates the disk space after each chunk" do
+                it "validates the disk space accounting for the size of the next chunk" do
                     flexmock(Sys::Filesystem)
                         .should_receive(:stat)
+                        .twice
                         .with(@target_dir.to_s)
-                        .and_return(flexmock(bytes_available: -1))
-                    e = assert_raises(Net::FTPPermError) { upload_testfile }
+                        .and_return(
+                            flexmock(bytes_available: 200_000),
+                            flexmock(bytes_available: 127)
+                        )
+
+                    e = assert_raises(Net::FTPPermError) do
+                        upload_testfile(size: 150_000)
+                    end
                     assert_match(/less than 0 bytes available/, e.message)
                 end
 
@@ -132,8 +139,8 @@ module Syskit
                         ftp.login("user", "password")
                         File.open(path) do |io|
                             ftp.storbinary(
-                                "STOR #{File.basename(path)}",
-                                io, Net::FTP::DEFAULT_BLOCKSIZE
+                                "STOR #{File.basename(path)}", io,
+                                Net::FTP::DEFAULT_BLOCKSIZE
                             )
                         end
                     end

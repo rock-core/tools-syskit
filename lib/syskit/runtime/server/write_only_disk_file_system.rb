@@ -44,18 +44,18 @@ module Syskit
                     error "Already exists", 550 if File.exist?(final_path)
 
                     # Code copied from Ftpd::DiskFileSystem::FileWriting
-                    verify_free_space
                     File.open(full_path, "wb") do |file|
                         while (line = stream.read)
+                            verify_free_space(line.size)
+
                             file.write line
-                            verify_free_space
                         end
                     end
                 end
 
-                def verify_free_space
+                def verify_free_space(required_available_space = 0)
                     stat = Sys::Filesystem.stat(@data_dir)
-                    available_space = stat.bytes_available
+                    available_space = stat.bytes_available - required_available_space
 
                     return if available_space > @min_free_space
 

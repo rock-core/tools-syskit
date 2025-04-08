@@ -160,11 +160,12 @@ module Syskit
                     )
 
                     source_path = make_tmppath
-                    make_random_file("testfile", root: source_path)
+                    data = make_random_file("testfile", root: source_path)
 
                     # Default min-free-space is zero. Transfer should fail if we
-                    # set bytes_available to below 500
-                    bytes_available = 1000
+                    # set bytes_available to below 1524 (1024 bytes in file and
+                    # 500 bytes available min)
+                    bytes_available = 500 + data.size + 1
                     flexmock(Sys::Filesystem)
                         .should_receive(:stat)
                         .and_return { flexmock(bytes_available: bytes_available) }
@@ -178,7 +179,7 @@ module Syskit
                     assert result.success?, "upload failed: #{result.message}"
                     (@target_dir / "testfile").unlink
 
-                    bytes_available = 300
+                    bytes_available = 500 + data.size - 1
                     result = upload.open_and_transfer
                     refute result.success?
                     assert_match(/less than 500 bytes/, result.message)
