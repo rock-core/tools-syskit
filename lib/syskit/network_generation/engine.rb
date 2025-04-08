@@ -112,9 +112,6 @@ module Syskit
                     deployer.deploy(
                         error_handler: error_handler, validate: validate_deployed_network
                     )
-                    required_instances = required_instances.transform_values do |task|
-                        merge_solver.replacement_for(task)
-                    end
                     resolution_errors = error_handler.process_failures(
                         required_instances, cleanup_failed_tasks: true
                     )
@@ -141,7 +138,7 @@ module Syskit
                 @deployment_tasks = work_plan.find_local_tasks(Deployment).to_set
                 @deployed_tasks = work_plan.find_local_tasks(Component).to_set
 
-                [required_instances, resolution_errors]
+                resolution_errors
             end
 
             # Apply the deployed network created with
@@ -761,7 +758,8 @@ module Syskit
                     system_network_generator.toplevel_tasks_to_requirements
 
                 resolution_errors = error_handler.process_failures(
-                    required_instances, cleanup_failed_tasks: cleanup_resolution_errors
+                    required_instances,
+                    cleanup_failed_tasks: cleanup_resolution_errors
                 )
                 if cleanup_resolution_errors
                     # Sanity check that the plan was properly cleaned up
@@ -834,7 +832,7 @@ module Syskit
 
                 if compute_deployments
                     log_timepoint_group "compute_deployed_network" do
-                        required_instances, deployment_resolution_errors =
+                        deployment_resolution_errors =
                             compute_deployed_network(
                                 toplevel_tasks_to_requirements,
                                 error_handler: error_handler,
