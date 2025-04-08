@@ -118,14 +118,11 @@ module Syskit
                 end
                 resolution_apply_result
             rescue ::Exception => e # rubocop:disable Lint/RescueException
-                new_requirement_tasks =
-                    running_requirement_tasks.reject(&:resolution_success?)
-                new_requirement_tasks.each do |t|
-                    t.failed_event.emit(e)
-                end
+                old_requirement_tasks, new_requirement_tasks =
+                    running_requirement_tasks.partition(&:resolution_success?)
+                new_requirement_tasks.each { |t| t.failed_event.emit(e) }
                 NetworkGeneration::SystemNetworkPlanApplyResult.new(
-                    errors: [e],
-                    instance_requirement_tasks: running_requirement_tasks
+                    errors: [e], instance_requirement_tasks: old_requirement_tasks
                 )
             end
         end
