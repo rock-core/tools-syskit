@@ -211,6 +211,7 @@ module Syskit
                         # Remove tasks that are not useful anymore
                         @plan.remove_task(obj)
                     end
+                @resolution_failures.clear
             end
         end
 
