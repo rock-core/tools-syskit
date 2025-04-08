@@ -202,6 +202,15 @@ module Syskit
                     work_plan.remove_task(toplevel_task)
                     cleaned_up[requirement_task] = toplevel_task
                 end
+
+                NetworkGeneration.debug "cleanup up after error resolution"
+                protected_tasks = required_instances.values
+                work_plan
+                    .static_garbage_collect(protected_roots: protected_tasks) do |obj|
+                        NetworkGeneration.debug { "  removing #{obj}" }
+                        # Remove tasks that are not useful anymore
+                        @plan.remove_task(obj)
+                    end
             end
         end
 

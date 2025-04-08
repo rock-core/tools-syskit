@@ -444,6 +444,8 @@ module Syskit
         def initialize(device, task0, task1, toplevel_tasks_to_requirements = {})
             @device = device
             @tasks = [task0, task1]
+            merge_solver = NetworkGeneration::MergeSolver.new(task0.plan)
+            @merge_result = merge_solver.resolve_merge(task0, task1, {})
 
             @involved_definitions = @tasks.map do |t|
                 find_all_related_syskit_actions(t, toplevel_tasks_to_requirements)
@@ -453,7 +455,8 @@ module Syskit
         def pretty_print(pp)
             pp.text "device '#{device.name}' of type #{device.model} is assigned "
             pp.text "to two tasks that cannot be merged"
-            print_failed_merge_chain(pp, *@tasks)
+            pp.breakable
+            @merge_result.pretty_print_failure(pp)
             @tasks.zip(@involved_definitions).each do |t, defs|
                 print_dependent_definitions(pp, t, defs)
             end
@@ -470,6 +473,8 @@ module Syskit
             @tasks = tasks
             @toplevel_tasks_to_requirements = toplevel_tasks_to_requirements
             @agent = tasks.first.execution_agent
+            merge_solver = NetworkGeneration::MergeSolver.new(tasks[0].plan)
+            @merge_result = merge_solver.resolve_merge(tasks[0], tasks[1], {})
         end
 
         def pretty_print(pp)
@@ -488,7 +493,8 @@ module Syskit
                 )
                 print_dependent_definitions(pp, t, defs)
             end
-            print_failed_merge_chain(pp, @tasks[0], @tasks[1])
+            pp.breakable
+            @merge_result.pretty_print_failure(pp)
         end
     end
 
