@@ -756,6 +756,9 @@ module Syskit
                         early_deploy && validate_deployed_network
                 )
                 required_instances = Hash[requirement_tasks.zip(toplevel_tasks)]
+                # Take toplevel tasks to requirements before cleanup
+                toplevel_tasks_to_requirements =
+                    system_network_generator.toplevel_tasks_to_requirements
 
                 resolution_errors = error_handler.process_failures(
                     required_instances, cleanup_failed_tasks: cleanup_resolution_errors
@@ -770,8 +773,6 @@ module Syskit
                             early_deploy && validate_deployed_network
                     )
                 end
-                toplevel_tasks_to_requirements =
-                    system_network_generator.toplevel_tasks_to_requirements.dup
                 [required_instances, resolution_errors, toplevel_tasks_to_requirements]
             end
 
