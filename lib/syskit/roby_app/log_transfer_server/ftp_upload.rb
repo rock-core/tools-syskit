@@ -10,7 +10,8 @@ module Syskit
                 def initialize( # rubocop:disable Metrics/ParameterLists
                     host, port, certificate, user, password, file,
                     max_upload_rate: Float::INFINITY,
-                    implicit_ftps: false
+                    implicit_ftps: false,
+                    target_name: File.basename(file)
                 )
 
                     @host = host
@@ -19,6 +20,7 @@ module Syskit
                     @user = user
                     @password = password
                     @file = file
+                    @target_name = target_name
 
                     @max_upload_rate = Float(max_upload_rate)
                     if @max_upload_rate <= 0
@@ -89,9 +91,8 @@ module Syskit
                     last = Time.now
                     chdir_to_file_directory(ftp, root) if root
 
-                    target_name = File.basename(@file)
                     File.open(@file) do |file_io|
-                        ftp.storbinary("STOR #{target_name}.partial",
+                        ftp.storbinary("STOR #{@target_name}.partial",
                                        file_io, Net::FTP::DEFAULT_BLOCKSIZE) do |buf|
                             now = Time.now
                             rate_limit(buf.size, now, last)
@@ -99,7 +100,7 @@ module Syskit
                         end
                     end
 
-                    ftp.rename("#{target_name}.partial", target_name)
+                    ftp.rename("#{@target_name}.partial", @target_name)
                 end
 
                 # @api private

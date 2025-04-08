@@ -666,44 +666,63 @@ module Syskit
                 end
 
                 describe ".transfer_dataset" do
-                    before do
-                        @dataset = make_valid_folder("PATH")
-                        make_random_file "test.0.log", root: @dataset
+                    describe "transfer of normal files" do
+                        before do
+                            @dataset = make_valid_folder("PATH")
+                            make_random_file "test.0.log", root: @dataset
+                        end
+
+                        it "transfers a dataset through FTP" do
+                            results = LogRuntimeArchive.transfer_dataset(
+                                @dataset, @params, @root, full: true
+                            )
+
+                            assert results.success?
+                            # Datasets that have pocolog files are not complete
+                            refute results.complete
+                            assert(File.exist?(@target_dir / "PATH" / "test.0.log"))
+                        end
+
+                        it "removes the source file if the transfer was successful" do
+                            results = LogRuntimeArchive.transfer_dataset(
+                                @dataset, @params, @root, full: true
+                            )
+
+                            assert results.success?
+                            refute((@dataset / "test.0.log").exist?)
+                        end
+
+                        it "does not remove the source file if the transfer failed" do
+                            result = RobyApp::LogTransferServer::LogUploadState::Result
+                                     .new("/PATH", false, "message")
+                            flexmock(LogRuntimeArchive)
+                                .should_receive(:transfer_file)
+                                .and_return(result)
+                            results = LogRuntimeArchive.transfer_dataset(
+                                @dataset, @params, @root, full: true
+                            )
+
+                            refute results.success?
+                            assert((@dataset / "test.0.log").exist?)
+                        end
                     end
 
-                    it "transfers a dataset through FTP" do
-                        results = LogRuntimeArchive.transfer_dataset(
-                            @dataset, @params, @root, full: true
-                        )
+                    describe "transfer of the info.yml file" do
+                        before do
+                            @dataset = make_valid_folder("PATH")
+                            @info_yml_content = make_random_file "info.yml",
+                                                                 root: @dataset
+                        end
 
-                        assert results.success?
-                        # Datasets that have pocolog files are not complete
-                        refute results.complete
-                        assert(File.exist?(@target_dir / "PATH" / "test.0.log"))
-                    end
+                        it "renames info.yml during on the remote machine" do
+                            results = LogRuntimeArchive.transfer_dataset(
+                                @dataset, @params, @root, full: true, info_name: "test"
+                            )
+                            assert results.success?
 
-                    it "removes the source file if the transfer was successful" do
-                        results = LogRuntimeArchive.transfer_dataset(
-                            @dataset, @params, @root, full: true
-                        )
-
-                        assert results.success?
-                        refute((@dataset / "test.0.log").exist?)
-                    end
-
-                    it "does not remove the source file if the transfer failed" do
-                        result = RobyApp::LogTransferServer::LogUploadState::Result.new(
-                            "/PATH", false, "message"
-                        )
-                        flexmock(LogRuntimeArchive)
-                            .should_receive(:transfer_file)
-                            .and_return(result)
-                        results = LogRuntimeArchive.transfer_dataset(
-                            @dataset, @params, @root, full: true
-                        )
-
-                        refute results.success?
-                        assert((@dataset / "test.0.log").exist?)
+                            expected_path = @target_dir / "PATH" / "test.yml"
+                            assert_equal @info_yml_content, expected_path.read
+                        end
                     end
                 end
 
