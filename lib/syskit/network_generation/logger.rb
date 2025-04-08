@@ -59,7 +59,7 @@ module Syskit
                     Orocos.default_loader.intermediate_type_for(logged_port_type)
                 )
                 if type_logical_time_field
-                    metadata["rock_time_field"] = type_logical_time_field
+                    metadata["rock_timestamp_field"] = type_logical_time_field
                 end
                 metadata = metadata.map do |k, v|
                     Hash["key" => k, "value" => v]
