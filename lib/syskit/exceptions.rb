@@ -444,8 +444,9 @@ module Syskit
         def initialize(device, task0, task1, toplevel_tasks_to_requirements = {})
             @device = device
             @tasks = [task0, task1]
-            merge_solver = NetworkGeneration::MergeSolver.new(task0.plan)
-            @merge_result = merge_solver.resolve_merge(task0, task1, {})
+            @merge_result = NetworkGeneration::MergeSolver.resolve_merge(
+                tasks[0].plan, tasks[0], tasks[1], {}
+            )
 
             @involved_definitions = @tasks.map do |t|
                 find_all_related_syskit_actions(t, toplevel_tasks_to_requirements)
@@ -473,8 +474,9 @@ module Syskit
             @tasks = tasks
             @toplevel_tasks_to_requirements = toplevel_tasks_to_requirements
             @agent = tasks.first.execution_agent
-            merge_solver = NetworkGeneration::MergeSolver.new(tasks[0].plan)
-            @merge_result = merge_solver.resolve_merge(tasks[0], tasks[1], {})
+            @merge_result = NetworkGeneration::MergeSolver.resolve_merge(
+                tasks[0].plan, tasks[0], tasks[1], {}
+            )
         end
 
         def pretty_print(pp)

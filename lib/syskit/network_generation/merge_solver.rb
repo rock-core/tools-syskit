@@ -481,6 +481,11 @@ module Syskit
                 end
             end
 
+            def self.resolve_merge(plan, merged_task, task, mappings)
+                solver = MergeSolver.new(plan)
+                solver.resolve_merge(merged_task, task, mappings)
+            end
+
             # Resolve merge between N tasks with the given tasks as seeds
             #
             # The method will cycle through the task's mismatching inputs (if
