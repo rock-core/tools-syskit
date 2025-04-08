@@ -26,6 +26,20 @@ module Syskit
                 false
             end
 
+            def logical_time_field(type)
+                return unless type < Typelib::CompoundType
+
+                metadata = type.field_metadata
+                type.each_field do |field|
+                    next unless metadata[field].include?("role")
+
+                    role = metadata[field].get("role").first
+
+                    return field if role == "logical_time"
+                end
+                nil
+            end
+
             # Wrapper on top of the createLoggingPort operation
             #
             # @param [String] sink_port_name the desired port name on the logger
@@ -40,6 +54,13 @@ module Syskit
                     "rock_task_name" => logged_task.orocos_name,
                     "rock_task_object_name" => logged_port.name,
                     "rock_stream_type" => "port"]
+
+                type_logical_time_field = logical_time_field(
+                    Orocos.default_loader.intermediate_type_for(logged_port_type)
+                )
+                if type_logical_time_field
+                    metadata["rock_time_field"] = type_logical_time_field
+                end
                 metadata = metadata.map do |k, v|
                     Hash["key" => k, "value" => v]
                 end
