@@ -149,7 +149,7 @@ module Syskit
                 main_plan.add(original_task = model.as_plan)
                 base_task = original_task.as_service
                 engine = Syskit::NetworkGeneration::Engine.new(main_plan)
-                _, resolution_errors =
+                _, resolution_errors, =
                     engine.compute_system_network([base_task.task.planning_task])
                 [base_task.task, resolution_errors]
             ensure
