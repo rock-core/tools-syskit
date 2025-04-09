@@ -472,7 +472,7 @@ module Syskit
 
         def kill_agent_once_in_poll(task)
             return unless (agent = task.execution_agent)
-            return if agent.kill_event.pending?
+            return unless agent.running? && !agent.kill_event.pending?
 
             agent.kill!
         end

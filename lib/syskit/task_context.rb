@@ -412,7 +412,11 @@ module Syskit
 
             return if @has_pending_property_updates
 
-            commit_properties.execute
+            promise = commit_properties
+            promise.on_error do |e|
+                plan&.add_error(e)
+            end
+            promise.execute
         end
 
         # Create a promise that will apply the properties stored Syskit-side
@@ -433,7 +437,11 @@ module Syskit
         # @see commit_properties
         def commit_properties_if_needed(*args)
             if would_use_property_update?
-                commit_properties(*args)
+                promise = commit_properties(*args)
+                promise.on_error do |e|
+                    plan&.add_error(e)
+                end
+                promise
             else
                 Roby::Promise.null
             end
@@ -450,7 +458,8 @@ module Syskit
         #
         # @return [Roby::Promise]
         def commit_properties(
-            promise = self.promise(description: "promise:#{self}#commit_properties")
+            promise = self.promise(description: "promise:#{self}#commit_properties"),
+            error_location: self
         )
             promise.on_success(description: "#{self}#commit_properties#init") do
                 if would_use_property_update?
@@ -491,18 +500,20 @@ module Syskit
             promise.on_success(
                 description: "#{self}#commit_properties#update_log"
             ) do |result|
-                result.map do |timestamp, property, value, error|
+                errors = result.map do |timestamp, property, value, error|
                     if error
-                        execution_engine.add_error(
-                            PropertyUpdateError.new(error, property)
-                        )
-                        nil
+                        [property, error]
                     else
                         property.update_remote_value(value)
                         property.update_log(timestamp)
-                        property
+                        nil
                     end
                 end.compact
+
+                unless errors.empty?
+                    raise PropertyUpdatesError.new(error_location, errors.to_h),
+                          "task configuration failed because of property update errors"
+                end
             end
 
             @has_pending_property_updates = true
@@ -630,6 +641,13 @@ module Syskit
 
         # @api private
         #
+        # Purely for testing reasons
+        def push_pending_exception_state(state)
+            @pending_exception_states << state
+        end
+
+        # @api private
+        #
         # Wait for confirmation of the component shutdown once we received an
         # exception state
         #
@@ -640,8 +658,10 @@ module Syskit
         def update_orogen_state_in_exception(state)
             quarantined! if Time.now > @exception_transition_deadline
 
-            @pending_exception_states << state if state
-            if %I[EXCEPTION FATAL_ERROR].include?(@remote_state_getter.read)
+            push_pending_exception_state(state) if state
+            @exception_confirmation_received ||= has_exception_confirmation?
+
+            if @exception_confirmation_received
                 @last_orogen_state = @orogen_state
                 @orogen_state = @pending_exception_states.shift
             elsif !@remote_state_getter.connected?
@@ -651,6 +671,39 @@ module Syskit
                 # Don't stop like in #handle_state_reader_disconnection, the component
                 # is currently transitioning to exception, a.k.a. already stopping
             end
+        end
+
+        # @api privatae
+        #
+        # Check whether the component's real state matches the information from the
+        # state reader
+        #
+        # This is a helper for {#update_orogen_state_in_exception}. The whole process
+        # is meant to wait for the component to actually transition to a exception/
+        # fatal error state after a notification from state_reader (said notification
+        # being sent *before* the transition actually happens)
+        #
+        # This method actually does the check
+        def has_exception_confirmation?
+            direct_state = @remote_state_getter.read
+            return true if @pending_exception_states.include?(direct_state)
+
+            # oroGen does *not* send a plain state after a custom one (i.e.
+            # if 'io_error' is a custom exception state, we'll receive only :IO_ERROR
+            # and not :EXCEPTION
+            #
+            # What we want to guard here is missing a transition between categories
+            # (namely, essentially, missing a transition from an exception state to
+            # fatal error). Check explicitly for that
+            if direct_state == :EXCEPTION
+                return @pending_exception_states
+                       .any? { |s| orocos_task.exception_state?(s) }
+            elsif direct_state == :FATAL_ERROR
+                return @pending_exception_states
+                       .any? { |s| orocos_task.fatal_error_state?(s) }
+            end
+
+            false
         end
 
         # @api private
@@ -957,7 +1010,7 @@ module Syskit
                     properties.each.any?(&:needs_commit?)
             end
 
-            commit_properties(promise)
+            commit_properties(promise, error_location: start_event)
 
             promise.then(description: "#{self}#perform_setup#orocos_task.configure") do
                 state = orocos_task.rtt_state
@@ -986,9 +1039,8 @@ module Syskit
         # (see Component#setup_failed!)_
         def setup_failed!(exception)
             unless exception.kind_of?(Orocos::StateTransitionFailed)
-                fatal "#{exception} received while configuring #{orocos_name}, " \
-                      "expected a StateTransitionFailed error. The component is " \
-                      "put in quarantine and cannot be reused"
+                fatal "Unexpected error '#{exception}' received while configuring"
+                fatal "Component #{self} is put in quarantine and cannot be reused"
                 execution_agent.register_task_context_in_fatal(orocos_name)
             end
 
@@ -1039,12 +1091,14 @@ module Syskit
             start_event.achieve_asynchronously(promise, emit_on_success: false)
             promise.on_error do |exception|
                 unless exception.kind_of?(Orocos::StateTransitionFailed)
-                    fatal "#{exception} received while configuring " \
+                    fatal "#{exception} received while starting " \
                           "#{orocos_name}, expected a StateTransitionFailed " \
                           "error. The component is put in quarantine and " \
                           "cannot be reused"
                     execution_agent.register_task_context_in_fatal(orocos_name)
                 end
+
+                plan.add_error(exception) if exception.kind_of?(Roby::LocalizedError)
             end
         end
 

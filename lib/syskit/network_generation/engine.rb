@@ -454,7 +454,11 @@ module Syskit
                     selected = required
                 end
 
-                selected.should_start_after(not_reusable.stop_event) if not_reusable
+                if not_reusable
+                    work_plan.unmark_permanent_task(not_reusable)
+                    not_reusable.scheduled_for_kill!
+                    selected.should_start_after(not_reusable.stop_event)
+                end
                 [selected, newly_deployed_tasks, reused_deployed_tasks]
             end
 
