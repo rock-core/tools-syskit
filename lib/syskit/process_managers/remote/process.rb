@@ -73,7 +73,9 @@ module Syskit
                         mapped_name = mapped_name_of(deployed_task.name)
                         unless (ior = @ior_mappings[mapped_name])
                             raise IORNotRegisteredError,
-                                  "no IOR is registered for #{task_name}"
+                                  "no IOR is registered for #{deployed_task.name}. The "\
+                                  "deployment model used by the process server may "\
+                                  "differ from the one used by the syskit main instance."
                         end
 
                         map[mapped_name] =
