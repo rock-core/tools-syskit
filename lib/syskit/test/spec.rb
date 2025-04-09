@@ -41,9 +41,17 @@ module Syskit
                     )
                 end
 
+                kill_running_async_resolution
                 super
             ensure
                 Syskit.conf.remove_process_server("stubs")
+            end
+
+            def kill_running_async_resolution
+                return unless plan.syskit_has_async_resolution?
+
+                plan.syskit_cancel_async_resolution
+                plan.syskit_join_current_resolution
             end
 
             def teardown_registered_plans
