@@ -93,6 +93,7 @@ module Syskit
             #
             # This does not access {#real_plan}
             def compute_deployed_network(
+                toplevel_tasks_to_requirements,
                 error_handler: RaiseErrorHandler.new,
                 required_instances: [],
                 default_deployment_group: Syskit.conf.deployment_group,
@@ -113,6 +114,13 @@ module Syskit
                     )
                     resolution_errors = error_handler.process_failures(
                         required_instances, cleanup_failed_tasks: true
+                    )
+                    # Sanity check that the plan was properly cleaned up
+                    SystemNetworkDeployer.verify_all_tasks_deployed(
+                        work_plan, default_deployment_group
+                    )
+                    SystemNetworkGenerator.verify_all_deployments_are_unique(
+                        work_plan, toplevel_tasks_to_requirements.dup
                     )
                 end
 
@@ -741,14 +749,29 @@ module Syskit
                     garbage_collect: garbage_collect,
                     validate_abstract_network: validate_abstract_network,
                     validate_generated_network: validate_generated_network,
-                    validate_deployed_network: validate_deployed_network
+                    validate_deployed_network:
+                        early_deploy && validate_deployed_network
                 )
                 required_instances = Hash[requirement_tasks.zip(toplevel_tasks)]
+                # Take toplevel tasks to requirements before cleanup
+                toplevel_tasks_to_requirements =
+                    system_network_generator.toplevel_tasks_to_requirements
 
                 resolution_errors = error_handler.process_failures(
-                    required_instances, cleanup_failed_tasks: cleanup_resolution_errors
+                    required_instances,
+                    cleanup_failed_tasks: cleanup_resolution_errors
                 )
-                [required_instances, resolution_errors]
+                if cleanup_resolution_errors
+                    # Sanity check that the plan was properly cleaned up
+                    system_network_generator.validate_network(
+                        error_handler: RaiseErrorHandler.new,
+                        validate_abstract_network: validate_abstract_network,
+                        validate_generated_network: validate_generated_network,
+                        validate_deployed_network:
+                            early_deploy && validate_deployed_network
+                    )
+                end
+                [required_instances, resolution_errors, toplevel_tasks_to_requirements]
             end
 
             # Computes the system network, that is the network that fullfills
@@ -793,22 +816,25 @@ module Syskit
                                 else
                                     RaiseErrorHandler.new
                                 end
-                required_instances, resolution_errors = compute_system_network(
-                    requirement_tasks,
-                    error_handler: error_handler,
-                    garbage_collect: garbage_collect,
-                    validate_abstract_network: validate_abstract_network,
-                    validate_generated_network: validate_generated_network,
-                    default_deployment_group: (default_deployment_group if early_deploy),
-                    validate_deployed_network: validate_deployed_network,
-                    early_deploy: early_deploy && compute_deployments,
-                    cleanup_resolution_errors: cleanup_resolution_errors
-                )
+                required_instances, resolution_errors, toplevel_tasks_to_requirements =
+                    compute_system_network(
+                        requirement_tasks,
+                        error_handler: error_handler,
+                        garbage_collect: garbage_collect,
+                        validate_abstract_network: validate_abstract_network,
+                        validate_generated_network: validate_generated_network,
+                        default_deployment_group:
+                            (default_deployment_group if early_deploy),
+                        validate_deployed_network: validate_deployed_network,
+                        early_deploy: early_deploy && compute_deployments,
+                        cleanup_resolution_errors: cleanup_resolution_errors
+                    )
 
                 if compute_deployments
                     log_timepoint_group "compute_deployed_network" do
                         deployment_resolution_errors =
                             compute_deployed_network(
+                                toplevel_tasks_to_requirements,
                                 error_handler: error_handler,
                                 required_instances: required_instances,
                                 default_deployment_group: default_deployment_group,

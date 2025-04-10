@@ -228,6 +228,27 @@ module Syskit
                     execute { Runtime.apply_requirement_modifications(plan) }
                     assert requirement_task.resolution_success?
                 end
+
+                it "clears leftover failed tasks from the plan" do
+                    srv_m = Syskit::DataService.new_submodel
+                    task_m = Syskit::TaskContext.new_submodel
+                    task_m.provides srv_m, as: "srv"
+                    cmp_m = Composition.new_submodel do
+                        add srv_m, as: "test"
+                    end
+
+                    t1 = cmp_m.as_plan
+                    requirement_task = t1.as_plan
+                    plan.add_permanent_task(requirement_task)
+                    requirement_task = requirement_task.planning_task
+                    execute { requirement_task.start! }
+                    execute { Runtime.apply_requirement_modifications(plan) }
+                    plan.syskit_current_resolution.future.value
+                    expect_execution { Runtime.apply_requirement_modifications(plan) }
+                        .to { have_error_matching Roby::PlanningFailedError }
+                    assert requirement_task.failed?
+                    refute plan.find_tasks(srv_m).first
+                end
             end
 
             def assert_resolution_cancelled # rubocop:disable Metrics/AbcSize

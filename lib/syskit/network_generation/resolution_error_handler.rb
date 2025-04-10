@@ -184,24 +184,23 @@ module Syskit
             def cleanup_resolution_errors(
                 resolution_errors, required_instances, work_plan
             )
-                cleaned_up = {}
                 resolution_errors.each do |error|
                     requirement_task = error.planning_task
-                    toplevel_task = required_instances[requirement_task]
-                    if cleaned_up[requirement_task]
-                        # Even if a task have multiple resolution errors, enforce that it
-                        # is only cleaned up once.
-                        next
-                    elsif !toplevel_task
-                        raise "trying to cleanup a requirement task that doesnt have" \
-                              "a top level task assigned to it. Maybe it was already " \
-                              "cleaned up?!"
-                    end
-
                     required_instances.delete requirement_task
-                    work_plan.remove_task(toplevel_task)
-                    cleaned_up[requirement_task] = toplevel_task
                 end
+                return if resolution_errors.empty?
+
+                NetworkGeneration.debug "cleanup up after error resolution"
+                protected_tasks = required_instances.values.map do |v|
+                    @merge_solver.replacement_for(v)
+                end
+                work_plan
+                    .static_garbage_collect(protected_roots: protected_tasks) do |obj|
+                        NetworkGeneration.debug { "  removing #{obj}" }
+                        # Remove tasks that are not useful anymore
+                        @plan.remove_task(obj)
+                    end
+                @resolution_failures.clear
             end
         end
 
