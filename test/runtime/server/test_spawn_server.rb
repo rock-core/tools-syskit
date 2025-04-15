@@ -72,6 +72,33 @@ module Syskit
                     upload_testfile
                 end
 
+                it "refuses to upload a file if the disk space is below threshold " \
+                   "at the beginning" do
+                    # The default threshold is zero ... let's invent negative disk space
+                    flexmock(Sys::Filesystem)
+                        .should_receive(:stat)
+                        .with(@target_dir.to_s)
+                        .and_return(flexmock(bytes_available: -1))
+                    e = assert_raises(Net::FTPPermError) { upload_testfile }
+                    assert_match(/less than 0 bytes available/, e.message)
+                end
+
+                it "validates the disk space accounting for the size of the next chunk" do
+                    flexmock(Sys::Filesystem)
+                        .should_receive(:stat)
+                        .twice
+                        .with(@target_dir.to_s)
+                        .and_return(
+                            flexmock(bytes_available: 200_000),
+                            flexmock(bytes_available: 127)
+                        )
+
+                    e = assert_raises(Net::FTPPermError) do
+                        upload_testfile(size: 150_000)
+                    end
+                    assert_match(/less than 0 bytes available/, e.message)
+                end
+
                 it "refuses to GET a file" do
                     upload_testfile
                     ftp_open do |ftp|
@@ -112,8 +139,8 @@ module Syskit
                         ftp.login("user", "password")
                         File.open(path) do |io|
                             ftp.storbinary(
-                                "STOR #{File.basename(path)}",
-                                io, Net::FTP::DEFAULT_BLOCKSIZE
+                                "STOR #{File.basename(path)}", io,
+                                Net::FTP::DEFAULT_BLOCKSIZE
                             )
                         end
                     end

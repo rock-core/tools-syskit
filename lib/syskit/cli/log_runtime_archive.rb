@@ -155,6 +155,8 @@ module Syskit
                 )
             end
 
+            class TransferFailed < RuntimeError; end
+
             TransferDatasetResult = Struct.new(
                 :complete, :transfer_results, keyword_init: true
             ) do
@@ -164,6 +166,13 @@ module Syskit
 
                 def failures
                     transfer_results.find_all { !_1.success? }
+                end
+
+                def validate!
+                    return if (failures = self.failures).empty?
+
+                    message = failures.map(&:message).join("\n")
+                    raise TransferFailed, message
                 end
             end
 
@@ -191,6 +200,7 @@ module Syskit
                     complete: complete, transfer_results: transfer_results
                 )
                 log_transfer_results(dataset_path, result, logger: logger)
+                result
             end
 
             # @api private
@@ -260,8 +270,9 @@ module Syskit
                             if failed_result.message
                                 "with message : #{failed_result.message}"
                             end
-                        logger.info(
-                            "Failed on file #{failed_result.file} #{failed_message}"
+                        logger.warn(
+                            "Log transfer failed on file #{failed_result.file}: " \
+                            "#{failed_message}"
                         )
                     end
                 end

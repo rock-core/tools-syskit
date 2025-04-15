@@ -133,11 +133,16 @@ module Syskit
                    type: :boolean, default: false,
                    desc: "use implicit connection method for ftps " \
                          "(disable for 2.5 clients on 2.7 servers)"
+            option :min_free_space,
+                   type: :numeric, default: 0,
+                   desc: "abort transfers if the disk space is below this limit (in MB)"
             def transfer_server( # rubocop:disable Metrics/ParameterLists
                 target_dir, host, port, certfile_path, user, password
             )
-                server = create_server(target_dir, host, port, certfile_path, user,
-                                       password, options[:implicit_ftps])
+                server = create_server(
+                    target_dir, host, port, certfile_path, user, password,
+                    options[:implicit_ftps], options[:min_free_space] * 1_000_000
+                )
                 server.run
             end
 
@@ -212,14 +217,16 @@ module Syskit
                 end
 
                 def create_server( # rubocop:disable Metrics/ParameterLists
-                    target_dir, host, port, certificate, user, password, implicit_ftps
+                    target_dir, host, port, certificate, user, password,
+                    implicit_ftps, min_free_space
                 )
                     Runtime::Server::SpawnServer.new(
                         target_dir, user, password,
                         certificate,
                         interface: host,
                         port: port,
-                        implicit_ftps: implicit_ftps
+                        implicit_ftps: implicit_ftps,
+                        min_free_space: min_free_space
                     )
                 end
 

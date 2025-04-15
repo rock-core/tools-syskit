@@ -1,5 +1,7 @@
 # frozen_string_literal: true
 
+require "sys/filesystem"
+
 module Syskit
     module Runtime
         module Server
@@ -12,7 +14,7 @@ module Syskit
                 include Ftpd::Error
                 include Ftpd::TranslateExceptions
 
-                def initialize(data_dir)
+                def initialize(data_dir, min_free_space: 0)
                     # Ftpd base methods expect data_dir to be a string
                     unless data_dir.respond_to?(:to_s)
                         raise ArgumentError,
@@ -20,6 +22,7 @@ module Syskit
                     end
 
                     set_data_dir data_dir.to_s
+                    @min_free_space = min_free_space
                 end
 
                 # Write a file to disk if it does not already exist.
@@ -33,15 +36,34 @@ module Syskit
                 # If missing, then these commands are not supported.
 
                 def write(ftp_path, stream)
-                    full_path = File.join(@data_dir, ftp_path)
+                    full_path = expand_ftp_path(ftp_path)
                     final_path = File.join(
                         File.dirname(full_path),
                         File.basename(full_path, ".partial")
                     )
                     error "Already exists", 550 if File.exist?(final_path)
 
-                    write_file ftp_path, stream, "wb"
+                    # Code copied from Ftpd::DiskFileSystem::FileWriting
+                    File.open(full_path, "wb") do |file|
+                        while (line = stream.read)
+                            verify_free_space(line.size)
+
+                            file.write line
+                        end
+                    end
                 end
+
+                def verify_free_space(required_available_space = 0)
+                    stat = Sys::Filesystem.stat(@data_dir)
+                    available_space = stat.bytes_available - required_available_space
+
+                    return if available_space > @min_free_space
+
+                    raise Ftpd::PermanentFileSystemError,
+                          "less than #{@min_free_space} bytes available, log transfer " \
+                          "interrupted"
+                end
+
                 translate_exceptions :write
             end
         end
