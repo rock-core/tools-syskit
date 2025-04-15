@@ -47,9 +47,11 @@ module Syskit
                     have_one_new_sample task.sleep_start_port
                 end
                 expect_execution { task.state_reader.disconnect }
-                    .to { quarantine(task) }
+                    .to_quarantine(task)
 
                 assert task.setup?
+                assert_equal "the task's state reader got disconnected",
+                             task.quarantine_reason
             end
         end
 
@@ -67,6 +69,8 @@ module Syskit
                         emit task.start_event
                     end
 
+                assert_equal "the task's state reader got disconnected",
+                             task.quarantine_reason
                 syskit_stop(task)
             end
 
@@ -79,6 +83,8 @@ module Syskit
                         fail_to_start task
                     end
 
+                assert_equal "the task's state reader got disconnected",
+                             task.quarantine_reason
                 deployment_kill
             end
         end
@@ -101,6 +107,8 @@ module Syskit
                         quarantine(task)
                         emit task.stop_event
                     end
+                assert_equal "the task's state reader got disconnected",
+                             task.quarantine_reason
             end
 
             it "does nothing more if the remote getter is lost as well" do
@@ -109,10 +117,12 @@ module Syskit
                 flexmock(task).should_receive(:queue_last_chance_to_stop)
                 expect_execution { task.state_reader.disconnect }
                     .join_all_waiting_work(false)
-                    .to { quarantine task }
+                    .to_quarantine(task)
 
+                assert_equal "the task's state reader got disconnected",
+                             task.quarantine_reason
                 sleep 2.5
-                expect_execution.to { not_emit task.stop_event }
+                expect_execution.to_not_emit(task.stop_event)
 
                 deployment_kill
             end
@@ -131,16 +141,21 @@ module Syskit
                         quarantine(task)
                         emit task.stop_event
                     end
+                assert_equal "the task's state reader got disconnected",
+                             task.quarantine_reason
             end
 
             it "does nothing more if the remote getter is lost as well" do
                 mock_disconnected_remote_state_getter
                 expect_execution { task.state_reader.disconnect }
                     .join_all_waiting_work(false)
-                    .to { quarantine task }
+                    .to_quarantine(task)
+
+                assert_equal "the task's state reader got disconnected",
+                             task.quarantine_reason
 
                 sleep 2.5
-                expect_execution.to { not_emit task.stop_event }
+                expect_execution.to_not_emit(task.stop_event)
 
                 deployment_kill
             end
@@ -151,48 +166,56 @@ module Syskit
                 @task.properties.hook = "exception"
                 syskit_configure(@task)
                 synchronize_on_sleep(task, execute: -> { task.start! })
+                wait_for_exception
             end
 
-            it "goes into quarantine and falls back to the remote state getter" do
+            it "goes into quarantine and manages to stop anyway" do
                 expect_execution { task.state_reader.disconnect }
                     .to do
                         quarantine(task)
                         emit task.exception_event
                     end
+
+                assert_equal "the task's state reader got disconnected",
+                             task.quarantine_reason
             end
 
-            it "does nothing more if the remote getter is lost as well" do
+            it "enters quarantine and stop updating if the remote state getter fails" do
                 mock_disconnected_remote_state_getter
-                expect_execution { task.state_reader.disconnect }
+                expect_execution
                     .join_all_waiting_work(false)
-                    .to { quarantine task }
+                    .to_quarantine(task)
 
-                sleep 2.5
-                expect_execution.to { not_emit task.stop_event }
+                assert_equal "the task's remote state getter got disconnected " \
+                             "during exception handling",
+                             task.quarantine_reason
+
+                expect_execution.to_not_emit(task.stop_event, within: 2.5)
 
                 deployment_kill
             end
+
+            it "opportunistically reads the remote state getter's pending state " \
+               "updates even if disconnected" do
+                mock_disconnected_remote_state_getter(
+                    return_read: %I[RUNNING EXCEPTION]
+                )
+                expect_execution
+                    .join_all_waiting_work(false)
+                    .to_quarantine(task)
+
+                assert_equal "the task's remote state getter got disconnected " \
+                             "during exception handling",
+                             task.quarantine_reason
+
+                expect_execution.to_emit(task.stop_event)
+            end
         end
 
-        describe "when only losing the remote state reader " \
-                 "while processing an exception" do
-            before do
-                @task.properties.hook = "exception"
-                syskit_configure(@task)
-                synchronize_on_sleep(task, execute: -> { task.start! })
-            end
-
-            it "goes into quarantine and processes the exception normally" do
-                mock_disconnected_remote_state_getter
-                expect_execution.join_all_waiting_work(false).to { quarantine(task) }
-
-                sleep 2.5
-                expect_execution.to { emit task.stop_event }
-            end
-        end
-
-        def mock_disconnected_remote_state_getter
+        def mock_disconnected_remote_state_getter(return_read: [nil])
             task_info = task.execution_agent.remote_task_handles[task.orocos_name]
+            flexmock(task_info.state_getter)
+                .should_receive(:read).and_return(*return_read)
             flexmock(task_info.state_getter)
                 .should_receive(:connected?).and_return(false)
         end
@@ -225,6 +248,10 @@ module Syskit
                     emit task.aborted_event if task.running?
                     ignore_errors_from quarantine(task)
                 end
+        end
+
+        def wait_for_exception
+            expect_execution.to_achieve { task.waiting_for_stop_after_exception? }
         end
     end
 end

@@ -604,10 +604,10 @@ module Syskit
             return true if state_reader.connected?
 
             queue_last_chance_to_stop if running? && !stop_event.pending?
-            quarantined!
 
             # Have we already degraded to using RemoteStateGetter ?
-            # Do NOT use quarantined?. It can mean other things.
+            # Do NOT use quarantined?. quarantined! could have been called by something
+            # else than validate_state_reader_connected
             if @state_reader == @remote_state_getter
                 # We already had degraded to the remote state getter ... there's
                 # nothing more we can do
@@ -625,18 +625,23 @@ module Syskit
 
                 false
             else
+                quarantined!(reason: "the task's state reader got disconnected")
+
                 # Switch to the remote state getter to at least figure out
                 # in which toplevel state we are. The component is unusable
                 # as is, but we can finish whatever transition it is doing
                 # (and stop it cleanly)
-                fatal "putting #{self} in quarantine, its state reader " \
-                      "#{state_reader} got disconnected"
-
                 @state_reader = @remote_state_getter
                 @remote_state_getter.resume_or_start
 
                 true
             end
+        end
+
+        # Whether self is waiting for the component to stop after it entered
+        # an exception state
+        def waiting_for_stop_after_exception?
+            @exception_transition_deadline
         end
 
         # @api private
@@ -656,7 +661,14 @@ module Syskit
         # RTT state, we make sure that the component is actually stopped *and* that
         # catch other state transitions, such as FATAL_ERROR
         def update_orogen_state_in_exception(state)
-            quarantined! if Time.now > @exception_transition_deadline
+            if Time.now > @exception_transition_deadline
+                quarantined!(
+                    reason: "time out reached while waiting for the task to stop " \
+                            "after it indicated a transition to an exception state. " \
+                            "Received state updates: " \
+                            "#{@pending_exception_states.map(&:to_s).join(', ')}"
+                )
+            end
 
             push_pending_exception_state(state) if state
             @exception_confirmation_received ||= has_exception_confirmation?
@@ -665,9 +677,10 @@ module Syskit
                 @last_orogen_state = @orogen_state
                 @orogen_state = @pending_exception_states.shift
             elsif !@remote_state_getter.connected?
-                fatal "putting #{self} in quarantine, its remote state reader " \
-                      "#{@remote_state_getter} failed during exception handling"
-                quarantined!
+                quarantined!(
+                    reason: "the task's remote state getter got disconnected " \
+                            "during exception handling"
+                )
                 # Don't stop like in #handle_state_reader_disconnection, the component
                 # is currently transitioning to exception, a.k.a. already stopping
             end
@@ -1040,7 +1053,8 @@ module Syskit
         def setup_failed!(exception)
             unless exception.kind_of?(Orocos::StateTransitionFailed)
                 fatal "Unexpected error '#{exception}' received while configuring"
-                fatal "Component #{self} is put in quarantine and cannot be reused"
+                fatal "Component #{self} is put in quarantine and cannot be reused " \
+                      "until its deployment has been restarted"
                 execution_agent.register_task_context_in_fatal(orocos_name)
             end
 
@@ -1093,8 +1107,8 @@ module Syskit
                 unless exception.kind_of?(Orocos::StateTransitionFailed)
                     fatal "#{exception} received while starting " \
                           "#{orocos_name}, expected a StateTransitionFailed " \
-                          "error. The component is put in quarantine and " \
-                          "cannot be reused"
+                          "error. The component cannot be reused until its deployment " \
+                          "has been restarted"
                     execution_agent.register_task_context_in_fatal(orocos_name)
                 end
 
@@ -1205,7 +1219,7 @@ module Syskit
                     end
                 promise.on_error(description: "#{self}#interrupt#error") do |error|
                     if execution_agent && !error.kind_of?(Orocos::StateTransitionFailed)
-                        quarantined!
+                        quarantined!(reason: "task's stop call raised: #{error}")
                     end
                 end
 
