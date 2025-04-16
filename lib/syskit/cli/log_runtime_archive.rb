@@ -220,7 +220,10 @@ module Syskit
             def self.transfer_compute_paths(dataset_path, full, info_name)
                 candidates =
                     each_file_from_path(dataset_path)
-                    .reject { |p| p.extname == ".partial" }
+                    .reject do |p|
+                        p.extname == ".partial" ||
+                            p.basename.to_s == Roby::Application::LOCK_FILE_EXT
+                    end
 
                 complete, paths_to_transfer =
                     if full
@@ -491,6 +494,10 @@ module Syskit
                 all_candidates = each_file_from_path(path).to_a
                 partials, candidates =
                     all_candidates.partition { |file| file.extname == ".partial" }
+                candidates.delete_if do |p|
+                    p.basename.to_s == Roby::Application::LOCK_FILE_EXT
+                end
+
                 if full && partials.empty?
                     archive_filter_candidates_full(candidates)
                 else
