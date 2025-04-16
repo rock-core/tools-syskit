@@ -196,7 +196,7 @@ module Syskit
                 end
 
                 result = TransferDatasetResult.new(transfer_results: transfer_results)
-                log_transfer_results(dataset_path, result, logger: logger)
+                log_transfer_results(result, logger: logger)
                 result
             end
 
@@ -252,7 +252,7 @@ module Syskit
             # @param [Logger] optional logger, if unfilled will use null logger
             #
             # @result [TransferDatasetResult] the received transfer dataset result
-            def self.log_transfer_results(dataset_path, result, logger: null_logger)
+            def self.log_transfer_results(result, logger: null_logger)
                 failed_results = result[:transfer_results].reject(&:success)
 
                 if failed_results.empty?
