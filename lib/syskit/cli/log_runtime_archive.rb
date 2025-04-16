@@ -49,7 +49,7 @@ module Syskit
                 candidates.map do |child|
                     process_dataset_transfer(
                         child, server_params, @root_dir,
-                        full: !Roby::Application.log_dir_locked?(child.basename),
+                        full: !Roby::Application.log_dir_locked?(child),
                         info_name: info_name
                     )
                 end
@@ -69,7 +69,7 @@ module Syskit
                 candidates.each do |child|
                     process_dataset(
                         child, max_archive_size: max_archive_size,
-                               full: !Roby::Application.log_dir_locked?(child.basename)
+                               full: !Roby::Application.log_dir_locked?(child)
                     )
                 end
             end

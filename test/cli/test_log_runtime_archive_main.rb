@@ -291,16 +291,7 @@ module Syskit
                     @server = call_create_server(root_tmp_path, @server_params)
 
                     dataset_a = make_dataset(dataset_tmp_path, "19981222-1301")
-                    dataset_b = make_dataset(dataset_tmp_path, "19981222-1302")
-
-                    flexmock(Roby::Application)
-                        .should_receive(:log_dir_locked?)
-                        .with(dataset_a.basename)
-                        .and_return(false)
-                    flexmock(Roby::Application)
-                        .should_receive(:log_dir_locked?)
-                        .with(dataset_b.basename)
-                        .and_return(true)
+                    (dataset_a / ".lock").write("") # unlock the dir
 
                     call_transfer(dataset_tmp_path)
                     assert(File.exist?(root_tmp_path / "19981222-1301" / "test.0.log"))

@@ -400,27 +400,18 @@ module Syskit
                     @process = LogRuntimeArchive.new(@root, target_dir: @archive_dir)
                 end
 
-                it "archives all folders, the last one only partially" do
+                it "archives all folders, the locked ones partially" do
                     dataset0 = make_valid_folder("20220434-2023")
                     dataset1 = make_valid_folder("20220434-2024")
                     dataset2 = make_valid_folder("20220434-2025")
 
-                    flexmock(Roby::Application)
-                        .should_receive(:log_dir_locked?)
-                        .with(dataset0.basename)
-                        .and_return(false)
-                    flexmock(Roby::Application)
-                        .should_receive(:log_dir_locked?)
-                        .with(dataset1.basename)
-                        .and_return(false)
-                    flexmock(Roby::Application)
-                        .should_receive(:log_dir_locked?)
-                        .with(dataset2.basename)
-                        .and_return(true)
+                    (dataset0 / ".lock").write("") # unlocked dir
+                    # No lock file means locked for dataset1
+                    (dataset2 / ".lock").write("") # unlocked dir
 
                     should_archive_dataset(dataset0, "20220434-2023.0.tar", full: true)
-                    should_archive_dataset(dataset1, "20220434-2024.0.tar", full: true)
-                    should_archive_dataset(dataset2, "20220434-2025.0.tar", full: false)
+                    should_archive_dataset(dataset1, "20220434-2024.0.tar", full: false)
+                    should_archive_dataset(dataset2, "20220434-2025.0.tar", full: true)
                     @process.process_root_folder
 
                     assert (@archive_dir / "20220434-2023.0.tar").file?
@@ -533,21 +524,13 @@ module Syskit
 
                 it "gathers all non-rotated logs in the very last archive" do
                     dataset = make_valid_folder("20220434-2023")
-                    last_dataset = make_valid_folder("20220434-2024")
                     make_random_file "test.0.log", root: dataset
                     make_random_file "test.1.log", root: dataset
                     make_random_file "test.2.log", root: dataset
                     make_random_file "test.txt", root: dataset
                     make_random_file "test-PID.txt", root: dataset
 
-                    flexmock(Roby::Application)
-                        .should_receive(:log_dir_locked?)
-                        .with(dataset.basename)
-                        .and_return(false)
-                    flexmock(Roby::Application)
-                        .should_receive(:log_dir_locked?)
-                        .with(last_dataset.basename)
-                        .and_return(true)
+                    (dataset / ".lock").write("")
 
                     @process.process_root_folder
 
@@ -615,15 +598,7 @@ module Syskit
                         make_random_file "test.1.log", root: dataset_a
                         make_random_file "test.0.log", root: dataset_b
                         make_random_file "test.1.log", root: dataset_b
-
-                        flexmock(Roby::Application)
-                            .should_receive(:log_dir_locked?)
-                            .with(dataset_a.basename)
-                            .and_return(false)
-                        flexmock(Roby::Application)
-                            .should_receive(:log_dir_locked?)
-                            .with(dataset_b.basename)
-                            .and_return(true)
+                        (dataset_a / ".lock").write("")
 
                         @process.process_root_folder_transfer(@params)
 
