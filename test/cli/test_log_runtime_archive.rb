@@ -665,9 +665,8 @@ module Syskit
                             )
 
                             assert results.success?
-                            # Datasets that have pocolog files are not complete
-                            refute results.complete
                             assert(File.exist?(@target_dir / "PATH" / "test.0.log"))
+                            assert(File.exist?(@target_dir / "PATH" / "info.yml"))
                         end
 
                         it "removes the source file if the transfer was successful" do

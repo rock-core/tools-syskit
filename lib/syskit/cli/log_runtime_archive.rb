@@ -158,7 +158,7 @@ module Syskit
             class TransferFailed < RuntimeError; end
 
             TransferDatasetResult = Struct.new(
-                :complete, :transfer_results, keyword_init: true
+                :transfer_results, keyword_init: true
             ) do
                 def success?
                     transfer_results.all?(&:success?)
@@ -185,8 +185,7 @@ module Syskit
                     "Transfering dataset #{dataset_path} in " \
                     "#{full ? 'full' : 'partial'} mode"
                 )
-                complete, paths_to_transfer =
-                    transfer_compute_paths(dataset_path, full, info_name)
+                paths_to_transfer = transfer_compute_paths(dataset_path, full, info_name)
 
                 transfer_results = paths_to_transfer.map do |source_path, target_name|
                     result =
@@ -196,9 +195,7 @@ module Syskit
                     result
                 end
 
-                result = TransferDatasetResult.new(
-                    complete: complete, transfer_results: transfer_results
-                )
+                result = TransferDatasetResult.new(transfer_results: transfer_results)
                 log_transfer_results(dataset_path, result, logger: logger)
                 result
             end
@@ -225,17 +222,14 @@ module Syskit
                             p.basename.to_s == Roby::Application::LOCK_FILE_EXT
                     end
 
-                complete, paths_to_transfer =
-                    if full
-                        archive_filter_candidates_full(candidates)
-                    else
+                if full
+                    paths_to_transfer = candidates
+                else
+                    _, paths_to_transfer =
                         archive_filter_candidates_partial(candidates)
-                    end
+                end
 
-                paths_to_transfer =
-                    transfer_compute_remote_names(paths_to_transfer, info_name)
-
-                [complete, paths_to_transfer]
+                transfer_compute_remote_names(paths_to_transfer, info_name)
             end
 
             # Renames the info.yml file
@@ -262,25 +256,20 @@ module Syskit
                 failed_results = result[:transfer_results].reject(&:success)
 
                 if failed_results.empty?
-                    logger.info(
-                        "Transfering of " \
-                        "#{result[:complete] ? 'complete' : 'incomplete'} " \
-                        "#{dataset_path} finished"
-                    )
-                else
-                    failed_results.each do |failed_result|
-                        failed_message =
-                            if failed_result.message
-                                "with message : #{failed_result.message}"
-                            end
-                        logger.warn(
-                            "Log transfer failed on file #{failed_result.file}: " \
-                            "#{failed_message}"
-                        )
-                    end
+                    logger.info "Successful"
+                    return
                 end
 
-                result
+                failed_results.each do |failed_result|
+                    failed_message =
+                        if failed_result.message
+                            "with message : #{failed_result.message}"
+                        end
+                    logger.warn(
+                        "Log transfer failed on file #{failed_result.file}: " \
+                        "#{failed_message}"
+                    )
+                end
             end
 
             # Transfer a file to the central log server via FTP
