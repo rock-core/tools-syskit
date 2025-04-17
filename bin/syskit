@@ -69,6 +69,8 @@ else
     if SYSKIT_MODES.include?(mode)
         require "syskit/scripts/#{mode}"
     elsif ROBY_MODES.include?(mode)
+        require "roby"
+        Roby.app.using "syskit"
         require "roby/app/scripts/#{mode}"
     end
 
