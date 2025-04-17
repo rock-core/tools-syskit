@@ -16,21 +16,18 @@ module Syskit
             def setup
                 @task_stubs = []
                 @old_loglevel = Orocos.logger.level
+                @__syskit_test_updated_attrs = {}
 
                 super
             end
 
             def teardown
                 # Disable log output to avoid spurious "stopped / interrupting"
-                registered_plans.each do |p|
-                    if p.executable?
-                        p.find_tasks(Syskit::TaskContext).each do |t|
-                            flexmock(t).should_receive(:info)
-                        end
-                    end
-                end
+                __syskit_test_disable_taskcontext_info_messages
 
                 plug_connection_management
+                __syskit_test_restore_updated_attributes
+
                 begin
                     super
                 rescue ::Exception => e
@@ -42,6 +39,22 @@ module Syskit
                 Orocos.logger.level = @old_loglevel if @old_loglevel
                 if teardown_failure
                     raise teardown_failure
+                end
+            end
+
+            def __syskit_test_disable_taskcontext_info_messages
+                registered_plans.each do |p|
+                    next unless p.executable?
+
+                    p.find_tasks(Syskit::TaskContext).each do |t|
+                        flexmock(t).should_receive(:info)
+                    end
+                end
+            end
+
+            def __syskit_test_restore_updated_attributes
+                @__syskit_test_updated_attrs.each do |(obj, setter), value|
+                    obj.send(setter, value)
                 end
             end
 
@@ -59,6 +72,25 @@ module Syskit
 
             def unplug_connection_management
                 RobyApp::Plugin.unplug_handler_from_roby(execution_engine, :connection_management)
+            end
+
+            # Update an object's attribute, restoring its original value on teardown
+            #
+            # @param [Object] object
+            # @param [String,Symbol] name the attribute name. Predicate attributes are
+            #   handled by removing the trailing question mark before adding the `=`
+            # @param [Object] value the new value
+            def update_and_restore_attr(object, name, value)
+                name = name.to_s
+                setter =
+                    if name.end_with?("?")
+                        "#{name[0..-2]}="
+                    else
+                        "#{name}="
+                    end
+
+                @__syskit_test_updated_attrs[[object, setter]] = object.send(name)
+                object.send(setter, value)
             end
 
             # @deprecated use the expectations on {ExecutionExpectations} instead
