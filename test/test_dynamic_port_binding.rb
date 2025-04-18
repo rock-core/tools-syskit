@@ -341,8 +341,8 @@ module Syskit
                "is not finalized" do
                 updated, port = @port_binding.update
                 assert updated
-                assert_equal "srv_out", port.name
-                assert_equal @cmp.test_child.out_port, port.to_component_port
+                assert_equal "out", port.name
+                assert_equal @cmp.test_child.out_port, port
             end
 
             it "returns [false, port] the second time if the underlying component " \
@@ -350,8 +350,8 @@ module Syskit
                 @port_binding.update
                 updated, port = @port_binding.update
                 refute updated
-                assert_equal "srv_out", port.name
-                assert_equal @cmp.test_child.out_port, port.to_component_port
+                assert_equal "out", port.name
+                assert_equal @cmp.test_child.out_port, port
             end
 
             it "returns [false, ni] the first time if the underlying component " \
