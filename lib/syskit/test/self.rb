@@ -19,11 +19,20 @@ module Syskit
             # easily
             attr_reader :robot
 
+            def self.issue_once_warning_about_log_level(message)
+                return if @issued_warning_about_log_level
+
+                puts message
+                @issued_warning_about_log_level = true
+            end
+
             def data_dir
                 File.join(SYSKIT_ROOT_DIR, "test", "data")
             end
 
             def setup
+                setup_default_logger
+
                 Syskit.conf.define_default_process_managers = false
 
                 @old_pkg_config = ENV["PKG_CONFIG_PATH"].dup
@@ -152,9 +161,17 @@ module Syskit
             def setup_default_logger
                 null_output = ENV["TEST_LOG_NULL_OUTPUT"] != "0"
                 log_level =
-                    if (log_level = ENV.fetch("TEST_LOG_LEVEL", nil))
-                        Logger.const_get(log_level)
+                    if (log_level_name = ENV.fetch("TEST_LOG_LEVEL", nil))
+                        Test::Self.issue_once_warning_about_log_level(
+                            "running tests with logger in #{log_level} mode " \
+                            "(from TEST_LOG_LEVEL)"
+                        )
+                        Logger.const_get(log_level_name)
                     elsif ENV["TEST_ENABLE_COVERAGE"] == "1"
+                        Test::Self.issue_once_warning_about_log_level(
+                            "running tests with logger in DEBUG mode " \
+                            "(because of TEST_ENABLE_COVERAGE)"
+                        )
                         Logger::DEBUG
                     else
                         rand > 0.5 ? Logger::DEBUG : Logger::FATAL + 1
@@ -167,10 +184,6 @@ module Syskit
                     Syskit.logger.formatter = current_formatter
                 end
 
-                if (explicit_level = ENV.fetch("TEST_LOG_LEVEL", nil))
-                    puts "running tests with logger in #{explicit_level} mode " \
-                         "(from TEST_LOG_LEVEL)"
-                end
                 Syskit.logger.level = log_level
             end
 
