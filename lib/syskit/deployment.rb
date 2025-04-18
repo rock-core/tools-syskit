@@ -902,13 +902,16 @@ module Syskit
         def opportunistic_recovery_from_quarantine
             return unless has_fatal_errors? || has_quarantines?
 
-            each_executed_task do |t|
-                next if t.quarantined?
-                next if t.finished?
-                next if Roby.app.syskit_utility_component?(t)
-
-                return
+            no_useful_running_component = each_executed_task.all? do |t|
+                t.quarantined? || t.finished? ||
+                    Roby.app.syskit_utility_component?(t)
             end
+            return unless no_useful_running_component
+
+            warn "#{self} has tasks in quarantine, and no running non-utility " \
+                 "components. Killing it to recover. Set " \
+                 "Syskit.conf.opportunistic_recovery_from_quarantine to false to " \
+                 "disable this behaviour"
 
             # Avoid generating an error.
             each_executed_task do |t|

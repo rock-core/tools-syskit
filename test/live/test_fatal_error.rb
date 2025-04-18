@@ -7,18 +7,27 @@ module Syskit
     class SyskitFatalErrorTests < Syskit::Test::ComponentTest
         run_live
 
+        before do
+            @orig_auto_restart_flag =
+                Syskit.conf.auto_restart_deployments_with_quarantines?
+            @orig_opportunistic_recovery =
+                Syskit.conf.opportunistic_recovery_from_quarantine?
+
+            Syskit.conf.auto_restart_deployments_with_quarantines = false
+            Syskit.conf.opportunistic_recovery_from_quarantine = false
+        end
+
+        after do
+            Syskit.conf.auto_restart_deployments_with_quarantines =
+                @orig_auto_restart_flag
+            Syskit.conf.opportunistic_recovery_from_quarantine =
+                @orig_opportunistic_recovery
+        end
+
         describe "system handling of fatal error and quarantined tasks" do
             attr_reader :task, :task2, :deployment
 
             before do
-                @orig_auto_restart_flag =
-                    Syskit.conf.auto_restart_deployments_with_quarantines?
-                @orig_opportunistic_recovery =
-                    Syskit.conf.opportunistic_recovery_from_quarantine?
-
-                Syskit.conf.auto_restart_deployments_with_quarantines = false
-                Syskit.conf.opportunistic_recovery_from_quarantine = false
-
                 deployment_m = OroGen::Deployments.syskit_fatal_error_recovery_test
                 @task_m = OroGen.orogen_syskit_tests.FatalError
                                 .deploy_with(deployment_m => Process.pid.to_s)
@@ -28,13 +37,6 @@ module Syskit
                                  .deploy_with(deployment_m => Process.pid.to_s)
                 @task2 = syskit_deploy_configure_and_start(@task2_m)
                 @deployment = @task.execution_agent
-            end
-
-            after do
-                Syskit.conf.auto_restart_deployments_with_quarantines =
-                    @orig_auto_restart_flag
-                Syskit.conf.opportunistic_recovery_from_quarantine =
-                    @orig_opportunistic_recovery
             end
 
             it "does not allow respawning a task that has gone into FATAL_ERROR" do
