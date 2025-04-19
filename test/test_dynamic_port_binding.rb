@@ -219,7 +219,7 @@ module Syskit
             end
         end
 
-        describe "#update from a port matcher" do
+        describe "#update from a port matching a task" do
             attr_reader :task, :port_binding
 
             before do
@@ -251,6 +251,88 @@ module Syskit
                 @port_binding.update
                 assert_equal [false, @task.out_port], @port_binding.update
                 assert @port_binding.valid?
+            end
+
+            it "returns [true, nil] if the current match is valid " \
+               "but the port is finalized" do
+                port_binding_m =
+                    Models::DynamicPortBinding
+                    .create_from_matcher(@task_m.match.out_port)
+                port_binding = port_binding_m.instanciate.attach_to_task(@task)
+
+                syskit_configure_and_start(@task)
+                port_binding.update
+                expect_execution { plan.unmark_mission_task(@task) }
+                    .garbage_collect(true)
+                    .to_finalize(@task)
+
+                assert_equal [true, nil], port_binding.update
+                refute port_binding.valid?
+            end
+
+            it "returns [true, nil] if the current match is not valid anymore" do
+                syskit_configure_and_start(@task)
+                @port_binding.update
+                syskit_stop task
+
+                assert_equal [true, nil], @port_binding.update
+                refute @port_binding.valid?
+            end
+        end
+
+        describe "#update from a port matching a data service" do
+            attr_reader :task, :port_binding
+
+            before do
+                @srv_m = Syskit::DataService.new_submodel do
+                    output_port "srv_out", "/double"
+                end
+                @task_m.provides @srv_m, as: "srv"
+                @port_binding_m =
+                    Models::DynamicPortBinding
+                    .create_from_matcher(@srv_m.match.running.srv_out_port)
+                @task = syskit_stub_and_deploy(@task_m, remote_task: false)
+                @port_binding = @port_binding_m.instanciate.attach_to_task(@task)
+            end
+
+            it "returns [false, nil] in #update if the binding is not attached" do
+                port_binding = @port_binding_m.instanciate
+                assert_equal [false, nil], port_binding.update
+            end
+
+            it "returns [false, nil] if there are no matches in the plan" do
+                assert_equal [false, nil], @port_binding.update
+            end
+
+            it "returns [true, port] if there is a new match in the plan" do
+                syskit_configure_and_start(@task)
+
+                assert_equal [true, @task.out_port], @port_binding.update
+                assert @port_binding.valid?
+            end
+
+            it "returns [false, port] if the current match is still valid" do
+                syskit_configure_and_start(@task)
+                @port_binding.update
+                assert_equal [false, @task.out_port], @port_binding.update
+                assert @port_binding.valid?
+            end
+
+            it "returns [true, nil] if the current match is valid " \
+               "but the port is finalized" do
+                port_binding_m =
+                    Models::DynamicPortBinding
+                    .create_from_matcher(@srv_m.match.running.srv_out_port)
+                port_binding = port_binding_m.instanciate.attach_to_task(@task)
+
+                syskit_configure_and_start(@task)
+                port_binding.update
+                expect_execution { plan.unmark_mission_task(@task) }
+                    .garbage_collect(true)
+                    .to_finalize(@task)
+
+                assert_equal [true, nil], port_binding.update
+                refute port_binding.valid?
             end
 
             it "returns [true, nil] if the current match is not valid anymore" do
