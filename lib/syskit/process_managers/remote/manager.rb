@@ -72,6 +72,7 @@ module Syskit
                 #   root for this client's loader
                 def initialize(
                     host = "localhost", port = DEFAULT_PORT,
+                    connect_timeout: 10,
                     response_timeout: 10,
                     root_loader: Orocos.default_loader,
                     register_on_name_server: true
@@ -79,7 +80,7 @@ module Syskit
                     @host = host
                     @port = port
                     @socket =
-                        begin TCPSocket.new(host, port)
+                        begin Socket.tcp(host, port, connect_timeout: connect_timeout)
                         rescue Errno::ECONNREFUSED => e
                             raise e.class,
                                   "cannot contact process server at " \
