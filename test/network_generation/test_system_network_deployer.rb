@@ -569,7 +569,7 @@ module Syskit
                         deployment_m.orogen_model.task "task", task_m.orogen_model
                         plan.add(
                             deployment = deployment_m.new(
-                                name_mappings: { "task" => "task" }
+                                on: "localhost", name_mappings: { "task" => "task" }
                             )
                         )
                         plan.add(task = deployment.task("task"))
@@ -578,6 +578,36 @@ module Syskit
                         assert error_handler.resolution_failures.any? do |f|
                             f.original_exception.kind_of? MissingConfigurationSection
                         end
+                    end
+                end
+
+                describe "validation that all process managers are enabled" do
+                    it "rejects tasks that are using a deployment " \
+                       "from a disabled manager" do
+                        mng = register_ruby_tasks_manager("disabled_manager")
+                        mng.disabled = true
+
+                        task_m = Syskit::TaskContext.new_submodel
+                        deployment = syskit_stub_configured_deployment(
+                            task_m, on: "disabled_manager"
+                        )
+                        ir = task_m.to_instance_requirements
+                        ir.use_configured_deployment(deployment)
+                        task = ir.instanciate(plan)
+
+                        error_handler = ResolutionErrorHandler.new(
+                            deployer.plan, deployer.merge_solver
+                        )
+                        execute do
+                            deployer.deploy(error_handler: error_handler)
+                        end
+
+                        assert_equal 1, error_handler.resolution_failures.size
+                        e = error_handler.resolution_failures.first
+                        assert_kind_of DeployedOnDisabledProcessManager,
+                                       e.original_exception
+                        assert_equal deployer.merge_solver.replacement_for(task),
+                                     e.original_exception.task
                     end
                 end
             end

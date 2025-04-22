@@ -254,4 +254,19 @@ module Syskit
             assert_equal expected, formatted.gsub(/<id:\d+>/, "<id:ID>").chomp
         end
     end
+
+    describe DeployedOnDisabledProcessManager do
+        it "pretty-prints itself" do
+            task0 = flexmock
+            task0.should_receive(:pretty_print).and_return { |pp| pp.text "task0" }
+            deployment_task = flexmock(arguments: { on: "manager" })
+            error = DeployedOnDisabledProcessManager.new(task0, deployment_task)
+            formatted = PP.pp(error, +"", 5)
+            expected = <<~PP
+                the following task was deployed on manager, which is currently disabled
+                task0
+            PP
+            assert_equal expected, formatted
+        end
+    end
 end

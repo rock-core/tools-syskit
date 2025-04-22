@@ -775,10 +775,17 @@ module Syskit
 
             ProcessServerConfig =
                 Struct.new :name, :client, :log_dir, :host_id, :supports_log_transfer,
-                           :logging_enabled, :register_on_name_server,
+                           :logging_enabled, :register_on_name_server, :disabled,
                            keyword_init: true do
                     def manager
                         client
+                    end
+
+                    def available?
+                        return false if disabled
+                        return client.available? if client.respond_to?(:available?)
+
+                        true
                     end
 
                     def on_localhost?
