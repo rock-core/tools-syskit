@@ -24,8 +24,6 @@ module Syskit
                 class Failed < RuntimeError; end
                 class StartupFailed < RuntimeError; end
 
-                # The socket instance used to communicate with the server
-                attr_reader :socket
                 # The loader object that allows to access models from the remote server
                 # @return [Loader]
                 attr_reader :loader
@@ -79,6 +77,7 @@ module Syskit
                 )
                     @host = host
                     @port = port
+                    @response_timeout = response_timeout
                     @socket =
                         begin Socket.tcp(host, port, connect_timeout: connect_timeout)
                         rescue Errno::ECONNREFUSED => e
@@ -102,66 +101,21 @@ module Syskit
                     @death_queue = []
                     @host_id = "#{host}:#{port}:#{server_pid}"
                     @register_on_name_server = register_on_name_server
-                    @response_timeout = response_timeout
                 end
 
-                def pid(timeout: @response_timeout)
+                def pid
                     return @server_pid if @server_pid
 
-                    socket.write(COMMAND_GET_PID)
-                    unless select([socket], [], [], timeout)
-                        raise "timeout while reading process server at '#{host}:#{port}'"
-                    end
-
-                    @server_pid = Integer(Marshal.load(socket).first)
+                    deadline = compute_response_deadline
+                    write_command(COMMAND_GET_PID, deadline: deadline)
+                    data = read_object(deadline: deadline)
+                    @server_pid = Integer(data.first)
                 end
 
-                def info(timeout: @response_timeout)
-                    socket.write(COMMAND_GET_INFO)
-                    unless select([socket], [], [], timeout)
-                        raise "timeout while reading process server " \
-                              "at '#{host}:#{port}'"
-                    end
-                    Marshal.load(socket)
-                end
-
-                class TimeoutError < RuntimeError
-                end
-
-                class ComError < RuntimeError
-                end
-
-                def wait_for_answer(timeout: @response_timeout)
-                    loop do
-                        unless select([socket], [], [], timeout)
-                            raise TimeoutError,
-                                  "reached timeout of #{timeout}s in #wait_for_answer"
-                        end
-
-                        unless (reply = socket.read(1))
-                            raise ComError,
-                                  "failed to read from process server #{self}"
-                        end
-
-                        if reply == EVENT_DEAD_PROCESS
-                            queue_death_announcement
-                        else
-                            yield(reply)
-                        end
-                    end
-                end
-
-                def wait_for_ack
-                    wait_for_answer do |reply|
-                        return true if reply == RET_YES
-
-                        if reply != RET_NO
-                            raise InternalError, "unexpected reply #{reply}"
-                        end
-
-                        msg = Marshal.load(socket)
-                        raise Failed, "failed command: #{msg}"
-                    end
+                def info
+                    deadline = compute_response_deadline
+                    write_command(COMMAND_GET_INFO, deadline: deadline)
+                    read_object(deadline: deadline)
                 end
 
                 # Starts the given deployment on the remote server, without waiting for
@@ -197,43 +151,34 @@ module Syskit
                     options[:register_on_name_server] =
                         options.fetch(:register_on_name_server, @register_on_name_server)
 
-                    socket.write(COMMAND_START)
-                    Marshal.dump(
-                        [process_name, deployment_model.name, name_mappings, options],
-                        socket
+                    write_command(
+                        COMMAND_START,
+                        [process_name, deployment_model.name, name_mappings, options]
                     )
-                    wait_for_answer do |pid_s|
-                        if pid_s == RET_NO
-                            msg = Marshal.load(socket)
-                            raise Failed,
-                                  "failed to start #{process_name}: #{msg}"
-                        elsif pid_s == RET_STARTED_PROCESS
-                            pid = Marshal.load(socket)
-                            process = Process.new(
-                                process_name, deployment_model, self, pid
-                            )
-                            name_mappings.each do |a, b|
-                                process.map_name(a, b)
-                            end
-                            processes[process_name] = process
-                            return process
-                        else
-                            raise InternalError,
-                                  "unexpected reply #{pid_s} to the start command"
-                        end
+
+                    deadline = compute_response_deadline
+                    wait_for_ack(
+                        allowed_replies: [RET_STARTED_PROCESS], deadline: deadline
+                    ) do |_pid_s|
+                        pid = read_object(deadline: deadline)
+                        process = Process.new(
+                            process_name, deployment_model, self, pid
+                        )
+                        name_mappings.each { |a, b| process.map_name(a, b) }
+                        processes[process_name] = process
+                        return process
                     end
                 end
 
                 # Creates a new log dir, and save the given time tag in it (used later
                 # on by save_log_dir)
                 def create_log_dir(time_tag, metadata = {})
-                    socket.write(COMMAND_CREATE_LOG)
-                    Marshal.dump([time_tag, metadata], socket)
+                    write_command(COMMAND_CREATE_LOG, [time_tag, metadata])
                     wait_for_ack
                 end
 
-                def queue_death_announcement
-                    @death_queue.push Marshal.load(socket)
+                def queue_death_announcement(deadline:)
+                    @death_queue.push(read_object(deadline: deadline))
                 end
 
                 # Initiate the upload of a file from the remote process server
@@ -245,10 +190,10 @@ module Syskit
                     max_upload_rate: Float::INFINITY,
                     implicit_ftps: Runtime::Server.use_implicit_ftps?
                 )
-                    socket.write(COMMAND_LOG_UPLOAD_FILE)
-                    Marshal.dump(
+                    write_command(
+                        COMMAND_LOG_UPLOAD_FILE,
                         [host, port, certificate, user, password, localfile,
-                         max_upload_rate, implicit_ftps], socket
+                         max_upload_rate, implicit_ftps]
                     )
 
                     wait_for_ack
@@ -258,10 +203,18 @@ module Syskit
                 #
                 # @return [UploadState]
                 def log_upload_state
-                    socket.write(COMMAND_LOG_UPLOAD_STATE)
+                    write_command(COMMAND_LOG_UPLOAD_STATE)
 
+                    deadline = compute_response_deadline
                     wait_for_ack
-                    Marshal.load(socket)
+                    read_object(deadline: deadline)
+                end
+
+                # Wait for some data to be available on the socket
+                #
+                # This is really meant for unit tests. Do not use in live code.
+                def wait_readable
+                    select([@socket], [], [], @response_timeout)
                 end
 
                 # Waits for processes to terminate. +timeout+ is the number of
@@ -270,31 +223,12 @@ module Syskit
                 #
                 # Returns a hash that maps deployment names to the Process::Status
                 # object that represents their exit status.
-                def wait_termination(timeout = nil)
-                    if @death_queue.empty?
-                        reader = select([socket], nil, nil, timeout)
-                        return {} unless reader
-
-                        while reader
-                            if socket.eof? # remote closed, probably a crash
-                                raise ComError, "communication to process server closed"
-                            end
-
-                            data = socket.read(1)
-                            return {} unless data
-
-                            if data != EVENT_DEAD_PROCESS
-                                raise "unexpected message #{data} from process server"
-                            end
-
-                            queue_death_announcement
-                            reader = select([socket], nil, nil, 0)
-                        end
-                    end
+                def wait_termination
+                    read_pending_death_announcements
 
                     result = {}
                     @death_queue.each do |name, status|
-                        Process.debug "#{name} died"
+                        Process.debug "process #{name} died on remote #{self}"
                         if (p = processes.delete(name))
                             p.dead!
                             result[p] = status
@@ -309,29 +243,50 @@ module Syskit
                     result
                 end
 
+                def read_pending_death_announcements
+                    loop do
+                        begin
+                            data = @socket.read_nonblock(1)
+                        rescue IO::WaitReadable
+                            return
+                        end
+
+                        unless data # remote closed, probably a crash
+                            raise ComError, "communication to process server closed"
+                        end
+
+                        if data != EVENT_DEAD_PROCESS
+                            raise "unexpected message #{data} from process server"
+                        end
+
+                        deadline = compute_response_deadline
+                        queue_death_announcement(deadline: deadline)
+                    end
+                end
+
                 # Requests to stop the given deployment
                 #
                 # The call does not block until the process has quit. You will have to
                 # call #wait_termination to wait for the process end.
                 def stop(deployment_name, hard: false)
-                    socket.write(COMMAND_END)
-                    Marshal.dump([deployment_name, hard], socket)
+                    write_command(COMMAND_END, [deployment_name, hard])
                     wait_for_ack
                 end
 
                 def kill_all(hard: true)
-                    socket.write(COMMAND_KILL_ALL)
-                    Marshal.dump([hard], socket)
-                    wait_for_ack
+                    write_command(COMMAND_KILL_ALL, [hard])
 
-                    Marshal.load(socket)
+                    deadline = compute_response_deadline
+                    wait_for_ack(deadline: deadline)
+                    read_object(deadline: deadline)
                 end
 
                 def wait_running(*process_names)
-                    socket.write(COMMAND_WAIT_RUNNING)
-                    Marshal.dump(process_names, socket)
-                    wait_for_answer do
-                        return Marshal.load(socket)
+                    write_command(COMMAND_WAIT_RUNNING, process_names)
+
+                    deadline = Roby.monotonic_time + @response_timeout
+                    wait_for_ack(deadline: deadline) do
+                        return read_object(deadline: deadline)
                     end
                 end
 
@@ -340,21 +295,97 @@ module Syskit
                     return unless process
 
                     loop do
-                        result = wait_termination(nil)
+                        result = wait_termination
                         return if result[process]
                     end
                 end
 
                 def quit_server
-                    socket.write(COMMAND_QUIT)
+                    write_command(COMMAND_QUIT)
                 end
 
                 def disconnect
-                    socket.close
+                    close
                 end
 
                 def close
-                    socket.close
+                    @socket.close
+                end
+
+                def write_command(cmd, args = nil)
+                    @socket.write_nonblock(cmd)
+                    @socket.write_nonblock(Marshal.dump(args)) if args
+                end
+
+                def read_object(deadline:)
+                    validate_available
+
+                    timeout = [0, deadline - Roby.monotonic_time].max
+                    # This is no guarantee that Marshal.load won't block. Be careful
+                    unless select([@socket], [], [], timeout)
+                        raise TimeoutError,
+                              "timed out while waiting for object from #{self} " \
+                              "(timeout=#{timeout})"
+                    end
+
+                    Marshal.load(@socket)
+                end
+
+                class ComError < RuntimeError
+                end
+
+                def wait_for_answer(deadline: Roby.monotonic + timeout)
+                    loop do
+                        reply = begin
+                            @socket.read_nonblock(1)
+                        rescue IO::WaitReadable
+                            timeout = [0, deadline - Roby.monotonic_time].max
+                            select([@socket], [], [], timeout)
+                            retry
+                        end
+
+                        if !reply
+                            raise ComError,
+                                  "failed to read from process server #{self}, " \
+                                  "connection closed"
+                        elsif reply == EVENT_DEAD_PROCESS
+                            queue_death_announcement(deadline: deadline)
+                        else
+                            return yield(reply)
+                        end
+                    end
+                end
+
+                def wait_for_ack(
+                    allowed_replies: [RET_YES], deadline: compute_response_deadline
+                )
+                    wait_for_answer(deadline: deadline) do |reply|
+                        if reply == RET_NO
+                            msg = read_object(deadline: deadline)
+                            raise Failed, "failed command: #{msg}"
+                        elsif !allowed_replies.include?(reply)
+                            raise InternalError, "unexpected reply #{reply}"
+                        end
+
+                        if block_given?
+                            yield(reply)
+                        else
+                            true
+                        end
+                    end
+                end
+
+                # Exception raised when attempting an operation on that requires an
+                # available process manager and the manager is not available
+                class Unavailable < RuntimeError; end
+
+                def validate_available
+                    raise Unavailable,
+                          "process server #{self} is currently not available"
+                end
+
+                def compute_response_deadline
+                    Roby.monotonic_time + @response_timeout
                 end
             end
         end

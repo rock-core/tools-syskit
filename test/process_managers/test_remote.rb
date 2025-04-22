@@ -152,7 +152,7 @@ describe Syskit::ProcessManagers::Remote do
                 )
             end
             assert_equal(
-                "failed to start some_name: cannot find deployment does_not_exist",
+                "failed command: cannot find deployment does_not_exist",
                 e.message
             )
         end
@@ -366,6 +366,7 @@ describe Syskit::ProcessManagers::Remote do
 
         it "gets notified if a remote process dies" do
             Process.kill "KILL", process.pid
+            client.wait_readable
             dead_processes = client.wait_termination
             assert dead_processes[process]
             assert !process.alive?
@@ -401,7 +402,7 @@ describe Syskit::ProcessManagers::Remote do
         it "does not send for a notification that the process died" do
             client.kill_all
             sleep 2
-            assert client.wait_termination(0).empty?
+            assert client.wait_termination.empty?
         end
     end
 
