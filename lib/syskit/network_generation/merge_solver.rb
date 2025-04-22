@@ -640,7 +640,7 @@ module Syskit
                 return [], nil if compatible_policies?(connection.policy, m_connection.policy)
 
                 debug do
-                    "rejected: incompatible policies on #{sink_port}"
+                    "rejected: incompatible policies on #{m_connection.sink_port}"
                 end
                 [nil, m_connection]
             end
@@ -652,9 +652,10 @@ module Syskit
 
                 if m_connection.source_port != connection.source_port
                     debug do
-                        "rejected: sink #{sink_port} is connected to a port " \
-                            "named #{m_connection.source_port}, expected " \
-                            "#{connection.source_port}"
+                        "rejected: sink #{connection.sink_port} is not multiplexing, " \
+                            "and is already connected to a port named " \
+                            "#{m_connection.source_port}, cannot add connection " \
+                            "from a port named #{connection.source_port}"
                     end
                     return nil, m_connection
                 end
