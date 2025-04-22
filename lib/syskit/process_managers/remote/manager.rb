@@ -49,7 +49,7 @@ module Syskit
                 # The hostname we are connected to
                 attr_reader :host
                 # The port on which we are connected on +hostname+
-                attr_reader :port
+                attr_accessor :port
                 # The PID of the server process
                 attr_reader :server_pid
                 # A string that allows to uniquely identify this process server
@@ -77,40 +77,112 @@ module Syskit
                 #   root for this client's loader
                 def initialize(
                     host = "localhost", port = DEFAULT_PORT,
-                    connect_timeout: 10,
-                    response_timeout: 10,
+                    initial_connection_timeout:
+                        Syskit.conf.remote_process_managers_initial_connection_timeout,
+                    connection_timeout:
+                        Syskit.conf.remote_process_managers_connection_timeout,
+                    response_timeout:
+                        Syskit.conf.remote_process_managers_response_timeout,
                     root_loader: Orocos.default_loader,
-                    register_on_name_server: true
+                    register_on_name_server: true,
+                    connect_executor: :io
                 )
                     @host = host
                     @port = port
                     @state = STATE_DISCONNECTED
                     @response_timeout = response_timeout
-                    @socket =
-                        begin Socket.tcp(host, port, connect_timeout: connect_timeout)
-                        rescue Errno::ECONNREFUSED => e
-                            raise e.class,
-                                  "cannot contact process server at " \
-                                  "'#{host}:#{port}': #{e.message}"
-                        end
 
-                    @socket.setsockopt(Socket::IPPROTO_TCP, Socket::TCP_NODELAY, true)
-                    @socket.fcntl(Fcntl::FD_CLOEXEC, 1)
-                    @state = STATE_CONNECTED
-
-                    begin
-                        @server_pid = pid
-                    rescue EOFError
-                        close
-                        raise StartupFailed, "process server failed at '#{host}:#{port}'"
-                    end
-
-                    @loader = Loader.new(self, root_loader)
-                    @root_loader = loader.root_loader
                     @processes = {}
                     @death_queue = []
                     @host_id = "#{host}:#{port}:#{server_pid}"
                     @register_on_name_server = register_on_name_server
+                    @root_loader = root_loader
+
+                    @connection_timeout = connection_timeout
+                    @connect_executor = connect_executor
+
+                    # For now, make the first connection attempt
+                    perform_initial_connection(
+                        deadline: Roby.monotonic_time + initial_connection_timeout
+                    )
+
+                    if !Syskit.conf.remote_process_managers_accept_failed_connections? &&
+                       !available?
+                        raise ComError,
+                              "connection to #{self} failed and " \
+                              "remote_process_managers_accept_failed_connections is false"
+                    end
+                end
+
+                def perform_initial_connection(deadline:)
+                    while deadline > Roby.monotonic_time
+                        attempt_connection.result(@connection_timeout + @response_timeout)
+                        poll
+                        break if available?
+
+                        sleep 0.1
+                    end
+                end
+
+                def connect
+                    socket = Socket.tcp(
+                        host, port, connect_timeout: @connection_timeout
+                    )
+                    socket.setsockopt(Socket::IPPROTO_TCP, Socket::TCP_NODELAY, true)
+                    socket.fcntl(Fcntl::FD_CLOEXEC, 1)
+                    socket
+                end
+
+                def poll
+                    case @state
+                    when STATE_DISCONNECTED
+                        poll_in_disconnected_state
+                    end
+                end
+
+                def poll_in_disconnected_state
+                    if @connect_future
+                        return unless (result = @connect_future.result(0))
+
+                        @connect_future = nil
+                        _, socket, error = result
+                        return handle_new_connection(socket) if socket
+
+                        ProcessManagers.warn(
+                            "failed to connect to remote process manager #{self}: " \
+                            "#{error.message}"
+                        )
+                        schedule_connection_attempt
+                    elsif Roby.monotonic_time > @next_connection_deadline
+                        attempt_connection
+                    end
+                end
+
+                def schedule_connection_attempt
+                    @next_connection_deadline = Roby.monotonic_time
+                end
+
+                def attempt_connection
+                    @connect_future = Concurrent::Promises.future_on(@connect_executor) do
+                        connect
+                    end
+                end
+
+                def handle_new_connection(socket)
+                    @socket = socket
+                    @state = STATE_CONNECTED
+
+                    @server_pid = pid
+                    @loader = Loader.new(self, @root_loader)
+                    ProcessManagers.info "connected to remote process manager #{self}"
+                rescue StandardError => e
+                    ProcessManagers.warn(
+                        "got a socket to remote process manager #{self}, but the first " \
+                        "call failed: #{e.message}"
+                    )
+
+                    close
+                    schedule_connection_attempt
                 end
 
                 def pid
@@ -346,8 +418,8 @@ module Syskit
                     Marshal.load(@socket)
                 end
 
-                class ComError < RuntimeError
-                end
+                class TimeoutError < RuntimeError; end
+                class ComError < RuntimeError; end
 
                 def wait_for_answer(deadline: Roby.monotonic + timeout)
                     validate_available
