@@ -285,13 +285,14 @@ module Syskit
             # @api private
             #
             # Computes a configured deployment suitable to deploy the given task model
-            def stub_configured_deployment(
+            def stub_configured_deployment( # rubocop:disable Metrics/ParameterLists
                 task_model = nil, task_name = default_stub_name,
-                remote_task: false, read_only: [], logger_name: nil, &block
+                remote_task: false, read_only: [], logger_name: nil,
+                on: "stubs", &block
             )
                 deployment_model = stub_deployment_model(task_model, task_name, &block)
 
-                process_server = Syskit.conf.process_server_for("stubs")
+                process_server = Syskit.conf.process_server_for(on)
                 task_context_class =
                     if remote_task
                         Orocos::RubyTasks::RemoteTaskContext
@@ -300,7 +301,7 @@ module Syskit
                     end
 
                 Models::ConfiguredDeployment.new(
-                    "stubs", deployment_model, { task_name => task_name }, task_name,
+                    on, deployment_model, { task_name => task_name }, task_name,
                     Hash[task_context_class: task_context_class],
                     read_only: read_only, logger_name: logger_name
                 )

@@ -351,14 +351,14 @@ module Syskit
             # @param [Boolean] register the configured deployment in the test group
             #   This makes it available to further deployments
             # @return [Syskit::Models::ConfiguredDeployment]
-            def syskit_stub_configured_deployment(
+            def syskit_stub_configured_deployment( # rubocop:disable Metrics/ParameterLists
                 task_model = nil, task_name = syskit_default_stub_name(task_model),
                 remote_task: syskit_stub_resolves_remote_tasks?,
-                register: true, read_only: [], &block
+                on: "stubs", register: true, read_only: [], &block
             )
                 configured_deployment = @__stubs.stub_configured_deployment(
                     task_model, task_name,
-                    read_only: read_only, remote_task: remote_task, &block
+                    on: on, read_only: read_only, remote_task: remote_task, &block
                 )
                 if register
                     @__test_deployment_group
