@@ -63,6 +63,13 @@ module Syskit
                     to_s
                 end
 
+                STATE_CONNECTED = "connected"
+                STATE_DISCONNECTED = "disconnected"
+
+                def available?
+                    @state == STATE_CONNECTED
+                end
+
                 # Connects to the process server at +host+:+port+
                 #
                 # @option options [OroGen::Loaders::Base] :root_loader
@@ -77,6 +84,7 @@ module Syskit
                 )
                     @host = host
                     @port = port
+                    @state = STATE_DISCONNECTED
                     @response_timeout = response_timeout
                     @socket =
                         begin Socket.tcp(host, port, connect_timeout: connect_timeout)
@@ -88,10 +96,12 @@ module Syskit
 
                     @socket.setsockopt(Socket::IPPROTO_TCP, Socket::TCP_NODELAY, true)
                     @socket.fcntl(Fcntl::FD_CLOEXEC, 1)
+                    @state = STATE_CONNECTED
 
                     begin
                         @server_pid = pid
                     rescue EOFError
+                        close
                         raise StartupFailed, "process server failed at '#{host}:#{port}'"
                     end
 
@@ -126,6 +136,8 @@ module Syskit
                 #
                 # Raises Failed if the server reports a startup failure
                 def start(process_name, deployment, name_mappings = {}, options = {})
+                    validate_available
+
                     if processes[process_name]
                         raise ArgumentError,
                               "this client already started a process " \
@@ -309,10 +321,13 @@ module Syskit
                 end
 
                 def close
+                    @state = STATE_DISCONNECTED
                     @socket.close
                 end
 
                 def write_command(cmd, args = nil)
+                    validate_available
+
                     @socket.write_nonblock(cmd)
                     @socket.write_nonblock(Marshal.dump(args)) if args
                 end
@@ -320,8 +335,8 @@ module Syskit
                 def read_object(deadline:)
                     validate_available
 
-                    timeout = [0, deadline - Roby.monotonic_time].max
                     # This is no guarantee that Marshal.load won't block. Be careful
+                    timeout = [0, deadline - Roby.monotonic_time].max
                     unless select([@socket], [], [], timeout)
                         raise TimeoutError,
                               "timed out while waiting for object from #{self} " \
@@ -335,6 +350,8 @@ module Syskit
                 end
 
                 def wait_for_answer(deadline: Roby.monotonic + timeout)
+                    validate_available
+
                     loop do
                         reply = begin
                             @socket.read_nonblock(1)
@@ -380,6 +397,8 @@ module Syskit
                 class Unavailable < RuntimeError; end
 
                 def validate_available
+                    return if available?
+
                     raise Unavailable,
                           "process server #{self} is currently not available"
                 end
