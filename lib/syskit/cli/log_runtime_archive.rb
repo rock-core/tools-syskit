@@ -49,7 +49,7 @@ module Syskit
                 candidates.map do |child|
                     process_dataset_transfer(
                         child, server_params, @root_dir,
-                        full: !Roby::Application.log_dir_locked?(child.basename),
+                        full: !Roby::Application.log_dir_locked?(child),
                         info_name: info_name
                     )
                 end
@@ -69,7 +69,7 @@ module Syskit
                 candidates.each do |child|
                     process_dataset(
                         child, max_archive_size: max_archive_size,
-                               full: !Roby::Application.log_dir_locked?(child.basename)
+                               full: !Roby::Application.log_dir_locked?(child)
                     )
                 end
             end
@@ -158,7 +158,7 @@ module Syskit
             class TransferFailed < RuntimeError; end
 
             TransferDatasetResult = Struct.new(
-                :complete, :transfer_results, keyword_init: true
+                :transfer_results, keyword_init: true
             ) do
                 def success?
                     transfer_results.all?(&:success?)
@@ -185,8 +185,7 @@ module Syskit
                     "Transfering dataset #{dataset_path} in " \
                     "#{full ? 'full' : 'partial'} mode"
                 )
-                complete, paths_to_transfer =
-                    transfer_compute_paths(dataset_path, full, info_name)
+                paths_to_transfer = transfer_compute_paths(dataset_path, full, info_name)
 
                 transfer_results = paths_to_transfer.map do |source_path, target_name|
                     result =
@@ -196,10 +195,8 @@ module Syskit
                     result
                 end
 
-                result = TransferDatasetResult.new(
-                    complete: complete, transfer_results: transfer_results
-                )
-                log_transfer_results(dataset_path, result, logger: logger)
+                result = TransferDatasetResult.new(transfer_results: transfer_results)
+                log_transfer_results(result, logger: logger)
                 result
             end
 
@@ -220,19 +217,19 @@ module Syskit
             def self.transfer_compute_paths(dataset_path, full, info_name)
                 candidates =
                     each_file_from_path(dataset_path)
-                    .reject { |p| p.extname == ".partial" }
-
-                complete, paths_to_transfer =
-                    if full
-                        archive_filter_candidates_full(candidates)
-                    else
-                        archive_filter_candidates_partial(candidates)
+                    .reject do |p|
+                        p.extname == ".partial" ||
+                            p.basename.to_s == Roby::Application::LOCK_FILE_EXT
                     end
 
-                paths_to_transfer =
-                    transfer_compute_remote_names(paths_to_transfer, info_name)
+                if full
+                    paths_to_transfer = candidates
+                else
+                    _, paths_to_transfer =
+                        archive_filter_candidates_partial(candidates)
+                end
 
-                [complete, paths_to_transfer]
+                transfer_compute_remote_names(paths_to_transfer, info_name)
             end
 
             # Renames the info.yml file
@@ -255,29 +252,24 @@ module Syskit
             # @param [Logger] optional logger, if unfilled will use null logger
             #
             # @result [TransferDatasetResult] the received transfer dataset result
-            def self.log_transfer_results(dataset_path, result, logger: null_logger)
+            def self.log_transfer_results(result, logger: null_logger)
                 failed_results = result[:transfer_results].reject(&:success)
 
                 if failed_results.empty?
-                    logger.info(
-                        "Transfering of " \
-                        "#{result[:complete] ? 'complete' : 'incomplete'} " \
-                        "#{dataset_path} finished"
-                    )
-                else
-                    failed_results.each do |failed_result|
-                        failed_message =
-                            if failed_result.message
-                                "with message : #{failed_result.message}"
-                            end
-                        logger.warn(
-                            "Log transfer failed on file #{failed_result.file}: " \
-                            "#{failed_message}"
-                        )
-                    end
+                    logger.info "Successful"
+                    return
                 end
 
-                result
+                failed_results.each do |failed_result|
+                    failed_message =
+                        if failed_result.message
+                            "with message : #{failed_result.message}"
+                        end
+                    logger.warn(
+                        "Log transfer failed on file #{failed_result.file}: " \
+                        "#{failed_message}"
+                    )
+                end
             end
 
             # Transfer a file to the central log server via FTP
@@ -491,6 +483,10 @@ module Syskit
                 all_candidates = each_file_from_path(path).to_a
                 partials, candidates =
                     all_candidates.partition { |file| file.extname == ".partial" }
+                candidates.delete_if do |p|
+                    p.basename.to_s == Roby::Application::LOCK_FILE_EXT
+                end
+
                 if full && partials.empty?
                     archive_filter_candidates_full(candidates)
                 else
