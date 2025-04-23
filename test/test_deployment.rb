@@ -12,7 +12,7 @@ module Syskit
             @loader = FlexMock.undefined
         end
 
-        def wait_termination(*)
+        def wait_termination
             dead_processes = @killed_processes
             @killed_processes = []
             dead_processes

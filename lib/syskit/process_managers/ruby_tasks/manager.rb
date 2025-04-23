@@ -75,7 +75,7 @@ module Syskit
                 #
                 # Returns a hash that maps deployment names to the Status
                 # object that represents their exit status.
-                def wait_termination(_timeout = nil)
+                def wait_termination
                     result = terminated_deployments
                     @terminated_deployments = {}
                     result

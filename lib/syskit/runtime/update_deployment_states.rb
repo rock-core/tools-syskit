@@ -19,7 +19,7 @@ module Syskit
             server_config = Syskit.conf.each_process_server_config.to_a
             server_config.each do |config|
                 begin
-                    dead_deployments = config.client.wait_termination(0)
+                    dead_deployments = config.client.wait_termination
                 rescue ::Exception => e
                     deployments = abort_process_server(plan, config)
                     all_dead_deployments.merge(deployments)
