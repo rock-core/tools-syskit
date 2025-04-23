@@ -513,6 +513,7 @@ module Syskit
 
                         plan.add(parent = task_m.new)
                         parent.depends_on(task_m.new, role: "test")
+
                         deployer.validate_deployed_network(error_handler: error_handler)
                         assert error_handler.resolution_failures.any? do |f|
                             f.original_exception.kind_of? MissingDeployment
@@ -523,7 +524,7 @@ module Syskit
                 describe "validation that all configurations are defined" do
                     it "raises if some configurations are not defined" do
                         task_m = Syskit::TaskContext.new_submodel
-                        deployment_m.orogen_model.task "task", task_m.orogen_model
+                        deployment_m.define_deployed_task("task", task_m)
                         plan.add(
                             deployment = deployment_m.new(
                                 name_mappings: { "task" => "task" }
@@ -542,7 +543,7 @@ module Syskit
 
                     it "properly formats the MissingConfigurationSection error" do
                         task_m = Syskit::TaskContext.new_submodel
-                        deployment_m.orogen_model.task "task", task_m.orogen_model
+                        deployment_m.define_deployed_task("task", task_m)
                         plan.add(
                             deployment = deployment_m.new(
                                 name_mappings: { "task" => "task" }
@@ -566,7 +567,7 @@ module Syskit
                             deployer.plan, deployer.merge_solver
                         )
                         task_m = Syskit::TaskContext.new_submodel
-                        deployment_m.orogen_model.task "task", task_m.orogen_model
+                        deployment_m.define_deployed_task("task", task_m)
                         plan.add(
                             deployment = deployment_m.new(
                                 name_mappings: { "task" => "task" }

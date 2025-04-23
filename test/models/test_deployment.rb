@@ -136,6 +136,23 @@ module Syskit
             end
         end
 
+        describe "#define_deployed_task" do
+            it "defines the task and registers the orogen-to-syskit mapping" do
+                model = Deployment.new_submodel
+                task_m = TaskContext.new_submodel
+                model.define_deployed_task("task", task_m)
+                assert_same task_m, model.find_syskit_model_for_deployed_task("task")
+            end
+
+            it "returns the deployed task" do
+                model = Deployment.new_submodel
+                task_m = TaskContext.new_submodel
+                ret = model.define_deployed_task("task", task_m)
+                assert_kind_of OroGen::Spec::TaskDeployment, ret
+                assert_equal "task", ret.name
+            end
+        end
+
         def test_clear_submodels_removes_registered_submodels
             m1 = Deployment.new_submodel
             m2 = Deployment.new_submodel
