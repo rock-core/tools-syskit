@@ -643,12 +643,9 @@ describe Syskit::ProcessManagers::Remote do
     end
 
     def connect_to_server
-        client = Syskit::ProcessManagers::Remote::Manager.new(
+        Syskit::ProcessManagers::Remote::Manager.new(
             "localhost", server.port, root_loader: root_loader
         )
-
-        client.create_log_dir(Roby.app.time_tag)
-        client
     end
 
     def start_and_connect_to_server

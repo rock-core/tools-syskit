@@ -759,10 +759,6 @@ module Syskit
                 client = ProcessManagers::Remote::Manager.new(
                     host, port, root_loader: app.default_loader
                 )
-                client.create_log_dir(
-                    Roby.app.time_tag, { "parent" => Roby.app.app_metadata }
-                )
-                client.kill_all if kill_all_on_process_server_connection?
                 config = register_process_server(
                     name, client,
                     host_id: host_id || name,

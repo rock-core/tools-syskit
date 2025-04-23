@@ -174,6 +174,12 @@ module Syskit
 
                     @server_pid = pid
                     @loader = Loader.new(self, @root_loader)
+
+                    create_log_dir(
+                        Roby.app.time_tag, { "parent" => Roby.app.app_metadata }
+                    )
+                    kill_all if Syskit.conf.kill_all_on_process_server_connection?
+
                     ProcessManagers.info "connected to remote process manager #{self}"
                 rescue StandardError => e
                     ProcessManagers.warn(
