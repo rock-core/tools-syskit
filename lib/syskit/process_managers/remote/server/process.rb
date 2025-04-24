@@ -423,7 +423,6 @@ module Syskit
                             rescue Errno::ESRCH # rubocop:disable Lint/SuppressedException
                             end
                         else
-                            puts "control FD"
                             @control_write_fd.write("Q")
                         end
                     end
