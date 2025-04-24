@@ -1,6 +1,8 @@
 # frozen_string_literal: true
 
 require "syskit/test/self"
+require "syskit/test/roby_app_helpers"
+require "syskit/process_managers/remote/server"
 
 module Syskit
     module Runtime
@@ -38,11 +40,50 @@ module Syskit
         end
 
         describe ".update_deployment_states" do
+            describe "system behaviour with remote manager availability" do
+                include Syskit::Test::RobyAppHelpers
+
+                after do
+                    if @remote_process_server_pid
+                        remote_process_server_quit(@remote_process_server_pid)
+                    end
+                end
+
+                def roby_app_fixture_path
+                    File.expand_path("fixtures", __dir__)
+                end
+
+                it "gracefully handles a process manager that appears after start" do
+                    dir = roby_app_setup_single_script(
+                        "missing_process_manager_on_start.rb"
+                    )
+                    port = roby_app_allocate_port
+                    token = SecureRandom.hex(10)
+                    env = {
+                        "SYSKIT_TEST_MISSING_PROCESS_SERVER_PORT" => port.to_s,
+                        "SYSKIT_TEST_MISSING_PROCESS_SERVER_TOKEN" => token
+                    }
+
+                    pid, = roby_app_start(
+                        "run", "-c", "scripts/missing_process_manager_on_start.rb",
+                        capture_output: true, chdir: dir, env: env
+                    )
+                    sleep 5
+
+                    @remote_process_server_pid = remote_process_server_spawn(port)
+                    assert_roby_app_exits(pid)
+                    output = roby_app_captured_output(pid)
+                    refute_match(/#{token} - failed/, output[:out])
+                    assert_match(/#{token} - success/, output[:out])
+                end
+            end
+
             describe "#handle_dead_deployments" do
                 it "calls #dead! on the dead deployments" do
                     client = flexmock
-                    flexmock(Syskit.conf).should_receive(:each_process_server_config)
-                                         .and_return([flexmock(client: client)])
+                    flexmock(Syskit.conf)
+                        .should_receive(:each_process_server_config)
+                        .and_return([flexmock(client: client, available?: true)])
                     client.should_receive(:wait_termination)
                           .and_return([[p = flexmock, s = flexmock]])
                     flexmock(Deployment).should_receive(:deployment_by_process).with(p)
@@ -184,6 +225,22 @@ module Syskit
                     end
                     mock
                 end
+            end
+
+            def remote_process_server_spawn(port)
+                log_dir = make_tmpdir
+                pid = spawn(
+                    "syskit", "process_server",
+                    "--log-dir=#{log_dir}", "--port=#{port}",
+                    chdir: log_dir, out: "/dev/null", err: "/dev/null"
+                )
+                register_pid(pid)
+                pid
+            end
+
+            def remote_process_server_quit(pid)
+                Process.kill "INT", pid
+                assert_process_exits(pid)
             end
         end
     end
