@@ -31,6 +31,7 @@ module Syskit
         def initialize(model)
             @model = model
             @port_resolver = nil
+            @raw_resolved_port = nil
             @resolved_port = nil
             @accessor = nil
         end
@@ -93,19 +94,39 @@ module Syskit
             self
         end
 
+        def update_raw_port
+            return unless @port_resolver
+
+            if @raw_resolved_port &&
+               @port_resolver&.current_selection_valid?(@raw_resolved_port)
+                return @raw_resolved_port
+            end
+
+            @port_resolver.update
+        end
+
         # Update the resolved port
         #
         # @return [(Boolean,(Port,nil))] tuple whose first element is true if
         #   the port was updated, and false otherwise. The tuple's second element
         #   is the new resolved port which may be nil if no ports can be found
         def update
-            if @resolved_port && @port_resolver&.current_selection_valid?(@resolved_port)
-                return false, @resolved_port
+            raw_port = update_raw_port
+            port = begin
+                raw_port&.to_actual_port
+                # Whenever a replacement happens, or before we have deployed a
+                # task, the ports won't be resolvable because children are not
+                # there yet
+                #
+                # Ignore the port when it happens. This is consistent with the
+                # data reader's purpose
+            rescue Roby::NoSuchChild
+                raw_port = nil
             end
 
-            port = @port_resolver&.update
             return false, @resolved_port if @resolved_port == port
 
+            @raw_resolved_port = raw_port
             @resolved_port = port
             [true, port]
         end
@@ -115,6 +136,7 @@ module Syskit
         # Note that calling {#update} after calling {#reset} might re-resolve
         # the same port (in which case {#update} will return true)
         def reset
+            @raw_resolved_port = nil
             @resolved_port = nil
         end
 
@@ -304,15 +326,7 @@ module Syskit
             end
 
             def update
-                port = @matcher.each_in_plan(@plan).first
-                port&.to_actual_port
-                # Whenever a replacement happens, or before we have deployed a
-                # task, the ports won't be resolvable because children are not
-                # there yet
-                #
-                # Ignore the port when it happens. This is consistent with the
-                # data reader's purpose
-            rescue Roby::NoSuchChild # rubocop:disable Lint/SuppressedException
+                @matcher.each_in_plan(@plan).first
             end
 
             def self.instanciate(task, model)
