@@ -95,6 +95,25 @@ describe Syskit::ProcessManagers::Remote do
             )
         end
 
+        it "can be closed/disconnected in DISCONNECTED state, " \
+           "and then stops attempting to connect" do
+            @server = Syskit::ProcessManagers::Remote::Server::Server.new(
+                @app, port: 0, name_service_ip: "127.0.0.1"
+            )
+            @server.open
+
+            client = Syskit::ProcessManagers::Remote::Manager.new(
+                "localhost", server.port,
+                root_loader: root_loader,
+                connection_timeout: 1, response_timeout: 1,
+                initial_connection_timeout: 1
+            )
+            client.close
+
+            @server_thread = Thread.new { server.listen }
+            refute_client_is_eventually_available(client)
+        end
+
         it "handles a server that allows connection but does not reply" do
             @server = Syskit::ProcessManagers::Remote::Server::Server.new(
                 @app, port: 0, name_service_ip: "127.0.0.1"
@@ -721,6 +740,21 @@ describe Syskit::ProcessManagers::Remote do
         end
 
         flunk("#{block} did not return true in #{timeout} seconds")
+    end
+
+    def refute_client_is_eventually_available(client, timeout: 1)
+        now = Roby.monotonic_time
+        deadline = now + timeout
+        while deadline > now
+            if client.available?
+                flunk("client did become available in #{timeout} seconds")
+            end
+
+            client.poll
+            sleep 0.01
+
+            now = Roby.monotonic_time
+        end
     end
 
     def assert_client_is_eventually_available(client, timeout: 5)

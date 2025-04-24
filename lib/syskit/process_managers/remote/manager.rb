@@ -65,6 +65,7 @@ module Syskit
 
                 STATE_CONNECTED = "connected"
                 STATE_DISCONNECTED = "disconnected"
+                STATE_CLOSED = "closed"
 
                 def available?
                     @state == STATE_CONNECTED
@@ -135,9 +136,20 @@ module Syskit
 
                 def poll
                     case @state
+                    when STATE_CLOSED
+                        poll_in_closed_state
                     when STATE_DISCONNECTED
                         poll_in_disconnected_state
                     end
+                end
+
+                def poll_in_closed_state
+                    # Read the output of the future if there is one, and close
+                    # the possibly existing socket
+                    return unless (result = @connect_future&.result(0))
+
+                    result[1]&.close
+                    @connect_future = nil
                 end
 
                 def poll_in_disconnected_state
@@ -187,7 +199,7 @@ module Syskit
                         "call failed: #{e.message}"
                     )
 
-                    close
+                    close(state: STATE_DISCONNECTED)
                     schedule_connection_attempt
                 end
 
@@ -398,9 +410,9 @@ module Syskit
                     close
                 end
 
-                def close
-                    @state = STATE_DISCONNECTED
-                    @socket.close
+                def close(state: STATE_CLOSED)
+                    @state = state
+                    @socket&.close
                 end
 
                 def write_command(cmd, args = nil)
