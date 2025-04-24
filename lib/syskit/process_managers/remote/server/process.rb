@@ -360,7 +360,7 @@ module Syskit
                         ENV["ORO_LOGFILE"] = resolve_orocos_logger_output(pid)
 
                         ::Process.setpgrp
-                        debug "command line: #{@command} #{arguments.join(' ')}"
+                        info "starting: #{@command} #{arguments.join(' ')}"
                         exec(@command, *arguments,
                              control_read_fd => control_read_fd,
                              ior_write_fd => ior_write_fd,
