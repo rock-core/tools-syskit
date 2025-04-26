@@ -718,28 +718,9 @@ module Syskit
                           "no process server is being started"
                 end
 
-                # Wait for the server to be ready
-                client = nil
-                until client
-                    client =
-                        begin ProcessManagers::Remote::Manager.new("localhost", @server_port)
-                        rescue Errno::ECONNREFUSED
-                            sleep 0.1
-                            is_running =
-                                begin
-                                    !::Process.waitpid(@server_pid, ::Process::WNOHANG)
-                                rescue Errno::ESRCH
-                                    false
-                                end
-
-                            unless is_running
-                                raise ProcessManagers::Remote::Manager::StartupFailed,
-                                      "the local process server failed to start"
-                            end
-
-                            nil
-                        end
-                end
+                client = ProcessManagers::Remote::Manager.new(
+                    "localhost", @server_port, create_log_dir: false
+                )
 
                 # Verify that the server is actually ours (i.e. check that there
                 # was not one that was still running)

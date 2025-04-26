@@ -86,12 +86,14 @@ module Syskit
                         Syskit.conf.remote_process_managers_response_timeout,
                     root_loader: Orocos.default_loader,
                     register_on_name_server: true,
-                    connect_executor: :io
+                    connect_executor: :io,
+                    create_log_dir: true
                 )
                     @host = host
                     @port = port
                     @state = STATE_DISCONNECTED
                     @response_timeout = response_timeout
+                    @create_log_dir = create_log_dir
 
                     @processes = {}
                     @death_queue = []
@@ -187,9 +189,11 @@ module Syskit
                     @server_pid = pid
                     @loader = Loader.new(self, @root_loader)
 
-                    create_log_dir(
-                        Roby.app.time_tag, { "parent" => Roby.app.app_metadata }
-                    )
+                    if @create_log_dir
+                        create_log_dir(
+                            Roby.app.time_tag, { "parent" => Roby.app.app_metadata }
+                        )
+                    end
                     kill_all if Syskit.conf.kill_all_on_process_server_connection?
 
                     ProcessManagers.info "connected to remote process manager #{self}"
