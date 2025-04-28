@@ -134,19 +134,64 @@ module Syskit
                 @early_deploy
             end
 
-            # Whether to capture errors during network resolution instead of raising them.
-            def capture_errors_during_network_resolution?
-                @capture_errors_during_network_resolution
-            end
-
             # Controls where the deployment stage happens
             #
             # @see early_deploy?
             attr_writer :early_deploy
 
+            # Whether to capture errors during network resolution instead of raising them.
+            def capture_errors_during_network_resolution?
+                @capture_errors_during_network_resolution
+            end
+
             # Controls whether to capture errors instead of raising them during network
             # resolution
             attr_writer :capture_errors_during_network_resolution
+
+            # Whether the initial connection to process servers are allowed to fail
+            #
+            # When this flag is enabled, the initial connection to remote process managers
+            # is allowed to fail. When it happens, Syskit will generate errors for
+            # attempts to deploy things that run on these process managers.
+            #
+            # By default, Syskit will re-try to connect for a full minute before it
+            # assumes the process manager is not available, to keep a "good" behaviour
+            # w.r.t. boot of distributed systems.
+            #
+            # It is strongly recommended to turn this on with `early_deploy` and
+            # `capture_errors_during_network_resolution`
+            def remote_process_managers_accept_failed_connections?
+                @remote_process_managers_accept_failed_connections
+            end
+
+            # Sets whether syskit accepts the initial connection to process servers are
+            # allowed to fail
+            #
+            # @see #remote_process_managers_accept_failed_connections?
+            attr_writer :remote_process_managers_accept_failed_connections
+
+            # Period at which the remote process managers will retry connecting
+            # to the remote servers
+            attr_accessor :remote_process_managers_connection_retry_period
+
+            # Timeout for connection to remote process managers
+            attr_accessor :remote_process_managers_connection_timeout
+
+            # Timeout for replies from remote process managers
+            attr_accessor :remote_process_managers_response_timeout
+
+            # Timeout for the initial connection to a process manager
+            #
+            # When the manager is instanciated for the first time, Syskit will wait
+            # for its initial connection attempt before moving on with the rest
+            # of the initialization.
+            #
+            # During this initial connection phase, Syskit will try to connect during
+            # this many seconds. Each attempt use
+            # {#remote_process_managers_connection_timeout}
+            # and {#remote_process_managers_response_timeout}, and retries are
+            # spaced by {#remote_process_managers_connection_retry_period}
+            attr_accessor :remote_process_managers_initial_connection_timeout
 
             # Controls whether the orogen types should be exported as Ruby
             # constants
@@ -183,6 +228,12 @@ module Syskit
                 @strict_model_for = false
                 @early_deploy = false
                 @capture_errors_during_network_resolution = false
+
+                @remote_process_managers_accept_failed_connections = false
+                @remote_process_managers_connection_retry_period = 5
+                @remote_process_managers_connection_timeout = 10
+                @remote_process_managers_response_timeout = 10
+                @remote_process_managers_initial_connection_timeout = 60
 
                 @log_rotation_period = nil
                 @log_transfer = LogTransferManager::Configuration.new(
@@ -603,7 +654,7 @@ module Syskit
             end
 
             ModelOnlyServer = Struct.new :loader do
-                def wait_termination(timeout = 0)
+                def wait_termination
                     []
                 end
 

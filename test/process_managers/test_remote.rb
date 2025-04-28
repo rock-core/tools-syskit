@@ -53,6 +53,86 @@ describe Syskit::ProcessManagers::Remote do
         end
     end
 
+    describe "when not accepting failed connections" do
+        before do
+            update_and_restore_attr(
+                Syskit.conf, :remote_process_managers_accept_failed_connections?, false
+            )
+        end
+
+        it "raises if the server allows connection but does not reply" do
+            @server = Syskit::ProcessManagers::Remote::Server::Server.new(
+                @app, port: 0, name_service_ip: "127.0.0.1"
+            )
+            @server.open
+
+            assert_raises(Syskit::ProcessManagers::Remote::Manager::ComError) do
+                Syskit::ProcessManagers::Remote::Manager.new(
+                    "localhost", server.port,
+                    root_loader: root_loader,
+                    connection_timeout: 1, response_timeout: 1,
+                    initial_connection_timeout: 1
+                )
+            end
+        end
+
+        it "raises if there are no servers" do
+            assert_raises(Syskit::ProcessManagers::Remote::Manager::ComError) do
+                Syskit::ProcessManagers::Remote::Manager.new(
+                    "localhost", 12_222,
+                    root_loader: root_loader,
+                    connection_timeout: 1, response_timeout: 1,
+                    initial_connection_timeout: 1
+                )
+            end
+        end
+    end
+
+    describe "when accepting failed connections" do
+        before do
+            update_and_restore_attr(
+                Syskit.conf, :remote_process_managers_accept_failed_connections?, true
+            )
+        end
+
+        it "handles a server that allows connection but does not reply" do
+            @server = Syskit::ProcessManagers::Remote::Server::Server.new(
+                @app, port: 0, name_service_ip: "127.0.0.1"
+            )
+            @server.open
+
+            client = Syskit::ProcessManagers::Remote::Manager.new(
+                "localhost", server.port,
+                root_loader: root_loader,
+                connection_timeout: 1, response_timeout: 1,
+                initial_connection_timeout: 1
+            )
+            refute client.available?
+
+            @server_thread = Thread.new { server.listen }
+            assert_client_is_eventually_available(client)
+        end
+
+        it "handles a server that shows up late" do
+            client = Syskit::ProcessManagers::Remote::Manager.new(
+                "localhost", 12_222,
+                root_loader: root_loader,
+                connection_timeout: 1, response_timeout: 1,
+                initial_connection_timeout: 1
+            )
+            refute client.available?
+
+            @server = Syskit::ProcessManagers::Remote::Server::Server.new(
+                @app, port: 0, name_service_ip: "127.0.0.1"
+            )
+            @server.open
+            @server_thread = Thread.new { server.listen }
+
+            client.port = @server.port
+            assert_client_is_eventually_available(client)
+        end
+    end
+
     describe "#pid" do
         before do
             @client = start_and_connect_to_server
@@ -152,7 +232,7 @@ describe Syskit::ProcessManagers::Remote do
                 )
             end
             assert_equal(
-                "failed to start some_name: cannot find deployment does_not_exist",
+                "failed command: cannot find deployment does_not_exist",
                 e.message
             )
         end
@@ -366,6 +446,7 @@ describe Syskit::ProcessManagers::Remote do
 
         it "gets notified if a remote process dies" do
             Process.kill "KILL", process.pid
+            client.wait_readable
             dead_processes = client.wait_termination
             assert dead_processes[process]
             assert !process.alive?
@@ -401,7 +482,7 @@ describe Syskit::ProcessManagers::Remote do
         it "does not send for a notification that the process died" do
             client.kill_all
             sleep 2
-            assert client.wait_termination(0).empty?
+            assert client.wait_termination.empty?
         end
     end
 
@@ -643,5 +724,20 @@ describe Syskit::ProcessManagers::Remote do
         end
 
         flunk("#{block} did not return true in #{timeout} seconds")
+    end
+
+    def assert_client_is_eventually_available(client, timeout: 5)
+        now = Roby.monotonic_time
+        deadline = now + timeout
+        while deadline > now
+            return if client.available?
+
+            client.poll
+            sleep 0.01
+
+            now = Roby.monotonic_time
+        end
+
+        flunk("client did not become available in #{timeout} seconds")
     end
 end

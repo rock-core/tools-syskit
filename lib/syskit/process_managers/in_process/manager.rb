@@ -97,7 +97,7 @@ module Syskit
                 #
                 # Returns a hash that maps deployment names to the Status
                 # object that represents their exit status.
-                def wait_termination(_timeout = nil)
+                def wait_termination
                     dead_processes = {}
                     processes.delete_if do |_, process|
                         next unless process.dead?

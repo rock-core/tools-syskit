@@ -106,7 +106,7 @@ module Syskit
                 #
                 # Returns a hash that maps deployment names to the Status
                 # object that represents their exit status.
-                def wait_termination(_timeout = nil)
+                def wait_termination
                     # Verify that the monitor threads are in a good state, and
                     # gather the ones that are actually dead
                     dead_processes = {}

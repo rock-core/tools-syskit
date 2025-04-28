@@ -142,8 +142,8 @@ module Syskit
                             .and_raise(RuntimeError)
                         capture_log(process, :fatal) do
                             assert_equal [process],
-                                         process_manager.wait_termination(0).keys
-                            assert_equal({}, process_manager.wait_termination(0))
+                                         process_manager.wait_termination.keys
+                            assert_equal({}, process_manager.wait_termination)
                         end
                     ensure (
                         process_manager.processes[@unmanaged_task_name] = process
