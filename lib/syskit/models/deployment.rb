@@ -107,6 +107,17 @@ module Syskit
                 klass
             end
 
+            # Define a new deployed task in this deployment model
+            #
+            # Mostly used in unit tests
+            #
+            # @return [OroGen::Spec::TaskDeployment]
+            def define_deployed_task(name, model)
+                deployed_task = @orogen_model.task(name, model.orogen_model)
+                @task_name_to_syskit_model[name] = model
+                deployed_task
+            end
+
             # Creates a subclass of Deployment that represents the given
             # deployment
             #
@@ -141,6 +152,23 @@ module Syskit
                 orogen_model.task_activities.each do |task|
                     yield(task.name)
                 end
+            end
+
+            # @api private
+            #
+            # Return the syskit task model from the deployed task name
+            #
+            # @return [Syskit::Models::TaskContext,nil] the task model, or nil
+            #   if it is not registered
+            def find_syskit_model_for_deployed_task(deployed_task)
+                task_name =
+                    if deployed_task.respond_to?(:to_str)
+                        deployed_task
+                    else
+                        deployed_task_name
+                    end
+
+                @task_name_to_syskit_model[task_name]
             end
 
             # @api private
