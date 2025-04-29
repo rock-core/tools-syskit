@@ -360,7 +360,7 @@ module Syskit
                         ENV["ORO_LOGFILE"] = resolve_orocos_logger_output(pid)
 
                         ::Process.setpgrp
-                        debug "command line: #{@command} #{arguments.join(' ')}"
+                        info "starting: #{@command} #{arguments.join(' ')}"
                         exec(@command, *arguments,
                              control_read_fd => control_read_fd,
                              ior_write_fd => ior_write_fd,
@@ -423,7 +423,6 @@ module Syskit
                             rescue Errno::ESRCH # rubocop:disable Lint/SuppressedException
                             end
                         else
-                            puts "control FD"
                             @control_write_fd.write("Q")
                         end
                     end

@@ -1104,4 +1104,25 @@ module Syskit
             @deployment.pretty_print(pp)
         end
     end
+
+    # Exception raised whenever a task is deployed on a disabled process manager
+    class DeployedOnDisabledProcessManager < SpecError
+        # The task itself
+        attr_reader :task
+
+        # The deployment task
+        attr_reader :deployment_task
+
+        def initialize(task, deployment_task)
+            @task = task
+            @deployment_task = deployment_task
+        end
+
+        def pretty_print(pp)
+            pp.text "the following task was deployed on "
+            pp.text "#{@deployment_task.arguments[:on]}, which is currently disabled"
+            pp.breakable
+            task.pretty_print(pp)
+        end
+    end
 end

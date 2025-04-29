@@ -65,6 +65,7 @@ module Syskit
 
                 STATE_CONNECTED = "connected"
                 STATE_DISCONNECTED = "disconnected"
+                STATE_CLOSED = "closed"
 
                 def available?
                     @state == STATE_CONNECTED
@@ -85,12 +86,14 @@ module Syskit
                         Syskit.conf.remote_process_managers_response_timeout,
                     root_loader: Orocos.default_loader,
                     register_on_name_server: true,
-                    connect_executor: :io
+                    connect_executor: :io,
+                    create_log_dir: true
                 )
                     @host = host
                     @port = port
                     @state = STATE_DISCONNECTED
                     @response_timeout = response_timeout
+                    @create_log_dir = create_log_dir
 
                     @processes = {}
                     @death_queue = []
@@ -135,9 +138,20 @@ module Syskit
 
                 def poll
                     case @state
+                    when STATE_CLOSED
+                        poll_in_closed_state
                     when STATE_DISCONNECTED
                         poll_in_disconnected_state
                     end
+                end
+
+                def poll_in_closed_state
+                    # Read the output of the future if there is one, and close
+                    # the possibly existing socket
+                    return unless (result = @connect_future&.result(0))
+
+                    result[1]&.close
+                    @connect_future = nil
                 end
 
                 def poll_in_disconnected_state
@@ -174,6 +188,14 @@ module Syskit
 
                     @server_pid = pid
                     @loader = Loader.new(self, @root_loader)
+
+                    if @create_log_dir
+                        create_log_dir(
+                            Roby.app.time_tag, { "parent" => Roby.app.app_metadata }
+                        )
+                    end
+                    kill_all if Syskit.conf.kill_all_on_process_server_connection?
+
                     ProcessManagers.info "connected to remote process manager #{self}"
                 rescue StandardError => e
                     ProcessManagers.warn(
@@ -181,7 +203,7 @@ module Syskit
                         "call failed: #{e.message}"
                     )
 
-                    close
+                    close(state: STATE_DISCONNECTED)
                     schedule_connection_attempt
                 end
 
@@ -392,9 +414,9 @@ module Syskit
                     close
                 end
 
-                def close
-                    @state = STATE_DISCONNECTED
-                    @socket.close
+                def close(state: STATE_CLOSED)
+                    @state = state
+                    @socket&.close
                 end
 
                 def write_command(cmd, args = nil)

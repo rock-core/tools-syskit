@@ -759,10 +759,6 @@ module Syskit
                 client = ProcessManagers::Remote::Manager.new(
                     host, port, root_loader: app.default_loader
                 )
-                client.create_log_dir(
-                    Roby.app.time_tag, { "parent" => Roby.app.app_metadata }
-                )
-                client.kill_all if kill_all_on_process_server_connection?
                 config = register_process_server(
                     name, client,
                     host_id: host_id || name,
@@ -775,10 +771,17 @@ module Syskit
 
             ProcessServerConfig =
                 Struct.new :name, :client, :log_dir, :host_id, :supports_log_transfer,
-                           :logging_enabled, :register_on_name_server,
+                           :logging_enabled, :register_on_name_server, :disabled,
                            keyword_init: true do
                     def manager
                         client
+                    end
+
+                    def available?
+                        return false if disabled
+                        return client.available? if client.respond_to?(:available?)
+
+                        true
                     end
 
                     def on_localhost?

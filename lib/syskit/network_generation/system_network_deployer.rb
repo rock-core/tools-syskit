@@ -209,14 +209,15 @@ module Syskit
             def validate_deployed_network(error_handler: RaiseErrorHandler.new)
                 verify_all_tasks_deployed(error_handler: error_handler)
                 verify_all_configurations_exist(error_handler: error_handler)
+                verify_all_process_managers_enabled(error_handler: error_handler)
             end
 
             # Verifies that all tasks in the plan are deployed
             #
             # @param [ResolutionErrorHandler | RaiseErrorHandler] error_handler
-            def verify_all_tasks_deployed(error_handler)
+            def verify_all_tasks_deployed(error_handler: RaiseErrorHandler.new)
                 self.class.verify_all_tasks_deployed(
-                    plan, default_deployment_group, error_handler
+                    plan, default_deployment_group, error_handler: error_handler
                 )
             end
 
@@ -253,6 +254,36 @@ module Syskit
                 tasks_with_candidates.each do |task, candidates|
                     e = MissingDeployment.new(task, candidates)
                     error_handler.register_resolution_failures_from_exception(e.task, e)
+                end
+            end
+
+            # Generate errors for all tasks that are using a deployment from a disabled
+            # process server
+            #
+            # @param [#register_resolution_failures_from_exception] error_handler
+            def verify_all_process_managers_enabled(error_handler: RaiseErrorHandler.new)
+                self.class.verify_all_process_managers_enabled(
+                    plan, error_handler: error_handler
+                )
+            end
+
+            # Generate errors for all tasks that are using a deployment from a disabled
+            # process server
+            #
+            # @param [Roby::Plan] plan
+            # @param [#register_resolution_failures_from_exception] error_handler
+            def self.verify_all_process_managers_enabled(
+                plan, error_handler: RaiseErrorHandler.new
+            )
+                failed =
+                    plan.find_local_tasks(Deployment)
+                        .find_all { |d| !d.process_server_config.available? }
+
+                failed.each do |deployment_task|
+                    deployment_task.each_executed_task do |t|
+                        e = DeployedOnDisabledProcessManager.new(t, deployment_task)
+                        error_handler.register_resolution_failures_from_exception(t, e)
+                    end
                 end
             end
 

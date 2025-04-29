@@ -5,6 +5,8 @@ require "syskit/process_managers/remote/server"
 
 require "optparse"
 
+server_port = Syskit::ProcessManagers::Remote::DEFAULT_PORT
+
 options = Hash[host: "localhost"]
 parser = OptionParser.new do |opt|
     opt.on "--fd=FD", Integer, "the socket that should be used as TCP server" do |fd|
@@ -13,12 +15,14 @@ parser = OptionParser.new do |opt|
     opt.on "--log-dir=DIR", String, "the directory that should be used for logs" do |dir|
         Roby.app.log_dir = dir
     end
+    opt.on "--port=PORT", Integer, "the port to listen on" do |port|
+        server_port = port
+    end
     opt.on("--debug", "turn on debug mode") do
         Syskit::ProcessManagers::Remote::Server.logger.level = Logger::DEBUG
     end
 end
 
-server_port = Syskit::ProcessManagers::Remote::DEFAULT_PORT
 Roby::Application.host_options(parser, options)
 parser.parse(ARGV)
 

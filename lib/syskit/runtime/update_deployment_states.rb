@@ -10,14 +10,24 @@ module Syskit
             # #cleanup_dead_connections, thus avoiding to disconnect connections
             # between already-dead processes
 
+            poll_managers
             handle_dead_deployments(plan)
             trigger_ready_deployments(plan)
+        end
+
+        def self.poll_managers
+            server_config = Syskit.conf.each_process_server_config.to_a
+            server_config.each do |config|
+                config.client.poll if config.client.respond_to?(:poll)
+            end
         end
 
         def self.handle_dead_deployments(plan)
             all_dead_deployments = Set.new
             server_config = Syskit.conf.each_process_server_config.to_a
             server_config.each do |config|
+                next unless config.available?
+
                 begin
                     dead_deployments = config.client.wait_termination
                 rescue ::Exception => e
@@ -42,6 +52,8 @@ module Syskit
             not_ready_deployments = find_all_not_ready_deployments(plan)
             not_ready_deployments.each do |process_server_name, deployments|
                 server_config = Syskit.conf.process_server_config_for(process_server_name)
+                next unless server_config.available?
+
                 wait_result = server_config.client.wait_running(
                     *deployments.map { |d| d.arguments[:process_name] }
                 )
