@@ -27,10 +27,16 @@ module Syskit
 
             def setup_main_profile(profile); end
 
-            # Define on self tags that match the profile's tags
-            def use_profile_tags(used_profile)
+            # Define on self tags for all the tags that aren't mapped in existing tags.
+            # For those that are, use them instead of defining new ones.
+            def use_profile_tags(used_profile, existing_tags = {})
                 tag_map = {}
                 used_profile.each_tag do |tag|
+                    if (existing = existing_tags[tag.tag_name])
+                        tag_map[tag.tag_name] = existing
+                        next
+                    end
+
                     tagged_models =
                         [tag.proxied_component_model, *tag.proxied_data_service_models]
                     tag_map[tag.tag_name] = profile.tag(tag.tag_name, *tagged_models)
@@ -167,7 +173,9 @@ module Syskit
             def use_profile_object(
                 used_profile = nil, tag_selection = {}, transform_names: ->(name) { name }
             )
-                tag_selection = use_profile_tags(used_profile).merge(tag_selection)
+                tag_selection = use_profile_tags(
+                    used_profile, profile.tags.merge(tag_selection)
+                )
 
                 @current_description = nil
                 new_definitions = profile.use_profile(
