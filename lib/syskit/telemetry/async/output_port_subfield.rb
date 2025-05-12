@@ -91,7 +91,10 @@ module Syskit
 
                 def normalize_subfield_path(subfield)
                     subfield.map do |field|
-                        if /^\d+$/.match?(field)
+                        case field
+                        when Numeric
+                            field
+                        when /^\d+$/.match?(field)
                             Integer(field)
                         else
                             field.to_s
