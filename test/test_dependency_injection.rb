@@ -2,228 +2,405 @@
 
 require "syskit/test/self"
 
-describe Syskit::DependencyInjection do
-    describe "#selection_for" do
-        it "returns an existing instance if one is selected" do
-            task = Syskit::Component.new_submodel.new
-            di = Syskit::DependencyInjection.new("child" => task)
-            result = di.selection_for("child", Syskit::InstanceRequirements.new)
-            assert_equal [task, Syskit::InstanceRequirements.new([task.model]), {}, ["child"].to_set], result
-        end
-        it "validates the instance with the provided requirements and pass if it fullfills" do
-            task = Syskit::Component.new_submodel.new
-            di = Syskit::DependencyInjection.new("child" => task)
+module Syskit
+    describe DependencyInjection do
+        describe "#selection_for" do
+            it "returns an existing instance if one is selected" do
+                task = Syskit::Component.new_submodel.new
+                di = Syskit::DependencyInjection.new("child" => task)
+                result = di.selection_for("child", Syskit::InstanceRequirements.new)
+                assert_equal [task, Syskit::InstanceRequirements.new([task.model]), {}, ["child"].to_set], result
+            end
+            it "validates the instance with the provided requirements and pass if it fullfills" do
+                task = Syskit::Component.new_submodel.new
+                di = Syskit::DependencyInjection.new("child" => task)
 
-            requirements = task.model.to_instance_requirements
-            flexmock(task).should_receive(:fullfills?).with(requirements, {}).and_return(true)
-            result = di.selection_for("child", requirements)
-            assert_equal [task, Syskit::InstanceRequirements.new([task.model]), {}, ["child"].to_set], result
-        end
-        it "validates the instance with the provided requirements and raises if it does not match" do
-            task = Syskit::Component.new_submodel.new
-            di = Syskit::DependencyInjection.new("child" => task)
+                requirements = task.model.to_instance_requirements
+                flexmock(task).should_receive(:fullfills?).with(requirements, {}).and_return(true)
+                result = di.selection_for("child", requirements)
+                assert_equal [task, Syskit::InstanceRequirements.new([task.model]), {}, ["child"].to_set], result
+            end
+            it "validates the instance with the provided requirements and raises if it does not match" do
+                task = Syskit::Component.new_submodel.new
+                di = Syskit::DependencyInjection.new("child" => task)
 
-            requirements = task.model.to_instance_requirements
-            flexmock(task).should_receive(:fullfills?).with(requirements, {}).and_return(false)
-            assert_raises(ArgumentError) do
-                di.selection_for("child", requirements)
+                requirements = task.model.to_instance_requirements
+                flexmock(task).should_receive(:fullfills?).with(requirements, {}).and_return(false)
+                assert_raises(ArgumentError) do
+                    di.selection_for("child", requirements)
+                end
+            end
+            it "returns an existing instance service if one is selected and required" do
+                srv = Syskit::DataService.new_submodel
+                task = Syskit::Component.new_submodel { provides srv, as: "srv" }.new
+                di = Syskit::DependencyInjection.new("child" => task.srv_srv)
+
+                instance, requirements, services = di.selection_for("child", Syskit::InstanceRequirements.new([srv]))
+                assert_equal task, instance
+                assert_equal Syskit::InstanceRequirements.new([task.model]), requirements
+                assert_equal Hash[srv => task.model.srv_srv], services
+            end
+            it "maps name-to-service selections to the requirements" do
+                base_srv_m = Syskit::DataService.new_submodel
+                srv_m = Syskit::DataService.new_submodel
+                srv_m.provides base_srv_m
+                task_m = Syskit::Component.new_submodel
+                task_m.provides srv_m, as: "test"
+                di = Syskit::DependencyInjection.new("child" => task_m.test_srv)
+                _, _, service_selections = di.selection_for("child", Syskit::InstanceRequirements.new([base_srv_m]))
+                assert_equal task_m.test_srv, service_selections[base_srv_m]
+            end
+            it "uses service-to-bound_service selections as service mappings when matching the task model" do
+                base_srv_m = Syskit::DataService.new_submodel
+                srv_m = Syskit::DataService.new_submodel
+                srv_m.provides base_srv_m
+                task_m = Syskit::Component.new_submodel
+                task_m.provides srv_m, as: "test"
+                task_m.provides srv_m, as: "ambiguous"
+                di = Syskit::DependencyInjection.new("child" => task_m, srv_m => task_m.test_srv)
+                _, _, service_selections = di.selection_for("child", Syskit::InstanceRequirements.new([base_srv_m]))
+                assert_equal task_m.test_srv, service_selections[base_srv_m]
+            end
+            it "will accept DependencyInjection.nothing as a selection, thus overriding more general selections" do
+                srv_m  = Syskit::DataService.new_submodel
+                task_m = Syskit::TaskContext.new_submodel
+                task_m.provides srv_m, as: "test"
+                di = Syskit::DependencyInjection.new(
+                    "child" => Syskit::DependencyInjection.nothing, srv_m => task_m
+                )
+                _, requirements, = di.selection_for("child", srv_m)
+                assert_equal srv_m.placeholder_model, requirements.model
+            end
+            it "will accept DependencyInjection.do_not_inherit as a selection, thus falling back to more general selections" do
+                srv_m  = Syskit::DataService.new_submodel
+                task_m = Syskit::TaskContext.new_submodel
+                task_m.provides srv_m, as: "test"
+                di = Syskit::DependencyInjection.new(
+                    "child" => Syskit::DependencyInjection.do_not_inherit, srv_m => task_m
+                )
+                _, requirements, = di.selection_for("child", srv_m)
+                assert_equal task_m, requirements.model
             end
         end
-        it "returns an existing instance service if one is selected and required" do
-            srv = Syskit::DataService.new_submodel
-            task = Syskit::Component.new_submodel { provides srv, as: "srv" }.new
-            di = Syskit::DependencyInjection.new("child" => task.srv_srv)
 
-            instance, requirements, services = di.selection_for("child", Syskit::InstanceRequirements.new([srv]))
-            assert_equal task, instance
-            assert_equal Syskit::InstanceRequirements.new([task.model]), requirements
-            assert_equal Hash[srv => task.model.srv_srv], services
-        end
-        it "maps name-to-service selections to the requirements" do
-            base_srv_m = Syskit::DataService.new_submodel
-            srv_m = Syskit::DataService.new_submodel
-            srv_m.provides base_srv_m
-            task_m = Syskit::Component.new_submodel
-            task_m.provides srv_m, as: "test"
-            di = Syskit::DependencyInjection.new("child" => task_m.test_srv)
-            _, _, service_selections = di.selection_for("child", Syskit::InstanceRequirements.new([base_srv_m]))
-            assert_equal task_m.test_srv, service_selections[base_srv_m]
-        end
-        it "uses service-to-bound_service selections as service mappings when matching the task model" do
-            base_srv_m = Syskit::DataService.new_submodel
-            srv_m = Syskit::DataService.new_submodel
-            srv_m.provides base_srv_m
-            task_m = Syskit::Component.new_submodel
-            task_m.provides srv_m, as: "test"
-            task_m.provides srv_m, as: "ambiguous"
-            di = Syskit::DependencyInjection.new("child" => task_m, srv_m => task_m.test_srv)
-            _, _, service_selections = di.selection_for("child", Syskit::InstanceRequirements.new([base_srv_m]))
-            assert_equal task_m.test_srv, service_selections[base_srv_m]
-        end
-        it "will accept DependencyInjection.nothing as a selection, thus overriding more general selections" do
-            srv_m  = Syskit::DataService.new_submodel
-            task_m = Syskit::TaskContext.new_submodel
-            task_m.provides srv_m, as: "test"
-            di = Syskit::DependencyInjection.new(
-                "child" => Syskit::DependencyInjection.nothing, srv_m => task_m
-            )
-            _, requirements, = di.selection_for("child", srv_m)
-            assert_equal srv_m.placeholder_model, requirements.model
-        end
-        it "will accept DependencyInjection.do_not_inherit as a selection, thus falling back to more general selections" do
-            srv_m  = Syskit::DataService.new_submodel
-            task_m = Syskit::TaskContext.new_submodel
-            task_m.provides srv_m, as: "test"
-            di = Syskit::DependencyInjection.new(
-                "child" => Syskit::DependencyInjection.do_not_inherit, srv_m => task_m
-            )
-            _, requirements, = di.selection_for("child", srv_m)
-            assert_equal task_m, requirements.model
-        end
-    end
-
-    describe "#instance_selection_for" do
-        it "propagates the abstract flag" do
-            srv_m = Syskit::DataService.new_submodel
-            task_m = Syskit::TaskContext.new_submodel
-            task_m.provides srv_m, as: "test"
-            di = Syskit::DependencyInjection.new("child" => task_m.to_instance_requirements.abstract)
-            assert di.instance_selection_for("child", task_m.to_instance_requirements)[0].selected.abstract?
-            di = Syskit::DependencyInjection.new(task_m => task_m.to_instance_requirements.abstract)
-            assert di.instance_selection_for(nil, task_m.to_instance_requirements)[0].selected.abstract?
-            di = Syskit::DependencyInjection.new("child" => srv_m.to_instance_requirements.abstract, srv_m => task_m)
-            assert di.instance_selection_for("child", task_m.to_instance_requirements)[0].selected.abstract?
-        end
-    end
-
-    describe "#add" do
-        attr_reader :di, :explicit_m, :default_m
-
-        before do
-            @di = flexmock(Syskit::DependencyInjection.new)
-            @explicit_m = Syskit::TaskContext.new_submodel
-            @default_m = Syskit::TaskContext.new_submodel
+        describe "#instance_selection_for" do
+            it "propagates the abstract flag" do
+                srv_m = Syskit::DataService.new_submodel
+                task_m = Syskit::TaskContext.new_submodel
+                task_m.provides srv_m, as: "test"
+                di = Syskit::DependencyInjection.new("child" => task_m.to_instance_requirements.abstract)
+                assert di.instance_selection_for("child", task_m.to_instance_requirements)[0].selected.abstract?
+                di = Syskit::DependencyInjection.new(task_m => task_m.to_instance_requirements.abstract)
+                assert di.instance_selection_for(nil, task_m.to_instance_requirements)[0].selected.abstract?
+                di = Syskit::DependencyInjection.new("child" => srv_m.to_instance_requirements.abstract, srv_m => task_m)
+                assert di.instance_selection_for("child", task_m.to_instance_requirements)[0].selected.abstract?
+            end
         end
 
-        it "normalizes the explicit arguments" do
-            flexmock(Syskit::DependencyInjection).should_receive(:normalize_selection).with("test" => explicit_m).once.pass_thru
-            di.add("test" => explicit_m)
-        end
-        it "normalizes the default arguments" do
-            flexmock(Syskit::DependencyInjection).should_receive(:normalize_selected_object).with(m = flexmock).once.and_return(default_m)
-            di.should_receive(:add_defaults).with([default_m].to_set).once
-            di.add(m)
-        end
-        it "merges new default arguments with the existing ones" do
-            a_m = Syskit::TaskContext.new_submodel
-            b_m = Syskit::TaskContext.new_submodel
-            di = Syskit::DependencyInjection.new
-            flexmock(di).should_receive(:add_defaults).with([a_m, b_m].to_set).once
-            flexmock(di).should_receive(:add_explicit).with({}).once
-            di.add(a_m, b_m)
-        end
-        it "adds both explicit selections and defaults from given DI objects" do
-            a_m = Syskit::TaskContext.new_submodel
-            b_m = Syskit::TaskContext.new_submodel
-            added = Syskit::DependencyInjection.new
-            added.add(a_m, "test" => b_m)
-            di = Syskit::DependencyInjection.new
-            flexmock(di).should_receive(:add_defaults).with([a_m].to_set).once
-            flexmock(di).should_receive(:add_explicit).with("test" => b_m).once
-            di.add(added)
-        end
-    end
+        describe "#add" do
+            attr_reader :di, :explicit_m, :default_m
 
-    describe "#add_explicit" do
-        it "does not modify the selections if given an identity mapping" do
-            a = Syskit::DataService.new_submodel(name: "A")
-            b = Syskit::DataService.new_submodel(name: "B") { provides a }
-            di = Syskit::DependencyInjection.new(a => b)
-            di.add(a => a)
-            assert_equal Hash[a => b], di.explicit
-        end
-    end
+            before do
+                @di = flexmock(Syskit::DependencyInjection.new)
+                @explicit_m = Syskit::TaskContext.new_submodel
+                @default_m = Syskit::TaskContext.new_submodel
+            end
 
-    describe "#resolve_recursive_selection_mapping" do
-        it "resolves component models recursively" do
-            srv0 = Syskit::DataService.new_submodel
-            srv1 = Syskit::DataService.new_submodel
-            srv1.provides srv0
-            mapping = { "value" => srv0, srv0 => srv1 }
-            assert_equal({ "value" => srv1, srv0 => srv1 },
-                         Syskit::DependencyInjection.resolve_recursive_selection_mapping(mapping))
+            it "normalizes the explicit arguments" do
+                flexmock(Syskit::DependencyInjection).should_receive(:normalize_selection).with("test" => explicit_m).once.pass_thru
+                di.add("test" => explicit_m)
+            end
+            it "normalizes the default arguments" do
+                flexmock(Syskit::DependencyInjection).should_receive(:normalize_selected_object).with(m = flexmock).once.and_return(default_m)
+                di.should_receive(:add_defaults).with([default_m].to_set).once
+                di.add(m)
+            end
+            it "merges new default arguments with the existing ones" do
+                a_m = Syskit::TaskContext.new_submodel
+                b_m = Syskit::TaskContext.new_submodel
+                di = Syskit::DependencyInjection.new
+                flexmock(di).should_receive(:add_defaults).with([a_m, b_m].to_set).once
+                flexmock(di).should_receive(:add_explicit).with({}).once
+                di.add(a_m, b_m)
+            end
+            it "adds both explicit selections and defaults from given DI objects" do
+                a_m = Syskit::TaskContext.new_submodel
+                b_m = Syskit::TaskContext.new_submodel
+                added = Syskit::DependencyInjection.new
+                added.add(a_m, "test" => b_m)
+                di = Syskit::DependencyInjection.new
+                flexmock(di).should_receive(:add_defaults).with([a_m].to_set).once
+                flexmock(di).should_receive(:add_explicit).with("test" => b_m).once
+                di.add(added)
+            end
         end
 
-        it "does not resolve names" do
-            mapping = { "name" => "value", "value" => "bla" }
-            assert_equal(mapping,
-                         Syskit::DependencyInjection.resolve_recursive_selection_mapping(mapping))
+        describe "#add_explicit" do
+            it "does not modify the selections if given an identity mapping" do
+                a = Syskit::DataService.new_submodel(name: "A")
+                b = Syskit::DataService.new_submodel(name: "B") { provides a }
+                di = Syskit::DependencyInjection.new(a => b)
+                di.add(a => a)
+                assert_equal Hash[a => b], di.explicit
+            end
         end
 
-        it "resolves the component model of bound data services" do
-            srv_m = Syskit::DataService.new_submodel
-            proxy_m = srv_m.placeholder_model
-            proxy2_m = srv_m.placeholder_model
-            task_m = Syskit::TaskContext.new_submodel
-            task_m.provides srv_m, as: "test"
+        describe "#resolve_recursive_selection_mapping" do
+            it "resolves component models recursively" do
+                srv0 = Syskit::DataService.new_submodel
+                srv1 = Syskit::DataService.new_submodel
+                srv1.provides srv0
+                mapping = { "value" => srv0, srv0 => srv1 }
+                assert_equal({ "value" => srv1, srv0 => srv1 },
+                             Syskit::DependencyInjection.resolve_recursive_selection_mapping(mapping))
+            end
 
-            mapping = { srv_m => proxy_m.m0_srv, proxy_m => proxy2_m, proxy2_m => task_m }
-            assert_equal(task_m.test_srv,
-                         Syskit::DependencyInjection.resolve_recursive_selection_mapping(mapping)[srv_m])
+            it "does not resolve names" do
+                mapping = { "name" => "value", "value" => "bla" }
+                assert_equal(mapping,
+                             Syskit::DependencyInjection.resolve_recursive_selection_mapping(mapping))
+            end
+
+            it "resolves the component model of bound data services" do
+                srv_m = Syskit::DataService.new_submodel
+                proxy_m = srv_m.placeholder_model
+                proxy2_m = srv_m.placeholder_model
+                task_m = Syskit::TaskContext.new_submodel
+                task_m.provides srv_m, as: "test"
+
+                mapping = { srv_m => proxy_m.m0_srv, proxy_m => proxy2_m, proxy2_m => task_m }
+                assert_equal(task_m.test_srv,
+                             Syskit::DependencyInjection.resolve_recursive_selection_mapping(mapping)[srv_m])
+            end
+
+            it "properly maintains already resolved bound data services if an indentity selection is present" do
+                srv_m = Syskit::DataService.new_submodel
+                task_m = Syskit::TaskContext.new_submodel
+                task_m.provides srv_m, as: "test"
+                task_m.provides srv_m, as: "ambiguous"
+
+                mapping = { srv_m => task_m.test_srv, task_m => task_m }
+                assert_equal(task_m.test_srv,
+                             Syskit::DependencyInjection.resolve_recursive_selection_mapping(mapping)[srv_m])
+            end
         end
 
-        it "properly maintains already resolved bound data services if an indentity selection is present" do
-            srv_m = Syskit::DataService.new_submodel
-            task_m = Syskit::TaskContext.new_submodel
-            task_m.provides srv_m, as: "test"
-            task_m.provides srv_m, as: "ambiguous"
+        describe "#merge" do
+            attr_reader :model0, :model1, :di0, :di1
 
-            mapping = { srv_m => task_m.test_srv, task_m => task_m }
-            assert_equal(task_m.test_srv,
-                         Syskit::DependencyInjection.resolve_recursive_selection_mapping(mapping)[srv_m])
-        end
-    end
+            before do
+                @model0 = flexmock(Syskit::InstanceRequirements.new)
+                @model1 = flexmock(Syskit::InstanceRequirements.new)
+                model0.should_receive(:==).with(model1).and_return(false)
+                model1.should_receive(:==).with(model0).and_return(false)
+                @di0 = Syskit::DependencyInjection.new("test" => model0)
+                @di1 = Syskit::DependencyInjection.new("test" => model1)
+            end
 
-    describe "#merge" do
-        attr_reader :model0, :model1, :di0, :di1
-
-        before do
-            @model0 = flexmock(Syskit::InstanceRequirements.new)
-            @model1 = flexmock(Syskit::InstanceRequirements.new)
-            model0.should_receive(:==).with(model1).and_return(false)
-            model1.should_receive(:==).with(model0).and_return(false)
-            @di0 = Syskit::DependencyInjection.new("test" => model0)
-            @di1 = Syskit::DependencyInjection.new("test" => model1)
-        end
-
-        it "should simply pass on identical models" do
-            model0.should_receive(:==).with(model1).and_return(true)
-            di0.merge(di1)
-            assert_same model0, di0.explicit["test"]
-        end
-
-        it "should use the most-specific model if both DI objects have conflicting selections" do
-            model0.should_receive(:fullfills?).with(model1).and_return(true)
-            model1.should_receive(:fullfills?).with(model0).and_return(false)
-
-            di0 = self.di0.dup
-            di1 = self.di1.dup
-            di0.merge(di1)
-            assert_same model0, di0.explicit["test"]
-
-            # Test the other way around
-            di0 = self.di0.dup
-            di1 = self.di1.dup
-            di1.merge(di0)
-            assert_same model0, di1.explicit["test"]
-        end
-
-        it "should raise if conflicting selections cannot be resolved" do
-            model0.should_receive(:fullfills?).with(model1).and_return(false)
-            model1.should_receive(:fullfills?).with(model0).and_return(false)
-
-            assert_raises(ArgumentError) do
+            it "should simply pass on identical models" do
+                model0.should_receive(:==).with(model1).and_return(true)
                 di0.merge(di1)
+                assert_same model0, di0.explicit["test"]
+            end
+
+            it "should use the most-specific model if both DI objects have conflicting selections" do
+                model0.should_receive(:fullfills?).with(model1).and_return(true)
+                model1.should_receive(:fullfills?).with(model0).and_return(false)
+
+                di0 = self.di0.dup
+                di1 = self.di1.dup
+                di0.merge(di1)
+                assert_same model0, di0.explicit["test"]
+
+                # Test the other way around
+                di0 = self.di0.dup
+                di1 = self.di1.dup
+                di1.merge(di0)
+                assert_same model0, di1.explicit["test"]
+            end
+
+            it "should raise if conflicting selections cannot be resolved" do
+                model0.should_receive(:fullfills?).with(model1).and_return(false)
+                model1.should_receive(:fullfills?).with(model0).and_return(false)
+
+                assert_raises(ArgumentError) do
+                    di0.merge(di1)
+                end
+            end
+        end
+
+        describe "#normalize_selection" do
+            it "raises on invalid keys" do
+                assert_raises(ArgumentError) { DependencyInjection.normalize_selection(nil => "value") }
+                assert_raises(ArgumentError) { DependencyInjection.normalize_selection(Object.new => "value") }
+                assert_raises(ArgumentError) { DependencyInjection.normalize_selection(Class.new => "value") }
+            end
+
+            it "accepts strings to allowed values" do
+                srv = DataService.new_submodel
+                component = Component.new_submodel
+                component.provides srv, as: "srv"
+                key = "key"
+                assert_equal(Hash[key => DependencyInjection.nothing], DependencyInjection.normalize_selection(key => DependencyInjection.nothing))
+                assert_equal(Hash[key => DependencyInjection.do_not_inherit], DependencyInjection.normalize_selection(key => DependencyInjection.do_not_inherit))
+                assert_equal(Hash[key => "value"], DependencyInjection.normalize_selection(key => "value"))
+                assert_equal(Hash[key => srv], DependencyInjection.normalize_selection(key => srv))
+                assert_equal(Hash[key => component], DependencyInjection.normalize_selection(key => component))
+                assert_equal(Hash[key => component.srv_srv], DependencyInjection.normalize_selection(key => component.srv_srv))
+                component = component.new
+                assert_equal(Hash[key => component], DependencyInjection.normalize_selection(key => component))
+                assert_equal(Hash[key => component.srv_srv], DependencyInjection.normalize_selection(key => component.srv_srv))
+                req = InstanceRequirements.new
+                assert_equal(Hash[key => req], DependencyInjection.normalize_selection(key => req))
+            end
+
+            it "rejects strings to arbitrary" do
+                key = "key"
+                assert_raises(ArgumentError) { DependencyInjection.normalize_selection(key => Object.new) }
+            end
+
+            it "accepts mappings from a component model to nil, string and identity" do
+                srv = DataService.new_submodel
+                component = Component.new_submodel
+                component.provides srv, as: "srv"
+                key = component
+
+                assert_equal(Hash[key => DependencyInjection.nothing], DependencyInjection.normalize_selection(key => DependencyInjection.nothing))
+                assert_equal(Hash[key => DependencyInjection.do_not_inherit], DependencyInjection.normalize_selection(key => DependencyInjection.do_not_inherit))
+                assert_equal(Hash[key => "value"], DependencyInjection.normalize_selection(key => "value"))
+                assert_equal(Hash[key => key], DependencyInjection.normalize_selection(key => key))
+            end
+
+            it "refuses mappings from component to data service" do
+                key = Component.new_submodel
+                assert_raises(ArgumentError) { DependencyInjection.normalize_selection(key => DataService.new_submodel) }
+            end
+
+            it "accepts mappings from a component model to a component that fullfills the key" do
+                key = Component.new_submodel
+                subcomponent_m = key.new_submodel
+
+                assert_equal(
+                    { key => subcomponent_m },
+                    DependencyInjection.normalize_selection(key => subcomponent_m)
+                )
+                subcomponent = subcomponent_m.new
+                assert_equal(
+                    { key => subcomponent },
+                    DependencyInjection.normalize_selection(key => subcomponent)
+                )
+            end
+
+            it "accepts mappings from a component model to an instance requirement that fullfills it" do
+                key = Component.new_submodel
+                req = InstanceRequirements.new([key])
+                assert_equal(Hash[key => req], DependencyInjection.normalize_selection(key => req))
+            end
+
+            it "rejects mappings from a component to a component that does not fullfill it" do
+                key = Component.new_submodel
+                srv = DataService.new_submodel
+                component_m = Component.new_submodel { provides(srv, as: "srv") }
+
+                assert_raises(ArgumentError) do
+                    DependencyInjection.normalize_selection(key => component_m)
+                end
+                assert_raises(ArgumentError) do
+                    DependencyInjection.normalize_selection(key => component_m.srv_srv)
+                end
+                component = component_m.new
+                e = assert_raises(ArgumentError) do
+                    DependencyInjection.normalize_selection(key => component)
+                end
+                assert_raises(ArgumentError) do
+                    DependencyInjection.normalize_selection(key => component.srv_srv)
+                end
+            end
+
+            it "rejects mappings from a component model to an instance requirement " \
+               "that does not fullfill it" do
+                key = Component.new_submodel
+                req = InstanceRequirements.new([Component.new_submodel])
+                assert_raises(ArgumentError) { DependencyInjection.normalize_selection(key => req) }
+            end
+
+            describe "from a data service model" do
+                it "accepts mappings to nil, string and identity" do
+                    key = DataService.new_submodel
+                    assert_equal(Hash[key => DependencyInjection.nothing], DependencyInjection.normalize_selection(key => DependencyInjection.nothing))
+                    assert_equal(Hash[key => DependencyInjection.do_not_inherit], DependencyInjection.normalize_selection(key => DependencyInjection.do_not_inherit))
+                    assert_equal(Hash[key => "value"], DependencyInjection.normalize_selection(key => "value"))
+                    assert_equal(Hash[key => key], DependencyInjection.normalize_selection(key => key))
+                end
+
+                it "accepts mappings to a compatible data service model" do
+                    srv0 = DataService.new_submodel
+                    srv1 = DataService.new_submodel { provides srv0 }
+                    assert_equal(Hash[srv0 => srv1], DependencyInjection.normalize_selection(srv0 => srv1))
+                end
+
+                it "accepts mappings to a compatible instance requirement" do
+                    key = DataService.new_submodel
+                    req = InstanceRequirements.new([key])
+                    assert_equal(Hash[key => req.find_data_service_from_type(key)], DependencyInjection.normalize_selection(key => req))
+                end
+
+                it "accepts mappings to an instance requirement representing a " \
+                   "component which provides the service" do
+                    key = DataService.new_submodel
+                    c = Component.new_submodel { provides key, as: "srv" }
+                    req = InstanceRequirements.new([c])
+                    normalized = DependencyInjection.normalize_selection(key => req)
+                    req_srv = req.dup
+                    req_srv.select_service(c.srv_srv)
+                    assert_equal(Hash[key => req_srv], normalized)
+                end
+
+                it "accepts mappings to a component which provides the service" do
+                    srv0 = DataService.new_submodel
+                    c = Component.new_submodel { provides srv0, as: "srv" }
+                    assert_equal(Hash[srv0 => c.srv_srv], DependencyInjection.normalize_selection(srv0 => c))
+                    c = c.new
+                    assert_equal(Hash[srv0 => c.srv_srv], DependencyInjection.normalize_selection(srv0 => c))
+                end
+
+                it "rejects mappings to an instance requirement that provide an " \
+                   "incompatible data service model" do
+                    key = DataService.new_submodel
+                    req = InstanceRequirements.new([DataService.new_submodel])
+                    assert_raises(ArgumentError) do
+                        DependencyInjection.normalize_selection(key => req)
+                    end
+                end
+
+                it "rejects mappings to a component that provides it more than once" do
+                    srv0 = DataService.new_submodel
+                    c = Component.new_submodel do
+                        provides srv0, as: "srv0"
+                        provides srv0, as: "srv1"
+                    end
+                    assert_raises(Syskit::AmbiguousServiceSelection) do
+                        DependencyInjection.normalize_selection(srv0 => c)
+                    end
+                end
+
+                it "rejects mappings to a data service that is not compatible" do
+                    assert_raises(ArgumentError) do
+                        DependencyInjection.normalize_selection(
+                            DataService.new_submodel => DataService.new_submodel
+                        )
+                    end
+                end
+            end
+
+            it "converts arbitrary objects to instance requirements" do
+                req = InstanceRequirements.new
+                value = flexmock
+                value.should_receive(:to_instance_requirements).once
+                     .and_return(req)
+                di = DependencyInjection.new
+                di.add("name" => value)
+                assert_same req, di.explicit["name"]
             end
         end
     end
@@ -272,154 +449,6 @@ module Syskit
             dep = DependencyInjection.new(Component.new_submodel, DataService.new_submodel => "value")
             # Just verify that it does not raise ...
             PP.pp(dep, "".dup)
-        end
-
-        def test_normalize_selection_raises_on_invalid_keys
-            assert_raises(ArgumentError) { DependencyInjection.normalize_selection(nil => "value") }
-            assert_raises(ArgumentError) { DependencyInjection.normalize_selection(Object.new => "value") }
-            assert_raises(ArgumentError) { DependencyInjection.normalize_selection(Class.new => "value") }
-        end
-
-        def test_normalize_selection_accepts_string_to_allowed_values
-            srv = DataService.new_submodel
-            component = Component.new_submodel
-            component.provides srv, as: "srv"
-            key = "key"
-            assert_equal(Hash[key => DependencyInjection.nothing], DependencyInjection.normalize_selection(key => DependencyInjection.nothing))
-            assert_equal(Hash[key => DependencyInjection.do_not_inherit], DependencyInjection.normalize_selection(key => DependencyInjection.do_not_inherit))
-            assert_equal(Hash[key => "value"], DependencyInjection.normalize_selection(key => "value"))
-            assert_equal(Hash[key => srv], DependencyInjection.normalize_selection(key => srv))
-            assert_equal(Hash[key => component], DependencyInjection.normalize_selection(key => component))
-            assert_equal(Hash[key => component.srv_srv], DependencyInjection.normalize_selection(key => component.srv_srv))
-            component = component.new
-            assert_equal(Hash[key => component], DependencyInjection.normalize_selection(key => component))
-            assert_equal(Hash[key => component.srv_srv], DependencyInjection.normalize_selection(key => component.srv_srv))
-            req = InstanceRequirements.new
-            assert_equal(Hash[key => req], DependencyInjection.normalize_selection(key => req))
-        end
-
-        def test_normalize_selection_rejects_string_to_arbitrary
-            key = "key"
-            assert_raises(ArgumentError) { DependencyInjection.normalize_selection(key => Object.new) }
-        end
-
-        def test_normalize_selection_accepts_component_to_nil_string_and_identity
-            srv = DataService.new_submodel
-            component = Component.new_submodel
-            component.provides srv, as: "srv"
-            key = component
-
-            assert_equal(Hash[key => DependencyInjection.nothing], DependencyInjection.normalize_selection(key => DependencyInjection.nothing))
-            assert_equal(Hash[key => DependencyInjection.do_not_inherit], DependencyInjection.normalize_selection(key => DependencyInjection.do_not_inherit))
-            assert_equal(Hash[key => "value"], DependencyInjection.normalize_selection(key => "value"))
-            assert_equal(Hash[key => key], DependencyInjection.normalize_selection(key => key))
-        end
-
-        def test_normalize_selection_refuses_component_to_data_service
-            key = Component.new_submodel
-            assert_raises(ArgumentError) { DependencyInjection.normalize_selection(key => DataService.new_submodel) }
-        end
-
-        def test_normalize_selection_accepts_component_to_component_that_fullfill_the_key
-            srv = DataService.new_submodel
-            key = Component.new_submodel
-            subcomponent = key.new_submodel
-            subcomponent.provides srv, as: "srv"
-
-            assert_equal(Hash[key => subcomponent], DependencyInjection.normalize_selection(key => subcomponent))
-            subcomponent = subcomponent.new
-            assert_equal(Hash[key => subcomponent], DependencyInjection.normalize_selection(key => subcomponent))
-        end
-
-        def test_normalize_selection_accepts_component_to_instance_requirements_that_fullfill_the_key
-            key = Component.new_submodel
-            req = InstanceRequirements.new([key])
-            assert_equal(Hash[key => req], DependencyInjection.normalize_selection(key => req))
-        end
-
-        def test_normalize_selection_rejects_component_to_component_that_does_not_fullfill_the_key
-            key = Component.new_submodel
-            srv = DataService.new_submodel
-            component = Component.new_submodel { provides(srv, as: "srv") }
-
-            assert_raises(ArgumentError) { DependencyInjection.normalize_selection(key => component) }
-            assert_raises(ArgumentError) { DependencyInjection.normalize_selection(key => component.srv_srv) }
-            component = component.new
-            assert_raises(ArgumentError) { DependencyInjection.normalize_selection(key => component) }
-            assert_raises(ArgumentError) { DependencyInjection.normalize_selection(key => component.srv_srv) }
-        end
-
-        def test_normalize_selection_rejects_component_to_instance_requirements_that_fullfill_the_key
-            key = Component.new_submodel
-            req = InstanceRequirements.new([Component.new_submodel])
-            assert_raises(ArgumentError) { DependencyInjection.normalize_selection(key => req) }
-        end
-
-        def test_normalize_selection_accepts_data_service_to_string_nil_and_identity
-            key = DataService.new_submodel
-            assert_equal(Hash[key => DependencyInjection.nothing], DependencyInjection.normalize_selection(key => DependencyInjection.nothing))
-            assert_equal(Hash[key => DependencyInjection.do_not_inherit], DependencyInjection.normalize_selection(key => DependencyInjection.do_not_inherit))
-            assert_equal(Hash[key => "value"], DependencyInjection.normalize_selection(key => "value"))
-            assert_equal(Hash[key => key], DependencyInjection.normalize_selection(key => key))
-        end
-
-        def test_normalize_selection_accepts_data_service_to_data_service_that_fullfill_the_key
-            srv0 = DataService.new_submodel
-            srv1 = DataService.new_submodel { provides srv0 }
-            assert_equal(Hash[srv0 => srv1], DependencyInjection.normalize_selection(srv0 => srv1))
-        end
-
-        def test_normalize_selection_accepts_data_service_to_instance_requirements_that_fullfill_the_key
-            key = DataService.new_submodel
-            req = InstanceRequirements.new([key])
-            assert_equal(Hash[key => req.find_data_service_from_type(key)], DependencyInjection.normalize_selection(key => req))
-        end
-
-        def test_normalize_selection_accepts_data_service_to_instance_requirements_that_fullfill_the_key_and_selects_the_corresponding_service
-            key = DataService.new_submodel
-            c = Component.new_submodel { provides key, as: "srv" }
-            req = InstanceRequirements.new([c])
-            normalized = DependencyInjection.normalize_selection(key => req)
-            req_srv = req.dup
-            req_srv.select_service(c.srv_srv)
-            assert_equal(Hash[key => req_srv], normalized)
-        end
-
-        def test_normalize_selection_accepts_data_service_to_component_that_fullfill_the_key_and_maps_the_service
-            srv0 = DataService.new_submodel
-            c = Component.new_submodel { provides srv0, as: "srv" }
-            assert_equal(Hash[srv0 => c.srv_srv], DependencyInjection.normalize_selection(srv0 => c))
-            c = c.new
-            assert_equal(Hash[srv0 => c.srv_srv], DependencyInjection.normalize_selection(srv0 => c))
-        end
-
-        def test_normalize_selection_rejects_data_service_to_instance_requirements_that_does_not_fullfill_the_key
-            key = DataService.new_submodel
-            req = InstanceRequirements.new([DataService.new_submodel])
-            assert_raises(ArgumentError) { DependencyInjection.normalize_selection(key => req) }
-        end
-
-        def test_normalize_selection_rejects_data_service_to_component_that_has_multiple_matching_candidates
-            srv0 = DataService.new_submodel
-            c = Component.new_submodel do
-                provides srv0, as: "srv0"
-                provides srv0, as: "srv1"
-            end
-            assert_raises(Syskit::AmbiguousServiceSelection) { DependencyInjection.normalize_selection(srv0 => c) }
-        end
-
-        def test_normalize_selection_rejects_data_service_to_data_service_that_does_not_fullfill_the_key
-            assert_raises(ArgumentError) { DependencyInjection.normalize_selection(DataService.new_submodel => DataService.new_submodel) }
-        end
-
-        def test_normalize_selection_converts_arbitrary_values_to_instance_requirements
-            req = InstanceRequirements.new
-            value = flexmock
-            value.should_receive(:to_instance_requirements).once
-                 .and_return(req)
-            di = DependencyInjection.new
-            di.add("name" => value)
-            assert_same req, di.explicit["name"]
         end
 
         def test_resolve_default_selections_selects_all_models_fullfilled_by_a_component_model
