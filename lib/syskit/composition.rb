@@ -192,6 +192,8 @@ module Syskit
         #
         # will return false if any of the children is not executable.
         def executable? # :nodoc:
+            return super if Syskit.conf.compositions_use_schedule_as?
+
             return false unless super
             return true if @executable
 

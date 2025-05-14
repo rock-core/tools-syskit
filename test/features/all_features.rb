@@ -1,4 +1,5 @@
 # frozen_string_literal: true
 
-require "test/features/early_deploy"
-require "test/features/capture_errors"
+Syskit.conf.early_deploy = true
+Syskit.conf.capture_errors_during_network_resolution = true
+Syskit.conf.compositions_use_schedule_as = true

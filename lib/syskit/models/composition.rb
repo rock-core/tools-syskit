@@ -1076,6 +1076,10 @@ module Syskit
                         end
 
                         self_task.depends_on(child_task, dependency_options)
+                        if Syskit.conf.compositions_use_schedule_as?
+                            self_task.schedule_as(child_task)
+                        end
+
                         self_task.child_selection[child_name] = selected_child
                         if (main = main_task) && (main.child_name == child_name)
                             child_task.each_event do |ev|

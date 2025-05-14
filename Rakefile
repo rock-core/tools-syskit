@@ -44,18 +44,13 @@ def core_task(name, files_setup)
     end
 end
 
-def core(early_deploy: false, capture_errors_during_network_resolution: false,
-    all_features: false)
-    s = ":no-features"
-    if capture_errors_during_network_resolution
-        s = ":capture-errors"
-        files_setup = ["test/features/capture_errors.rb"]
-    elsif early_deploy
-        s = ":early-deploy"
-        files_setup = ["test/features/early_deploy.rb"]
-    elsif all_features
+def core(all_features: false)
+    if all_features
         s = ":all-features"
         files_setup = ["test/features/all_features.rb"]
+    else
+        s = ":no-features"
+        files_setup = []
     end
 
     core_task(s, files_setup)
@@ -88,13 +83,10 @@ Rake::TestTask.new("test:gui") do |t|
     t.warning = false
 end
 
-core early_deploy: true
-core capture_errors_during_network_resolution: true
 core all_features: true
 core
 desc "Run core library tests, excluding GUI and live tests"
-task "test:core" => %w[test:core:no-features test:core:early-deploy
-                       test:core:capture-errors test:core:all-features]
+task "test:core" => %w[test:core:no-features test:core:all-features]
 
 desc "Run all tests"
 task "test" => ["test:gui", "test:core", "test:live", "test:telemetry"]

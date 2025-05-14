@@ -193,6 +193,22 @@ module Syskit
             # spaced by {#remote_process_managers_connection_retry_period}
             attr_accessor :remote_process_managers_initial_connection_timeout
 
+            # Change the mechanism through which Syskit synchronizes
+            # a composition and its children
+            #
+            # @see #compositions_use_schedule_as?
+            attr_writer :compositions_use_schedule_as
+
+            # Which mechanism Syskit uses to synchronize a composition and its children
+            #
+            # The default of false uses the old way. Change to true to test the new
+            # way. The old way could lead to deadlocks (subsystems not being started)
+            # when the child of a composition was swapped for another (unstarted) one
+            # dynamically
+            def compositions_use_schedule_as?
+                @compositions_use_schedule_as
+            end
+
             # Controls whether the orogen types should be exported as Ruby
             # constants
             #
@@ -234,6 +250,8 @@ module Syskit
                 @remote_process_managers_connection_timeout = 10
                 @remote_process_managers_response_timeout = 10
                 @remote_process_managers_initial_connection_timeout = 60
+
+                @compositions_use_schedule_as = false
 
                 @log_rotation_period = nil
                 @log_transfer = LogTransferManager::Configuration.new(
