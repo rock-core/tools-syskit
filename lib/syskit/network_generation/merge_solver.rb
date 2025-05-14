@@ -262,6 +262,13 @@ module Syskit
                     break
                 end
 
+                if (orocos_name = task.arguments[:orocos_name])
+                    candidates = candidates.find_all do |t|
+                        !t.arguments.set?(:orocos_name) ||
+                            t.arguments[:orocos_name] == orocos_name
+                    end
+                end
+
                 candidates.each do |merged_task|
                     next if task == merged_task
 
