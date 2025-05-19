@@ -148,6 +148,14 @@ module Syskit
             # resolution
             attr_writer :capture_errors_during_network_resolution
 
+            # Only look for configuration files from the current app root path, ignoring
+            # any other registered app
+            attr_writer :local_only_configuration_files
+
+            def local_only_configuration_files?
+                @local_only_configuration_files
+            end
+
             # Whether the initial connection to process servers are allowed to fail
             #
             # When this flag is enabled, the initial connection to remote process managers
@@ -244,6 +252,7 @@ module Syskit
                 @strict_model_for = false
                 @early_deploy = false
                 @capture_errors_during_network_resolution = false
+                @local_only_configuration_files = false
 
                 @remote_process_managers_accept_failed_connections = false
                 @remote_process_managers_connection_retry_period = 5
