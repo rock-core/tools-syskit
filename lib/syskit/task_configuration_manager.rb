@@ -53,7 +53,8 @@ module Syskit
                 local_option[:path] = [app.app_dir]
             end
             app.find_file("config", "orogen", "ROBOT", "#{orogen_model.name}.yml",
-                          order: :specific_first, all: false, **local_option)
+                          order: :specific_first, all: false, prioritize_root_paths: true,
+                          **local_option)
         end
 
         # Tests whether there is a configuration file for this model
