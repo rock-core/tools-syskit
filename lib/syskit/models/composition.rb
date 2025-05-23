@@ -1036,7 +1036,7 @@ module Syskit
                         selected_child = selected_child.dup
 
                         resolved_selected_child = selected_child
-                        if selected_child.selected.fullfills?(Syskit::Composition)
+                        if selected_child.component_model.fullfills?(Syskit::Composition)
                             resolved_selected_child = selected_child.dup
 
                             has_unresolved_reference_to_sibling =
