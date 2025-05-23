@@ -290,24 +290,59 @@ describe Syskit::InstanceRequirements do
             @task_m = Syskit::TaskContext.new_submodel
             task_m.provides srv_m, as: "test"
         end
-        it "should not try to verify a name to value mapping for a known child if the value is a string" do
+
+        it "raises if the model is not a composition" do
+            e = assert_raises(ArgumentError) do
+                @task_m.to_instance_requirements.use("some" => "thing")
+            end
+            assert_match(/available.only.for.compositions/, e.message)
+        end
+
+        describe "when the model is a bound service on a composition" do
+            it "refines it" do
+                @cmp_m.provides @srv_m, as: "srv"
+                cmp = @cmp_m
+                      .srv_srv.to_instance_requirements.use("test" => @task_m)
+                      .instanciate(Roby::Plan.new)
+                assert_kind_of @task_m, cmp.component.test_child
+            end
+
+            it "rejects invalid children names" do
+                @cmp_m.provides @srv_m, as: "srv"
+                assert_raises(ArgumentError) do
+                    @cmp_m.srv_srv.to_instance_requirements
+                          .use("does_not_exist" => @task_m)
+                end
+            end
+
+            it "rejects invalid selected models" do
+                @cmp_m.provides @srv_m, as: "srv"
+                task_m = Syskit::TaskContext.new_submodel
+                assert_raises(Syskit::InvalidSelection) do
+                    @cmp_m.srv_srv.to_instance_requirements
+                          .use("test" => task_m)
+                end
+            end
+        end
+
+        it "does not verify a name to value mapping for a known child if the value is a string" do
             simple_composition_model.overload("srv", simple_component_model)
             simple_composition_model.use("srv" => "device")
         end
-        it "should raise if a name to value mapping is invalid for a known child" do
+        it "raises if a name to value mapping is invalid for a known child" do
             simple_composition_model.overload("srv", simple_component_model)
             assert_raises(Syskit::InvalidSelection) do
                 simple_composition_model.use("srv" => Syskit::TaskContext.new_submodel)
             end
         end
-        it "should raise if a name to value mapping is invalid for a known child, even though the model does not respond to #fullfills?" do
+        it "raises if a name to value mapping is invalid for a known child, even though the model does not respond to #fullfills?" do
             simple_composition_model.overload("srv", simple_component_model)
             req = flexmock(to_instance_requirements: Syskit::TaskContext.new_submodel.to_instance_requirements)
             assert_raises(Syskit::InvalidSelection) do
                 simple_composition_model.use("srv" => req)
             end
         end
-        it "should allow providing a service submodel as a selection for a composition child" do
+        it "allows providing a service submodel as a selection for a composition child" do
             srv_m = Syskit::DataService.new_submodel
             subsrv_m = srv_m.new_submodel
             cmp_m = Syskit::Composition.new_submodel do
@@ -317,11 +352,11 @@ describe Syskit::InstanceRequirements do
             ir.use("test" => subsrv_m)
         end
 
-        it "should raise if a child selection is ambiguous" do
+        it "raises if a child selection is ambiguous" do
             task_m.provides srv_m, as: "ambiguous"
             cmp_m.use("test" => task_m)
         end
-        it "should allow selecting a service explicitly" do
+        it "allows selecting a service explicitly" do
             task_m.provides srv_m, as: "ambiguous"
             req = cmp_m.use("test" => task_m.test_srv)
             assert_equal task_m.test_srv, req.resolved_dependency_injection.explicit["test"]
