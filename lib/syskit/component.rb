@@ -311,7 +311,7 @@ module Syskit
         # should never look into the task's neighborhood
         def can_merge?(task)
             unless super
-                NetworkGeneration::MergeSolver.info(
+                NetworkGeneration::MergeSolver.debug(
                     "rejected: Component#can_merge? super returned false"
                 )
                 return
@@ -319,7 +319,7 @@ module Syskit
 
             # Cannot merge if we are not reusable
             unless reusable?
-                NetworkGeneration::MergeSolver.info(
+                NetworkGeneration::MergeSolver.debug(
                     "rejected: receiver is not reusable"
                 )
                 return
@@ -327,7 +327,7 @@ module Syskit
             # We can not replace a non-abstract task with an
             # abstract one
             if !task.abstract? && abstract?
-                NetworkGeneration::MergeSolver.info(
+                NetworkGeneration::MergeSolver.debug(
                     "rejected: cannot merge a non-abstract task into an abstract one"
                 )
                 return

@@ -214,7 +214,7 @@ module Syskit
                 # Component#can_merge?  should not look at the relation graphs,
                 # only at criteria internal to the tasks.
                 unless can_merge
-                    info "rejected: can_merge? returned false"
+                    debug "rejected: can_merge? returned false"
                     return false
                 end
 
@@ -234,7 +234,7 @@ module Syskit
                 # Merges involving a deployed task can only involve a
                 # non-deployed task as well
                 unless mergeable_agents?(merged_task, task)
-                    info "rejected: deployment attribute mismatches"
+                    debug "rejected: deployment attribute mismatches"
                     return false
                 end
 
@@ -365,7 +365,7 @@ module Syskit
                     if merged_task_child == task_child
                         merged_task_child
                     else
-                        info "rejected: compositions with different children or children in different roles"
+                        debug "rejected: compositions with different children or children in different roles"
                         debug do
                             debug "  in role #{role},"
                             log_nest(2) do
@@ -380,7 +380,7 @@ module Syskit
                 end
 
                 if merged_children.each_value.any?(&:placeholder?)
-                    info "rejected: compositions still have unresolved children"
+                    debug "rejected: compositions still have unresolved children"
                     return false
                 end
 
@@ -388,7 +388,7 @@ module Syskit
                 task_exports = enumerate_composition_exports(task)
                 merged_task_exports = enumerate_composition_exports(merged_task)
                 if merged_task_exports != task_exports
-                    info "rejected: compositions with different exports"
+                    debug "rejected: compositions with different exports"
                     return false
                 end
 
@@ -550,16 +550,16 @@ module Syskit
                 merged_source_task = m_connection.source_task
                 source_task = connection.source_task
 
-                info do
-                    info "  looking to pair the inputs of port #{sink_port} of"
-                    info "    #{merged_source_task}"
-                    info "    -- and --"
-                    info "    #{source_task}"
+                debug do
+                    debug "  looking to pair the inputs of port #{sink_port} of"
+                    debug "    #{merged_source_task}"
+                    debug "    -- and --"
+                    debug "    #{source_task}"
                     break
                 end
 
                 if mappings[merged_source_task] == source_task
-                    info "  are already paired in the merge resolution: matching"
+                    debug "  are already paired in the merge resolution: matching"
                     return
                 end
 
@@ -568,10 +568,10 @@ module Syskit
                 end
 
                 if resolution.can_merge?
-                    info "  resolved"
+                    debug "  resolved"
                     resolution
                 else
-                    info "  rejected: cannot find mapping to merge both tasks"
+                    debug "  rejected: cannot find mapping to merge both tasks"
                     MergeResolution.new(
                         resolution.mappings, m_connection.sink_task, connection.sink_task,
                         [connection] + resolution.failure_chain,
