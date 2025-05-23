@@ -956,7 +956,7 @@ module Syskit
                         specialization_hints: specialization_hints
                     )
                 ensure
-                    context.restore unless from_cache
+                    context.restore
                 end
             end
 
