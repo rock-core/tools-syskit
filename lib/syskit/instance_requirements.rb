@@ -598,7 +598,9 @@ module Syskit
                 if child = composition_model.find_child(child_name)
                     _, selected_m, = new_mappings.selection_for(child_name, child)
                     unless selected_m.fullfills?(child)
-                        raise InvalidSelection.new(child_name, req, child), "#{req} is not a valid selection for #{child_name}. Was expecting something that provides #{child}"
+                        raise InvalidSelection.new(child_name, req, child),
+                              "#{req} is not a valid selection for #{child_name}. " \
+                              "Was expecting something that provides #{child}"
                     end
                 end
             end
@@ -890,24 +892,99 @@ module Syskit
 
         # Returns the DI object used by this instance requirements task
         #
+        # This is a cached result. Use {#compute_resolved_dependency_injection}
+        # to always compute a new result
+        #
         # @return [DependencyInjection]
         def resolved_dependency_injection
-            unless @di
-                context = DependencyInjectionContext.new
-                context.push(context_selections)
-                # Add a barrier for the names that our models expect. This is
-                # required to avoid recursively reusing names (which was once
-                # upon a time, and is a very confusing feature)
-                barrier = Syskit::DependencyInjection.new
-                barrier.add_mask(placeholder_model.dependency_injection_names)
-                context.push(barrier)
-                context.push(pushed_selections)
-                context.push(selections)
-                @di = context.current_state
-            end
-            @di
+            return @di if @di
+
+            context = DependencyInjectionContext.new
+            context.push(context_selections)
+            # Add a barrier for the names that our models expect. This is
+            # required to avoid recursively reusing names (which was once
+            # upon a time, and is a very confusing feature)
+            barrier = Syskit::DependencyInjection.new
+            barrier.add_mask(placeholder_model.dependency_injection_names)
+            context.push(barrier)
+            context.push(pushed_selections)
+            context.push(selections)
+            @di = context.current_state
         end
 
+        # Create a concrete task for this requirement
+        def instanciate(
+            plan, context = Syskit::DependencyInjectionContext.new,
+            task_arguments: {}, specialization_hints: {}, use_template: true
+        )
+            from_cache =
+                context.empty? && specialization_hints.empty? &&
+                use_template && can_use_template?
+            task =
+                if from_cache
+                    instanciate_from_template(plan, task_arguments)
+                else
+                    instanciate_from_scratch(context, plan, task_arguments)
+                end
+
+            post_instanciation_setup(task.to_task)
+            model.bind(task)
+        rescue InstanciationError => e
+            e.instanciation_chain << self
+            raise
+        end
+
+        # @api private
+        #
+        # Instanciates the network represented by self in the given plan without using
+        # the cache
+        #
+        # Unlike {#instanciate_from_template}
+        def instanciate_from_scratch(context, plan, task_arguments)
+            context.save
+            context.push(resolved_dependency_injection)
+
+            task_arguments = arguments.merge(task_arguments)
+            specialization_hints =
+                self.specialization_hints |
+                specialization_hints
+            placeholder_model.instanciate(
+                plan, context,
+                task_arguments: task_arguments,
+                specialization_hints: specialization_hints
+            )
+        ensure
+            context.restore
+        end
+
+        # @api private
+        #
+        # Instanciate the network represented by self in plan using a precomputed template
+        #
+        # The template plan will be computed if needed
+        def instanciate_from_template(plan, extra_arguments)
+            @template ||= compute_template
+
+            mappings = @template.deep_copy_to(plan)
+            root_task = mappings[@template.root_task]
+            root_task.post_instanciation_setup(**arguments.merge(extra_arguments))
+            model.bind(root_task)
+        end
+
+        # Compute the template and save it if needed
+        #
+        # @return [void]
+        def update_template_if_needed
+            return unless can_use_template?
+
+            @template ||= compute_template
+        end
+
+        # @api private
+        #
+        # Compute the template plan for the network represented by self
+        #
+        # @return [TemplatePlan]
         def compute_template
             base_requirements = dup.with_no_arguments
             template = TemplatePlan.new
@@ -922,7 +999,7 @@ module Syskit
                 template.root_task = merge_solver.replacement_for(template.root_task)
             end
 
-            @template = template
+            template
         end
 
         def template_can_apply_merge?(template)
@@ -962,46 +1039,7 @@ module Syskit
             !!@template
         end
 
-        # Create a concrete task for this requirement
-        def instanciate(plan,
-            context = Syskit::DependencyInjectionContext.new,
-            task_arguments: {},
-            specialization_hints: {},
-            use_template: true)
-
-            from_cache =
-                context.empty? && specialization_hints.empty? &&
-                use_template && can_use_template?
-            if from_cache
-                task = instanciate_from_template(plan, task_arguments)
-            else
-                begin
-                    task_model = placeholder_model
-
-                    context.save
-                    context.push(resolved_dependency_injection)
-
-                    task_arguments = arguments.merge(task_arguments)
-                    specialization_hints =
-                        self.specialization_hints |
-                        specialization_hints
-                    task = task_model.instanciate(
-                        plan, context,
-                        task_arguments: task_arguments,
-                        specialization_hints: specialization_hints
-                    )
-                ensure
-                    context.restore
-                end
-            end
-
-            post_instanciation_setup(task.to_task)
-            model.bind(task)
-        rescue InstanciationError => e
-            e.instanciation_chain << self
-            raise
-        end
-
+        # Refinement of the task network generated by model instanciation
         def post_instanciation_setup(task)
             task_requirements = to_component_model
             task_requirements.map_use_selections! do |sel|
@@ -1013,8 +1051,10 @@ module Syskit
                     sel
                 end
             end
-            task.update_requirements(task_requirements,
-                                     name: name, keep_abstract: true)
+
+            task.update_requirements(
+                task_requirements, name: name, keep_abstract: true
+            )
 
             if required_host && task.respond_to?(:required_host=)
                 task.required_host = required_host
@@ -1022,14 +1062,27 @@ module Syskit
             task.abstract = true if abstract?
         end
 
+        # List of task model and service models provided by instances of self
+        #
+        # @yieldparam [Models::Component,Models::DataServiceModel,
+        #              Roby::Models::TaskServiceModel] model
         def each_fullfilled_model(&block)
             model.each_fullfilled_model(&block)
         end
 
+        # Model that this instance requirement fullfills, that is can be used "as-if"
+        #
+        # @return [Class<Component>,
+        #   [Models::DataServiceModel,Roby::Models::TaskServiceModel],Hash] a triplet
+        #   of the component model represented by self, the list of service models (either
+        #   syskit's data service or Roby's task service) and the arguments.
         def fullfilled_model
             fullfilled = model.fullfilled_model
             task_model = fullfilled.find { |m| m <= Roby::Task } || Syskit::Component
-            tags = fullfilled.find_all { |m| m.kind_of?(Syskit::Models::DataServiceModel) || m.kind_of?(Roby::Models::TaskServiceModel) }
+            tags = fullfilled.find_all do |m|
+                m.kind_of?(Syskit::Models::DataServiceModel) ||
+                    m.kind_of?(Roby::Models::TaskServiceModel)
+            end
             [task_model.concrete_model, tags, @arguments.dup]
         end
 
