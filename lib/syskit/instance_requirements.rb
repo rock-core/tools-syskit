@@ -372,12 +372,14 @@ module Syskit
             end
         end
 
+        # (see Models::BoundDataService#as_real_model)
         def as_real_model
             result = dup
             result.as_real_model!
             result
         end
 
+        # (see Models::BoundDataService#as_real_model)
         def as_real_model!
             @base_model = base_model.as_real_model
             @model = model.as_real_model
