@@ -94,6 +94,22 @@ describe Syskit::InstanceSelection do
         end
     end
 
+    describe "#component_model" do
+        it "returns the selected model with its bound service removed" do
+            srv_m = Syskit::DataService.new_submodel
+            component_m = Syskit::Component.new_submodel do
+                provides srv_m, as: "test"
+            end
+            sel = Syskit::InstanceSelection.new(
+                nil,
+                component_m.to_instance_requirements,
+                srv_m.to_instance_requirements
+            )
+            assert_equal component_m.test_srv.to_instance_requirements, sel.selected
+            assert_equal component_m, sel.component_model
+        end
+    end
+
     describe "#port_mappings" do
         it "merges the port mappings from all selected services" do
             stub_t = self.stub_t
