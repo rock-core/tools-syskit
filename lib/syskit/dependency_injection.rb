@@ -59,37 +59,33 @@ module Syskit
         end
 
         def pretty_print(pp)
-            pp.text "DependencyInjection"
+            pretty_print_defaults(pp)
 
-            pp.breakable
-            pp.text "Explicit:"
-            unless explicit.empty?
-                pp.nest(2) do
-                    pp.breakable
-                    explicit = self.explicit.map do |k, v|
-                        k = k.short_name
-                        v = v.short_name
-                        [k, "#{k} => #{v}"]
-                    end.sort_by(&:first)
-                    pp.seplist(explicit) do |kv|
-                        pp.text kv[1]
-                    end
-                end
+            return if explicit.empty?
+
+            pp.comma_breakable unless defaults.empty?
+            pretty_print_explicit(pp)
+        end
+
+        def pretty_print_defaults(pp)
+            return if defaults.empty?
+
+            defaults_s = defaults.map(&:to_s).sort
+            pp.seplist(defaults_s) do |v|
+                pp.text v.to_s
             end
+        end
 
-            pp.breakable
-            pp.text "Defaults:"
-            unless defaults.empty?
-                pp.nest(2) do
-                    pp.breakable
-                    defaults = self.defaults.map(&:to_s).sort
-                    pp.seplist(defaults) do |v|
-                        pp.text v.to_s
-                    end
-                end
+        def pretty_print_explicit(pp)
+            explicit_s = explicit.map do |k, v|
+                k = k.short_name
+                v = v.short_name
+                [k, "#{k} => #{v}"]
+            end.sort_by(&:first)
+
+            pp.seplist(explicit_s) do |kv|
+                pp.text kv[1]
             end
-
-            nil
         end
 
         # @overload add(default0, default1, key0 => value0)

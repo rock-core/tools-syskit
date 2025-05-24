@@ -53,7 +53,6 @@ Layout/LineLength:
     - 'lib/syskit/gui/runtime_state.rb'
     - 'lib/syskit/gui/state_label.rb'
     - 'lib/syskit/gui/testing.rb'
-    - 'lib/syskit/instance_requirements.rb'
     - 'lib/syskit/instance_selection.rb'
     - 'lib/syskit/models/base.rb'
     - 'lib/syskit/models/component.rb'
@@ -194,7 +193,6 @@ Layout/MultilineOperationIndentation:
   Exclude:
     - 'lib/syskit/graphviz.rb'
     - 'lib/syskit/gui/model_browser.rb'
-    - 'lib/syskit/instance_requirements.rb'
     - 'lib/syskit/models/deployment.rb'
     - 'lib/syskit/models/port.rb'
     - 'lib/syskit/roby_app/plugin.rb'
@@ -244,7 +242,6 @@ Lint/AssignmentInCondition:
     - 'lib/syskit/gui/runtime_state.rb'
     - 'lib/syskit/gui/state_label.rb'
     - 'lib/syskit/gui/widget_list.rb'
-    - 'lib/syskit/instance_requirements.rb'
     - 'lib/syskit/instance_selection.rb'
     - 'lib/syskit/models/composition_child.rb'
     - 'lib/syskit/models/composition_specialization.rb'
@@ -445,7 +442,6 @@ Lint/UnusedBlockArgument:
     - 'lib/syskit/gui/model_views/composition.rb'
     - 'lib/syskit/gui/runtime_state.rb'
     - 'lib/syskit/gui/widget_list.rb'
-    - 'lib/syskit/instance_requirements.rb'
     - 'lib/syskit/models/composition_specialization.rb'
     - 'lib/syskit/models/specialization_manager.rb'
     - 'lib/syskit/network_generation/dataflow_computation.rb'
@@ -580,7 +576,6 @@ Metrics/AbcSize:
     - 'lib/syskit/gui/runtime_state.rb'
     - 'lib/syskit/gui/testing.rb'
     - 'lib/syskit/gui/widget_list.rb'
-    - 'lib/syskit/instance_requirements.rb'
     - 'lib/syskit/instance_selection.rb'
     - 'lib/syskit/interface/commands.rb'
     - 'lib/syskit/models/base.rb'
@@ -689,9 +684,9 @@ Metrics/BlockNesting:
 # Configuration parameters: CountComments, Max, CountAsOne.
 Metrics/ClassLength:
   Exclude:
+    - 'lib/syskit/instance_requirements.rb'
     - 'lib/syskit/dependency_injection.rb'
     - 'lib/syskit/graphviz.rb'
-    - 'lib/syskit/instance_requirements.rb'
     - 'lib/syskit/network_generation/engine.rb'
     - 'lib/syskit/runtime/connection_management.rb'
     - 'lib/syskit/task_context.rb'
@@ -721,7 +716,6 @@ Metrics/CyclomaticComplexity:
     - 'lib/syskit/gui/model_views/profile.rb'
     - 'lib/syskit/gui/runtime_state.rb'
     - 'lib/syskit/gui/testing.rb'
-    - 'lib/syskit/instance_requirements.rb'
     - 'lib/syskit/instance_selection.rb'
     - 'lib/syskit/models/base.rb'
     - 'lib/syskit/models/bound_data_service.rb'
@@ -829,7 +823,6 @@ Metrics/PerceivedComplexity:
     - 'lib/syskit/gui/model_views/profile.rb'
     - 'lib/syskit/gui/runtime_state.rb'
     - 'lib/syskit/gui/testing.rb'
-    - 'lib/syskit/instance_requirements.rb'
     - 'lib/syskit/instance_selection.rb'
     - 'lib/syskit/models/base.rb'
     - 'lib/syskit/models/bound_data_service.rb'
@@ -934,7 +927,6 @@ Naming/MethodParameterName:
     - 'lib/syskit/gui/runtime_state.rb'
     - 'lib/syskit/gui/testing.rb'
     - 'lib/syskit/gui/widget_list.rb'
-    - 'lib/syskit/instance_requirements.rb'
     - 'lib/syskit/models/base.rb'
     - 'lib/syskit/models/bound_data_service.rb'
     - 'lib/syskit/models/composition.rb'
@@ -1020,11 +1012,6 @@ Style/ConcatArrayLiterals:
   Exclude:
     - 'lib/syskit/graphviz.rb'
 
-# Offense count: 1
-Style/DocumentDynamicEvalDefinition:
-  Exclude:
-    - 'lib/syskit/instance_requirements.rb'
-
 # Offense count: 129
 # Configuration parameters: AllowedConstants.
 Style/Documentation:
@@ -1069,7 +1056,6 @@ Style/Documentation:
     - 'lib/syskit/gui/runtime_state.rb'
     - 'lib/syskit/gui/testing.rb'
     - 'lib/syskit/gui/widget_list.rb'
-    - 'lib/syskit/instance_requirements.rb'
     - 'lib/syskit/models/base.rb'
     - 'lib/syskit/models/composition.rb'
     - 'lib/syskit/models/composition_child.rb'
@@ -1158,7 +1144,6 @@ Style/GuardClause:
     - 'lib/syskit/gui/model_views/task_context_base.rb'
     - 'lib/syskit/gui/runtime_state.rb'
     - 'lib/syskit/gui/widget_list.rb'
-    - 'lib/syskit/instance_requirements.rb'
     - 'lib/syskit/models/bound_dynamic_data_service.rb'
     - 'lib/syskit/models/composition_child.rb'
     - 'lib/syskit/models/composition_specialization.rb'
@@ -1276,7 +1261,6 @@ Style/HashSyntax:
     - 'lib/syskit/coordination/models/task_extension.rb'
     - 'lib/syskit/deployment.rb'
     - 'lib/syskit/gui/logging_configuration.rb'
-    - 'lib/syskit/instance_requirements.rb'
     - 'lib/syskit/models/specialization_manager.rb'
     - 'lib/syskit/roby_app/plugin.rb'
     - 'lib/syskit/ros/roby_app/configuration.rb'
@@ -1301,7 +1285,6 @@ Style/HashTransformValues:
 Style/IdenticalConditionalBranches:
   Exclude:
     - 'lib/syskit/gui/model_views/task_context.rb'
-    - 'lib/syskit/instance_requirements.rb'
     - 'lib/syskit/roby_app/rest_api.rb'
 
 # Offense count: 149
@@ -1328,7 +1311,6 @@ Style/IfUnlessModifier:
     - 'lib/syskit/gui/model_views/task_context_base.rb'
     - 'lib/syskit/gui/runtime_state.rb'
     - 'lib/syskit/gui/widget_list.rb'
-    - 'lib/syskit/instance_requirements.rb'
     - 'lib/syskit/instance_selection.rb'
     - 'lib/syskit/models/base.rb'
     - 'lib/syskit/models/composition_specialization.rb'

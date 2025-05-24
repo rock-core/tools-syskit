@@ -275,9 +275,39 @@ module Syskit
                                   conf: ["default"],
                                   read_only: false
                             T<id:X>(arg: 2, conf: ["default"], read_only: false, test_dev: device(D, as: test)) is needed by the following definitions:
-                              #<Class:0xXXXXXX>.use(t1 => T<id:X>(arg: 1, conf: ["default"], read_only: false, test_dev: device(D, as: test)), t2 => T<id:X>(arg: 2, conf: ["default"], read_only: false, test_dev: device(D, as: test)))
+                              #<Class:0xXXXXXX>.use(
+                                t1 => T<id:X>
+                                  no owners
+                                  arguments:
+                                    arg: 1,
+                                    test_dev: MasterDeviceInstance(test[D]_dev),
+                                    conf: ["default"],
+                                    read_only: false,
+                                t2 => T<id:X>
+                                  no owners
+                                  arguments:
+                                    arg: 2,
+                                    test_dev: MasterDeviceInstance(test[D]_dev),
+                                    conf: ["default"],
+                                    read_only: false
+                              )
                             T<id:X>(arg: 1, conf: ["default"], read_only: false, test_dev: device(D, as: test)) is needed by the following definitions:
-                              #<Class:0xXXXXXX>.use(t1 => T<id:X>(arg: 1, conf: ["default"], read_only: false, test_dev: device(D, as: test)), t2 => T<id:X>(arg: 2, conf: ["default"], read_only: false, test_dev: device(D, as: test)))
+                              #<Class:0xXXXXXX>.use(
+                                t1 => T<id:X>
+                                  no owners
+                                  arguments:
+                                    arg: 1,
+                                    test_dev: MasterDeviceInstance(test[D]_dev),
+                                    conf: ["default"],
+                                    read_only: false,
+                                t2 => T<id:X>
+                                  no owners
+                                  arguments:
+                                    arg: 2,
+                                    test_dev: MasterDeviceInstance(test[D]_dev),
+                                    conf: ["default"],
+                                    read_only: false
+                              )
                         PP
                         errors.each do |err|
                             assert_exception(err, requirement_tasks.first.planned_task,

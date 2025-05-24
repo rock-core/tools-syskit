@@ -73,15 +73,17 @@ module Syskit
                 task.add_trigger("period", Float(period), sample_size)
             end
 
-            def add_port_info(port_name, info)
-                (ports[port_name.to_str] ||= NetworkGeneration::PortDynamics.new(port_name.to_str))
-                    .merge(info)
-            end
+            # Return an existing port dynamics object if it exists, or creates it
+            #
+            # @param [Strong] port_name
+            # @return [NetworkGeneration::PortDynamics]
+            def find_or_create_port_dynamics(port_name)
+                port_name = port_name.to_str
+                if (dynamics = ports[port_name])
+                    return dynamics
+                end
 
-            # (see InstanceRequirements#add_port_period)
-            def add_port_period(port_name, period, sample_count = 1)
-                (ports[port_name.to_str] ||= NetworkGeneration::PortDynamics.new(port_name.to_str))
-                    .add_trigger("period", period, sample_count)
+                ports[port_name] = NetworkGeneration::PortDynamics.new(port_name)
             end
 
             # (see InstanceRequirements#find_port_dynamics)
@@ -89,10 +91,22 @@ module Syskit
                 ports[port_name.to_str]
             end
 
+            def add_port_info(port_name, info)
+                find_or_create_port_dynamics(port_name).merge(info)
+            end
+
+            # (see InstanceRequirements#add_port_period)
+            def add_port_period(port_name, period, sample_count = 1)
+                find_or_create_port_dynamics(port_name)
+                    .add_trigger("period", period, sample_count)
+            end
+
             def merge(other)
                 task.merge(other.task)
-                other.ports.each_key { |port_name| ports[port_name] ||= NetworkGeneration::PortDynamics.new(port_name) }
-                @ports = ports.merge(other.ports) do |port_name, old, new|
+                other.ports.each_key do |port_name|
+                    ports[port_name] ||= NetworkGeneration::PortDynamics.new(port_name)
+                end
+                @ports = ports.merge(other.ports) do |_port_name, old, new|
                     old.merge(new)
                 end
             end
@@ -111,7 +125,8 @@ module Syskit
             @context_selections = DependencyInjection.new
             @deployment_hints = Set.new
             @specialization_hints = Set.new
-            @dynamics = Dynamics.new(NetworkGeneration::PortDynamics.new("Requirements"), {})
+            @dynamics = Dynamics.new(NetworkGeneration::PortDynamics.new("Requirements"),
+                                     {})
             @can_use_template = true
             @deployment_group = Models::DeploymentGroup.new
         end
@@ -121,7 +136,7 @@ module Syskit
         # HACK:
         # HACK: the proper fix would be to make the IR an attribute of
         # HACK: CompositionChild instead of a superclass
-        def do_copy(old)
+        def do_copy(old) # rubocop:disable Metrics/AbcSize
             @di = nil
             @template = old.template
             @abstract = old.abstract?
@@ -142,14 +157,14 @@ module Syskit
             do_copy(old)
         end
 
-        def self.from_object(object, original_requirements = Syskit::InstanceRequirements.new)
+        def self.from_object(
+            object, original_requirements = Syskit::InstanceRequirements.new
+        )
             if object.plain?
                 object = object.dup
                 object.merge(original_requirements, keep_abstract: true)
-                object
-            else
-                object
             end
+            object
         end
 
         # Add new models to the set of required ones
@@ -175,7 +190,11 @@ module Syskit
             @template = nil
         end
 
+        # @api private
+        #
+        # Plan object used to store a pre-calculated network structure
         class TemplatePlan < Roby::TemplatePlan
+            # The root task (i.e. the task that self is directly representing)
             attr_accessor :root_task
         end
 
@@ -252,9 +271,7 @@ module Syskit
                 model
             elsif model.placeholder?
                 ds = model.proxied_data_service_models
-                if ds.size == 1
-                    model.find_data_service_from_type(ds.first)
-                end
+                model.find_data_service_from_type(ds.first) if ds.size == 1
             end
         end
 
@@ -271,32 +288,52 @@ module Syskit
         #   the resulting BoundDataService is attached to the actual model
         #   in {#model} and this return value is different from 'service'
         def select_service(service)
-            if self.service && !self.service.fullfills?(service)
-                raise ArgumentError, "#{self} already points to a service which is different from #{service}"
-            end
-
-            unless model.to_component_model.fullfills?(service.component_model)
-                raise ArgumentError, "#{service} is not a service of #{self}"
-            end
+            validate_can_select_service(service)
 
             if service.kind_of?(InstanceRequirements)
                 merge(service)
             elsif service.component_model.placeholder?
-                if srv = base_model.find_data_service_from_type(service.model)
-                    @base_model = srv
-                    @model = srv.attach(model)
-                else
-                    @base_model = model.find_data_service_from_type(service.model)
-                    @model = base_model
-                end
-            elsif srv = base_model.find_data_service(service.name)
+                select_placeholder_service(service)
+            elsif (srv = base_model.find_data_service(service.name))
                 @base_model = srv
-                @model = srv.attach(model)
+                @model = srv.attach(@model)
             else
                 @base_model = service.attach(model)
-                @model = base_model
+                narrow_model
             end
             self
+        end
+
+        # @api private
+        #
+        # Helper for {#select_service} for basic checks on whether this
+        # InstanceRequirements is suitable to select the given service
+        def validate_can_select_service(service)
+            if self.service && !self.service.fullfills?(service)
+                raise ArgumentError,
+                      "#{self} already points to a service " \
+                      "which is different from #{service}"
+            end
+
+            return if model.to_component_model.fullfills?(service.component_model)
+
+            raise ArgumentError, "#{service} is not a service of #{self}"
+        end
+
+        # @api private
+        #
+        # Helper for {#select_service} in the case where the service being selected
+        # is from a placeholder model
+        #
+        # In that case, we have to select from type and not from name
+        def select_placeholder_service(service)
+            if (srv = base_model.find_data_service_from_type(service.model))
+                @base_model = srv
+                @model = srv.attach(@model)
+            else
+                @base_model = model.find_data_service_from_type(service.model)
+                narrow_model
+            end
         end
 
         # Removes any service selection
@@ -304,9 +341,7 @@ module Syskit
             if base_model.respond_to?(:component_model)
                 @base_model = base_model.component_model
             end
-            if model.respond_to?(:component_model)
-                @model = model.component_model
-            end
+            @model = model.component_model if model.respond_to?(:component_model)
         end
 
         def has_data_service?(service_name)
@@ -320,11 +355,11 @@ module Syskit
         #   data service selected or nil if there are no service with the
         #   requested name
         def find_data_service(service_name)
-            if service = model.find_data_service(service_name)
-                result = dup
-                result.select_service(service)
-                result
-            end
+            return unless (service = model.find_data_service(service_name))
+
+            result = dup
+            result.select_service(service)
+            result
         end
 
         # Finds the only data service that matches the given service type
@@ -336,7 +371,7 @@ module Syskit
         #   matches
         def find_data_service_from_type(service_type)
             if model.respond_to?(:find_data_service_from_type)
-                if service = model.find_data_service_from_type(service_type)
+                if (service = model.find_data_service_from_type(service_type))
                     result = dup
                     result.select_service(service)
                     result
@@ -399,21 +434,21 @@ module Syskit
                 raise ArgumentError, "#{self} is not a composition"
             end
 
-            if child = model.find_child(name)
-                child.attach(self)
-            end
+            return unless (child = model.find_child(name))
+
+            child.attach(self)
         end
 
         def find_input_port(name)
-            if p = model.find_input_port(name)
-                p.attach(self)
-            end
+            return unless (p = model.find_input_port(name))
+
+            p.attach(self)
         end
 
         def find_output_port(name)
-            if p = model.find_output_port(name)
-                p.attach(self)
-            end
+            return unless (p = model.find_output_port(name))
+
+            p.attach(self)
         end
 
         def has_port?(name)
@@ -425,11 +460,13 @@ module Syskit
         end
 
         def port_by_name(name)
-            if p = find_port(name)
-                p
-            else
-                raise ArgumentError, "#{self} has no port called #{name}, known ports are: #{each_port.map(&:name).sort.join(', ')}"
+            if (p = find_port(name))
+                return p
             end
+
+            existing = each_port.map(&:name).sort.join(", ")
+            raise ArgumentError,
+                  "#{self} has no port called #{name}, known ports are: #{existing}"
         end
 
         # Enumerates all of this component's ports
@@ -465,7 +502,7 @@ module Syskit
         #
         # Throws ArgumentError if the two specifications are not compatible
         # (i.e. can't be merged)
-        def merge(other_spec, keep_abstract: false)
+        def merge(other_spec, keep_abstract: false) # rubocop:disable Metrics/AbcSize
             if keep_abstract
                 @abstract ||= other_spec.abstract?
             elsif !other_spec.abstract?
@@ -475,7 +512,9 @@ module Syskit
             @base_model = base_model.merge(other_spec.base_model)
             @arguments = @arguments.merge(other_spec.arguments) do |name, v1, v2|
                 if v1 != v2
-                    raise ArgumentError, "cannot merge #{self} and #{other_spec}: argument value mismatch for #{name}, resp. #{v1} and #{v2}"
+                    raise ArgumentError,
+                          "cannot merge #{self} and #{other_spec}: " \
+                          "argument value mismatch for #{name}, resp. #{v1} and #{v2}"
                 end
 
                 v1
@@ -548,11 +587,7 @@ module Syskit
         #
         # See also Composition#instanciate
         def use(*mappings)
-            unless model.to_component_model <= Syskit::Composition
-                raise ArgumentError,
-                      "#use is available only for compositions, " \
-                      "got #{base_model.short_name}"
-            end
+            use_validate_is_composition_model
 
             invalidate_dependency_injection
             invalidate_template
@@ -571,6 +606,31 @@ module Syskit
                 end
             end
 
+            use_issue_debug_messages(explicit, defaults)
+            use_apply_normalized(explicit, defaults)
+
+            self
+        end
+
+        def use_validate_is_composition_model
+            return if composition_model?
+
+            raise ArgumentError,
+                  "#use is available only for compositions, " \
+                  "got #{base_model.short_name}"
+        end
+
+        def use_apply_normalized(explicit, defaults)
+            # !!! #add_explicit does not do any normalization. User-provided
+            # !!! selections should always be added with #add
+            selections.add(explicit)
+            selections.add(*defaults)
+            narrow_model
+
+            use_validate_selection_keys
+        end
+
+        def use_issue_debug_messages(explicit, defaults)
             debug do
                 debug "adding use mappings to #{self}"
                 unless explicit.empty?
@@ -578,55 +638,49 @@ module Syskit
                         debug "  #{key.short_name} => #{obj.short_name}"
                     end
                 end
-                unless defaults.empty?
-                    debug "  #{defaults.map(&:short_name).join(', ')}"
-                end
+                debug "  #{defaults.map(&:short_name).join(', ')}" unless defaults.empty?
                 break
             end
+        end
 
-            composition_model = to_component_model
-
-            # Validate the new mappings first
-            new_mappings = selections.dup
-            # !!! #add_explicit does not do any normalization. User-provided
-            # !!! selections should always be added with #add
-            new_mappings.add(explicit)
-            explicit.each_key do |child_name|
-                req = new_mappings.explicit[child_name]
-                next unless req.respond_to?(:fullfills?)
-
-                if child = composition_model.find_child(child_name)
-                    _, selected_m, = new_mappings.selection_for(child_name, child)
-                    unless selected_m.fullfills?(child)
-                        raise InvalidSelection.new(child_name, req, child),
-                              "#{req} is not a valid selection for #{child_name}. " \
-                              "Was expecting something that provides #{child}"
-                    end
-                end
-            end
-
-            # See comment about #add_explicit vs. #add above
-            selections.add(explicit)
-            selections.add(*defaults)
-            composition_model = narrow_model.to_component_model
+        def use_validate_selection_keys
+            composition_model = model.to_component_model
 
             selections.each_selection_key do |obj|
-                if obj.respond_to?(:to_str)
-                    # Two choices: either a child of the composition model,
-                    # or a child of a child that is a composition itself
-                    parts = obj.split(".")
-                    first_part = parts.first
-                    unless composition_model.has_child?(first_part)
-                        children = {}
-                        composition_model.each_child do |name, child|
-                            children[name] = child
-                        end
-                        raise Roby::NoSuchChild.new(composition_model, first_part, children), "#{first_part} is not a known child of #{composition_model.name}"
-                    end
-                end
+                next unless obj.respond_to?(:to_str)
+
+                # Two choices: either a child of the composition model,
+                # or a child of a child that is a composition itself
+                child_name, = obj.split(".")
+
+                use_validate_composition_child_selection(composition_model, child_name)
+            end
+        end
+
+        def use_validate_composition_child_selection(composition_model, child_name)
+            unless (child = composition_model.find_child(child_name))
+                use_raise_no_such_child(composition_model, child_name)
             end
 
-            self
+            direct_child_selection = selections.direct_selection_for(child_name)
+            return unless direct_child_selection.respond_to?(:fullfills?)
+
+            _, selected_m, = selections.selection_for(child_name, child)
+            return if selected_m.fullfills?(child)
+
+            raise InvalidSelection.new(child_name, selected_m, child),
+                  "#{selected_m} is not a valid selection for " \
+                  "#{child_name}. Was expecting something that provides " \
+                  "#{child}"
+        end
+
+        def use_raise_no_such_child(composition_model, child_name)
+            children =
+                composition_model.each_child.with_object({}) do |(name, child_m), h|
+                    h[name] = child_m
+                end
+            raise Roby::NoSuchChild.new(composition_model, child_name, children),
+                  "#{child_name} is not a known child of #{composition_model.name}"
         end
 
         # Returns the simplest model representation for self
@@ -698,24 +752,42 @@ module Syskit
 
         # Specifies new arguments that must be set to the instanciated task
         def with_arguments(deprecated_arguments = nil, **arguments)
-            deprecated_from_kw ||= Roby.sanitize_keywords(arguments)
-            if deprecated_arguments || !deprecated_from_kw.empty?
-                Roby.warn_deprecated(
-                    "InstanceRequirements#with_arguments: providing arguments using " \
-                    "a string is not supported anymore use key: value instead of " \
-                    "'key' => value"
-                )
-                deprecated_arguments&.each { |key, arg| arguments[key.to_sym] = arg }
-                deprecated_from_kw.each { |key, arg| arguments[key.to_sym] = arg }
-            end
+            with_arguments_handle_deprecated(deprecated_arguments, arguments)
 
-            arguments.each do |k, v|
-                unless v.droby_marshallable?
-                    raise Roby::NotMarshallable, "values used as task arguments must be marshallable, attempting to set #{k} to #{v} of class #{v.class}, which is not"
-                end
-            end
+            validate_arguments_are_marshallable(arguments)
             @arguments.merge!(arguments)
             self
+        end
+
+        def with_arguments_handle_deprecated(deprecated_arguments, arguments)
+            deprecated_from_kw ||= Roby.sanitize_keywords(arguments)
+            return unless deprecated_arguments || !deprecated_from_kw.empty?
+
+            Roby.warn_deprecated(
+                "InstanceRequirements#with_arguments: providing arguments using " \
+                "a string is not supported anymore use key: value instead of " \
+                "'key' => value"
+            )
+            normalized =
+                (deprecated_arguments || {})
+                .merge(deprecated_from_kw)
+                .transform_keys(&:to_sym)
+            arguments.merge!(normalized)
+        end
+
+        # @api private
+        #
+        # Helper for {#with_arguments} to validate that all argument values can be
+        # marshalled
+        def validate_arguments_are_marshallable(arguments)
+            arguments.each do |k, v|
+                unless v.droby_marshallable?
+                    raise Roby::NotMarshallable,
+                          "values used as task arguments must be marshallable, " \
+                          "attempting to set #{k} to #{v} of class #{v.class}, " \
+                          "which is not"
+                end
+            end
         end
 
         # Clear all arguments
@@ -726,7 +798,8 @@ module Syskit
 
         # @deprecated use {#with_conf} instead
         def use_conf(*conf)
-            Roby.warn_deprecated "InstanceRequirements#use_conf is deprecated. Use #with_conf instead"
+            Roby.warn_deprecated "InstanceRequirements#use_conf is deprecated. " \
+                                 "Use #with_conf instead"
             with_conf(*conf)
         end
 
@@ -800,7 +873,9 @@ module Syskit
         # @return [self]
         def prefer_specializations(specialization_selectors)
             unless composition_model?
-                raise ArgumentError, "#{self} does not represent a composition, cannot use #prefer_specializations"
+                raise ArgumentError,
+                      "#{self} does not represent a composition, " \
+                      "cannot use #prefer_specializations"
             end
 
             invalidate_template
@@ -814,30 +889,12 @@ module Syskit
         def narrow_model
             model = @base_model.to_component_model
             if composition_model? && !model.specializations.empty?
-                debug do
-                    debug "narrowing model"
-                    debug "  from #{model.short_name}"
-                    break
-                end
-
-                context = log_nest(4) do
-                    selection = resolved_dependency_injection.dup
-                    selection.remove_unresolved
-                    DependencyInjectionContext.new(selection)
-                end
-
-                model = log_nest(2) do
-                    model.narrow(context, :specialization_hints => specialization_hints)
-                end
-
-                debug do
-                    debug "  using #{model.short_name}"
-                    break
-                end
+                model = narrow_composition_model(model)
             end
-            if base_model.respond_to?(:component_model)
-                model = base_model.attach(model)
-            end
+
+            # If base_model is a bound service, we need to select the same service
+            # on the narrowed model
+            model = base_model.attach(model) if base_model.respond_to?(:component_model)
 
             if @model != model
                 invalidate_dependency_injection
@@ -845,6 +902,35 @@ module Syskit
 
                 @model = model
             end
+            model
+        end
+
+        # @api private
+        #
+        # Narrow (i.e. select specialization) for the given model given the information
+        # stored in self
+        def narrow_composition_model(base_model)
+            debug do
+                debug "narrowing model"
+                debug "  from #{base_model.short_name}"
+                break
+            end
+
+            context = log_nest(4) do
+                selection = resolved_dependency_injection.dup
+                selection.remove_unresolved
+                DependencyInjectionContext.new(selection)
+            end
+
+            model = log_nest(2) do
+                base_model.narrow(context, specialization_hints: specialization_hints)
+            end
+
+            debug do
+                debug "  using #{model.short_name}"
+                break
+            end
+
             model
         end
 
@@ -880,13 +966,13 @@ module Syskit
         #
         # @param [DependencyInjection] di the new DI information
         # @return [void]
-        def push_dependency_injection(di)
+        def push_dependency_injection(injection)
             invalidate_dependency_injection
             invalidate_template
 
             merger = DependencyInjectionContext.new
             merger.push context_selections
-            merger.push di
+            merger.push injection
             @context_selections = merger.current_state
         end
 
@@ -924,7 +1010,9 @@ module Syskit
                 if from_cache
                     instanciate_from_template(plan, task_arguments)
                 else
-                    instanciate_from_scratch(context, plan, task_arguments)
+                    instanciate_from_scratch(
+                        context, plan, task_arguments, specialization_hints
+                    )
                 end
 
             post_instanciation_setup(task.to_task)
@@ -940,7 +1028,7 @@ module Syskit
         # the cache
         #
         # Unlike {#instanciate_from_template}
-        def instanciate_from_scratch(context, plan, task_arguments)
+        def instanciate_from_scratch(context, plan, task_arguments, specialization_hints)
             context.save
             context.push(resolved_dependency_injection)
 
@@ -977,7 +1065,7 @@ module Syskit
         def update_template_if_needed
             return unless can_use_template?
 
-            @template ||= compute_template
+            @template ||= compute_template # rubocop:disable Naming/MemoizedInstanceVariableName
         end
 
         # @api private
@@ -1026,32 +1114,18 @@ module Syskit
             end
         end
 
-        def instanciate_from_template(plan, extra_arguments)
-            compute_template unless @template
-
-            mappings = @template.deep_copy_to(plan)
-            root_task = mappings[@template.root_task]
-            root_task.post_instanciation_setup(**arguments.merge(extra_arguments))
-            model.bind(root_task)
-        end
-
+        # @api private
+        #
+        # Whether self has a template plan already computed
         def has_template?
             !!@template
         end
 
+        # @api private
+        #
         # Refinement of the task network generated by model instanciation
         def post_instanciation_setup(task)
-            task_requirements = to_component_model
-            task_requirements.map_use_selections! do |sel|
-                if sel && !Models.is_model?(sel) &&
-                    !sel.kind_of?(DependencyInjection::SpecialDIValue)
-
-                    sel.to_instance_requirements
-                else
-                    sel
-                end
-            end
-
+            task_requirements = post_instanciation_compute_task_requirements
             task.update_requirements(
                 task_requirements, name: name, keep_abstract: true
             )
@@ -1060,6 +1134,23 @@ module Syskit
                 task.required_host = required_host
             end
             task.abstract = true if abstract?
+        end
+
+        # @api private
+        #
+        # Helper for {#post_instanciation_setup} to compute task requirements
+        def post_instanciation_compute_task_requirements
+            task_requirements = to_component_model
+            task_requirements.map_use_selections! do |sel|
+                if sel && !Models.is_model?(sel) &&
+                   !sel.kind_of?(DependencyInjection::SpecialDIValue)
+
+                    sel.to_instance_requirements
+                else
+                    sel
+                end
+            end
+            task_requirements
         end
 
         # List of task model and service models provided by instances of self
@@ -1107,42 +1198,55 @@ module Syskit
         end
 
         def to_s
-            result = base_model.short_name.to_s.dup
-            if model != base_model
-                result << "[narrowed to #{model.short_name}]"
-            end
-            unless pushed_selections.empty?
-                result << ".use<0>(#{pushed_selections})"
-                use_suffix = "<1>"
-            end
-            unless selections.empty?
-                result << ".use#{use_suffix}(#{selections})"
-            end
-            unless arguments.empty?
-                result << ".with_arguments(#{arguments.map { |k, v| "#{k}: #{v}" }.join(', ')})"
-            end
-            result
+            PP.pp(self, +"").chomp
         end
 
         def pretty_print(pp)
+            pretty_print_model(pp)
+            pp.nest(2) do
+                pretty_print_selections(pp, pushed_selections, use_suffix: "<0>")
+                use_suffix = "<1>" unless pushed_selections.empty?
+
+                pretty_print_selections(pp, selections, use_suffix: use_suffix)
+                pretty_print_arguments(pp)
+            end
+        end
+
+        def pretty_print_model(pp)
             if model == base_model
                 pp.text model.to_s
             else
                 pp.text "#{model}(from #{base_model})"
             end
+        end
+
+        def pretty_print_selections(pp, selections, use_suffix: "")
+            return if selections.empty?
+
+            pp.text ".use#{use_suffix}("
             pp.nest(2) do
-                unless pushed_selections.empty?
-                    pp.breakable
-                    pp.text ".use<0>(#{pushed_selections})"
-                    use_suffix = "<1>"
+                pp.breakable
+                pp.seplist(selections.defaults) do |val|
+                    val.pretty_print(pp)
                 end
-                unless selections.empty?
-                    pp.breakable
-                    pp.text ".use#{use_suffix}(#{selections})"
+                pp.seplist(selections.explicit) do |k, v|
+                    pp.text "#{k} => "
+                    v.pretty_print(pp)
                 end
-                unless arguments.empty?
-                    pp.breakable
-                    pp.text ".with_arguments(#{arguments.map { |k, v| "#{k} => #{v}" }.join(', ')})"
+            end
+            pp.breakable
+            pp.text ")"
+        end
+
+        def pretty_print_arguments(pp)
+            return if arguments.empty?
+
+            pp.breakable
+            pp.text ".with_arguments("
+            pp.nest(2) do
+                pp.breakable
+                pp.seplist(arguments) do |k, v|
+                    pp.text "#{k} => #{v}"
                 end
             end
         end
@@ -1164,18 +1268,18 @@ module Syskit
             end
         end
 
-        def has_through_method_missing?(m)
+        def has_through_method_missing?(name)
             MetaRuby::DSLs.has_through_method_missing?(
-                self, m,
+                self, name,
                 "_srv" => :has_data_service?,
                 "_child" => :has_child?,
                 "_port" => :has_port?
             ) || super
         end
 
-        def find_through_method_missing(m, args)
+        def find_through_method_missing(name, args)
             MetaRuby::DSLs.find_through_method_missing(
-                self, m, args,
+                self, name, args,
                 "_srv" => :find_data_service,
                 "_child" => :find_child,
                 "_port" => :find_port
@@ -1217,7 +1321,7 @@ module Syskit
 
         # Tests if these requirements explicitly point to a composition model
         def composition_model?
-            base_model.fullfills?(Syskit::Composition)
+            base_model.to_component_model.fullfills?(Syskit::Composition)
         end
 
         def period(period, sample_size = 1)
@@ -1225,7 +1329,8 @@ module Syskit
             self
         end
 
-        # Returns the port dynamics defined for a given port, or nil
+        # Returns the port dynamics defined for a given port, or nil if none is
+        # registered
         #
         # @param [String] port_name
         # @return [NetworkGeneration::PortDynamics,nil]
@@ -1264,13 +1369,15 @@ module Syskit
 
             METHODS.each do |m|
                 class_eval <<~CODE, __FILE__, __LINE__ + 1
-                    def #{m}(*args, &block)
-                        to_instance_requirements.send(m, *args, &block)
-                    end
+                    def #{m}(*args, **kw, &block)                          # def with_arguments(**kw)
+                        to_instance_requirements.#{m}(*args, **kw, &block) #    to_instance_requirements.with_arguments(**kw)
+                    end                                                    # end
                 CODE
             end
         end
 
+        # Representation of a Syskit network in a coordination model (e.g. action state
+        # machines)
         class CoordinationTask < Roby::Coordination::Models::TaskWithDependencies
             def initialize(requirements)
                 super(requirements.placeholder_model)
@@ -1291,6 +1398,7 @@ module Syskit
             end
         end
 
+        # Normalization method used by coordination models (e.g. action state machines)
         def to_coordination_task(_task_model)
             CoordinationTask.new(self)
         end
@@ -1307,30 +1415,41 @@ module Syskit
             action_model.returns(model.to_component_model)
 
             task_model = component_model
-            root_model = [TaskContext, Composition, Component].find { |m| task_model <= m }
+            root_model = [TaskContext, Composition, Component].find do |m|
+                task_model <= m
+            end
             task_arguments = task_model.arguments.to_a - root_model.arguments.to_a
             task_arguments.each do |arg_name|
-                arg = task_model.find_argument(arg_name)
-                if arguments.key?(arg_name)
-                    optional = true
-                    default_argument = arguments[arg_name]
-                elsif arg.has_default?
-                    optional = true
-                    default_argument = arg.default
-                    if default_argument.kind_of?(Roby::DefaultArgument)
-                        default_argument = default_argument.value
-                    elsif arg.has_delayed_default?
-                        default_argument = nil
-                    end
-                end
-
-                if optional
-                    action_model.optional_arg(arg_name, arg.doc || "#{arg_name} argument of #{task_model.name}", default_argument)
-                else
-                    action_model.required_arg(arg_name, arg.doc || "#{arg_name} argument of #{task_model.name}", example: arg.example)
-                end
+                to_action_model_define_argument(action_model, task_model, arg_name)
             end
             action_model
+        end
+
+        # @api private
+        #
+        # Transfer information about a task argument to the given action model, helper
+        # to {#to_action_model}
+        def to_action_model_define_argument(action_model, task_model, arg_name)
+            arg = task_model.find_argument(arg_name)
+            doc = to_action_model_arg_doc(arg, task_model)
+
+            if arguments.key?(arg_name)
+                action_model.optional_arg(arg_name, doc, arguments[arg_name])
+            elsif arg.has_default?
+                default_argument = arg.default
+                if default_argument.kind_of?(Roby::DefaultArgument)
+                    default_argument = default_argument.value
+                elsif arg.has_delayed_default?
+                    default_argument = nil
+                end
+                action_model.optional_arg(arg_name, doc, default_argument)
+            else
+                action_model.required_arg(arg_name, doc, example: arg.example)
+            end
+        end
+
+        def to_action_model_arg_doc(arg, task_model)
+            arg.doc || "#{arg.name} argument of #{task_model.name}"
         end
 
         def to_action
