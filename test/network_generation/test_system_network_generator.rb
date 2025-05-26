@@ -561,6 +561,35 @@ module Syskit
                     MSG
                     assert_equal expected, formatted.gsub(/<id:\d+>/, "<id:X>")
                 end
+
+                it "dont check conflicting deployments for tasks that arent deployed" do
+                    plan = Roby::Transaction.new(Roby::Plan.new)
+                    error_handler =
+                        ResolutionErrorHandler.new(plan, MergeSolver.new(plan))
+                    local_net_gen = SystemNetworkGenerator.new(
+                        plan,
+                        default_deployment_group: Models::DeploymentGroup.new,
+                        early_deploy: true,
+                        error_handler: error_handler
+                    )
+
+                    task_m = Syskit::TaskContext.new_submodel(name: "T")
+
+                    plan.add(t1 = task_m.to_instance_requirements)
+                    plan.add(t2 = task_m.to_instance_requirements)
+
+                    local_net_gen.merge_solver
+                                 .merge_task_contexts_with_same_agent = true
+                    local_net_gen.instanciate_system_network([t1, t2])
+                    e = local_net_gen.resolve_system_network(
+                        validate_deployed_network: true
+                    )
+                    failures = error_handler.resolution_failures
+                    assert_equal 2, failures.size
+                    failures.each do |f|
+                        assert_kind_of MissingDeployment, f.original_exception
+                    end
+                end
             end
 
             describe "#verify_no_multiplexing_connections" do

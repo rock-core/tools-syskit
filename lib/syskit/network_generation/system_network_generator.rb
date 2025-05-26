@@ -479,8 +479,9 @@ module Syskit
                 deployment_to_task_map = plan.find_local_tasks(Syskit::TaskContext)
                                              .group_by(&:orocos_name)
 
-                using_same_deployment = deployment_to_task_map.select do |_, tasks|
-                    tasks.size > 1
+                using_same_deployment = deployment_to_task_map.select do |name, tasks|
+                    # There cant be a conflict between tasks that have no deployment
+                    name && tasks.size > 1
                 end
 
                 return if using_same_deployment.empty?
