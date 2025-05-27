@@ -43,7 +43,9 @@ module Syskit
         # @param [Boolean] local_only whether the search should restrict itself
         #   to the current Roby app or should include the inherited apps as well
         # @return [String,nil] the path found or nil if no file was found
-        def existing_configuration_file(local_only: false)
+        def existing_configuration_file(
+            local_only: Syskit.conf.local_only_configuration_files?
+        )
             return unless orogen_model.name
 
             local_option = {}
@@ -51,7 +53,8 @@ module Syskit
                 local_option[:path] = [app.app_dir]
             end
             app.find_file("config", "orogen", "ROBOT", "#{orogen_model.name}.yml",
-                          order: :specific_first, all: false, **local_option)
+                          order: :specific_first, all: false, prioritize_root_paths: true,
+                          **local_option)
         end
 
         # Tests whether there is a configuration file for this model
