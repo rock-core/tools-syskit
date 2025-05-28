@@ -202,31 +202,65 @@ module Syskit
                     next
                 end
 
-                if value.respond_to?(:fullfills?) && !value.fullfills?(key)
-                    raise ArgumentError,
-                          "found #{value.name}(of class #{value.class}) " \
-                          "as a selection for #{key.name}, but " \
-                          "#{value.name} does not fullfill #{key.name}"
-                end
-
-                if key <= Component
-                    if value.kind_of?(Models::BoundDataService)
-                        value = value.component_model
-                    elsif value.kind_of?(Syskit::BoundDataService)
-                        value = value.component
-                    end
-                    normalized[key] = value
-                elsif key <= DataService
-                    if value.respond_to?(:find_data_service_from_type)
-                        value = value.find_data_service_from_type(key)
-                    end
-                    normalized[key] = value
-                else
-                    raise NotImplementedError,
-                          "should not have get there, but did"
-                end
+                normalized[key] = normalize_component_model_selection(key, value)
             end
             normalized
+        end
+
+        # @api private
+        #
+        # Helper for normalize_selection when the key is a component model (e.g.
+        # "real" component model, data service model or placeholder model)
+        #
+        # @param [Class<AbstractComponent>] key
+        # @param [String,SpecialDIValue,#fullfills?] value
+        # @return [String,SpecialDIValue,#fullfills?] normalized selected value
+        def self.normalize_component_model_selection(key, value)
+            if value.respond_to?(:to_str)
+                return value
+            elsif value.kind_of?(SpecialDIValue)
+                return value
+            end
+
+            unless value.fullfills?(key)
+                raise ArgumentError,
+                      "found #{value.name}(of class #{value.class}) " \
+                      "as a selection for #{key.name}, but " \
+                      "#{value.name} does not fullfill #{key.name}"
+            end
+
+            required_component_m = nil
+            required_services_m = []
+            required_component_m, required_services_m =
+                key.each_required_model.partition do |m|
+                    m <= Component
+                end
+            if required_services_m.size > 1
+                raise NotImplementedError,
+                      "there is no support (yet) to select for multiple services"
+            elsif !required_component_m && required_services_m.empty?
+                raise NotImplementedError, "nothing to select in #{key}"
+            end
+
+            required_component_m = required_component_m.first
+            required_service_m = required_services_m.first
+
+            if required_service_m && !required_component_m
+                if value.respond_to?(:find_data_service_from_type)
+                    value =
+                        value.find_data_service_from_type(required_services_m.first)
+                end
+
+                value
+            else
+                if value.kind_of?(Models::BoundDataService)
+                    value = value.component_model
+                elsif value.kind_of?(Syskit::BoundDataService)
+                    value = value.component
+                end
+
+                value
+            end
         end
 
         # Add a list of objects to the default list.
