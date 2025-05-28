@@ -300,6 +300,25 @@ describe Syskit::Actions::InterfaceModelExtension do
             assert action_m.profile.t_tag.fullfills?(srv_m)
         end
 
+        it "reuses existing tags instead of creating duplicate tags when a matching " \
+           "existing tag is provided" do
+            action_m = Roby::Actions::Interface.new_submodel
+            profile_m = Syskit::Actions::Profile.new
+            srv_m = Syskit::DataService.new_submodel
+            task_m = Syskit::TaskContext.new_submodel do
+                provides srv_m, as: "bla"
+            end
+            profile_m.tag "t", srv_m
+            profile_m.tag "o", srv_m
+
+            action_m.use_profile profile_m, "t" => task_m.new
+            tag_map = action_m.use_profile_tags profile_m, "t" => profile_m.t_tag
+
+            assert_equal profile_m.t_tag, tag_map["t"]
+            assert action_m.profile.o_tag.fullfills?(srv_m)
+            refute action_m.profile.has_tag? "t"
+        end
+
         it "properly handles a tags' proxied component model" do
             action_m = Roby::Actions::Interface.new_submodel
             profile_m = Syskit::Actions::Profile.new
