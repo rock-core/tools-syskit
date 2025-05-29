@@ -388,6 +388,26 @@ module Syskit
                         assert task.placeholder?
                         refute task.find_child_from_role("child")
                     end
+
+                    it "adds a task instance that can be found by its composition " \
+                       "when based on one" do
+                        # This is a reproduction of a bug, making sure the source
+                        # is indeed not this code
+                        task_m = TaskContext.new_submodel
+                        cmp_m = Composition.new_submodel
+                        cmp_m.add task_m, as: "child"
+                        root_cmp_m = Composition.new_submodel
+                        root_cmp_m.add cmp_m, as: "test"
+
+                        profile = Profile.new
+                        profile.tag "test", cmp_m
+                        profile.define "test", root_cmp_m.use("test" => profile.test_tag)
+
+                        root_cmp = profile.test_def.instanciate(plan)
+                        placeholder = plan.find_tasks(cmp_m).abstract.first
+                        assert placeholder
+                        assert placeholder.placeholder?
+                    end
                 end
             end
 
