@@ -572,6 +572,24 @@ module Syskit
                     )
                 end
 
+                it "accepts failing with more than a single exception and can display " \
+                   "the exception" do
+                    skip unless Syskit.conf.capture_errors_during_network_resolution?
+
+                    @test_profile.define "test", @cmp_m
+
+                    e = assert_raises(ProfileAssertions::ProfileAssertionFailed) do
+                        assert_can_deploy(@test_profile)
+                    end
+                    assert_operator e.original_exceptions.size, :>, 1
+                    # We had a bug where #display_exceptions was failing due to
+                    # #e.original_exceptions being an array of arrays, this guarantees
+                    # that original_exceptions are properly formatted.
+                    #
+                    # Also, use StringIO to avoid cluttering the test results
+                    Roby.display_exception(StringIO.new, e)
+                end
+
                 it "handles plain instance requirements" do
                     assert_can_deploy(
                         @cmp_m
