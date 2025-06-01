@@ -484,6 +484,41 @@ describe Syskit::Models::Composition do
             assert_equal cmp.first_child, root.child_selection["second"].selected.resolved_dependency_injection.explicit[srv]
         end
 
+        it "allows using children as use flags for other children" do
+            srv = Syskit::DataService.new_submodel(name: "Srv")
+            task = Syskit::TaskContext.new_submodel(name: "Task") { provides srv, as: "srv" }
+            second = Syskit::Composition.new_submodel(name: "SecondCmp") { add srv, as: "second_test" }
+            cmp = Syskit::Composition.new_submodel(name: "RootCmp") do
+                add task, as: "first"
+                add(second, as: "second")
+                    .use(srv => first_child)
+            end
+            root = cmp.instanciate(plan, Syskit::DependencyInjectionContext.new("first.first_test" => task))
+            assert_same root.first_child, root.second_child.second_test_child
+        end
+
+        it "allows using service-mapped children as use flags for other children" do
+            srv0_m = Syskit::DataService.new_submodel(name: "Srv0")
+            srv1_m = Syskit::DataService.new_submodel(name: "Srv1")
+            task_m = Syskit::TaskContext.new_submodel(name: "Task") do
+                provides srv0_m, as: "srv"
+            end
+            cmp_m = Syskit::Composition.new_submodel(name: "Cmp") do
+                add srv0_m, as: "task"
+                provides srv1_m, as: "srv"
+            end
+            root_m = Syskit::Composition.new_submodel(name: "Root") do
+                add srv0_m, as: "task"
+                add srv1_m, as: "cmp"
+            end
+            injection = Syskit::DependencyInjectionContext.new(
+                "task" => task_m,
+                "cmp" => cmp_m.use("task" => root_m.task_child)
+            )
+            root = root_m.instanciate(plan, injection)
+            assert_same root.task_child, root.cmp_child.task_child
+        end
+
         it "allows to use grandchildren as use flags for other children" do
             srv = Syskit::DataService.new_submodel(name: "Srv")
             task = Syskit::TaskContext.new_submodel(name: "Task") { provides srv, as: "srv" }

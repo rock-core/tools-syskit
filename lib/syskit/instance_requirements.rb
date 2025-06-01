@@ -372,12 +372,14 @@ module Syskit
             end
         end
 
+        # (see Models::BoundDataService#as_real_model)
         def as_real_model
             result = dup
             result.as_real_model!
             result
         end
 
+        # (see Models::BoundDataService#as_real_model)
         def as_real_model!
             @base_model = base_model.as_real_model
             @model = model.as_real_model
@@ -546,8 +548,10 @@ module Syskit
         #
         # See also Composition#instanciate
         def use(*mappings)
-            unless model <= Syskit::Composition
-                raise ArgumentError, "#use is available only for compositions, got #{base_model.short_name}"
+            unless model.to_component_model <= Syskit::Composition
+                raise ArgumentError,
+                      "#use is available only for compositions, " \
+                      "got #{base_model.short_name}"
             end
 
             invalidate_dependency_injection
@@ -580,6 +584,8 @@ module Syskit
                 break
             end
 
+            composition_model = to_component_model
+
             # Validate the new mappings first
             new_mappings = selections.dup
             # !!! #add_explicit does not do any normalization. User-provided
@@ -589,7 +595,7 @@ module Syskit
                 req = new_mappings.explicit[child_name]
                 next unless req.respond_to?(:fullfills?)
 
-                if child = model.find_child(child_name)
+                if child = composition_model.find_child(child_name)
                     _, selected_m, = new_mappings.selection_for(child_name, child)
                     unless selected_m.fullfills?(child)
                         raise InvalidSelection.new(child_name, req, child), "#{req} is not a valid selection for #{child_name}. Was expecting something that provides #{child}"
@@ -600,7 +606,7 @@ module Syskit
             # See comment about #add_explicit vs. #add above
             selections.add(explicit)
             selections.add(*defaults)
-            composition_model = narrow_model || composition_model
+            composition_model = narrow_model.to_component_model
 
             selections.each_selection_key do |obj|
                 if obj.respond_to?(:to_str)
@@ -985,7 +991,7 @@ module Syskit
                         specialization_hints: specialization_hints
                     )
                 ensure
-                    context.restore unless from_cache
+                    context.restore
                 end
             end
 

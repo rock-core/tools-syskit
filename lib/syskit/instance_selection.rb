@@ -79,7 +79,7 @@ module Syskit
 
         # Returns the selected component model
         def component_model
-            selected.base_model
+            selected.component_model
         end
 
         # Computes the service selection that will allow to replace a
