@@ -905,13 +905,42 @@ module Syskit
         def compute_template
             base_requirements = dup.with_no_arguments
             template = TemplatePlan.new
-            template.root_task = base_requirements
-                                 .instanciate(template, use_template: false)
-                                 .to_task
-            merge_solver = NetworkGeneration::MergeSolver.new(template)
-            merge_solver.merge_identical_tasks
-            template.root_task = merge_solver.replacement_for(template.root_task)
+            template.root_task =
+                base_requirements
+                .instanciate(template, use_template: false)
+                .to_task
+
+            if template_can_apply_merge?(template)
+                merge_solver = NetworkGeneration::MergeSolver.new(template)
+                merge_solver.merge_identical_tasks
+                template.root_task = merge_solver.replacement_for(template.root_task)
+            end
+
             @template = template
+        end
+
+        def template_can_apply_merge?(template)
+            template.each_task do |t|
+                args = t.arguments
+                next if args.static?
+
+                args.each_delayed_argument do |_, v|
+                    return false unless template_merge_allowed_argument?(v)
+                end
+            end
+            true
+        end
+
+        def template_merge_allowed_argument?(value)
+            case value
+            when Roby::DefaultArgument
+                true
+            when Roby::DelayedArgumentFromObject
+                # This is from(:parent_task), which is very common and not problematic
+                value.__object__.nil? && value.__methods__.first == :parent_task
+            else
+                false
+            end
         end
 
         def instanciate_from_template(plan, extra_arguments)

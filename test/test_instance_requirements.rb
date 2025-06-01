@@ -404,6 +404,101 @@ describe Syskit::InstanceRequirements do
         end
     end
 
+    describe "#compute_template" do
+        it "does not resolve delayed arguments" do
+            conf = Roby::ConfModel.new
+            conf.value = 10
+
+            task_m = Syskit::TaskContext.new_submodel
+            task_m.argument :arg, default: Roby.from_state(conf).value
+            cmp_m = Syskit::Composition.new_submodel
+            cmp_m.add task_m, as: "test"
+
+            ir = cmp_m.to_instance_requirements
+            cmp = ir.compute_template.root_task
+            assert_kind_of Roby::DelayedArgumentFromState,
+                           cmp.test_child.arguments.raw_get(:arg)
+        end
+
+        it "applies merges" do
+            task_m = Syskit::TaskContext.new_submodel
+            task_m.argument :arg
+            cmp_m = Syskit::Composition.new_submodel
+            cmp_m.add task_m, as: "task0"
+            cmp_m.add task_m, as: "task1"
+
+            ir = cmp_m.use(
+                "task0" => task_m.with_arguments(arg: 10),
+                "task1" => task_m.with_arguments(arg: 10)
+            )
+            cmp = ir.compute_template.root_task
+            assert_same cmp.task0_child, cmp.task1_child
+        end
+
+        it "does not apply merges if there are tasks with delayed arguments" do
+            conf = Roby::ConfModel.new
+            conf.value = 10
+
+            task_m = Syskit::TaskContext.new_submodel
+            task_m.argument :arg
+            cmp_m = Syskit::Composition.new_submodel
+            cmp_m.add task_m, as: "task0"
+            cmp_m.add task_m, as: "task1"
+
+            ir = cmp_m.use(
+                "task0" => task_m.with_arguments(arg: Roby.from_state(conf).value),
+                "task1" => task_m.with_arguments(arg: Roby.from_state(conf).value)
+            )
+            cmp = ir.compute_template.root_task
+            refute_equal cmp.task0_child, cmp.task1_child
+            assert_kind_of Roby::DelayedArgumentFromState,
+                           cmp.task0_child.arguments.raw_get(:arg)
+            assert_kind_of Roby::DelayedArgumentFromState,
+                           cmp.task1_child.arguments.raw_get(:arg)
+        end
+
+        it "applies merges if the only delayed arguments are default arguments" do
+            task_m = Syskit::TaskContext.new_submodel
+            task_m.argument :arg, default: 10
+            cmp_m = Syskit::Composition.new_submodel
+            cmp_m.add task_m, as: "task0"
+            cmp_m.add task_m, as: "task1"
+
+            ir = cmp_m.use(
+                "task0" => task_m.with_arguments(arg: 20), "task1" => task_m
+            )
+            cmp = ir.compute_template.root_task
+            assert_same cmp.task0_child, cmp.task1_child
+            assert_equal 20, cmp.task0_child.arg
+        end
+
+        it "applies merges if there are from(:parent_task) patterns" do
+            task_m = Syskit::TaskContext.new_submodel
+            task_m.argument :arg
+            cmp_m = Syskit::Composition.new_submodel do
+                argument :arg
+
+                add(task_m, as: "task0")
+                    .with_arguments(arg: from(:parent_task).arg)
+                add task_m, as: "task1"
+                add task_m, as: "task2"
+            end
+
+            ir = cmp_m.use(
+                "task1" => task_m.with_arguments(arg: 20),
+                "task2" => task_m.with_arguments(arg: 20)
+            )
+            cmp = ir.compute_template.root_task
+            # task0_child has from(:parent_task), it should not merge
+            refute_same cmp.task0_child, cmp.task1_child
+            # static arguments, should merge. from(:parent_task) did not impede the merge
+            assert_same cmp.task2_child, cmp.task1_child
+            assert_equal 20, cmp.task1_child.arg
+            assert_kind_of Roby::DelayedArgumentFromObject,
+                           cmp.task0_child.arguments.raw_get(:arg)
+        end
+    end
+
     describe "#instanciate" do
         it "merges self with unselected services into the task's instance requirements" do
             task_m = Syskit::TaskContext.new_submodel
