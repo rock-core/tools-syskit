@@ -281,7 +281,8 @@ module Syskit
             end
 
             def to_s
-                "#{composition_model}.#{child_name}_child[#{super}]"
+                model_pp = PP.pp(model, +"").chomp
+                "#{composition_model}.#{child_name}_child[#{model_pp}]"
             end
 
             def pretty_print(pp)

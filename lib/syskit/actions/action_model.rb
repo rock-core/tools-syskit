@@ -79,9 +79,7 @@ module Syskit
                 end
 
                 def to_instance_requirements(**arguments)
-                    if !requirements.has_template? && requirements.can_use_template?
-                        requirements.compute_template
-                    end
+                    requirements.update_template_if_needed
                     req = requirements.dup
                     req.with_arguments(**arguments)
                     req
