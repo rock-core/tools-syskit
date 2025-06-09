@@ -1037,14 +1037,14 @@ module Syskit
         #   {#can_use_template?} returns true.
         # @param [Boolean] template indicates whether we are instanciating a template or
         #   a plain task.
-        def instanciate(
+        def instanciate( # rubocop:disable Metrics/ParameterLists
             plan, context = Syskit::DependencyInjectionContext.new,
             task_arguments: {}, specialization_hints: {},
             use_template: true, template: false
         )
-            from_cache =
-                context.empty? && specialization_hints.empty? &&
-                use_template && !template && can_use_template?
+            from_cache = instanciate_use_template?(
+                context, specialization_hints, use_template, template
+            )
             task = instanciate_from_template(plan, task_arguments) if from_cache
 
             # `task` might be nil if from_cache is false or if the underlying models
@@ -1059,6 +1059,17 @@ module Syskit
         rescue InstanciationError => e
             e.instanciation_chain << self
             raise
+        end
+
+        # @api private
+        #
+        # Helper for {#instanciate} that determines if a particular instanciation
+        # should be using the template mechanism
+        def instanciate_use_template?(
+            context, specialization_hints, use_template, template
+        )
+            context.empty? && specialization_hints.empty? && use_template &&
+                !template && can_use_template?
         end
 
         # @api private
@@ -1096,8 +1107,8 @@ module Syskit
         def instanciate_from_template(plan, extra_arguments)
             return unless (template = update_template_if_needed)
 
-            mappings = @template.deep_copy_to(plan)
-            root_task = mappings[@template.root_task]
+            mappings = template.deep_copy_to(plan)
+            root_task = mappings[template.root_task]
             root_task.post_instanciation_setup(**arguments.merge(extra_arguments))
             model.bind(root_task)
         end
