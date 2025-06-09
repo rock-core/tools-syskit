@@ -800,7 +800,10 @@ module Syskit
             end
 
             # Instanciates a task for the required child
-            def instanciate_child(plan, context, _self_task, child_name, selected_child)
+            def instanciate_child( # rubocop:disable Metrics/ParameterLists
+                plan, context, _self_task, child_name, selected_child,
+                template: false
+            )
                 Models.debug "instanciating child #{child_name}"
                 Models.debug do
                     Models.log_nest 2
@@ -815,7 +818,13 @@ module Syskit
                     end
                 end
 
-                selected_child.instanciate(plan, context, task_arguments: child_arguments)
+                if template && !selected_child.can_use_template?
+                    InstanceRequirements.cancel_template_creation!
+                end
+
+                selected_child.instanciate(
+                    plan, context, task_arguments: child_arguments, template: template
+                )
             ensure
                 Models.debug do
                     Models.log_nest(-2)
@@ -973,16 +982,22 @@ module Syskit
             #   therefore the specializations as well). The last element in this
             #   DIContext stack is interpreted as DI setup only for the
             #   composition (not for the instantiation of its children).
-            # @option arguments [Boolean] specialize (true) if true, a suitable
+            # @param [Hash] task_arguments the set of arguments that
+            #   should be passed to the composition task instance
+            # @param [Boolean] specialize (true) if true, a suitable
             #   specialization will be selected. Otherwise, the specialization
             #   resolution is bypassed.
-            # @option arguments [Hash] task_arguments the set of arguments that
-            #   should be passed to the composition task instance
-            def instanciate(plan, context = DependencyInjectionContext.new,
+            # @param [Boolean] template whether we are instanciating a template
+            #   plan or the real thing. When instanciating a template, the method
+            #   can throw :can_not_use_template if children are not template-compatible
+            def instanciate( # rubocop:disable Metrics/ParameterLists
+                plan,
+                context = DependencyInjectionContext.new,
                 task_arguments: {},
                 specialize: true,
-                specialization_hints: [])
-
+                specialization_hints: [],
+                template: false
+            )
                 Models.debug do
                     Models.debug "instanciating #{short_name} with"
                     Models.log_nest(2)
@@ -1054,8 +1069,11 @@ module Syskit
 
                         child_task = context.save do
                             context.push_mask(used_keys[child_name])
-                            instanciate_child(plan, context, self_task,
-                                              child_name, resolved_selected_child)
+                            instanciate_child(
+                                plan, context, self_task,
+                                child_name, resolved_selected_child,
+                                template: template
+                            )
                         end
                         child_task = child_task.to_task
 

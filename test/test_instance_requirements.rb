@@ -534,6 +534,47 @@ describe Syskit::InstanceRequirements do
         end
     end
 
+    describe "#can_use_template?" do
+        before do
+            @task_m = Syskit::TaskContext.new_submodel
+        end
+
+        it "returns false if the base model cannot use templates" do
+            def @task_m.can_use_template?
+                false
+            end
+            refute Syskit::InstanceRequirements.new([@task_m]).can_use_template?
+        end
+
+        it "returns true if the base model can use templates" do
+            assert Syskit::InstanceRequirements.new([@task_m]).can_use_template?
+        end
+
+        it "returns false if the base model can use templates but the flag was " \
+           "disabled explicitly" do
+            ir = Syskit::InstanceRequirements.new([@task_m])
+            ir.can_use_template = false
+            refute ir.can_use_template?
+        end
+
+        it "returns true if the base model cannot use templates but the flag was " \
+           "enabled explicitly" do
+            def @task_m.can_use_template?
+                false
+            end
+            ir = Syskit::InstanceRequirements.new([@task_m])
+            ir.can_use_template = true
+            assert ir.can_use_template?
+        end
+
+        it "goes back to default behaviour if can_use_template is set to nil" do
+            ir = Syskit::InstanceRequirements.new([@task_m])
+            ir.can_use_template = false
+            ir.can_use_template = nil
+            assert ir.can_use_template?
+        end
+    end
+
     describe "#instanciate" do
         it "merges self with unselected services into the task's instance requirements" do
             task_m = Syskit::TaskContext.new_submodel
@@ -552,9 +593,12 @@ describe Syskit::InstanceRequirements do
             cmp_m = Syskit::Composition.new_submodel
             cmp_m.add task_m, as: "test"
             ir = cmp_m.use("test" => task)
-            assert !ir.can_use_template?
             cmp = ir.instanciate(plan)
-            assert_equal Syskit::InstanceRequirements.new([task_m]), cmp.requirements.resolved_dependency_injection.explicit["test"]
+            refute ir.can_use_template?
+            assert_equal(
+                Syskit::InstanceRequirements.new([task_m]),
+                cmp.requirements.resolved_dependency_injection.explicit["test"]
+            )
             assert_same task, cmp.test_child
         end
 
@@ -615,6 +659,50 @@ describe Syskit::InstanceRequirements do
             task_m = Syskit::Component.new_submodel
             ir = task_m.to_instance_requirements
             refute ir.instanciate(plan).requirements.abstract?
+        end
+
+        it "does not use a template if can_use_template? is false" do
+            task_m = Syskit::TaskContext.new_submodel
+            ir = task_m.to_instance_requirements
+            ir.can_use_template = false
+            flexmock(ir).should_receive(:instanciate_from_template).never
+            plan = Roby::Plan.new
+            flexmock(task_m)
+                .should_receive(:instanciate)
+                .with(plan, Syskit::DependencyInjectionContext)
+                .with_kw_args(
+                    task_arguments: {}, specialization_hints: Set.new, template: false
+                )
+                .once.pass_thru
+            assert_kind_of task_m, ir.instanciate(plan)
+        end
+
+        it "lazily disables template creation if the component's instanciate call " \
+           "indicates that templates cannot be used" do
+            task_m = Syskit::TaskContext.new_submodel
+            ir = task_m.to_instance_requirements
+            flexmock(ir).should_receive(:instanciate_from_template).once.pass_thru
+            flexmock(task_m)
+                .should_receive(:instanciate)
+                .once
+                .with(Syskit::InstanceRequirements::TemplatePlan,
+                      Syskit::DependencyInjectionContext)
+                .with_kw_args(
+                    task_arguments: {}, specialization_hints: Set.new, template: true
+                )
+                .and_return { Syskit::InstanceRequirements.cancel_template_creation! }
+
+            plan = Roby::Plan.new
+            flexmock(task_m)
+                .should_receive(:instanciate)
+                .once
+                .with(plan, Syskit::DependencyInjectionContext)
+                .with_kw_args(
+                    task_arguments: {}, specialization_hints: Set.new, template: false
+                )
+                .pass_thru
+            assert_kind_of task_m, ir.instanciate(plan)
+            refute ir.can_use_template?
         end
     end
 
