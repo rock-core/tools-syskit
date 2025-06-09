@@ -739,6 +739,20 @@ describe Models::Composition do # rubocop:disable Layout/IndentationWidth
                 assert_dependency_contains failure: :start.never.or(:stop.to_unbound_task_predicate)
             end
         end
+
+        describe "template handling" do
+            it "cancels template creation if a child returns false " \
+               "in can_use_template?" do
+                task_m = TaskContext.new_submodel
+                def task_m.can_use_template?; end
+                cmp_m = Composition.new_submodel
+                cmp_m.add(task_m, as: "test")
+                result = catch(InstanceRequirements::MODEL_CANNOT_USE_TEMPLATE) do
+                    cmp_m.instanciate(Roby::Plan.new, template: true)
+                end
+                assert_nil result
+            end
+        end
     end
 
     describe "#required_composition_child_from_role" do
