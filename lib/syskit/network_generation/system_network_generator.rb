@@ -93,8 +93,8 @@ module Syskit
             # Try to autoallocate the devices in +task+ based on the information
             # in the instance requirements in the task's hierarchy
             def allocate_devices(task)
-                Engine.debug do
-                    Engine.debug "allocating devices on #{task} using"
+                debug do
+                    debug "allocating devices on #{task} using"
                     break
                 end
 
@@ -102,8 +102,8 @@ module Syskit
                     next if task.find_device_attached_to(srv)
 
                     if dev = find_selected_device_in_hierarchy(:"#{srv.name}_dev", task, srv.model.to_instance_requirements)
-                        Engine.debug do
-                            Engine.debug "  selected #{dev} for #{srv.name}"
+                        debug do
+                            debug "  selected #{dev} for #{srv.name}"
                         end
                         task.arguments[:"#{srv.name}_dev"] = dev
                     end
