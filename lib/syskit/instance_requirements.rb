@@ -58,18 +58,19 @@ module Syskit
         # @return [nil,Roby::TemplatePlan]
         attr_reader :template
 
-        # Whether instanciating this object can use a template plan
+        # Whether instanciating this object may use a template plan
         #
         # To speed up instanciation, {InstanceRequirements} computes a "template
         # plan". The assumption is that all instanciations of a given
         # InstanceRequirements have the same structure, and that the overall argument
         # settings vary only by the toplevel task's arguments.
-        #
         # Models that break this assumption must overload
-        # {Models::Component#can_use_template?} to return false. This method uses
-        # that information to decide whether or not self can use templates (e.g.
-        # compositions that use models that can't use template can't use template
-        # themselves)
+        # {Models::Component#can_use_template?} to return false.
+        #
+        # This method uses that information to return whether it might be possible
+        # that self uses a template plan or not. It is only indicative that it _might_
+        # be possible to use a template plan. That is, the template creation might
+        # fail during `instanciate`, which is gracefully handled.
         #
         # Use {#can_use_template=} to overload the automatic determination
         #
@@ -78,7 +79,11 @@ module Syskit
             return @can_use_template unless @can_use_template.nil?
             return @model_can_use_template unless @model_can_use_template.nil?
 
-            @model_can_use_template = model.can_use_template?
+            if frozen?
+                model.can_use_template?
+            else
+                @model_can_use_template = model.can_use_template?
+            end
         end
 
         # Override the automated determination of {#can_use_template?}
@@ -626,22 +631,10 @@ module Syskit
             use_issue_debug_messages(explicit, defaults)
             use_apply_normalized(explicit, defaults)
 
-            # Will be recomputed in next call to #can_use_template?
+            # The use() may have changed whether this can use templates or not
             @model_can_use_template = nil
 
             self
-        end
-
-        # @api private
-        #
-        # Compute if self may be compatible with the use of templates
-        #
-        # @return [Boolean] false if self can definitely not use templates. 'true'
-        #   may still not be compatible Note that 'false' is definitive, but 'true
-        def compute_model_may_use_template
-            return false unless @model.can_use_template?
-
-            true
         end
 
         def use_validate_is_composition_model
@@ -1140,6 +1133,7 @@ module Syskit
                 return @template
             end
 
+            # self cannot be frozen, or the assignation to @template would fail
             @model_can_use_template = false
             nil
         end
