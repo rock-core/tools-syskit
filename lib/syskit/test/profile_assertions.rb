@@ -15,10 +15,13 @@ module Syskit
             class ProfileAssertionFailed < Roby::ExceptionBase
                 attr_reader :actions
 
-                def initialize(assertion_name, actions, original_error)
+                def initialize(assertion_name, actions, original_errors)
                     @assertion_name = assertion_name
                     @actions = Array(actions)
-                    super([original_error])
+                    # When capture errors is active, its possible to receive an array of
+                    # exceptions instead of a single one.
+                    original_errors = Array(original_errors)
+                    super(original_errors)
                 end
 
                 def pretty_print(pp)
