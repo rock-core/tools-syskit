@@ -275,6 +275,25 @@ module Syskit
                     assert_equal [], app.syskit_log_transfer_process_servers
                 end
 
+                it "does not do anything related to log transfer if it is not " \
+                   "configured" do
+                    conf = Syskit.conf.process_server_config_for("localhost")
+                    flexmock(conf).should_receive(on_localhost?: false)
+                    flexmock(conf).should_receive(supports_log_transfer?: true)
+                    flexmock(app)
+                        .should_receive(:syskit_rotate_logs)
+                        .and_return(
+                            { conf => ["old_log_file.log"],
+                              Configuration::ProcessServerConfig.new => ["some_file"] }
+                        )
+
+                    flexmock(conf.client)
+                        .should_receive(:log_upload_file).explicitly.never
+                    flexmock(conf.client)
+                        .should_receive(:log_upload_state).explicitly.never
+                    app.syskit_log_rotation_poll_handler
+                end
+
                 it "transfers data for the selected process servers" do
                     Syskit.conf.log_transfer.user = "user"
                     Syskit.conf.log_transfer.password = "pass"
@@ -299,7 +318,33 @@ module Syskit
                               max_upload_rate: Float::INFINITY,
                               implicit_ftps: false)
                         .once
-                    app.syskit_log_perform_rotation_and_transfer
+                    flexmock(conf.client)
+                        .should_receive(:log_upload_state).explicitly.once
+                        .and_return(flexmock(pending_count: 0, each_result: []))
+                    app.syskit_log_rotation_poll_handler
+                end
+
+                it "ignores process servers that are not available" do
+                    Syskit.conf.log_transfer.user = "user"
+                    Syskit.conf.log_transfer.password = "pass"
+                    Syskit.conf.log_transfer.certificate = "cert"
+                    Syskit.conf.log_transfer.port = 42
+                    Syskit.conf.log_transfer.implicit_ftps = false
+                    conf = Syskit.conf.process_server_config_for("localhost")
+                    flexmock(conf).should_receive(on_localhost?: false)
+                    flexmock(conf).should_receive(supports_log_transfer?: true)
+                    flexmock(conf).should_receive(available?: false)
+                    flexmock(app)
+                        .should_receive(:syskit_rotate_logs)
+                        .and_return(
+                            { conf => ["old_log_file.log"],
+                              Configuration::ProcessServerConfig.new => ["some_file"] }
+                        )
+
+                    app.syskit_log_transfer_prepare
+                    flexmock(conf.client)
+                        .should_receive(:log_upload_file).explicitly.never
+                    app.syskit_log_rotation_poll_handler
                 end
             end
 
