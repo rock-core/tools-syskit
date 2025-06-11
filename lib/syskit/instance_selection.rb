@@ -162,6 +162,15 @@ module Syskit
             @port_mappings = mappings
         end
 
+        # (see Models::Component#can_use_template?)
+        def can_use_template?
+            if component
+                false
+            else
+                selected.can_use_template?
+            end
+        end
+
         # If this selection does not yet have an associated task,
         # instanciate one
         def instanciate(plan, context = Syskit::DependencyInjectionContext.new, **options)

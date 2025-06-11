@@ -21,6 +21,22 @@ module Syskit
                 service.attach(self, verify: false)
             end
 
+            # Whether the istanciation of this component model can use templates
+            #
+            # To speed up instanciation, {InstanceRequirements} computes a "template
+            # plan". The assumption is that all instanciations of a given
+            # InstanceRequirements have the same structure, and that the overall argument
+            # settings vary only by the toplevel task's arguments.
+            #
+            # Generally speaking, {#can_use_template?} should be the default (true)
+            # as long as you are not overloading the {.instanciate} method. If you do
+            # overload it, and break one of the above assumptions, you need to overload
+            # the method and make it return false. If unsure, set it to false. It will
+            # incur a small performance penalty, but the system will behave as expected.
+            def can_use_template?
+                true
+            end
+
             # The data services defined on this task, as a mapping from the data
             # service full name to the BoundDataService object.
             #

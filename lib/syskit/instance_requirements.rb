@@ -58,11 +58,38 @@ module Syskit
         # @return [nil,Roby::TemplatePlan]
         attr_reader :template
 
-        # Whether instanciating this object can use a template plan
+        # Whether instanciating this object may use a template plan
         #
-        # Template plans cannot be used if the dependency injection
-        # explicitely refers to a task
-        attr_predicate :can_use_template?, true
+        # To speed up instanciation, {InstanceRequirements} computes a "template
+        # plan". The assumption is that all instanciations of a given
+        # InstanceRequirements have the same structure, and that the overall argument
+        # settings vary only by the toplevel task's arguments.
+        # Models that break this assumption must overload
+        # {Models::Component#can_use_template?} to return false.
+        #
+        # This method uses that information to return whether it might be possible
+        # that self uses a template plan or not. It is only indicative that it _might_
+        # be possible to use a template plan. That is, the template creation might
+        # fail during `instanciate`, which is gracefully handled.
+        #
+        # Use {#can_use_template=} to overload the automatic determination
+        #
+        # @see Models::Component#can_use_template?
+        def can_use_template?
+            return @can_use_template unless @can_use_template.nil?
+            return @model_can_use_template unless @model_can_use_template.nil?
+
+            if frozen?
+                model.can_use_template?
+            else
+                @model_can_use_template = model.can_use_template?
+            end
+        end
+
+        # Override the automated determination of {#can_use_template?}
+        #
+        # Set to true/false to override, or nil to fallback to the automated mechanism
+        attr_writer :can_use_template
 
         Dynamics = Struct.new :task, :ports do
             dsl_attribute "period" do |value|
@@ -127,7 +154,7 @@ module Syskit
             @specialization_hints = Set.new
             @dynamics = Dynamics.new(NetworkGeneration::PortDynamics.new("Requirements"),
                                      {})
-            @can_use_template = true
+            @model_can_use_template = @model.can_use_template?
             @deployment_group = Models::DeploymentGroup.new
         end
 
@@ -600,14 +627,12 @@ module Syskit
             end
 
             explicit, defaults = DependencyInjection.partition_use_arguments(*mappings)
-            explicit.each_value do |v|
-                if v.kind_of?(Roby::Task) || v.kind_of?(BoundDataService)
-                    @can_use_template = false
-                end
-            end
 
             use_issue_debug_messages(explicit, defaults)
             use_apply_normalized(explicit, defaults)
+
+            # The use() may have changed whether this can use templates or not
+            @model_can_use_template = nil
 
             self
         end
@@ -901,6 +926,7 @@ module Syskit
                 invalidate_template
 
                 @model = model
+                @model_can_use_template = nil
             end
             model
         end
@@ -998,22 +1024,35 @@ module Syskit
             @di = context.current_state
         end
 
-        # Create a concrete task for this requirement
-        def instanciate(
+        # Create the raw subnetwork that is represented by this InstanceRequirements
+        #
+        # @param [Roby::Plan] plan the plan in which the subnetwork should be added
+        # @param [Syskit::DependencyInjectionContext] context the base injection context.
+        #   The instance requirement's own dependency injection info will be pushed on
+        #   it. This is mainly used during recursive instanciation (e.g. compositions)
+        # @param [Hash] task_arguments additional arguments to be passed to the toplevel
+        #   task
+        # @param [Boolean] use_template if true, honor the value returned by
+        #   {#can_use_template?}. If false, never use template even if
+        #   {#can_use_template?} returns true.
+        # @param [Boolean] template indicates whether we are instanciating a template or
+        #   a plain task.
+        def instanciate( # rubocop:disable Metrics/ParameterLists
             plan, context = Syskit::DependencyInjectionContext.new,
-            task_arguments: {}, specialization_hints: {}, use_template: true
+            task_arguments: {}, specialization_hints: {},
+            use_template: true, template: false
         )
-            from_cache =
-                context.empty? && specialization_hints.empty? &&
-                use_template && can_use_template?
-            task =
-                if from_cache
-                    instanciate_from_template(plan, task_arguments)
-                else
-                    instanciate_from_scratch(
-                        context, plan, task_arguments, specialization_hints
-                    )
-                end
+            from_cache = instanciate_use_template?(
+                context, specialization_hints, use_template, template
+            )
+            task = instanciate_from_template(plan, task_arguments) if from_cache
+
+            # `task` might be nil if from_cache is false or if the underlying models
+            # are incompatible with templates
+            task ||= instanciate_from_scratch(
+                context, plan, task_arguments, specialization_hints,
+                template: template
+            )
 
             post_instanciation_setup(task.to_task)
             model.bind(task)
@@ -1024,11 +1063,25 @@ module Syskit
 
         # @api private
         #
+        # Helper for {#instanciate} that determines if a particular instanciation
+        # should be using the template mechanism
+        def instanciate_use_template?(
+            context, specialization_hints, use_template, template
+        )
+            context.empty? && specialization_hints.empty? && use_template &&
+                !template && can_use_template?
+        end
+
+        # @api private
+        #
         # Instanciates the network represented by self in the given plan without using
         # the cache
         #
         # Unlike {#instanciate_from_template}
-        def instanciate_from_scratch(context, plan, task_arguments, specialization_hints)
+        def instanciate_from_scratch(
+            context, plan, task_arguments, specialization_hints,
+            template: false
+        )
             context.save
             context.push(resolved_dependency_injection)
 
@@ -1039,7 +1092,8 @@ module Syskit
             placeholder_model.instanciate(
                 plan, context,
                 task_arguments: task_arguments,
-                specialization_hints: specialization_hints
+                specialization_hints: specialization_hints,
+                template: template
             )
         ensure
             context.restore
@@ -1051,21 +1105,48 @@ module Syskit
         #
         # The template plan will be computed if needed
         def instanciate_from_template(plan, extra_arguments)
-            @template ||= compute_template
+            return unless (template = update_template_if_needed)
 
-            mappings = @template.deep_copy_to(plan)
-            root_task = mappings[@template.root_task]
+            mappings = template.deep_copy_to(plan)
+            root_task = mappings[template.root_task]
             root_task.post_instanciation_setup(**arguments.merge(extra_arguments))
             model.bind(root_task)
         end
 
-        # Compute the template and save it if needed
+        # @api private
         #
-        # @return [void]
+        # Symbol thrown by instanciation code if a model that cannot use templates is
+        # encountered while instanciating an actual template
+        #
+        # Use {cancel_template_creation!} within instanciation code to throw this
+        # instead of using the constant directly
+        MODEL_CANNOT_USE_TEMPLATE = :model_cannot_use_template
+
+        # Method that will cancel the creation of a plan template
+        #
+        # Call in model instanciation code if the `template` argument is true and
+        # the instanciation method is incompatible with template assumptions
+        # (see Models::Component#can_use_template?)
+        def self.cancel_template_creation!
+            throw MODEL_CANNOT_USE_TEMPLATE
+        end
+
+        # If needed, compute the template and save it
+        #
+        # @return [TemplatePlan,nil] the template plan, or nil if the model cannot be
+        #   used with templates at all
         def update_template_if_needed
             return unless can_use_template?
+            return @template if @template
 
-            @template ||= compute_template # rubocop:disable Naming/MemoizedInstanceVariableName
+            catch(MODEL_CANNOT_USE_TEMPLATE) do
+                @template = compute_template
+                return @template
+            end
+
+            # self cannot be frozen, or the assignation to @template would fail
+            @model_can_use_template = false
+            nil
         end
 
         # @api private
@@ -1078,7 +1159,7 @@ module Syskit
             template = TemplatePlan.new
             template.root_task =
                 base_requirements
-                .instanciate(template, use_template: false)
+                .instanciate(template, template: true)
                 .to_task
 
             if template_can_apply_merge?(template)

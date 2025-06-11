@@ -353,12 +353,17 @@ module Syskit
                 bind(task)
             end
 
+            # (see Component#can_use_template?)
+            def can_use_template?
+                component_model.can_use_template?
+            end
+
             # Creates, in the given plan, a new task matching this service in
             # the given context, and returns the instanciated data service
             #
             # @return [Syskit::BoundDataService]
-            def instanciate(plan, context = DependencyInjectionContext.new, options = {})
-                bind(component_model.instanciate(plan, context, options))
+            def instanciate(plan, context = DependencyInjectionContext.new, **options)
+                bind(component_model.instanciate(plan, context, **options))
             end
 
             # Generates the InstanceRequirements object that represents +self+
