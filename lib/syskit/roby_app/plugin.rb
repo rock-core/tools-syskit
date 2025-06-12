@@ -218,12 +218,15 @@ module Syskit
             # @return [Configuration::ProcessServerConfig]
             def syskit_log_transfer_process_servers
                 Syskit.conf.each_process_server_config.find_all do |config|
-                    config.supports_log_transfer? && !config.on_localhost?
+                    config.available? &&
+                        config.supports_log_transfer? && !config.on_localhost?
                 end
             end
 
             def syskit_log_transfer_poll_state
                 syskit_log_transfer_process_servers.each do |process_server_config|
+                    next unless process_server_config.available?
+
                     result = process_server_config.client.log_upload_state
                     ::Robot.info "#{result.pending_count} log transfers pending or in " \
                                  "progress from #{process_server_config.name}"
@@ -238,16 +241,12 @@ module Syskit
             end
 
             # Rotate logs, and transfer the old logs if log transfer is configured
-            def syskit_log_perform_rotation_and_transfer
-                rotated_logs = syskit_rotate_logs
-
-                return unless (mng = syskit_log_transfer_manager)
-
+            def syskit_log_initiate_transfer(rotated_logs)
                 handled = syskit_log_transfer_process_servers
                 rotated_logs.delete_if do |process_server_config, _|
                     !handled.include?(process_server_config)
                 end
-                mng.transfer(rotated_logs)
+                syskit_log_transfer_manager.transfer(rotated_logs)
             end
 
             # Hook called by the main application in Application#setup after
@@ -308,10 +307,25 @@ module Syskit
                 if Syskit.conf.log_rotation_period
                     @log_rotation_poll_handler =
                         app.execution_engine.every(Syskit.conf.log_rotation_period) do
-                            app.syskit_log_perform_rotation_and_transfer
-                            app.syskit_log_transfer_poll_state
+                            app.syskit_log_rotation_poll_handler
                         end
                 end
+            end
+
+            # @api private
+            #
+            # Implementation of the periodic handler called when log_rotation_period is
+            # set
+            #
+            # The handler performs log rotation, as well as transfer if transfer is
+            # configured
+            def syskit_log_rotation_poll_handler
+                rotated_logs = syskit_rotate_logs
+
+                return unless syskit_log_transfer_manager
+
+                syskit_log_initiate_transfer(rotated_logs) unless rotated_logs.empty?
+                syskit_log_transfer_poll_state
             end
 
             # Hook called by the main application to undo what {.prepare} did
