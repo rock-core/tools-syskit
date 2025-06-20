@@ -414,33 +414,33 @@ module Syskit
                 it "merges policies by preferring explicit values over " \
                    "computed values" do
                     explicit_policy = { type: :buffer, size: 20, init: true }
-                    computed_policy = { type: :buffer, size: 10, init: true }
+                    computed_policy = { type: :buffer, size: 10, init: false }
 
                     merged_policy =
-                        @dynamics.merge_policy(explicit_policy, computed_policy)
+                        @dynamics.merge_policy(computed_policy, explicit_policy)
 
                     assert_equal({ type: :buffer, size: 20, init: true }, merged_policy)
                 end
 
                 it "removes the size value when the type is set to :data" do
                     explicit_policy = { type: :data, init: true }
-                    computed_policy = { type: :buffer, size: 10, init: true }
+                    computed_policy = { type: :buffer, size: 10, init: false }
 
                     merged_policy =
-                        @dynamics.merge_policy(explicit_policy, computed_policy)
+                        @dynamics.merge_policy(computed_policy, explicit_policy)
 
                     assert_equal({ type: :data, init: true }, merged_policy)
                 end
 
                 it "falls back to computed values when explicit values " \
                    "are not provided" do
-                    explicit_policy = {}
+                    explicit_policy = { init: false }
                     computed_policy = { type: :buffer, size: 10, init: true }
 
                     merged_policy =
-                        @dynamics.merge_policy(explicit_policy, computed_policy)
+                        @dynamics.merge_policy(computed_policy, explicit_policy)
 
-                    assert_equal({ type: :buffer, size: 10, init: true }, merged_policy)
+                    assert_equal({ type: :buffer, size: 10, init: false }, merged_policy)
                 end
             end
 
@@ -506,31 +506,6 @@ module Syskit
                 end
             end
 
-            describe "#policy_default_init_flag" do
-                before do
-                    @task_m = Syskit::TaskContext.new_submodel do
-                        input_port "in", "/double"
-                        output_port "out", "/double"
-                    end
-                    @source_task_m = @task_m.new_submodel
-                    @sink_task_m = @task_m.new_submodel
-                    plan.add(@source_t = @source_task_m.new)
-                    plan.add(@sink_t = @sink_task_m.new)
-                end
-
-                it "merges the init flag from the source port's model" do
-                    flexmock(@source_t.out_port.model)
-                        .should_receive(:init_policy?).explicitly
-                        .and_return(true)
-
-                    policy = { type: :data }
-                    updated_policy = @dynamics.policy_default_init_flag(
-                        policy, @source_t.out_port.model
-                    )
-                    assert updated_policy[:init]
-                end
-            end
-
             describe "#policy_for" do
                 before do
                     @task_m = Syskit::TaskContext.new_submodel do
@@ -588,63 +563,18 @@ module Syskit
                 it "returns the value from compute_reliable_connection_policy if " \
                    "the sink port is marked as needs_reliable_connection" do
                     @sink_task_m.in_port.needs_reliable_connection
-                    fallback_policy = flexmock
-                    connection_policy = flexmock
-                    computed_policy = flexmock
-                    merged_policy = flexmock
-
-                    flexmock(@dynamics)
-                        .should_receive(:merge_policy)
-                        .with({}, computed_policy)
-                        .and_return(merged_policy)
-
-                    flexmock(@dynamics)
-                        .should_receive(:policy_default_init_flag)
-                        .with(connection_policy, @source_t.out_port.model)
-                        .once.and_return(computed_policy)
-
                     flexmock(@dynamics)
                         .should_receive(:compute_reliable_connection_policy)
-                        .with(@source_t.out_port, @sink_t.in_port, fallback_policy)
-                        .once.and_return(connection_policy)
+                        .with(@source_t.out_port, @sink_t.in_port, { stage: "fallback" })
+                        .once.and_return({ stage: "reliable" })
 
                     policy = @dynamics.policy_for(
-                        @source_t, "out", "in", @sink_t, fallback_policy
+                        @source_t, "out", "in", @sink_t, { stage: "fallback" }
                     )
-                    assert_equal merged_policy, policy
+                    assert_equal({ stage: "reliable", init: nil }, policy)
                 end
 
-                it "merges init policy when sink requires reliable connection" do
-                    @sink_task_m.in_port.needs_reliable_connection
-                    @source_t.out_port.model.init_policy(true)
-                    fallback_policy = flexmock
-
-                    flexmock(@dynamics)
-                        .should_receive(:compute_reliable_connection_policy)
-                        .with(@source_t.out_port, @sink_t.in_port, fallback_policy)
-                        .once.and_return({})
-
-                    policy = @dynamics.policy_for(
-                        @source_t, "out", "in", @sink_t, fallback_policy
-                    )
-
-                    assert policy[:init]
-                end
-
-                it "merges init policy when sink requires 'buffer' connection type" do
-                    @sink_task_m.in_port.needs_buffered_connection
-
-                    flexmock(@source_t.out_port.model)
-                        .should_receive(:init_policy?).explicitly
-                        .and_return(true)
-
-                    @source_t.out_port.model.init_policy(true)
-                    policy = @dynamics.policy_for(@source_t, "out", "in", @sink_t, nil)
-
-                    assert policy[:init]
-                end
-
-                it "always applies the init flag from the source port's model" do
+                it "uses the init flag from the source port's model by default" do
                     flexmock(@source_t.out_port.model)
                         .should_receive(:init_policy?).explicitly
                         .and_return(true)
@@ -653,6 +583,14 @@ module Syskit
                         @source_t, "out", "in", @sink_t, nil
                     )
                     assert policy[:init]
+                end
+
+                it "uses the explicitly given init flag over the one from the port model" do
+                    @source_t.out_port.model.init_policy(true)
+                    policy = @dynamics.policy_for(
+                        @source_t, "out", "in", @sink_t, {}, { init: false }
+                    )
+                    refute policy[:init]
                 end
             end
 

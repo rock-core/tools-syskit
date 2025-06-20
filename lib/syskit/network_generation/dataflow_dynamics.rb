@@ -553,13 +553,15 @@ module Syskit
                 policy_graph
             end
 
-            def merge_policy(explicit_policy, computed_policy)
-                merged_policy = computed_policy.merge(explicit_policy)
-
-                if merged_policy[:type] == :data
-                    merged_policy.delete(:size)
-                end
-
+            # Merges two connection policies
+            #
+            # @param [Hash] default_policy the policy that has the lowest
+            #   priority
+            # @param [Hash] explicit_policy the policy that has the highest
+            #   priority
+            def merge_policy(default_policy, explicit_policy)
+                merged_policy = default_policy.merge(explicit_policy)
+                merged_policy.delete(:size) if merged_policy[:type] == :data
                 merged_policy
             end
 
@@ -581,10 +583,6 @@ module Syskit
                     policy_graph[[source_task, sink_task]] = computed_policies
                 end
                 policy_graph
-            end
-
-            def policy_default_init_flag(policy, model)
-                policy.merge(init: model.init_policy?)
             end
 
             def policy_compute_data_element(
@@ -645,9 +643,9 @@ module Syskit
                     end
 
                 model = source_task.find_output_port(source_port_name).model
-                computed_policy = policy_default_init_flag(computed_policy, model)
+                computed_policy[:init] = model.init_policy
 
-                merge_policy(explicit_policy, computed_policy)
+                merge_policy(computed_policy, explicit_policy)
             end
 
             def compute_reliable_connection_policy(
