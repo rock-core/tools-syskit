@@ -4,6 +4,81 @@ require "syskit/test/self"
 
 module Syskit
     module Runtime
+        describe "#syskit_join_current_resolution" do
+            describe "with a valid resolution running" do
+                before do
+                    @cmp_m = Composition.new_submodel
+                    plan.add_permanent_task(
+                        cmp = @cmp_m.to_instance_requirements.as_plan
+                    )
+                    @requirement_task = cmp.planning_task
+                    execute { @requirement_task.start! }
+                    execute { Runtime.apply_requirement_modifications(plan) }
+                end
+
+                it "waits for the resolution end and applies the result" do
+                    execute { plan.syskit_join_current_resolution }
+
+                    refute @requirement_task.planned_task.abstract?
+                    assert @requirement_task.resolution_success_event.emitted?
+                end
+
+                it "does not start a new resolution" do
+                    execute { plan.syskit_join_current_resolution }
+                    refute plan.syskit_has_async_resolution?
+                end
+
+                it "keeps the plan in a state that allows to detect modifications " \
+                   "to instance requirement tasks that could have happened in-between" do
+                    plan.add_permanent_task(
+                        cmp = @cmp_m.to_instance_requirements.as_plan
+                    )
+                    execute { cmp.planning_task.start! }
+                    execute { plan.syskit_join_current_resolution }
+                    refute plan.syskit_has_async_resolution?
+                    execute { Runtime.apply_requirement_modifications(plan) }
+                    assert plan.syskit_has_async_resolution?
+                end
+            end
+
+            describe "with a cancelled resolution running" do
+                before do
+                    @cmp_m = Composition.new_submodel
+                    plan.add_permanent_task(
+                        cmp = @cmp_m.to_instance_requirements.as_plan
+                    )
+                    @requirement_task = cmp.planning_task
+                    execute { @requirement_task.start! }
+                    execute { Runtime.apply_requirement_modifications(plan) }
+                    execute { plan.syskit_cancel_async_resolution }
+                end
+
+                it "waits for the resolution end but does not apply the result" do
+                    execute { plan.syskit_join_current_resolution }
+
+                    assert @requirement_task.planned_task.abstract?
+                    refute @requirement_task.resolution_success_event.emitted?
+                end
+
+                it "does not start a new resolution" do
+                    execute { plan.syskit_join_current_resolution }
+                    refute plan.syskit_has_async_resolution?
+                end
+
+                it "keeps the plan in a state that allows to detect modifications " \
+                   "to instance requirement tasks that could have happened in-between" do
+                    plan.add_permanent_task(
+                        cmp = @cmp_m.to_instance_requirements.as_plan
+                    )
+                    execute { cmp.planning_task.start! }
+                    execute { plan.syskit_join_current_resolution }
+                    refute plan.syskit_has_async_resolution?
+                    execute { Runtime.apply_requirement_modifications(plan) }
+                    assert plan.syskit_has_async_resolution?
+                end
+            end
+        end
+
         describe ".apply_requirement_modifications" do
             before do
                 @__capture_errors_feature_flag =

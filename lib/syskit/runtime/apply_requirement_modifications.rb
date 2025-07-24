@@ -85,7 +85,7 @@ module Syskit
                 rescue Concurrent::CancelledOperationError # rubocop:disable Lint/SuppressedException
                 end
 
-                Runtime.apply_requirement_modifications(self)
+                syskit_apply_async_resolution_results
             end
 
             # Apply a finished resolution on this plan
