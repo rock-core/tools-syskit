@@ -98,8 +98,8 @@ module Syskit
                     raise "the current network resolution is not yet finished"
                 end
 
-                running_requirement_tasks =
-                    find_tasks(Syskit::InstanceRequirementsTask).running
+                requirement_tasks = syskit_current_resolution.resolution_requirement_tasks
+                running_requirement_tasks = requirement_tasks.find_all(&:running?)
 
                 begin
                     resolution_apply_result = syskit_current_resolution.apply
