@@ -691,6 +691,22 @@ describe Syskit::Component do
             expect_execution.to { achieve { reader.connected? } }
             assert_equal task.out_port, reader.resolved_accessor.port
         end
+
+        it "overrides BoundOutputReader with another model" do
+            injected = Class.new Syskit::Models::DynamicPortBinding::BoundOutputReader do
+                def type
+                    String
+                end
+            end
+
+            @support_task_m.data_reader(
+                @task_m.match.running.out_port, as: "test", model: injected
+            )
+            reader = @support_task_m.test_reader
+
+            assert reader.kind_of? injected
+            assert_equal String, reader.type
+        end
     end
 
     describe Syskit::Component::DataAccessorInterface do
