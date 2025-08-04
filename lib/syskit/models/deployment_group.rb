@@ -530,6 +530,7 @@ module Syskit
                     resolve_process_config_and_loader_from_use_arguments(
                         on, simulation, loader, process_managers
                     )
+                loader ||= Roby.app.default_loader
 
                 ## WORKAROUND FOR 2.7.0
                 Roby.sanitize_keywords_to_hash(deployment_spec, run_options)
