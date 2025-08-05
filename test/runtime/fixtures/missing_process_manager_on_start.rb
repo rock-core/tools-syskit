@@ -22,15 +22,16 @@ end
 
 using_task_library "orogen_syskit_tests"
 
+task_m =
+    OroGen.orogen_syskit_tests.Empty
+          .deployed_as("#{Process.pid}_missing_empty", on: "test")
+
 deadline = nil
 spawned = false
 Robot.controller do
     Roby.execution_engine.each_cycle do
         if test_remote_manager.available? && !spawned
             spawned = true
-            task_m =
-                OroGen.orogen_syskit_tests.Empty
-                      .deployed_as("#{Process.pid}_missing_empty", on: "test")
             task = Roby.plan.add_mission_task(task_m)
             task.start_event.on do |_event|
                 puts "#{TOKEN} - success"
