@@ -79,6 +79,10 @@ module Syskit
                 @future = resolver
             end
 
+            def resolution_requirement_tasks
+                @future&.requirement_tasks
+            end
+
             def default_requirement_tasks
                 Engine.discover_requirement_tasks_from_plan(plan)
             end
