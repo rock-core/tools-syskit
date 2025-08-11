@@ -304,6 +304,193 @@ module Syskit
                 assert other_requirement_task.failed?
             end
 
+            it "resolves all requirements that were added to the plan in successive " \
+               "#apply_requirement_modifications calls" do
+                task_m = Composition.new_submodel
+                task_m2 = Composition.new_submodel
+                task_m3 = Composition.new_submodel
+                reqs = [task_m, task_m2, task_m3].map do |t|
+                    requirement_task =
+                        plan.add_permanent_task(t.to_instance_requirements.as_plan)
+                    requirement_task.planning_task
+                end
+                reqs.each do |req|
+                    execute { req.start! }
+                    execute { Runtime.apply_requirement_modifications(plan) }
+                end
+                assert plan.syskit_has_async_resolution?
+
+                execute { plan.syskit_join_current_resolution }
+                reqs.each do |req|
+                    assert req.resolution_success?
+                end
+            end
+
+            it "while using force, cancels pending resolutions and executes the last " \
+               "one" do
+                task_m = Composition.new_submodel
+                requirement_task =
+                    plan.add_permanent_task(task_m.to_instance_requirements.as_plan)
+                requirement_task = requirement_task.planning_task
+                execute { requirement_task.start! }
+                execute { Runtime.apply_requirement_modifications(plan, force: true) }
+                assert plan.syskit_has_async_resolution?
+                FlexMock.use(plan) do |mock|
+                    mock.should_receive(syskit_finished_async_resolution?: false)
+                    execute { Runtime.apply_requirement_modifications(plan, force: true) }
+                end
+                assert plan.syskit_current_resolution.cancelled?
+                join_current_resolution
+
+                # Applies the previously cancelled resolution
+                execute { Runtime.apply_requirement_modifications(plan, force: true) }
+                # Starts a new resolution
+                execute { Runtime.apply_requirement_modifications(plan, force: true) }
+                assert plan.syskit_has_async_resolution?
+                refute plan.syskit_current_resolution.cancelled?
+            end
+
+            it "triggers a new resolution once with force: false when a force was " \
+               "used while a resolution was pending" do
+                task_m = Composition.new_submodel
+                # `apply_requirement_modifications` never does anything if there are
+                # no requirements
+                requirement_task =
+                    plan.add_permanent_task(task_m.to_instance_requirements.as_plan)
+                requirement_task = requirement_task.planning_task
+                execute { requirement_task.start! }
+
+                # Finish one resolution, we're checking behaviour related to the force
+                # flag
+                execute { Runtime.apply_requirement_modifications(plan) }
+                join_current_resolution
+                expect_execution { Runtime.apply_requirement_modifications(plan) }
+                    .to_emit(requirement_task.resolution_success_event)
+
+                execute { Runtime.apply_requirement_modifications(plan, force: true) }
+                assert plan.syskit_has_async_resolution?
+                refute plan.syskit_pending_forced_resolution?
+
+                FlexMock.use(plan) do |mock|
+                    mock.should_receive(syskit_finished_async_resolution?: false)
+                    # Cancels resolution, but does nothing else as
+                    # there is a pending unfinished resolution
+                    #
+                    # The test is to check that the `force` flag is remembered and will
+                    # be used the next time
+                    execute { Runtime.apply_requirement_modifications(plan, force: true) }
+                end
+                assert plan.syskit_pending_forced_resolution?
+                assert plan.syskit_current_resolution.cancelled?
+
+                # Finish and apply the current resolution
+                join_current_resolution
+                execute { Runtime.apply_requirement_modifications(plan) }
+                refute plan.syskit_has_async_resolution?
+                assert plan.syskit_pending_forced_resolution?
+
+                # Triggers new resolution because of the last 'force'
+                execute { Runtime.apply_requirement_modifications(plan) }
+                assert plan.syskit_has_async_resolution?
+                refute plan.syskit_current_resolution.cancelled?
+                refute plan.syskit_pending_forced_resolution?
+
+                # Resolution was not cancelled so we can join and apply it to the plan
+                plan.syskit_join_current_resolution
+                execute { Runtime.apply_requirement_modifications(plan) }
+                refute plan.syskit_has_async_resolution?
+
+                # From now on, all is well, this should not do anything
+                execute { Runtime.apply_requirement_modifications(plan) }
+                refute plan.syskit_has_async_resolution?
+            end
+
+            it "triggers a new resolution once with force: false when a sequence of " \
+               "force: true and force: false was used while the resolution was pending" do
+                task_m = Composition.new_submodel
+                # `apply_requirement_modifications` never does anything if there are
+                # no requirements
+                requirement_task =
+                    plan.add_permanent_task(task_m.to_instance_requirements.as_plan)
+                requirement_task = requirement_task.planning_task
+                execute { requirement_task.start! }
+
+                # Finish one resolution, we're checking behaviour related to the force
+                # flag
+                execute { Runtime.apply_requirement_modifications(plan) }
+                join_current_resolution
+                expect_execution { Runtime.apply_requirement_modifications(plan) }
+                    .to_emit(requirement_task.resolution_success_event)
+
+                execute { Runtime.apply_requirement_modifications(plan, force: true) }
+                assert plan.syskit_has_async_resolution?
+                refute plan.syskit_pending_forced_resolution?
+
+                FlexMock.use(plan) do |mock|
+                    mock.should_receive(syskit_finished_async_resolution?: false)
+                    # Cancels resolution, but does nothing else as
+                    # there is a pending unfinished resolution
+                    #
+                    # The test is to check that the `force` flag is remembered and will
+                    # be used the next time
+                    execute { Runtime.apply_requirement_modifications(plan, force: true) }
+                    execute do
+                        Runtime.apply_requirement_modifications(plan, force: false)
+                    end
+                end
+                assert plan.syskit_pending_forced_resolution?
+                assert plan.syskit_current_resolution.cancelled?
+
+                # Finish and apply the current resolution
+                join_current_resolution
+                execute { Runtime.apply_requirement_modifications(plan) }
+                refute plan.syskit_has_async_resolution?
+                assert plan.syskit_pending_forced_resolution?
+
+                # Triggers new resolution because of the last 'force'
+                execute { Runtime.apply_requirement_modifications(plan) }
+                assert plan.syskit_has_async_resolution?
+                refute plan.syskit_current_resolution.cancelled?
+                refute plan.syskit_pending_forced_resolution?
+
+                # Resolution was not cancelled so we can join and apply it to the plan
+                plan.syskit_join_current_resolution
+                execute { Runtime.apply_requirement_modifications(plan) }
+                refute plan.syskit_has_async_resolution?
+
+                # From now on, all is well, this should not do anything
+                execute { Runtime.apply_requirement_modifications(plan) }
+                refute plan.syskit_has_async_resolution?
+            end
+
+            it "does not emit anything on instance requirement tasks when " \
+               "the resolution is cancelled" do
+                task_m = Composition.new_submodel
+                # `apply_requirement_modifications` never does anything if there are
+                # no requirements
+                requirement_task =
+                    plan.add_permanent_task(task_m.to_instance_requirements.as_plan)
+                requirement_task = requirement_task.planning_task
+                execute { requirement_task.start! }
+
+                # Starts a new resolution
+                execute { Runtime.apply_requirement_modifications(plan) }
+                FlexMock.use(plan) do |mock|
+                    mock.should_receive(syskit_finished_async_resolution?: false)
+                    # Cancels resolution, but does nothing else as
+                    # there is a pending unfinished resolution
+                    #
+                    # The test is to check that the `force` flag is remembered and will
+                    # be used the next time
+                    execute { Runtime.apply_requirement_modifications(plan, force: true) }
+                end
+
+                assert plan.syskit_current_resolution.cancelled?
+                join_current_resolution
+                expect_execution { Runtime.apply_requirement_modifications(plan) }
+                    .to_not_emit { requirement_task.resolution_success_event }
+            end
+
             describe "capture_errors" do
                 before do
                     @__capture_errors_feature_flag =
@@ -399,6 +586,11 @@ module Syskit
                     refute plan.syskit_current_resolution
                     Runtime.apply_requirement_modifications(plan)
                 end
+            end
+
+            def join_current_resolution
+                plan.syskit_current_resolution.join
+            rescue Concurrent::CancelledOperationError # rubocop:disable Lint/SuppressedException
             end
         end
     end
