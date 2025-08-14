@@ -1343,7 +1343,10 @@ module Syskit
             #
             # @return [DynamicPortBinding::BoundOutputReader]
             def data_reader(
-                port, as:, klass: Syskit::DynamicPortBinding::BoundOutputReader, **policy
+                port, as:,
+                klass: nil,
+                model: DynamicPortBinding::BoundOutputReader,
+                **policy
             )
                 port = DynamicPortBinding.create(port)
                 unless port.output?
@@ -1351,9 +1354,16 @@ module Syskit
                           "expected an output port, but #{port} seems to be an input"
                 end
 
-                data_readers[as] = DynamicPortBinding::BoundOutputReader.new(
-                    as, self, port, klass: klass, **policy
-                )
+                data_readers[as] =
+                    if klass
+                        Roby.warn_deprecated(
+                            "the klass argument of data_reader is deprecated, " \
+                            "use the model argument instead"
+                        )
+                        model.new(as, self, port, klass: klass, **policy)
+                    else
+                        model.new(as, self, port, **policy)
+                    end
             end
 
             # The data writers defined on this task, as a mapping from the writer's

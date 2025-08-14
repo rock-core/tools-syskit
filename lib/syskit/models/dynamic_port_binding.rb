@@ -204,9 +204,10 @@ module Syskit
                     @klass = klass
                 end
 
-                def instanciate(component, value_resolver: IdentityValueResolver.new)
+                def instanciate(component, klass: @klass,
+                    value_resolver: IdentityValueResolver.new)
                     port_binding = @port_binding.instanciate
-                    @klass.new(
+                    klass.new(
                         name, component, port_binding,
                         value_resolver: value_resolver, **policy
                     )
