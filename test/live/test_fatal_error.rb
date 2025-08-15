@@ -263,7 +263,6 @@ module Syskit
         def trigger_fatal_error(task, &block)
             expect_execution { task.stop! }.to do
                 emit task.fatal_error_event
-                emit task.exception_event
                 instance_eval(&block) if block
             end
         end
