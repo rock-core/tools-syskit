@@ -145,10 +145,6 @@ module Syskit
                     name == other.name
                 end
 
-                def basename
-                    name
-                end
-
                 # Declare that the remote task is not reachable anymore
                 #
                 # Must be called from the main thread. It also dispose of the underlying
