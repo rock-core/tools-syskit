@@ -58,7 +58,7 @@ module Syskit
                 type_logical_time_field = logical_time_field(
                     Orocos.default_loader.intermediate_type_for(logged_port_type)
                 )
-                if type_logical_time_field
+                if Syskit.conf.use_rock_time_field_for_logging? && type_logical_time_field
                     metadata["rock_timestamp_field"] = type_logical_time_field
                 end
                 metadata = metadata.map do |k, v|

@@ -121,6 +121,22 @@ module Syskit
             # likely want this
             attr_predicate :kill_all_on_process_server_connection?, true
 
+            # Indicate to the loggers which time field it should use as logical time
+            #
+            # When a type member is marked with `@meta role logical_time` Syskit will pass
+            # it for the logger as the logical time field.
+            #
+            # This is disabled by default as opaque types aren't supported, and will
+            # silently not be logged
+            def use_rock_time_field_for_logging?
+                @use_rock_time_field_for_logging
+            end
+
+            # Indicate to the loggers which time field it should use as logical time
+            #
+            # @see use_rock_time_field_for_logging?
+            attr_writer :use_rock_time_field_for_logging
+
             # Indicates where the deployment stage happens
             #
             # If false, it will happen at the end of the whole network generation
@@ -253,6 +269,7 @@ module Syskit
                 @early_deploy = false
                 @capture_errors_during_network_resolution = false
                 @local_only_configuration_files = false
+                @use_rock_time_field_for_logging = false
 
                 @remote_process_managers_accept_failed_connections = false
                 @remote_process_managers_connection_retry_period = 5

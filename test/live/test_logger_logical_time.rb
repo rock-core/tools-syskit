@@ -27,6 +27,8 @@ module Syskit
         attr_reader :task
 
         before do
+            skip unless Syskit.conf.use_rock_time_field_for_logging?
+
             Syskit.conf.logs.enable_port_logging
             @task = syskit_deploy(
                 OroGen.orogen_syskit_tests.LogicalTimeLoggingTest
