@@ -30,5 +30,15 @@ module Syskit
                 end
             end
         end
+
+        it "validates whether the conf section exists in the task model" do
+            task_m = @task_m
+            syskit_stub_conf(task_m, "bla")
+            task_m.configuration_manager.validate_conf_section("bla")
+
+            assert_raises Orocos::TaskConfigurations::SectionNotFound do
+                task_m.configuration_manager.validate_conf_section("imaginary")
+            end
+        end
     end
 end
