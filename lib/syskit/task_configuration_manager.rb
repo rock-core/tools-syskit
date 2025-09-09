@@ -118,5 +118,13 @@ module Syskit
             FileUtils.mkdir_p self.cache_dir
             super
         end
+
+        # Helpers method that checks if the given conf section is valid for the task model
+        def validate_conf_section(section)
+            return if has_section?(section)
+
+            raise SectionNotFound,
+                  "#{section} configuration section is used but it was not defined"
+        end
     end
 end

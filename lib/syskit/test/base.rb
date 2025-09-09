@@ -114,6 +114,11 @@ module Syskit
                 Roby.app.default_loader
                     .resolve_type(name, define_dummy_type: true)
             end
+
+            def assert_has_conf(task_model, section)
+                assert task_model.configuration_manager.has_section?(section),
+                       "#{section} configuration section is not defined for #{task_model}"
+            end
         end
     end
 end
