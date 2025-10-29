@@ -10,7 +10,12 @@ module Syskit
                 ROBY_TASK_MEMBERS = Roby::Interface::V2::Protocol::Task.new.members
 
                 DeviceModel = Struct.new(:name, keyword_init: true)
-                MasterDeviceInstance = Struct.new(:name, :model, keyword_init: true)
+                MasterDeviceInstance = Struct.new(:name, :model, keyword_init: true) do
+                    def pretty_print(pp)
+                        pp.text "#{name}_dev[#{model.name}]"
+                    end
+                end
+
                 Deployment = Struct.new(
                     *ROBY_TASK_MEMBERS,
                     :pid, :ready_since, :deployed_tasks, keyword_init: true

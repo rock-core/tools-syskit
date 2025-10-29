@@ -192,18 +192,17 @@ module Syskit
 
         # Returns true if the underlying Orocos task is in a state that
         # allows it to be configured
-        def ready_for_setup? # :nodoc:
+        def ready_for_setup?(report_with: ->(msg) { debug("#{self}: #{msg}") }) # :nodoc:
             if garbage?
-                debug do
-                    "#{self} not ready for setup: " \
-                        "garbage collected but not yet finalized"
-                end
+                report_with.call(
+                    "not ready for setup: garbage collected but not yet finalized"
+                )
                 return false
             elsif failed_to_start?
-                debug { "#{self} not ready for setup: failed to start" }
+                report_with.call("not ready for setup: failed to start")
                 return false
             elsif !fully_instanciated?
-                debug { "#{self} not ready for setup: not fully instanciated" }
+                report_with.call("not ready for setup: not fully instanciated")
                 return false
             end
 

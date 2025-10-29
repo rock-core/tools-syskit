@@ -34,9 +34,7 @@ module Syskit
                 @thread_pass_timer.start(10)
 
                 require "syskit/scripts/common"
-                Syskit::Scripts.run do
-                    runtime_state(host, port)
-                end
+                runtime_state(host, port)
             end
 
             no_commands do # rubocop:disable Metrics/BlockLength
