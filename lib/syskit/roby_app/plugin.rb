@@ -673,7 +673,7 @@ module Syskit
                 using_task_library(name, **options)
             end
 
-            def autodiscover_tests_in?(path)
+            def autodiscover_tests_in?(path, **kw)
                 if File.basename(path) == "orogen"
                     search_path.each do |base_path|
                         if File.join(base_path, "test", "orogen") == path
