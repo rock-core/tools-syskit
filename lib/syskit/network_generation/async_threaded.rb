@@ -51,14 +51,29 @@ module Syskit
                 @finished
             end
 
+            # Periodic polling of the resolution process
+            #
+            # @param [nil,Set<InstanceRequirementTask>] requirement_tasks the requirements
+            #   that currently need to be resolved. The class will cancel the current
+            #   resolution if it does not match the set it is actually resolving. Pass
+            #   nil to ignore the test altogether
             def poll(requirement_tasks)
                 return if finished?
-
-                cancel if !cancelled? && !valid?(requirement_tasks)
+                cancel if !cancelled? && requirement_tasks && !valid?(requirement_tasks)
 
                 return unless network_generation_complete?
 
                 apply_complete_network_generation
+            end
+
+            def apply_network_generation
+                unless network_generation_complete?
+                    raise InvalidState,
+                          "attempting to call Async#apply_network_generation while " \
+                          "processing is in progress"
+                end
+
+                super(result: network_generation_result, error: network_generation_error)
             end
 
             def apply_complete_network_generation
@@ -100,10 +115,6 @@ module Syskit
 
             def network_generation_complete?
                 @future.complete?
-            end
-
-            def network_generation_successful?
-                @future.fulfilled?
             end
 
             def network_generation_join
