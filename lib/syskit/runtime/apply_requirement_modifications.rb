@@ -3,6 +3,14 @@
 module Syskit
     module Runtime
         module PlanExtension
+            def initialize(*, **)
+                super
+
+                @syskit_async_method = NetworkGeneration::AsyncThreaded
+            end
+
+            attr_accessor :syskit_async_method
+
             # The currently running resolution
             #
             # @return [NetworkGeneration::Async,nil]
@@ -34,7 +42,7 @@ module Syskit
                 end
 
                 # Protect all toplevel Syskit tasks while the resolution runs
-                @syskit_current_resolution = NetworkGeneration::AsyncThreaded.start(
+                @syskit_current_resolution = @syskit_async_method.start(
                     self, requirement_tasks, **resolver_options
                 )
             end

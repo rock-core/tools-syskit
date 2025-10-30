@@ -15,28 +15,6 @@ module Syskit
                 compute_deployments garbage_collect validate_final_network
             ].freeze
 
-            # Whether the network generation step is finished
-            def network_generation_complete?
-                raise NotImplementedError, __method__
-            end
-
-            # Whether the network generation step is finished and successful
-            def network_generation_successful?
-                raise NotImplementedError, __method__
-            end
-
-            # In case the network generation step is successful, return its result
-            #
-            # @return a pair, (required_instances, resolution_errors)
-            def network_generation_result
-                raise NotImplementedError, __method__
-            end
-
-            # In case the network generation step raised an exception, return it
-            def network_generation_error
-                raise NotImplementedError, __method__
-            end
-
             def initialize(
                 plan, requirement_tasks,
                 resolver_options: {}, event_logger: plan.event_logger
@@ -91,34 +69,27 @@ module Syskit
             #
             # @return [nil,SystemNetworkPlanApplyResult] the application result, which is
             #   nil in case of failure or cancellation and a result object otherwise
-            def apply_network_generation
-                unless network_generation_complete?
-                    raise InvalidState,
-                          "attempting to call Async#apply_network_generation while " \
-                          "processing is in progress"
-                end
-
+            def apply_network_generation(result:, error:)
                 if cancelled?
                     @engine.discard_work_plan
                     nil
-                elsif network_generation_successful?
-                    required_instances, resolution_errors = network_generation_result
+                elsif error
+                    @engine.handle_resolution_exception(error, on_error: Engine.on_error)
+                    raise error
+                else
+                    successful_requirements, resolution_errors = result
                     begin
                         @engine.apply_system_network_to_plan(
-                            required_instances, **@apply_system_network_options
+                            successful_requirements, **@apply_system_network_options
                         )
                         SystemNetworkPlanApplyResult.new(
-                            instance_requirement_tasks: required_instances.keys,
+                            instance_requirement_tasks: successful_requirements.keys,
                             errors: resolution_errors
                         )
                     rescue ::Exception => e
                         @engine.handle_resolution_exception(e, on_error: Engine.on_error)
                         raise e
                     end
-                else
-                    error = network_generation_error
-                    @engine.handle_resolution_exception(error, on_error: Engine.on_error)
-                    raise error
                 end
             end
 
