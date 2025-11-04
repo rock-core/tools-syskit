@@ -190,7 +190,7 @@ module Syskit
                             @error_message.hide
                             @result = Parser.parse(self.text)
                             accept
-                        rescue StandardError => e
+                        rescue SyntaxError, StandardError => e
                             @error_message.text = e.message
                             @error_message.show
                         end
