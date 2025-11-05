@@ -148,6 +148,15 @@ module Syskit
                     @current_job_task_names = []
                     @current_tasks = []
 
+                    syskit.on_log_event do |event_name, values|
+                        if (m = event_name.match(/^scheduler_/))
+                            @next_scheduler_state.send(m.post_match, *values)
+                        elsif event_name == "cycle_end"
+                            @job_expanded_status
+                                .display_scheduler_state(@next_scheduler_state)
+                            @next_scheduler_state = Roby::Schedulers::State.new
+                        end
+                    end
                     syskit.on_ui_event do |event_name, *args|
                         if (w = @ui_event_widgets[event_name])
                             w.show
@@ -162,6 +171,7 @@ module Syskit
                         connection_state.update_state state
                     end
                     syskit.on_reachable do
+                        @next_scheduler_state = Roby::Schedulers::State.new
                         @syskit_commands = syskit.client.syskit
                         @job_status_list.each_widget do |w|
                             w.show_actions = true

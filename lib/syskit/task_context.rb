@@ -737,26 +737,28 @@ module Syskit
 
         # Returns true if this component needs to be setup by calling the
         # #setup method, or if it can be used as-is
-        def ready_for_setup?(state = nil)
+        def ready_for_setup?(
+            state = nil, report_with: ->(msg) { debug("#{self} #{msg}") }
+        )
             if execution_agent.configuring?(orocos_name)
-                debug { "#{self} not ready for setup: already configuring" }
+                report_with.call("not ready for setup: already configuring")
                 return false
             elsif !super()
                 return false
             elsif !all_inputs_connected?(only_static: true)
-                debug do
-                    "#{self} not ready for setup: some static ports are not connected"
-                end
+                report_with.call(
+                    "not ready for setup: some static ports are not connected"
+                )
                 return false
             elsif !orogen_model || !orocos_task
-                debug { "#{self} not ready for setup: no orogen model or no orocos task" }
+                report_with.call("not ready for setup: no orogen model or no orocos task")
                 return false
             end
 
             unless state ||= read_current_state
-                debug do
-                    "#{self} not ready for setup: not yet received current state"
-                end
+                report_with.call(
+                    "not ready for setup: not yet received current state"
+                )
                 return
             end
 
@@ -771,7 +773,7 @@ module Syskit
             return true if orocos_task.runtime_state?(state)
 
             execution_engine.scheduler.report_holdoff(
-                "read-only task #{self} not ready, task is not currently running", self
+                "read-only task not ready, task is not currently running", self
             )
             false
         end

@@ -42,11 +42,8 @@ module Syskit
             return unless task.meets_configurationg_precedence_constraints?
 
             task.freeze_delayed_arguments
-            if task.ready_for_setup?
-                task.setup.execute
-            else
-                scheduler.report_holdoff("did not configure, not ready for setup", task)
-            end
+            report = ->(msg) { scheduler.report_holdoff(msg, task) }
+            task.setup.execute if task.ready_for_setup?(report_with: report)
         end
 
         # @api private
