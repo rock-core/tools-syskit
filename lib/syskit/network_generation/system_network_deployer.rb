@@ -75,7 +75,7 @@ module Syskit
             # @return [Set] the set of tasks for which the deployer could
             #   not find a deployment
             def deploy(error_handler: RaiseErrorHandler.new, validate: true,
-                reuse_deployments: false, deployment_tasks: {})
+                reuse_deployments: false, deployment_tasks: {}, lazy: false)
                 debug "Deploying the system network"
 
                 all_tasks = plan.find_local_tasks(TaskContext).to_a
@@ -83,11 +83,15 @@ module Syskit
                     select_deployments(all_tasks, reuse: reuse_deployments)
                 interruption_point "syskit-netgen:select_deployments"
 
-                apply_selected_deployments(selected_deployments, deployment_tasks)
+                if lazy
+                    lazy_apply_selected_deployments(selected_deployments)
+                else
+                    apply_selected_deployments(selected_deployments, deployment_tasks)
+                end
                 interruption_point "syskit-netgen:apply_selected_deployments"
 
                 if validate
-                    validate_deployed_network(error_handler: error_handler)
+                    validate_deployed_network(error_handler: error_handler, lazy: lazy)
                     log_timepoint "syskit-netgen:validate-deployed-network"
                 end
 
@@ -183,9 +187,10 @@ module Syskit
                         missing_deployments << task
                     elsif !reuse && used_deployments.include?(selected)
                         debug do
-                            machine, configured_deployment, task_name = *selected
+                            configured_deployment = selected.configured_deployment
+                            task_name = selected.mapped_task_name
                             "#{task} resolves to #{configured_deployment}.#{task_name} " \
-                                "on #{machine} for its deployment, but it is already used"
+                                "for its deployment, but it is already used"
                         end
                         missing_deployments << task
                     else
@@ -224,13 +229,30 @@ module Syskit
                 end
             end
 
+            # Apply deployments selected during {#deploy} by setting the task's
+            # orocos_name argument accordingly
+            #
+            # @param [Component=>Deployment] selected_deployments the
+            #   component-to-deployment association
+            def lazy_apply_selected_deployments(selected_deployments)
+                selected_deployments.each do |task, sel|
+                    unless sel.mapped_task_name
+                        raise "found selected deployment without a task name"
+                    end
+
+                    task.orocos_name ||= sel.mapped_task_name
+                end
+            end
+
             # Sanity checks to verify that the result of #deploy_system_network
             # is valid
             #
             # @return [Array<ResolutionError>] all the resolution errors of the deployed
             #   network.
-            def validate_deployed_network(error_handler: RaiseErrorHandler.new)
-                verify_all_tasks_deployed(error_handler: error_handler)
+            def validate_deployed_network(
+                error_handler: RaiseErrorHandler.new, lazy: false
+            )
+                verify_all_tasks_deployed(error_handler: error_handler, lazy: lazy)
                 verify_all_configurations_exist(error_handler: error_handler)
                 verify_all_process_managers_enabled(error_handler: error_handler)
             end
@@ -238,9 +260,12 @@ module Syskit
             # Verifies that all tasks in the plan are deployed
             #
             # @param [ResolutionErrorHandler | RaiseErrorHandler] error_handler
-            def verify_all_tasks_deployed(error_handler: RaiseErrorHandler.new)
+            def verify_all_tasks_deployed(
+                error_handler: RaiseErrorHandler.new, lazy: false
+            )
                 self.class.verify_all_tasks_deployed(
-                    plan, default_deployment_group, error_handler: error_handler
+                    plan, default_deployment_group,
+                    error_handler: error_handler, lazy: lazy
                 )
             end
 
@@ -250,11 +275,17 @@ module Syskit
             #   deployment groups has been used for which task. This is used
             #   to generate the error messages when needed.
             def self.verify_all_tasks_deployed(
-                plan, default_deployment_group, error_handler: RaiseErrorHandler.new
+                plan, default_deployment_group,
+                error_handler: RaiseErrorHandler.new, lazy: false
             )
-                not_deployed = plan.find_local_tasks(TaskContext)
-                                   .not_finished.not_abstract
-                                   .find_all { |t| !t.execution_agent }
+                query = plan.find_local_tasks(TaskContext)
+                            .not_finished.not_abstract
+                not_deployed =
+                    if lazy
+                        query.find_all { !_1.orocos_name }
+                    else
+                        query.find_all { !_1.execution_agent }
+                    end
 
                 return if not_deployed.empty?
 

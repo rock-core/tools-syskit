@@ -114,6 +114,7 @@ module Syskit
                 required_instances: [],
                 default_deployment_group: Syskit.conf.deployment_group,
                 compute_policies: true,
+                lazy_deploy: Syskit.conf.lazy_deploy?,
                 validate_deployed_network: true
             )
                 resolution_errors = []
@@ -127,14 +128,15 @@ module Syskit
                     )
 
                     deployer.deploy(
-                        error_handler: error_handler, validate: validate_deployed_network
+                        error_handler: error_handler, validate: validate_deployed_network,
+                        lazy: lazy_deploy
                     )
                     resolution_errors = error_handler.process_failures(
                         required_instances, cleanup_failed_tasks: true
                     )
                     # Sanity check that the plan was properly cleaned up
                     SystemNetworkDeployer.verify_all_tasks_deployed(
-                        work_plan, default_deployment_group
+                        work_plan, default_deployment_group, lazy: lazy_deploy
                     )
                     SystemNetworkGenerator.verify_all_deployments_are_unique(
                         work_plan, toplevel_tasks_to_requirements.dup
@@ -759,7 +761,8 @@ module Syskit
                 validate_generated_network: true,
                 default_deployment_group: Syskit.conf.deployment_group,
                 early_deploy: Syskit.conf.early_deploy?,
-                validate_deployed_network: early_deploy,
+                lazy_deploy: Syskit.conf.lazy_deploy?,
+                validate_deployed_network: early_deploy && !lazy_deploy,
                 cleanup_resolution_errors: true
             )
                 requirement_tasks = requirement_tasks.to_a
@@ -772,6 +775,7 @@ module Syskit
                     event_logger: event_logger,
                     merge_solver: merge_solver,
                     default_deployment_group: default_deployment_group,
+                    lazy_deploy: lazy_deploy,
                     early_deploy: early_deploy,
                     resolution_control: @resolution_control
                 )
@@ -785,7 +789,7 @@ module Syskit
                     validate_abstract_network: validate_abstract_network,
                     validate_generated_network: validate_generated_network,
                     validate_deployed_network:
-                        early_deploy && validate_deployed_network
+                        early_deploy && !lazy_deploy && validate_deployed_network
                 )
                 required_instances = Hash[requirement_tasks.zip(toplevel_tasks)]
                 # Take toplevel tasks to requirements before cleanup
@@ -803,7 +807,7 @@ module Syskit
                         validate_abstract_network: validate_abstract_network,
                         validate_generated_network: validate_generated_network,
                         validate_deployed_network:
-                            early_deploy && validate_deployed_network
+                            early_deploy && !lazy_deploy && validate_deployed_network
                     )
                 end
                 [required_instances, resolution_errors, toplevel_tasks_to_requirements]
@@ -840,6 +844,7 @@ module Syskit
                 default_deployment_group: Syskit.conf.deployment_group,
                 compute_policies: true,
                 early_deploy: Syskit.conf.early_deploy?,
+                lazy_deploy: Syskit.conf.lazy_deploy?,
                 capture_errors_during_network_resolution:
                     Syskit.conf.capture_errors_during_network_resolution?,
                 cleanup_resolution_errors: true
@@ -862,6 +867,7 @@ module Syskit
                             (default_deployment_group if early_deploy),
                         validate_deployed_network: validate_deployed_network,
                         early_deploy: early_deploy && compute_deployments,
+                        lazy_deploy: lazy_deploy && compute_deployments,
                         cleanup_resolution_errors: cleanup_resolution_errors
                     )
 
@@ -874,6 +880,7 @@ module Syskit
                                 required_instances: required_instances,
                                 default_deployment_group: default_deployment_group,
                                 compute_policies: compute_policies,
+                                lazy_deploy: lazy_deploy,
                                 validate_deployed_network: validate_deployed_network
                             )
                         resolution_errors.concat(deployment_resolution_errors)

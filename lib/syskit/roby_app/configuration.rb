@@ -183,6 +183,21 @@ module Syskit
             # resolution
             attr_writer :capture_errors_during_network_resolution
 
+            # Switch from a full deployment during network generation to a "lazy" one
+            #
+            # If true, the system selects a cheaper method to indicate deployments during
+            # network generation. This is experimental. The default is false.
+            #
+            # @see lazy_deployment_during_network_generation=
+            def lazy_deploy?
+                @lazy_deploy
+            end
+
+            # Controls usage of the lazy deployment during network generation
+            #
+            # @see lazy_deploy?
+            attr_writer :lazy_deploy
+
             # Only look for configuration files from the current app root path, ignoring
             # any other registered app
             attr_writer :local_only_configuration_files

@@ -24,11 +24,18 @@ module Syskit
                 @early_deploy
             end
 
-            def initialize( # rubocop:disable Metrics/ParameterLists
-                plan,
+            # Indicates if deployment is done lazily or eagerly
+            #
+            # Lazy deployment is only setting orocos_name until the very last moment
+            def lazy_deploy?
+                @lazy_deploy
+            end
+
+            def initialize(plan, # rubocop:disable Metrics/ParameterLists
                 event_logger: plan.event_logger,
                 default_deployment_group: nil,
                 early_deploy: false,
+                lazy_deploy: false,
                 error_handler: RaiseErrorHandler.new,
                 resolution_control: Async::Control.new,
                 merge_solver: nil
@@ -47,6 +54,7 @@ module Syskit
                 @merge_solver = merge_solver
                 @default_deployment_group = default_deployment_group
                 @early_deploy = early_deploy
+                @lazy_deploy = lazy_deploy
                 @error_handler = error_handler
             end
 
@@ -232,9 +240,10 @@ module Syskit
                     default_deployment_group: default_deployment_group
                 )
 
-                network_deployer.deploy(validate: false,
-                                        reuse_deployments: true,
-                                        deployment_tasks: deployment_tasks)
+                network_deployer.deploy(
+                    validate: false, reuse_deployments: true, lazy: lazy_deploy?,
+                    deployment_tasks: deployment_tasks
+                )
             end
 
             def instanciate_system_network(instance_requirements)

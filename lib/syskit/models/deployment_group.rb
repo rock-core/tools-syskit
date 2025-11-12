@@ -21,11 +21,16 @@ module Syskit
             attr_reader :deployments
 
             DeployedTask = Struct.new :configured_deployment, :mapped_task_name do
-                # Create an instance of this deployed task on the given plan
+                # Create an instance of this deployed task as well as its deployment
+                # (execution agent)
                 #
-                # @param [ConfiguredDeployment=>Syskit::Deployment] already
-                #    instanciated deployment tasks, to be reused if self
+                # @param [Roby::Plan] plan the plan the new tasks should be added to
+                # @param [Boolean] permanent set to true if the deployment task should
+                #    be set as permanent
+                # @param [ConfiguredDeployment=>Syskit::Deployment] deployment_tasks
+                #    already instanciated deployment tasks, to be reused if self
                 #    is part of the same ConfiguredDeployment
+                # @return [(TaskContext,Deployment)] a deployed task
                 def instanciate(plan, permanent: true, deployment_tasks: {})
                     deployment_task = (
                         deployment_tasks[[configured_deployment]] ||=
