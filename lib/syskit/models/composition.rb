@@ -321,6 +321,16 @@ module Syskit
             #
             # (see #add)
             def add_optional(models, **options)
+                models =
+                    if models.respond_to?(:to_instance_requirements)
+                        models.to_instance_requirements
+                    else
+                        InstanceRequirements.new(Array(models))
+                    end
+                if models.component_model?
+                    raise TypeError, "add_optional is valid only for pure data services"
+                end
+
                 child = add(models, **options)
                 child.optional
                 child

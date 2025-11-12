@@ -1317,5 +1317,22 @@ describe Models::Composition do # rubocop:disable Layout/IndentationWidth
             assert_equal cmp_m.test_child.out_port, cmp_m.test_child.dyn_srv.double_out_port.to_component_port
         end
     end
+
+    describe "#add_optional" do
+        it "accepts a data service model" do
+            srv_m = Syskit::DataService.new_submodel
+            Syskit::Composition.new_submodel do
+                add_optional srv_m, as: "test"
+            end
+        end
+        it "raises if child is not an AbstractComponent" do
+            task_m = Syskit::TaskContext.new_submodel
+            assert_raises(TypeError) do
+                Syskit::Composition.new_submodel do
+                    add_optional task_m, as: "task"
+                end
+            end
+        end
+    end
 end
 end
