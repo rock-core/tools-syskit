@@ -79,59 +79,6 @@ module Syskit
             end
         end
 
-        describe ".syskit_apply_async_resolution_results" do
-            it "ignores instance requirement tasks added to the plan after the " \
-               "resolution was started and would succeded without errors" do
-                cmp_m = Composition.new_submodel
-                cmp = plan.add_permanent_task(cmp_m.to_instance_requirements.as_plan)
-                requirement_task = cmp.planning_task
-
-                execute { requirement_task.start! }
-                execute { Runtime.apply_requirement_modifications(plan) }
-                plan.syskit_current_resolution.future.value
-
-                # This task should fail if listed for deployment as it has no defined
-                # deployment
-                other_m = TaskContext.new_submodel
-                other_t =
-                    plan.add_permanent_task(other_m.to_instance_requirements.as_plan)
-                other_t_requirement = other_t.planning_task
-                execute { other_t_requirement.start! }
-
-                execute { plan.syskit_apply_async_resolution_results }
-                assert requirement_task.resolution_success_event.emitted?
-                # Ensures that other_t was never considered during the resolution as it
-                # was added after the resolution started
-                refute other_t_requirement.failed_event.emitted?
-            end
-
-            it "ignores instance requirement tasks added to the plan after the " \
-               "resolution was started and would raise an exception" do
-                skip if Syskit.conf.capture_errors_during_network_resolution?
-
-                task_m = TaskContext.new_submodel
-                task_t = plan.add_permanent_task(task_m.to_instance_requirements.as_plan)
-                requirement_task = task_t.planning_task
-                execute { requirement_task.start! }
-                execute { Runtime.apply_requirement_modifications(plan) }
-                plan.syskit_current_resolution.future.value
-
-                other_m = TaskContext.new_submodel
-                other_t =
-                    plan.add_permanent_task(other_m.to_instance_requirements.as_plan)
-                other_t_requirement = other_t.planning_task
-                execute { other_t_requirement.start! }
-
-                expect_execution do
-                    plan.syskit_apply_async_resolution_results
-                end.to { have_error_matching Roby::PlanningFailedError.match }
-                assert requirement_task.failed_event.emitted?
-                # Ensures that other_t was never considered during the resolution as it
-                # was added after the resolution started
-                refute other_t_requirement.failed_event.emitted?
-            end
-        end
-
         describe ".apply_requirement_modifications" do
             before do
                 @__capture_errors_feature_flag =
@@ -156,7 +103,7 @@ module Syskit
                 execute { Runtime.apply_requirement_modifications(plan) }
                 assert plan.syskit_current_resolution
                 assert_equal Set[requirement_task.planning_task],
-                             plan.syskit_current_resolution.future.requirement_tasks
+                             plan.syskit_current_resolution.requirement_tasks
             end
 
             it "restarts the current async resolution if a new IR task appears" do
@@ -173,10 +120,10 @@ module Syskit
 
                 assert plan.syskit_current_resolution
                 assert_equal Set[*requirement_tasks.map(&:planning_task)],
-                             plan.syskit_current_resolution.future.requirement_tasks
+                             plan.syskit_current_resolution.requirement_tasks
             end
 
-            it "stops the current async resolution all running IR tasks became useless" do
+            it "stops the current async resolution if all running IR tasks became useless" do
                 cmp_m = Composition.new_submodel
                 requirement_task = plan.add_permanent_task(cmp_m.to_instance_requirements.as_plan)
                 execute { requirement_task.planning_task.start! }
@@ -186,7 +133,7 @@ module Syskit
                     expect_execution do
                         plan.unmark_permanent_task(requirement_task)
                         requirement_task.planning_task.stop!
-                    end.to { have_error_matching Roby::PlanningFailedError.match }
+                    end.to_have_error_matching(Roby::PlanningFailedError)
                 end
 
                 refute plan.syskit_current_resolution
@@ -202,14 +149,13 @@ module Syskit
 
                 error_m = Class.new(RuntimeError)
                 flexmock(plan.syskit_current_resolution)
-                    .should_receive(:apply).and_raise(error_m)
+                    .should_receive(:apply_network_generation).and_raise(error_m)
 
                 assert_resolution_cancelled do
                     expect_execution do
                         plan.unmark_permanent_task(requirement_task)
                         requirement_task.planning_task.stop!
-                    end.to { have_error_matching Roby::PlanningFailedError.match }
-                    Runtime.apply_requirement_modifications(plan)
+                    end.to_have_error_matching(Roby::PlanningFailedError)
                 end
 
                 refute plan.syskit_current_resolution
@@ -231,7 +177,7 @@ module Syskit
 
                 assert plan.syskit_current_resolution
                 assert_equal Set[requirement_tasks[0].planning_task],
-                             plan.syskit_current_resolution.future.requirement_tasks
+                             plan.syskit_current_resolution.requirement_tasks
             end
 
             it "cancels an async resolution if one of the IR tasks " \
@@ -255,9 +201,7 @@ module Syskit
                 plan.add_permanent_task(requirement_task = cmp_m.to_instance_requirements.as_plan)
                 requirement_task = requirement_task.planning_task
                 execute { requirement_task.start! }
-                execute { Runtime.apply_requirement_modifications(plan) }
-                plan.syskit_current_resolution.future.value
-                execute { Runtime.apply_requirement_modifications(plan) }
+                assert_resolution_succeeds
                 assert requirement_task.resolution_success?
             end
 
@@ -268,10 +212,7 @@ module Syskit
                     plan.add_permanent_task(task_m.to_instance_requirements.as_plan)
                 requirement_task = requirement_task.planning_task
                 execute { requirement_task.start! }
-                execute { Runtime.apply_requirement_modifications(plan) }
-                plan.syskit_current_resolution.future.value
-                expect_execution { Runtime.apply_requirement_modifications(plan) }
-                    .to { have_error_matching Roby::PlanningFailedError }
+                refute_resolution_succeeds
                 assert requirement_task.failed?
                 exception = requirement_task.failed_event.last.context.first
                 assert_kind_of Syskit::MissingDeployment, exception
@@ -287,8 +228,7 @@ module Syskit
                 requirement_task = requirement_task.planning_task
                 execute { requirement_task.start! }
                 execute { Runtime.apply_requirement_modifications(plan) }
-                plan.syskit_current_resolution.future.value
-                execute { Runtime.apply_requirement_modifications(plan) }
+                execute { plan.syskit_join_current_resolution }
                 assert requirement_task.resolution_success?
 
                 other_task_m = TaskContext.new_submodel
@@ -297,9 +237,9 @@ module Syskit
                 other_requirement_task = other_requirement_task.planning_task
                 execute { other_requirement_task.start! }
                 execute { Runtime.apply_requirement_modifications(plan) }
-                plan.syskit_current_resolution.future.value
-                expect_execution { Runtime.apply_requirement_modifications(plan) }
-                    .to { have_error_matching Roby::PlanningFailedError }
+                expect_execution do
+                    plan.syskit_join_current_resolution(raise_on_error: false)
+                end.to { have_error_matching Roby::PlanningFailedError }
                 refute requirement_task.failed?
                 assert other_requirement_task.failed?
             end
@@ -332,11 +272,13 @@ module Syskit
                 requirement_task =
                     plan.add_permanent_task(task_m.to_instance_requirements.as_plan)
                 requirement_task = requirement_task.planning_task
+
                 execute { requirement_task.start! }
-                execute { Runtime.apply_requirement_modifications(plan, force: true) }
+                execute { Runtime.apply_requirement_modifications(plan) }
+
                 assert plan.syskit_has_async_resolution?
-                FlexMock.use(plan) do |mock|
-                    mock.should_receive(syskit_finished_async_resolution?: false)
+                FlexMock.use(plan.syskit_current_resolution) do |mock|
+                    mock.should_receive(:poll).once
                     execute { Runtime.apply_requirement_modifications(plan, force: true) }
                 end
                 assert plan.syskit_current_resolution.cancelled?
@@ -362,17 +304,14 @@ module Syskit
 
                 # Finish one resolution, we're checking behaviour related to the force
                 # flag
-                execute { Runtime.apply_requirement_modifications(plan) }
-                join_current_resolution
-                expect_execution { Runtime.apply_requirement_modifications(plan) }
-                    .to_emit(requirement_task.resolution_success_event)
+                assert_resolution_succeeds
 
                 execute { Runtime.apply_requirement_modifications(plan, force: true) }
                 assert plan.syskit_has_async_resolution?
                 refute plan.syskit_pending_forced_resolution?
 
-                FlexMock.use(plan) do |mock|
-                    mock.should_receive(syskit_finished_async_resolution?: false)
+                FlexMock.use(plan.syskit_current_resolution) do |mock|
+                    mock.should_receive(:poll).once
                     # Cancels resolution, but does nothing else as
                     # there is a pending unfinished resolution
                     #
@@ -396,7 +335,7 @@ module Syskit
                 refute plan.syskit_pending_forced_resolution?
 
                 # Resolution was not cancelled so we can join and apply it to the plan
-                plan.syskit_join_current_resolution
+                join_current_resolution
                 execute { Runtime.apply_requirement_modifications(plan) }
                 refute plan.syskit_has_async_resolution?
 
@@ -417,17 +356,14 @@ module Syskit
 
                 # Finish one resolution, we're checking behaviour related to the force
                 # flag
-                execute { Runtime.apply_requirement_modifications(plan) }
-                join_current_resolution
-                expect_execution { Runtime.apply_requirement_modifications(plan) }
-                    .to_emit(requirement_task.resolution_success_event)
+                assert_resolution_succeeds
 
                 execute { Runtime.apply_requirement_modifications(plan, force: true) }
                 assert plan.syskit_has_async_resolution?
                 refute plan.syskit_pending_forced_resolution?
 
-                FlexMock.use(plan) do |mock|
-                    mock.should_receive(syskit_finished_async_resolution?: false)
+                FlexMock.use(plan.syskit_current_resolution) do |mock|
+                    mock.should_receive(:poll).twice
                     # Cancels resolution, but does nothing else as
                     # there is a pending unfinished resolution
                     #
@@ -454,8 +390,7 @@ module Syskit
                 refute plan.syskit_pending_forced_resolution?
 
                 # Resolution was not cancelled so we can join and apply it to the plan
-                plan.syskit_join_current_resolution
-                execute { Runtime.apply_requirement_modifications(plan) }
+                assert_resolution_succeeds
                 refute plan.syskit_has_async_resolution?
 
                 # From now on, all is well, this should not do anything
@@ -475,15 +410,8 @@ module Syskit
 
                 # Starts a new resolution
                 execute { Runtime.apply_requirement_modifications(plan) }
-                FlexMock.use(plan) do |mock|
-                    mock.should_receive(syskit_finished_async_resolution?: false)
-                    # Cancels resolution, but does nothing else as
-                    # there is a pending unfinished resolution
-                    #
-                    # The test is to check that the `force` flag is remembered and will
-                    # be used the next time
-                    execute { Runtime.apply_requirement_modifications(plan, force: true) }
-                end
+                # Now cancel it
+                plan.syskit_cancel_async_resolution
 
                 assert plan.syskit_current_resolution.cancelled?
                 join_current_resolution
@@ -515,10 +443,7 @@ module Syskit
                     execute do
                         requirement_tasks.each(&:start!)
                     end
-                    execute { Runtime.apply_requirement_modifications(plan) }
-                    plan.syskit_current_resolution.future.value
-                    expect_execution { Runtime.apply_requirement_modifications(plan) }
-                        .to { have_error_matching Roby::PlanningFailedError }
+                    refute_resolution_succeeds
 
                     req_task1, req_task2 = requirement_tasks
 
@@ -538,9 +463,7 @@ module Syskit
                     plan.add_permanent_task(requirement_task)
                     requirement_task = requirement_task.planning_task
                     execute { requirement_task.start! }
-                    execute { Runtime.apply_requirement_modifications(plan) }
-                    plan.syskit_current_resolution.future.value
-                    execute { Runtime.apply_requirement_modifications(plan) }
+                    assert_resolution_succeeds
                     assert requirement_task.resolution_success?
                 end
 
@@ -558,9 +481,9 @@ module Syskit
                     requirement_task = requirement_task.planning_task
                     execute { requirement_task.start! }
                     execute { Runtime.apply_requirement_modifications(plan) }
-                    plan.syskit_current_resolution.future.value
-                    expect_execution { Runtime.apply_requirement_modifications(plan) }
-                        .to { have_error_matching Roby::PlanningFailedError }
+                    expect_execution do
+                        plan.syskit_join_current_resolution
+                    end.to_have_error_matching(Roby::PlanningFailedError)
                     assert requirement_task.failed?
                     refute plan.find_tasks(srv_m).first
                 end
@@ -579,7 +502,7 @@ module Syskit
 
                     # This one is necessary if the future has started to be processed
                     if plan.syskit_has_async_resolution?
-                        assert plan.syskit_current_resolution&.cancelled?
+                        assert plan.syskit_current_resolution.cancelled?
                         plan.syskit_join_current_resolution
                     end
 
@@ -589,8 +512,23 @@ module Syskit
             end
 
             def join_current_resolution
-                plan.syskit_current_resolution.join
+                execute { plan.syskit_current_resolution.join }
             rescue Concurrent::CancelledOperationError # rubocop:disable Lint/SuppressedException
+            end
+
+            def assert_resolution_succeeds
+                execute { Runtime.apply_requirement_modifications(plan) }
+                execute { plan.syskit_join_current_resolution }
+            end
+
+            def refute_resolution_succeeds(
+                with_exception: !Syskit.conf.capture_errors_during_network_resolution?
+            )
+                execute { Runtime.apply_requirement_modifications(plan) }
+                expect_execution do
+                    yield if block_given?
+                    plan.syskit_join_current_resolution(raise_on_error: !with_exception)
+                end.to_have_error_matching(Roby::PlanningFailedError)
             end
         end
     end
