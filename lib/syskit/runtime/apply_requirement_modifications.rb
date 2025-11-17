@@ -3,19 +3,10 @@
 module Syskit
     module Runtime
         module PlanExtension
-            # The thread pool used to resolve Syskit networks asynchronously
-            #
-            # @return [Concurrent::CachedThreadPool]
-            attr_accessor :syskit_resolution_pool
-
             # The currently running resolution
             #
             # @return [NetworkGeneration::Async,nil]
             attr_accessor :syskit_current_resolution
-
-            # A transaction used to protect all Syskit components from the plan
-            # GC during resolution
-            attr_accessor :syskit_current_resolution_keepalive
 
             # True if Syskit is currently resolving a network
             def syskit_has_async_resolution?
@@ -42,18 +33,10 @@ module Syskit
                         "call #syskit_cancel_async_resolution first'
                 end
 
-                @syskit_resolution_pool ||= Concurrent::CachedThreadPool.new
                 # Protect all toplevel Syskit tasks while the resolution runs
-                @syskit_current_resolution_keepalive = Roby::Transaction.new(self)
-                find_local_tasks(Component).each do |component_task|
-                    unless component_task.finished?
-                        syskit_current_resolution_keepalive.wrap(component_task)
-                    end
-                end
-                @syskit_current_resolution = NetworkGeneration::Async.new(
-                    self, thread_pool: syskit_resolution_pool
+                @syskit_current_resolution = NetworkGeneration::AsyncThreaded.start(
+                    self, requirement_tasks, **resolver_options
                 )
-                syskit_current_resolution.start(requirement_tasks, **resolver_options)
             end
 
             # Cancels the currently running resolution
@@ -61,7 +44,7 @@ module Syskit
                 syskit_current_resolution.cancel
             end
 
-            # True if the async part of the current resolution is finished
+            # True if the current resolution is finished (succcessful or not)
             def syskit_finished_async_resolution?
                 syskit_current_resolution.finished?
             end
@@ -85,13 +68,9 @@ module Syskit
             # It is a no-op in case there are no current resolutions. Moreover,
             # cancelled resolutions are discarded and apply_requirement_modifications
             # is called again
-            def syskit_join_current_resolution
-                begin
-                    syskit_current_resolution&.join
-                rescue Concurrent::CancelledOperationError # rubocop:disable Lint/SuppressedException
-                end
-
-                syskit_apply_async_resolution_results
+            def syskit_join_current_resolution(raise_on_error: true)
+                syskit_current_resolution&.join(raise_on_error: raise_on_error)
+                @syskit_current_resolution = nil
             end
 
             # Apply a finished resolution on this plan
@@ -99,37 +78,11 @@ module Syskit
             # @raise [RuntimeError] if the current resolution is not finished.
             # @return [Exception,nil] an exception that was raised during resolution,
             #   or nil if the execution finished
-            def syskit_apply_async_resolution_results
-                unless syskit_finished_async_resolution?
-                    raise "the current network resolution is not yet finished"
-                end
+            def syskit_poll_async_resolution(requirement_tasks)
+                syskit_current_resolution.poll(requirement_tasks)
+                return unless syskit_current_resolution.finished?
 
-                requirement_tasks = syskit_current_resolution.resolution_requirement_tasks
-                running_requirement_tasks = requirement_tasks.find_all(&:running?)
-
-                begin
-                    resolution_apply_result = syskit_current_resolution.apply
-
-                    return unless resolution_apply_result
-                ensure
-                    syskit_current_resolution_keepalive.discard_transaction
-                    @syskit_current_resolution = nil
-                end
-
-                resolution_apply_result.instance_requirement_tasks.each do |t|
-                    t.resolution_success_event.emit
-                end
-                resolution_apply_result.errors.group_by(&:planning_task).each do |t, e|
-                    t.failed_event.emit(*e.flat_map(&:original_exception)) if t.running?
-                end
-                resolution_apply_result
-            rescue ::Exception => e # rubocop:disable Lint/RescueException
-                old_requirement_tasks, new_requirement_tasks =
-                    running_requirement_tasks.partition(&:resolution_success?)
-                new_requirement_tasks.each { |t| t.failed_event.emit(e) }
-                NetworkGeneration::SystemNetworkPlanApplyResult.new(
-                    errors: [e], instance_requirement_tasks: old_requirement_tasks
-                )
+                @syskit_current_resolution = nil
             end
         end
 
@@ -137,24 +90,19 @@ module Syskit
             plan, force: false, requirement_tasks: nil
         )
             if plan.syskit_has_async_resolution?
-                # We're already running a resolution, make sure it is not
-                # obsolete
-                obsolete = !plan.syskit_valid_async_resolution?(
-                    requirement_tasks || NetworkGeneration::Engine
-                                         .discover_requirement_tasks_from_plan(plan)
-                )
-                plan.syskit_cancel_async_resolution if obsolete || force
+                current_requirements =
+                    requirement_tasks ||
+                    NetworkGeneration::Engine.discover_requirement_tasks_from_plan(plan)
+
                 plan.syskit_pending_forced_resolution ||= force
+                plan.syskit_cancel_async_resolution if force
+                plan.syskit_poll_async_resolution(current_requirements)
 
-                if plan.syskit_finished_async_resolution?
-                    plan.syskit_apply_async_resolution_results
-                    # The return below is needed for this branch as well !!!!
-                    #
-                    # syskit_apply_async_resolution_results will emit resolution_success,
-                    # and we need them to be emitted for the change detection logic to
-                    # work. Return to wait for one propagation cycle.
-                end
-
+                # The return below is needed regardless of the result of {#poll}
+                #
+                # If the resolution finished, it will emit resolution_success,
+                # and we need the events to be actually emitted for the change detection
+                # logic to work. Return to wait for one propagation cycle.
                 return
             end
 
