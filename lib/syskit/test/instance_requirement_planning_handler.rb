@@ -85,17 +85,20 @@ module Syskit
             end
 
             def finished?
-                Thread.pass
-
                 if @plan.syskit_has_async_resolution?
-                    return unless @plan.syskit_finished_async_resolution?
+                    Thread.pass
 
-                    resolution_results = @plan.syskit_apply_async_resolution_results
+                    async = @plan.syskit_current_resolution
+                    @plan.syskit_poll_async_resolution(nil)
+                    return if @plan.syskit_has_async_resolution?
+
+                    resolution_results = async.result
                     return true if consider_finished_due_to_errors?(resolution_results)
                     return unless @test.syskit_run_planner_stub?
 
                     replace_tasks_for_stub_network(resolution_results)
                 end
+
                 @planning_tasks.all? { |t| t.resolution_success? || t.finished? }
             end
 

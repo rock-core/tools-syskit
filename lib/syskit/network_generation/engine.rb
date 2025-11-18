@@ -74,19 +74,31 @@ module Syskit
 
             attr_reader :event_logger
 
-            def initialize(plan, work_plan: Roby::Transaction.new(plan),
-                event_logger: plan.event_logger)
+            def initialize(
+                plan,
+                work_plan: Roby::Transaction.new(plan),
+                event_logger: plan.event_logger,
+                resolution_control: Async::Control.new
+            )
                 @real_plan = plan
                 @work_plan = work_plan
                 @merge_solver = NetworkGeneration::MergeSolver.new(work_plan)
                 @event_logger = event_logger
                 @required_instances = {}
+                @resolution_control = resolution_control
             end
 
             # Returns the set of deployments that are available for this network
             # generation
             def available_deployments
                 Syskit.conf.deployments
+            end
+
+            def interruption_point(name, log_on_interruption_only: false)
+                continue = @resolution_control.interruption_point(
+                    self, name, log_on_interruption_only: log_on_interruption_only
+                )
+                throw :syskit_netgen_cancelled unless continue
             end
 
             # Transform the system network into a deployed network
@@ -101,12 +113,13 @@ module Syskit
                 validate_deployed_network: true
             )
                 resolution_errors = []
-                log_timepoint_group "deploy_system_network" do
+                log_timepoint_group "syskit-netgen-deploy-system-network" do
                     deployer = SystemNetworkDeployer.new(
                         work_plan,
                         event_logger: event_logger,
                         merge_solver: merge_solver,
-                        default_deployment_group: default_deployment_group
+                        default_deployment_group: default_deployment_group,
+                        resolution_control: @resolution_control
                     )
 
                     deployer.deploy(
@@ -124,6 +137,11 @@ module Syskit
                     )
                 end
 
+                interruption_point(
+                    "syskit-netgen-deployed-system-network",
+                    log_on_interruption_only: true
+                )
+
                 # Now that we have a deployed network, we can compute the
                 # connection policies and the port dynamics
                 if compute_policies
@@ -132,11 +150,8 @@ module Syskit
                     @dataflow_dynamics.result.each do |task, dynamics|
                         task.trigger_information = dynamics
                     end
-                    log_timepoint "compute_connection_policies"
+                    interruption_point "compute_connection_policies"
                 end
-
-                @deployment_tasks = work_plan.find_local_tasks(Deployment).to_set
-                @deployed_tasks = work_plan.find_local_tasks(Component).to_set
 
                 resolution_errors
             end
@@ -359,17 +374,19 @@ module Syskit
             # Given the network with deployed tasks, this method looks at how we
             # could adapt the running network to the new one
             def finalize_deployed_tasks
-                debug "finalizing deployed tasks"
-
                 used_deployments = work_plan.find_local_tasks(Deployment).to_set
                 used_tasks       = work_plan.find_local_tasks(Component).to_set
-                log_timepoint "used_tasks"
 
-                import_existing_tasks(used_tasks)
-                log_timepoint "dataflow_graph_cleanup"
+                all_tasks = import_existing_tasks
+                interruption_point "syskit-netgen-apply-imported-existing-tasks"
+                imported_tasks_remove_direct_connections(all_tasks - used_tasks)
+                interruption_point(
+                    "syskit-netgen-apply-imported-tasks-removed-connections"
+                )
+
                 finishing_deployments, existing_deployments =
                     import_existing_deployments(used_deployments)
-                log_timepoint "existing_and_finished_deployments"
+                interruption_point "syskit-netgen-apply-import-existing-deployments"
 
                 debug do
                     debug "  Mapping deployments in the network to the existing ones"
@@ -403,6 +420,10 @@ module Syskit
                     newly_deployed_tasks.merge(new)
                     reused_deployed_tasks.merge(reused)
                     selected_deployment_tasks << selected
+                    interruption_point(
+                        "syskit-netgen-apply:select-deployment",
+                        log_on_interruption_only: true
+                    )
                 end
                 log_timepoint "select_deployments"
 
@@ -521,9 +542,10 @@ module Syskit
             #
             # @param [Array<Syskit::Component>] used_tasks the tasks that are part of the
             #   new network
-            def import_existing_tasks(used_tasks)
+            def import_existing_tasks
                 all_tasks = work_plan.find_tasks(Component).to_set
-                log_timepoint "import_all_tasks_from_plan"
+                interruption_point "syskit-engine:imported-tasks"
+
                 all_tasks.delete_if do |t|
                     if !t.reusable?
                         debug { "  clearing the relations of the finished task #{t}" }
@@ -535,15 +557,17 @@ module Syskit
                         true
                     end
                 end
-                log_timepoint "all_tasks_cleanup"
+                interruption_point "syskit-engine:imported-tasks:cleanup"
 
-                # Remove connections that are not forwarding connections (e.g.
-                # composition exports)
+                all_tasks
+            end
+
+            # Remove connections that are not forwarding connections (e.g.
+            # composition exports)
+            def imported_tasks_remove_direct_connections(tasks)
                 dataflow_graph =
                     work_plan.task_relation_graph_for(Syskit::Flows::DataFlow)
-                all_tasks.each do |t|
-                    next if used_tasks.include?(t)
-
+                tasks.each do |t|
                     dataflow_graph.in_neighbours(t).dup.each do |source_t|
                         connections = dataflow_graph.edge_info(source_t, t).dup
                         connections.delete_if do |(source_port, sink_port), _policy|
@@ -559,6 +583,10 @@ module Syskit
                             dataflow_graph.set_edge_info(source_t, t, connections)
                         end
                     end
+                    interruption_point(
+                        "syskit-engine:imported-tasks:dataflow-cleanup",
+                        log_on_interruption_only: true
+                    )
                 end
             end
 
@@ -738,7 +766,8 @@ module Syskit
                     event_logger: event_logger,
                     merge_solver: merge_solver,
                     default_deployment_group: default_deployment_group,
-                    early_deploy: early_deploy
+                    early_deploy: early_deploy,
+                    resolution_control: @resolution_control
                 )
                 toplevel_tasks =
                     system_network_generator.instanciate_system_network(
@@ -923,10 +952,11 @@ module Syskit
             end
 
             def apply_system_network_to_plan(
-                required_instances, compute_deployments: true,
-                garbage_collect: true, validate_final_network: true
+                required_instances,
+                compute_deployments: true,
+                garbage_collect: true,
+                validate_final_network: true
             )
-
                 # Now, deploy the network by matching the available
                 # deployments to the one in the generated network. Note that
                 # these deployments are *not* yet the running tasks.
@@ -964,7 +994,7 @@ module Syskit
             end
 
             def discard_work_plan
-                work_plan.discard_transaction
+                work_plan.discard_transaction unless work_plan.finalized?
             end
 
             def commit_work_plan
@@ -1016,7 +1046,7 @@ module Syskit
                 elsif on_error == :commit
                     work_plan.commit_transaction
                 else
-                    work_plan.discard_transaction
+                    discard_work_plan
                 end
             end
 

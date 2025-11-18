@@ -9,7 +9,7 @@ module Syskit
             include Logger::Hierarchy
             include Roby::DRoby::EventLogging
 
-            attr_reader :event_logger, :requirement_tasks
+            attr_reader :event_logger, :requirement_tasks, :engine
 
             ENGINE_OPTIONS_CARRIED_TO_APPLY_SYSTEM_NETWORK = %I[
                 compute_deployments garbage_collect validate_final_network
@@ -17,13 +17,18 @@ module Syskit
 
             def initialize(
                 plan, requirement_tasks,
-                resolver_options: {}, event_logger: plan.event_logger
+                resolver_options: {}, event_logger: plan.event_logger,
+                resolution_control: Control.new
             )
                 @plan = plan
                 @event_logger = event_logger
                 @requirement_tasks = requirement_tasks
 
-                @engine = Engine.new(plan, event_logger: @event_logger)
+                @engine = Engine.new(
+                    plan,
+                    event_logger: @event_logger,
+                    resolution_control: resolution_control
+                )
                 @resolver_options = resolver_options
                 @apply_system_network_options = resolver_options.slice(
                     *ENGINE_OPTIONS_CARRIED_TO_APPLY_SYSTEM_NETWORK
@@ -47,19 +52,6 @@ module Syskit
                 current.to_set == @requirement_tasks
             end
 
-            # Cancel this resolution
-            #
-            # This is only signalling that the resolution should be cancelled. The
-            # cancellation itself might take some time
-            def cancel
-                @cancelled = true
-            end
-
-            # Whether this resolution has been cancelled
-            def cancelled?
-                @cancelled
-            end
-
             class InvalidState < RuntimeError; end
 
             # Common implementation of the logic that applies the result of the network
@@ -71,25 +63,24 @@ module Syskit
             #   nil in case of failure or cancellation and a result object otherwise
             def apply_network_generation(result:, error:)
                 if cancelled?
-                    @engine.discard_work_plan
-                    nil
+                    throw :syskit_netgen_cancelled
                 elsif error
                     @engine.handle_resolution_exception(error, on_error: Engine.on_error)
                     raise error
-                else
-                    successful_requirements, resolution_errors = result
-                    begin
-                        @engine.apply_system_network_to_plan(
-                            successful_requirements, **@apply_system_network_options
-                        )
-                        SystemNetworkPlanApplyResult.new(
-                            instance_requirement_tasks: successful_requirements.keys,
-                            errors: resolution_errors
-                        )
-                    rescue ::Exception => e
-                        @engine.handle_resolution_exception(e, on_error: Engine.on_error)
-                        raise e
-                    end
+                end
+
+                successful_requirements, resolution_errors = result
+                begin
+                    @engine.apply_system_network_to_plan(
+                        successful_requirements, **@apply_system_network_options
+                    )
+                    SystemNetworkPlanApplyResult.new(
+                        instance_requirement_tasks: successful_requirements.keys,
+                        errors: resolution_errors
+                    )
+                rescue ::Exception => e
+                    @engine.handle_resolution_exception(e, on_error: Engine.on_error)
+                    raise e
                 end
             end
 
@@ -114,6 +105,25 @@ module Syskit
                 NetworkGeneration::SystemNetworkPlanApplyResult.new(
                     errors: [exception], instance_requirement_tasks: old
                 )
+            end
+
+            # Object that is passed to the network generation process to handle
+            # cancellations and yield
+            class Control
+                # Method regularly called by the network generation code to allow
+                # the control class to do its job
+                #
+                # @param [String] name name of the interruption point. It is logged
+                #   on the given logger as a timepoint
+                # @return [Boolean] true if the computation can continue, or false
+                #   if it is cancelled
+                def interruption_point(
+                    event_logger, name,
+                    log_on_interruption_only: false
+                )
+                    event_logger.log_timepoint(name) unless log_on_interruption_only
+                    true
+                end
             end
         end
     end
