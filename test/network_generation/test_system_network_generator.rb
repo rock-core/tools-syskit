@@ -259,16 +259,14 @@ module Syskit
                             device 'test' of type D is assigned to two tasks that cannot be merged
                             Chain 1 cannot be merged in chain 2:
                             Chain 1:
-                              T<id:X>
-                                no owners
+                              T<id:X> pending
                                 arguments:
                                   arg: 2,
                                   test_dev: MasterDeviceInstance(test[D]_dev),
                                   conf: ["default"],
                                   read_only: false
                             Chain 2:
-                              T<id:X>
-                                no owners
+                              T<id:X> pending
                                 arguments:
                                   arg: 1,
                                   test_dev: MasterDeviceInstance(test[D]_dev),
@@ -276,15 +274,13 @@ module Syskit
                                   read_only: false
                             T<id:X>(arg: 2, conf: ["default"], read_only: false, test_dev: device(D, as: test)) is needed by the following definitions:
                               #<Class:0xXXXXXX>.use(
-                                t1 => T<id:X>
-                                  no owners
+                                t1 => T<id:X> pending
                                   arguments:
                                     arg: 1,
                                     test_dev: MasterDeviceInstance(test[D]_dev),
                                     conf: ["default"],
                                     read_only: false,
-                                t2 => T<id:X>
-                                  no owners
+                                t2 => T<id:X> pending
                                   arguments:
                                     arg: 2,
                                     test_dev: MasterDeviceInstance(test[D]_dev),
@@ -293,15 +289,13 @@ module Syskit
                               )
                             T<id:X>(arg: 1, conf: ["default"], read_only: false, test_dev: device(D, as: test)) is needed by the following definitions:
                               #<Class:0xXXXXXX>.use(
-                                t1 => T<id:X>
-                                  no owners
+                                t1 => T<id:X> pending
                                   arguments:
                                     arg: 1,
                                     test_dev: MasterDeviceInstance(test[D]_dev),
                                     conf: ["default"],
                                     read_only: false,
-                                t2 => T<id:X>
-                                  no owners
+                                t2 => T<id:X> pending
                                   arguments:
                                     arg: 2,
                                     test_dev: MasterDeviceInstance(test[D]_dev),
@@ -424,16 +418,14 @@ module Syskit
                             deployed task 'task1' from deployment 'task1' defined in '' on 'stubs' is assigned to 2 tasks. Below is the list of the dependent non-deployed actions. Right after the list is a detailed explanation of why the first two tasks are not merged:
                             Chain 1 cannot be merged in chain 2:
                             Chain 1:
-                              T<id:X>
-                                no owners
+                              T<id:X> pending
                                 arguments:
                                   orocos_name: "task1",
                                   read_only: false,
                                   conf: ["default"],
                                   arg: 1
                             Chain 2:
-                              T<id:X>
-                                no owners
+                              T<id:X> pending
                                 arguments:
                                   orocos_name: "task1",
                                   read_only: false,
@@ -573,16 +565,14 @@ module Syskit
                         device 'test' of type D is assigned to two tasks that cannot be merged
                         Chain 1 cannot be merged in chain 2:
                         Chain 1:
-                          T<id:X>
-                            no owners
+                          T<id:X> pending
                             arguments:
                               arg: 2,
                               test_dev: MasterDeviceInstance(test[D]_dev),
                               conf: default(["default"]),
                               read_only: default(false)
                         Chain 2:
-                          T<id:X>
-                            no owners
+                          T<id:X> pending
                             arguments:
                               arg: 1,
                               test_dev: MasterDeviceInstance(test[D]_dev),

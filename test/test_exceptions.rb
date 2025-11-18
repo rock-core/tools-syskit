@@ -35,16 +35,14 @@ module Syskit
                 device 'test' of type D is assigned to two tasks that cannot be merged
                 Chain 1 cannot be merged in chain 2:
                 Chain 1:
-                  T<id:ID>
-                    no owners
+                  T<id:ID> pending
                     arguments:
                       arg: 2,
                       test_dev: MasterDeviceInstance(test[D]_dev),
                       conf: default(["default"]),
                       read_only: default(false)
                 Chain 2:
-                  T<id:ID>
-                    no owners
+                  T<id:ID> pending
                     arguments:
                       arg: 1,
                       test_dev: MasterDeviceInstance(test[D]_dev),
@@ -87,16 +85,14 @@ module Syskit
                 device 'test' of type D is assigned to two tasks that cannot be merged
                 Chain 1 cannot be merged in chain 2:
                 Chain 1:
-                  T<id:ID>
-                    no owners
+                  T<id:ID> pending
                     arguments:
                       test_dev: MasterDeviceInstance(test[D]_dev),
                       arg: 2,
                       conf: ["default"],
                       read_only: false
                 Chain 2:
-                  T<id:ID>
-                    no owners
+                  T<id:ID> pending
                     arguments:
                       test_dev: MasterDeviceInstance(test[D]_dev),
                       arg: 1,
@@ -144,29 +140,25 @@ module Syskit
                 device 'test' of type D is assigned to two tasks that cannot be merged
                 Chain 1 cannot be merged in chain 2:
                 Chain 1:
-                  Driver<id:ID>
-                    no owners
+                  Driver<id:ID> pending
                     arguments:
                       test_dev: MasterDeviceInstance(test[D]_dev),
                       conf: default(["default"]),
                       read_only: default(false)
                   sink in_port connected via policy {} to source out_port of
-                  Task<id:ID>
-                    no owners
+                  Task<id:ID> pending
                     arguments:
                       arg: 1,
                       conf: default(["default"]),
                       read_only: default(false)
                 Chain 2:
-                  Driver<id:ID>
-                    no owners
+                  Driver<id:ID> pending
                     arguments:
                       test_dev: MasterDeviceInstance(test[D]_dev),
                       conf: default(["default"]),
                       read_only: default(false)
                   sink in_port connected via policy {} to source out_port of
-                  Task<id:ID>
-                    no owners
+                  Task<id:ID> pending
                     arguments:
                       arg: 2,
                       conf: default(["default"]),
@@ -235,16 +227,14 @@ module Syskit
                   Test.test2_def
                 Chain 1 cannot be merged in chain 2:
                 Chain 1:
-                  OroGen.orogen_syskit_tests.Empty<id:ID>
-                    no owners
+                  OroGen.orogen_syskit_tests.Empty<id:ID> pending
                     arguments:
                       orocos_name: "test_syskit_tests_empty",
                       read_only: false,
                       conf: ["default"],
                       arg: 1
                 Chain 2:
-                  OroGen.orogen_syskit_tests.Empty<id:ID>
-                    no owners
+                  OroGen.orogen_syskit_tests.Empty<id:ID> pending
                     arguments:
                       orocos_name: "test_syskit_tests_empty",
                       read_only: false,
