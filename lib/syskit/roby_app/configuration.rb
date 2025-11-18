@@ -130,6 +130,16 @@ module Syskit
             # likely want this
             attr_predicate :kill_all_on_process_server_connection?, true
 
+            # How long the Fiber-based resolver can compute new networks before
+            # it gives control back to the main thread
+            #
+            # Reducing the value makes the main thread more reactive at the cost
+            # of deployment time. Higher values reduces the system reactivity during
+            # resolutions, but reduces deployment time
+            #
+            # The default is 500ms
+            attr_accessor :resolution_time_slice
+
             # Indicate to the loggers which time field it should use as logical time
             #
             # When a type member is marked with `@meta role logical_time` Syskit will pass
@@ -288,6 +298,8 @@ module Syskit
                 @remote_process_managers_initial_connection_timeout = 60
 
                 @compositions_use_schedule_as = false
+
+                @resolution_time_slice = 0.5
 
                 @log_rotation_period = nil
                 @log_transfer = LogTransferManager::Configuration.new(

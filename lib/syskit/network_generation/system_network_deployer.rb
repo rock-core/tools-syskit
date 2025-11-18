@@ -35,14 +35,25 @@ module Syskit
             # @return [Models::DeploymentGroup]
             attr_accessor :default_deployment_group
 
-            def initialize(plan,
+            def initialize(
+                plan,
                 event_logger: plan.event_logger,
                 merge_solver: MergeSolver.new(plan),
-                default_deployment_group: Syskit.conf.deployment_group)
+                resolution_control: Async::Control.new,
+                default_deployment_group: Syskit.conf.deployment_group
+            )
                 @plan = plan
                 @event_logger = event_logger
                 @merge_solver = merge_solver
                 @default_deployment_group = default_deployment_group
+                @resolution_control = resolution_control
+            end
+
+            def interruption_point(name, log_on_interruption_only: false)
+                continue = @resolution_control.interruption_point(
+                    self, name, log_on_interruption_only: log_on_interruption_only
+                )
+                throw :syskit_netgen_cancelled unless continue
             end
 
             # Replace non-deployed tasks in the plan by deployed ones
@@ -62,10 +73,10 @@ module Syskit
                 all_tasks = plan.find_local_tasks(TaskContext).to_a
                 selected_deployments, missing_deployments =
                     select_deployments(all_tasks, reuse: reuse_deployments)
-                log_timepoint "select_deployments"
+                interruption_point "select_deployments"
 
                 apply_selected_deployments(selected_deployments, deployment_tasks)
-                log_timepoint "apply_selected_deployments"
+                interruption_point "apply_selected_deployments"
 
                 if validate
                     validate_deployed_network(error_handler: error_handler)

@@ -2,14 +2,26 @@
 
 module Syskit
     module Runtime
-        module PlanExtension
-            def initialize(*, **)
-                super
+        @syskit_async_method = NetworkGeneration::AsyncThreaded
 
-                @syskit_async_method = NetworkGeneration::AsyncThreaded
-            end
-
+        class << self
             attr_accessor :syskit_async_method
+        end
+
+        module PlanExtension
+            attr_accessor :syskit_pending_forced_resolution
+
+            # Changes the async method used to compute syskit networks
+            #
+            # @see syskit_async_method
+            attr_writer :syskit_async_method
+
+            # Async method to be used to compute syskit networks
+            #
+            # @see Runtime.syskit_async_method
+            def syskit_async_method
+                @syskit_async_method || Runtime.syskit_async_method
+            end
 
             # The currently running resolution
             #
@@ -20,8 +32,6 @@ module Syskit
             def syskit_has_async_resolution?
                 @syskit_current_resolution
             end
-
-            attr_accessor :syskit_pending_forced_resolution
 
             def syskit_pending_forced_resolution?
                 @syskit_pending_forced_resolution
@@ -42,8 +52,8 @@ module Syskit
                 end
 
                 # Protect all toplevel Syskit tasks while the resolution runs
-                @syskit_current_resolution = @syskit_async_method.start(
-                    self, requirement_tasks, **resolver_options
+                @syskit_current_resolution = syskit_async_method.start(
+                    self, requirement_tasks, resolver_options: resolver_options
                 )
             end
 
