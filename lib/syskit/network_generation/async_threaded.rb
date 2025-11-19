@@ -20,7 +20,8 @@ module Syskit
 
                 # (see Async::Control#interruption_point)
                 def interruption_point(event_logger, name, **)
-                    event_logger.log_timepoint(name)
+                    super
+
                     !@cancelled.set?
                 end
             end
