@@ -40,6 +40,10 @@ module Syskit
                       resolution_control: Control.new(slice),
                       event_logger: event_logger, resolver_options: resolver_options)
 
+                # Protect all Component instances against garbage collection
+                # by adding them in a transaction. This is to make sure we don't
+                # tear down, during network generation, subparts of the old network
+                # that are actually needed by the new network.
                 @keepalive = Roby::Transaction.new(plan)
                 plan.find_local_tasks(Component).each do |component_task|
                     @keepalive.wrap(component_task) unless component_task.finished?
