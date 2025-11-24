@@ -14,19 +14,19 @@ module Syskit
                     super()
 
                     @slice = slice
-                    @slice_start_time = Time.now
+                    @slice_deadline = Time.now + slice
                 end
 
                 # (see Async::Control#interruption_point)
                 def interruption_point(
                     event_logger, name, log_on_interruption_only: false
                 )
-                    return super if Time.now - @slice_start_time < @slice
+                    return super if Time.now < @slice_deadline
 
                     event_logger.log_timepoint "#{name}:interrupt"
                     cancelled = Fiber.yield
                     event_logger.log_timepoint "#{name}:resume"
-                    @slice_start_time = Time.now
+                    @slice_deadline = Time.now + @slice
                     !cancelled
                 end
             end
