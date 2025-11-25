@@ -578,10 +578,10 @@ module Syskit
                     state_reader.read(@state_sample)
                 end
 
-            if @stop_transition_deadline
-                evaluate_stop_transition_deadline
-            elsif @exception_transition_deadline
+            if @exception_transition_deadline
                 return update_orogen_state_in_exception(state)
+            elsif @stop_transition_deadline
+                evaluate_stop_transition_deadline
             end
 
             return unless state
