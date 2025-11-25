@@ -266,13 +266,7 @@ module Syskit
             def each_component_merge_candidate(task)
                 # Get the set of candidates. We are checking if the tasks in
                 # this set can be replaced by +task+
-                candidates = plan.find_local_tasks(task.model.concrete_model)
-                                 .to_a
-                debug do
-                    debug "#{candidates.to_a.size - 1} candidates for #{task}, matching model"
-                    debug "  #{task.model.concrete_model}"
-                    break
-                end
+                candidates = plan.find_local_tasks(task.model.concrete_model).to_a
 
                 if (orocos_name = task.arguments[:orocos_name])
                     candidates = candidates.find_all do |t|
@@ -281,20 +275,27 @@ module Syskit
                     end
                 end
 
+                debug do
+                    debug "#{candidates.to_a.size - 1} candidates for #{task}, matching model"
+                    debug "  #{task.model.concrete_model}"
+                    break
+                end
+
                 candidates.each do |merged_task|
                     next if task == merged_task
 
                     debug { "  #{merged_task}" }
                     if merged_task.placeholder?
-                        debug "    data service proxy"
+                        debug "    rejected: data service proxy"
                         next
                     elsif !merged_task.plan
-                        debug "    removed from plan"
+                        debug "    rejected: removed from plan"
                         next
                     elsif invalid_merges.include?([merged_task, task])
-                        debug "    already evaluated as an invalid merge"
+                        debug "    rejected: already evaluated as an invalid merge"
                         next
                     end
+
                     yield(merged_task)
                 end
             end
@@ -313,8 +314,6 @@ module Syskit
 
             # Merge the task contexts
             def merge_task_contexts
-                debug "merging task contexts"
-
                 queue = plan.find_local_tasks(Syskit::TaskContext).sort_by do |t|
                     dataflow_graph.in_degree(t)
                 end.reverse
