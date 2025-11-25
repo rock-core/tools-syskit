@@ -73,14 +73,14 @@ module Syskit
                 all_tasks = plan.find_local_tasks(TaskContext).to_a
                 selected_deployments, missing_deployments =
                     select_deployments(all_tasks, reuse: reuse_deployments)
-                interruption_point "select_deployments"
+                interruption_point "syskit-netgen:select_deployments"
 
                 apply_selected_deployments(selected_deployments, deployment_tasks)
-                interruption_point "apply_selected_deployments"
+                interruption_point "syskit-netgen:apply_selected_deployments"
 
                 if validate
                     validate_deployed_network(error_handler: error_handler)
-                    log_timepoint "validate_deployed_network"
+                    log_timepoint "syskit-netgen:validate-deployed-network"
                 end
 
                 missing_deployments

@@ -113,7 +113,7 @@ module Syskit
                 validate_deployed_network: true
             )
                 resolution_errors = []
-                log_timepoint_group "syskit-netgen-deploy-system-network" do
+                log_timepoint_group "syskit-netgen:deploy-system-network" do
                     deployer = SystemNetworkDeployer.new(
                         work_plan,
                         event_logger: event_logger,
@@ -138,7 +138,7 @@ module Syskit
                 end
 
                 interruption_point(
-                    "syskit-netgen-deployed-system-network",
+                    "syskit-netgen:deployed-system-network",
                     log_on_interruption_only: true
                 )
 
@@ -378,15 +378,15 @@ module Syskit
                 used_tasks       = work_plan.find_local_tasks(Component).to_set
 
                 all_tasks = import_existing_tasks
-                interruption_point "syskit-netgen-apply-imported-existing-tasks"
+                interruption_point "syskit-netgen:apply:imported-existing-tasks"
                 imported_tasks_remove_direct_connections(all_tasks - used_tasks)
                 interruption_point(
-                    "syskit-netgen-apply-imported-tasks-removed-connections"
+                    "syskit-netgen:apply:imported-tasks-removed-connections"
                 )
 
                 finishing_deployments, existing_deployments =
                     import_existing_deployments(used_deployments)
-                interruption_point "syskit-netgen-apply-import-existing-deployments"
+                interruption_point "syskit-netgen:apply:import-existing-deployments"
 
                 debug do
                     debug "  Mapping deployments in the network to the existing ones"
@@ -421,15 +421,17 @@ module Syskit
                     reused_deployed_tasks.merge(reused)
                     selected_deployment_tasks << selected
                     interruption_point(
-                        "syskit-netgen-apply:select-deployment",
+                        "syskit-netgen:apply:select-deployment",
                         log_on_interruption_only: true
                     )
                 end
-                log_timepoint "select_deployments"
+                log_timepoint "syskit-netgen:selected-deployments"
 
                 reused_deployed_tasks =
                     reconfigure_tasks_on_static_port_modification(reused_deployed_tasks)
-                log_timepoint "reconfigure_tasks_on_static_port_modification"
+                log_timepoint(
+                    "syskit-netgen:reconfigure_tasks_on_static_port_modification"
+                )
 
                 debug do
                     debug "#{reused_deployed_tasks.size} tasks reused during deployment"
@@ -442,7 +444,7 @@ module Syskit
                 # This is required to merge the already existing compositions
                 # with the ones in the plan
                 merge_solver.merge_compositions
-                log_timepoint "merge"
+                log_timepoint "syskit-netgen:merge"
 
                 [selected_deployment_tasks, reused_deployed_tasks | newly_deployed_tasks]
             end
