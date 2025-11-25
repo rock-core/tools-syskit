@@ -27,25 +27,27 @@ module Syskit
             def initialize( # rubocop:disable Metrics/ParameterLists
                 plan,
                 event_logger: plan.event_logger,
-                merge_solver: MergeSolver.new(plan),
                 default_deployment_group: nil,
                 early_deploy: false,
                 error_handler: RaiseErrorHandler.new,
-                resolution_control: Async::Control.new
+                resolution_control: Async::Control.new,
+                merge_solver: nil
             )
+                @plan = plan
+                @event_logger = event_logger
+                @resolution_control = resolution_control
+
+                merge_solver ||= default_merge_solver
                 if merge_solver.plan != plan
                     raise ArgumentError,
                           "gave #{merge_solver} as merge solver, which applies on " \
                           "#{merge_solver.plan}. Was expecting #{plan}"
                 end
 
-                @plan = plan
-                @event_logger = event_logger
                 @merge_solver = merge_solver
                 @default_deployment_group = default_deployment_group
                 @early_deploy = early_deploy
                 @error_handler = error_handler
-                @resolution_control = resolution_control
             end
 
             def interruption_point(name, log_on_interruption_only: false)
@@ -509,12 +511,11 @@ module Syskit
 
                 return if using_same_deployment.empty?
 
-                message = "deployment used multiple times"
                 using_same_deployment.each do |orocos_name, tasks|
                     exception = ConflictingDeploymentAllocation.new(
                         orocos_name, tasks, toplevel_tasks_to_requirements
                     )
-                    exception = exception.exception(message)
+                    exception = exception.exception("deployment used multiple times")
                     error_handler.register_resolution_failures_from_exception(
                         tasks, exception
                     )
@@ -557,6 +558,17 @@ module Syskit
                     plan,
                     default_deployment_group,
                     error_handler: error_handler
+                )
+            end
+
+            # @api private
+            #
+            # Helper for {#initialize} to create the default merge solver
+            def default_merge_solver
+                MergeSolver.new(
+                    plan,
+                    resolution_control: @resolution_control,
+                    event_logger: @event_logger
                 )
             end
         end

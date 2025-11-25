@@ -38,15 +38,23 @@ module Syskit
             def initialize(
                 plan,
                 event_logger: plan.event_logger,
-                merge_solver: MergeSolver.new(plan),
+                merge_solver: nil,
                 resolution_control: Async::Control.new,
                 default_deployment_group: Syskit.conf.deployment_group
             )
                 @plan = plan
                 @event_logger = event_logger
+                @resolution_control = resolution_control
+
+                merge_solver ||= default_merge_solver
+                if merge_solver.plan != plan
+                    raise ArgumentError,
+                          "gave #{merge_solver} as merge solver, which applies on " \
+                          "#{merge_solver.plan}. Was expecting #{plan}"
+                end
+
                 @merge_solver = merge_solver
                 @default_deployment_group = default_deployment_group
-                @resolution_control = resolution_control
             end
 
             def interruption_point(name, log_on_interruption_only: false)
@@ -86,6 +94,7 @@ module Syskit
                 missing_deployments
             end
 
+            # @return [Set<DeploymentGroup::DeployedTask>]
             def find_all_suitable_deployments_for(task, from: task)
                 self.class.find_all_suitable_deployments_for(
                     default_deployment_group,
@@ -154,7 +163,10 @@ module Syskit
             # Find which deployments should be used for which tasks
             #
             # @param [[Component]] tasks the tasks to be deployed
-            # @return [(Component=>Deployment,[Component])] the association
+            # @param [Boolean] reuse whether a deployment can be used by more than one
+            #   task. Set to false to deploy a fully formed network, and true to deploy
+            #   a network which may have redundant parts (that should be merged later)
+            # @return [(Component=>DeploymentGroup::DeployedTask,[Component])] the association
             #   between components and the deployments that should be used
             #   for them, and the list of components without deployments
             def select_deployments(tasks, reuse: false)
@@ -381,6 +393,17 @@ module Syskit
                     break
                 end
                 nil
+            end
+
+            # @api private
+            #
+            # Helper for {#initialize} to create the default merge solver
+            def default_merge_solver
+                MergeSolver.new(
+                    plan,
+                    resolution_control: @resolution_control,
+                    event_logger: @event_logger
+                )
             end
         end
     end

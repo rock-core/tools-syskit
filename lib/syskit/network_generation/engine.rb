@@ -82,10 +82,14 @@ module Syskit
             )
                 @real_plan = plan
                 @work_plan = work_plan
-                @merge_solver = NetworkGeneration::MergeSolver.new(work_plan)
                 @event_logger = event_logger
-                @required_instances = {}
                 @resolution_control = resolution_control
+                @merge_solver = NetworkGeneration::MergeSolver.new(
+                    work_plan,
+                    event_logger: event_logger,
+                    resolution_control: resolution_control
+                )
+                @required_instances = {}
             end
 
             # Returns the set of deployments that are available for this network

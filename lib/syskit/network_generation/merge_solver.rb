@@ -36,7 +36,11 @@ module Syskit
 
             attr_writer :merge_task_contexts_with_same_agent
 
-            def initialize(plan, event_logger: plan.event_logger)
+            def initialize(
+                plan,
+                event_logger: plan.event_logger,
+                resolution_control: Async::Control.new
+            )
                 @plan = plan
                 @event_logger = event_logger
                 @dataflow_graph = plan.task_relation_graph_for(Flows::DataFlow)
@@ -46,6 +50,14 @@ module Syskit
                 @resolved_replacements = {}
                 @invalid_merges = Set.new
                 @merge_task_contexts_with_same_agent = false
+                @resolution_control = resolution_control
+            end
+
+            def interruption_point(name, log_on_interruption_only: false)
+                continue = @resolution_control.interruption_point(
+                    self, name, log_on_interruption_only: log_on_interruption_only
+                )
+                throw :syskit_netgen_cancelled unless continue
             end
 
             def clear
@@ -308,6 +320,7 @@ module Syskit
                 end.reverse
 
                 invalid_merges.clear
+                i = 0
                 until queue.empty?
                     task = queue.shift
                     # 'task' could have been merged already, ignore it
@@ -322,6 +335,11 @@ module Syskit
                             invalid_merges << [merged_task, task]
                         end
                     end
+
+                    interruption_point(
+                        "syskit-netgen:merge-task-#{i}", log_on_interruption_only: true
+                    )
+                    i += 1
                 end
             end
 
@@ -428,12 +446,16 @@ module Syskit
                     end
                 end
 
-                topsort.each do |composition|
+                topsort.each_with_index do |composition, i|
                     next unless composition.plan
 
                     each_composition_merge_candidate(composition) do |merged_composition|
                         apply_merge_group(merged_composition => composition)
                     end
+
+                    interruption_point(
+                        "syskit-netgen:merge-cmp-#{i}", log_on_interruption_only: true
+                    )
                 end
             end
 
