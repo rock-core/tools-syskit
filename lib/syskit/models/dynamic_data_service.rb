@@ -85,12 +85,19 @@ module Syskit
                 #
                 # @param (see Roby::Models::Task#argument)
                 def argument(name, **options)
-                    component_model.argument(name, **options)
+                    component_model.argument(
+                        name,
+                        doc: "argument created by dynamic service #{name}",
+                        **options
+                    )
                 end
 
                 def driver_for(device_model, port_mappings = {}, **options)
                     dserv = provides(device_model, port_mappings, **options)
-                    component_model.argument "#{dserv.name}_dev"
+                    component_model.argument(
+                        "#{dserv.name}_dev",
+                        doc: "selected device for driver service #{dserv.name}"
+                    )
                     dserv
                 end
 
