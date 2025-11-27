@@ -213,7 +213,7 @@ module Syskit
 
                 mappings = port_mappings.dup
                 mappings.delete_if do |srv, _|
-                    !service_model.fullfills?(srv)
+                    !service_model.fullfills?([srv])
                 end
                 result.instance_variable_set(:@port_mappings, mappings)
                 result.ports.clear
@@ -237,7 +237,7 @@ module Syskit
                 models = [models] unless models.respond_to?(:each)
                 models.each do |required_m|
                     required_m.each_fullfilled_model do |m|
-                        return false unless model.fullfills?(m)
+                        return false unless model.fullfills?([m])
                     end
                 end
                 true
