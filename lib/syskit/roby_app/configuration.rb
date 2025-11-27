@@ -44,7 +44,16 @@ module Syskit
             # The default is false for historical reasons. We strongly recommend turning
             # this on globally
             attr_predicate :auto_restart_deployments_with_quarantines?, true
+
+            # How long Syskit will allow a component to take to transition to STOPPED
+            # after an interruption
+            #
+            # This includes the time needed to stop. The default is 20s
+            attr_accessor :stop_transition_timeout
+
             # How long Syskit will allow a component to take to transition to EXCEPTION
+            # after it received the first state update that indicates such a transition
+            # happens
             #
             # This usually includes the time needed to stop and cleanup. The default
             # is 20s
@@ -262,6 +271,7 @@ module Syskit
                 @buffer_size_margin = 0.1
                 @opportunistic_recovery_from_quarantine = true
                 @auto_restart_deployments_with_quarantines = false
+                @stop_transition_timeout = 20.0
                 @exception_transition_timeout = 20.0
                 @kill_all_on_process_server_connection = false
                 @register_self_on_name_server = (ENV["SYSKIT_REGISTER_SELF_ON_NAME_SERVER"] != "0")

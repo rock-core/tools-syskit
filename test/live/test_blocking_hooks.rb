@@ -462,6 +462,33 @@ module Syskit
             end
         end
 
+        describe "stop transition timeout" do
+            attr_reader :deployment
+
+            before do
+                @task = syskit_deploy_configure_and_start(
+                    OroGen.orogen_syskit_tests.Empty
+                          .deployed_as("stop-transition-timeout")
+                )
+                @deployment = @task.execution_agent
+                @__stop_transition_timeout = Syskit.conf.stop_transition_timeout
+            end
+
+            after do
+                cleanup_running_tasks
+                Syskit.conf.stop_transition_timeout = @__stop_transition_timeout
+            end
+
+            it "detects a task that should have stopped but has not" do
+                Syskit.conf.stop_transition_timeout = 1
+                @task.should_receive(:stop_orocos_task)
+                tic = Time.now
+                expect_execution { @task.stop! }
+                    .to_quarantine(@task)
+                assert (Time.now - tic) > 1
+            end
+        end
+
         def trigger_fatal_error(task, &block)
             expect_execution { task.stop! }.to do
                 emit task.fatal_error_event
@@ -484,7 +511,7 @@ module Syskit
         end
 
         def cleanup_running_tasks
-            return unless @deployment.running?
+            return unless deployment.running?
 
             executed_tasks =
                 deployment.each_executed_task.find_all(&:running?)

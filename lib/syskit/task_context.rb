@@ -580,6 +580,8 @@ module Syskit
 
             if @exception_transition_deadline
                 return update_orogen_state_in_exception(state)
+            elsif @stop_transition_deadline
+                evaluate_stop_transition_deadline
             end
 
             return unless state
@@ -595,6 +597,17 @@ module Syskit
                 @last_orogen_state = @orogen_state
                 @orogen_state = state
             end
+        end
+
+        def evaluate_stop_transition_deadline
+            return if Time.now < @stop_transition_deadline
+
+            quarantined!(
+                reason: "time out reached while waiting for the task to stop after " \
+                        "it was interrupted"
+            )
+
+            @stop_transition_deadline = nil
         end
 
         # @api private
@@ -1215,6 +1228,7 @@ module Syskit
             info "interrupting #{self}"
 
             if execution_agent && !execution_agent.finishing?
+                @stop_transition_deadline = Time.now + Syskit.conf.stop_transition_timeout
                 promise =
                     execution_engine.promise(description: "promise:#{self}#interrupt") do
                         stop_orocos_task
@@ -1307,6 +1321,7 @@ module Syskit
         on :stop do |_event|
             info "stopped #{self}"
 
+            @stop_transition_deadline = nil
             ensure_remote_state_getter_stopped
 
             if Syskit.conf.opportunistic_recovery_from_quarantine?
