@@ -537,6 +537,7 @@ module Syskit
 
                 deployments_by_name = {}
                 names = names.map do |n|
+                    n = n.concrete_model if n.respond_to?(:concrete_model)
                     if n.respond_to?(:orogen_model)
                         if !n.kind_of?(Class)
                             raise ArgumentError,
@@ -560,6 +561,7 @@ module Syskit
                     if k.respond_to?(:to_str)
                         k
                     else
+                        k = k.concrete_model if k.respond_to?(:concrete_model)
                         unless plain_task_context_model?(k) || deployment_model?(k)
                             raise ArgumentError,
                                   "only deployment and task context " \
