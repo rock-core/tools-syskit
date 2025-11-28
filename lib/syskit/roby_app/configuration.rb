@@ -6,7 +6,7 @@ module Syskit
         #
         # The main configuration instance is accessible as Syskit.conf or (if
         # running in a Roby application) as Conf.syskit
-        class Configuration
+        class Configuration # rubocop:disable Metrics/ClassLength
             # The application that we are configuring
             # @return [Roby::Application]
             attr_reader :app
