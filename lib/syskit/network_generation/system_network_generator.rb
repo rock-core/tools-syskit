@@ -24,12 +24,15 @@ module Syskit
                 @early_deploy
             end
 
-            def initialize(plan, # rubocop:disable Metrics/ParameterLists
+            def initialize( # rubocop:disable Metrics/ParameterLists
+                plan,
                 event_logger: plan.event_logger,
                 merge_solver: MergeSolver.new(plan),
                 default_deployment_group: nil,
                 early_deploy: false,
-                error_handler: RaiseErrorHandler.new)
+                error_handler: RaiseErrorHandler.new,
+                resolution_control: Async::Control.new
+            )
                 if merge_solver.plan != plan
                     raise ArgumentError,
                           "gave #{merge_solver} as merge solver, which applies on " \
@@ -42,6 +45,14 @@ module Syskit
                 @default_deployment_group = default_deployment_group
                 @early_deploy = early_deploy
                 @error_handler = error_handler
+                @resolution_control = resolution_control
+            end
+
+            def interruption_point(name, log_on_interruption_only: false)
+                continue = @resolution_control.interruption_point(
+                    self, name, log_on_interruption_only: log_on_interruption_only
+                )
+                throw :syskit_netgen_cancelled unless continue
             end
 
             # Generate the network in the plan
@@ -142,7 +153,7 @@ module Syskit
                     task.fullfilled_model = [
                         fullfilled_task_m, fullfilled_modules, meaningful_args
                     ]
-                    log_timepoint "task-#{i}"
+                    interruption_point "task-#{i}"
                     task
                 end
 
@@ -237,34 +248,36 @@ module Syskit
             # Compute in #plan the network needed to fullfill the requirements
             #
             # This network is neither validated nor tied to actual deployments
-            def resolve_system_network(error_handler: @error_handler,
+            def resolve_system_network(
+                error_handler: @error_handler,
                 garbage_collect: true,
                 validate_abstract_network: true,
                 validate_generated_network: true,
-                validate_deployed_network: true)
+                validate_deployed_network: true
+            )
                 deployment_tasks = {}
-                deploy(deployment_tasks) if early_deploy?
+                early_deploy(deployment_tasks)
+
                 merge_solver.merge_identical_tasks
-                log_timepoint "merge"
+                interruption_point("syskit-netgen-merge")
+
                 Engine.instanciated_network_postprocessing.each do |block|
                     block.call(self, plan)
-                    log_timepoint "postprocessing:#{block}"
+                    interruption_point("syskit-netgen-postprocessing:#{block}")
                 end
 
                 link_to_busses
-                log_timepoint "link_to_busses"
+                interruption_point("syskit-netgen-link-to-busses")
 
-                deploy(deployment_tasks) if early_deploy?
+                early_deploy(deployment_tasks)
                 merge_solver.merge_identical_tasks
-                log_timepoint "merge"
+                interruption_point("syskit-netgen-merge")
 
                 self.class.remove_abstract_composition_optional_children(plan)
-                log_timepoint "remove-optional"
 
                 # Finally, select 'default' as configuration for all
                 # remaining tasks that do not have a 'conf' argument set
                 plan.find_local_tasks(Component).each(&:freeze_delayed_arguments)
-                log_timepoint "default_conf"
 
                 # Cleanup the remainder of the tasks that are of no use right
                 # now (mostly devices)
@@ -275,8 +288,8 @@ module Syskit
                         # useful anymore
                         plan.remove_task(obj)
                     end
-                    log_timepoint "static_garbage_collect"
                 end
+                interruption_point("syskit-netgen-clean-network")
 
                 # And get rid of the 'permanent' marking we use to be able to
                 # run static_garbage_collect
@@ -287,7 +300,7 @@ module Syskit
                 Engine.system_network_postprocessing.each do |block|
                     block.call(self, plan)
                 end
-                log_timepoint "postprocessing"
+                interruption_point("syskit-netgen-postprocessing")
 
                 validate_network(
                     error_handler: error_handler,
@@ -296,7 +309,15 @@ module Syskit
                     validate_deployed_network:
                         early_deploy? && validate_deployed_network
                 )
+                interruption_point("syskit-netgen-validation")
                 @toplevel_tasks
+            end
+
+            def early_deploy(deployment_tasks)
+                return unless early_deploy?
+
+                deploy(deployment_tasks)
+                interruption_point "syskit-netgen-early-deploy"
             end
 
             # Compute in #plan the network needed to fullfill the requirements

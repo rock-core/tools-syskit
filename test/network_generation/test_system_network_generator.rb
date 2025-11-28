@@ -225,11 +225,14 @@ module Syskit
                     attr_reader :error_handler, :generator
 
                     before do
+                        @__capture_errors_feature =
+                            Syskit.conf.capture_errors_during_network_resolution?
                         Syskit.conf.capture_errors_during_network_resolution = true
                     end
 
                     after do
-                        Syskit.conf.capture_errors_during_network_resolution = false
+                        Syskit.conf.capture_errors_during_network_resolution =
+                            @__capture_errors_feature
                     end
 
                     it "capture errors regarding device allocation conflicts" do

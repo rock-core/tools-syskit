@@ -7,11 +7,34 @@ module Syskit
             # The thread pool (or, really, any of Concurrent executor)
             attr_reader :thread_pool
 
+            # Object that is passed to the network generation process to handle
+            # cancellations and yield
+            class Control < Async::Control
+                # @param [Concurrent::Event] cancelled whether the resolution
+                #   has been cancelled or not
+                def initialize(cancelled)
+                    super()
+
+                    @cancelled = cancelled
+                end
+
+                # (see Async::Control#interruption_point)
+                def interruption_point(event_logger, name, **)
+                    event_logger.log_timepoint(name)
+                    !@cancelled.set?
+                end
+            end
+
             def initialize(
                 plan, requirement_tasks,
-                event_logger: plan.event_logger, **resolver_options
+                event_logger: plan.event_logger, resolver_options: {}
             )
-                super
+                @cancelled = Concurrent::Event.new
+                super(
+                    plan, requirement_tasks,
+                    resolution_control: Control.new(@cancelled),
+                    event_logger: event_logger, resolver_options: resolver_options
+                )
 
                 @thread_pool = Concurrent::CachedThreadPool.new
 
@@ -28,9 +51,11 @@ module Syskit
                 @future = Concurrent::Future.new(executor: thread_pool) do
                     Thread.current.name = "syskit-network-generation"
                     log_timepoint_group "syskit-network-generation" do
-                        @engine.resolve_system_network(
-                            requirement_tasks, **resolver_options
-                        )
+                        catch(:syskit_netgen_cancelled) do
+                            @engine.resolve_system_network(
+                                requirement_tasks, **resolver_options
+                            )
+                        end
                     end
                 end
             end
@@ -40,32 +65,66 @@ module Syskit
             end
 
             def self.start(
-                plan, requirement_tasks = default_requirement_tasks, **resolver_options
+                plan, requirement_tasks = default_requirement_tasks, resolver_options: {}
             )
-                async = new(plan, requirement_tasks, **resolver_options)
+                async = new(plan, requirement_tasks, resolver_options: resolver_options)
                 async.start
                 async
+            end
+
+            # Cancel this resolution
+            #
+            # This is only signalling that the resolution should be cancelled. The
+            # cancellation itself might take some time
+            def cancel
+                @cancelled.set
+            end
+
+            # Whether this resolution has been cancelled
+            def cancelled?
+                @cancelled.set?
             end
 
             def finished?
                 @finished
             end
 
+            attr_reader :result
+
+            # Periodic polling of the resolution process
+            #
+            # @param [nil,Set<InstanceRequirementTask>] requirement_tasks the requirements
+            #   that currently need to be resolved. The class will cancel the current
+            #   resolution if it does not match the set it is actually resolving. Pass
+            #   nil to ignore the test altogether
             def poll(requirement_tasks)
                 return if finished?
 
-                cancel if !cancelled? && !valid?(requirement_tasks)
+                cancel if !cancelled? && requirement_tasks && !valid?(requirement_tasks)
 
                 return unless network_generation_complete?
 
-                apply_complete_network_generation
+                success = catch(:syskit_netgen_cancelled) do
+                    @result = finalize
+                    true
+                end
+                @engine.discard_work_plan unless success
             end
 
-            def apply_complete_network_generation
+            def apply_network_generation
+                unless network_generation_complete?
+                    raise InvalidState,
+                          "attempting to call Async#apply_network_generation while " \
+                          "processing is in progress"
+                end
+
+                super(result: network_generation_result, error: network_generation_error)
+            end
+
+            def finalize
                 running_requirement_tasks = @requirement_tasks.find_all(&:running?)
 
-                return unless (result = apply_network_generation)
-
+                result = apply_network_generation
                 update_instance_requirement_tasks_on_result(result)
                 result
             rescue Exception => e # rubocop:disable Lint/RescueException
@@ -80,14 +139,9 @@ module Syskit
 
             def finished!
                 @finished = true
-                @keepalive.discard_transaction
+                # Transactions may be discarded externally on e.g. plan teardown
+                @keepalive.discard_transaction unless @keepalive.finalized?
                 @thread_pool.shutdown
-            end
-
-            def cancel
-                super
-
-                @future.cancel
             end
 
             def network_generation_result
@@ -100,10 +154,6 @@ module Syskit
 
             def network_generation_complete?
                 @future.complete?
-            end
-
-            def network_generation_successful?
-                @future.fulfilled?
             end
 
             def network_generation_join
