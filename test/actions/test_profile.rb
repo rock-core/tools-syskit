@@ -581,7 +581,7 @@ module Syskit
                         task_m = TaskContext.new_submodel(name: "Test")
 
                         profile = Profile.new
-                        profile.use_unmanaged_task task_m => "test"
+                        profile.use_unmanaged_task({ task_m => "test" })
                         profile.define "test", task_m
 
                         # NOTE: so far, deployment groups are applied only when

@@ -9,6 +9,8 @@ module Syskit
 end
 
 require "syskit/network_generation/async"
+require "syskit/network_generation/async_threaded"
+require "syskit/network_generation/async_fiber"
 require "syskit/network_generation/dataflow_computation"
 require "syskit/network_generation/dataflow_dynamics"
 require "syskit/network_generation/engine"

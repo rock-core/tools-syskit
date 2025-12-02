@@ -2,161 +2,127 @@
 
 module Syskit
     module NetworkGeneration
-        # A partially asynchronous requirement resolver built on top of {Engine}
+        # Base class and interface definition for the async resolver used
+        # by {Runtime.apply_requirements_modification}
         class Async
             extend Logger::Hierarchy
             include Logger::Hierarchy
             include Roby::DRoby::EventLogging
 
-            # The target plan
-            attr_reader :plan
-
-            # The {Roby::DRoby::EventLogger} used to log timings
-            attr_reader :event_logger
-
-            # The thread pool (or, really, any of Concurrent executor)
-            attr_reader :thread_pool
-
-            # The future that does the async work
-            #
-            # It is created by {#start}
-            #
-            # @return [Resolution]
-            attr_reader :future
-
-            def initialize(plan, event_logger: plan.event_logger,
-                thread_pool: Concurrent::CachedThreadPool.new)
-                @plan = plan
-                @event_logger = event_logger
-                @thread_pool = thread_pool
-                @apply_system_network_options = {}
-            end
-
-            def transaction_finalized?
-                future.engine.work_plan.finalized?
-            end
-
-            def transaction_committed?
-                future.engine.work_plan.committed?
-            end
-
-            # @api private
-            class Resolution < Concurrent::Future
-                attr_reader :plan, :requirement_tasks, :engine
-
-                def initialize(plan, event_logger, requirement_tasks, **options, &block)
-                    @plan = plan
-                    @requirement_tasks = requirement_tasks.to_set
-                    @engine = Engine.new(plan, event_logger: event_logger)
-                    super(**options, &block)
-                end
-            end
+            attr_reader :event_logger, :requirement_tasks, :engine
 
             ENGINE_OPTIONS_CARRIED_TO_APPLY_SYSTEM_NETWORK = %I[
                 compute_deployments garbage_collect validate_final_network
             ].freeze
 
-            def prepare(requirement_tasks = default_requirement_tasks, **resolver_options)
-                if @future
-                    raise InvalidState,
-                          "calling Async#prepare while a generation is in progress"
-                end
+            def initialize(
+                plan, requirement_tasks,
+                resolver_options: {}, event_logger: plan.event_logger,
+                resolution_control: Control.new
+            )
+                @plan = plan
+                @event_logger = event_logger
+                @requirement_tasks = requirement_tasks
 
+                @engine = Engine.new(
+                    plan,
+                    event_logger: @event_logger,
+                    resolution_control: resolution_control
+                )
+                @resolver_options = resolver_options
                 @apply_system_network_options = resolver_options.slice(
                     *ENGINE_OPTIONS_CARRIED_TO_APPLY_SYSTEM_NETWORK
                 )
-
-                # Resolver is used within the block ... don't assign directly to @future
-                resolver = Resolution.new(plan, event_logger, requirement_tasks,
-                                          executor: thread_pool) do
-                    Thread.current.name = "syskit-async-resolution"
-                    log_timepoint_group "syskit-async-resolution" do
-                        resolver.engine.resolve_system_network(
-                            requirement_tasks, **resolver_options
-                        )
-                    end
-                end
-                @future = resolver
             end
 
-            def resolution_requirement_tasks
-                @future&.requirement_tasks
+            def transaction_finalized?
+                engine.work_plan.finalized?
             end
 
-            def default_requirement_tasks
-                Engine.discover_requirement_tasks_from_plan(plan)
+            def transaction_committed?
+                engine.work_plan.committed?
             end
 
-            def start(requirement_tasks = default_requirement_tasks, **resolver_options)
-                resolver = prepare(requirement_tasks, **resolver_options)
-                resolver.execute
-                resolver
-            end
-
+            # Check if this resolution is still up-to-date
+            #
+            # The method checks whether the list of requirements processed by this
+            # resolution is the same than the current list. If not, the system will
+            # (probably) cancel the resolution to start a new one
             def valid?(current = default_requirement_tasks)
-                current.to_set == future.requirement_tasks
-            end
-
-            def cancel
-                @cancelled = true
-                future.cancel
-            end
-
-            def finished?
-                future.complete?
-            end
-
-            def complete?
-                future.complete?
-            end
-
-            def join
-                result = future.value
-                raise future.reason if future.rejected?
-
-                result
-            end
-
-            def cancelled?
-                @cancelled
+                current.to_set == @requirement_tasks
             end
 
             class InvalidState < RuntimeError; end
 
-            # Apply the result of the generation
+            # Common implementation of the logic that applies the result of the network
+            # generation step
             #
-            # @return [Boolean] true if the result has been applied, and false
-            #   if the generation was cancelled
-            def apply
-                unless future.complete?
-                    raise InvalidState,
-                          "attempting to call Async#apply while processing " \
-                          "is in progress"
+            # It relies on methods implemented in the base class
+            #
+            # @return [nil,SystemNetworkPlanApplyResult] the application result, which is
+            #   nil in case of failure or cancellation and a result object otherwise
+            def apply_network_generation(result:, error:)
+                if cancelled?
+                    throw :syskit_netgen_cancelled
+                elsif error
+                    @engine.handle_resolution_exception(error, on_error: Engine.on_error)
+                    raise error
                 end
 
-                engine = future.engine
-                if @cancelled
-                    engine.discard_work_plan
-                    nil
-                elsif future.fulfilled?
-                    required_instances, resolution_errors = future.value
-                    begin
-                        engine.apply_system_network_to_plan(
-                            required_instances, **@apply_system_network_options
-                        )
-                        SystemNetworkPlanApplyResult.new(
-                            instance_requirement_tasks: required_instances.keys,
-                            errors: resolution_errors
-                        )
-                    rescue ::Exception => e
-                        engine.handle_resolution_exception(e, on_error: Engine.on_error)
-                        raise e
-                    end
-                else
-                    engine.handle_resolution_exception(
-                        future.reason, on_error: Engine.on_error
+                successful_requirements, resolution_errors = result
+                begin
+                    @engine.apply_system_network_to_plan(
+                        successful_requirements, **@apply_system_network_options
                     )
-                    raise future.reason
+                    SystemNetworkPlanApplyResult.new(
+                        instance_requirement_tasks: successful_requirements.keys,
+                        errors: resolution_errors
+                    )
+                rescue ::Exception => e
+                    @engine.handle_resolution_exception(e, on_error: Engine.on_error)
+                    raise e
+                end
+            end
+
+            def default_requirement_tasks
+                Engine.discover_requirement_tasks_from_plan(@plan)
+            end
+
+            def update_instance_requirement_tasks_on_result(result)
+                result.instance_requirement_tasks.each do |t|
+                    t.resolution_success_event.emit
+                end
+                result.errors.group_by(&:planning_task).each do |t, e|
+                    t.failed_event.emit(*e.flat_map(&:original_exception)) if t.running?
+                end
+            end
+
+            def update_instance_requirement_tasks_on_exception(
+                requirement_tasks, exception
+            )
+                old, new = requirement_tasks.partition(&:resolution_success?)
+                new.each { |t| t.failed_event.emit(exception) }
+                NetworkGeneration::SystemNetworkPlanApplyResult.new(
+                    errors: [exception], instance_requirement_tasks: old
+                )
+            end
+
+            # Object that is passed to the network generation process to handle
+            # cancellations and yield
+            class Control
+                # Method regularly called by the network generation code to allow
+                # the control class to do its job
+                #
+                # @param [String] name name of the interruption point. It is logged
+                #   on the given logger as a timepoint
+                # @return [Boolean] true if the computation can continue, or false
+                #   if it is cancelled
+                def interruption_point(
+                    event_logger, name,
+                    log_on_interruption_only: false
+                )
+                    event_logger.log_timepoint(name) unless log_on_interruption_only
+                    true
                 end
             end
         end
