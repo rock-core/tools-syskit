@@ -131,6 +131,7 @@ require "syskit/network_generation_exception_helpers"
 require "syskit/exceptions"
 require "syskit/network_generation"
 require "syskit/runtime"
+require "syskit/schedulers/global"
 
 require "syskit/instance_requirements_task"
 

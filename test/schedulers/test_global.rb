@@ -20,6 +20,16 @@ module Syskit
                 assert_scheduled_tasks([precedence])
             end
 
+            it "does not schedule the configuration precedence if " \
+               "it is itself not executable" do
+                task_m = TaskContext.new_submodel
+                plan.add(root = task_m.new)
+                root.depends_on(precedence = task_m.new)
+                root.should_configure_after(precedence.start_event)
+
+                assert_scheduled_tasks([])
+            end
+
             def assert_scheduled_tasks(set)
                 assert_equal set.to_set, @scheduler.compute_tasks_to_schedule
             end
