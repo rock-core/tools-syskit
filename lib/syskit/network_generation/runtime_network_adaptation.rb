@@ -264,7 +264,7 @@ module Syskit
                 interruption_point "syskit-engine:imported-tasks"
 
                 all_tasks.delete_if do |t|
-                    if !t.reusable?
+                    if t.finished?
                         debug { "  clearing the relations of the finished task #{t}" }
                         t.remove_relations(Syskit::Flows::DataFlow)
                         t.remove_relations(Roby::TaskStructure::Dependency)
