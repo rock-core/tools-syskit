@@ -48,32 +48,75 @@ describe Syskit::NetworkGeneration::MergeSolver do
             target_task.should_receive(:can_merge?).with(task).and_return(false).once
             assert !solver.may_merge_task_contexts?(task, target_task)
         end
-        it "returns false if both tasks have execution agents and " \
-           "merge_when_identical_agents is false" do
-            plan.add(task1 = simple_component_model.new)
-            plan.add(task2 = simple_composition_model.new)
-            [task1, task2].permutation.each do |t1, t2|
-                flexmock(t1).should_receive(:execution_agent).and_return(true)
-                t1.should_receive(:can_merge?).with(t2).and_return(true).once
+
+        describe "merge_when_identical_agents is false" do
+            before do
+                plan.add(@merged_task = simple_component_model.new)
+                plan.add(@target_task = simple_component_model.new)
+                flexmock(@merged_task)
+                    .should_receive(:can_merge?)
+                    .with(@target_task).and_return(true)
+
+                @solver = Syskit::NetworkGeneration::MergeSolver.new(plan)
+                @solver.merge_task_contexts_with_same_agent = false
             end
-            refute solver.may_merge_task_contexts?(task1, task2)
-            refute solver.may_merge_task_contexts?(task2, task1)
+
+            it "returns true if the merged task has an execution agent " \
+               "and the target task does not" do
+                flexmock(@merged_task).should_receive(execution_agent: true)
+                assert @solver.may_merge_task_contexts?(@merged_task, @target_task)
+            end
+
+            it "returns true if the merged task does not have an execution agent " \
+               "and the target task does" do
+                flexmock(@target_task).should_receive(execution_agent: true)
+                assert @solver.may_merge_task_contexts?(@merged_task, @target_task)
+            end
+
+            it "returns false if both tasks have execution agents" do
+                flexmock(@merged_task).should_receive(execution_agent: true)
+                flexmock(@target_task).should_receive(execution_agent: true)
+                refute @solver.may_merge_task_contexts?(@merged_task, @target_task)
+            end
         end
-        it "returns false for tasks that do not have execution agents when " \
-           "merge_when_identical_agents is true" do
-            plan.add(task1 = simple_component_model.new)
-            plan.add(task2 = simple_composition_model.new)
 
-            [task1, task2].permutation.each do |t1, t2|
-                flexmock(t1).should_receive(:execution_agent).and_return(false)
-                t1.should_receive(:can_merge?).with(t2).and_return(true).once
+        describe "merge_when_identical_agents is true" do
+            before do
+                plan.add(@merged_task = simple_component_model.new)
+                plan.add(@target_task = simple_component_model.new)
+                flexmock(@merged_task)
+                    .should_receive(:can_merge?)
+                    .with(@target_task).and_return(true)
+
+                @solver = Syskit::NetworkGeneration::MergeSolver.new(plan)
+                @solver.merge_task_contexts_with_same_agent = true
             end
 
-            local_solver = Syskit::NetworkGeneration::MergeSolver.new(plan)
-            local_solver.merge_task_contexts_with_same_agent = true
+            it "returns false if orocos_name is not set on either tasks" do
+                refute @solver.may_merge_task_contexts?(@merged_task, @target_task)
+            end
 
-            refute local_solver.may_merge_task_contexts?(task1, task2)
-            refute local_solver.may_merge_task_contexts?(task2, task1)
+            it "returns false if orocos_name is set only on the merged task" do
+                @merged_task.orocos_name = "foo"
+                refute @solver.may_merge_task_contexts?(@merged_task, @target_task)
+            end
+
+            it "returns false if orocos_name is set only on the target task" do
+                @target_task.orocos_name = "foo"
+                refute @solver.may_merge_task_contexts?(@merged_task, @target_task)
+            end
+
+            it "returns true if orocos_name is set on both if the value is identical" do
+                @merged_task.orocos_name = "foo"
+                @target_task.orocos_name = "foo"
+                assert @solver.may_merge_task_contexts?(@merged_task, @target_task)
+            end
+
+            it "returns false if orocos_name is set on both and the value differs" do
+                @merged_task.orocos_name = "foo"
+                @target_task.orocos_name = "bar"
+                refute @solver.may_merge_task_contexts?(@merged_task, @target_task)
+            end
         end
     end
 

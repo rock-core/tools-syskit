@@ -264,7 +264,8 @@ module Syskit
                     return !(task.execution_agent && merged_task.execution_agent)
                 end
 
-                return false unless task.execution_agent && merged_task.execution_agent
+                return false unless task.arguments.set?(:orocos_name) &&
+                                    merged_task.arguments.set?(:orocos_name)
 
                 task.orocos_name == merged_task.orocos_name
             end
