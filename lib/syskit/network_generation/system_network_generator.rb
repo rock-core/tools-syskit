@@ -550,23 +550,14 @@ module Syskit
             end
 
             def validate_deployed_network(error_handler: @error_handler)
-                self.class.verify_all_tasks_deployed(
-                    plan, default_deployment_group, error_handler: error_handler
+                SystemNetworkDeployer.verify_all_tasks_deployed(
+                    plan, default_deployment_group,
+                    error_handler: error_handler, lazy: lazy_deploy?
                 )
                 self.class.verify_all_deployments_are_unique(
                     plan, toplevel_tasks_to_requirements.dup, error_handler: error_handler
                 )
                 super if defined? super
-            end
-
-            def self.verify_all_tasks_deployed(
-                plan, default_deployment_group, error_handler: RaiseErrorHandler.new
-            )
-                SystemNetworkDeployer.verify_all_tasks_deployed(
-                    plan,
-                    default_deployment_group,
-                    error_handler: error_handler
-                )
             end
 
             # @api private

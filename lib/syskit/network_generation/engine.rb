@@ -397,7 +397,7 @@ module Syskit
                     validate_abstract_network: validate_abstract_network,
                     validate_generated_network: validate_generated_network,
                     validate_deployed_network:
-                        early_deploy && !lazy_deploy && validate_deployed_network
+                        early_deploy && validate_deployed_network
                 )
                 required_instances = Hash[requirement_tasks.zip(toplevel_tasks)]
                 # Take toplevel tasks to requirements before cleanup
@@ -415,7 +415,7 @@ module Syskit
                         validate_abstract_network: validate_abstract_network,
                         validate_generated_network: validate_generated_network,
                         validate_deployed_network:
-                            early_deploy && !lazy_deploy && validate_deployed_network
+                            early_deploy && validate_deployed_network
                     )
                 end
                 [required_instances, resolution_errors, toplevel_tasks_to_requirements]
