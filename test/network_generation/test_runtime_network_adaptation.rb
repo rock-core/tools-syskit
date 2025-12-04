@@ -480,6 +480,17 @@ module Syskit
             end
 
             describe "#find_current_deployed_task" do
+                it "returns the 'last' task" do
+                    component_m = Syskit::Component.new_submodel
+                    plan.add(task0 = component_m.new)
+                    plan.add(task1 = component_m.new)
+                    task1.should_configure_after(task0.stop_event)
+                    task0 = work_plan[task0]
+                    task1 = work_plan[task1]
+                    adapter = create_adapter([])
+                    assert_equal task1, adapter.find_current_deployed_task([task0, task1])
+                end
+
                 it "ignores garbage tasks that have not been finalized yet" do
                     component_m = Syskit::Component.new_submodel
                     plan.add(task0 = component_m.new)
@@ -493,7 +504,7 @@ module Syskit
                     assert_equal task1, adapter.find_current_deployed_task([task0, task1])
                 end
 
-                it "ignores all non-reusable tasks" do
+                it "does not ignore non-reusable tasks" do
                     component_m = Syskit::Component.new_submodel
                     plan.add(task0 = component_m.new)
                     plan.add(task1 = component_m.new)
@@ -503,7 +514,7 @@ module Syskit
                     task0 = work_plan[task0]
                     task1 = work_plan[task1]
                     adapter = create_adapter([])
-                    assert_nil adapter.find_current_deployed_task([task0, task1])
+                    assert_equal task1, adapter.find_current_deployed_task([task0, task1])
                 end
             end
 

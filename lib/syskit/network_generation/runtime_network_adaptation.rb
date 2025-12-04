@@ -376,7 +376,7 @@ module Syskit
                 )
 
                 tasks = deployed_tasks.find_all do |t|
-                    t.reusable? && configuration_precedence_graph.leaf?(t.stop_event)
+                    configuration_precedence_graph.leaf?(t.stop_event)
                 end
 
                 if tasks.size > 1
