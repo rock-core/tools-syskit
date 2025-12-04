@@ -110,6 +110,10 @@ module Syskit
             # Object that is passed to the network generation process to handle
             # cancellations and yield
             class Control
+                def initialize
+                    @log_all = Syskit.conf.async_control_log_all?
+                end
+
                 # Method regularly called by the network generation code to allow
                 # the control class to do its job
                 #
@@ -118,10 +122,12 @@ module Syskit
                 # @return [Boolean] true if the computation can continue, or false
                 #   if it is cancelled
                 def interruption_point(
-                    event_logger, name,
-                    log_on_interruption_only: false
+                    event_logger, name, log_on_interruption_only: false
                 )
-                    event_logger.log_timepoint(name) unless log_on_interruption_only
+                    if @log_all || !log_on_interruption_only
+                        event_logger.log_timepoint(name)
+                    end
+
                     true
                 end
             end

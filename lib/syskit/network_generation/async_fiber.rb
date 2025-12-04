@@ -14,19 +14,19 @@ module Syskit
                     super()
 
                     @slice = slice
-                    @slice_start_time = Time.now
+                    @slice_deadline = Time.now + slice
                 end
 
                 # (see Async::Control#interruption_point)
                 def interruption_point(
                     event_logger, name, log_on_interruption_only: false
                 )
-                    return super if Time.now - @slice_start_time < @slice
+                    return super if Time.now < @slice_deadline
 
                     event_logger.log_timepoint "#{name}:interrupt"
                     cancelled = Fiber.yield
                     event_logger.log_timepoint "#{name}:resume"
-                    @slice_start_time = Time.now
+                    @slice_deadline = Time.now + @slice
                     !cancelled
                 end
             end
@@ -49,6 +49,8 @@ module Syskit
                     @keepalive.wrap(component_task) unless component_task.finished?
                 end
 
+                log_timepoint("syskit-netgen:async-fiber-start")
+
                 @fiber = Fiber.new do
                     catch(:syskit_netgen_cancelled) do
                         async_phase
@@ -59,7 +61,7 @@ module Syskit
             def async_phase
                 begin
                     network_generation_result =
-                        log_timepoint_group "syskit-network-generation" do
+                        log_timepoint_group "syskit-netgen:gen" do
                             @engine.resolve_system_network(
                                 @requirement_tasks, **@resolver_options
                             )
@@ -72,7 +74,7 @@ module Syskit
                     @requirement_tasks.find_all(&:running?)
 
                 @async_phase_result =
-                    log_timepoint_group "syskit-apply-network-generation" do
+                    log_timepoint_group "syskit-netgen:apply" do
                         apply_network_generation(
                             result: network_generation_result,
                             error: network_generation_error
@@ -150,6 +152,7 @@ module Syskit
             def finished!
                 @finished = true
                 @keepalive.discard_transaction unless @keepalive.finalized?
+                log_timepoint("syskit-netgen:async-fiber-finished")
             end
 
             # Wait for the resolution to finish and either apply the result or raise if

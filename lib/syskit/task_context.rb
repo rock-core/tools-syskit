@@ -244,7 +244,7 @@ module Syskit
             if result
                 true
             else
-                NetworkGeneration.debug do
+                NetworkGeneration::MergeSolver.debug do
                     "cannot merge #{other_task} in #{self}: different host constraints"
                 end
                 false

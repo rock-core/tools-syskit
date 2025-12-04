@@ -36,7 +36,11 @@ module Syskit
 
             attr_writer :merge_task_contexts_with_same_agent
 
-            def initialize(plan, event_logger: plan.event_logger)
+            def initialize(
+                plan,
+                event_logger: plan.event_logger,
+                resolution_control: Async::Control.new
+            )
                 @plan = plan
                 @event_logger = event_logger
                 @dataflow_graph = plan.task_relation_graph_for(Flows::DataFlow)
@@ -46,6 +50,14 @@ module Syskit
                 @resolved_replacements = {}
                 @invalid_merges = Set.new
                 @merge_task_contexts_with_same_agent = false
+                @resolution_control = resolution_control
+            end
+
+            def interruption_point(name, log_on_interruption_only: false)
+                continue = @resolution_control.interruption_point(
+                    self, name, log_on_interruption_only: log_on_interruption_only
+                )
+                throw :syskit_netgen_cancelled unless continue
             end
 
             def clear
@@ -254,13 +266,7 @@ module Syskit
             def each_component_merge_candidate(task)
                 # Get the set of candidates. We are checking if the tasks in
                 # this set can be replaced by +task+
-                candidates = plan.find_local_tasks(task.model.concrete_model)
-                                 .to_a
-                debug do
-                    debug "#{candidates.to_a.size - 1} candidates for #{task}, matching model"
-                    debug "  #{task.model.concrete_model}"
-                    break
-                end
+                candidates = plan.find_local_tasks(task.model.concrete_model).to_a
 
                 if (orocos_name = task.arguments[:orocos_name])
                     candidates = candidates.find_all do |t|
@@ -269,20 +275,27 @@ module Syskit
                     end
                 end
 
+                debug do
+                    debug "#{candidates.to_a.size - 1} candidates for #{task}, matching model"
+                    debug "  #{task.model.concrete_model}"
+                    break
+                end
+
                 candidates.each do |merged_task|
                     next if task == merged_task
 
                     debug { "  #{merged_task}" }
                     if merged_task.placeholder?
-                        debug "    data service proxy"
+                        debug "    rejected: data service proxy"
                         next
                     elsif !merged_task.plan
-                        debug "    removed from plan"
+                        debug "    rejected: removed from plan"
                         next
                     elsif invalid_merges.include?([merged_task, task])
-                        debug "    already evaluated as an invalid merge"
+                        debug "    rejected: already evaluated as an invalid merge"
                         next
                     end
+
                     yield(merged_task)
                 end
             end
@@ -301,13 +314,12 @@ module Syskit
 
             # Merge the task contexts
             def merge_task_contexts
-                debug "merging task contexts"
-
                 queue = plan.find_local_tasks(Syskit::TaskContext).sort_by do |t|
                     dataflow_graph.in_degree(t)
                 end.reverse
 
                 invalid_merges.clear
+                i = 0
                 until queue.empty?
                     task = queue.shift
                     # 'task' could have been merged already, ignore it
@@ -322,6 +334,11 @@ module Syskit
                             invalid_merges << [merged_task, task]
                         end
                     end
+
+                    interruption_point(
+                        "syskit-netgen:merge-task-#{i}", log_on_interruption_only: true
+                    )
+                    i += 1
                 end
             end
 
@@ -428,12 +445,16 @@ module Syskit
                     end
                 end
 
-                topsort.each do |composition|
+                topsort.each_with_index do |composition, i|
                     next unless composition.plan
 
                     each_composition_merge_candidate(composition) do |merged_composition|
                         apply_merge_group(merged_composition => composition)
                     end
+
+                    interruption_point(
+                        "syskit-netgen:merge-cmp-#{i}", log_on_interruption_only: true
+                    )
                 end
             end
 
@@ -682,17 +703,17 @@ module Syskit
             end
 
             def merge_identical_tasks
-                log_timepoint_group_start "syskit-merge-solver"
+                log_timepoint_group_start "syskit-netgen:merge"
                 dataflow_graph.enable_concrete_connection_graph
-                log_timepoint_group "merge_task_contexts" do
+                log_timepoint_group "syskit-netgen:merge-task-contexts" do
                     merge_task_contexts
                 end
-                log_timepoint_group "merge_compositions" do
+                log_timepoint_group "syskit-netgen:merge-compositions" do
                     merge_compositions
                 end
             ensure
                 dataflow_graph.disable_concrete_connection_graph
-                log_timepoint_group_end "syskit-merge-solver"
+                log_timepoint_group_end "syskit-netgen:merge"
             end
 
             def display_merge_graph(title, merge_graph)

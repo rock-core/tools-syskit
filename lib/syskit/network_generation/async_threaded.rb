@@ -20,7 +20,8 @@ module Syskit
 
                 # (see Async::Control#interruption_point)
                 def interruption_point(event_logger, name, **)
-                    event_logger.log_timepoint(name)
+                    super
+
                     !@cancelled.set?
                 end
             end
@@ -38,25 +39,32 @@ module Syskit
 
                 @thread_pool = Concurrent::CachedThreadPool.new
 
-                # Protect all Component instances against garbage collection
-                # by adding them in a transaction. This is to make sure we don't
-                # tear down, during network generation, subparts of the old network
-                # that are actually needed by the new network.
-                @keepalive = Roby::Transaction.new(plan)
-                plan.find_local_tasks(Component).each do |component_task|
-                    @keepalive.wrap(component_task) unless component_task.finished?
-                end
+                create_keepalive_transaction(plan)
+
+                log_timepoint("syskit-netgen:async-threaded-start")
 
                 # Resolver is used within the block ... don't assign directly to @future
                 @future = Concurrent::Future.new(executor: thread_pool) do
                     Thread.current.name = "syskit-network-generation"
-                    log_timepoint_group "syskit-network-generation" do
+                    log_timepoint_group "syskit-netgen:gen" do
                         catch(:syskit_netgen_cancelled) do
                             @engine.resolve_system_network(
                                 requirement_tasks, **resolver_options
                             )
                         end
                     end
+                end
+            end
+
+            # Include all components from the plan in a transaction to protect them
+            # from GC while we deploy
+            #
+            # This is to make sure we don't tear down, during network generation,
+            # subparts of the old network that are actually needed by the new network.
+            def create_keepalive_transaction(plan)
+                @keepalive = Roby::Transaction.new(plan)
+                plan.find_local_tasks(Component).each do |component_task|
+                    @keepalive.wrap(component_task) unless component_task.finished?
                 end
             end
 
@@ -124,7 +132,9 @@ module Syskit
             def finalize
                 running_requirement_tasks = @requirement_tasks.find_all(&:running?)
 
-                result = apply_network_generation
+                result = log_timepoint_group("syskit-netgen:apply") do
+                    apply_network_generation
+                end
                 update_instance_requirement_tasks_on_result(result)
                 result
             rescue Exception => e # rubocop:disable Lint/RescueException
@@ -142,6 +152,7 @@ module Syskit
                 # Transactions may be discarded externally on e.g. plan teardown
                 @keepalive.discard_transaction unless @keepalive.finalized?
                 @thread_pool.shutdown
+                log_timepoint("syskit-netgen:async-threaded-finished")
             end
 
             def network_generation_result

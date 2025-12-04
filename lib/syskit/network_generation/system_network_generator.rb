@@ -27,25 +27,27 @@ module Syskit
             def initialize( # rubocop:disable Metrics/ParameterLists
                 plan,
                 event_logger: plan.event_logger,
-                merge_solver: MergeSolver.new(plan),
                 default_deployment_group: nil,
                 early_deploy: false,
                 error_handler: RaiseErrorHandler.new,
-                resolution_control: Async::Control.new
+                resolution_control: Async::Control.new,
+                merge_solver: nil
             )
+                @plan = plan
+                @event_logger = event_logger
+                @resolution_control = resolution_control
+
+                merge_solver ||= default_merge_solver
                 if merge_solver.plan != plan
                     raise ArgumentError,
                           "gave #{merge_solver} as merge solver, which applies on " \
                           "#{merge_solver.plan}. Was expecting #{plan}"
                 end
 
-                @plan = plan
-                @event_logger = event_logger
                 @merge_solver = merge_solver
                 @default_deployment_group = default_deployment_group
                 @early_deploy = early_deploy
                 @error_handler = error_handler
-                @resolution_control = resolution_control
             end
 
             def interruption_point(name, log_on_interruption_only: false)
@@ -71,7 +73,7 @@ module Syskit
 
                 # We first generate a non-deployed network that fits all
                 # requirements.
-                log_timepoint_group "compute_system_network" do
+                log_timepoint_group "syskit-netgen:compute_system_network" do
                     compute_system_network(
                         instance_requirements,
                         garbage_collect: garbage_collect,
@@ -129,7 +131,6 @@ module Syskit
             #
             # @return [void]
             def instanciate(instance_requirements)
-                log_timepoint "instanciate_requirements"
                 toplevel_tasks = instance_requirements.each_with_index.map do |requirements, i|
                     task = requirements.instanciate(plan).to_task
                     debug do
@@ -153,16 +154,19 @@ module Syskit
                     task.fullfilled_model = [
                         fullfilled_task_m, fullfilled_modules, meaningful_args
                     ]
-                    interruption_point "task-#{i}"
+                    interruption_point(
+                        "syskit-netgen:task-#{i}", log_on_interruption_only: true
+                    )
                     task
                 end
+                log_timepoint "syskit-netgen:instanciated"
 
                 plan.each_task do |task|
                     if task.respond_to?(:each_master_driver_service)
                         allocate_devices(task)
                     end
                 end
-                log_timepoint "device_allocation"
+                log_timepoint "syskit-netgen:device-allocation"
                 toplevel_tasks
             end
 
@@ -234,12 +238,12 @@ module Syskit
             end
 
             def instanciate_system_network(instance_requirements)
-                @toplevel_tasks = log_timepoint_group "instanciate" do
+                @toplevel_tasks = log_timepoint_group "syskit-netgen:instanciate" do
                     instanciate(instance_requirements)
                 end
                 Engine.instanciation_postprocessing.each do |block|
                     block.call(self, plan)
-                    log_timepoint "postprocessing:#{block}"
+                    log_timepoint "syskit-netgen:postprocessing:#{block}"
                 end
                 @toplevel_instance_requirements = instance_requirements
                 @toplevel_tasks
@@ -259,19 +263,19 @@ module Syskit
                 early_deploy(deployment_tasks)
 
                 merge_solver.merge_identical_tasks
-                interruption_point("syskit-netgen-merge")
+                interruption_point("syskit-netgen:merge")
 
                 Engine.instanciated_network_postprocessing.each do |block|
                     block.call(self, plan)
-                    interruption_point("syskit-netgen-postprocessing:#{block}")
+                    interruption_point("syskit-netgen:postprocessing:#{block}")
                 end
 
                 link_to_busses
-                interruption_point("syskit-netgen-link-to-busses")
+                interruption_point("syskit-netgen:link-to-busses")
 
                 early_deploy(deployment_tasks)
                 merge_solver.merge_identical_tasks
-                interruption_point("syskit-netgen-merge")
+                interruption_point("syskit-netgen:merge")
 
                 self.class.remove_abstract_composition_optional_children(plan)
 
@@ -289,7 +293,7 @@ module Syskit
                         plan.remove_task(obj)
                     end
                 end
-                interruption_point("syskit-netgen-clean-network")
+                interruption_point("syskit-netgen:clean-network")
 
                 # And get rid of the 'permanent' marking we use to be able to
                 # run static_garbage_collect
@@ -300,7 +304,7 @@ module Syskit
                 Engine.system_network_postprocessing.each do |block|
                     block.call(self, plan)
                 end
-                interruption_point("syskit-netgen-postprocessing")
+                interruption_point("syskit-netgen:postprocessing")
 
                 validate_network(
                     error_handler: error_handler,
@@ -309,7 +313,7 @@ module Syskit
                     validate_deployed_network:
                         early_deploy? && validate_deployed_network
                 )
-                interruption_point("syskit-netgen-validation")
+                interruption_point("syskit-netgen:validation")
                 @toplevel_tasks
             end
 
@@ -317,7 +321,7 @@ module Syskit
                 return unless early_deploy?
 
                 deploy(deployment_tasks)
-                interruption_point "syskit-netgen-early-deploy"
+                interruption_point "syskit-netgen:early-deploy"
             end
 
             # Compute in #plan the network needed to fullfill the requirements
@@ -345,17 +349,17 @@ module Syskit
                 validate_deployed_network: true)
                 if validate_abstract_network
                     self.validate_abstract_network
-                    log_timepoint "validate_abstract_network"
+                    log_timepoint "syskit-netgen:validate_abstract_network"
                 end
 
                 if validate_generated_network
                     self.validate_generated_network(error_handler: error_handler)
-                    log_timepoint "validate_generated_network"
+                    log_timepoint "syskit-netgen:validate_generated_network"
                 end
                 return unless early_deploy? && validate_deployed_network
 
                 self.validate_deployed_network(error_handler: error_handler)
-                log_timepoint "validate_deployed_network"
+                log_timepoint "syskit-netgen:validate_deployed_network"
             end
 
             def toplevel_tasks_to_requirements
@@ -507,12 +511,11 @@ module Syskit
 
                 return if using_same_deployment.empty?
 
-                message = "deployment used multiple times"
                 using_same_deployment.each do |orocos_name, tasks|
                     exception = ConflictingDeploymentAllocation.new(
                         orocos_name, tasks, toplevel_tasks_to_requirements
                     )
-                    exception = exception.exception(message)
+                    exception = exception.exception("deployment used multiple times")
                     error_handler.register_resolution_failures_from_exception(
                         tasks, exception
                     )
@@ -555,6 +558,17 @@ module Syskit
                     plan,
                     default_deployment_group,
                     error_handler: error_handler
+                )
+            end
+
+            # @api private
+            #
+            # Helper for {#initialize} to create the default merge solver
+            def default_merge_solver
+                MergeSolver.new(
+                    plan,
+                    resolution_control: @resolution_control,
+                    event_logger: @event_logger
                 )
             end
         end

@@ -252,6 +252,22 @@ module Syskit
                 @compositions_use_schedule_as
             end
 
+            # Control whether all interruption points should be logged, or only the ones
+            # that actually lead to an interruption
+            #
+            # This is meant to debug performance
+            #
+            # @see #async_control_log_all?
+            attr_writer :async_control_log_all
+
+            # Control whether all interruption points should be logged, or only the ones
+            # that actually lead to an interruption
+            #
+            # This is meant to debug performance
+            def async_control_log_all?
+                @async_control_log_all
+            end
+
             # Controls whether the orogen types should be exported as Ruby
             # constants
             #
