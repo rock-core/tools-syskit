@@ -38,8 +38,7 @@ module Syskit
                 lazy_deploy: false,
                 error_handler: RaiseErrorHandler.new,
                 resolution_control: Async::Control.new,
-                merge_solver: nil
-            )
+                merge_solver: nil)
                 @plan = plan
                 @event_logger = event_logger
                 @resolution_control = resolution_control

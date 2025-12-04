@@ -76,6 +76,13 @@ module Syskit
                 end
             end
 
+            # Return the task model for the given deployed task
+            #
+            # @return [Class<TaskContext>]
+            def task(name)
+                @task_name_to_syskit_model.fetch(name)
+            end
+
             # Creates a new deployment model
             #
             # @option options [OroGen::Spec::Deployment] orogen_model the oroGen

@@ -127,7 +127,7 @@ module Syskit
                         resolution_control: @resolution_control
                     )
 
-                    deployer.deploy(
+                    @used_deployments, = deployer.deploy(
                         error_handler: error_handler, validate: validate_deployed_network,
                         lazy: lazy_deploy
                     )
@@ -172,7 +172,7 @@ module Syskit
                 @deployment_tasks, @deployed_tasks =
                     log_timepoint_group "finalize_deployed_tasks" do
                         adaptation = RuntimeNetworkAdaptation.new(
-                            work_plan,
+                            work_plan, @used_deployments,
                             merge_solver: @merge_solver,
                             event_logger: @event_logger,
                             resolution_control: @resolution_control

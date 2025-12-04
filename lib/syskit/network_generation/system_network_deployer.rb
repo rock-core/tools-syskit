@@ -72,7 +72,9 @@ module Syskit
             #
             # @param [Boolean] validate if true, {#validate_deployed_networks}
             #   will run on the generated network
-            # @return [Set] the set of tasks for which the deployer could
+            # @return [({Component=>DeploymentGroup::DeployedTask},Set)] the
+            #   used deployments, as a map of task instance to the deployment's
+            #   description, and the set of tasks for which the deployer could
             #   not find a deployment
             def deploy(error_handler: RaiseErrorHandler.new, validate: true,
                 reuse_deployments: false, deployment_tasks: {}, lazy: false)
@@ -85,8 +87,10 @@ module Syskit
 
                 if lazy
                     lazy_apply_selected_deployments(selected_deployments)
+                    used_deployments = selected_deployments
                 else
-                    apply_selected_deployments(selected_deployments, deployment_tasks)
+                    used_deployments =
+                        apply_selected_deployments(selected_deployments, deployment_tasks)
                 end
                 interruption_point "syskit-netgen:apply_selected_deployments"
 
@@ -95,7 +99,7 @@ module Syskit
                     log_timepoint "syskit-netgen:validate-deployed-network"
                 end
 
-                missing_deployments
+                [used_deployments, missing_deployments]
             end
 
             # @return [Set<DeploymentGroup::DeployedTask>]
@@ -203,30 +207,36 @@ module Syskit
 
             # Modify the plan to apply a deployment selection
             #
-            # @param [Component=>Deployment] selected_deployments the
+            # @param [{Component=>DeploymentGroup::DeployedTask}] selected_deployments the
             #   component-to-deployment association
-            # @return [void]
+            # @param deployment_tasks a memoization object that allows the system to
+            #   instanciate a deployment only once
+            # @return [{Component=>DeploymentGroup::DeployedTask}] the mapping between
+            #   the deployed task (the instance remaining in the plan) and the
+            #   deployedtask that was used to create it
             def apply_selected_deployments(selected_deployments, deployment_tasks = {})
-                selected_deployments.each do |task, deployed_task|
-                    deployed_task, = deployed_task.instanciate(
-                        plan,
-                        permanent: Syskit.conf.permanent_deployments?,
-                        deployment_tasks: deployment_tasks
-                    )
-                    debug do
-                        agent = deployed_task.execution_agent
-                        "deploying #{task} with #{agent.process_name} (#{agent})"
+                selected_deployments
+                    .each_with_object({}) do |(task, deployed_task_m), used_deployments|
+                        deployed_task, = deployed_task_m.instanciate(
+                            plan,
+                            permanent: Syskit.conf.permanent_deployments?,
+                            deployment_tasks: deployment_tasks
+                        )
+                        debug do
+                            agent = deployed_task.execution_agent
+                            "deploying #{task} with #{agent.process_name} (#{agent})"
+                        end
+                        # We MUST merge one-by-one here. Calling apply_merge_group
+                        # on all the merges at once would NOT copy the connections
+                        # that exist between the tasks of the "from" group to the
+                        # "to" group, which is really not what we want
+                        #
+                        # Calling with all the mappings would be useful if what
+                        # we wanted is replace a subnet of the plan by another
+                        # subnet. This is not the goal here.
+                        merge_solver.apply_merge_group(task => deployed_task)
+                        used_deployments[deployed_task] = deployed_task_m
                     end
-                    # We MUST merge one-by-one here. Calling apply_merge_group
-                    # on all the merges at once would NOT copy the connections
-                    # that exist between the tasks of the "from" group to the
-                    # "to" group, which is really not what we want
-                    #
-                    # Calling with all the mappings would be useful if what
-                    # we wanted is replace a subnet of the plan by another
-                    # subnet. This is not the goal here.
-                    merge_solver.apply_merge_group(task => deployed_task)
-                end
             end
 
             # Apply deployments selected during {#deploy} by setting the task's

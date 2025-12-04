@@ -151,384 +151,6 @@ module Syskit
                 end
             end
 
-            describe "#reconfigure_tasks_on_static_port_modification" do
-                it "reconfigures already-configured tasks whose static input ports have been modified" do
-                    task = syskit_stub_deploy_and_configure("Task", as: "task") { input_port("in", "/double").static }
-                    proxy = work_plan[task]
-                    flexmock(proxy).should_receive(:transaction_modifies_static_ports?).once.and_return(true)
-                    syskit_engine.reconfigure_tasks_on_static_port_modification([proxy])
-                    tasks = work_plan.find_local_tasks(Syskit::TaskContext)
-                                     .with_arguments(orocos_name: task.orocos_name).to_a
-                    assert_equal 2, tasks.size
-                    tasks.delete(proxy)
-                    new_task = tasks.first
-
-                    assert_child_of proxy.stop_event, new_task.start_event,
-                                    Roby::EventStructure::SyskitConfigurationPrecedence
-                end
-
-                it "does not reconfigure already-configured tasks whose static input ports have not been modified" do
-                    task = syskit_stub_deploy_and_configure("Task", as: "task") { input_port("in", "/double").static }
-                    proxy = work_plan[task]
-                    flexmock(proxy).should_receive(:transaction_modifies_static_ports?).once.and_return(false)
-                    syskit_engine.reconfigure_tasks_on_static_port_modification([proxy])
-                    tasks = work_plan.find_local_tasks(Syskit::TaskContext)
-                                     .with_arguments(orocos_name: task.orocos_name).to_a
-                    assert_equal work_plan.wrap([task]), tasks
-                end
-
-                it "does not reconfigure not-setup tasks" do
-                    task = syskit_stub_and_deploy("Task") { input_port("in", "/double").static }
-                    syskit_engine.reconfigure_tasks_on_static_port_modification([task])
-                    tasks = work_plan.find_local_tasks(Syskit::TaskContext)
-                                     .with_arguments(orocos_name: task.orocos_name).to_a
-                    assert_equal work_plan.wrap([task]), tasks
-                end
-            end
-
-            describe "#adapt_existing_deployment" do
-                attr_reader :task_m, :deployment_m
-                attr_reader :deployment_task, :existing_deployment_task
-                # All the merges that happened during a given test
-                attr_reader :applied_merge_mappings
-
-                before do
-                    task_m = @task_m = Syskit::Component.new_submodel do
-                        argument :orocos_name
-                        argument :conf
-                    end
-
-                    @applied_merge_mappings = {}
-                    plan.add(existing_deployment_task = EngineTestStubDeployment.new(task_m))
-                    @existing_deployment_task = work_plan[existing_deployment_task]
-                    flexmock(syskit_engine.merge_solver)
-                        .should_receive(:apply_merge_group)
-                        .with(
-                            lambda do |mappings|
-                                applied_merge_mappings.merge!(mappings)
-                                true
-                            end
-                        )
-                        .pass_thru
-                    work_plan.add(@deployment_task = EngineTestStubDeployment.new(task_m))
-                end
-
-                it "creates a new deployed task if there is not one already" do
-                    task = deployment_task.task "test"
-                    syskit_engine.adapt_existing_deployment(deployment_task, existing_deployment_task)
-                    created_task = existing_deployment_task.created_tasks[0].last
-                    assert_equal [["test", task_m, created_task]], existing_deployment_task.created_tasks
-                    assert_equal Hash[task => created_task], applied_merge_mappings
-                end
-                it "reuses an existing deployment" do
-                    existing_task = existing_deployment_task.task("test", record: false)
-                    task = deployment_task.task "test"
-                    syskit_engine.adapt_existing_deployment(deployment_task, existing_deployment_task)
-                    assert existing_deployment_task.created_tasks.empty?
-                    assert_equal Hash[task => existing_task], applied_merge_mappings
-                end
-
-                describe "there is a deployment and it cannot be reused" do
-                    attr_reader :task, :existing_task
-
-                    before do
-                        @existing_task = existing_deployment_task.task("test", record: false)
-                        @task = deployment_task.task "test"
-                        flexmock(task).should_receive(:can_be_deployed_by?)
-                                      .with(existing_task).and_return(false)
-                    end
-
-                    it "creates a new deployed task" do
-                        syskit_engine.adapt_existing_deployment(deployment_task, existing_deployment_task)
-                        created_task = existing_deployment_task.created_tasks[0].last
-                        assert_equal [["test", task_m, created_task]], existing_deployment_task.created_tasks
-                        assert_equal Hash[task => created_task], applied_merge_mappings
-                    end
-                    it "synchronizes the newly created task with the end of the existing one" do
-                        syskit_engine.adapt_existing_deployment(deployment_task, existing_deployment_task)
-                        created_task = existing_deployment_task.created_tasks[0].last
-                        assert_equal [created_task.start_event],
-                                     existing_task.stop_event.each_syskit_configuration_precedence(false).to_a
-                    end
-                    it "re-synchronizes with all the existing tasks if more than one is present at a given time" do
-                        syskit_engine.adapt_existing_deployment(deployment_task, existing_deployment_task)
-                        first_new_task = existing_deployment_task.created_tasks[0].last
-
-                        work_plan.add(deployment_task = EngineTestStubDeployment.new(task_m))
-                        task = deployment_task.task("test")
-                        flexmock(task).should_receive(:can_be_deployed_by?)
-                                      .with(first_new_task).and_return(false)
-                        syskit_engine.adapt_existing_deployment(deployment_task, existing_deployment_task)
-                        second_new_task = existing_deployment_task.created_tasks[1].last
-
-                        assert_equal [first_new_task.start_event, second_new_task.start_event],
-                                     existing_task.stop_event.each_syskit_configuration_precedence(false).to_a
-                        assert_equal [second_new_task.start_event],
-                                     first_new_task.stop_event.each_syskit_configuration_precedence(false).to_a
-                    end
-
-                    it "synchronizes with the existing tasks even if there are no current ones" do
-                        flexmock(syskit_engine).should_receive(:find_current_deployed_task)
-                                               .once.and_return(nil)
-                        syskit_engine.adapt_existing_deployment(deployment_task, existing_deployment_task)
-                        created_task = existing_deployment_task.created_tasks[0].last
-                        assert_equal [created_task.start_event],
-                                     existing_task.stop_event.each_syskit_configuration_precedence(false).to_a
-                    end
-                end
-            end
-
-            describe "when scheduling tasks for reconfiguration" do
-                it "ensures that the old task is garbage collected " \
-                   "when child of a composition" do
-                    task_m = Syskit::TaskContext.new_submodel
-                    cmp_m  = Syskit::Composition.new_submodel
-                    cmp_m.add task_m, as: "test"
-
-                    syskit_stub_configured_deployment(task_m)
-                    cmp = syskit_deploy(cmp_m)
-                    original_task = cmp.test_child
-                    flexmock(task_m)
-                        .new_instances
-                        .should_receive(:can_be_deployed_by?)
-                        .with(->(proxy) { proxy.__getobj__ == cmp.test_child })
-                        .and_return(false)
-                    new_cmp = syskit_deploy(cmp_m)
-
-                    # Should have instanciated a new composition since the children
-                    # differ
-                    refute_equal new_cmp, cmp
-                    # Should have of course created a new task
-                    refute_equal new_cmp.test_child, cmp.test_child
-                    # And the old tasks should be ready to garbage-collect
-                    expect_execution.garbage_collect(true).to do
-                        finalize cmp, original_task
-                    end
-                end
-
-                it "ensures that the old task gets garbage collected when child " \
-                   "of another still useful task" do
-                    child_m  = Syskit::TaskContext.new_submodel
-                    parent_m = Syskit::TaskContext.new_submodel
-                    parent_m.singleton_class.class_eval do
-                        define_method(:instanciate) do |*args, **kw|
-                            task = super(*args, **kw)
-                            task.depends_on(child_m.instanciate(*args, **kw),
-                                            role: "test")
-                            task
-                        end
-                    end
-
-                    syskit_stub_configured_deployment(child_m)
-                    parent_m = syskit_stub_requirements(parent_m)
-                    parent = syskit_deploy(parent_m)
-                    child  = parent.test_child
-
-                    flexmock(child_m)
-                        .new_instances.should_receive(:can_be_deployed_by?)
-                        .with(->(proxy) { proxy.__getobj__ == child }).and_return(false)
-                    new_parent = syskit_deploy(parent_m)
-                    new_child = new_parent.test_child
-
-                    assert_equal new_parent, parent
-                    refute_equal new_child, child
-                    # And the old tasks should be ready to garbage-collect
-                    expect_execution.garbage_collect(true).to do
-                        finalize child
-                    end
-                end
-
-                it "ensures that the old task gets garbage collected when child " \
-                   "of a composition, itself child of a useful task" do
-                    child_m = Syskit::TaskContext.new_submodel
-                    cmp_m = Syskit::Composition.new_submodel
-                    cmp_m.add child_m, as: "task"
-                    parent_m = Syskit::TaskContext.new_submodel
-                    parent_m.singleton_class.class_eval do
-                        define_method(:instanciate) do |*args, **kw|
-                            task = super(*args, **kw)
-                            task.depends_on(cmp_m.instanciate(*args, **kw),
-                                            role: "test")
-                            task
-                        end
-                    end
-
-                    syskit_stub_configured_deployment(child_m)
-                    parent_m = syskit_stub_requirements(parent_m)
-                    parent = syskit_deploy(parent_m)
-                    child  = parent.test_child
-                    child_task = child.task_child
-
-                    flexmock(child_m)
-                        .new_instances.should_receive(:can_be_deployed_by?)
-                        .with(->(proxy) { proxy.__getobj__ == child_task })
-                        .and_return(false)
-                    new_parent = syskit_deploy(parent_m)
-                    new_child = new_parent.test_child
-                    new_child_task = new_child.task_child
-
-                    assert_equal new_parent, parent
-                    refute_equal new_child, child
-                    refute_equal new_child_task, child_task
-                    # And the old tasks should be ready to garbage-collect
-                    expect_execution.garbage_collect(true).to do
-                        finalize child, child_task
-                    end
-                end
-            end
-
-            describe "#find_current_deployed_task" do
-                it "ignores garbage tasks that have not been finalized yet" do
-                    component_m = Syskit::Component.new_submodel
-                    plan.add(task0 = component_m.new)
-                    flexmock(task0).should_receive(can_finalize?: false)
-                    plan.add(task1 = component_m.new)
-                    task1.should_configure_after(task0.stop_event)
-                    execute { plan.garbage_task(task0) }
-                    task0 = syskit_engine.work_plan[task0]
-                    task1 = syskit_engine.work_plan[task1]
-                    assert_equal task1, syskit_engine.find_current_deployed_task([task0, task1])
-                end
-
-                it "ignores all non-reusable tasks" do
-                    component_m = Syskit::Component.new_submodel
-                    plan.add(task0 = component_m.new)
-                    plan.add(task1 = component_m.new)
-                    task1.should_configure_after(task0.stop_event)
-                    task0.do_not_reuse
-                    task1.do_not_reuse
-                    task0 = syskit_engine.work_plan[task0]
-                    task1 = syskit_engine.work_plan[task1]
-                    assert_nil syskit_engine.find_current_deployed_task([task0, task1])
-                end
-            end
-
-            describe "#finalize_deployed_tasks" do
-                it "creates a transaction proxy of the already existing tasks and deployments" do
-                    deployment_m = create_deployment_model(task_count: 1)
-                    existing_deployment, =
-                        add_deployment_and_tasks(plan, deployment_m, %w[task0])
-                    add_deployment_and_tasks(work_plan, deployment_m, %w[task0])
-
-                    selected_deployments, =
-                        syskit_engine.finalize_deployed_tasks
-
-                    assert_equal [work_plan[existing_deployment]],
-                                 selected_deployments.to_a
-                end
-
-                it "ignores existing deployments that are not needed by the network" do
-                    deployment_m = create_deployment_model(task_count: 1)
-                    add_deployment_and_tasks(plan, deployment_m, %w[task0])
-
-                    selected_deployments, =
-                        syskit_engine.finalize_deployed_tasks
-                    assert selected_deployments.empty?
-                end
-
-                it "creates a new deployment if needed" do
-                    deployment = create_deployment_model(task_count: 2)
-                    required_deployment, =
-                        add_deployment_and_tasks(work_plan, deployment, %w[task0 task1])
-
-                    selected_deployments, selected_deployed_tasks =
-                        syskit_engine.finalize_deployed_tasks
-
-                    assert_equal [required_deployment], selected_deployments.to_a
-                    selected_deployed_tasks.each do |t|
-                        assert_equal t.execution_agent, required_deployment
-                    end
-                end
-
-                it "updates an existing deployment, proxying the existing " \
-                   "tasks and creating new ones" do
-                    deployment_m = create_deployment_model(task_count: 3)
-                    existing_deployment, (task0, task1) =
-                        add_deployment_and_tasks(plan, deployment_m, %w[task0 task1])
-                    required_deployment, (required0, task2) =
-                        add_deployment_and_tasks(work_plan, deployment_m, %w[task0 task2])
-
-                    selected_deployments, selected_deployed_tasks =
-                        syskit_engine.finalize_deployed_tasks
-
-                    expected_deployment = work_plan[existing_deployment]
-                    assert_equal [expected_deployment], selected_deployments.to_a
-
-                    task2 = work_plan.find_local_tasks
-                                     .with_arguments(orocos_name: "task2").first
-                    assert task2
-                    refute task2.transaction_proxy?
-
-                    assert_equal [work_plan[task0], work_plan[task1], task2].to_set,
-                                 expected_deployment.each_executed_task.to_set
-                    assert_equal [work_plan[task0], task2].to_set,
-                                 selected_deployed_tasks.to_set
-                end
-
-                it "maintains the dependencies" do
-                    deployment_m = create_deployment_model(task_count: 2)
-                    existing_deployment, (existing0, existing1) =
-                        add_deployment_and_tasks(plan, deployment_m, %w[task0 task1])
-
-                    required_deployment, (required0, required1) =
-                        add_deployment_and_tasks(work_plan, deployment_m, %w[task0 task1])
-
-                    existing0.depends_on(existing1)
-                    selected_deployments, selected_deployed_tasks =
-                        syskit_engine.finalize_deployed_tasks
-
-                    assert work_plan[existing0].depends_on?(work_plan[existing1])
-                end
-
-                it "maintains the dependencies with two or more layers" do
-                    deployment_m = create_deployment_model(task_count: 3)
-                    _, (existing0,) =
-                        add_deployment_and_tasks(plan, deployment_m, %w[task0])
-
-                    _, (required0, required1, required2) =
-                        add_deployment_and_tasks(work_plan, deployment_m, %w[task0 task1 task2])
-
-                    required0.depends_on required2
-                    required1.depends_on required2
-
-                    selected_deployments, selected_deployed_tasks =
-                        syskit_engine.finalize_deployed_tasks
-
-                    required2 = work_plan[existing0].children.first
-                    assert_equal "task2", required2.orocos_name
-                    assert required2.each_parent_task
-                                    .find { |t| t.orocos_name == "task1" }
-                end
-
-                it "raises if there is a repeated deployment" do
-                    deployment_m = create_deployment_model(task_count: 1)
-                    add_deployment_and_tasks(plan, deployment_m, %w[task0])
-                    add_deployment_and_tasks(plan, deployment_m, %w[task0])
-                    add_deployment_and_tasks(work_plan, deployment_m, %w[task0])
-
-                    assert_raises Syskit::InternalError do
-                        syskit_engine.finalize_deployed_tasks
-                    end
-                end
-
-                def create_deployment_model(task_count:)
-                    task_m = (0...task_count).map { TaskContext.new_submodel }
-                    (@created_task_models ||= []).concat(task_m)
-
-                    Deployment.new_submodel do
-                        task_m.each_with_index do |m, i|
-                            task "task#{i}", m
-                        end
-                    end
-                end
-
-                def add_deployment_and_tasks(plan, deployment_m, task_names)
-                    plan.add(deployment_task = deployment_m.new)
-                    tasks = task_names.map { |name| deployment_task.task(name) }
-                    [deployment_task, tasks]
-                end
-            end
-
             describe "synthetic tests" do
                 it "deploys a mission as mission" do
                     task_model = Syskit::TaskContext.new_submodel
@@ -978,27 +600,95 @@ module Syskit
                     end
                 end
             end
-        end
 
-        class EngineTestStubDeployment < Roby::Task
-            attr_reader :tasks, :created_tasks
+            describe "when scheduling tasks for reconfiguration" do
+                it "ensures that the old task is garbage collected " \
+                   "when child of a composition" do
+                    task_m = Syskit::TaskContext.new_submodel
+                    cmp_m  = Syskit::Composition.new_submodel
+                    cmp_m.add task_m, as: "test"
 
-            def initialize(task_m, **arguments)
-                super(**arguments)
-                @task_m = task_m
-                @created_tasks = []
-                @tasks = {}
-            end
+                    syskit_stub_configured_deployment(task_m)
+                    cmp = syskit_deploy(cmp_m)
+                    cmp.test_child.do_not_reuse
+                    original_task = cmp.test_child
+                    new_cmp = syskit_deploy(cmp_m)
 
-            event :ready
-
-            define_method :task do |task_name, task_model = nil, record: true|
-                task = @task_m.new(orocos_name: task_name)
-                if record
-                    @created_tasks << [task_name, task_model, task]
+                    # Should have of course created a new task
+                    refute_equal new_cmp.test_child, original_task
+                    # Should have instanciated a new composition since the children
+                    # differ
+                    refute_equal new_cmp, cmp
+                    # And the old tasks should be ready to garbage-collect
+                    expect_execution.garbage_collect(true).to do
+                        finalize cmp, original_task
+                    end
                 end
-                task.executed_by self
-                task
+
+                it "ensures that the old task gets garbage collected when child " \
+                   "of another still useful task" do
+                    child_m  = Syskit::TaskContext.new_submodel
+                    parent_m = Syskit::TaskContext.new_submodel
+                    parent_m.singleton_class.class_eval do
+                        define_method(:instanciate) do |*args, **kw|
+                            task = super(*args, **kw)
+                            task.depends_on(child_m.instanciate(*args, **kw),
+                                            role: "test")
+                            task
+                        end
+                    end
+
+                    syskit_stub_configured_deployment(child_m)
+                    parent_m = syskit_stub_requirements(parent_m)
+                    parent = syskit_deploy(parent_m)
+                    child  = parent.test_child
+
+                    child.do_not_reuse
+                    new_parent = syskit_deploy(parent_m)
+                    new_child = new_parent.test_child
+
+                    assert_equal new_parent, parent
+                    refute_equal new_child, child
+                    # And the old tasks should be ready to garbage-collect
+                    expect_execution.garbage_collect(true).to do
+                        finalize child
+                    end
+                end
+
+                it "ensures that the old task gets garbage collected when child " \
+                   "of a composition, itself child of a useful task" do
+                    child_m = Syskit::TaskContext.new_submodel
+                    cmp_m = Syskit::Composition.new_submodel
+                    cmp_m.add child_m, as: "task"
+                    parent_m = Syskit::TaskContext.new_submodel
+                    parent_m.singleton_class.class_eval do
+                        define_method(:instanciate) do |*args, **kw|
+                            task = super(*args, **kw)
+                            task.depends_on(cmp_m.instanciate(*args, **kw),
+                                            role: "test")
+                            task
+                        end
+                    end
+
+                    syskit_stub_configured_deployment(child_m)
+                    parent_m = syskit_stub_requirements(parent_m)
+                    parent = syskit_deploy(parent_m)
+                    child  = parent.test_child
+                    child_task = child.task_child
+
+                    child_task.do_not_reuse
+                    new_parent = syskit_deploy(parent_m)
+                    new_child = new_parent.test_child
+                    new_child_task = new_child.task_child
+
+                    assert_equal new_parent, parent
+                    refute_equal new_child, child
+                    refute_equal new_child_task, child_task
+                    # And the old tasks should be ready to garbage-collect
+                    expect_execution.garbage_collect(true).to do
+                        finalize child, child_task
+                    end
+                end
             end
         end
     end

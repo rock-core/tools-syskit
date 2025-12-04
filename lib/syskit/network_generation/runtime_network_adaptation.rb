@@ -11,8 +11,10 @@ module Syskit
 
             attr_reader :event_logger
 
+            # @param [{Component=>DeploymentGroup::DeployedTask}] used_deployments the
+            #   mapping from task instances to the deployment used for it
             def initialize(
-                work_plan,
+                work_plan, used_deployments,
                 merge_solver:,
                 event_logger: work_plan.event_logger,
                 resolution_control: Async::Control.new
@@ -21,6 +23,17 @@ module Syskit
                 @event_logger = event_logger
                 @resolution_control = resolution_control
                 @merge_solver = merge_solver
+
+                tasks_per_configured_deployments =
+                    used_deployments.each_with_object({}) do |(task, deployed_task), h|
+                        (h[deployed_task.configured_deployment] ||= []) << task
+                    end
+                @used_deployments =
+                    tasks_per_configured_deployments.map do |configured_deployment, tasks|
+                        UsedDeployment.new(
+                            configured_deployment: configured_deployment, tasks: tasks
+                        )
+                    end
             end
 
             def apply
@@ -39,7 +52,7 @@ module Syskit
             # Given the network with deployed tasks, this method looks at how we
             # could adapt the running network to the new one
             def finalize_deployed_tasks
-                used_deployments = @work_plan.find_local_tasks(Deployment).to_set
+                used_deployments = @used_deployments
                 used_tasks       = @work_plan.find_local_tasks(Component).to_set
 
                 all_tasks = import_existing_tasks
@@ -144,10 +157,8 @@ module Syskit
                     reused_deployed_tasks = adapt_existing_deployment(required, usable)
                     selected = usable
                 else
-                    # Nothing to do, we leave the plan as it is
-                    newly_deployed_tasks = required.each_executed_task
                     reused_deployed_tasks = []
-                    selected = required
+                    selected, newly_deployed_tasks = handle_new_deployment(required)
                 end
 
                 if not_reusable
@@ -156,6 +167,45 @@ module Syskit
                     selected.should_start_after(not_reusable.stop_event)
                 end
                 [selected, newly_deployed_tasks, reused_deployed_tasks]
+            end
+
+            # Handle new deployments for {#handle_required_deployment}
+            #
+            # In the old deployment method (the "eager" deployment), this is essentially
+            # a no-op. In the new method (the "lazy" method), this is where new
+            # deployments get created and replace the tasks
+            def handle_new_deployment(required)
+                executed_tasks = required.each_executed_task.to_a
+                lazily_deployed_tasks = executed_tasks.find_all { !_1.execution_agent }
+
+                if lazily_deployed_tasks.empty?
+                    deployment_task = executed_tasks.first.execution_agent
+                    return [deployment_task, executed_tasks]
+                elsif lazily_deployed_tasks.size != executed_tasks.size
+                    raise InternalError,
+                          "in #handle_new_deployment: some tasks are deployed and some " \
+                          "are not"
+                end
+
+                deployment_task = required.configured_deployment.new
+                if Syskit.conf.permanent_deployments?
+                    @work_plan.add_permanent_task(deployment_task)
+                else
+                    @work_plan.add_task(deployment_task)
+                end
+
+                deployed_tasks = required.tasks.map do |initial_deployed_task|
+                    deployed_task =
+                        deployment_task.task(initial_deployed_task.orocos_name)
+
+                    # !!! Cf. comment in SystemNetworkDeployer#apply_selected_deployments
+                    @merge_solver.apply_merge_group(
+                        initial_deployed_task => deployed_task
+                    )
+                    deployed_task
+                end
+
+                [deployment_task, deployed_tasks]
             end
 
             # Validate that the usable deployment we found is actually usable
@@ -261,14 +311,16 @@ module Syskit
             # work plan, and sort them into those we can use and those we can't
             def import_existing_deployments(used_deployments)
                 deployments = @work_plan.find_tasks(Syskit::Deployment).not_finished
+                used_deployments.to_set(&:process_name)
 
                 finishing_deployments = {}
                 existing_deployments = {}
                 deployments.each do |task|
+                    process_name = task.process_name
                     if !task.reusable?
-                        finishing_deployments[task.process_name] = task
-                    elsif !used_deployments.include?(task)
-                        (existing_deployments[task.process_name] ||= []) << task
+                        finishing_deployments[process_name] = task
+                    elsif task.transaction_proxy?
+                        (existing_deployments[process_name] ||= []) << task
                     end
                 end
 
@@ -340,12 +392,13 @@ module Syskit
             # representing an existing deployment task in {#real_plan}, modify
             # the plan to reuse the existing deployment
             #
+            # @param [UsedDeployment] used_deployment
             # @return [Array<Syskit::TaskContext>] the set of TaskContext
             #   instances that have been used to replace the task contexts
             #   generated during network generation. They are all deployed by
             #   existing_deployment_task, and some of them might be transaction
             #   proxies.
-            def adapt_existing_deployment(deployment_task, existing_deployment_task)
+            def adapt_existing_deployment(used_deployment, existing_deployment_task)
                 orocos_name_to_existing = {}
                 existing_deployment_task.each_executed_task do |t|
                     next if t.finished?
@@ -354,7 +407,8 @@ module Syskit
                 end
 
                 applied_merges = Set.new
-                deployed_tasks = deployment_task.each_executed_task.to_a
+                deployed_tasks = used_deployment.each_executed_task.to_a
+                initial_deployment_task = deployed_tasks.first.execution_agent
                 deployed_tasks.each do |task|
                     existing_tasks =
                         orocos_name_to_existing[task.orocos_name] || []
@@ -392,7 +446,7 @@ module Syskit
                     applied_merges << existing_task
                     debug { "  using #{existing_task} for #{task} (#{task.orocos_name})" }
                 end
-                @work_plan.remove_task(deployment_task)
+                @work_plan.remove_task(initial_deployment_task) if initial_deployment_task
                 applied_merges
             end
 
@@ -429,6 +483,18 @@ module Syskit
                         .find_all { |t| merge_leaves.include?(t) }
 
                     parents.each { |t| t.remove_child(old_task) }
+                end
+            end
+
+            UsedDeployment = Struct.new(
+                :configured_deployment, :tasks, keyword_init: true
+            ) do
+                def process_name
+                    configured_deployment.process_name
+                end
+
+                def each_executed_task(&block)
+                    tasks.each(&block)
                 end
             end
         end

@@ -373,7 +373,7 @@ module Syskit
                     task0.requirements.use_deployment(deployment_models[0])
                     plan.add(task1 = task_models[1].new)
 
-                    missing = execute { deployer.deploy(validate: false) }
+                    _, missing = execute { deployer.deploy(validate: false) }
                     assert_equal Set[task1], missing
                     deployment_task = plan.find_local_tasks(deployment_models[0]).first
                     assert deployment_task
@@ -391,7 +391,7 @@ module Syskit
                     root.depends_on(task = task_models[0].new, role: "t")
                     task.requirements.use_deployment(deployment_models[0])
 
-                    missing = execute { deployer.deploy(validate: false) }
+                    _, missing = execute { deployer.deploy(validate: false) }
                     assert_equal Set.new, missing
                     refute_equal task, root.t_child
                     assert_equal "task", root.t_child.orocos_name
@@ -402,7 +402,7 @@ module Syskit
                     plan.add(task1 = task_models[1].new)
                     task0.out_port.connect_to task1.in_port
 
-                    missing = execute { deployer.deploy(validate: false) }
+                    _, missing = execute { deployer.deploy(validate: false) }
                     assert_equal Set.new, missing
                     deployed_task0 = deployer.merge_solver.replacement_for(task0)
                     deployed_task1 = deployer.merge_solver.replacement_for(task1)
@@ -434,7 +434,7 @@ module Syskit
                         .with(hsh(on: "machine")).once.pass_thru
 
                     # And finally replace the task with the deployed task
-                    missing = execute { deployer.deploy(validate: false) }
+                    _, missing = execute { deployer.deploy(validate: false) }
                     assert_equal Set.new, missing
                     refute_equal root.t0_child, task0
                     refute_equal root.t1_child, task1
