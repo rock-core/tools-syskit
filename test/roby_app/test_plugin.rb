@@ -352,7 +352,7 @@ module Syskit
                 attr_reader :group
 
                 def use_model_on_group(model, name, server)
-                    deployment_m = syskit_stub_deployment_model(model)
+                    deployment_m = syskit_stub_deployment_model(model, "")
                     @group.use_deployment(
                         Hash[deployment_m => name],
                         on: server,

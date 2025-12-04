@@ -60,6 +60,10 @@ module Syskit
                 task_model = nil, name = default_stub_name, logger_name: nil,
                 register: true, &block
             )
+                unless name
+                    raise ArgumentError, "cannot provide a nil deployment model stub name"
+                end
+
                 task_model = task_model&.to_component_model
                 process_server = Syskit.conf.process_server_for("stubs")
 

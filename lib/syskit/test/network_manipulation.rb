@@ -380,7 +380,7 @@ module Syskit
             #   available
             # @return [Models::ConfiguredDeployment] the configured deployment
             def syskit_stub_deployment_model(
-                task_model = nil, name = nil, register: true, &block
+                task_model = nil, name = @__stubs.default_stub_name, register: true, &block
             )
                 @__stubs.stub_deployment_model(
                     task_model, name, register: register, &block
