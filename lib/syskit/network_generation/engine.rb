@@ -156,7 +156,7 @@ module Syskit
                     @dataflow_dynamics.result.each do |task, dynamics|
                         task.trigger_information = dynamics
                     end
-                    interruption_point "compute_connection_policies"
+                    interruption_point "syskit-netgen:compute_connection_policies"
                 end
 
                 resolution_errors
