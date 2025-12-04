@@ -235,8 +235,9 @@ module Syskit
 
             # Tests whether task.merge(target_task) is a valid operation
             #
-            # @param [Syskit::TaskContext] task
-            # @param [Syskit::TaskContext] target_task
+            # @param [Syskit::TaskContext] merged_task the task that we will merge into
+            #   the other one. This task disappears after the merge
+            # @param [Syskit::TaskContext] task the task we will merge into
             #
             # @return [false,true] if false, the merge is not possible. If
             #   true, it is possible.
@@ -253,6 +254,11 @@ module Syskit
                 true
             end
 
+            # Tests if two tasks can be merged w.r.t. their selected deployment
+            #
+            # @param [Syskit::TaskContext] merged_task the task that we will merge into
+            #   the other one. This task disappears after the merge
+            # @param [Syskit::TaskContext] task the task we will merge into
             def mergeable_agents?(merged_task, task)
                 unless merge_task_contexts_with_same_agent?
                     return !(task.execution_agent && merged_task.execution_agent)
