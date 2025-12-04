@@ -223,10 +223,10 @@ module Syskit
                 end
 
                 it "computes policies and saves them in the graph's policy_graph" do
-                    plan.add(task0 = @task_m.new)
-                    plan.add(task1 = @task_m.new)
+                    task0 = add_task("task0")
+                    task1 = add_task("task1")
+                    tasks = [task0, task1]
 
-                    add_agents(tasks = [task0, task1])
                     flexmock(@dynamics).should_receive(:propagate).with(tasks)
 
                     task0.out_port.connect_to(task1.in_port)
@@ -242,10 +242,10 @@ module Syskit
 
                 it "adds init: true policy if available and saves it " \
                    "in the graph's policy_graph" do
-                    plan.add(task0 = @task_m.new)
-                    plan.add(task1 = @task_m.new)
+                    task0 = add_task("task0")
+                    task1 = add_task("task1")
+                    tasks = [task0, task1]
 
-                    add_agents(tasks = [task0, task1])
                     flexmock(@dynamics).should_receive(:propagate).with(tasks)
 
                     task0.out_port.model.init_policy(true)
@@ -262,10 +262,10 @@ module Syskit
 
                 it "adds init: false policy if available and saves it " \
                    "in the graph's policy_graph" do
-                    plan.add(task0 = @task_m.new)
-                    plan.add(task1 = @task_m.new)
+                    task0 = add_task("task0")
+                    task1 = add_task("task1")
+                    tasks = [task0, task1]
 
-                    add_agents(tasks = [task0, task1])
                     flexmock(@dynamics).should_receive(:propagate).with(tasks)
 
                     task0.out_port.model.init_policy(false)
@@ -281,10 +281,11 @@ module Syskit
                 end
 
                 it "computes the policies on the concrete connections" do
-                    plan.add(task = @task_m.new)
+                    task = add_task("task")
                     cmp = @cmp_m.instanciate(plan)
+                    cmp.c_child.orocos_name = "child"
 
-                    add_agents(tasks = [task, cmp.c_child])
+                    tasks = [task, cmp.c_child]
                     flexmock(@dynamics).should_receive(:propagate).with(tasks)
 
                     cmp.c_child.out_port.connect_to(task.in_port)
@@ -299,10 +300,10 @@ module Syskit
                 end
 
                 it "uses in-graph policies over the computed ones" do
-                    plan.add(task0 = @task_m.new)
-                    plan.add(task1 = @task_m.new)
+                    task0 = add_task("task0")
+                    task1 = add_task("task1")
+                    tasks = [task0, task1]
 
-                    add_agents(tasks = [task0, task1])
                     flexmock(@dynamics).should_receive(:propagate).with(tasks)
 
                     task0.out_port.connect_to(task1.in_port, type: :buffer, size: 42)
@@ -315,10 +316,10 @@ module Syskit
                 end
 
                 it "passes the fallback policy to #policy_for if there is one" do
-                    plan.add(task0 = @task_m.new)
-                    plan.add(task1 = @task_m.new)
+                    task0 = add_task("task0")
+                    task1 = add_task("task1")
+                    tasks = [task0, task1]
 
-                    add_agents(tasks = [task0, task1])
                     flexmock(@dynamics).should_receive(:propagate).with(tasks)
 
                     task0.out_port.connect_to(
@@ -336,10 +337,10 @@ module Syskit
                 end
 
                 it "ignores the fallback policy if there is a policy in-graph" do
-                    plan.add(task0 = @task_m.new)
-                    plan.add(task1 = @task_m.new)
+                    task0 = add_task("task0")
+                    task1 = add_task("task1")
+                    tasks = [task0, task1]
 
-                    add_agents(tasks = [task0, task1])
                     flexmock(@dynamics).should_receive(:propagate).with(tasks)
 
                     task0.out_port.connect_to(
@@ -355,9 +356,9 @@ module Syskit
                 end
 
                 it "ignores non-deployed tasks" do
-                    tasks = (0...4).map { @task_m.new }
+                    tasks = 5.times.map { |_i| @task_m.new }
                     tasks.each { |t| plan.add(t) }
-                    add_agents(tasks[0, 2])
+                    tasks[0, 2].each_with_index { |t, i| t.orocos_name = i }
                     flexmock(@dynamics).should_receive(:propagate).with(tasks[0, 2])
                 end
             end
@@ -605,6 +606,11 @@ module Syskit
                     @dynamics.add_task_info(@task, dynamics)
                     assert_nil @dynamics.compute_reading_latency(@task, @task.in_port)
                 end
+            end
+
+            def add_task(name)
+                plan.add(task = @task_m.new(orocos_name: name))
+                task
             end
 
             def add_agents(tasks)

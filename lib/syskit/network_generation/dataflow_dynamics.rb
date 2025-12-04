@@ -526,7 +526,7 @@ module Syskit
                 # We only act on deployed tasks, as we need to know how the
                 # tasks are triggered (what activity / priority / ...)
                 deployed_tasks = plan.find_local_tasks(TaskContext)
-                                     .find_all(&:execution_agent)
+                                     .find_all { _1.orocos_name }
 
                 propagate(deployed_tasks)
 
