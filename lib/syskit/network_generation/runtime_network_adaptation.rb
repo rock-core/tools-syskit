@@ -52,34 +52,53 @@ module Syskit
             # Given the network with deployed tasks, this method looks at how we
             # could adapt the running network to the new one
             def finalize_deployed_tasks
-                used_deployments = @used_deployments
-                used_tasks       = @work_plan.find_local_tasks(Component).to_set
+                finishing_deployments, existing_deployments =
+                    import_from_runtime_plan
+                interruption_point "syskit-netgen:apply:import-from-runtime-plan"
+
+                used_deployments_with_existing =
+                    used_deployments_find_existing(
+                        @used_deployments, existing_deployments, finishing_deployments
+                    )
+
+                newly_deployed_tasks, reused_deployed_tasks, selected_deployment_tasks =
+                    finalize_used_deployments(used_deployments_with_existing)
+
+                debug do
+                    debug "#{reused_deployed_tasks.size} tasks reused during deployment"
+                    reused_deployed_tasks.each do |t|
+                        debug "  #{t}"
+                    end
+                    break
+                end
+
+                # This is required to merge the already existing compositions
+                # with the ones in the plan
+                @merge_solver.merge_compositions
+                log_timepoint "syskit-netgen:merge"
+
+                [selected_deployment_tasks, reused_deployed_tasks | newly_deployed_tasks]
+            end
+
+            def import_from_runtime_plan
+                used_tasks = @work_plan.find_local_tasks(Component).to_set
 
                 all_tasks = import_existing_tasks
                 interruption_point "syskit-netgen:apply:imported-existing-tasks"
                 imported_tasks_remove_direct_connections(all_tasks - used_tasks)
-                interruption_point(
-                    "syskit-netgen:apply:imported-tasks-removed-connections"
-                )
 
                 finishing_deployments, existing_deployments =
-                    import_existing_deployments(used_deployments)
-                interruption_point "syskit-netgen:apply:import-existing-deployments"
+                    import_existing_deployments(@used_deployments)
 
-                debug do
-                    debug "  Mapping deployments in the network to the existing ones"
-                    debug "    Network deployments:"
-                    used_deployments.each { |dep| debug "      #{dep}" }
-                    debug "    Existing deployments:"
-                    existing_deployments
-                        .values.flatten.each { |dep| debug "      #{dep}" }
-                    break
-                end
+                [finishing_deployments, existing_deployments]
+            end
 
-                newly_deployed_tasks = Set.new
-                reused_deployed_tasks = Set.new
-                selected_deployment_tasks = Set.new
-                used_deployments.each do |deployment_task|
+            # Find existing deployment tasks and finishing deployment tasks for the
+            # system's used deployments
+            def used_deployments_find_existing(
+                used_deployments, existing_deployments, finishing_deployments
+            )
+                used_deployments.map do |deployment_task|
                     # Check for the corresponding task in the plan
                     process_name = deployment_task.process_name
                     existing_deployment_tasks = existing_deployments[process_name] || []
@@ -90,11 +109,22 @@ module Syskit
                               "present in the plan: #{existing_deployment_tasks}"
                     end
 
-                    selected, new, reused = handle_required_deployment(
-                        deployment_task,
-                        existing_deployment_tasks.first,
-                        finishing_deployments[process_name]
-                    )
+                    [deployment_task, existing_deployment_tasks.first,
+                     finishing_deployments[process_name]]
+                end
+            end
+
+            # Make sure that the tasks that need to be deployed in the work plan are
+            # actually deployed
+            def finalize_used_deployments(used_deployments_with_existing)
+                newly_deployed_tasks = Set.new
+                reused_deployed_tasks = Set.new
+                selected_deployment_tasks = Set.new
+                used_deployments_with_existing.each do |deployment, existing, finishing|
+                    # Check for the corresponding task in the plan
+                    selected, new, reused =
+                        handle_required_deployment(deployment, existing, finishing)
+
                     newly_deployed_tasks.merge(new)
                     reused_deployed_tasks.merge(reused)
                     selected_deployment_tasks << selected
@@ -111,20 +141,7 @@ module Syskit
                     "syskit-netgen:reconfigure_tasks_on_static_port_modification"
                 )
 
-                debug do
-                    debug "#{reused_deployed_tasks.size} tasks reused during deployment"
-                    reused_deployed_tasks.each do |t|
-                        debug "  #{t}"
-                    end
-                    break
-                end
-
-                # This is required to merge the already existing compositions
-                # with the ones in the plan
-                @merge_solver.merge_compositions
-                log_timepoint "syskit-netgen:merge"
-
-                [selected_deployment_tasks, reused_deployed_tasks | newly_deployed_tasks]
+                [newly_deployed_tasks, reused_deployed_tasks, selected_deployment_tasks]
             end
 
             # Process a single deployment in {#finalize_deployed_tasks}
@@ -187,6 +204,11 @@ module Syskit
                           "are not"
                 end
 
+                used_deployment_instanciate(required)
+            end
+
+            # Instanciate a UsedDeployment
+            def used_deployment_instanciate(required)
                 deployment_task = required.configured_deployment.new
                 if Syskit.conf.permanent_deployments?
                     @work_plan.add_permanent_task(deployment_task)
@@ -242,8 +264,10 @@ module Syskit
             def existing_deployment_needs_restart?(required, existing)
                 restart_enabled =
                     Syskit.conf.auto_restart_deployments_with_quarantines?
-                return unless restart_enabled
-                return unless existing.has_fatal_errors? || existing.has_quarantines?
+                return false unless restart_enabled
+                unless existing.has_fatal_errors? || existing.has_quarantines?
+                    return false
+                end
 
                 required.each_executed_task do |t|
                     return true if existing.task_context_in_fatal?(t.orocos_name)
@@ -287,13 +311,7 @@ module Syskit
                 tasks.each do |t|
                     dataflow_graph.in_neighbours(t).dup.each do |source_t|
                         connections = dataflow_graph.edge_info(source_t, t).dup
-                        connections.delete_if do |(source_port, sink_port), _policy|
-                            both_output = source_t.find_output_port(source_port) &&
-                                          t.find_output_port(sink_port)
-                            both_input  = source_t.find_input_port(source_port) &&
-                                          t.find_input_port(sink_port)
-                            !both_output && !both_input
-                        end
+                        connections_remove_non_exports(t, source_t, connections)
                         if connections.empty?
                             dataflow_graph.remove_edge(source_t, t)
                         else
@@ -304,6 +322,21 @@ module Syskit
                         "syskit-engine:imported-tasks:dataflow-cleanup",
                         log_on_interruption_only: true
                     )
+                end
+            end
+
+            # Remove the connections that do not represent a composition export
+            # from the connection set
+            #
+            # @param [Hash] connections the connection hash as stored in the dataflow
+            #   graph
+            def connections_remove_non_exports(task, source_task, connections)
+                connections.delete_if do |(source_port, sink_port), _policy|
+                    both_output = source_task.find_output_port(source_port) &&
+                                  task.find_output_port(sink_port)
+                    both_input  = source_task.find_input_port(source_port) &&
+                                  task.find_input_port(sink_port)
+                    !both_output && !both_input
                 end
             end
 
@@ -342,12 +375,7 @@ module Syskit
                 # the new deployment task and ignore the one that is being
                 # replaced
                 already_setup_tasks =
-                    @work_plan
-                    .find_tasks(Syskit::TaskContext).not_finished.not_finishing
-                    .find_all { |t| !t.read_only? }
-                    .find_all do |t|
-                        deployed_tasks.include?(t) && (t.setting_up? || t.setup?)
-                    end
+                    find_all_setup_tasks.find_all { deployed_tasks.include?(_1) }
 
                 already_setup_tasks.each do |t|
                     next unless t.transaction_modifies_static_ports?
@@ -357,13 +385,27 @@ module Syskit
                             "modifications on static ports, spawning a new task"
                     end
 
-                    new_task = t.execution_agent.task(t.orocos_name, t.concrete_model)
-                    @merge_solver.apply_merge_group(t => new_task)
-                    new_task.should_configure_after t.stop_event
+                    new_task = reconfigure_task(t)
                     final_deployed_tasks.delete(t)
                     final_deployed_tasks << new_task
                 end
                 final_deployed_tasks
+            end
+
+            def find_all_setup_tasks
+                @work_plan
+                    .find_tasks(Syskit::TaskContext).not_finished.not_finishing
+                    .find_all { |t| !t.read_only? }
+                    .find_all { |t| t.setting_up? || t.setup? }
+            end
+
+            def reconfigure_task(task)
+                new_task = task.execution_agent.task(
+                    task.orocos_name, task.concrete_model
+                )
+                @merge_solver.apply_merge_group(task => new_task)
+                new_task.should_configure_after task.stop_event
+                new_task
             end
 
             # Find the "last" deployed task in a set of related deployed tasks
@@ -399,12 +441,8 @@ module Syskit
             #   existing_deployment_task, and some of them might be transaction
             #   proxies.
             def adapt_existing_deployment(used_deployment, existing_deployment_task)
-                orocos_name_to_existing = {}
-                existing_deployment_task.each_executed_task do |t|
-                    next if t.finished?
-
-                    (orocos_name_to_existing[t.orocos_name] ||= []) << t
-                end
+                orocos_name_to_existing =
+                    adapt_existing_create_orocos_name_mapping(existing_deployment_task)
 
                 applied_merges = Set.new
                 deployed_tasks = used_deployment.each_executed_task.to_a
@@ -412,42 +450,83 @@ module Syskit
                 deployed_tasks.each do |task|
                     existing_tasks =
                         orocos_name_to_existing[task.orocos_name] || []
-                    existing_task = find_current_deployed_task(existing_tasks)
-
-                    if !existing_task || !task.can_be_deployed_by?(existing_task)
-                        debug do
-                            if existing_task
-                                "  task #{task.orocos_name} has been deployed, but " \
-                                    "I can't merge with the existing deployment " \
-                                    "(#{existing_task})"
-                            else
-                                "  task #{task.orocos_name} has not yet been deployed"
-                            end
-                        end
-
-                        new_task = existing_deployment_task
-                                   .task(task.orocos_name, task.concrete_model)
-                        debug do
-                            "  creating #{new_task} for #{task} (#{task.orocos_name})"
-                        end
-
-                        existing_tasks.each do |previous_task|
-                            debug do
-                                "  #{new_task} needs to wait for #{existing_task} " \
-                                    "to finish before reconfiguring"
-                            end
-
-                            new_task.should_configure_after(previous_task.stop_event)
-                        end
-                        existing_task = new_task
-                    end
-
-                    @merge_solver.apply_merge_group(task => existing_task)
+                    existing_task = adapt_existing_deployed_task(
+                        task, existing_tasks, existing_deployment_task
+                    )
                     applied_merges << existing_task
                     debug { "  using #{existing_task} for #{task} (#{task.orocos_name})" }
                 end
                 @work_plan.remove_task(initial_deployment_task) if initial_deployment_task
                 applied_merges
+            end
+
+            # Make sure a task from the work plan is deployed
+            #
+            # It can either re-use an existing deployed task from `existing_tasks`, or
+            # create a new one if needed
+            #
+            # @return [TaskContext] the used task instance
+            def adapt_existing_deployed_task(
+                task, existing_tasks, existing_deployment_task
+            )
+                existing_task = find_current_deployed_task(existing_tasks)
+
+                if !existing_task || !task.can_be_deployed_by?(existing_task)
+                    new_task = adapt_existing_create_new(
+                        task, existing_task, existing_deployment_task
+                    )
+                    adapt_existing_synchronize_new(new_task, existing_tasks)
+                    existing_task = new_task
+                end
+
+                @merge_solver.apply_merge_group(task => existing_task)
+                existing_task
+            end
+
+            # Create a string-to-tasks mapping for the existing executed tasks of a
+            # deployment
+            #
+            # @return [{String=>Array<TaskContext>}] the mapping, where a name can be
+            #   mapped to more than one task because of possible reconfigurations
+            def adapt_existing_create_orocos_name_mapping(deployment_task)
+                deployment_task.each_executed_task.with_object({}) do |t, h|
+                    next if t.finished?
+
+                    (h[t.orocos_name] ||= []) << t
+                end
+            end
+
+            # Create a new deployed task within {#adapt_existing_deployment}
+            def adapt_existing_create_new(task, existing_task, existing_deployment_task)
+                debug do
+                    if existing_task
+                        "  task #{task.orocos_name} has been deployed, but " \
+                            "I can't merge with the existing deployment " \
+                            "(#{existing_task})"
+                    else
+                        "  task #{task.orocos_name} has not yet been deployed"
+                    end
+                end
+
+                new_task = existing_deployment_task
+                           .task(task.orocos_name, task.concrete_model)
+                debug do
+                    "  created #{new_task} for #{task} (#{task.orocos_name})"
+                end
+                new_task
+            end
+
+            # Make sure a new task instance is configured only when previous one
+            # in {#adapt_existing_deployment}
+            def adapt_existing_synchronize_new(new_task, existing_tasks)
+                existing_tasks.each do |previous_task|
+                    debug do
+                        "  #{new_task} will wait for #{previous_task} " \
+                            "to finish before reconfiguring"
+                    end
+
+                    new_task.should_configure_after(previous_task.stop_event)
+                end
             end
 
             # "Cut" relations between the "old" plan and the new one
@@ -495,6 +574,18 @@ module Syskit
 
                 def each_executed_task(&block)
                     tasks.each(&block)
+                end
+            end
+
+            def debug_output_used_deployments_with_existing(
+                used_deployments_with_existing
+            )
+                return unless Roby.log_level_enabled?(self, :debug)
+
+                debug "  Mapping deployments in the network to the existing ones"
+                used_deployments_with_existing.each do |used, existing, _|
+                    debug "    network:  #{used}"
+                    debug "    existing: #{existing}"
                 end
             end
         end
