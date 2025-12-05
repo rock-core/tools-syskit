@@ -701,25 +701,31 @@ module Syskit
                 end
             end
 
+            HAS_THROUGH_METHOD_MISSING = {
+                "_tag" => :has_tag?,
+                "_def" => :has_definition?,
+                "_dev" => :has_device?,
+                "_task" => :has_deployed_task?,
+                "_deployment_group" => :has_deployment_group?
+            }.freeze
+
             def has_through_method_missing?(m)
                 MetaRuby::DSLs.has_through_method_missing?(
-                    self, m,
-                    "_tag" => :has_tag?,
-                    "_def" => :has_definition?,
-                    "_dev" => :has_device?,
-                    "_task" => :has_deployed_task?,
-                    "_deployment_group" => :has_deployment_group?
+                    self, m, HAS_THROUGH_METHOD_MISSING
                 ) || super
             end
 
+            FIND_THROUGH_METHOD_MISSING = {
+                "_tag" => :find_tag,
+                "_def" => :find_definition_by_name,
+                "_dev" => :find_device_requirements_by_name,
+                "_task" => :find_deployed_task_by_name,
+                "_deployment_group" => :find_deployment_group_by_name
+            }.freeze
+
             def find_through_method_missing(m, args)
                 MetaRuby::DSLs.find_through_method_missing(
-                    self, m, args,
-                    "_tag" => :find_tag,
-                    "_def" => :find_definition_by_name,
-                    "_dev" => :find_device_requirements_by_name,
-                    "_task" => :find_deployed_task_by_name,
-                    "_deployment_group" => :find_deployment_group_by_name
+                    self, m, args, FIND_THROUGH_METHOD_MISSING
                 ) || super
             end
 

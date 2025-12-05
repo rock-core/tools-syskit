@@ -255,19 +255,9 @@ module Syskit
                 @di.dup
             end
 
-            def has_through_method_missing?(m)
-                MetaRuby::DSLs.has_through_method_missing?(
-                    self, m, "_dev" => :has_device?
-                ) || super
-            end
-
-            def find_through_method_missing(m, args)
-                MetaRuby::DSLs.find_through_method_missing(
-                    self, m, args, "_dev" => :find_device
-                ) || super
-            end
-
-            include MetaRuby::DSLs::FindThroughMethodMissing
+            MetaRuby::DSLs::FindThroughMethodMissing.standard(
+                self, { "_dev" => "device" }
+            )
         end
     end
 end

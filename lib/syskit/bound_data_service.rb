@@ -159,19 +159,9 @@ module Syskit
             req
         end
 
-        def has_through_method_missing?(m)
-            MetaRuby::DSLs.has_through_method_missing?(
-                self, m,
-                "_srv" => :has_data_service?
-            ) || super
-        end
-
-        def find_through_method_missing(m, args)
-            MetaRuby::DSLs.find_through_method_missing(
-                self, m, args,
-                "_srv" => :find_data_service
-            ) || super
-        end
+        MetaRuby::DSLs::FindThroughMethodMissing.standard(
+            self, { "_srv" => "data_service" }
+        )
 
         DRoby = Struct.new :component, :model do
             def proxy(peer)

@@ -134,19 +134,7 @@ module Syskit
                 "#{object}.as(#{required.each_required_model.map(&:to_s).sort.join(',')})"
             end
 
-            def has_through_method_missing?(m)
-                MetaRuby::DSLs.has_through_method_missing?(
-                    self, m, "_port" => :has_port?
-                ) || super
-            end
-
-            def find_through_method_missing(m, args)
-                MetaRuby::DSLs.find_through_method_missing(
-                    self, m, args, "_port" => :find_port
-                ) || super
-            end
-
-            include MetaRuby::DSLs::FindThroughMethodMissing
+            MetaRuby::DSLs::FindThroughMethodMissing.standard(self, %w[port])
         end
     end
 end

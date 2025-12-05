@@ -80,19 +80,25 @@ module Syskit
 
             include MetaRuby::DSLs::FindThroughMethodMissing
 
+            HAS_THROUGH_METHOD_MISSING = {
+                "_srv" => :data_service_by_name?,
+                "_port" => :port_by_name?
+            }.freeze
+
             def has_through_method_missing?(m)
                 MetaRuby::DSLs.has_through_method_missing?(
-                    self, m,
-                    "_srv" => :data_service_by_name?,
-                    "_port" => :port_by_name?
+                    self, m, HAS_THROUGH_METHOD_MISSING
                 ) || super
             end
 
+            FIND_THROUGH_METHOD_MISSING = {
+                "_srv" => :find_data_service_matcher_by_name,
+                "_port" => :find_port_matcher_by_name
+            }.freeze
+
             def find_through_method_missing(m, args)
                 MetaRuby::DSLs.find_through_method_missing(
-                    self, m, args,
-                    "_srv" => :find_data_service_matcher_by_name,
-                    "_port" => :find_port_matcher_by_name
+                    self, m, args, FIND_THROUGH_METHOD_MISSING
                 ) || super
             end
         end

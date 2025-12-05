@@ -700,21 +700,27 @@ module Syskit
             @data_readers.each(&:disconnect)
         end
 
+        HAS_THROUGH_METHOD_MISSING = {
+            "_srv" => :has_data_service?,
+            "_writer" => :find_registered_data_writer,
+            "_reader" => :find_registered_data_reader
+        }.freeze
+
+        FIND_THROUGH_METHOD_MISSING = {
+            "_srv" => :find_data_service,
+            "_writer" => :find_registered_data_writer,
+            "_reader" => :find_registered_data_reader
+        }.freeze
+
         def has_through_method_missing?(m)
             MetaRuby::DSLs.has_through_method_missing?(
-                self, m,
-                "_srv" => :has_data_service?,
-                "_writer" => :find_registered_data_writer,
-                "_reader" => :find_registered_data_reader
+                self, m, HAS_THROUGH_METHOD_MISSING
             ) || super
         end
 
         def find_through_method_missing(m, args)
             MetaRuby::DSLs.find_through_method_missing(
-                self, m, args,
-                "_srv" => :find_data_service,
-                "_writer" => :find_registered_data_writer,
-                "_reader" => :find_registered_data_reader
+                self, m, args, FIND_THROUGH_METHOD_MISSING
             ) || super
         end
 

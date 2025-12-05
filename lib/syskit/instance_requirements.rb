@@ -1349,25 +1349,12 @@ module Syskit
             end
         end
 
-        def has_through_method_missing?(name)
-            MetaRuby::DSLs.has_through_method_missing?(
-                self, name,
-                "_srv" => :has_data_service?,
-                "_child" => :has_child?,
-                "_port" => :has_port?
-            ) || super
-        end
-
-        def find_through_method_missing(name, args)
-            MetaRuby::DSLs.find_through_method_missing(
-                self, name, args,
-                "_srv" => :find_data_service,
-                "_child" => :find_child,
-                "_port" => :find_port
-            ) || super
-        end
-
-        include MetaRuby::DSLs::FindThroughMethodMissing
+        MetaRuby::DSLs::FindThroughMethodMissing.standard(
+            self,
+            "_srv" => "data_service",
+            "_child" => "child",
+            "_port" => "port"
+        )
 
         # Generates the InstanceRequirements object that represents +self+
         # best

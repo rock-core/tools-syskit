@@ -1399,25 +1399,14 @@ module Syskit
                 data_writers[as] = port.to_bound_data_accessor(as, self, **policy)
             end
 
-            def has_through_method_missing?(name)
-                MetaRuby::DSLs.has_through_method_missing?(
-                    self, name,
-                    "_srv" => :find_data_service,
-                    "_reader" => :find_data_reader,
-                    "_writer" => :find_data_writer
-                ) || super
-            end
-
-            def find_through_method_missing(name, args)
-                MetaRuby::DSLs.find_through_method_missing(
-                    self, name, args,
-                    "_srv" => :find_data_service,
-                    "_reader" => :find_data_reader,
-                    "_writer" => :find_data_writer
-                ) || super
-            end
-
-            include MetaRuby::DSLs::FindThroughMethodMissing
+            MetaRuby::DSLs::FindThroughMethodMissing.standard(
+                self,
+                {
+                    "_srv" => :data_service,
+                    "_reader" => :data_reader,
+                    "_writer" => :data_writer
+                }
+            )
 
             ruby2_keywords def method_missing(name, *args, &block) # rubocop:disable Style/MissingRespondToMissing
                 if name == :orogen_model

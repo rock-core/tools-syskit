@@ -99,15 +99,18 @@ module Syskit
                     attachment_points << query
                 end
 
+                HAS_THROUGH_METHOD_MISSING = { "_port" => :has_port? }.freeze
+                FIND_THROUGH_METHOD_MISSING = { "_port" => :find_port }.freeze
+
                 def has_through_method_missing?(m)
                     MetaRuby::DSLs.has_through_method_missing?(
-                        root, m, "_port" => :has_port?
+                        root, m, HAS_THROUGH_METHOD_MISSING
                     ) || super
                 end
 
                 def find_through_method_missing(m, args)
                     MetaRuby::DSLs.find_through_method_missing(
-                        root, m, args, "_port" => :find_port
+                        root, m, args, FIND_THROUGH_METHOD_MISSING
                     ) || super
                 end
 
