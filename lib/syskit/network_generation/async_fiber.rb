@@ -40,6 +40,8 @@ module Syskit
                       resolution_control: Control.new(slice),
                       event_logger: event_logger, resolver_options: resolver_options)
 
+                log_timepoint("syskit-netgen:async-fiber-start")
+
                 # Protect all Component instances against garbage collection
                 # by adding them in a transaction. This is to make sure we don't
                 # tear down, during network generation, subparts of the old network
@@ -49,7 +51,7 @@ module Syskit
                     @keepalive.wrap(component_task) unless component_task.finished?
                 end
 
-                log_timepoint("syskit-netgen:async-fiber-start")
+                log_timepoint("syskit-netgen:created-keepalive-transaction")
 
                 @fiber = Fiber.new do
                     catch(:syskit_netgen_cancelled) do
