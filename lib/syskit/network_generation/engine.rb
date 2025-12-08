@@ -89,6 +89,7 @@ module Syskit
                     event_logger: event_logger,
                     resolution_control: resolution_control
                 )
+                @used_deployments = {}
                 @required_instances = {}
             end
 
@@ -127,10 +128,11 @@ module Syskit
                         resolution_control: @resolution_control
                     )
 
-                    @used_deployments, = deployer.deploy(
+                    used_deployments, = deployer.deploy(
                         error_handler: error_handler, validate: validate_deployed_network,
                         lazy: lazy_deploy
                     )
+                    @used_deployments = @used_deployments.merge(used_deployments)
                     resolution_errors = error_handler.process_failures(
                         required_instances, cleanup_failed_tasks: true
                     )
@@ -392,7 +394,7 @@ module Syskit
                         instance_requirements
                     )
 
-                system_network_generator.resolve_system_network(
+                _, @used_deployments = system_network_generator.resolve_system_network(
                     garbage_collect: garbage_collect,
                     validate_abstract_network: validate_abstract_network,
                     validate_generated_network: validate_generated_network,

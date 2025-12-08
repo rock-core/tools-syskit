@@ -268,6 +268,7 @@ module Syskit
                 validate_deployed_network: true
             )
                 deployment_tasks = {}
+                @used_deployments = {}
                 early_deploy(deployment_tasks)
 
                 merge_solver.merge_identical_tasks
@@ -322,13 +323,16 @@ module Syskit
                         early_deploy? && validate_deployed_network
                 )
                 interruption_point("syskit-netgen:validation")
-                @toplevel_tasks
+
+                @used_deployments.transform_keys! { @merge_solver.replacement_for(_1) }
+                [@toplevel_tasks, @used_deployments]
             end
 
             def early_deploy(deployment_tasks)
                 return unless early_deploy?
 
-                deploy(deployment_tasks)
+                used_deployments, = deploy(deployment_tasks)
+                @used_deployments.merge!(used_deployments)
                 interruption_point "syskit-netgen:early-deploy"
             end
 

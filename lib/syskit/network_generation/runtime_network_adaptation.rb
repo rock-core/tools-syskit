@@ -470,6 +470,7 @@ module Syskit
                 task, existing_tasks, existing_deployment_task
             )
                 existing_task = find_current_deployed_task(existing_tasks)
+                return if task == existing_task
 
                 if !existing_task || !task.can_be_deployed_by?(existing_task)
                     new_task = adapt_existing_create_new(
