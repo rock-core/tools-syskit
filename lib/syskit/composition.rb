@@ -192,7 +192,13 @@ module Syskit
         #
         # will return false if any of the children is not executable.
         def executable? # :nodoc:
-            return super if Syskit.conf.compositions_use_schedule_as?
+            if @global_scheduler.nil?
+                return false unless plan.executable?
+
+                @global_scheduler =
+                    plan.execution_engine.scheduler.kind_of?(Schedulers::Global)
+            end
+            return super if @global_scheduler
 
             return false unless super
             return true if @executable

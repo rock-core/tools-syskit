@@ -240,7 +240,10 @@ module Syskit
             # a composition and its children
             #
             # @see #compositions_use_schedule_as?
-            attr_writer :compositions_use_schedule_as
+            def compositions_use_schedule_as=(flag)
+                Syskit.warn "compositions_use_schedule_as is a no-op now, " \
+                            "use the global scheduler instead"
+            end
 
             # Which mechanism Syskit uses to synchronize a composition and its children
             #
@@ -249,7 +252,8 @@ module Syskit
             # when the child of a composition was swapped for another (unstarted) one
             # dynamically
             def compositions_use_schedule_as?
-                @compositions_use_schedule_as
+                Syskit.warn "compositions_use_schedule_as is a no-op now, " \
+                            "use the global scheduler instead"
             end
 
             # Control whether all interruption points should be logged, or only the ones
