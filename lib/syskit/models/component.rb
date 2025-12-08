@@ -159,7 +159,7 @@ module Syskit
                     return enum_for(:each_slave_data_service, master_service)
                 end
 
-                each_data_service(nil) do |_name, service|
+                each_data_service do |_name, service|
                     next unless (m = service.master)
 
                     yield(service) if m.full_name == master_service.full_name
@@ -173,7 +173,7 @@ module Syskit
             def each_root_data_service
                 return enum_for(:each_root_data_service) unless block_given?
 
-                each_data_service(nil) do |_name, service|
+                each_data_service do |_name, service|
                     yield(service) if service.master?
                 end
             end
