@@ -306,7 +306,7 @@ module Syskit
             has_service_to_add_through_reconfiguration =
                 each_required_dynamic_service.any? do |srv|
                     srv.model.addition_requires_reconfiguration? &&
-                        !task.find_data_service(srv.name)
+                        !task.has_data_service?(srv.name)
                 end
             return false if has_service_to_add_through_reconfiguration
 

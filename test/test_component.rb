@@ -285,7 +285,9 @@ describe Syskit::Component do
             merged_task.specialize
             merged_task.require_dynamic_service "dyn", as: "srv"
             task.specialize
-            flexmock(task.model).should_receive(:find_data_service).with("srv").and_return(true)
+            flexmock(task.model)
+                .should_receive(:has_data_service?)
+                .with("srv").and_return(true)
             flexmock(task.model).should_receive(:provides_dynamic).never
             task.merge(merged_task)
         end

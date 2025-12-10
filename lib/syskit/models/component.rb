@@ -1209,7 +1209,7 @@ module Syskit
 
             def apply_missing_dynamic_services_from(from, specialize_if_needed = true)
                 missing_services = from.each_data_service.find_all do |_, srv|
-                    !find_data_service(srv.full_name)
+                    !has_data_service?(srv.full_name)
                 end
 
                 if missing_services.empty?
@@ -1233,6 +1233,7 @@ module Syskit
                     end
                     base_model
                 end
+                base_model
             end
 
             # Returns the component model that is the merge model of self and

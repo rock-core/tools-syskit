@@ -144,7 +144,7 @@ module Syskit
         end
 
         def has_data_service?(service_name)
-            model.find_data_service(service_name)
+            model.has_data_service?(service_name)
         end
 
         # Finds a data service by its name
@@ -387,7 +387,7 @@ module Syskit
 
         def duplicate_missing_services_from(task)
             missing_services = task.model.each_data_service.find_all do |_, srv|
-                !model.find_data_service(srv.full_name)
+                !model.has_data_service?(srv.full_name)
             end
 
             missing_services.each do |_, srv|
