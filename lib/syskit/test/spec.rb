@@ -26,13 +26,22 @@ module Syskit
                 Syskit.conf.logs.disable_port_logging
             end
 
+            PATH_ELEMENT_MAX = 256
+
+            def test_name_to_path_basename
+                max_basename_size =
+                    PATH_ELEMENT_MAX - "-partial-hierarchy.svg".size
+                basename = __full_name__.gsub("/", "_")
+                return basename if basename.size < max_basename_size
+
+                basename[0, max_basename_size - 10] + "-#{rand}"
+            end
+
             def teardown
                 if !passed? && app.public_logs?
-                    dataflow = __full_name__ + "-partial-dataflow.svg"
-                    hierarchy = __full_name__ + "-partial-hierarchy.svg"
-                    dataflow, hierarchy = [dataflow, hierarchy].map do |filename|
-                        filename.gsub("/", "_")
-                    end
+                    basename = test_name_to_path_basename
+                    dataflow = "#{basename}-partial-dataflow.svg"
+                    hierarchy = "#{basename}-partial-hierarchy.svg"
                     Graphviz.new(plan).to_file(
                         "dataflow", "svg", File.join(app.log_dir, dataflow)
                     )
