@@ -279,6 +279,18 @@ module Syskit
                 )
             end
 
+            # Tests whether the given task is deployed when the network generation
+            # runs in eager deployment mode
+            def self.deployed_task?(task)
+                task.execution_agent
+            end
+
+            # Tests whether the given task is deployed when the network generation
+            # runs in lazy deployment mode
+            def self.lazily_deployed_task?(task)
+                task.orocos_name
+            end
+
             # @see #verify_all_tasks_deployed
             #
             # @param [Component=>DeploymentGroup] deployment_groups which
@@ -292,9 +304,9 @@ module Syskit
                             .not_finished.not_abstract
                 not_deployed =
                     if lazy
-                        query.find_all { !_1.orocos_name }
+                        query.find_all { !lazily_deployed_task?(_1) }
                     else
-                        query.find_all { !_1.execution_agent }
+                        query.find_all { !deployed_task?(_1) }
                     end
 
                 return if not_deployed.empty?

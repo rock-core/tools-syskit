@@ -517,6 +517,11 @@ module Syskit
                 done
             end
 
+            # Tests whether the given task is deployed
+            def deployed_task?(task)
+                task.orocos_name
+            end
+
             # Computes desired connection policies, based on the port dynamics
             # and the oroGen's input port specifications. See the user's guide
             # for more details
@@ -526,7 +531,7 @@ module Syskit
                 # We only act on deployed tasks, as we need to know how the
                 # tasks are triggered (what activity / priority / ...)
                 deployed_tasks = plan.find_local_tasks(TaskContext)
-                                     .find_all { _1.orocos_name }
+                                     .find_all { deployed_task?(_1) }
 
                 propagate(deployed_tasks)
 
