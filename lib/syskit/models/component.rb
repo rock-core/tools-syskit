@@ -42,7 +42,7 @@ module Syskit
             #
             # @key_name full_name
             # @return [Hash<String,BoundDataService>]
-            inherited_attribute(:data_service, :data_services, map: true) { {} }
+            inherited_attribute(:data_service, :data_services, map: true, cache: true) { {} }
 
             # List of modules that should be applied on the underlying
             # {Orocos::RubyTasks::StubTaskContext} when running tests in
@@ -55,8 +55,8 @@ module Syskit
 
             def clear_model
                 super
-                data_services.clear
-                dynamic_services.clear
+                data_services_clear
+                dynamic_services_clear
                 # NOTE: the placeholder_models cache is cleared separately. The
                 # reason is that we need to clear it on permanent and
                 # non-permanent models alike, including component models that
@@ -796,7 +796,7 @@ module Syskit
 
             def provides_validate_possible_overload(model, full_name)
                 # Get the source name and the source model
-                if data_services[full_name]
+                if self_data_services[full_name]
                     raise ArgumentError,
                           "there is already a data service named '#{full_name}' " \
                           "defined on '#{short_name}'"
@@ -818,7 +818,7 @@ module Syskit
             def promote_service_if_needed(service)
                 return service if service.component_model == self
 
-                data_services[service.full_name] = service.attach(self)
+                service.attach(self)
             end
 
             # @api private
@@ -841,7 +841,7 @@ module Syskit
 
             def register_bound_data_service(full_name, service)
                 include service.model
-                data_services[full_name] = service
+                data_service_set(full_name, service)
 
                 Models.debug do
                     Models.debug "#{short_name} provides #{service}"
