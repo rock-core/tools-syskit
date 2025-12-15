@@ -1212,26 +1212,23 @@ module Syskit
                     !has_data_service?(srv.full_name)
                 end
 
-                if missing_services.empty?
-                    self
-                else
-                    # We really really need to specialize self. The reason is
-                    # that self.model, even though it has private
-                    # specializations, might be a reusable model from the system
-                    # designer's point of view. With the singleton class, we
-                    # know that it is not
-                    base_model = if specialize_if_needed then specialize
-                                 else
-                                     self
-                                 end
-                    missing_services.each do |_, srv|
-                        dynamic_service_options =
-                            { as: srv.name }.merge(srv.dynamic_service_options)
-                        base_model.require_dynamic_service(
-                            srv.dynamic_service.name, **dynamic_service_options
-                        )
-                    end
-                    base_model
+                return self if missing_services.empty?
+
+                # We really really need to specialize self. The reason is
+                # that self.model, even though it has private
+                # specializations, might be a reusable model from the system
+                # designer's point of view. With the singleton class, we
+                # know that it is not
+                base_model = if specialize_if_needed then specialize
+                             else
+                                 self
+                             end
+                missing_services.each do |_, srv|
+                    dynamic_service_options =
+                        { as: srv.name }.merge(srv.dynamic_service_options)
+                    base_model.require_dynamic_service(
+                        srv.dynamic_service.name, force: true, **dynamic_service_options
+                    )
                 end
                 base_model
             end
