@@ -34,14 +34,10 @@ module Syskit
                 def instanciate(plan, permanent: true, deployment_tasks: {})
                     deployment_task = (
                         deployment_tasks[[configured_deployment]] ||=
-                            configured_deployment.new
+                            configured_deployment.new(plan: plan)
                     )
 
-                    if permanent
-                        plan.add_permanent_task(deployment_task)
-                    else
-                        plan.add(deployment_task)
-                    end
+                    plan.add_permanent_task(deployment_task) if permanent
                     [deployment_task.task(mapped_task_name), deployment_task]
                 end
 

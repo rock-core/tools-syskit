@@ -186,8 +186,7 @@ module Syskit
                 plan, _context = DependencyInjectionContext.new,
                 task_arguments: {}, **
             )
-                plan.add(task = new(**task_arguments))
-                task
+                new(plan: plan, **task_arguments)
             end
 
             # The model next in the ancestry chain, or nil if +self+ is root
@@ -638,11 +637,13 @@ module Syskit
             # @param dyn_options options passed to the dynamic service block
             #   through {DynamicDataService#instanciate}
             # @return [BoundDynamicDataService] the newly created service
-            def require_dynamic_service(dynamic_service_name, as:, **dyn_options)
+            def require_dynamic_service(
+                dynamic_service_name, as:, force: false, **dyn_options
+            )
                 service_name = as.to_str
 
                 dyn = dynamic_service_by_name(dynamic_service_name)
-                if (srv = find_data_service(service_name))
+                if !force && (srv = find_data_service(service_name))
                     return srv if srv.fullfills?(dyn.service_model)
 
                     raise ArgumentError,
