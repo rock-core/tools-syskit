@@ -55,6 +55,9 @@ module Syskit
 
                     describe "with a cancelled resolution running" do
                         before do
+                            @__resolution_time_slice = Syskit.conf.resolution_time_slice
+                            Syskit.conf.resolution_time_slice = 0
+
                             @cmp_m = Composition.new_submodel
                             plan.add_permanent_task(
                                 cmp = @cmp_m.to_instance_requirements.as_plan
@@ -63,6 +66,10 @@ module Syskit
                             execute { @requirement_task.start! }
                             execute { Runtime.apply_requirement_modifications(plan) }
                             execute { plan.syskit_cancel_async_resolution }
+                        end
+
+                        after do
+                            Syskit.conf.resolution_time_slice = @__resolution_time_slice
                         end
 
                         it "waits for the resolution end but does not apply the result" do
@@ -94,12 +101,17 @@ module Syskit
 
                 describe ".apply_requirement_modifications" do
                     before do
+                        @__fiber_slice =
+                            Syskit.conf.resolution_time_slice
                         @__capture_errors_feature_flag =
                             Syskit.conf.capture_errors_during_network_resolution?
+                        Syskit.conf.resolution_time_slice = 0
                         Syskit.conf.capture_errors_during_network_resolution = false
                     end
 
                     after do
+                        Syskit.conf.resolution_time_slice =
+                            @__fiber_slice
                         Syskit.conf.capture_errors_during_network_resolution =
                             @__capture_errors_feature_flag
                     end
@@ -278,16 +290,15 @@ module Syskit
                         end
                         execute { Runtime.apply_requirement_modifications(plan) }
 
-                        loop do
-                            break unless plan.syskit_has_async_resolution?
-
+                        deadline = Time.now + 1
+                        until Time.now > deadline
                             execute { plan.syskit_join_current_resolution }
                             execute { Runtime.apply_requirement_modifications(plan) }
+                            success = reqs.all?(&:resolution_success?)
+                            break if success
                         end
 
-                        reqs.each do |req|
-                            assert req.resolution_success?
-                        end
+                        assert success
                     end
 
                     it "while using force, cancels pending resolutions and executes " \

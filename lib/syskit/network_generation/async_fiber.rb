@@ -89,7 +89,13 @@ module Syskit
             def self.start(
                 plan, requirement_tasks = default_requirement_tasks, resolver_options: {}
             )
-                new(plan, requirement_tasks, resolver_options: resolver_options)
+                async = new(plan, requirement_tasks, resolver_options: resolver_options)
+                async.start unless Syskit.conf.resolution_time_slice == 0
+                async
+            end
+
+            def start
+                @fiber.resume(false)
             end
 
             # Cancel this resolution
