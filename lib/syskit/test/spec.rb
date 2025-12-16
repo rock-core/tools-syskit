@@ -28,7 +28,7 @@ module Syskit
 
             PATH_ELEMENT_MAX = 256
 
-            def test_name_to_path_basename
+            def generate_path_basename_from_test_name
                 max_basename_size =
                     PATH_ELEMENT_MAX - "-partial-hierarchy.svg".size
                 basename = __full_name__.gsub("/", "_")
@@ -39,7 +39,7 @@ module Syskit
 
             def teardown
                 if !passed? && app.public_logs?
-                    basename = test_name_to_path_basename
+                    basename = generate_path_basename_from_test_name
                     dataflow = "#{basename}-partial-dataflow.svg"
                     hierarchy = "#{basename}-partial-hierarchy.svg"
                     Graphviz.new(plan).to_file(
