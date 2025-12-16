@@ -40,7 +40,7 @@ module Syskit
                       resolution_control: Control.new(slice),
                       event_logger: event_logger, resolver_options: resolver_options)
 
-                log_timepoint("syskit-netgen:async-fiber-start")
+                log_timepoint_group_start("syskit-netgen:async-fiber")
 
                 # Protect all Component instances against garbage collection
                 # by adding them in a transaction. This is to make sure we don't
@@ -154,7 +154,7 @@ module Syskit
             def finished!
                 @finished = true
                 @keepalive.discard_transaction unless @keepalive.finalized?
-                log_timepoint("syskit-netgen:async-fiber-finished")
+                log_timepoint_group_end("syskit-netgen:async-fiber")
             end
 
             # Wait for the resolution to finish and either apply the result or raise if
