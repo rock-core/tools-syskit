@@ -49,6 +49,12 @@ module Syskit
                 @name_mappings.values.grep_v(/_Logger$/)
             end
 
+            def read_only?(orocos_name)
+                read_only.include?(orocos_name)
+            end
+
+            include DeployedTaskInstanciation
+
             # @api private
             #
             # Resolves the read_only argument into an Array of task names to be set as
@@ -102,13 +108,7 @@ module Syskit
             def orogen_model
                 return @orogen_model if @orogen_model
 
-                @orogen_model = model.orogen_model.dup
-                orogen_model.task_activities.map! do |activity|
-                    activity = activity.dup
-                    activity.name = name_mappings[activity.name] || activity.name
-                    activity
-                end
-                @orogen_model
+                @orogen_model = model.map_orogen_model(name_mappings)
             end
 
             # Enumerate the tasks that are deployed by this configured
@@ -131,14 +131,8 @@ module Syskit
             # Enumerate the oroGen specification for the deployed tasks
             #
             # @yieldparam [OroGen::Spec::TaskDeployment]
-            def each_orogen_deployed_task_context_model
-                return enum_for(__method__) unless block_given?
-
-                model.each_orogen_deployed_task_context_model do |deployed_task|
-                    task = deployed_task.dup
-                    task.name = name_mappings[task.name] || task.name
-                    yield(task)
-                end
+            def each_orogen_deployed_task_context_model(&block)
+                orogen_model.task_activities.each(&block)
             end
 
             # Create a new deployment task that can represent self in a plan

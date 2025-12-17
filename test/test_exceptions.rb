@@ -215,8 +215,8 @@ module Syskit
 
             expected = <<~PP.chomp
                 deployed task 'test_syskit_tests_empty' from deployment \
-                'syskit_tests_empty' defined in 'orogen_syskit_tests' on 'localhost' is \
-                assigned to 2 tasks. Below is the list of \
+                'test_syskit_tests_empty' defined in 'orogen_syskit_tests' on \
+                'localhost' is assigned to 2 tasks. Below is the list of \
                 the dependent non-deployed actions. Right after the list is \
                 a detailed explanation of why the first two tasks are not merged:
                 OroGen.orogen_syskit_tests.Empty<id:ID>(arg: 1, conf: ["default"], \

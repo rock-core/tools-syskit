@@ -45,6 +45,14 @@ module Syskit
                     [deployment_task.task(mapped_task_name), deployment_task]
                 end
 
+                def orocos_name
+                    mapped_task_name
+                end
+
+                def read_only?
+                    configured_deployment.read_only?(mapped_task_name)
+                end
+
                 def orogen_model
                     return @orogen_model if @orogen_model
 

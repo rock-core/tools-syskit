@@ -185,7 +185,9 @@ module Syskit
                 assert_equal "other_name", deployment_task.task("other_name").orocos_name
             end
             it "sets orogen_model on the new task" do
-                assert_equal orogen_deployed_task, deployment_task.task("mapped_task_name").orogen_model
+                model = deployment_task.task("mapped_task_name").orogen_model
+                assert_equal "mapped_task_name", model.name
+                assert_equal orogen_deployed_task.task_model, model.task_model
             end
             it "adds the deployment task as an execution agent for the new task" do
                 flexmock(task_m).new_instances.should_receive(:executed_by).with(deployment_task).once
@@ -199,7 +201,7 @@ module Syskit
                 deployment_task.task("mapped_task_name")
             end
             it "does runtime initialization if it is already ready" do
-                task = flexmock(task_m.new)
+                task = flexmock(task_m.new(orocos_name: "mapped_task_name"))
                 flexmock(task_m).should_receive(:new).and_return(task)
 
                 remote_handle = flexmock(in_fatal: false)

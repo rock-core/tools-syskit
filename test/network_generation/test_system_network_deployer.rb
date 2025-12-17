@@ -613,6 +613,93 @@ module Syskit
                 end
             end
 
+            describe "scheduled tasks during lazy deployments" do
+                # Slave tasks are handled by Syskit::Deployment in eager deployment mode
+
+                before do
+                    @task_m = TaskContext.new_submodel
+
+                    @orogen_model = Models.create_orogen_deployment_model("deployment")
+                    @orogen_scheduler =
+                        @orogen_model.task("scheduler", @task_m.orogen_model)
+                    @orogen_scheduled =
+                        @orogen_model.task("scheduled", @task_m.orogen_model)
+                    @orogen_scheduled.slave_of(@orogen_scheduler)
+                end
+
+                it "adds its master task as dependency" do
+                    scheduled_task = create_task("prefix_scheduled")
+                    scheduler_tests_deploy
+                    scheduler_task = scheduled_task.child_from_role("scheduler")
+
+                    assert_equal "prefix_scheduler", scheduler_task.orocos_name
+                end
+
+                it "auto-selects the configuration of the master task" do
+                    scheduled_task = create_task("prefix_scheduled")
+                    syskit_stub_conf @task_m, "prefix_scheduler"
+                    scheduler_tests_deploy
+                    scheduler_task = scheduled_task.child_from_role("scheduler")
+
+                    assert_equal %w[default prefix_scheduler], scheduler_task.conf
+                end
+
+                it "constrains the configuration of the slave task" do
+                    scheduled_task = create_task("prefix_scheduled")
+                    scheduler_tests_deploy
+                    scheduler_task = scheduled_task.child_from_role("scheduler")
+
+                    assert scheduler_task.start_event.child_object?(
+                        scheduled_task.start_event,
+                        Roby::EventStructure::SyskitConfigurationPrecedence
+                    )
+                end
+
+                it "reuses an existing scheduler task" do
+                    scheduled_task = create_task("prefix_scheduled")
+                    scheduler_task = create_task("prefix_scheduler")
+                    scheduler_tests_deploy
+
+                    assert_same scheduler_task,
+                                scheduled_task.child_from_role("scheduler")
+                end
+
+                it "creates a scheduler task only once" do
+                    orogen_scheduled2 =
+                        @orogen_model.task("scheduled2", @task_m.orogen_model)
+                    orogen_scheduled2.slave_of(@orogen_scheduler)
+                    scheduled_task = create_task("prefix_scheduled")
+                    scheduled2_task = create_task("prefix_scheduled2")
+                    scheduler_tests_deploy
+
+                    scheduler = scheduled_task.child_from_role("scheduler")
+                    assert_equal "prefix_scheduler", scheduler.orocos_name
+                    assert_same scheduler, scheduled2_task.child_from_role("scheduler")
+                end
+
+                it "creates scheduler tasks recursively" do
+                    orogen_scheduler2 =
+                        @orogen_model.task("scheduler2", @task_m.orogen_model)
+                    @orogen_scheduler.slave_of(orogen_scheduler2)
+                    scheduled_task = create_task("prefix_scheduled")
+                    scheduler_tests_deploy
+
+                    scheduler = scheduled_task.child_from_role("scheduler")
+                    scheduler2 = scheduler.child_from_role("scheduler")
+                    assert_equal "prefix_scheduler2", scheduler2.orocos_name
+                end
+
+                def create_task(orocos_name)
+                    @task_m.new(plan: plan, orocos_name: orocos_name)
+                end
+
+                def scheduler_tests_deploy
+                    deployment_m = Deployment.new_submodel(orogen_model: @orogen_model)
+                    default_deployment_group.use_deployment(deployment_m => "prefix_")
+                    deployer.deploy(lazy: true)
+                end
+            end
+
             def deployed_task_helper(model, name)
                 Models::DeploymentGroup::DeployedTask.new(model, name)
             end

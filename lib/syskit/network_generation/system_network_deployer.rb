@@ -242,17 +242,27 @@ module Syskit
             # Apply deployments selected during {#deploy} by setting the task's
             # orocos_name argument accordingly
             #
-            # @param [Component=>Deployment] selected_deployments the
+            # @param [Component=>DeploymentGroup::DeployedTask] selected_deployments the
             #   component-to-deployment association
             def lazy_apply_selected_deployments(selected_deployments)
-                selected_deployments.each do |task, sel|
-                    unless sel.mapped_task_name
+                with_master = selected_deployments.find_all do |task, sel|
+                    unless sel.orocos_name
                         raise "found selected deployment without a task name"
                     end
 
-                    orocos_name = sel.mapped_task_name
-                    task.orocos_name ||= orocos_name
+                    task.orocos_name ||= sel.orocos_name
                     task.orogen_model = sel.orogen_model
+                    task.orogen_model.master
+                end
+                return if with_master.empty?
+
+                by_name = selected_deployments
+                          .to_h { |task, _| [task.orocos_name, task] }
+                with_master.each do |task, sel|
+                    deployment = sel.configured_deployment
+                    scheduler_task =
+                        deployment.task_setup_scheduler(task, existing_tasks: by_name)
+                    by_name[scheduler_task.orocos_name] = scheduler_task
                 end
             end
 
