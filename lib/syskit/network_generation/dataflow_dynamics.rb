@@ -553,6 +553,18 @@ module Syskit
                 policy_graph
             end
 
+            # Merges two connection policies
+            #
+            # @param [Hash] default_policy the policy that has the lowest
+            #   priority
+            # @param [Hash] explicit_policy the policy that has the highest
+            #   priority
+            def merge_policy(default_policy, explicit_policy)
+                merged_policy = default_policy.merge(explicit_policy)
+                merged_policy.delete(:size) if merged_policy[:type] == :data
+                merged_policy
+            end
+
             # @api private
             #
             # Compute the policies for all connections starting from a given task
@@ -561,25 +573,20 @@ module Syskit
                     mappings = connection_graph.edge_info(source_task, sink_task)
                     computed_policies =
                         mappings.each_with_object({}) do |(port_pair, policy), h|
-                            policy = policy.dup
-                            fallback_policy = policy.delete(:fallback_policy)
-                            if policy.empty?
-                                h[port_pair] =
-                                    policy_for(source_task, *port_pair, sink_task,
-                                               fallback_policy)
-                            else
-                                h[port_pair] = policy
-                            end
+                            explicit_policy = policy.dup
+                            fallback_policy = explicit_policy.delete(:fallback_policy)
+                            h[port_pair] = policy_for(
+                                source_task, *port_pair, sink_task,
+                                fallback_policy, explicit_policy
+                            )
                         end
                     policy_graph[[source_task, sink_task]] = computed_policies
                 end
                 policy_graph
             end
 
-            # Given the current knowledge about the port dynamics, returns the
-            # policy for the provided connection
-            def policy_for(
-                source_task, source_port_name, sink_port_name, sink_task, fallback_policy
+            def policy_compute_data_element(
+                source_task, source_port_name, sink_task, sink_port_name, fallback_policy
             )
                 source_port = source_task.find_output_port(source_port_name)
                 sink_port   = sink_task.find_input_port(sink_port_name)
@@ -618,9 +625,27 @@ module Syskit
                           "#{sink_port_m.required_connection_type} " \
                           "on #{sink_port}"
                 end
+                policy
+            end
 
-                source_port_m = source_port.model
-                policy.merge(init: source_port_m.init_policy?)
+            def policy_for(
+                source_task, source_port_name, sink_port_name, sink_task,
+                fallback_policy, explicit_policy = {}
+            )
+                computed_policy =
+                    if explicit_policy[:type]
+                        {}
+                    else
+                        policy_compute_data_element(
+                            source_task, source_port_name, sink_task,
+                            sink_port_name, fallback_policy
+                        )
+                    end
+
+                model = source_task.find_output_port(source_port_name).model
+                computed_policy[:init] = model.init_policy
+
+                merge_policy(computed_policy, explicit_policy)
             end
 
             def compute_reliable_connection_policy(
