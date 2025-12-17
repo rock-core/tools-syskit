@@ -250,7 +250,9 @@ module Syskit
                         raise "found selected deployment without a task name"
                     end
 
-                    task.orocos_name ||= sel.mapped_task_name
+                    orocos_name = sel.mapped_task_name
+                    task.orocos_name ||= orocos_name
+                    task.orogen_model = sel.orogen_model
                 end
             end
 

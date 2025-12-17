@@ -44,6 +44,14 @@ module Syskit
                     end
                     [deployment_task.task(mapped_task_name), deployment_task]
                 end
+
+                def orogen_model
+                    return @orogen_model if @orogen_model
+
+                    @orogen_model =
+                        configured_deployment
+                        .orogen_model.find_task_by_name(mapped_task_name)
+                end
             end
 
             def initialize
