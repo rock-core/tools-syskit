@@ -82,7 +82,7 @@ module Syskit
                 end
 
                 base_syskit_model = resolve_syskit_model_for_deployed_task(orogen_model)
-                if syskit_model && !(syskit_model <= base_syskit_model)
+                if syskit_model && !(syskit_model <= base_syskit_model) # rubocop:disable Style/InverseMethods
                     raise ArgumentError,
                           "incompatible explicit selection of task model " \
                           "#{syskit_model} for the model of #{orogen_model} in " \
