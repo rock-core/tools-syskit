@@ -192,27 +192,32 @@ module Syskit
                 debug ""
                 debug "== Gathering Initial Information"
                 tasks.each do |task|
-                    debug { "computing initial information for #{task}" }
-
-                    log_nest(4) do
+                    debug "computing initial information for #{task}"
+                    log_nest(2) do
                         initial_information(task)
-                        if connections = triggering_port_connections(task)
-                            triggering_connections[task] = connections
-                            triggering_dependencies[task] = connections.map do |port_name, triggers|
-                                triggers.ports.map(&:first)
-                            end
+                    end
+                end
 
-                            debug do
-                                debug "#{connections.size} triggering connections for #{task}"
-                                connections.each do |port_name, info|
-                                    debug "    for #{port_name}"
-                                    log_nest(8) do
-                                        log_pp :debug, info
-                                    end
-                                end
-                                break
+                # This MUST be done after the loop above, don't merge them
+                tasks.each do |task| # rubocop:disable Style/CombinableLoops
+                    connections = log_nest(2) { triggering_port_connections(task) }
+                    next unless connections
+
+                    triggering_connections[task] = connections
+                    triggering_dependencies[task] =
+                        connections.map do |port_name, triggers|
+                            triggers.ports.map(&:first)
+                        end
+
+                    debug do
+                        debug "  #{connections.size} triggering connections for #{task}"
+                        connections.each do |port_name, info|
+                            debug "    for #{port_name}"
+                            log_nest(6) do
+                                log_pp :debug, info
                             end
                         end
+                        break
                     end
                 end
 

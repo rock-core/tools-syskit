@@ -134,7 +134,7 @@ module Syskit
 
                 describe "master/slave deployments" do
                     before do
-                        task_m = Syskit::TaskContext.new_submodel do
+                        task_m = @task_m = Syskit::TaskContext.new_submodel do
                             output_port "out", "/double"
                         end
                         deployment_m = Syskit::Deployment.new_submodel do
@@ -151,21 +151,41 @@ module Syskit
                     end
 
                     it "resolves if called for the slave after the master" do
-                        flexmock(dynamics).should_receive(:set_port_info)
-                                          .with(@slave, nil, any).once
-                        flexmock(dynamics).should_receive(:set_port_info)
-                        dynamics.initial_information(@master)
-                        dynamics.initial_information(@slave)
+                        flexmock(dynamics)
+                            .should_receive(:set_port_info)
+                            .with(@slave, nil, any).once.pass_thru
+                        dynamics.should_receive(:set_port_info).pass_thru
+                        dynamics.propagate([@master, @slave])
                         assert dynamics.has_final_information_for_task?(@master)
                         assert dynamics.has_final_information_for_task?(@slave)
                     end
 
                     it "resolves if called for the master after the slave" do
-                        flexmock(dynamics).should_receive(:set_port_info)
-                                          .with(@slave, nil, any).once
-                        flexmock(dynamics).should_receive(:set_port_info)
-                        dynamics.initial_information(@slave)
-                        dynamics.initial_information(@master)
+                        flexmock(dynamics)
+                            .should_receive(:set_port_info)
+                            .with(@slave, nil, any).once.pass_thru
+                        dynamics.should_receive(:set_port_info).pass_thru
+                        dynamics.propagate([@slave, @master])
+                        assert dynamics.has_final_information_for_task?(@master)
+                        assert dynamics.has_final_information_for_task?(@slave)
+                    end
+
+                    it "resolves if called for the slave after the master on " \
+                       "a task whose outputs are not triggered by the task itself" do
+                        @task_m.out_port.orogen_model.triggered_on_update = false
+                        flexmock(dynamics)
+                            .should_receive(:set_port_info)
+                            .with(@slave, nil, any).once.pass_thru
+                        dynamics.should_receive(:set_port_info).pass_thru
+                        dynamics.propagate([@master, @slave])
+                        assert dynamics.has_final_information_for_task?(@master)
+                        assert dynamics.has_final_information_for_task?(@slave)
+                    end
+
+                    it "resolves if called for the master after the slave on " \
+                       "a task whose outputs are not triggered by the task itself" do
+                        @task_m.out_port.orogen_model.triggered_on_update = false
+                        dynamics.propagate([@slave, @master])
                         assert dynamics.has_final_information_for_task?(@master)
                         assert dynamics.has_final_information_for_task?(@slave)
                     end

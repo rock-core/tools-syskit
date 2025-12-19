@@ -369,6 +369,11 @@ module Syskit
             #
             # Computes a task's initial information
             def initial_task_information(task)
+                # We need to resolve the slaves, as the master's task done_task_info
+                # will call done_task_info on the slaves as well
+                #
+                # Note that #initial_information is explicitly skipping tasks
+                # that have a master activity
                 initial_slaves_information(task)
 
                 set_port_info(task, nil, PortDynamics.new("#{task.orocos_name}.main"))
