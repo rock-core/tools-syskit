@@ -481,6 +481,100 @@ module Syskit
                 end
             end
 
+            describe "master/slave setups" do
+                before do
+                    @task_m = task_m = TaskContext.new_submodel do
+                        argument :name
+                    end
+                    @deployment_m = Deployment.new_submodel(name: "test") do
+                        scheduled1 = task "scheduled1", task_m
+                        scheduled2 = task "scheduled2", task_m
+                        scheduler = task "scheduler", task_m
+                        scheduled1.slave_of(scheduler)
+                        scheduled2.slave_of(scheduler)
+                    end
+
+                    @configured_deployment =
+                        use_deployment(@deployment_m => "prefix_").first
+                end
+
+                it "deploys slave tasks from scratch" do
+                    syskit_deploy(
+                        [@task_m.with_arguments(name: "1").prefer_deployed_tasks(/1/),
+                         @task_m.with_arguments(name: "2").prefer_deployed_tasks(/2/)],
+                        default_deployment_group: default_deployment_group
+                    )
+
+                    assert_master_slave_pattern_correct
+                end
+
+                it "deploys a slave task when another of the same deployment exists" do
+                    syskit_deploy(
+                        [@task_m.with_arguments(name: "1").prefer_deployed_tasks(/1/)],
+                        default_deployment_group: default_deployment_group
+                    )
+
+                    initial_tasks = plan.find_tasks(@task_m).to_a
+                    execution_agent = initial_tasks.first.execution_agent
+
+                    syskit_deploy(
+                        [@task_m.with_arguments(name: "1").prefer_deployed_tasks(/1/),
+                         @task_m.with_arguments(name: "2").prefer_deployed_tasks(/2/)],
+                        default_deployment_group: default_deployment_group
+                    )
+
+                    initial_tasks.each do |t|
+                        assert plan.has_task?(t)
+                    end
+                    assert_master_slave_pattern_correct
+                end
+
+                it "deploys slave tasks when the deploymentc exists" do
+                    deployment_task = @configured_deployment.new(plan: plan)
+
+                    syskit_deploy(
+                        [@task_m.with_arguments(name: "1").prefer_deployed_tasks(/1/),
+                         @task_m.with_arguments(name: "2").prefer_deployed_tasks(/2/)],
+                        default_deployment_group: default_deployment_group
+                    )
+
+                    assert_master_slave_pattern_correct(deployment_task: deployment_task)
+                end
+
+                it "deploys slave tasks when the scheduler task exists" do
+                    deployment_task = @configured_deployment.new(plan: plan)
+                    scheduler_task = deployment_task.task("prefix_scheduler")
+
+                    syskit_deploy(
+                        [@task_m.with_arguments(name: "1").prefer_deployed_tasks(/1/),
+                         @task_m.with_arguments(name: "2").prefer_deployed_tasks(/2/)],
+                        default_deployment_group: default_deployment_group
+                    )
+
+                    tasks = assert_master_slave_pattern_correct(
+                        deployment_task: deployment_task
+                    )
+                    assert_same scheduler_task, tasks[-1]
+                end
+
+                def assert_master_slave_pattern_correct(deployment_task: nil)
+                    tasks = plan.find_tasks(@task_m).sort_by(&:orocos_name)
+                    assert_equal(
+                        %w[prefix_scheduled1 prefix_scheduled2 prefix_scheduler],
+                        tasks.map(&:orocos_name)
+                    )
+                    tasks[0, 2].each do |scheduled_task|
+                        assert_same tasks[-1], scheduled_task.scheduler_child
+                    end
+
+                    deployment_task ||= tasks.first.execution_agent
+                    tasks.each do |t|
+                        assert_same deployment_task, t.execution_agent
+                    end
+                    tasks
+                end
+            end
+
             describe "the hooks" do
                 before do
                     task_m = Syskit::TaskContext.new_submodel

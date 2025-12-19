@@ -62,6 +62,34 @@ module Syskit
                         end
                     end
 
+                    it "successfully creates a new master/slave setup" do
+                        task_m = TaskContext.new_submodel
+                        deployment = Deployment.new_submodel do
+                            scheduled = task "scheduled", task_m
+                            scheduler = task "scheduler", task_m
+                            scheduled.slave_of(scheduler)
+                        end
+
+                        # NOTE: cannot call with 'scheduler', as creating 'scheduled' will
+                        # automatically create the scheduler too
+                        required_deployment, =
+                            add_deployment_and_tasks(work_plan, deployment, %w[scheduled])
+                        adapter = create_adapter(
+                            used_deployments_from_tasks(plan.find_tasks(task_m).to_a)
+                        )
+                        adapter.finalize_deployed_tasks
+
+                        tasks = @work_plan.find_tasks(task_m).sort_by(&:orocos_name)
+                        assert_equal %w[scheduled scheduler], tasks.map(&:orocos_name)
+                        scheduled_task = tasks.first
+                        scheduler_task = tasks.last
+                        assert scheduled_task.depends_on?(scheduler_task)
+                        assert_same required_deployment,
+                                    scheduler_task.execution_agent
+                        assert_same required_deployment,
+                                    scheduler_task.execution_agent
+                    end
+
                     it "updates an existing deployment, proxying the existing " \
                        "tasks and creating new ones" do
                         deployment_m = create_deployment_model(task_count: 3)
@@ -146,6 +174,75 @@ module Syskit
                         adapter = create_adapter(used_deployments_from_tasks(tasks))
                         assert_raises Syskit::InternalError do
                             adapter.finalize_deployed_tasks
+                        end
+                    end
+
+                    it "reuses an existing scheduler task" do
+                        task_m = TaskContext.new_submodel
+                        deployment_m = Deployment.new_submodel do
+                            scheduled1 = task "scheduled1", task_m
+                            scheduled2 = task "scheduled2", task_m
+                            scheduler = task "scheduler", task_m
+                            scheduled1.slave_of(scheduler)
+                            scheduled2.slave_of(scheduler)
+                        end
+
+                        _, (existing_scheduler,) =
+                            add_deployment_and_tasks(plan, deployment_m, %w[scheduler])
+
+                        add_deployment_and_tasks(
+                            work_plan, deployment_m, %w[scheduled1 scheduled2]
+                        )
+                        adapter = create_adapter(
+                            used_deployments_from_tasks(work_plan.find_tasks(task_m).to_a)
+                        )
+                        adapter.finalize_deployed_tasks
+
+                        tasks = @work_plan.find_tasks(task_m).sort_by(&:orocos_name)
+                        assert_equal %w[scheduled1 scheduled2 scheduler],
+                                     tasks.map(&:orocos_name)
+                        scheduler_task = tasks[-1]
+                        assert_equal work_plan[existing_scheduler], scheduler_task
+                        refute_nil scheduler_task.execution_agent
+                        tasks[0, 2].each do |scheduled_task|
+                            assert scheduled_task.depends_on?(scheduler_task)
+                            assert_same scheduler_task.execution_agent,
+                                        scheduler_task.execution_agent
+                        end
+                    end
+
+                    it "properly instanciates a master/slave setup " \
+                       "if the deployment task already exists" do
+                        task_m = TaskContext.new_submodel
+                        deployment_m = Deployment.new_submodel do
+                            scheduled1 = task "scheduled1", task_m
+                            scheduled2 = task "scheduled2", task_m
+                            scheduler = task "scheduler", task_m
+                            scheduled1.slave_of(scheduler)
+                            scheduled2.slave_of(scheduler)
+                        end
+
+                        deployment, = add_deployment_and_tasks(plan, deployment_m, %w[])
+
+                        add_deployment_and_tasks(
+                            work_plan, deployment_m, %w[scheduled1 scheduled2]
+                        )
+                        adapter = create_adapter(
+                            used_deployments_from_tasks(work_plan.find_tasks(task_m).to_a)
+                        )
+                        adapter.finalize_deployed_tasks
+
+                        tasks = @work_plan.find_tasks(task_m).sort_by(&:orocos_name)
+                        assert_equal %w[scheduled1 scheduled2 scheduler],
+                                     tasks.map(&:orocos_name)
+                        tasks.each do |t|
+                            assert_equal work_plan[deployment], t.execution_agent
+                        end
+                        scheduler_task = tasks[-1]
+                        tasks[0, 2].each do |scheduled_task|
+                            assert scheduled_task.depends_on?(scheduler_task)
+                            assert_same scheduler_task.execution_agent,
+                                        scheduler_task.execution_agent
                         end
                     end
                 end
@@ -278,6 +375,109 @@ module Syskit
                         )
                         assert_raises Syskit::InternalError do
                             adapter.finalize_deployed_tasks
+                        end
+                    end
+
+                    it "successfully creates a new master/slave setup" do
+                        task_m = TaskContext.new_submodel
+                        deployment_m = Deployment.new_submodel do
+                            scheduled1 = task "scheduled1", task_m
+                            scheduled2 = task "scheduled2", task_m
+                            scheduler = task "scheduler", task_m
+                            scheduled1.slave_of(scheduler)
+                            scheduled2.slave_of(scheduler)
+                        end
+
+                        tasks = add_lazy_tasks(
+                            work_plan, deployment_m, %w[scheduled1 scheduled2 scheduler]
+                        )
+                        tasks[0].depends_on(tasks.last)
+                        tasks[1].depends_on(tasks.last)
+                        adapter = create_adapter(
+                            used_deployments_from_lazy(tasks, deployment_m)
+                        )
+                        adapter.finalize_deployed_tasks
+
+                        tasks = @work_plan.find_tasks(task_m).sort_by(&:orocos_name)
+                        assert_equal %w[scheduled1 scheduled2 scheduler],
+                                     tasks.map(&:orocos_name)
+                        scheduler_task = tasks[-1]
+                        refute_nil scheduler_task.execution_agent
+                        tasks[0, 2].each do |scheduled_task|
+                            assert scheduled_task.depends_on?(scheduler_task)
+                            assert_same scheduler_task.execution_agent,
+                                        scheduler_task.execution_agent
+                        end
+                    end
+
+                    it "reuses an existing scheduler task" do
+                        task_m = TaskContext.new_submodel
+                        deployment_m = Deployment.new_submodel do
+                            scheduled1 = task "scheduled1", task_m
+                            scheduled2 = task "scheduled2", task_m
+                            scheduler = task "scheduler", task_m
+                            scheduled1.slave_of(scheduler)
+                            scheduled2.slave_of(scheduler)
+                        end
+
+                        _, (existing_scheduler,) =
+                            add_deployment_and_tasks(plan, deployment_m, %w[scheduler])
+
+                        tasks = add_lazy_tasks(
+                            work_plan, deployment_m, %w[scheduled1 scheduled2 scheduler]
+                        )
+                        tasks[0].depends_on(tasks.last)
+                        tasks[1].depends_on(tasks.last)
+                        adapter = create_adapter(
+                            used_deployments_from_lazy(tasks, deployment_m)
+                        )
+                        adapter.finalize_deployed_tasks
+
+                        tasks = @work_plan.find_tasks(task_m).sort_by(&:orocos_name)
+                        assert_equal %w[scheduled1 scheduled2 scheduler],
+                                     tasks.map(&:orocos_name)
+                        scheduler_task = tasks[-1]
+                        assert_equal work_plan[existing_scheduler], scheduler_task
+                        refute_nil scheduler_task.execution_agent
+                        tasks[0, 2].each do |scheduled_task|
+                            assert scheduled_task.depends_on?(scheduler_task)
+                            assert_same scheduler_task.execution_agent,
+                                        scheduler_task.execution_agent
+                        end
+                    end
+
+                    it "properly instanciates a master/slave setup " \
+                       "if the deployment task already exists" do
+                        task_m = TaskContext.new_submodel
+                        deployment_m = Deployment.new_submodel do
+                            scheduled1 = task "scheduled1", task_m
+                            scheduled2 = task "scheduled2", task_m
+                            scheduler = task "scheduler", task_m
+                            scheduled1.slave_of(scheduler)
+                            scheduled2.slave_of(scheduler)
+                        end
+
+                        add_deployment_and_tasks(plan, deployment_m, %w[])
+
+                        tasks = add_lazy_tasks(
+                            work_plan, deployment_m, %w[scheduled1 scheduled2 scheduler]
+                        )
+                        tasks[0].depends_on(tasks.last)
+                        tasks[1].depends_on(tasks.last)
+                        adapter = create_adapter(
+                            used_deployments_from_lazy(tasks, deployment_m)
+                        )
+                        adapter.finalize_deployed_tasks
+
+                        tasks = @work_plan.find_tasks(task_m).sort_by(&:orocos_name)
+                        assert_equal %w[scheduled1 scheduled2 scheduler],
+                                     tasks.map(&:orocos_name)
+                        scheduler_task = tasks[-1]
+                        refute_nil scheduler_task.execution_agent
+                        tasks[0, 2].each do |scheduled_task|
+                            assert scheduled_task.depends_on?(scheduler_task)
+                            assert_same scheduler_task.execution_agent,
+                                        scheduler_task.execution_agent
                         end
                     end
                 end
@@ -524,22 +724,26 @@ module Syskit
             end
 
             def used_deployments_from_tasks(tasks)
+                configured_deployments = tasks.each_with_object({}) do |task, per_name|
+                    name = task.execution_agent.process_name
+                    per_name[name] ||= flexmock(process_name: name)
+                end
+
                 tasks.each_with_object({}) do |task, used_deployments|
+                    name = task.execution_agent.process_name
                     used_deployments[task] = flexmock(
-                        configured_deployment: flexmock(
-                            process_name: task.execution_agent.process_name
-                        )
+                        configured_deployment: configured_deployments.fetch(name)
                     )
                 end
             end
 
             def used_deployments_from_lazy(tasks, deployment_m)
+                configured_deployment = Models::ConfiguredDeployment.new(
+                    "localhost", deployment_m
+                )
                 tasks.each_with_object({}) do |task, used_deployments|
-                    used_deployments[task] = flexmock(
-                        configured_deployment: Models::ConfiguredDeployment.new(
-                            "localhost", deployment_m
-                        )
-                    )
+                    used_deployments[task] =
+                        flexmock(configured_deployment: configured_deployment)
                 end
             end
 
@@ -561,7 +765,7 @@ module Syskit
 
             event :ready
 
-            define_method :task do |task_name, task_model = nil, record: true|
+            define_method :task do |task_name, task_model = nil, record: true, **|
                 task = @task_m.new(orocos_name: task_name)
                 @created_tasks << [task_name, task_model, task] if record
                 task.executed_by self

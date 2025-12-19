@@ -95,6 +95,9 @@ module Syskit
 
             # Find existing deployment tasks and finishing deployment tasks for the
             # system's used deployments
+            #
+            # @return an array of 3-tuples (deployment_task, existing_deployment_task,
+            #   finishing_deployment)
             def used_deployments_find_existing(
                 used_deployments, existing_deployments, finishing_deployments
             )
@@ -121,7 +124,6 @@ module Syskit
                 reused_deployed_tasks = Set.new
                 selected_deployment_tasks = Set.new
                 used_deployments_with_existing.each do |deployment, existing, finishing|
-                    # Check for the corresponding task in the plan
                     selected, new, reused =
                         handle_required_deployment(deployment, existing, finishing)
 
@@ -217,8 +219,10 @@ module Syskit
                 end
 
                 deployed_tasks = required.tasks.map do |initial_deployed_task|
-                    deployed_task =
-                        deployment_task.task(initial_deployed_task.orocos_name)
+                    deployed_task = deployment_task.task(
+                        initial_deployed_task.orocos_name,
+                        setup_scheduler: false
+                    )
 
                     # !!! Cf. comment in SystemNetworkDeployer#apply_selected_deployments
                     @merge_solver.apply_merge_group(
@@ -509,8 +513,10 @@ module Syskit
                     end
                 end
 
-                new_task = existing_deployment_task
-                           .task(task.orocos_name, task.concrete_model)
+                new_task =
+                    existing_deployment_task
+                    .task(task.orocos_name, task.concrete_model, setup_scheduler: false)
+
                 debug do
                     "  created #{new_task} for #{task} (#{task.orocos_name})"
                 end

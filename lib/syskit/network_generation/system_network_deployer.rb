@@ -86,8 +86,8 @@ module Syskit
                 interruption_point "syskit-netgen:select_deployments"
 
                 if lazy
-                    lazy_apply_selected_deployments(selected_deployments)
-                    used_deployments = selected_deployments
+                    used_deployments =
+                        lazy_apply_selected_deployments(selected_deployments)
                 else
                     used_deployments =
                         apply_selected_deployments(selected_deployments, deployment_tasks)
@@ -236,7 +236,32 @@ module Syskit
                         # subnet. This is not the goal here.
                         merge_solver.apply_merge_group(task => deployed_task)
                         used_deployments[deployed_task] = deployed_task_m
+
+                        used_deployments.merge!(
+                            apply_selected_deployments_discover_schedulers(
+                                deployed_task, deployed_task_m.configured_deployment
+                            )
+                        )
                     end
+            end
+
+            # Return entries compatible with used_deployments for a task's scheduler
+            # task(s) - resolved recursively
+            def apply_selected_deployments_discover_schedulers(
+                task, configured_deployment
+            )
+                return {} unless task.orogen_model.master
+
+                scheduler_task = task.scheduler_child
+                scheduler_name = scheduler_task.orocos_name
+                scheduler_deployed_task = Models::DeploymentGroup::DeployedTask.new(
+                    configured_deployment, scheduler_name
+                )
+
+                recursive = apply_selected_deployments_discover_schedulers(
+                    scheduler_task, configured_deployment
+                )
+                { scheduler_task => scheduler_deployed_task }.merge(recursive)
             end
 
             # Apply deployments selected during {#deploy} by setting the task's
@@ -254,16 +279,24 @@ module Syskit
                     task.orogen_model = sel.orogen_model
                     task.orogen_model.master
                 end
-                return if with_master.empty?
+                return selected_deployments if with_master.empty?
 
+                used_deployments = selected_deployments.dup
                 by_name = selected_deployments
                           .to_h { |task, _| [task.orocos_name, task] }
                 with_master.each do |task, sel|
                     deployment = sel.configured_deployment
                     scheduler_task =
                         deployment.task_setup_scheduler(task, existing_tasks: by_name)
-                    by_name[scheduler_task.orocos_name] = scheduler_task
+                    scheduler_name = scheduler_task.orocos_name
+                    by_name[scheduler_name] = scheduler_task
+
+                    scheduler_deployed_task = Models::DeploymentGroup::DeployedTask.new(
+                        deployment, scheduler_name
+                    )
+                    used_deployments[scheduler_task] = scheduler_deployed_task
                 end
+                used_deployments
             end
 
             # Sanity checks to verify that the result of #deploy_system_network

@@ -187,7 +187,7 @@ module Syskit
         #   model that should be used to create the task, if it is not the
         #   same as the base model. This is used for specialized models (e.g.
         #   dynamic services)
-        def task(name, syskit_task_model = nil)
+        def task(name, syskit_task_model = nil, setup_scheduler: true)
             if finishing? || finished?
                 raise InvalidState,
                       "#{self} is either finishing or already " \
@@ -196,7 +196,9 @@ module Syskit
 
             orogen_task_deployment_model = deployed_orogen_model_by_name(name)
             task = create_deployed_task(orogen_task_deployment_model, syskit_task_model)
-            task_setup_scheduler(task, existing_tasks: executed_tasks_by_name)
+            if setup_scheduler
+                task_setup_scheduler(task, existing_tasks: executed_tasks_by_name)
+            end
             task
         end
 

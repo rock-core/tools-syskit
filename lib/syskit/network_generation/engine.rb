@@ -539,20 +539,21 @@ module Syskit
                 cleanup_resolution_errors: on_error != :commit
             )
                 merge_solver.merge_task_contexts_with_same_agent = early_deploy
-                required_instances, resolution_errors = resolve_system_network(
-                    requirement_tasks,
-                    garbage_collect: garbage_collect,
-                    validate_abstract_network: validate_abstract_network,
-                    validate_generated_network: validate_generated_network,
-                    compute_deployments: compute_deployments,
-                    default_deployment_group: default_deployment_group,
-                    compute_policies: compute_policies,
-                    validate_deployed_network: validate_deployed_network,
-                    early_deploy: early_deploy,
-                    capture_errors_during_network_resolution:
-                        capture_errors_during_network_resolution,
-                    cleanup_resolution_errors: cleanup_resolution_errors
-                )
+                required_instances, resolution_errors =
+                    resolve_system_network(
+                        requirement_tasks,
+                        garbage_collect: garbage_collect,
+                        validate_abstract_network: validate_abstract_network,
+                        validate_generated_network: validate_generated_network,
+                        compute_deployments: compute_deployments,
+                        default_deployment_group: default_deployment_group,
+                        compute_policies: compute_policies,
+                        validate_deployed_network: validate_deployed_network,
+                        early_deploy: early_deploy,
+                        capture_errors_during_network_resolution:
+                            capture_errors_during_network_resolution,
+                        cleanup_resolution_errors: cleanup_resolution_errors
+                    )
 
                 # Can only be reached if the capture_error_during_network_resolution flag
                 # is true
