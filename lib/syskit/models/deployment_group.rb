@@ -21,11 +21,16 @@ module Syskit
             attr_reader :deployments
 
             DeployedTask = Struct.new :configured_deployment, :mapped_task_name do
-                # Create an instance of this deployed task on the given plan
+                # Create an instance of this deployed task as well as its deployment
+                # (execution agent)
                 #
-                # @param [ConfiguredDeployment=>Syskit::Deployment] already
-                #    instanciated deployment tasks, to be reused if self
+                # @param [Roby::Plan] plan the plan the new tasks should be added to
+                # @param [Boolean] permanent set to true if the deployment task should
+                #    be set as permanent
+                # @param [ConfiguredDeployment=>Syskit::Deployment] deployment_tasks
+                #    already instanciated deployment tasks, to be reused if self
                 #    is part of the same ConfiguredDeployment
+                # @return [(TaskContext,Deployment)] a deployed task
                 def instanciate(plan, permanent: true, deployment_tasks: {})
                     deployment_task = (
                         deployment_tasks[[configured_deployment]] ||=
@@ -38,6 +43,22 @@ module Syskit
                         plan.add(deployment_task)
                     end
                     [deployment_task.task(mapped_task_name), deployment_task]
+                end
+
+                def orocos_name
+                    mapped_task_name
+                end
+
+                def read_only?
+                    configured_deployment.read_only?(mapped_task_name)
+                end
+
+                def orogen_model
+                    return @orogen_model if @orogen_model
+
+                    @orogen_model =
+                        configured_deployment
+                        .orogen_model.find_task_by_name(mapped_task_name)
                 end
             end
 

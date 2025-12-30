@@ -369,6 +369,11 @@ module Syskit
             #
             # Computes a task's initial information
             def initial_task_information(task)
+                # We need to resolve the slaves, as the master's task done_task_info
+                # will call done_task_info on the slaves as well
+                #
+                # Note that #initial_information is explicitly skipping tasks
+                # that have a master activity
                 initial_slaves_information(task)
 
                 set_port_info(task, nil, PortDynamics.new("#{task.orocos_name}.main"))
@@ -517,6 +522,11 @@ module Syskit
                 done
             end
 
+            # Tests whether the given task is deployed
+            def deployed_task?(task)
+                task.orocos_name
+            end
+
             # Computes desired connection policies, based on the port dynamics
             # and the oroGen's input port specifications. See the user's guide
             # for more details
@@ -526,7 +536,7 @@ module Syskit
                 # We only act on deployed tasks, as we need to know how the
                 # tasks are triggered (what activity / priority / ...)
                 deployed_tasks = plan.find_local_tasks(TaskContext)
-                                     .find_all(&:execution_agent)
+                                     .find_all { deployed_task?(_1) }
 
                 propagate(deployed_tasks)
 

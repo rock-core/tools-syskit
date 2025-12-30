@@ -163,7 +163,7 @@ module Syskit
                 log_level =
                     if (log_level_name = ENV.fetch("TEST_LOG_LEVEL", nil))
                         Test::Self.issue_once_warning_about_log_level(
-                            "running tests with logger in #{log_level} mode " \
+                            "running tests with logger in #{log_level_name} mode " \
                             "(from TEST_LOG_LEVEL)"
                         )
                         Logger.const_get(log_level_name)

@@ -77,6 +77,7 @@ require "syskit/models/dynamic_port_binding"
 require "syskit/models/task_context"
 require "syskit/models/ruby_task_context"
 require "syskit/models/deployment"
+require "syskit/models/deployed_task_instanciation"
 require "syskit/models/configured_deployment"
 require "syskit/models/deployment_group"
 

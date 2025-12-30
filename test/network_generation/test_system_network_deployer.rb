@@ -373,7 +373,7 @@ module Syskit
                     task0.requirements.use_deployment(deployment_models[0])
                     plan.add(task1 = task_models[1].new)
 
-                    missing = execute { deployer.deploy(validate: false) }
+                    _, missing = execute { deployer.deploy(validate: false) }
                     assert_equal Set[task1], missing
                     deployment_task = plan.find_local_tasks(deployment_models[0]).first
                     assert deployment_task
@@ -391,7 +391,7 @@ module Syskit
                     root.depends_on(task = task_models[0].new, role: "t")
                     task.requirements.use_deployment(deployment_models[0])
 
-                    missing = execute { deployer.deploy(validate: false) }
+                    _, missing = execute { deployer.deploy(validate: false) }
                     assert_equal Set.new, missing
                     refute_equal task, root.t_child
                     assert_equal "task", root.t_child.orocos_name
@@ -402,7 +402,7 @@ module Syskit
                     plan.add(task1 = task_models[1].new)
                     task0.out_port.connect_to task1.in_port
 
-                    missing = execute { deployer.deploy(validate: false) }
+                    _, missing = execute { deployer.deploy(validate: false) }
                     assert_equal Set.new, missing
                     deployed_task0 = deployer.merge_solver.replacement_for(task0)
                     deployed_task1 = deployer.merge_solver.replacement_for(task1)
@@ -434,7 +434,7 @@ module Syskit
                         .with(hsh(on: "machine")).once.pass_thru
 
                     # And finally replace the task with the deployed task
-                    missing = execute { deployer.deploy(validate: false) }
+                    _, missing = execute { deployer.deploy(validate: false) }
                     assert_equal Set.new, missing
                     refute_equal root.t0_child, task0
                     refute_equal root.t1_child, task1
@@ -610,6 +610,93 @@ module Syskit
                         assert_equal deployer.merge_solver.replacement_for(task),
                                      e.original_exception.task
                     end
+                end
+            end
+
+            describe "scheduled tasks during lazy deployments" do
+                # Slave tasks are handled by Syskit::Deployment in eager deployment mode
+
+                before do
+                    @task_m = TaskContext.new_submodel
+
+                    @orogen_model = Models.create_orogen_deployment_model("deployment")
+                    @orogen_scheduler =
+                        @orogen_model.task("scheduler", @task_m.orogen_model)
+                    @orogen_scheduled =
+                        @orogen_model.task("scheduled", @task_m.orogen_model)
+                    @orogen_scheduled.slave_of(@orogen_scheduler)
+                end
+
+                it "adds its master task as dependency" do
+                    scheduled_task = create_task("prefix_scheduled")
+                    scheduler_tests_deploy
+                    scheduler_task = scheduled_task.child_from_role("scheduler")
+
+                    assert_equal "prefix_scheduler", scheduler_task.orocos_name
+                end
+
+                it "auto-selects the configuration of the master task" do
+                    scheduled_task = create_task("prefix_scheduled")
+                    syskit_stub_conf @task_m, "prefix_scheduler"
+                    scheduler_tests_deploy
+                    scheduler_task = scheduled_task.child_from_role("scheduler")
+
+                    assert_equal %w[default prefix_scheduler], scheduler_task.conf
+                end
+
+                it "constrains the configuration of the slave task" do
+                    scheduled_task = create_task("prefix_scheduled")
+                    scheduler_tests_deploy
+                    scheduler_task = scheduled_task.child_from_role("scheduler")
+
+                    assert scheduler_task.start_event.child_object?(
+                        scheduled_task.start_event,
+                        Roby::EventStructure::SyskitConfigurationPrecedence
+                    )
+                end
+
+                it "reuses an existing scheduler task" do
+                    scheduled_task = create_task("prefix_scheduled")
+                    scheduler_task = create_task("prefix_scheduler")
+                    scheduler_tests_deploy
+
+                    assert_same scheduler_task,
+                                scheduled_task.child_from_role("scheduler")
+                end
+
+                it "creates a scheduler task only once" do
+                    orogen_scheduled2 =
+                        @orogen_model.task("scheduled2", @task_m.orogen_model)
+                    orogen_scheduled2.slave_of(@orogen_scheduler)
+                    scheduled_task = create_task("prefix_scheduled")
+                    scheduled2_task = create_task("prefix_scheduled2")
+                    scheduler_tests_deploy
+
+                    scheduler = scheduled_task.child_from_role("scheduler")
+                    assert_equal "prefix_scheduler", scheduler.orocos_name
+                    assert_same scheduler, scheduled2_task.child_from_role("scheduler")
+                end
+
+                it "creates scheduler tasks recursively" do
+                    orogen_scheduler2 =
+                        @orogen_model.task("scheduler2", @task_m.orogen_model)
+                    @orogen_scheduler.slave_of(orogen_scheduler2)
+                    scheduled_task = create_task("prefix_scheduled")
+                    scheduler_tests_deploy
+
+                    scheduler = scheduled_task.child_from_role("scheduler")
+                    scheduler2 = scheduler.child_from_role("scheduler")
+                    assert_equal "prefix_scheduler2", scheduler2.orocos_name
+                end
+
+                def create_task(orocos_name)
+                    @task_m.new(plan: plan, orocos_name: orocos_name)
+                end
+
+                def scheduler_tests_deploy
+                    deployment_m = Deployment.new_submodel(orogen_model: @orogen_model)
+                    default_deployment_group.use_deployment(deployment_m => "prefix_")
+                    deployer.deploy(lazy: true)
                 end
             end
 

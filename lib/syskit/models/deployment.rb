@@ -76,6 +76,13 @@ module Syskit
                 end
             end
 
+            # Return the task model for the given deployed task
+            #
+            # @return [Class<TaskContext>]
+            def task(name)
+                @task_name_to_syskit_model.fetch(name)
+            end
+
             # Creates a new deployment model
             #
             # @option options [OroGen::Spec::Deployment] orogen_model the oroGen
@@ -174,9 +181,10 @@ module Syskit
             # @api private
             #
             # Resolve the Syskit task model for one of this deployment's tasks
-            def resolve_syskit_model_for_deployed_task(deployed_task)
-                task_name = deployed_task.name
-                if (registered = @task_name_to_syskit_model[task_name])
+            def resolve_syskit_model_for_deployed_task(
+                deployed_task, name: deployed_task.name
+            )
+                if (registered = @task_name_to_syskit_model[name])
                     return registered
                 end
 
@@ -188,7 +196,7 @@ module Syskit
                     "Deployment.define_deployed_task"
                 )
 
-                @task_name_to_syskit_model[task_name] =
+                @task_name_to_syskit_model[name] =
                     ::Syskit::TaskContext.model_for(deployed_task.task_model)
             end
 
@@ -211,6 +219,29 @@ module Syskit
             # @return [void]
             def each_orogen_deployed_task_context_model(&block)
                 orogen_model.task_activities.each(&block)
+            end
+
+            # Return the deployment's orogen model with a given name mapping applied
+            def map_orogen_model(name_mappings)
+                mapped_model = orogen_model.dup
+                activity_mapping = {}
+                mapped_model.task_activities.map! do |activity|
+                    mapped_activity = activity.dup
+                    activity_mapping[activity] = mapped_activity
+                    mapped_activity.name = name_mappings[activity.name] || activity.name
+                    mapped_activity
+                end
+
+                mapped_model.task_activities.each do |t|
+                    if (mapped_master = activity_mapping[t.master])
+                        t.master = mapped_master
+                    end
+
+                    t.slaves.replace(
+                        t.slaves.map { |t| activity_mapping[t] }
+                    )
+                end
+                mapped_model
             end
         end
     end

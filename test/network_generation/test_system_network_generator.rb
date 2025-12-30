@@ -221,6 +221,31 @@ module Syskit
                     end
                 end
 
+                it "updates the task's orogen_model attribute " \
+                   "with the deployed task model" do
+                    task_m = TaskContext.new_submodel(name: "Task") do
+                        argument :arg
+                        input_port "in", "/double"
+                    end
+                    deployment_m = Syskit::Deployment.new_submodel do
+                        task("task", task_m).periodic(1)
+                    end
+
+                    local_net_gen = SystemNetworkGenerator.new(
+                        Roby::Plan.new,
+                        default_deployment_group: Models::DeploymentGroup.new,
+                        early_deploy: true, lazy_deploy: true
+                    )
+                    toplevel_tasks, = local_net_gen.compute_system_network(
+                        [task_m.to_instance_requirements
+                               .use_deployment(deployment_m)],
+                        validate_deployed_network: true
+                    )
+                    assert_equal(
+                        "Periodic", toplevel_tasks.first.orogen_model.activity_type.name
+                    )
+                end
+
                 describe "resolve_system_network with error capture" do
                     attr_reader :error_handler, :generator
 

@@ -24,15 +24,21 @@ module Syskit
                 @early_deploy
             end
 
-            def initialize( # rubocop:disable Metrics/ParameterLists
-                plan,
+            # Indicates if deployment is done lazily or eagerly
+            #
+            # Lazy deployment is only setting orocos_name until the very last moment
+            def lazy_deploy?
+                @lazy_deploy
+            end
+
+            def initialize(plan, # rubocop:disable Metrics/ParameterLists
                 event_logger: plan.event_logger,
                 default_deployment_group: nil,
                 early_deploy: false,
+                lazy_deploy: false,
                 error_handler: RaiseErrorHandler.new,
                 resolution_control: Async::Control.new,
-                merge_solver: nil
-            )
+                merge_solver: nil)
                 @plan = plan
                 @event_logger = event_logger
                 @resolution_control = resolution_control
@@ -47,6 +53,7 @@ module Syskit
                 @merge_solver = merge_solver
                 @default_deployment_group = default_deployment_group
                 @early_deploy = early_deploy
+                @lazy_deploy = lazy_deploy
                 @error_handler = error_handler
             end
 
@@ -232,9 +239,10 @@ module Syskit
                     default_deployment_group: default_deployment_group
                 )
 
-                network_deployer.deploy(validate: false,
-                                        reuse_deployments: true,
-                                        deployment_tasks: deployment_tasks)
+                network_deployer.deploy(
+                    validate: false, reuse_deployments: true, lazy: lazy_deploy?,
+                    deployment_tasks: deployment_tasks
+                )
             end
 
             def instanciate_system_network(instance_requirements)
@@ -260,6 +268,7 @@ module Syskit
                 validate_deployed_network: true
             )
                 deployment_tasks = {}
+                @used_deployments = {}
                 early_deploy(deployment_tasks)
 
                 merge_solver.merge_identical_tasks
@@ -314,13 +323,16 @@ module Syskit
                         early_deploy? && validate_deployed_network
                 )
                 interruption_point("syskit-netgen:validation")
-                @toplevel_tasks
+
+                @used_deployments.transform_keys! { @merge_solver.replacement_for(_1) }
+                [@toplevel_tasks, @used_deployments]
             end
 
             def early_deploy(deployment_tasks)
                 return unless early_deploy?
 
-                deploy(deployment_tasks)
+                used_deployments, = deploy(deployment_tasks)
+                @used_deployments.merge!(used_deployments)
                 interruption_point "syskit-netgen:early-deploy"
             end
 
@@ -542,23 +554,14 @@ module Syskit
             end
 
             def validate_deployed_network(error_handler: @error_handler)
-                self.class.verify_all_tasks_deployed(
-                    plan, default_deployment_group, error_handler: error_handler
+                SystemNetworkDeployer.verify_all_tasks_deployed(
+                    plan, default_deployment_group,
+                    error_handler: error_handler, lazy: lazy_deploy?
                 )
                 self.class.verify_all_deployments_are_unique(
                     plan, toplevel_tasks_to_requirements.dup, error_handler: error_handler
                 )
                 super if defined? super
-            end
-
-            def self.verify_all_tasks_deployed(
-                plan, default_deployment_group, error_handler: RaiseErrorHandler.new
-            )
-                SystemNetworkDeployer.verify_all_tasks_deployed(
-                    plan,
-                    default_deployment_group,
-                    error_handler: error_handler
-                )
             end
 
             # @api private

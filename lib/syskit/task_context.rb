@@ -226,6 +226,32 @@ module Syskit
             execution_agent.distance_to(other.execution_agent)
         end
 
+        # Whether the remote task information has been set by our deployment
+        #
+        # The task's deployment must set remote information gathered during deployment
+        # execution by calling {#initialize_remote_handles}. This method verifies that
+        # this step has been done.
+        #
+        # It will not be done until the deployment is ready
+        def has_remote_information?
+            orocos_task
+        end
+
+        # Automatically select the task configuration based on its orocos_name
+        #
+        # Some tasks (mainly master tasks) are auto-injected in the network, and as
+        # such the user cannot select their configuration. This picks either
+        # ['default', task.orocos_name] if the master task's has a configuration
+        # section matching the task's name, or ['default'] otherwise.
+        def select_conf_from_name
+            self.conf =
+                if model.configuration_manager.has_section?(orocos_name)
+                    ["default", orocos_name]
+                else
+                    ["default"]
+                end
+        end
+
         # Verifies if a task could be replaced by this one
         #
         # @return [Boolean] true if #merge(other_task) can be called and

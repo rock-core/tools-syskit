@@ -72,10 +72,12 @@ module Syskit
             #
             # @param [Boolean] validate if true, {#validate_deployed_networks}
             #   will run on the generated network
-            # @return [Set] the set of tasks for which the deployer could
+            # @return [({Component=>DeploymentGroup::DeployedTask},Set)] the
+            #   used deployments, as a map of task instance to the deployment's
+            #   description, and the set of tasks for which the deployer could
             #   not find a deployment
             def deploy(error_handler: RaiseErrorHandler.new, validate: true,
-                reuse_deployments: false, deployment_tasks: {})
+                reuse_deployments: false, deployment_tasks: {}, lazy: false)
                 debug "Deploying the system network"
 
                 all_tasks = plan.find_local_tasks(TaskContext).to_a
@@ -83,15 +85,21 @@ module Syskit
                     select_deployments(all_tasks, reuse: reuse_deployments)
                 interruption_point "syskit-netgen:select_deployments"
 
-                apply_selected_deployments(selected_deployments, deployment_tasks)
+                if lazy
+                    used_deployments =
+                        lazy_apply_selected_deployments(selected_deployments)
+                else
+                    used_deployments =
+                        apply_selected_deployments(selected_deployments, deployment_tasks)
+                end
                 interruption_point "syskit-netgen:apply_selected_deployments"
 
                 if validate
-                    validate_deployed_network(error_handler: error_handler)
+                    validate_deployed_network(error_handler: error_handler, lazy: lazy)
                     log_timepoint "syskit-netgen:validate-deployed-network"
                 end
 
-                missing_deployments
+                [used_deployments, missing_deployments]
             end
 
             # @return [Set<DeploymentGroup::DeployedTask>]
@@ -183,9 +191,10 @@ module Syskit
                         missing_deployments << task
                     elsif !reuse && used_deployments.include?(selected)
                         debug do
-                            machine, configured_deployment, task_name = *selected
+                            configured_deployment = selected.configured_deployment
+                            task_name = selected.mapped_task_name
                             "#{task} resolves to #{configured_deployment}.#{task_name} " \
-                                "on #{machine} for its deployment, but it is already used"
+                                "for its deployment, but it is already used"
                         end
                         missing_deployments << task
                     else
@@ -198,30 +207,96 @@ module Syskit
 
             # Modify the plan to apply a deployment selection
             #
-            # @param [Component=>Deployment] selected_deployments the
+            # @param [{Component=>DeploymentGroup::DeployedTask}] selected_deployments the
             #   component-to-deployment association
-            # @return [void]
+            # @param deployment_tasks a memoization object that allows the system to
+            #   instanciate a deployment only once
+            # @return [{Component=>DeploymentGroup::DeployedTask}] the mapping between
+            #   the deployed task (the instance remaining in the plan) and the
+            #   deployedtask that was used to create it
             def apply_selected_deployments(selected_deployments, deployment_tasks = {})
-                selected_deployments.each do |task, deployed_task|
-                    deployed_task, = deployed_task.instanciate(
-                        plan,
-                        permanent: Syskit.conf.permanent_deployments?,
-                        deployment_tasks: deployment_tasks
-                    )
-                    debug do
-                        agent = deployed_task.execution_agent
-                        "deploying #{task} with #{agent.process_name} (#{agent})"
+                selected_deployments
+                    .each_with_object({}) do |(task, deployed_task_m), used_deployments|
+                        deployed_task, = deployed_task_m.instanciate(
+                            plan,
+                            permanent: Syskit.conf.permanent_deployments?,
+                            deployment_tasks: deployment_tasks
+                        )
+                        debug do
+                            agent = deployed_task.execution_agent
+                            "deploying #{task} with #{agent.process_name} (#{agent})"
+                        end
+                        # We MUST merge one-by-one here. Calling apply_merge_group
+                        # on all the merges at once would NOT copy the connections
+                        # that exist between the tasks of the "from" group to the
+                        # "to" group, which is really not what we want
+                        #
+                        # Calling with all the mappings would be useful if what
+                        # we wanted is replace a subnet of the plan by another
+                        # subnet. This is not the goal here.
+                        merge_solver.apply_merge_group(task => deployed_task)
+                        used_deployments[deployed_task] = deployed_task_m
+
+                        used_deployments.merge!(
+                            apply_selected_deployments_discover_schedulers(
+                                deployed_task, deployed_task_m.configured_deployment
+                            )
+                        )
                     end
-                    # We MUST merge one-by-one here. Calling apply_merge_group
-                    # on all the merges at once would NOT copy the connections
-                    # that exist between the tasks of the "from" group to the
-                    # "to" group, which is really not what we want
-                    #
-                    # Calling with all the mappings would be useful if what
-                    # we wanted is replace a subnet of the plan by another
-                    # subnet. This is not the goal here.
-                    merge_solver.apply_merge_group(task => deployed_task)
+            end
+
+            # Return entries compatible with used_deployments for a task's scheduler
+            # task(s) - resolved recursively
+            def apply_selected_deployments_discover_schedulers(
+                task, configured_deployment
+            )
+                return {} unless task.orogen_model.master
+
+                scheduler_task = task.scheduler_child
+                scheduler_name = scheduler_task.orocos_name
+                scheduler_deployed_task = Models::DeploymentGroup::DeployedTask.new(
+                    configured_deployment, scheduler_name
+                )
+
+                recursive = apply_selected_deployments_discover_schedulers(
+                    scheduler_task, configured_deployment
+                )
+                { scheduler_task => scheduler_deployed_task }.merge(recursive)
+            end
+
+            # Apply deployments selected during {#deploy} by setting the task's
+            # orocos_name argument accordingly
+            #
+            # @param [Component=>DeploymentGroup::DeployedTask] selected_deployments the
+            #   component-to-deployment association
+            def lazy_apply_selected_deployments(selected_deployments)
+                with_master = selected_deployments.find_all do |task, sel|
+                    unless sel.orocos_name
+                        raise "found selected deployment without a task name"
+                    end
+
+                    task.orocos_name ||= sel.orocos_name
+                    task.orogen_model = sel.orogen_model
+                    task.orogen_model.master
                 end
+                return selected_deployments if with_master.empty?
+
+                used_deployments = selected_deployments.dup
+                by_name = selected_deployments
+                          .to_h { |task, _| [task.orocos_name, task] }
+                with_master.each do |task, sel|
+                    deployment = sel.configured_deployment
+                    scheduler_task =
+                        deployment.task_setup_scheduler(task, existing_tasks: by_name)
+                    scheduler_name = scheduler_task.orocos_name
+                    by_name[scheduler_name] = scheduler_task
+
+                    scheduler_deployed_task = Models::DeploymentGroup::DeployedTask.new(
+                        deployment, scheduler_name
+                    )
+                    used_deployments[scheduler_task] = scheduler_deployed_task
+                end
+                used_deployments
             end
 
             # Sanity checks to verify that the result of #deploy_system_network
@@ -229,8 +304,10 @@ module Syskit
             #
             # @return [Array<ResolutionError>] all the resolution errors of the deployed
             #   network.
-            def validate_deployed_network(error_handler: RaiseErrorHandler.new)
-                verify_all_tasks_deployed(error_handler: error_handler)
+            def validate_deployed_network(
+                error_handler: RaiseErrorHandler.new, lazy: false
+            )
+                verify_all_tasks_deployed(error_handler: error_handler, lazy: lazy)
                 verify_all_configurations_exist(error_handler: error_handler)
                 verify_all_process_managers_enabled(error_handler: error_handler)
             end
@@ -238,10 +315,25 @@ module Syskit
             # Verifies that all tasks in the plan are deployed
             #
             # @param [ResolutionErrorHandler | RaiseErrorHandler] error_handler
-            def verify_all_tasks_deployed(error_handler: RaiseErrorHandler.new)
+            def verify_all_tasks_deployed(
+                error_handler: RaiseErrorHandler.new, lazy: false
+            )
                 self.class.verify_all_tasks_deployed(
-                    plan, default_deployment_group, error_handler: error_handler
+                    plan, default_deployment_group,
+                    error_handler: error_handler, lazy: lazy
                 )
+            end
+
+            # Tests whether the given task is deployed when the network generation
+            # runs in eager deployment mode
+            def self.deployed_task?(task)
+                task.execution_agent
+            end
+
+            # Tests whether the given task is deployed when the network generation
+            # runs in lazy deployment mode
+            def self.lazily_deployed_task?(task)
+                task.orocos_name
             end
 
             # @see #verify_all_tasks_deployed
@@ -250,11 +342,17 @@ module Syskit
             #   deployment groups has been used for which task. This is used
             #   to generate the error messages when needed.
             def self.verify_all_tasks_deployed(
-                plan, default_deployment_group, error_handler: RaiseErrorHandler.new
+                plan, default_deployment_group,
+                error_handler: RaiseErrorHandler.new, lazy: false
             )
-                not_deployed = plan.find_local_tasks(TaskContext)
-                                   .not_finished.not_abstract
-                                   .find_all { |t| !t.execution_agent }
+                query = plan.find_local_tasks(TaskContext)
+                            .not_finished.not_abstract
+                not_deployed =
+                    if lazy
+                        query.find_all { !lazily_deployed_task?(_1) }
+                    else
+                        query.find_all { !deployed_task?(_1) }
+                    end
 
                 return if not_deployed.empty?
 
