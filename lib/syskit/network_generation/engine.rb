@@ -184,11 +184,11 @@ module Syskit
 
                 if @dataflow_dynamics
                     @dataflow_dynamics.apply_merges(merge_solver)
-                    log_timepoint "apply_merged_to_dataflow_dynamics"
+                    log_timepoint "syskit-netgen:apply_merged_to_dataflow_dynamics"
                 end
                 Engine.deployment_postprocessing.each do |block|
                     block.call(self, work_plan)
-                    log_timepoint "postprocessing:#{block}"
+                    log_timepoint "syskit-netgen:postprocessing:#{block}"
                 end
             end
 
@@ -597,13 +597,12 @@ module Syskit
                 required_instances = required_instances.transform_values do |task|
                     merge_solver.replacement_for(task)
                 end
-                log_timepoint "apply_merge_to_stored_instances"
                 fix_toplevel_tasks(required_instances)
-                log_timepoint "fix_toplevel_tasks"
+                log_timepoint "syskit-netgen:fixup"
 
                 Engine.final_network_postprocessing.each do |block|
                     block.call(self, work_plan)
-                    log_timepoint "final_network_postprocessing:#{block}"
+                    log_timepoint "syskit-netgen:final_network_postprocessing:#{block}"
                 end
 
                 # Finally, we should now only have deployed tasks. Verify it
@@ -611,10 +610,11 @@ module Syskit
                 if garbage_collect && validate_final_network
                     validate_final_network(required_instances, work_plan,
                                            compute_deployments: compute_deployments)
-                    log_timepoint "validate_final_network"
+                    log_timepoint "syskit-netgen:validate_final_network"
                 end
 
                 commit_work_plan
+                log_timepoint "syskit-netgen:commit"
             end
 
             def discard_work_plan

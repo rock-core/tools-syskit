@@ -39,6 +39,7 @@ module Syskit
             def apply
                 result = finalize_deployed_tasks
                 sever_old_plan_from_new_plan
+                log_timepoint "syskit-netgen:sever-old-from-new-plan"
                 result
             end
 

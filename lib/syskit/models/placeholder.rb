@@ -146,21 +146,7 @@ module Syskit
                 true
             end
 
-            def has_through_method_missing?(m)
-                MetaRuby::DSLs.has_through_method_missing?(
-                    self, m,
-                    "_port" => :has_port?
-                ) || super
-            end
-
-            def find_through_method_missing(m, args)
-                MetaRuby::DSLs.find_through_method_missing(
-                    self, m, args,
-                    "_port" => :find_port
-                ) || super
-            end
-
-            include MetaRuby::DSLs::FindThroughMethodMissing
+            MetaRuby::DSLs::FindThroughMethodMissing.standard(self, %w[port])
 
             # Encapsulation of the methods that allow to create placeholder
             # models

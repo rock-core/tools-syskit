@@ -9,17 +9,7 @@ module Syskit
             # to the corresponding Models::Port instance
             attribute(:ports) { {} }
 
-            def has_through_method_missing?(m)
-                MetaRuby::DSLs.has_through_method_missing?(
-                    self, m, "_port" => :has_port?
-                ) || super
-            end
-
-            def find_through_method_missing(m, args)
-                MetaRuby::DSLs.find_through_method_missing(
-                    self, m, args, "_port" => :find_port
-                ) || super
-            end
+            MetaRuby::DSLs::FindThroughMethodMissing.standard(self, %w[port])
 
             # Returns the port object that maps to the given name, or nil if it
             # does not exist.

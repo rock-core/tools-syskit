@@ -355,15 +355,18 @@ module Syskit
                 robot.devices["#{name}.#{srv.name}"] = device_instance
             end
 
+            HAS_THROUGH_METHOD_MISSING = { "_dev" => :has_slave? }.freeze
+            FIND_THROUGH_METHOD_MISSING = { "_dev" => :slave }.freeze
+
             def has_through_method_missing?(m)
                 MetaRuby::DSLs.has_through_method_missing?(
-                    self, m, "_dev" => :has_slave?
+                    self, m, HAS_THROUGH_METHOD_MISSING
                 ) || super
             end
 
             def find_through_method_missing(m, args)
                 MetaRuby::DSLs.find_through_method_missing(
-                    self, m, args, "_dev" => :slave
+                    self, m, args, FIND_THROUGH_METHOD_MISSING
                 ) || super
             end
 

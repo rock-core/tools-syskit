@@ -398,18 +398,8 @@ module Syskit
                 nil
             end
 
-            def has_through_method_missing?(m)
-                MetaRuby::DSLs.has_through_method_missing?(
-                    self, m, "_srv" => :has_data_service?
-                ) || super
-            end
-
-            def find_through_method_missing(m, args)
-                MetaRuby::DSLs.find_through_method_missing(
-                    self, m, args,
-                    "_srv" => :find_data_service
-                ) || super
-            end
+            MetaRuby::DSLs::FindThroughMethodMissing
+                .standard(self, { "_srv" => "data_service" })
 
             # Whether two services are the same service bound to two different interfaces
             #

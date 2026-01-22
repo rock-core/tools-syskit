@@ -40,6 +40,8 @@ module Syskit
                       resolution_control: Control.new(slice),
                       event_logger: event_logger, resolver_options: resolver_options)
 
+                log_timepoint_group_start("syskit-netgen:async-fiber")
+
                 # Protect all Component instances against garbage collection
                 # by adding them in a transaction. This is to make sure we don't
                 # tear down, during network generation, subparts of the old network
@@ -49,7 +51,7 @@ module Syskit
                     @keepalive.wrap(component_task) unless component_task.finished?
                 end
 
-                log_timepoint("syskit-netgen:async-fiber-start")
+                log_timepoint("syskit-netgen:created-keepalive-transaction")
 
                 @fiber = Fiber.new do
                     catch(:syskit_netgen_cancelled) do
@@ -87,7 +89,13 @@ module Syskit
             def self.start(
                 plan, requirement_tasks = default_requirement_tasks, resolver_options: {}
             )
-                new(plan, requirement_tasks, resolver_options: resolver_options)
+                async = new(plan, requirement_tasks, resolver_options: resolver_options)
+                async.start unless Syskit.conf.resolution_time_slice == 0
+                async
+            end
+
+            def start
+                @fiber.resume(false)
             end
 
             # Cancel this resolution
@@ -152,7 +160,7 @@ module Syskit
             def finished!
                 @finished = true
                 @keepalive.discard_transaction unless @keepalive.finalized?
-                log_timepoint("syskit-netgen:async-fiber-finished")
+                log_timepoint_group_end("syskit-netgen:async-fiber")
             end
 
             # Wait for the resolution to finish and either apply the result or raise if

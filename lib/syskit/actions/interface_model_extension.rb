@@ -185,20 +185,6 @@ module Syskit
                     register_action_from_profile(definition.to_action_model)
                 end
             end
-
-            include MetaRuby::DSLs::FindThroughMethodMissing
-
-            def has_through_method_missing?(name)
-                MetaRuby::DSLs.has_through_method_missing?(
-                    profile, name, "_tag" => :has_tag?
-                ) || super
-            end
-
-            def find_through_method_missing(name, args)
-                MetaRuby::DSLs.find_through_method_missing(
-                    profile, name, args, "_tag" => :find_tag
-                ) || super
-            end
         end
 
         # @api private
@@ -217,9 +203,27 @@ module Syskit
             end
         end
 
-        Roby::Actions::Models::Library.include LibraryExtension
-        Roby::Actions::Interface.extend LibraryExtension
-        Roby::Actions::Interface.extend InterfaceModelExtension
+        # @api private
+        #
+        # Definition of the delegation of the `_tag` methods to `profile`
+        module FindTag
+            HAS_THROUGH_METHOD_MISSING = { "_tag" => :has_tag? }.freeze
+            FIND_THROUGH_METHOD_MISSING = { "_tag" => :find_tag }.freeze
+
+            def has_through_method_missing?(name)
+                MetaRuby::DSLs.has_through_method_missing?(
+                    profile, name, HAS_THROUGH_METHOD_MISSING
+                ) || super
+            end
+
+            def find_through_method_missing(name, args)
+                MetaRuby::DSLs.find_through_method_missing(
+                    profile, name, args, FIND_THROUGH_METHOD_MISSING
+                ) || super
+            end
+
+            include MetaRuby::DSLs::FindThroughMethodMissing
+        end
 
         # @api private
         #
@@ -228,21 +232,15 @@ module Syskit
             def profile
                 self.class.profile
             end
-
-            def has_through_method_missing?(name)
-                MetaRuby::DSLs.has_through_method_missing?(
-                    profile, name, "_tag" => :has_tag?
-                ) || super
-            end
-
-            def find_through_method_missing(name, args)
-                MetaRuby::DSLs.find_through_method_missing(
-                    profile, name, args, "_tag" => :find_tag
-                ) || super
-            end
-
-            include MetaRuby::DSLs::FindThroughMethodMissing
         end
+
+        Roby::Actions::Models::Library.include LibraryExtension
+        Roby::Actions::Models::Library.include FindTag
+        Roby::Actions::Interface.extend LibraryExtension
+        Roby::Actions::Interface.extend InterfaceModelExtension
+        Roby::Actions::Interface.extend FindTag
+
         Roby::Actions::Interface.include InterfaceExtension
+        Roby::Actions::Interface.include FindTag
     end
 end

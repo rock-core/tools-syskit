@@ -77,26 +77,14 @@ module Syskit
                     nil
                 end
 
-                def has_through_method_missing?(m)
-                    MetaRuby::DSLs.has_through_method_missing?(
-                        self, m, "_monitor" => :find_monitor
-                    ) || super
-                end
-
-                def find_through_method_missing(m, args)
-                    MetaRuby::DSLs.find_through_method_missing(
-                        self, m, args, "_monitor" => :find_monitor
-                    ) || super
-                end
-
-                include MetaRuby::DSLs::FindThroughMethodMissing
+                MetaRuby::DSLs::FindThroughMethodMissing.standard(self, %w[monitor])
 
                 def respond_to_missing?(m, include_private)
-                    arguments[m] || super
+                    arguments.key?(m) || super
                 end
 
                 def method_missing(m, *args, &block)
-                    if arg = arguments[m]
+                    if (arg = arguments[m])
                         Roby::Coordination::Models::Variable.new(m)
                     else
                         super
