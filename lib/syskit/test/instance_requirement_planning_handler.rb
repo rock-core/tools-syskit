@@ -56,15 +56,15 @@ module Syskit
                 )
             end
 
-            def replace_tasks_for_stub_network(results)
+            def self.replace_tasks_for_stub_network(test, plan, results)
                 root_tasks = results.instance_requirement_tasks.map(&:planned_task)
-                stub_network = StubNetwork.new(@test)
+                stub_network = StubNetwork.new(test)
 
                 # NOTE: this is a run-planner equivalent to syskit_stub_network
                 # we will have to investigate whether we could implement one with
                 # the other (probably), but in the meantime we must keep both
                 # in sync
-                mapped_tasks = @plan.in_transaction do |trsc|
+                mapped_tasks = plan.in_transaction do |trsc|
                     mapped_tasks =
                         stub_network.apply_in_transaction(trsc, root_tasks)
                     trsc.commit_transaction
@@ -80,24 +80,31 @@ module Syskit
             # This is only relevant when we arent capturing errors during the network
             # resolution. When we are capturing errors, the capture pipeline already deals
             # with the failed task, and can deploy the stub network safely.
-            def consider_finished_due_to_errors?(results)
+            def self.consider_finished_due_to_errors?(results)
                 !Syskit.conf.capture_errors_during_network_resolution? && results.error?
             end
 
+            def self.process_async_resolution(test, plan)
+                return unless plan.syskit_has_async_resolution?
+
+                Thread.pass
+
+                async = plan.syskit_current_resolution
+                plan.syskit_poll_async_resolution(nil)
+                return if plan.syskit_has_async_resolution?
+
+                resolution_results = async.result
+                return unless resolution_results # cancelled
+                return true if consider_finished_due_to_errors?(resolution_results)
+                return unless test.syskit_run_planner_stub?
+
+                replace_tasks_for_stub_network(
+                    test, plan, resolution_results
+                )
+            end
+
             def finished?
-                if @plan.syskit_has_async_resolution?
-                    Thread.pass
-
-                    async = @plan.syskit_current_resolution
-                    @plan.syskit_poll_async_resolution(nil)
-                    return if @plan.syskit_has_async_resolution?
-
-                    resolution_results = async.result
-                    return true if consider_finished_due_to_errors?(resolution_results)
-                    return unless @test.syskit_run_planner_stub?
-
-                    replace_tasks_for_stub_network(resolution_results)
-                end
+                self.class.process_async_resolution(@test, @plan)
 
                 @planning_tasks.all? { |t| t.resolution_success? || t.finished? }
             end

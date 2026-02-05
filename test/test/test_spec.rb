@@ -53,7 +53,6 @@ module Syskit
 
                 assert_equal false, cycles[0].planning_task_starting
                 assert_equal true, cycles[0].planning_task_running
-                assert cycles[0].has_async_resolution
             end
 
             it "waits for the planning tasks to be started before it triggers the async resolution" do

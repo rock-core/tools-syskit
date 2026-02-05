@@ -4,6 +4,14 @@ module Syskit
     module Test
         # Definition of expectations for Roby's expect_execution harness
         module ExecutionExpectations
+            Roby::Test::ExecutionExpectations.poll do |test, plan|
+                InstanceRequirementPlanningHandler.process_async_resolution(test, plan)
+            end
+
+            Roby::Test::ExecutionExpectations.exit_allowed_condition do |test, plan|
+                !plan.syskit_has_async_resolution?
+            end
+
             # @api private
             #
             # Helper used to resolve reader objects
