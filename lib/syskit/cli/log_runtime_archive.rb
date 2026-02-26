@@ -101,7 +101,9 @@ module Syskit
 
                 return true if available_space > free_space_low_limit
 
-                files = list_files(directory).sort_by(&:mtime)
+                return false unless (files = list_files(directory))
+
+                files.sort_by!(&:mtime)
                 until available_space >= free_space_delete_until
                     if files.empty?
                         @logger.warn(
@@ -115,7 +117,7 @@ module Syskit
 
                     removed_file = files.shift
                     removed_file_size = delete_file(removed_file)
-                    if removed_file_size > 0
+                    if removed_file_size
                         available_space += removed_file_size
                         @logger.info(
                             "Removed file: #{removed_file}. Freed space[" \
@@ -126,25 +128,25 @@ module Syskit
                 true
             end
 
-            # List files from directory. Returns empty list if exception is thrown in the
+            # List files from directory. Returns nil if exception is thrown in the
             # process
             # @param directory [Pathname]
-            # @return Array[File]
+            # @return [Array[File],nil]
             def list_files(directory)
                 directory.each_child.select(&:file?)
             rescue ::SystemCallError => e
                 @logger.error(e)
-                []
+                nil
             end
 
-            # Deletes a file and returns the freed space. Returns 0 on exceptions
+            # Deletes a file and returns the freed space. Returns nil on exceptions
             def delete_file(file)
                 size = file.size
                 file.unlink
                 size
             rescue ::SystemCallError => e
                 @logger.error(e)
-                0
+                nil
             end
 
             def process_dataset(child, full:, max_archive_size: DEFAULT_MAX_ARCHIVE_SIZE)
