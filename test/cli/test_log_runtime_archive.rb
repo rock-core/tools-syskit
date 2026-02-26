@@ -784,7 +784,8 @@ module Syskit
 
                     # mock list dir result with a raising file
                     files = different_dir.each_child.select(&:file?)
-                    flexmock(files[3])
+                    file3 = files.find { _1.basename.to_s == "3" }
+                    flexmock(file3)
                         .should_receive(:unlink)
                         .and_raise(SystemCallError.new("error"))
                     flexmock(@archiver)
