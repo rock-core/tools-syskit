@@ -101,8 +101,8 @@ module Syskit
 
                 return true if available_space > free_space_low_limit
 
+                files = list_files(directory).sort_by(&:mtime)
                 until available_space >= free_space_delete_until
-                    files = directory.each_child.select(&:file?)
                     if files.empty?
                         @logger.warn(
                             "The available space (#{available_space}) is below the " \
@@ -113,16 +113,38 @@ module Syskit
                         return false
                     end
 
-                    removed_file = files.min_by(&:mtime)
-                    size_removed_file = removed_file.size
-                    removed_file.unlink
-                    available_space += size_removed_file
-                    @logger.info(
-                        "Removed file: #{removed_file}. Freed space[" \
-                        "#{size_removed_file}]. Available space[#{available_space}]"
-                    )
+                    removed_file = files.shift
+                    removed_file_size = delete_file(removed_file)
+                    if removed_file_size > 0
+                        available_space += removed_file_size
+                        @logger.info(
+                            "Removed file: #{removed_file}. Freed space[" \
+                            "#{removed_file_size}]. Available space[#{available_space}]"
+                        )
+                    end
                 end
                 true
+            end
+
+            # List files from directory. Returns empty list if exception is thrown in the
+            # process
+            # @param directory [Pathname]
+            # @return Array[File]
+            def list_files(directory)
+                directory.each_child.select(&:file?)
+            rescue ::SystemCallError => e
+                @logger.error(e)
+                []
+            end
+
+            # Deletes a file and returns the freed space. Returns 0 on exceptions
+            def delete_file(file)
+                size = file.size
+                file.unlink
+                size
+            rescue ::SystemCallError => e
+                @logger.error(e)
+                0
             end
 
             def process_dataset(child, full:, max_archive_size: DEFAULT_MAX_ARCHIVE_SIZE)
