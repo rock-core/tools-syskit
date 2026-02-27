@@ -764,6 +764,39 @@ module Syskit
                     assert_deleted_files([0, 1, 2, 3], directory: different_dir)
                 end
 
+                it "is robust to exceptions when listing dir" do
+                    not_accessible_dir = make_tmppath
+                    mock_available_space(0.5, directory: not_accessible_dir)
+
+                    flexmock(not_accessible_dir)
+                        .should_receive(:each_child)
+                        .and_raise(SystemCallError.new("error"))
+                    refute @archiver.ensure_free_space(1, 10,
+                                                       directory: not_accessible_dir)
+                end
+
+                it "is robust to exceptions when deleting a particular file" do
+                    different_dir = make_tmppath
+                    size_files = [6, 2, 1, 6, 7, 10, 3, 5, 8, 9]
+                    mock_files_size(size_files, directory: different_dir)
+                    mock_available_space(0.5, directory: different_dir)
+                    mock_mtime(directory: different_dir)
+
+                    # mock list dir result with a raising file
+                    files = different_dir.each_child.select(&:file?)
+                    file3 = files.find { _1.basename.to_s == "3" }
+                    flexmock(file3)
+                        .should_receive(:unlink)
+                        .and_raise(SystemCallError.new("error"))
+                    flexmock(@archiver)
+                        .should_receive(:list_files)
+                        .with(different_dir)
+                        .and_return(files)
+
+                    assert @archiver.ensure_free_space(1, 10, directory: different_dir)
+                    assert_deleted_files([0, 1, 2, 4], directory: different_dir)
+                end
+
                 it "removes files based on modified timestamp" do
                     different_dir = make_tmppath
                     size_files = [6, 2, 1, 6, 7, 10, 3, 5, 8, 9]
