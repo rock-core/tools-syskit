@@ -339,7 +339,13 @@ module Syskit
                 model
             end
 
-            # Create a ready-to-deployed object for the given task model
+            # Create a deployment model and register it for stubbing
+            #
+            # Use this method to be able to deploy a requirement using {#syskit_deploy}
+            # (and friends). If you only want to create a stub deployment model, without
+            # registering it for network generation, use
+            # {#syskit_stub_deployment_model}. If you want to create a deployment task
+            # use {#syskit_stub_deployment}
             #
             # @param [Syskit::TaskContext] task_model
             # @param [String] task_name
@@ -367,8 +373,14 @@ module Syskit
                 configured_deployment
             end
 
-            # Create a new stub deployment model that can deploy a given task
-            # context model
+            # Create a new stub deployment model with a single deployed task of the given
+            # model
+            #
+            # This method creates the deployment model only. It does
+            # NOT register the created model to be used by {#syskit_deploy} and friends.
+            # Use {#syskit_stub_configured_deployment} for this. There is also
+            # {#syskit_stub_deployment} to create a model for the deployment task,
+            # and instanciating it (but also without registering it)
             #
             # @param [Model<Syskit::TaskContext>,nil] task_model if given, a
             #   task model that should be deployed by this deployment model
@@ -387,7 +399,13 @@ module Syskit
                 )
             end
 
-            # Create a new stub deployment instance
+            # Create a new deployment model and instanciates it
+            #
+            # This method creates the deployment model and instanciates it, but does
+            # NOT register the created model to be used by {#syskit_deploy} and friends.
+            # Use {#syskit_stub_configured_deployment} for this. There is also
+            # {#syskit_stub_deployment_model} to create a model for the deployment task,
+            # but without registering it neither instanciating it.
             #
             # @param [Syskit::Models::Deployment] deployment_model the deployment model
             #   to use, or nil if the method should stub one
