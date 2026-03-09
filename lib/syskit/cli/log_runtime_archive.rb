@@ -371,13 +371,27 @@ module Syskit
             #
             # @return [Boolean] true if the file was added successfully, false otherwise
             def self.add_to_archive(archive_io, child_path, logger: null_logger)
-                logger.info "adding #{child_path}"
-                stat = child_path.stat
+                child_path.open("r") do |child_input_stream|
+                    logger.info "adding #{child_path}"
+                    compress_and_add_to_archive(archive_io, child_path,
+                                                child_input_stream, logger)
+                end
+            rescue ::Exception => e # rubocop:disable Lint/RescueException
+                logger.warn(
+                    "#{child_path.basename} not added to archive. Error: #{e}"
+                )
+            else
+                child_path.unlink
+            end
 
+            def self.compress_and_add_to_archive(archive_io, child_path, child_in_stream,
+                logger)
+                stat = child_path.stat
                 start_pos = archive_io.tell
+
                 write_initial_header(archive_io, child_path, stat)
                 data_pos = archive_io.tell
-                exit_status = write_compressed_data(child_path, archive_io)
+                exit_status = write_compressed_data(child_in_stream, archive_io)
 
                 unless exit_status.success?
                     raise CompressionFailed, "compression failed for #{child_path}"
@@ -386,7 +400,6 @@ module Syskit
                 add_to_archive_commit(
                     archive_io, child_path, start_pos, data_pos, stat
                 )
-                child_path.unlink
             rescue Exception => e # rubocop:disable Lint/RescueException
                 Roby.display_exception($stdout, e)
                 if start_pos
@@ -436,14 +449,13 @@ module Syskit
             end
 
             # Compress data and append it to the archive
-            def self.write_compressed_data(child_path, archive_io)
-                _, exit_status = child_path.open("r") do |io|
-                    zstd_transfer_r, zstd_transfer_w = IO.pipe
-                    pid = Process.spawn("zstd", "--stdout", in: io, out: zstd_transfer_w)
-                    zstd_transfer_w.close
-                    IO.copy_stream(zstd_transfer_r, archive_io)
-                    Process.waitpid2(pid)
-                end
+            def self.write_compressed_data(child_in_stream, archive_io)
+                zstd_transfer_r, zstd_transfer_w = IO.pipe
+                pid = Process.spawn("zstd", "--stdout",
+                                    in: child_in_stream, out: zstd_transfer_w)
+                zstd_transfer_w.close
+                IO.copy_stream(zstd_transfer_r, archive_io)
+                _, exit_status = Process.waitpid2(pid)
                 exit_status
             end
 
