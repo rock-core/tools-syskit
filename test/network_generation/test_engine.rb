@@ -693,6 +693,63 @@ module Syskit
                         assert_equal [t2.planning_task], required_instances.keys
                     end
                 end
+
+                describe "#resolve" do
+                    it "handles deployment errors during final deployment resolution " \
+                       "gracefully" do
+                        task2_m = Syskit::TaskContext.new_submodel
+                        task2_m.provides @srv_m, as: "srv"
+
+                        t1 = @cmp_m.use("test" => @task_m.new(arg: 2),
+                                        "other" => task2_m.new).as_plan
+                        plan.add(t1)
+
+                        errors = syskit_engine.resolve(
+                            requirement_tasks: [t1.planning_task],
+                            capture_errors_during_network_resolution: true,
+                            default_deployment_group: default_deployment_group,
+                            cleanup_resolution_errors: true
+                        )
+                        assert_equal 1, errors.size
+                        assert_kind_of MissingDeployment,
+                                       errors.first.original_exception
+                    end
+
+
+                    it "handles deployment errors during network adaption with bad new " \
+                       "task" do
+                        t1 = @task_m.with_arguments(arg: 1).as_plan
+                        plan.add(t1)
+
+                        t1 = t1.as_service
+                        syskit_engine.resolve(
+                            requirement_tasks: [t1.planning_task],
+                            default_deployment_group: default_deployment_group,
+                            capture_errors_during_network_resolution: true,
+                            early_deploy: true,
+                            cleanup_resolution_errors: true
+                        )
+
+                        new_engine = Syskit::NetworkGeneration::Engine.new(plan)
+                        t2 = @task_m.with_arguments(arg: 2).as_plan
+                        plan.add(t2)
+
+                        errors = new_engine.resolve(
+                            requirement_tasks: [t1.planning_task, t2.planning_task],
+                            default_deployment_group: default_deployment_group,
+                            capture_errors_during_network_resolution: true,
+                            early_deploy: true,
+                            cleanup_resolution_errors: true
+                        )
+                        # Both of the tasks will emit a ConflictingDeploymentAllocation
+                        # with one another
+                        assert_equal 2, errors.size
+                        errors.each do |e|
+                            assert_kind_of ConflictingDeploymentAllocation,
+                                           e.original_exception
+                        end
+                     end
+                end
             end
 
             describe "when scheduling tasks for reconfiguration" do

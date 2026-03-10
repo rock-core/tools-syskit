@@ -133,8 +133,12 @@ module Syskit
                         lazy: lazy_deploy
                     )
                     @used_deployments = @used_deployments.merge(used_deployments)
-                    resolution_errors = error_handler.process_failures(
-                        required_instances, cleanup_failed_tasks: true
+                    @used_deployments.transform_keys! do |task|
+                        merge_solver.replacement_for(task)
+                    end
+                    resolution_errors, @used_deployments = process_failures(
+                        error_handler, required_instances, @used_deployments,
+                        cleanup_failed_tasks: true
                     )
                     # Sanity check that the plan was properly cleaned up
                     SystemNetworkDeployer.verify_all_tasks_deployed(
@@ -406,8 +410,10 @@ module Syskit
                 toplevel_tasks_to_requirements =
                     system_network_generator.toplevel_tasks_to_requirements
 
-                resolution_errors = error_handler.process_failures(
+                resolution_errors, @used_deployments = process_failures(
+                    error_handler,
                     required_instances,
+                    @used_deployments,
                     cleanup_failed_tasks: cleanup_resolution_errors
                 )
                 if cleanup_resolution_errors
@@ -421,6 +427,21 @@ module Syskit
                     )
                 end
                 [required_instances, resolution_errors, toplevel_tasks_to_requirements]
+            end
+
+            def process_failures(
+                error_handler, required_instances, used_deployments, cleanup_failed_tasks:
+            )
+                resolution_errors = error_handler.process_failures(required_instances)
+                return [resolution_errors, used_deployments] unless cleanup_failed_tasks
+
+                removed_tasks = error_handler.cleanup_resolution_errors(
+                    resolution_errors, required_instances, work_plan
+                )
+                removed_tasks.each do |task|
+                    used_deployments.delete(task)
+                end
+                [resolution_errors, used_deployments]
             end
 
             # Computes the system network, that is the network that fullfills

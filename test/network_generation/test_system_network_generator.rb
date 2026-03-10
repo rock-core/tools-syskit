@@ -488,9 +488,7 @@ module Syskit
                             )
                             required_instances =
                                 Hash[requirement_tasks.zip(toplevel_tasks)]
-                            errors = error_handler.process_failures(
-                                required_instances, cleanup_failed_tasks: true
-                            )
+                            errors = error_handler.process_failures(required_instances)
                             [toplevel_tasks, errors]
                         end
                     end
