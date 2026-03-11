@@ -155,7 +155,7 @@ module Syskit
                 requirement_tasks = required_instances.keys
                 toplevel_tasks = required_instances.values
 
-                resolution_errors = @resolution_failures.flat_map do |failure|
+                @resolution_failures.flat_map do |failure|
                     failed_task = failure.failed_task
                     indexes = find_index_of_toplevel_tasks_depending_on(
                         failed_task, toplevel_tasks, failure.plan, failure.merge_solver
@@ -165,8 +165,6 @@ module Syskit
                         failure.to_resolution_errors(instance)
                     end
                 end
-
-                resolution_errors
             end
 
             # Cleanup the requirement tasks and toplevel tasks that encountered resolution
@@ -215,8 +213,7 @@ module Syskit
                 []
             end
 
-            def cleanup_resolution_errors(*)
-            end
+            def cleanup_resolution_errors(*); end
         end
     end
 end

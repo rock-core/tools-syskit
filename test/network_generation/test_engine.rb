@@ -529,7 +529,7 @@ module Syskit
                     assert_master_slave_pattern_correct
                 end
 
-                it "deploys slave tasks when the deploymentc exists" do
+                it "deploys slave tasks when the deployment exists" do
                     deployment_task = @configured_deployment.new(plan: plan)
 
                     syskit_deploy(
@@ -715,7 +715,6 @@ module Syskit
                                        errors.first.original_exception
                     end
 
-
                     it "handles deployment errors during network adaption with bad new " \
                        "task" do
                         t1 = @task_m.with_arguments(arg: 1).as_plan
@@ -748,7 +747,7 @@ module Syskit
                             assert_kind_of ConflictingDeploymentAllocation,
                                            e.original_exception
                         end
-                     end
+                    end
                 end
             end
 

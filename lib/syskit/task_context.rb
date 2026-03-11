@@ -59,6 +59,8 @@ module Syskit
         # The last state before we went to orogen_state
         attr_reader :last_orogen_state
 
+        attr_accessor :deployed_task
+
         # @api private
         #
         # Initialize the communication with the remote task

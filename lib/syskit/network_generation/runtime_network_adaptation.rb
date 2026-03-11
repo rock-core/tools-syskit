@@ -14,7 +14,7 @@ module Syskit
             # @param [{Component=>DeploymentGroup::DeployedTask}] used_deployments the
             #   mapping from task instances to the deployment used for it
             def initialize(
-                work_plan, used_deployments,
+                work_plan,
                 merge_solver:,
                 event_logger: work_plan.event_logger,
                 resolution_control: Async::Control.new
@@ -24,6 +24,7 @@ module Syskit
                 @resolution_control = resolution_control
                 @merge_solver = merge_solver
 
+                used_deployments = find_used_deployments(work_plan)
                 tasks_per_configured_deployments =
                     used_deployments.each_with_object({}) do |(task, deployed_task), h|
                         (h[deployed_task.configured_deployment] ||= []) << task
@@ -34,6 +35,12 @@ module Syskit
                             configured_deployment: configured_deployment, tasks: tasks
                         )
                     end
+            end
+
+            def find_used_deployments(work_plan)
+                work_plan.find_local_tasks(TaskContext).each_with_object({}) do |t, h|
+                    h[t] = t.deployed_task
+                end
             end
 
             def apply

@@ -236,7 +236,7 @@ module Syskit
                         default_deployment_group: Models::DeploymentGroup.new,
                         early_deploy: true, lazy_deploy: true
                     )
-                    toplevel_tasks, = local_net_gen.compute_system_network(
+                    toplevel_tasks = local_net_gen.compute_system_network(
                         [task_m.to_instance_requirements
                                .use_deployment(deployment_m)],
                         validate_deployed_network: true
