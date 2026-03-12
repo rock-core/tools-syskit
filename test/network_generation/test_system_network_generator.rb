@@ -444,6 +444,10 @@ module Syskit
 
                         expected_message = <<~MSG
                             deployed task 'task1' from deployment 'task1' defined in '' on 'stubs' is assigned to 2 tasks. Below is the list of the dependent non-deployed actions. Right after the list is a detailed explanation of why the first two tasks are not merged:
+                            T<id:X>(arg: 1, conf: ["default"], orocos_name: task1, read_only: false) is needed by the following definitions:
+                              #<Class:0xXXXXXX>.use( task => T .with_arguments( arg => 1 )
+                            T<id:X>(arg: 2, conf: ["default"], orocos_name: task1, read_only: false) is needed by the following definitions:
+                              #<Class:0xXXXXXX>.use( task => T .with_arguments( arg => 2 )
                             Chain 1 cannot be merged in chain 2:
                             Chain 1:
                               T<id:X> pending

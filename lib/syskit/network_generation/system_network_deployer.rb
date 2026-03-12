@@ -281,12 +281,11 @@ module Syskit
                     task.orogen_model = sel.orogen_model
                     task.orogen_model.master
                 end
-                if with_master.empty?
-                    selected_deployments.each do |task, sel|
-                        task.deployed_task = sel
-                    end
-                    return selected_deployments
+                selected_deployments.each do |task, sel|
+                    task.deployed_task = sel
                 end
+
+                return selected_deployments if with_master.empty?
 
                 used_deployments = selected_deployments.dup
                 by_name = selected_deployments
