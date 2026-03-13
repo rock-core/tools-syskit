@@ -748,6 +748,43 @@ module Syskit
                                            e.original_exception
                         end
                     end
+
+                    it "does not create deployment duplicates when all deployed tasks " \
+                       "of a deployment have been cleaned up because of an error" do
+                        # Regression test for a bug that was caused by "dangling"
+                        # deployments, that is deployments that had no deployed tasks,
+                        # caused by error cleanup.
+                        #
+                        # The (then new) adaptation code would simply ignore these
+                        # deployments as it would only iterate over the deployments
+                        # from its deployed tasks.
+                        t1 = @task_m.with_arguments(arg: 1).as_plan
+                        plan.add_mission_task(t1)
+
+                        t1 = t1.as_service
+                        engine = Syskit::NetworkGeneration::Engine.new(plan)
+                        engine.resolve(
+                            requirement_tasks: [t1.planning_task],
+                            default_deployment_group: default_deployment_group,
+                            capture_errors_during_network_resolution: true,
+                            early_deploy: true,
+                            cleanup_resolution_errors: true
+                        )
+
+                        t2 = @task_m.with_arguments(arg: 2).as_plan
+                        plan.add(t2)
+
+                        engine = Syskit::NetworkGeneration::Engine.new(plan)
+                        engine.resolve(
+                            requirement_tasks: [t1.planning_task, t2.planning_task],
+                            default_deployment_group: default_deployment_group,
+                            capture_errors_during_network_resolution: true,
+                            early_deploy: true,
+                            cleanup_resolution_errors: true
+                        )
+
+                        assert_equal 1, plan.find_tasks(Syskit::Deployment).to_a.size
+                    end
                 end
             end
 
