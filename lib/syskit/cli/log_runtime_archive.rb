@@ -361,7 +361,7 @@ module Syskit
                     child = (root_dir / child)
                     next unless child.directory?
 
-                    child if (child / "info.yml").file?
+                    child if (child / Roby::Application::LOCK_FILE_EXT).file?
                 end
 
                 candidates.compact.sort_by { |a| a.basename.to_s }

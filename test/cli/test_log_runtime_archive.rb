@@ -11,6 +11,11 @@ module Syskit
                 @root = make_tmppath
                 @archive_path = (make_tmppath / "archive.tar")
                 @in_files = []
+                @lock_files = {}
+            end
+
+            after do
+                @lock_files.each_value(&:close)
             end
 
             describe ".find_all_dataset_folders" do
@@ -148,11 +153,10 @@ module Syskit
 
             describe ".archive_dataset" do
                 it "in full mode, archives only the rotated logs if there are some" do
-                    dataset = make_valid_folder("20220434-2023")
+                    dataset = make_valid_folder("20220434-2023", locked: false)
                     make_in_file "test.0.log", "test0", root: dataset
                     make_in_file "test.1.log", "test1", root: dataset
                     make_in_file "something.txt", "something", root: dataset
-                    make_in_file ".lock", "something", root: dataset
 
                     ret = @archive_path.open("w") do |archive_io|
                         flexmock(LogRuntimeArchive)
@@ -174,9 +178,8 @@ module Syskit
 
                 it "in full mode, archives the non-rotated logs " \
                    "if there are no rotated logs" do
-                    dataset = make_valid_folder("20220434-2023")
+                    dataset = make_valid_folder("20220434-2023", locked: false)
                     make_in_file "something.txt", "something", root: dataset
-                    make_in_file ".lock", "something", root: dataset
 
                     ret = @archive_path.open("w") do |archive_io|
                         flexmock(LogRuntimeArchive)
@@ -401,13 +404,9 @@ module Syskit
                 end
 
                 it "archives all folders, the locked ones partially" do
-                    dataset0 = make_valid_folder("20220434-2023")
-                    dataset1 = make_valid_folder("20220434-2024")
-                    dataset2 = make_valid_folder("20220434-2025")
-
-                    (dataset0 / ".lock").write("") # unlocked dir
-                    # No lock file means locked for dataset1
-                    (dataset2 / ".lock").write("") # unlocked dir
+                    dataset0 = make_valid_folder("20220434-2023", locked: false)
+                    dataset1 = make_valid_folder("20220434-2024", locked: true)
+                    dataset2 = make_valid_folder("20220434-2025", locked: false)
 
                     should_archive_dataset(dataset0, "20220434-2023.0.tar", full: true)
                     should_archive_dataset(dataset1, "20220434-2024.0.tar", full: false)
@@ -523,14 +522,12 @@ module Syskit
                 end
 
                 it "gathers all non-rotated logs in the very last archive" do
-                    dataset = make_valid_folder("20220434-2023")
+                    dataset = make_valid_folder("20220434-2023", locked: false)
                     make_random_file "test.0.log", root: dataset
                     make_random_file "test.1.log", root: dataset
                     make_random_file "test.2.log", root: dataset
                     make_random_file "test.txt", root: dataset
                     make_random_file "test-PID.txt", root: dataset
-
-                    (dataset / ".lock").write("")
 
                     @process.process_root_folder
 
@@ -592,13 +589,12 @@ module Syskit
                 describe ".process_root_folder_transfer" do
                     it "transfers all finished dataset files from root folder " \
                        "through FTP" do
-                        dataset_a = make_valid_folder("20220434-2023")
+                        dataset_a = make_valid_folder("20220434-2023", locked: false)
                         dataset_b = make_valid_folder("20220434-2024")
                         make_random_file "test.0.log", root: dataset_a
                         make_random_file "test.1.log", root: dataset_a
                         make_random_file "test.0.log", root: dataset_b
                         make_random_file "test.1.log", root: dataset_b
-                        (dataset_a / ".lock").write("")
 
                         @process.process_root_folder_transfer(@params)
 
@@ -612,14 +608,14 @@ module Syskit
                 end
 
                 describe ".process_dataset_transfer" do
-                    it "ignores the .lock file" do
+                    it "ignores the .roby-logdir file" do
                         dataset = make_valid_folder("PATH")
-                        make_random_file ".lock", root: dataset
+                        make_random_file ".roby-logdir", root: dataset
                         @process.process_dataset_transfer(
                             dataset, @params, @root, full: true
                         )
 
-                        refute(File.exist?(@target_dir / "PATH" / ".lock"))
+                        refute(File.exist?(@target_dir / "PATH" / ".roby-logdir"))
                     end
 
                     it "transfers all files from a folder through FTP" do
@@ -872,11 +868,24 @@ module Syskit
                 end
             end
 
-            def make_valid_folder(name)
+            def make_valid_folder(name, locked: true)
                 path = (@root / name)
                 path.mkpath
+                lockfile_path = path / ".roby-logdir"
+                FileUtils.touch(lockfile_path)
+
+                if locked
+                    io = lockfile_path.open(File::RDWR | File::CREAT, 0o644)
+                    @lock_files[lockfile_path] = io
+                    io.flock(File::LOCK_EX | File::LOCK_NB)
+                end
+
                 FileUtils.touch(path / "info.yml")
                 path
+            end
+
+            def unlock_folder(path)
+                @lock_files.delete(path).close
             end
 
             def make_random_file(name, root: @root, size: 1024)
