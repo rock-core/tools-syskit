@@ -328,7 +328,7 @@ module Syskit
             if merged_task.orocos_task && !orocos_task
                 self.orocos_task = merged_task.orocos_task
             end
-            
+
             if merged_task.deployed_task && !deployed_task
                 self.deployed_task = merged_task.deployed_task
             end

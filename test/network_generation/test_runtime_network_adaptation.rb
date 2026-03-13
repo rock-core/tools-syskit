@@ -727,8 +727,9 @@ module Syskit
 
                 tasks.each do |task|
                     name = task.execution_agent.process_name
-                    task.deployed_task = 
-                        flexmock(configured_deployment: configured_deployments.fetch(name))
+                    task.deployed_task = flexmock(
+                        configured_deployment: configured_deployments.fetch(name)
+                    )
                 end
             end
 
