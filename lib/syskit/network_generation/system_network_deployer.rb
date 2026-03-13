@@ -236,6 +236,7 @@ module Syskit
                         # subnet. This is not the goal here.
                         merge_solver.apply_merge_group(task => deployed_task)
                         used_deployments[deployed_task] = deployed_task_m
+                        deployed_task.deployed_task = deployed_task_m
 
                         used_deployments.merge!(
                             apply_selected_deployments_discover_schedulers(
@@ -261,6 +262,7 @@ module Syskit
                 recursive = apply_selected_deployments_discover_schedulers(
                     scheduler_task, configured_deployment
                 )
+                scheduler_task.deployed_task = scheduler_deployed_task
                 { scheduler_task => scheduler_deployed_task }.merge(recursive)
             end
 
@@ -279,6 +281,10 @@ module Syskit
                     task.orogen_model = sel.orogen_model
                     task.orogen_model.master
                 end
+                selected_deployments.each do |task, sel|
+                    task.deployed_task = sel
+                end
+
                 return selected_deployments if with_master.empty?
 
                 used_deployments = selected_deployments.dup
@@ -294,6 +300,7 @@ module Syskit
                     scheduler_deployed_task = Models::DeploymentGroup::DeployedTask.new(
                         deployment, scheduler_name
                     )
+                    scheduler_task.deployed_task = task.deployed_task
                     used_deployments[scheduler_task] = scheduler_deployed_task
                 end
                 used_deployments

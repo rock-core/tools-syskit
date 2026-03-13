@@ -151,11 +151,11 @@ module Syskit
                 end
             end
 
-            def process_failures(required_instances, cleanup_failed_tasks:)
+            def process_failures(required_instances)
                 requirement_tasks = required_instances.keys
                 toplevel_tasks = required_instances.values
 
-                resolution_errors = @resolution_failures.flat_map do |failure|
+                @resolution_failures.flat_map do |failure|
                     failed_task = failure.failed_task
                     indexes = find_index_of_toplevel_tasks_depending_on(
                         failed_task, toplevel_tasks, failure.plan, failure.merge_solver
@@ -165,14 +165,6 @@ module Syskit
                         failure.to_resolution_errors(instance)
                     end
                 end
-
-                if cleanup_failed_tasks
-                    cleanup_resolution_errors(
-                        resolution_errors, required_instances, @plan
-                    )
-                end
-
-                resolution_errors
             end
 
             # Cleanup the requirement tasks and toplevel tasks that encountered resolution
@@ -188,19 +180,24 @@ module Syskit
                     requirement_task = error.planning_task
                     required_instances.delete requirement_task
                 end
-                return if resolution_errors.empty?
+                return [] if resolution_errors.empty?
 
                 NetworkGeneration.debug "cleanup up after error resolution"
                 protected_tasks = required_instances.values.map do |v|
                     @merge_solver.replacement_for(v)
                 end
+
+                removed_tasks = []
                 work_plan
                     .static_garbage_collect(protected_roots: protected_tasks) do |obj|
                         NetworkGeneration.debug { "  removing #{obj}" }
                         # Remove tasks that are not useful anymore
                         @plan.remove_task(obj)
+                        removed_tasks << obj
                     end
                 @resolution_failures.clear
+
+                removed_tasks
             end
         end
 
@@ -215,6 +212,8 @@ module Syskit
             def process_failures(*)
                 []
             end
+
+            def cleanup_resolution_errors(*); end
         end
     end
 end

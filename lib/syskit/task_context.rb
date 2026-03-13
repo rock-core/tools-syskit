@@ -59,6 +59,8 @@ module Syskit
         # The last state before we went to orogen_state
         attr_reader :last_orogen_state
 
+        attr_accessor :deployed_task
+
         # @api private
         #
         # Initialize the communication with the remote task
@@ -325,6 +327,10 @@ module Syskit
 
             if merged_task.orocos_task && !orocos_task
                 self.orocos_task = merged_task.orocos_task
+            end
+
+            if merged_task.deployed_task && !deployed_task
+                self.deployed_task = merged_task.deployed_task
             end
             nil
         end

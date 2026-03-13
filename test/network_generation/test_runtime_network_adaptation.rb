@@ -22,9 +22,8 @@ module Syskit
                         deployment_m = create_deployment_model(task_count: 1)
                         _, initial =
                             add_deployment_and_tasks(work_plan, deployment_m, %w[task0])
-                        adapter = create_adapter(
-                            used_deployments_from_tasks(initial)
-                        )
+                        register_deployments_for_tasks(initial)
+                        adapter = create_adapter
 
                         existing_deployment, =
                             add_deployment_and_tasks(plan, deployment_m, %w[task0])
@@ -39,7 +38,7 @@ module Syskit
                         deployment_m = create_deployment_model(task_count: 1)
                         add_deployment_and_tasks(plan, deployment_m, %w[task0])
 
-                        adapter = create_adapter({})
+                        adapter = create_adapter
                         selected_deployments, = adapter.finalize_deployed_tasks
                         assert selected_deployments.empty?
                     end
@@ -49,9 +48,8 @@ module Syskit
                         required_deployment, tasks =
                             add_deployment_and_tasks(work_plan, deployment,
                                                      %w[task0 task1])
-                        adapter = create_adapter(
-                            used_deployments_from_tasks(tasks)
-                        )
+                        register_deployments_for_tasks(tasks)
+                        adapter = create_adapter
 
                         selected_deployments, selected_deployed_tasks =
                             adapter.finalize_deployed_tasks
@@ -74,9 +72,11 @@ module Syskit
                         # automatically create the scheduler too
                         required_deployment, =
                             add_deployment_and_tasks(work_plan, deployment, %w[scheduled])
-                        adapter = create_adapter(
-                            used_deployments_from_tasks(plan.find_tasks(task_m).to_a)
-                        )
+
+                        tasks = required_deployment.related_tasks
+                        register_deployments_for_tasks(tasks)
+                        adapter = create_adapter
+
                         adapter.finalize_deployed_tasks
 
                         tasks = @work_plan.find_tasks(task_m).sort_by(&:orocos_name)
@@ -100,9 +100,8 @@ module Syskit
                                 work_plan, deployment_m, %w[task0 task2]
                             )
 
-                        adapter = create_adapter(
-                            used_deployments_from_tasks([required0, task2])
-                        )
+                        register_deployments_for_tasks([required0, task2])
+                        adapter = create_adapter
 
                         selected_deployments, selected_deployed_tasks =
                             adapter.finalize_deployed_tasks
@@ -133,9 +132,9 @@ module Syskit
 
                         existing0.depends_on(existing1)
 
-                        adapter = create_adapter(
-                            used_deployments_from_tasks([required0, required1])
-                        )
+                        register_deployments_for_tasks([required0, required1])
+                        adapter = create_adapter
+
                         adapter.finalize_deployed_tasks
 
                         assert work_plan[existing0].depends_on?(work_plan[existing1])
@@ -153,9 +152,10 @@ module Syskit
                         required0.depends_on required2
                         required1.depends_on required2
 
-                        adapter = create_adapter(
-                            used_deployments_from_tasks([required0, required1, required2])
-                        )
+                        register_deployments_for_tasks([required0, required1,
+                                                        required2])
+                        adapter = create_adapter
+
                         adapter.finalize_deployed_tasks
 
                         required2 = work_plan[existing0].children.first
@@ -171,7 +171,8 @@ module Syskit
                         _, tasks =
                             add_deployment_and_tasks(work_plan, deployment_m, %w[task0])
 
-                        adapter = create_adapter(used_deployments_from_tasks(tasks))
+                        register_deployments_for_tasks(tasks)
+                        adapter = create_adapter
                         assert_raises Syskit::InternalError do
                             adapter.finalize_deployed_tasks
                         end
@@ -193,9 +194,9 @@ module Syskit
                         add_deployment_and_tasks(
                             work_plan, deployment_m, %w[scheduled1 scheduled2]
                         )
-                        adapter = create_adapter(
-                            used_deployments_from_tasks(work_plan.find_tasks(task_m).to_a)
-                        )
+                        register_deployments_for_tasks(work_plan.find_tasks(task_m).to_a)
+                        adapter = create_adapter
+
                         adapter.finalize_deployed_tasks
 
                         tasks = @work_plan.find_tasks(task_m).sort_by(&:orocos_name)
@@ -227,9 +228,9 @@ module Syskit
                         add_deployment_and_tasks(
                             work_plan, deployment_m, %w[scheduled1 scheduled2]
                         )
-                        adapter = create_adapter(
-                            used_deployments_from_tasks(work_plan.find_tasks(task_m).to_a)
-                        )
+                        register_deployments_for_tasks(work_plan.find_tasks(task_m).to_a)
+                        adapter = create_adapter
+
                         adapter.finalize_deployed_tasks
 
                         tasks = @work_plan.find_tasks(task_m).sort_by(&:orocos_name)
@@ -253,9 +254,8 @@ module Syskit
                         existing_deployment, =
                             add_deployment_and_tasks(plan, deployment_m, %w[task0])
                         initial = add_lazy_tasks(work_plan, deployment_m, %w[task0])
-                        adapter = create_adapter(
-                            used_deployments_from_lazy(initial, deployment_m)
-                        )
+                        lazy_register_deployments_for_tasks(initial, deployment_m)
+                        adapter = create_adapter
 
                         selected_deployments, = adapter.finalize_deployed_tasks
                         assert_equal [work_plan[existing_deployment]],
@@ -267,7 +267,7 @@ module Syskit
                         deployment_m = create_deployment_model(task_count: 1)
                         add_deployment_and_tasks(plan, deployment_m, %w[task0])
 
-                        adapter = create_adapter({})
+                        adapter = create_adapter
                         selected_deployments, = adapter.finalize_deployed_tasks
                         assert selected_deployments.empty?
                     end
@@ -275,9 +275,8 @@ module Syskit
                     it "creates a new deployment if needed" do
                         deployment_m = create_deployment_model(task_count: 2)
                         tasks = add_lazy_tasks(work_plan, deployment_m, %w[task0 task1])
-                        adapter = create_adapter(
-                            used_deployments_from_lazy(tasks, deployment_m)
-                        )
+                        lazy_register_deployments_for_tasks(tasks, deployment_m)
+                        adapter = create_adapter
 
                         selected_deployments, =
                             adapter.finalize_deployed_tasks
@@ -298,9 +297,9 @@ module Syskit
                             work_plan, deployment_m, %w[task0 task2]
                         )
 
-                        adapter = create_adapter(
-                            used_deployments_from_lazy([required0, task2], deployment_m)
-                        )
+                        lazy_register_deployments_for_tasks([required0, task2],
+                                                            deployment_m)
+                        adapter = create_adapter
 
                         selected_deployments, selected_deployed_tasks =
                             adapter.finalize_deployed_tasks
@@ -330,11 +329,11 @@ module Syskit
 
                         existing0.depends_on(existing1)
 
-                        adapter = create_adapter(
-                            used_deployments_from_lazy(
-                                [required0, required1], deployment_m
-                            )
+                        lazy_register_deployments_for_tasks(
+                            [required0, required1], deployment_m
                         )
+                        adapter = create_adapter
+
                         adapter.finalize_deployed_tasks
 
                         assert work_plan[existing0].depends_on?(work_plan[existing1])
@@ -351,11 +350,11 @@ module Syskit
                         required0.depends_on required2
                         required1.depends_on required2
 
-                        adapter = create_adapter(
-                            used_deployments_from_lazy(
-                                [required0, required1, required2], deployment_m
-                            )
+                        lazy_register_deployments_for_tasks(
+                            [required0, required1, required2], deployment_m
                         )
+                        adapter = create_adapter
+
                         adapter.finalize_deployed_tasks
 
                         required2 = work_plan[existing0].children.first
@@ -370,9 +369,9 @@ module Syskit
                         add_deployment_and_tasks(plan, deployment_m, %w[task0])
                         tasks = add_lazy_tasks(work_plan, deployment_m, %w[task0])
 
-                        adapter = create_adapter(
-                            used_deployments_from_lazy(tasks, deployment_m)
-                        )
+                        lazy_register_deployments_for_tasks(tasks, deployment_m)
+                        adapter = create_adapter
+
                         assert_raises Syskit::InternalError do
                             adapter.finalize_deployed_tasks
                         end
@@ -393,9 +392,8 @@ module Syskit
                         )
                         tasks[0].depends_on(tasks.last)
                         tasks[1].depends_on(tasks.last)
-                        adapter = create_adapter(
-                            used_deployments_from_lazy(tasks, deployment_m)
-                        )
+                        lazy_register_deployments_for_tasks(tasks, deployment_m)
+                        adapter = create_adapter
                         adapter.finalize_deployed_tasks
 
                         tasks = @work_plan.find_tasks(task_m).sort_by(&:orocos_name)
@@ -428,9 +426,8 @@ module Syskit
                         )
                         tasks[0].depends_on(tasks.last)
                         tasks[1].depends_on(tasks.last)
-                        adapter = create_adapter(
-                            used_deployments_from_lazy(tasks, deployment_m)
-                        )
+                        lazy_register_deployments_for_tasks(tasks, deployment_m)
+                        adapter = create_adapter
                         adapter.finalize_deployed_tasks
 
                         tasks = @work_plan.find_tasks(task_m).sort_by(&:orocos_name)
@@ -464,9 +461,9 @@ module Syskit
                         )
                         tasks[0].depends_on(tasks.last)
                         tasks[1].depends_on(tasks.last)
-                        adapter = create_adapter(
-                            used_deployments_from_lazy(tasks, deployment_m)
-                        )
+                        lazy_register_deployments_for_tasks(tasks, deployment_m)
+                        adapter = create_adapter
+
                         adapter.finalize_deployed_tasks
 
                         tasks = @work_plan.find_tasks(task_m).sort_by(&:orocos_name)
@@ -512,7 +509,7 @@ module Syskit
             describe "#reconfigure_tasks_on_static_port_modification" do
                 before do
                     @adapter = RuntimeNetworkAdaptation.new(
-                        @work_plan, {}, merge_solver: @merge_solver
+                        @work_plan, merge_solver: @merge_solver
                     )
                 end
 
@@ -588,7 +585,7 @@ module Syskit
                         .pass_thru
                     work_plan.add(@deployment_task = EngineTestStubDeployment.new(task_m))
                     @adapter = RuntimeNetworkAdaptation.new(
-                        @work_plan, {}, merge_solver: @merge_solver
+                        @work_plan, merge_solver: @merge_solver
                     )
                 end
 
@@ -687,7 +684,7 @@ module Syskit
                     task1.should_configure_after(task0.stop_event)
                     task0 = work_plan[task0]
                     task1 = work_plan[task1]
-                    adapter = create_adapter([])
+                    adapter = create_adapter
                     assert_equal task1, adapter.find_current_deployed_task([task0, task1])
                 end
 
@@ -700,7 +697,7 @@ module Syskit
                     execute { plan.garbage_task(task0) }
                     task0 = work_plan[task0]
                     task1 = work_plan[task1]
-                    adapter = create_adapter([])
+                    adapter = create_adapter
                     assert_equal task1, adapter.find_current_deployed_task([task0, task1])
                 end
 
@@ -713,36 +710,35 @@ module Syskit
                     task1.do_not_reuse
                     task0 = work_plan[task0]
                     task1 = work_plan[task1]
-                    adapter = create_adapter([])
+                    adapter = create_adapter
                     assert_equal task1, adapter.find_current_deployed_task([task0, task1])
                 end
             end
 
-            def create_adapter(used_deployments)
-                RuntimeNetworkAdaptation.new(work_plan, used_deployments,
-                                             merge_solver: @merge_solver)
+            def create_adapter
+                RuntimeNetworkAdaptation.new(work_plan, merge_solver: @merge_solver)
             end
 
-            def used_deployments_from_tasks(tasks)
+            def register_deployments_for_tasks(tasks)
                 configured_deployments = tasks.each_with_object({}) do |task, per_name|
                     name = task.execution_agent.process_name
                     per_name[name] ||= flexmock(process_name: name)
                 end
 
-                tasks.each_with_object({}) do |task, used_deployments|
+                tasks.each do |task|
                     name = task.execution_agent.process_name
-                    used_deployments[task] = flexmock(
+                    task.deployed_task = flexmock(
                         configured_deployment: configured_deployments.fetch(name)
                     )
                 end
             end
 
-            def used_deployments_from_lazy(tasks, deployment_m)
+            def lazy_register_deployments_for_tasks(tasks, deployment_m)
                 configured_deployment = Models::ConfiguredDeployment.new(
                     "localhost", deployment_m
                 )
-                tasks.each_with_object({}) do |task, used_deployments|
-                    used_deployments[task] =
+                tasks.each_with_object({}) do |task, _used_deployments|
+                    task.deployed_task =
                         flexmock(configured_deployment: configured_deployment)
                 end
             end

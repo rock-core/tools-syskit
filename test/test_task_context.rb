@@ -1497,12 +1497,23 @@ module Syskit
                     emit dev_driver.start_event
                 end
             end
+            bus_msgs = messages.find_all do |m|
+                m.include?("bus_task") || m.include?("BusDriver")
+            end
+            dev_msgs = messages.find_all do |m|
+                m.include?("dev_task") ||
+                    (m.include?("Driver") && !m.include?("BusDriver"))
+            end
+
             assert_equal ["applied configuration [\"default\"] to #{bus_driver.orocos_name}",
                           "setting up #{bus_driver}",
-                          "starting #{bus_driver}",
-                          "applied configuration [\"default\"] to #{dev_driver.orocos_name}",
+                          "starting #{bus_driver}"], bus_msgs
+            assert_equal ["applied configuration [\"default\"] to #{dev_driver.orocos_name}",
                           "setting up #{dev_driver}",
-                          "starting #{dev_driver}"], messages
+                          "starting #{dev_driver}"], dev_msgs
+
+            assert_operator messages.index("starting #{bus_driver}"), :<,
+                            messages.index("starting #{dev_driver}")
         end
 
         describe "transaction commit" do

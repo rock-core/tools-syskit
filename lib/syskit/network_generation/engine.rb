@@ -89,7 +89,6 @@ module Syskit
                     event_logger: event_logger,
                     resolution_control: resolution_control
                 )
-                @used_deployments = {}
                 @required_instances = {}
             end
 
@@ -128,13 +127,12 @@ module Syskit
                         resolution_control: @resolution_control
                     )
 
-                    used_deployments, = deployer.deploy(
+                    deployer.deploy(
                         error_handler: error_handler, validate: validate_deployed_network,
                         lazy: lazy_deploy
                     )
-                    @used_deployments = @used_deployments.merge(used_deployments)
-                    resolution_errors = error_handler.process_failures(
-                        required_instances, cleanup_failed_tasks: true
+                    resolution_errors = process_failures(
+                        error_handler, required_instances, cleanup_failed_tasks: true
                     )
                     # Sanity check that the plan was properly cleaned up
                     SystemNetworkDeployer.verify_all_tasks_deployed(
@@ -174,7 +172,7 @@ module Syskit
                 @deployment_tasks, @deployed_tasks =
                     log_timepoint_group "finalize_deployed_tasks" do
                         adaptation = RuntimeNetworkAdaptation.new(
-                            work_plan, @used_deployments,
+                            work_plan,
                             merge_solver: @merge_solver,
                             event_logger: @event_logger,
                             resolution_control: @resolution_control
@@ -394,7 +392,7 @@ module Syskit
                         instance_requirements
                     )
 
-                _, @used_deployments = system_network_generator.resolve_system_network(
+                system_network_generator.resolve_system_network(
                     garbage_collect: garbage_collect,
                     validate_abstract_network: validate_abstract_network,
                     validate_generated_network: validate_generated_network,
@@ -406,7 +404,8 @@ module Syskit
                 toplevel_tasks_to_requirements =
                     system_network_generator.toplevel_tasks_to_requirements
 
-                resolution_errors = error_handler.process_failures(
+                resolution_errors = process_failures(
+                    error_handler,
                     required_instances,
                     cleanup_failed_tasks: cleanup_resolution_errors
                 )
@@ -421,6 +420,16 @@ module Syskit
                     )
                 end
                 [required_instances, resolution_errors, toplevel_tasks_to_requirements]
+            end
+
+            def process_failures(error_handler, required_instances, cleanup_failed_tasks:)
+                resolution_errors = error_handler.process_failures(required_instances)
+                return resolution_errors unless cleanup_failed_tasks
+
+                error_handler.cleanup_resolution_errors(
+                    resolution_errors, required_instances, work_plan
+                )
+                resolution_errors
             end
 
             # Computes the system network, that is the network that fullfills

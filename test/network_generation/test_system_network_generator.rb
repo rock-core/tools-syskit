@@ -236,7 +236,7 @@ module Syskit
                         default_deployment_group: Models::DeploymentGroup.new,
                         early_deploy: true, lazy_deploy: true
                     )
-                    toplevel_tasks, = local_net_gen.compute_system_network(
+                    toplevel_tasks = local_net_gen.compute_system_network(
                         [task_m.to_instance_requirements
                                .use_deployment(deployment_m)],
                         validate_deployed_network: true
@@ -444,6 +444,10 @@ module Syskit
 
                         expected_message = <<~MSG
                             deployed task 'task1' from deployment 'task1' defined in '' on 'stubs' is assigned to 2 tasks. Below is the list of the dependent non-deployed actions. Right after the list is a detailed explanation of why the first two tasks are not merged:
+                            T<id:X>(arg: 1, conf: ["default"], orocos_name: task1, read_only: false) is needed by the following definitions:
+                              #<Class:0xXXXXXX>.use( task => T .with_arguments( arg => 1 )
+                            T<id:X>(arg: 2, conf: ["default"], orocos_name: task1, read_only: false) is needed by the following definitions:
+                              #<Class:0xXXXXXX>.use( task => T .with_arguments( arg => 2 )
                             Chain 1 cannot be merged in chain 2:
                             Chain 1:
                               T<id:X> pending
@@ -488,9 +492,7 @@ module Syskit
                             )
                             required_instances =
                                 Hash[requirement_tasks.zip(toplevel_tasks)]
-                            errors = error_handler.process_failures(
-                                required_instances, cleanup_failed_tasks: true
-                            )
+                            errors = error_handler.process_failures(required_instances)
                             [toplevel_tasks, errors]
                         end
                     end
