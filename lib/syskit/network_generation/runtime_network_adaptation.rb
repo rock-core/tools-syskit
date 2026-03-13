@@ -50,19 +50,12 @@ module Syskit
                 result
             end
 
-            def interruption_point(name, log_on_interruption_only: false)
-                continue = @resolution_control.interruption_point(
-                    self, name, log_on_interruption_only: log_on_interruption_only
-                )
-                throw :syskit_netgen_cancelled unless continue
-            end
-
             # Given the network with deployed tasks, this method looks at how we
             # could adapt the running network to the new one
             def finalize_deployed_tasks
                 finishing_deployments, existing_deployments =
                     import_from_runtime_plan
-                interruption_point "syskit-netgen:apply:import-from-runtime-plan"
+                log_timepoint "syskit-netgen:apply:import-from-runtime-plan"
 
                 used_deployments_with_existing =
                     used_deployments_find_existing(
@@ -92,7 +85,7 @@ module Syskit
                 used_tasks = @work_plan.find_local_tasks(Component).to_set
 
                 all_tasks = import_existing_tasks
-                interruption_point "syskit-netgen:apply:imported-existing-tasks"
+                log_timepoint "syskit-netgen:apply:imported-existing-tasks"
                 imported_tasks_remove_direct_connections(all_tasks - used_tasks)
 
                 finishing_deployments, existing_deployments =
@@ -138,10 +131,7 @@ module Syskit
                     newly_deployed_tasks.merge(new)
                     reused_deployed_tasks.merge(reused)
                     selected_deployment_tasks << selected
-                    interruption_point(
-                        "syskit-netgen:apply:select-deployment",
-                        log_on_interruption_only: true
-                    )
+                    log_timepoint "syskit-netgen:apply:select-deployment"
                 end
                 log_timepoint "syskit-netgen:selected-deployments"
 
@@ -297,7 +287,7 @@ module Syskit
             #   new network
             def import_existing_tasks
                 all_tasks = @work_plan.find_tasks(Component).to_set
-                interruption_point "syskit-engine:imported-tasks"
+                log_timepoint "syskit-engine:imported-tasks"
 
                 all_tasks.delete_if do |t|
                     if t.finished?
@@ -310,7 +300,7 @@ module Syskit
                         true
                     end
                 end
-                interruption_point "syskit-engine:imported-tasks:cleanup"
+                log_timepoint "syskit-engine:imported-tasks:cleanup"
 
                 all_tasks
             end
@@ -330,10 +320,7 @@ module Syskit
                             dataflow_graph.set_edge_info(source_t, t, connections)
                         end
                     end
-                    interruption_point(
-                        "syskit-engine:imported-tasks:dataflow-cleanup",
-                        log_on_interruption_only: true
-                    )
+                    log_timepoint "syskit-engine:imported-tasks:dataflow-cleanup"
                 end
             end
 
