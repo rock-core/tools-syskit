@@ -183,7 +183,8 @@ module Syskit
             @net_gen = NetworkGeneration::SystemNetworkGenerator.new(
                 @net_gen_plan = Roby::Plan.new,
                 default_deployment_group: default_deployment_group,
-                early_deploy: true
+                early_deploy: true,
+                lazy_deploy: Syskit.conf.lazy_deploy?
             )
             @net_gen.default_deployment_group.use_deployment(
                 OroGen::Deployments.syskit_tests_empty => "test_"
@@ -215,7 +216,7 @@ module Syskit
 
             expected = <<~PP.chomp
                 deployed task 'test_syskit_tests_empty' from deployment \
-                'test_syskit_tests_empty' defined in 'orogen_syskit_tests' on \
+                'syskit_tests_empty' defined in 'orogen_syskit_tests' on \
                 'localhost' is assigned to 2 tasks. Below is the list of \
                 the dependent non-deployed actions. Right after the list is \
                 a detailed explanation of why the first two tasks are not merged:
@@ -229,17 +230,17 @@ module Syskit
                 Chain 1:
                   OroGen.orogen_syskit_tests.Empty<id:ID> pending
                     arguments:
-                      orocos_name: "test_syskit_tests_empty",
-                      read_only: false,
+                      arg: 1,
                       conf: ["default"],
-                      arg: 1
+                      read_only: false,
+                      orocos_name: "test_syskit_tests_empty"
                 Chain 2:
                   OroGen.orogen_syskit_tests.Empty<id:ID> pending
                     arguments:
-                      orocos_name: "test_syskit_tests_empty",
-                      read_only: false,
+                      arg: 2,
                       conf: ["default"],
-                      arg: 2
+                      read_only: false,
+                      orocos_name: "test_syskit_tests_empty"
             PP
             assert_equal expected, formatted.gsub(/<id:\d+>/, "<id:ID>").chomp
         end
