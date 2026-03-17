@@ -44,6 +44,7 @@ module Syskit
             end
 
             def apply
+                cleanup_dangling_deployments
                 result = finalize_deployed_tasks
                 sever_old_plan_from_new_plan
                 log_timepoint "syskit-netgen:sever-old-from-new-plan"
@@ -601,6 +602,25 @@ module Syskit
                 used_deployments_with_existing.each do |used, existing, _|
                     debug "    network:  #{used}"
                     debug "    existing: #{existing}"
+                end
+            end
+
+            # Remove all non-proxy deployments that have no deployed tasks
+            #
+            # When doing early deploy, we may get "leftover" deployments after error
+            # cleanup: the tasks have been removed, but the deployments stay. These
+            # deployments are not processed during adaptation. We instead remove them
+            # explicitly
+            def cleanup_dangling_deployments
+                graph =
+                    @work_plan
+                    .task_relation_graph_for(Roby::TaskStructure::ExecutionAgent)
+                dangling = @work_plan.find_tasks(Syskit::Deployment).find_all do |t|
+                    !t.transaction_proxy? && graph.root?(t)
+                end
+
+                dangling.each do |t|
+                    @work_plan.remove_task(t)
                 end
             end
         end
