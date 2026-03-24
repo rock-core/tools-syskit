@@ -71,6 +71,9 @@ module Syskit
             def self.setup(app)
                 # We have our own loader, avoid clashing
                 Orocos.default_loader.export_types = false
+                if Orocos.respond_to?(:input_writer_write_raises_on_disconnection?)
+                    Orocos.input_writer_write_raises_on_disconnection = false
+                end
                 # But, for the time being, default_loader might be equal to
                 # Orocos.default_loader, so reset the export_types flag to the
                 # desired value
