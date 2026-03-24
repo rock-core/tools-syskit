@@ -336,18 +336,18 @@ module Syskit
 
         # @api private
         #
-        # Resolver object that returns a port from a composition
+        # Resolver object that returns a port from a component
         class ComponentPortResolver
             def initialize(port)
                 @port = port
             end
 
-            def current_selection_valid?(port)
-                !!port.component.plan
+            def current_selection_valid?(_port)
+                false
             end
 
             def update
-                @port if @port.component.plan
+                @port if @port.component.plan && !@port.component.finished?
             end
 
             def self.instanciate(task, model)
@@ -360,22 +360,33 @@ module Syskit
         # Resolver object that resolves a port from a composition child,
         # and returns it until the underlying task is finalized
         class CompositionChildPortResolver
-            def initialize(port)
-                @port = port
+            def initialize(task, model)
+                @task = task
+                @model = model
             end
 
-            def current_selection_valid?(port)
-                !!port.component.to_task.plan
+            def current_selection_valid?(_port)
+                # current_selection_valid? is an optimization to avoid calling
+                # `update`. But in this particular case, `current_selection_valid?`
+                # will be as expensive as `update` ...
+                false
             end
 
             def update
-                @port if @port.component.to_task.plan
+                child = @model.port_model.component_model
+                              .try_resolve_and_bind_child_recursive(@task)
+                return unless child
+
+                child_task = child.to_task
+                return if child_task.finished? || !child_task.plan
+                return @port if @current_child == child
+
+                @current_child = child
+                @port = @model.port_model.bind(child)
             end
 
             def self.instanciate(task, model)
-                child = model.port_model.component_model
-                             .resolve_and_bind_child_recursive(task)
-                new(model.port_model.bind(child))
+                new(task, model)
             end
         end
     end
