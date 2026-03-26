@@ -454,6 +454,81 @@ module Syskit
                 assert_equal [false, nil], @port_binding.update
             end
         end
+
+        describe "#update behavior for compositions that handle child loss cleanly" do
+            before do
+                @srv_m = Syskit::DataService.new_submodel do
+                    output_port "srv_out", "/double"
+                end
+                @task_m = Syskit::TaskContext.new_submodel do
+                    output_port "out", "/double"
+                end
+                @task_m.provides @srv_m, as: "test"
+            end
+
+            it "returns [true, nil] when a child is removed from the composition" do
+                srv_m = @srv_m
+                cmp_m = Syskit::Composition.new_submodel do
+                    add srv_m, as: "test"
+                end
+                cmp = syskit_stub_and_deploy(
+                    cmp_m.use("test" => @task_m),
+                    remote_task: false
+                )
+                port_binding_m =
+                    Models::DynamicPortBinding
+                    .create_from_component_port(cmp_m.test_child.srv_out_port)
+                port_binding = port_binding_m.instanciate.attach_to_task(cmp)
+                syskit_configure_and_start(cmp)
+                port_binding.update
+
+                cmp.remove_child(cmp.test_child)
+                assert_equal [true, nil], port_binding.update
+            end
+
+            it "returns [true, nil] when a child is finished" do
+                srv_m = @srv_m
+                cmp_m = Syskit::Composition.new_submodel do
+                    add(srv_m, as: "test")
+                end
+                cmp = syskit_stub_and_deploy(
+                    cmp_m.use("test" => @task_m), remote_task: false
+                )
+                port_binding_m =
+                    Models::DynamicPortBinding
+                    .create_from_component_port(cmp_m.test_child.srv_out_port)
+                port_binding = port_binding_m.instanciate.attach_to_task(cmp)
+                syskit_configure_and_start(cmp)
+                port_binding.update
+
+                test_child = cmp.test_child
+                flexmock(test_child).should_receive(:finished?).and_return(true)
+                assert test_child.finished?
+
+                assert_equal [true, nil], port_binding.update
+            end
+
+            it "returns [true, port] when the underlying child changes" do
+                srv_m = @srv_m
+                cmp_m = Syskit::Composition.new_submodel do
+                    add(srv_m, as: "test")
+                end
+                cmp = syskit_stub_and_deploy(
+                    cmp_m.use("test" => @task_m), remote_task: false
+                )
+                port_binding_m =
+                    Models::DynamicPortBinding
+                    .create_from_component_port(cmp_m.test_child.srv_out_port)
+                port_binding = port_binding_m.instanciate.attach_to_task(cmp)
+                syskit_configure_and_start(cmp)
+
+                cmp.remove_child(cmp.test_child)
+                task = syskit_stub_deploy_configure_and_start(@task_m)
+                cmp.depends_on(task, role: "test")
+
+                assert_equal [true, task.out_port], port_binding.update
+            end
+        end
     end
 
     describe DynamicPortBinding::Accessor do
