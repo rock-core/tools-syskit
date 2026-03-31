@@ -441,11 +441,15 @@ module Syskit
             !!@can_merge
         end
 
-        def initialize(device, task0, task1, toplevel_tasks_to_requirements = {})
+        def initialize(
+            device, task0, task1, toplevel_tasks_to_requirements = {},
+            early_deploy:
+        )
             @device = device
             @tasks = [task0, task1]
             @merge_result = NetworkGeneration::MergeSolver.resolve_merge(
-                tasks[0].plan, tasks[0], tasks[1], {}
+                tasks[0].plan, tasks[0], tasks[1], {},
+                merge_task_contexts_with_same_agent: early_deploy
             )
 
             @involved_definitions = @tasks.map do |t|
@@ -469,14 +473,17 @@ module Syskit
 
         attr_reader :orocos_name
 
-        def initialize(orocos_name, tasks, toplevel_tasks_to_requirements = {})
+        def initialize(
+            orocos_name, tasks, toplevel_tasks_to_requirements = {}, early_deploy:
+        )
             @orocos_name = orocos_name
             @tasks = tasks
             @toplevel_tasks_to_requirements = toplevel_tasks_to_requirements
 
             @configured_deployment = tasks.first.deployed_task.configured_deployment
             @merge_result = NetworkGeneration::MergeSolver.resolve_merge(
-                tasks[0].plan, tasks[0], tasks[1], {}
+                tasks[0].plan, tasks[0], tasks[1], {},
+                merge_task_contexts_with_same_agent: early_deploy
             )
         end
 

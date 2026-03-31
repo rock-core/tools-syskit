@@ -337,12 +337,14 @@ module Syskit
             # Compute in #plan the network needed to fullfill the requirements
             #
             # This network is neither validated nor tied to actual deployments
-            def compute_system_network(instance_requirements,
+            def compute_system_network( # rubocop:disable Metrics/ParameterLists
+                instance_requirements,
+                error_handler: RaiseErrorHandler.new,
                 garbage_collect: true,
                 validate_abstract_network: true,
                 validate_generated_network: true,
-                validate_deployed_network: true)
-                error_handler = RaiseErrorHandler.new
+                validate_deployed_network: true
+            )
                 instanciate_system_network(instance_requirements)
                 resolve_system_network(
                     error_handler: error_handler,
@@ -363,12 +365,12 @@ module Syskit
                 end
 
                 if validate_generated_network
-                    self.validate_generated_network(error_handler: error_handler)
+                    validate_generated_network(error_handler: error_handler)
                     log_timepoint "syskit-netgen:validate_generated_network"
                 end
                 return unless early_deploy? && validate_deployed_network
 
-                self.validate_deployed_network(error_handler: error_handler)
+                validate_deployed_network(error_handler: error_handler)
                 log_timepoint "syskit-netgen:validate_deployed_network"
             end
 
@@ -445,7 +447,7 @@ module Syskit
             #   components due to a conflicting device allocation
             def self.verify_conflicting_device_allocation(
                 components, toplevel_tasks_to_requirements = {},
-                error_handler: RaiseErrorHandler.new
+                early_deploy:, error_handler: RaiseErrorHandler.new
             )
                 devices = {}
                 components.each do |task|
@@ -453,7 +455,8 @@ module Syskit
                         device_name = dev.full_name
                         if (old_task = devices[device_name])
                             allocation_err = ConflictingDeviceAllocation.new(
-                                dev, task, old_task, toplevel_tasks_to_requirements
+                                dev, task, old_task, toplevel_tasks_to_requirements,
+                                early_deploy: early_deploy
                             )
                             error_handler.register_resolution_failures_from_exception(
                                 [task, old_task], allocation_err
@@ -481,7 +484,7 @@ module Syskit
             #   components due to bad device allocation
             def self.verify_device_allocation(
                 plan, toplevel_tasks_to_requirements = {},
-                error_handler: RaiseErrorHandler.new
+                early_deploy:, error_handler: RaiseErrorHandler.new
             )
                 components = plan.find_local_tasks(Syskit::Device).to_a
 
@@ -504,12 +507,13 @@ module Syskit
 
                 verify_conflicting_device_allocation(
                     allocated_devices, toplevel_tasks_to_requirements,
-                    error_handler: error_handler
+                    error_handler: error_handler, early_deploy: early_deploy
                 )
             end
 
             def self.verify_all_deployments_are_unique(
-                plan, toplevel_tasks_to_requirements, error_handler: RaiseErrorHandler.new
+                plan, toplevel_tasks_to_requirements,
+                early_deploy:, error_handler: RaiseErrorHandler.new
             )
                 deployment_to_task_map = plan.find_local_tasks(Syskit::TaskContext)
                                              .group_by(&:orocos_name)
@@ -523,7 +527,8 @@ module Syskit
 
                 using_same_deployment.each do |orocos_name, tasks|
                     exception = ConflictingDeploymentAllocation.new(
-                        orocos_name, tasks, toplevel_tasks_to_requirements
+                        orocos_name, tasks, toplevel_tasks_to_requirements,
+                        early_deploy: early_deploy
                     )
                     exception = exception.exception("deployment used multiple times")
                     error_handler.register_resolution_failures_from_exception(
@@ -546,7 +551,8 @@ module Syskit
                 self.class.verify_task_allocation(plan, error_handler: error_handler)
 
                 self.class.verify_device_allocation(
-                    plan, toplevel_tasks_to_requirements, error_handler: error_handler
+                    plan, toplevel_tasks_to_requirements,
+                    early_deploy: early_deploy?, error_handler: error_handler
                 )
                 super if defined? super
             end
@@ -557,7 +563,8 @@ module Syskit
                     error_handler: error_handler, lazy: lazy_deploy?
                 )
                 self.class.verify_all_deployments_are_unique(
-                    plan, toplevel_tasks_to_requirements.dup, error_handler: error_handler
+                    plan, toplevel_tasks_to_requirements.dup,
+                    error_handler: error_handler, early_deploy: early_deploy?
                 )
                 super if defined? super
             end
