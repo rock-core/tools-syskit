@@ -183,8 +183,7 @@ module Syskit
             @net_gen = NetworkGeneration::SystemNetworkGenerator.new(
                 @net_gen_plan = Roby::Plan.new,
                 default_deployment_group: default_deployment_group,
-                early_deploy: true,
-                lazy_deploy: Syskit.conf.lazy_deploy?
+                early_deploy: true
             )
             @net_gen.default_deployment_group.use_deployment(
                 OroGen::Deployments.syskit_tests_empty => "test_"

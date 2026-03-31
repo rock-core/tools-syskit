@@ -33,9 +33,9 @@ module Syskit
 
             def initialize(plan, # rubocop:disable Metrics/ParameterLists
                 event_logger: plan.event_logger,
-                default_deployment_group: nil,
-                early_deploy: false,
-                lazy_deploy: false,
+                default_deployment_group: Syskit.conf.deployment_group,
+                early_deploy: Syskit.conf.early_deploy?,
+                lazy_deploy: Syskit.conf.lazy_deploy?,
                 error_handler: RaiseErrorHandler.new,
                 resolution_control: Async::Control.new,
                 merge_solver: nil)
@@ -236,7 +236,8 @@ module Syskit
                 network_deployer = SystemNetworkDeployer.new(
                     plan,
                     merge_solver: merge_solver,
-                    default_deployment_group: default_deployment_group
+                    default_deployment_group: default_deployment_group,
+                    resolution_control: @resolution_control
                 )
 
                 network_deployer.deploy(
