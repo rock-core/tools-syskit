@@ -1,26 +1,21 @@
 # frozen_string_literal: true
 
 require "erb"
-require "qtwebkit"
 require "cgi"
 
 module Syskit
     module Telemetry
         module UI
             # View for scheduling-related log events
-            class SchedulerView < Qt::WebView
+            class SchedulerView < Qt::Widget
                 def initialize(*)
                     super
 
-                    connect(SIGNAL("loadFinished(bool)")) do |ok|
-                        if ok && @scroll_position
-                            page.main_frame.scroll_position = @scroll_position
-                        end
-                    end
-                end
-
-                def contents_height
-                    page.main_frame.contents_size.height
+                    @text_view = Qt::TextBrowser.new
+                    @text_view.read_only = true
+                    @text_view.accept_rich_text = true
+                    @layout = Qt::VBoxLayout.new(self)
+                    @layout.add_widget(@text_view)
                 end
 
                 def resources_dir
@@ -68,8 +63,13 @@ module Syskit
                     code = erb.result(binding)
                     return if @code == code
 
-                    @scroll_position = page.main_frame.scroll_position
-                    @code = self.html = code
+                    scroll_position = @text_view.vertical_scroll_bar.slider_position
+                    @code = @text_view.html = code
+                    @text_view.vertical_scroll_bar.slider_position = scroll_position
+                end
+
+                def contents_height
+                    size_hint.height
                 end
             end
         end

@@ -1,7 +1,6 @@
 # frozen_string_literal: true
 
 require "Qt"
-require "qtwebkit"
 require "vizkit"
 require "syskit"
 require "orocos/async"

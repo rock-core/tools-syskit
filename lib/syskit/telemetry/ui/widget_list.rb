@@ -35,65 +35,46 @@ module Syskit
                     @main_layout.size_constraint = constraint
                 end
 
-                def add_separator(name, label, permanent: true)
-                    add_widget(w = Qt::Label.new(label, self), permanent: permanent)
+                def add_separator(name, label, stretch: 0, permanent: true)
+                    add_widget(w = Qt::Label.new(label, self),
+                               stretch: stretch, permanent: permanent)
                     @separators[name] = w
                     w
                 end
 
-                def add_before(widget, before, permanent: false)
+                def add_before(widget, before, stretch: 0, permanent: false)
                     if before.respond_to?(:to_str)
                         before = @separators.fetch(before)
                     end
 
                     if i = @widgets.index { |w| w.widget == before }
-                        @main_layout.insert_widget(i, widget)
+                        @main_layout.insert_widget(i, widget, stretch)
                         @widgets.insert(i, ListItem.new(widget, permanent))
                     else
                         Kernel.raise ArgumentError, "#{before} is not part of #{self}"
                     end
                 end
 
-                def add_after(widget, after, permanent: false)
+                def add_after(widget, after, stretch: 0, permanent: false)
                     if after.respond_to?(:to_str)
                         after = @separators.fetch(after)
                     end
 
                     if i = @widgets.index { |w| w.widget == after }
-                        @main_layout.insert_widget(i + 1, widget)
+                        @main_layout.insert_widget(i + 1, widget, stretch)
                         @widgets.insert(i + 1, ListItem.new(widget, permanent))
                     else
                         Kernel.raise ArgumentError, "#{after} is not part of #{self}"
                     end
                 end
 
-                def add_widget(w, permanent: false)
+                def add_widget(w, stretch: 0, permanent: false)
                     @widgets << ListItem.new(w, permanent)
                     if auto_resize?
-                        @main_layout.insert_widget(@widgets.size - 1, w)
+                        @main_layout.insert_widget(@widgets.size - 1, w, stretch)
                     else
-                        @main_layout.add_widget(w)
+                        @main_layout.add_widget(w, stretch)
                     end
-                end
-
-                def children_size_updated
-                    s = size
-                    new_height = @widgets.inject(0) do |h, w|
-                        h + if w.widget.hidden? then 0
-                            else
-                                w.widget.contents_height
-                            end
-                    end
-                    if new_height != s.height
-                        self.size = s
-                    end
-                end
-
-                def resizeEvent(event)
-                    s = size
-                    s.width = event.size.width
-                    self.size = s
-                    event.accept
                 end
 
                 # Enumerate the widgets in the list

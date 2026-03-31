@@ -1,33 +1,19 @@
-<html>
-<head>
-    <link rel="stylesheet" href="file://<%= scheduler_view_css %>" type="text/css" />
-</head>
+<b><%= state.non_scheduled_tasks.size %> tasks have been considered for scheduling, but did not get scheduled</b>
+<% state.non_scheduled_tasks.each do |task, reasons| %>
+    <div style="margin-left: 1em;">
+    <%= format_pp(task) %>
+    <% reasons.each do |msg, args| %>
+        <item><%= format_msg_string(msg, task, *args) %></item>
+    <% end %>
+    </div>
+<% end %>
 
-<body>
-    <section>
-        <title><%= state.non_scheduled_tasks.size %> tasks have been considered for scheduling, but did not get scheduled</title>
-        <non_scheduled_tasks>
-            <% state.non_scheduled_tasks.each do |task, reasons| %>
-                <%= format_pp(task) %>
-                <reasons>
-                    <% reasons.each do |msg, args| %>
-                        <item><%= format_msg_string(msg, task, *args) %></item>
-                    <% end %>
-                </reasons>
-            <% end %>
-        </non_scheduled_tasks>
-    </section>
-
-    <section>
-        <% per_state = state.pending_non_executable_tasks.group_by { |msg, _| msg } %>
-        <% per_state.each do |msg, group| %>
-        <title><%= group.size %> tasks are pending and <%= msg %></title>
-        <pending_non_executable_tasks>
-            <% group.each do |msg, task, args| %>
-                <item><%= format_pp(task) %></item>
-            <% end %>
-        </pending_non_executable_tasks>
-        <% end %>
-    </section>
-</body>
-</html>
+<% per_state = state.pending_non_executable_tasks.group_by { |msg, _| msg } %>
+<% per_state.each do |msg, group| %>
+<b><%= group.size %> tasks are pending and <%= msg %></b>
+<div style="margin-left: 1em;">
+    <% group.each do |msg, task, args| %>
+        <item><%= format_pp(task) %></item>
+    <% end %>
+</div>
+<% end %>
