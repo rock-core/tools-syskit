@@ -105,9 +105,7 @@ module Syskit
                                 .and_return([10, flexmock(success?: false)])
 
                             flexmock(Roby).should_receive(:display_exception).once
-                            assert_raises(CompressionFailed) do
-                                LogRuntimeArchive.add_to_archive(archive_io, blo)
-                            end
+                            LogRuntimeArchive.add_to_archive(archive_io, blo)
                         end
                         assert LogRuntimeArchive.add_to_archive(archive_io, bli)
                     end
@@ -134,10 +132,35 @@ module Syskit
                             mock.should_receive(:waitpid2).once
                                 .and_raise(exception_m.new)
                             flexmock(Roby).should_receive(:display_exception).once
-                            assert_raises(exception_m) do
-                                LogRuntimeArchive.add_to_archive(archive_io, blo)
-                            end
+                            LogRuntimeArchive.add_to_archive(archive_io, blo)
                         end
+                        assert LogRuntimeArchive.add_to_archive(archive_io, bli)
+                    end
+
+                    entries = read_archive
+                    assert_equal 2, entries.size
+                    assert_entry_matches(*entries[0], name: "bla.txt.zst", content: "bla")
+                    assert_entry_matches(*entries[1], name: "bli.txt.zst", content: "bli")
+                    refute bla.exist?
+                    assert blo.exist?
+                    refute bli.exist?
+                end
+
+                it "restores the file as it was and does not raise if file access " \
+                   "fails" do
+                    bla = make_in_file "bla.txt", "bla"
+                    blo = make_in_file "blo.txt", "blo"
+                    bli = make_in_file "bli.txt", "bli"
+
+                    @archive_path.open("w") do |archive_io|
+                        assert LogRuntimeArchive.add_to_archive(archive_io, bla)
+
+                        flexmock(blo)
+                            .should_receive(:open)
+                            .with("r").with_block.once
+                            .and_raise(::Exception.new)
+                        LogRuntimeArchive.add_to_archive(archive_io, blo)
+
                         assert LogRuntimeArchive.add_to_archive(archive_io, bli)
                     end
 
