@@ -21,7 +21,7 @@ module Syskit
                 task.properties.foo.time = Time.at(10)
                 task.properties.foo.position = Eigen::Vector3.new(1, 2, 3)
                 syskit_stub_conf @task_m, "default", data: {
-                    foo: { time: { microseconds: 20_000_000 } }
+                    "foo" => { "time" => { "microseconds" => 20_000_000 } }
                 }
                 syskit_configure(task)
                 Orocos.allow_blocking_calls do
