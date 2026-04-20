@@ -26,6 +26,30 @@ module Syskit
             assert_same obj, @object.project.Task
         end
 
+        it "allows testing the existence of a project or task via respond_to?" do
+            obj = flexmock(
+                orogen_model: flexmock(
+                    project: flexmock(name: "project"),
+                    name: "project::Task"
+                )
+            )
+            @object.register_syskit_model(obj)
+            assert @object.respond_to?(:project)
+            assert @object.project.respond_to?(:Task)
+        end
+
+        it "allows testing for the absence of a project or task via respond_to?" do
+            obj = flexmock(
+                orogen_model: flexmock(
+                    project: flexmock(name: "project"),
+                    name: "project::Task"
+                )
+            )
+            @object.register_syskit_model(obj)
+            refute @object.respond_to?(:does_not_exist)
+            refute @object.project.respond_to?(:does_not_exist)
+        end
+
         it "handles namespaces in the component name" do
             obj = flexmock(
                 orogen_model: flexmock(
