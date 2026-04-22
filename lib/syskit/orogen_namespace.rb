@@ -45,11 +45,11 @@ module Syskit
                 end
             end
 
-            def respond_to_missing?(m, _include_private = false)
+            def respond_to?(m)
                 @registered_objects.key?(m)
             end
 
-            def method_missing(m, *args, &block)
+            def method_missing(m, *args, &block) # rubocop:disable Style/MissingRespondToMissing
                 if (model = @registered_objects[m])
                     return model if args.empty?
 
