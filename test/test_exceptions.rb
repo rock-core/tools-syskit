@@ -38,16 +38,16 @@ module Syskit
                   T<id:ID> pending
                     arguments:
                       arg: 2,
-                      test_dev: MasterDeviceInstance(test[D]_dev),
                       conf: default(["default"]),
-                      read_only: default(false)
+                      read_only: default(false),
+                      test_dev: MasterDeviceInstance(test[D]_dev)
                 Chain 2:
                   T<id:ID> pending
                     arguments:
                       arg: 1,
-                      test_dev: MasterDeviceInstance(test[D]_dev),
                       conf: default(["default"]),
-                      read_only: default(false)
+                      read_only: default(false),
+                      test_dev: MasterDeviceInstance(test[D]_dev)
             PP
             assert_equal expected, formatted.gsub(/<id:\d+>/, "<id:ID>").chomp
         end
@@ -87,17 +87,17 @@ module Syskit
                 Chain 1:
                   T<id:ID> pending
                     arguments:
-                      test_dev: MasterDeviceInstance(test[D]_dev),
                       arg: 2,
                       conf: ["default"],
-                      read_only: false
+                      read_only: false,
+                      test_dev: MasterDeviceInstance(test[D]_dev)
                 Chain 2:
                   T<id:ID> pending
                     arguments:
-                      test_dev: MasterDeviceInstance(test[D]_dev),
                       arg: 1,
                       conf: ["default"],
-                      read_only: false
+                      read_only: false,
+                      test_dev: MasterDeviceInstance(test[D]_dev)
                 T<id:ID>(arg: 2, conf: ["default"], read_only: false, \
                 test_dev: device(D, as: test)) is needed by the following definitions:
                   Test.test2_def
@@ -142,9 +142,9 @@ module Syskit
                 Chain 1:
                   Driver<id:ID> pending
                     arguments:
-                      test_dev: MasterDeviceInstance(test[D]_dev),
                       conf: default(["default"]),
-                      read_only: default(false)
+                      read_only: default(false),
+                      test_dev: MasterDeviceInstance(test[D]_dev)
                   sink in_port connected via policy {} to source out_port of
                   Task<id:ID> pending
                     arguments:
@@ -154,9 +154,9 @@ module Syskit
                 Chain 2:
                   Driver<id:ID> pending
                     arguments:
-                      test_dev: MasterDeviceInstance(test[D]_dev),
                       conf: default(["default"]),
-                      read_only: default(false)
+                      read_only: default(false),
+                      test_dev: MasterDeviceInstance(test[D]_dev)
                   sink in_port connected via policy {} to source out_port of
                   Task<id:ID> pending
                     arguments:
@@ -196,7 +196,7 @@ module Syskit
                  .instanciate(plan)
 
             merge_solver = NetworkGeneration::MergeSolver.new(
-                plan, merge_task_contexts_with_same_agent: true
+                plan, merge_task_contexts_with_same_agent: Syskit.conf.early_deploy?
             )
             error_handler = NetworkGeneration::ResolutionErrorHandler.new(
                 plan, merge_solver
@@ -218,9 +218,9 @@ module Syskit
                 Chain 1:
                   <id:ID> pending
                     arguments:
+                      conf: default(["default"]),
                       driver_dev: MasterDeviceInstance(stubD[D]_dev),
                       orocos_name: "task",
-                      conf: default(["default"]),
                       read_only: default(false)
                   sink in_port connected via policy {} to source out_port of
                   <id:ID> pending
@@ -230,9 +230,9 @@ module Syskit
                 Chain 2:
                   <id:ID> pending
                     arguments:
+                      conf: default(["default"]),
                       driver_dev: MasterDeviceInstance(stubD[D]_dev),
                       orocos_name: "task",
-                      conf: default(["default"]),
                       read_only: default(false)
                   sink in_port connected via policy {} to source out_port of
                   <id:ID> pending
@@ -306,17 +306,17 @@ module Syskit
                 Chain 1:
                   <id:ID> pending
                     arguments:
-                      orocos_name: "task",
-                      read_only: false,
+                      arg: 1,
                       conf: ["default"],
-                      arg: 1
+                      orocos_name: "task",
+                      read_only: false
                 Chain 2:
                   <id:ID> pending
                     arguments:
-                      orocos_name: "task",
-                      read_only: false,
+                      arg: 2,
                       conf: ["default"],
-                      arg: 2
+                      orocos_name: "task",
+                      read_only: false
             PP
             assert_equal expected, formatted.gsub(/<id:\d+>/, "<id:ID>").chomp
         end
@@ -367,9 +367,9 @@ module Syskit
                 Chain 1:
                   <id:ID> pending
                     arguments:
+                      conf: ["default"],
                       orocos_name: "task",
-                      read_only: false,
-                      conf: ["default"]
+                      read_only: false
                   sink in_port connected via policy {} to source out_port of
                   <id:ID> pending
                     arguments:
@@ -378,9 +378,9 @@ module Syskit
                 Chain 2:
                   <id:ID> pending
                     arguments:
+                      conf: ["default"],
                       orocos_name: "task",
-                      read_only: false,
-                      conf: ["default"]
+                      read_only: false
                   sink in_port connected via policy {} to source out_port of
                   <id:ID> pending
                     arguments:

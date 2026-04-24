@@ -307,45 +307,45 @@ module Syskit
                               T<id:X> pending
                                 arguments:
                                   arg: 2,
-                                  test_dev: MasterDeviceInstance(test[D]_dev),
                                   conf: ["default"],
-                                  read_only: false
+                                  read_only: false,
+                                  test_dev: MasterDeviceInstance(test[D]_dev)
                             Chain 2:
                               T<id:X> pending
                                 arguments:
                                   arg: 1,
-                                  test_dev: MasterDeviceInstance(test[D]_dev),
                                   conf: ["default"],
-                                  read_only: false
+                                  read_only: false,
+                                  test_dev: MasterDeviceInstance(test[D]_dev)
                             T<id:X>(arg: 2, conf: ["default"], read_only: false, test_dev: device(D, as: test)) is needed by the following definitions:
                               #<Class:0xXXXXXX>.use(
                                 t1 => T<id:X> pending
                                   arguments:
                                     arg: 1,
-                                    test_dev: MasterDeviceInstance(test[D]_dev),
                                     conf: ["default"],
                                     read_only: false,
+                                    test_dev: MasterDeviceInstance(test[D]_dev),
                                 t2 => T<id:X> pending
                                   arguments:
                                     arg: 2,
-                                    test_dev: MasterDeviceInstance(test[D]_dev),
                                     conf: ["default"],
-                                    read_only: false
+                                    read_only: false,
+                                    test_dev: MasterDeviceInstance(test[D]_dev)
                               )
                             T<id:X>(arg: 1, conf: ["default"], read_only: false, test_dev: device(D, as: test)) is needed by the following definitions:
                               #<Class:0xXXXXXX>.use(
                                 t1 => T<id:X> pending
                                   arguments:
                                     arg: 1,
-                                    test_dev: MasterDeviceInstance(test[D]_dev),
                                     conf: ["default"],
                                     read_only: false,
+                                    test_dev: MasterDeviceInstance(test[D]_dev),
                                 t2 => T<id:X> pending
                                   arguments:
                                     arg: 2,
-                                    test_dev: MasterDeviceInstance(test[D]_dev),
                                     conf: ["default"],
-                                    read_only: false
+                                    read_only: false,
+                                    test_dev: MasterDeviceInstance(test[D]_dev)
                               )
                         PP
                         errors.each do |err|
@@ -471,15 +471,15 @@ module Syskit
                                 arguments:
                                   arg: 1,
                                   conf: ["default"],
-                                  read_only: false,
-                                  orocos_name: "task1"
+                                  orocos_name: "task1",
+                                  read_only: false
                             Chain 2:
                               T<id:X> pending
                                 arguments:
                                   arg: 2,
                                   conf: ["default"],
-                                  read_only: false,
-                                  orocos_name: "task1"
+                                  orocos_name: "task1",
+                                  read_only: false
                         MSG
                         errors.zip(requirement_tasks).each do |error, task|
                             assert_exception(error, task.planned_task, expected_message)
@@ -628,16 +628,16 @@ module Syskit
                           T<id:X> pending
                             arguments:
                               arg: 2,
-                              test_dev: MasterDeviceInstance(test[D]_dev),
                               conf: default(["default"]),
-                              read_only: default(false)
+                              read_only: default(false),
+                              test_dev: MasterDeviceInstance(test[D]_dev)
                         Chain 2:
                           T<id:X> pending
                             arguments:
                               arg: 1,
-                              test_dev: MasterDeviceInstance(test[D]_dev),
                               conf: default(["default"]),
-                              read_only: default(false)
+                              read_only: default(false),
+                              test_dev: MasterDeviceInstance(test[D]_dev)
                     MSG
                     assert_equal expected, formatted.gsub(/<id:\d+>/, "<id:X>")
                 end
