@@ -122,10 +122,15 @@ module Syskit
             robot = Robot::RobotDefinition.new
             robot.device device_m, as: "test"
 
-            plan.add(driver1 = driver_m.new(test_dev: robot.test_dev))
-            plan.add(driver2 = driver_m.new(test_dev: robot.test_dev))
-            plan.add(task1 = task_m.new(arg: 1))
-            plan.add(task2 = task_m.new(arg: 2))
+            driver1 = driver_m.new(
+                plan: plan, test_dev: robot.test_dev, orocos_name: "driver"
+            )
+            driver2 = driver_m.new(
+                plan: plan, test_dev: robot.test_dev, orocos_name: "driver"
+            )
+            task1 = task_m.new(plan: plan, arg: 1, orocos_name: "task")
+            task2 = task_m.new(plan: plan, arg: 2, orocos_name: "task")
+
             task1.out_port.connect_to driver1.in_port
             task2.out_port.connect_to driver2.in_port
             e = assert_raises(ConflictingDeviceAllocation) do
@@ -143,6 +148,7 @@ module Syskit
                   Driver<id:ID> pending
                     arguments:
                       conf: default(["default"]),
+                      orocos_name: "driver",
                       read_only: default(false),
                       test_dev: MasterDeviceInstance(test[D]_dev)
                   sink in_port connected via policy {} to source out_port of
@@ -150,11 +156,13 @@ module Syskit
                     arguments:
                       arg: 1,
                       conf: default(["default"]),
+                      orocos_name: "task",
                       read_only: default(false)
                 Chain 2:
                   Driver<id:ID> pending
                     arguments:
                       conf: default(["default"]),
+                      orocos_name: "driver",
                       read_only: default(false),
                       test_dev: MasterDeviceInstance(test[D]_dev)
                   sink in_port connected via policy {} to source out_port of
@@ -162,6 +170,7 @@ module Syskit
                     arguments:
                       arg: 2,
                       conf: default(["default"]),
+                      orocos_name: "task",
                       read_only: default(false)
             PP
             assert_equal expected, formatted.gsub(/<id:\d+>/, "<id:ID>").chomp
