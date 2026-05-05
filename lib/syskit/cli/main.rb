@@ -40,6 +40,14 @@ module Syskit
             desc "telemetry",
                  "commands related to monitoring and commanding a running Syskit system"
             subcommand "telemetry", Telemetry::CLI
+
+            no_commands do
+                def setup_interface(*, **)
+                    interface_version = options[:interface_version] || 1
+                    require "syskit/interface/v2" if interface_version == 2
+                    super
+                end
+            end
         end
     end
 end
