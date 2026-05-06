@@ -13,7 +13,12 @@ module Syskit
                     @requirements = component_m.to_instance_requirements
                 end
 
-                subject { SystemNetworkGenerator.new(Roby::Plan.new) }
+                subject do
+                    SystemNetworkGenerator.new(
+                        Roby::Plan.new,
+                        default_deployment_group: default_deployment_group
+                    )
+                end
 
                 it "adds instanciated tasks as permanent tasks" do
                     flexmock(requirements).should_receive(:instanciate)
@@ -80,7 +85,13 @@ module Syskit
                     @task = cmp.test_child
                 end
 
-                subject { SystemNetworkGenerator.new(Roby::ExecutablePlan.new) }
+                subject do
+                    SystemNetworkGenerator.new(
+                        Roby::ExecutablePlan.new,
+                        default_deployment_group: default_deployment_group
+                    )
+                end
+
                 it "sets missing devices from its selections" do
                     task.requirements.push_dependency_injection(Syskit::DependencyInjection.new(dev_m => device))
                     subject.allocate_devices(task)
@@ -101,15 +112,20 @@ module Syskit
             end
 
             describe "#compute_system_network" do
+                subject do
+                    SystemNetworkGenerator.new(
+                        Roby::ExecutablePlan.new,
+                        default_deployment_group: default_deployment_group
+                    )
+                end
+
                 it "runs the validate_abstract_network handler if asked to" do
-                    generator = SystemNetworkGenerator.new(plan)
-                    flexmock(generator).should_receive(:validate_abstract_network).once
-                    generator.compute_system_network([], validate_abstract_network: true)
+                    flexmock(subject).should_receive(:validate_abstract_network).once
+                    subject.compute_system_network([], validate_abstract_network: true)
                 end
                 it "runs the validate_generated_network handler if asked to" do
-                    generator = SystemNetworkGenerator.new(plan)
-                    flexmock(generator).should_receive(:validate_generated_network).once
-                    generator.compute_system_network([], validate_generated_network: true)
+                    flexmock(subject).should_receive(:validate_generated_network).once
+                    subject.compute_system_network([], validate_generated_network: true)
                 end
 
                 describe "early deploy" do
@@ -232,17 +248,18 @@ module Syskit
                     end
 
                     local_net_gen = SystemNetworkGenerator.new(
-                        Roby::Plan.new,
+                        plan = Roby::Plan.new,
                         default_deployment_group: Models::DeploymentGroup.new,
-                        early_deploy: true, lazy_deploy: true
+                        early_deploy: true
                     )
-                    toplevel_tasks = local_net_gen.compute_system_network(
+                    local_net_gen.compute_system_network(
                         [task_m.to_instance_requirements
                                .use_deployment(deployment_m)],
                         validate_deployed_network: true
                     )
+                    task = plan.find_tasks(task_m).not_abstract.first
                     assert_equal(
-                        "Periodic", toplevel_tasks.first.orogen_model.activity_type.name
+                        "Periodic", task.orogen_model.activity_type.name
                     )
                 end
 
@@ -290,45 +307,45 @@ module Syskit
                               T<id:X> pending
                                 arguments:
                                   arg: 2,
-                                  test_dev: MasterDeviceInstance(test[D]_dev),
                                   conf: ["default"],
-                                  read_only: false
+                                  read_only: false,
+                                  test_dev: MasterDeviceInstance(test[D]_dev)
                             Chain 2:
                               T<id:X> pending
                                 arguments:
                                   arg: 1,
-                                  test_dev: MasterDeviceInstance(test[D]_dev),
                                   conf: ["default"],
-                                  read_only: false
+                                  read_only: false,
+                                  test_dev: MasterDeviceInstance(test[D]_dev)
                             T<id:X>(arg: 2, conf: ["default"], read_only: false, test_dev: device(D, as: test)) is needed by the following definitions:
                               #<Class:0xXXXXXX>.use(
                                 t1 => T<id:X> pending
                                   arguments:
                                     arg: 1,
-                                    test_dev: MasterDeviceInstance(test[D]_dev),
                                     conf: ["default"],
                                     read_only: false,
+                                    test_dev: MasterDeviceInstance(test[D]_dev),
                                 t2 => T<id:X> pending
                                   arguments:
                                     arg: 2,
-                                    test_dev: MasterDeviceInstance(test[D]_dev),
                                     conf: ["default"],
-                                    read_only: false
+                                    read_only: false,
+                                    test_dev: MasterDeviceInstance(test[D]_dev)
                               )
                             T<id:X>(arg: 1, conf: ["default"], read_only: false, test_dev: device(D, as: test)) is needed by the following definitions:
                               #<Class:0xXXXXXX>.use(
                                 t1 => T<id:X> pending
                                   arguments:
                                     arg: 1,
-                                    test_dev: MasterDeviceInstance(test[D]_dev),
                                     conf: ["default"],
                                     read_only: false,
+                                    test_dev: MasterDeviceInstance(test[D]_dev),
                                 t2 => T<id:X> pending
                                   arguments:
                                     arg: 2,
-                                    test_dev: MasterDeviceInstance(test[D]_dev),
                                     conf: ["default"],
-                                    read_only: false
+                                    read_only: false,
+                                    test_dev: MasterDeviceInstance(test[D]_dev)
                               )
                         PP
                         errors.each do |err|
@@ -452,17 +469,17 @@ module Syskit
                             Chain 1:
                               T<id:X> pending
                                 arguments:
-                                  orocos_name: "task1",
-                                  read_only: false,
+                                  arg: 1,
                                   conf: ["default"],
-                                  arg: 1
+                                  orocos_name: "task1",
+                                  read_only: false
                             Chain 2:
                               T<id:X> pending
                                 arguments:
-                                  orocos_name: "task1",
-                                  read_only: false,
+                                  arg: 2,
                                   conf: ["default"],
-                                  arg: 2
+                                  orocos_name: "task1",
+                                  read_only: false
                         MSG
                         errors.zip(requirement_tasks).each do |error, task|
                             assert_exception(error, task.planned_task, expected_message)
@@ -533,7 +550,12 @@ module Syskit
                         task_m.provides srv_m, as: "test"
                     end
 
-                    subject { SystemNetworkGenerator.new(plan) }
+                    subject do
+                        SystemNetworkGenerator.new(
+                            plan,
+                            default_deployment_group: default_deployment_group
+                        )
+                    end
 
                     def compute_system_network(*requirements)
                         requirements = requirements.map(&:to_instance_requirements)
@@ -544,6 +566,7 @@ module Syskit
                     end
 
                     it "keeps the compositions' optional dependencies that are not abstract" do
+                        syskit_stub_configured_deployment(task_m)
                         cmp = compute_system_network(cmp_m.use("test" => task_m))
                         assert cmp.has_role?("test")
                     end
@@ -554,13 +577,20 @@ module Syskit
                     end
                     it "removes the compositions' optional dependencies that are still abstract" do
                         cmp = compute_system_network(cmp_m)
-                        assert !cmp.has_role?("test")
+                        refute cmp.has_role?("test")
                     end
                     it "enables the use of the abstract flag in InstanceRequirements to use an optional dep only if it is instanciated by other means" do
-                        cmp = compute_system_network(cmp_m.use("test" => task_m.to_instance_requirements.abstract))
+                        syskit_stub_configured_deployment(task_m)
+                        cmp = compute_system_network(
+                            cmp_m.use("test" => task_m.to_instance_requirements.abstract)
+                        )
                         refute cmp.has_role?("test")
                         execute { plan.remove_task(cmp) }
-                        cmp = compute_system_network(cmp_m.use("test" => task_m.to_instance_requirements.abstract), task_m)
+
+                        cmp = compute_system_network(
+                            cmp_m.use("test" => task_m.to_instance_requirements.abstract),
+                            task_m
+                        )
                         assert cmp.has_role?("test")
                     end
                 end
@@ -598,16 +628,16 @@ module Syskit
                           T<id:X> pending
                             arguments:
                               arg: 2,
-                              test_dev: MasterDeviceInstance(test[D]_dev),
                               conf: default(["default"]),
-                              read_only: default(false)
+                              read_only: default(false),
+                              test_dev: MasterDeviceInstance(test[D]_dev)
                         Chain 2:
                           T<id:X> pending
                             arguments:
                               arg: 1,
-                              test_dev: MasterDeviceInstance(test[D]_dev),
                               conf: default(["default"]),
-                              read_only: default(false)
+                              read_only: default(false),
+                              test_dev: MasterDeviceInstance(test[D]_dev)
                     MSG
                     assert_equal expected, formatted.gsub(/<id:\d+>/, "<id:X>")
                 end

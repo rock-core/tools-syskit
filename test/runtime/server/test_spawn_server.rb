@@ -46,7 +46,7 @@ module Syskit
 
                 it "refuses to connect if the server's certificate is unexpected" do
                     invalid_certfile_path = File.join(
-                        __dir__, "..", "remote_processes", "invalid-cert.crt"
+                        __dir__, "..", "..", "process_managers", "invalid-cert.crt"
                     )
 
                     e = assert_raises(OpenSSL::SSL::SSLError) do

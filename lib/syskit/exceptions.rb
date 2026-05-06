@@ -441,11 +441,15 @@ module Syskit
             !!@can_merge
         end
 
-        def initialize(device, task0, task1, toplevel_tasks_to_requirements = {})
+        def initialize(
+            device, task0, task1, toplevel_tasks_to_requirements = {},
+            early_deploy:
+        )
             @device = device
             @tasks = [task0, task1]
             @merge_result = NetworkGeneration::MergeSolver.resolve_merge(
-                tasks[0].plan, tasks[0], tasks[1], {}
+                tasks[0].plan, tasks[0], tasks[1], {},
+                merge_task_contexts_with_same_agent: early_deploy
             )
 
             @involved_definitions = @tasks.map do |t|
@@ -469,22 +473,27 @@ module Syskit
 
         attr_reader :orocos_name
 
-        def initialize(orocos_name, tasks, toplevel_tasks_to_requirements = {})
+        def initialize(
+            orocos_name, tasks, toplevel_tasks_to_requirements = {}, early_deploy:
+        )
             @orocos_name = orocos_name
             @tasks = tasks
             @toplevel_tasks_to_requirements = toplevel_tasks_to_requirements
-            @agent = tasks.first.execution_agent
+
+            @configured_deployment = tasks.first.deployed_task.configured_deployment
             @merge_result = NetworkGeneration::MergeSolver.resolve_merge(
-                tasks[0].plan, tasks[0], tasks[1], {}
+                tasks[0].plan, tasks[0], tasks[1], {},
+                merge_task_contexts_with_same_agent: early_deploy
             )
         end
 
         def pretty_print(pp)
-            deployment_m = @agent.deployed_orogen_model_by_name(orocos_name)
+            deployment_m = @configured_deployment.model.orogen_model
+            process_server_name = @configured_deployment.process_server_name
             pp.text(
                 "deployed task '#{orocos_name}' from deployment " \
                 "'#{deployment_m.name}' defined in " \
-                "'#{deployment_m.project.name}' on '#{@agent.process_server_name}' " \
+                "'#{deployment_m.project.name}' on '#{process_server_name}' " \
                 "is assigned to #{@tasks.size} tasks. Below is the list of " \
                 "the dependent non-deployed actions. Right after the list " \
                 "is a detailed explanation of why the first two tasks are not merged:"

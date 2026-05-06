@@ -39,7 +39,8 @@ module Syskit
             def initialize(
                 plan,
                 event_logger: plan.event_logger,
-                resolution_control: Async::Control.new
+                resolution_control: Async::Control.new,
+                merge_task_contexts_with_same_agent: false
             )
                 @plan = plan
                 @event_logger = event_logger
@@ -49,7 +50,7 @@ module Syskit
                 @task_replacement_graph = Roby::Relations::BidirectionalDirectedAdjacencyGraph.new
                 @resolved_replacements = {}
                 @invalid_merges = Set.new
-                @merge_task_contexts_with_same_agent = false
+                @merge_task_contexts_with_same_agent = merge_task_contexts_with_same_agent
                 @resolution_control = resolution_control
             end
 
@@ -212,8 +213,14 @@ module Syskit
 
             # Create a new solver on the given plan and perform
             # {#merge_identical_tasks}
-            def self.merge_identical_tasks(plan)
-                solver = MergeSolver.new(plan)
+            def self.merge_identical_tasks(
+                plan, merge_task_contexts_with_same_agent: false
+            )
+                solver = MergeSolver.new(
+                    plan,
+                    merge_task_contexts_with_same_agent:
+                        merge_task_contexts_with_same_agent
+                )
                 solver.merge_identical_tasks
             end
 
@@ -516,8 +523,15 @@ module Syskit
                 end
             end
 
-            def self.resolve_merge(plan, merged_task, task, mappings)
-                solver = MergeSolver.new(plan)
+            def self.resolve_merge(
+                plan, merged_task, task, mappings,
+                merge_task_contexts_with_same_agent: false
+            )
+                solver = MergeSolver.new(
+                    plan,
+                    merge_task_contexts_with_same_agent:
+                        merge_task_contexts_with_same_agent
+                )
                 solver.resolve_merge(merged_task, task, mappings)
             end
 

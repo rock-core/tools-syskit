@@ -114,6 +114,7 @@ module Syskit
                 required_instances: [],
                 default_deployment_group: Syskit.conf.deployment_group,
                 compute_policies: true,
+                early_deploy: Syskit.conf.early_deploy?,
                 lazy_deploy: Syskit.conf.lazy_deploy?,
                 validate_deployed_network: true
             )
@@ -139,7 +140,8 @@ module Syskit
                         work_plan, default_deployment_group, lazy: lazy_deploy
                     )
                     SystemNetworkGenerator.verify_all_deployments_are_unique(
-                        work_plan, toplevel_tasks_to_requirements.dup
+                        work_plan, toplevel_tasks_to_requirements.dup,
+                        early_deploy: early_deploy
                     )
                 end
 
@@ -499,6 +501,7 @@ module Syskit
                                 required_instances: required_instances,
                                 default_deployment_group: default_deployment_group,
                                 compute_policies: compute_policies,
+                                early_deploy: early_deploy,
                                 lazy_deploy: lazy_deploy,
                                 validate_deployed_network: validate_deployed_network
                             )
