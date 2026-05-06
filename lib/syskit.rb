@@ -25,6 +25,8 @@ require "syskit/instance_requirements"
 require "syskit/orogen_namespace"
 
 module Syskit
+    BIN_DIR = File.expand_path(File.join("..", "bin"), __dir__)
+
     # @api private
     #
     # Definition of Syskit's built-in process managers

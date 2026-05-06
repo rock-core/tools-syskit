@@ -8,12 +8,15 @@ module Syskit
         describe "syskit gen" do
             include Roby::Test::ArubaMinitest
 
+            # Override path to CLI command to use ArubaMinitest helpers
+            def roby_bin
+                File.join(Syskit::BIN_DIR, "syskit")
+            end
+
             def assert_app_valid(*args)
-                port = roby_allocate_port
-                syskit_run = run_command(
-                    ["syskit", "run", "--port=#{port}", *args].join(" ")
-                )
-                syskit_quit = run_command "syskit quit --retry --host=localhost:#{port}"
+                roby_allocate_interface_server
+                syskit_run = run_roby_run(args.join(" "))
+                syskit_quit = run_roby_client("quit --retry")
                 assert_command_stops syskit_run
                 assert_command_stops syskit_quit
 

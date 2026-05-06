@@ -54,10 +54,10 @@ module Roby
                 end
 
                 it "forwards a Roby CLI command defined through Thor" do
-                    port = roby_allocate_port
-                    run_cmd = run_command "roby run --port=#{port}"
-                    run_command_and_stop "roby wait --host=localhost:#{port}"
-                    run_command_and_stop "roby quit --host=localhost:#{port}"
+                    roby_allocate_interface_server
+                    run_cmd = run_roby_run
+                    run_roby_client_and_stop "wait"
+                    run_roby_client_and_stop "quit"
                     assert_command_stops run_cmd
                 end
             end
