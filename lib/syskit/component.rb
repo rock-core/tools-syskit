@@ -1,7 +1,9 @@
 # frozen_string_literal: true
 
 module Syskit
-    Roby::EventStructure.relation "SyskitConfigurationPrecedence", strong: true
+    Roby::EventStructure.relation(
+        "SyskitConfigurationPrecedence", strong: true, copy_on_replace: true
+    )
 
     # Base class for models that represent components (TaskContext,
     # Composition)

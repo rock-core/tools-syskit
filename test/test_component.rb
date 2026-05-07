@@ -452,6 +452,37 @@ describe Syskit::Component do
         end
     end
 
+    describe Roby::EventStructure::SyskitConfigurationPrecedence do
+        it "is copied and not moved on replace" do
+            # This is a regression test, really. Syskit adds a configuration precedence
+            # constraint between busses and devices, but at some point the configuration
+            # had been made strong (to solve another bug). The issue was that because of
+            # this, the relation was not propagated through replacements, which is
+            # the main operation used by Syskit during network gen/deployment/adaptation
+
+            combus_m = Syskit::ComBus.new_submodel message_type: "/int"
+            combus_driver_m = Syskit::TaskContext.new_submodel do
+                input_port "root_bus_in", "/double"
+                dynamic_output_port(/.*/, "/int")
+            end
+            combus_driver_m.provides combus_m, as: "driver"
+
+            device_m = Syskit::Device.new_submodel
+            device_driver_m = Syskit::TaskContext.new_submodel { input_port "bus_in", "/int" }
+            device_driver_m.provides combus_m.client_in_srv, as: "bus"
+            device_driver_m.provides device_m, as: "driver"
+
+            bus = robot.com_bus combus_m, as: "bus"
+            dev = robot.device device_m, as: "dev"
+            dev.attach_to(bus, client_to_bus: false)
+            syskit_stub_configured_deployment(device_driver_m)
+            syskit_stub_configured_deployment(combus_driver_m)
+            dev_driver = syskit_deploy(dev)
+            bus_driver = plan.find_tasks(combus_driver_m).with_parent(dev_driver).first
+            refute dev_driver.meets_configurationg_precedence_constraints?
+        end
+    end
+
     describe "#should_configure_after" do
         it "adds a configuration precedence link between the given event and the start event of the receiver" do
             plan.add(component = Syskit::Component.new)
