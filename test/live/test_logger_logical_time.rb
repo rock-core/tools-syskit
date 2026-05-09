@@ -27,7 +27,9 @@ module Syskit
         attr_reader :task
 
         before do
-            skip unless Syskit.conf.use_rock_time_field_for_logging?
+            @__use_rock_time_field_for_logging =
+                Syskit.conf.use_rock_time_field_for_logging?
+            Syskit.conf.use_rock_time_field_for_logging = true
 
             Syskit.conf.logs.enable_port_logging
             @task = syskit_deploy(
@@ -40,6 +42,8 @@ module Syskit
         end
 
         after do
+            Syskit.conf.use_rock_time_field_for_logging =
+                @__use_rock_time_field_for_logging
             Syskit.conf.logs.disable_port_logging
         end
 
