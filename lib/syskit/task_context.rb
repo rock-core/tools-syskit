@@ -1033,11 +1033,15 @@ module Syskit
             ) do |needs_reconfiguration, state|
                 if state == :EXCEPTION
                     info "reconfiguring #{self}: the task was in exception state"
-                    orocos_task.reset_exception(false)
+                    log_remote_call(:reset_exception, orocos_name) do
+                        orocos_task.reset_exception(false)
+                    end
                     orocos_task.port_names
                 elsif needs_reconfiguration && (state != :PRE_OPERATIONAL)
                     info "cleaning up #{self}"
-                    orocos_task.cleanup(false)
+                    log_remote_call(:cleanup, orocos_name) do
+                        orocos_task.cleanup(false)
+                    end
                     orocos_task.port_names
                 end
             end
@@ -1046,6 +1050,13 @@ module Syskit
             ) do |port_names|
                 clean_dynamic_port_connections(port_names) if port_names
             end
+        end
+
+        # @api private
+        #
+        # Helper to have log events for each remote call done by the task context
+        def log_remote_call(*params, &block)
+            execution_engine.log_call(:syskit_remote_call, *params, &block)
         end
 
         # (see Component#perform_setup)
@@ -1077,13 +1088,18 @@ module Syskit
                 if properties_updated_in_configure && state != :PRE_OPERATIONAL
                     info "properties have been changed within #configure, " \
                          "cleaning up #{self}"
-                    orocos_task.cleanup(false)
+                    log_remote_call(:cleanup, orocos_name) do
+                        orocos_task.cleanup(false)
+                    end
                     state = :PRE_OPERATIONAL
                 end
 
                 if state == :PRE_OPERATIONAL
                     info "setting up #{self}"
-                    orocos_task.configure(false)
+
+                    log_remote_call(:configure, orocos_name) do
+                        orocos_task.configure(false)
+                    end
                 else
                     info "#{self} was already configured"
                 end
@@ -1147,7 +1163,10 @@ module Syskit
                               "not have a port named #{sink_p}"
                     end
                 end
-                orocos_task.start(false)
+
+                log_remote_call(:start, orocos_name) do
+                    orocos_task.start(false)
+                end
             end
             start_event.achieve_asynchronously(promise, emit_on_success: false)
             promise.on_error do |exception|
@@ -1236,7 +1255,9 @@ module Syskit
         # task, or a task that raises StateTransitionFailed but stops
         # anyways
         def stop_orocos_task
-            orocos_task.stop(false)
+            log_remote_call(:stop, orocos_name) do
+                orocos_task.stop(false)
+            end
             nil
         rescue Orocos::StateTransitionFailed
             # Could be that we already have stopped, for instance because there

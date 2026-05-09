@@ -348,24 +348,40 @@ module Syskit
 
                         bus_driver.orocos_task.local_ruby_task
                                   .create_output_port("dev", "/int")
-                        flexmock(bus_driver.orocos_task, "bus")
-                            .should_receive(:start).once.pass_thru
-                            .globally.ordered(:bus_startup)
-                        mock_raw_port(bus_driver, "dev")
-                            .should_receive(:connect_to).once.pass_thru
-                            .globally.ordered(:bus_startup)
-                        flexmock(dev_driver.orocos_task, "dev")
-                            .should_receive(:configure).once.pass_thru
-                            .globally.ordered
 
-                        syskit_configure(bus_driver)
-                        capture_log(bus_driver, :info) do
-                            capture_log(dev_driver, :info) do
-                                expect_execution.scheduler(true).to do
-                                    emit bus_driver.start_event, dev_driver.start_event
+                        events = record_events do
+                            capture_log(bus_driver, :info) do
+                                capture_log(dev_driver, :info) do
+                                    expect_execution.scheduler(true).to do
+                                        emit bus_driver.start_event, dev_driver.start_event
+                                    end
                                 end
                             end
                         end
+                        events = events.filter_map do |ev|
+                            if ev.name == :syskit_remote_call
+                                ev.args
+                            elsif ev.name == :syskit_connect
+                                [ev.name, *ev.args]
+                            end
+                        end
+
+                        dev_name = dev_driver.orocos_name
+                        bus_name = bus_driver.orocos_name
+                        expected = [
+                            [:calling, :configure, bus_name],
+                            [:success, :configure, bus_name],
+                            [:syskit_connect, :success,
+                             bus_name, "dev", dev_name, "bus_in", {}],
+                            [:calling, :start, bus_name],
+                            [:success, :start, bus_name],
+                            [:calling, :configure, dev_name],
+                            [:success, :configure, dev_name],
+                            [:calling, :start, dev_name],
+                            [:success, :start, dev_name]
+                        ]
+
+                        assert_equal expected, events
                     end
 
                     it "supports busses-on-busses" do
