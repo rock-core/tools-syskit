@@ -344,7 +344,11 @@ module Syskit
                 return
             end
 
-            syskit_model = model.resolve_syskit_model_for_deployed_task(orogen_model)
+            _, syskit_model =
+                instanciate_deployed_task_resolve_task_model(
+                    logger_name, orogen_model, nil
+                )
+
             return unless syskit_model.fullfills?(LoggerService)
 
             # Automatic setup by
