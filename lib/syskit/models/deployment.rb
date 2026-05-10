@@ -37,9 +37,8 @@ module Syskit
                 orogen_model.name
             end
 
-            def instanciate(plan, arguments = {})
-                plan.add(task = new(arguments))
-                task
+            def instanciate(plan, **arguments)
+                new(plan: plan, **arguments)
             end
 
             # @api private

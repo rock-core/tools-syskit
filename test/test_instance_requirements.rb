@@ -582,7 +582,10 @@ describe Syskit::InstanceRequirements do
             ir = Syskit::InstanceRequirements.new([task_m])
             ir_component_model = Syskit::InstanceRequirements.new([task_m])
             flexmock(ir).should_receive(:to_component_model).and_return(ir_component_model)
-            flexmock(task_m).should_receive(:new).once.and_return(task)
+            flexmock(task_m).should_receive(:new).once.and_return do |plan:|
+                plan.add(task)
+                task
+            end
             flexmock(task.requirements).should_receive(:merge).once.with(ir_component_model, any)
             ir.instanciate(plan)
         end

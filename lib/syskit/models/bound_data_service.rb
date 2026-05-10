@@ -385,17 +385,19 @@ module Syskit
             extend InstanceRequirements::Auto
 
             def has_data_service?(name)
-                component_model.each_slave_data_service(self) do |slave_m|
-                    return true if slave_m.name == name
+                unless (m = component_model.find_data_service("#{self.name}.#{name}"))
+                    return false
                 end
-                false
+
+                m.master == self
             end
 
             def find_data_service(name)
-                component_model.each_slave_data_service(self) do |slave_m|
-                    return slave_m if slave_m.name == name
+                unless (m = component_model.find_data_service("#{self.name}.#{name}"))
+                    return
                 end
-                nil
+
+                m if m.master == self
             end
 
             MetaRuby::DSLs::FindThroughMethodMissing
