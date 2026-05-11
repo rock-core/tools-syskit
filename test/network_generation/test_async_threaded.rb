@@ -7,6 +7,7 @@ module Syskit
         describe AsyncThreaded do
             before do
                 plan.syskit_async_method = AsyncThreaded
+                self.expect_execution_process_async_resolutions = false
             end
 
             describe "#poll" do

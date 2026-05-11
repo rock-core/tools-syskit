@@ -480,12 +480,14 @@ module Syskit
             end
 
             after do
-                if task.start_event.pending?
-                    task.start_event.emit
-                end
-                if task.running?
-                    expect_execution { task.stop! }
-                        .to { emit task.stop_event }
+                if task
+                    if task.start_event.pending?
+                        task.start_event.emit
+                    end
+                    if task.running?
+                        expect_execution { task.stop! }
+                            .to { emit task.stop_event }
+                    end
                 end
             end
 

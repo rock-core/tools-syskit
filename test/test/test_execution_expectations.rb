@@ -22,10 +22,27 @@ module Syskit
                    "created during the generation block" do
                     plan.add(@task_m.as_plan)
                     expect_execution { Syskit::Runtime.apply_requirement_modifications(plan, force: true) }
-                        .to do
-                            achieve { plan.syskit_has_async_resolution? }
-                            achieve { !plan.syskit_has_async_resolution? }
-                        end
+                        .process_async_resolutions(true)
+                        .to_achieve { !plan.syskit_has_async_resolution? }
+                end
+
+                it "finishes at the end of the test the resolutions " \
+                   "created during the generation block" do
+                    plan.add(@task_m.as_plan)
+                    expect_execution { Syskit::Runtime.apply_requirement_modifications(plan, force: true) }
+                        .process_async_resolutions(true)
+                        .to_run
+
+                    refute plan.syskit_has_async_resolution?
+                end
+
+                it "does not wait for resolutions to stop if disabled" do
+                    plan.add(@task_m.as_plan)
+                    expect_execution { Syskit::Runtime.apply_requirement_modifications(plan, force: true) }
+                        .process_async_resolutions(false)
+                        .to_run
+
+                    assert plan.syskit_has_async_resolution?
                 end
 
                 it "finishes within the test the resolutions " \
@@ -33,6 +50,7 @@ module Syskit
                     plan.add(@task_m.as_plan)
                     applied = false
                     expect_execution
+                        .process_async_resolutions(true)
                         .poll do
                             unless applied
                                 Syskit::Runtime.apply_requirement_modifications(
@@ -40,10 +58,7 @@ module Syskit
                                 )
                                 applied = true
                             end
-                        end.to do
-                            achieve { plan.syskit_has_async_resolution? }
-                            achieve { !plan.syskit_has_async_resolution? }
-                        end
+                        end.to_achieve { !plan.syskit_has_async_resolution? }
                 end
 
                 it "finishes at the end of the test resolutions " \
@@ -51,6 +66,7 @@ module Syskit
                     plan.add(@task_m.as_plan)
                     done = false
                     expect_execution
+                        .process_async_resolutions(true)
                         .poll do
                             unless done
                                 Syskit::Runtime.apply_requirement_modifications(
@@ -59,7 +75,7 @@ module Syskit
                                 done = true
                             end
                         end
-                        .to_achieve { plan.syskit_has_async_resolution? }
+                        .to_run
 
                     refute plan.syskit_has_async_resolution?
                 end

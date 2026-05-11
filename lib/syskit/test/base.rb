@@ -18,6 +18,8 @@ module Syskit
                 @old_loglevel = Orocos.logger.level
                 @__syskit_test_updated_attrs = {}
 
+                @expect_execution_process_async_resolutions = true
+
                 super
             end
 
@@ -41,6 +43,12 @@ module Syskit
                     raise teardown_failure
                 end
             end
+
+            # Controls at the test level whether the execution expectation harness
+            # should poll async resolution results
+            #
+            # @see ExecutionExpectations#process_async_resolutions?
+            attr_accessor :expect_execution_process_async_resolutions
 
             def __syskit_test_disable_taskcontext_info_messages
                 registered_plans.each do |p|

@@ -9,6 +9,7 @@ module Syskit
                 before do
                     @__async_method = plan.syskit_async_method
                     plan.syskit_async_method = async_method
+                    self.expect_execution_process_async_resolutions = false
                 end
 
                 after do

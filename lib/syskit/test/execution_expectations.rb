@@ -4,12 +4,42 @@ module Syskit
     module Test
         # Definition of expectations for Roby's expect_execution harness
         module ExecutionExpectations
+            # Controls whether the execution expectation harness should explicitly
+            # process async resolutions and wait for them to finish
+            #
+            # The default is true
+            #
+            # @see #process_async_resolutions?
+            def process_async_resolutions(flag)
+                @process_async_resolutions = flag
+                self
+            end
+
+            # Controls whether the execution expectation harness should explicitly
+            # process async resolutions and wait for them to finish
+            #
+            # The default is true
+            #
+            # It can be controlled at the test level with
+            # {Base#expect_execution_process_async_resolutions=}
+            #
+            # @see #process_async_resolutions
+            def process_async_resolutions?
+                if @process_async_resolutions.nil?
+                    @test.expect_execution_process_async_resolutions
+                else
+                    @process_async_resolutions
+                end
+            end
+
             Roby::Test::ExecutionExpectations.poll do |test, plan|
-                InstanceRequirementPlanningHandler.process_async_resolution(test, plan)
+                test.process_async_resolutions? &&
+                    InstanceRequirementPlanningHandler
+                        .process_async_resolution(test, plan)
             end
 
             Roby::Test::ExecutionExpectations.exit_allowed_condition do |test, plan|
-                !plan.syskit_has_async_resolution?
+                !test.process_async_resolutions? || !plan.syskit_has_async_resolution?
             end
 
             # @api private
