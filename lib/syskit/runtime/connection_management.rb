@@ -752,6 +752,16 @@ module Syskit
                 # Don't do anything if the engine is deploying
                 return if plan.syskit_has_async_resolution?
 
+                update_pending_changes_from_modified_tasks
+                add_dangling_connections_to_pending_changes
+                apply_pending_changes
+
+                nil
+            end
+
+            # Update the set of new/removed connections whenever we receive notification
+            # that other tasks have been modified in the dataflow graph
+            def update_pending_changes_from_modified_tasks
                 tasks = dataflow_graph.modified_tasks
                 tasks.delete_if { |t| !active_task?(t) }
                 debug "connection: updating, #{tasks.size} tasks modified in dataflow graph"
@@ -766,48 +776,54 @@ module Syskit
                     tasks.reject(&:executable?)
                 )
 
-                unless tasks.empty?
-                    # Inject the tasks from the pending tasks in `tasks` so that their
-                    # changes are re-evaluated and re-injected in `pending_changes`
-                    dataflow_graph.pending_changes&.first&.each do |t|
-                        tasks << t if active_task?(t)
-                    end
+                return if tasks.empty?
 
-                    # Auto-add any Syskit task that has the same underlying
-                    # orocos task, or we might get inconsistencies
-                    tasks = tasks.each_with_object(Set.new) do |t, s|
-                        s.merge(@orocos_task_to_syskit_tasks[t.orocos_task])
-                    end
-                    tasks.delete_if { |t| !active_task?(t) }
-
-                    debug do
-                        debug "computing data flow update from modified tasks"
-                        tasks.each do |t|
-                            debug "  #{t}"
-                        end
-                        break
-                    end
-
-                    new, removed = compute_connection_changes(tasks)
-                    if new
-                        dataflow_graph.pending_changes = [tasks.dup, new, removed]
-                        dataflow_graph.modified_tasks.clear
-                    else
-                        debug "cannot compute changes, keeping the tasks queued"
-                    end
+                # Inject the tasks from the pending tasks in `tasks` so that their
+                # changes are re-evaluated and re-injected in `pending_changes`
+                dataflow_graph.pending_changes&.first&.each do |t|
+                    tasks << t if active_task?(t)
                 end
 
+                # Auto-add any Syskit task that has the same underlying
+                # orocos task, or we might get inconsistencies
+                tasks = tasks.each_with_object(Set.new) do |t, s|
+                    s.merge(@orocos_task_to_syskit_tasks[t.orocos_task])
+                end
+                tasks.delete_if { |t| !active_task?(t) }
+
+                debug do
+                    debug "computing data flow update from modified tasks"
+                    tasks.each do |t|
+                        debug "  #{t}"
+                    end
+                    break
+                end
+
+                new, removed = compute_connection_changes(tasks)
+                if new
+                    dataflow_graph.pending_changes = [tasks.dup, new, removed]
+                    dataflow_graph.modified_tasks.clear
+                else
+                    debug "cannot compute changes, keeping the tasks queued"
+                end
+            end
+
+            # Update the pending changes to account for tasks whose syskit task has been
+            # removed, but that have pending connections
+            def add_dangling_connections_to_pending_changes
                 dangling = dangling_task_cleanup
-                unless dangling.empty?
-                    dataflow_graph.pending_changes ||= [[], {}, {}]
-                    dataflow_graph.pending_changes[2].merge!(dangling) do |k, m0, m1|
-                        m0.merge(m1)
-                    end
+                return if dangling.empty?
+
+                dataflow_graph.pending_changes ||= [[], {}, {}]
+                dataflow_graph.pending_changes[2].merge!(dangling) do |k, m0, m1|
+                    m0.merge(m1)
                 end
+            end
 
-                return unless dataflow_graph.pending_changes
-
+            def apply_pending_changes
                 main_tasks, new, removed = dataflow_graph.pending_changes
+                return unless main_tasks
+
                 new_count = connections_count(new)
                 removed_count = connections_count(removed)
                 main_tasks.delete_if { |t| !active_task?(t) }
@@ -845,8 +861,6 @@ module Syskit
                     debug "  involving #{main_tasks.size} tasks"
                     break
                 end
-
-                nil
             end
 
             def connections_count(connections)

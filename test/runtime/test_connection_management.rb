@@ -41,7 +41,7 @@ module Syskit
                 ConnectionManagement.update(plan)
             end
 
-            def test_it_creates_a_new_connection_when_an_existing_edge_is_updated_between_tasks
+            def test_it_removes_connection_between_ports_even_when_there_are_some_remaining_between_the_tasks
                 source.out1_port.connect_to sink.in1_port
                 source.out2_port.connect_to sink.in2_port
                 ConnectionManagement.update(plan)
