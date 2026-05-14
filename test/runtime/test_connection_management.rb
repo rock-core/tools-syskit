@@ -8,21 +8,24 @@ module Syskit
             attr_reader :source, :sink, :source_task, :sink_task
 
             def test_it_creates_a_new_connection_when_a_new_edge_is_added_between_tasks
-                mock_raw_port(source_task, "out1").should_receive(:connect_to)
-                                                  .with(mock_raw_port(sink_task, "in1"), Hash).once
-                                                  .pass_thru
+                mock_raw_port(source_task, "out1")
+                    .should_receive(:connect_to)
+                    .with(mock_raw_port(sink_task, "in1"), Hash).once
+                    .pass_thru
                 source.out1_port.connect_to sink.in1_port
                 ConnectionManagement.update(plan)
             end
 
             def test_it_passes_the_policy_and_distance_between_the_two_tasks_to_the_underlying_connect_to_call
                 policy = Hash[type: :buffer, size: 20]
-                flexmock(source.out1_port.to_actual_port.component).should_receive(:distance_to)
-                                                                   .with(sink.in1_port.to_actual_port.component)
-                                                                   .and_return(distance = flexmock)
-                mock_raw_port(source_task, "out1").should_receive(:connect_to)
-                                                  .with(mock_raw_port(sink_task, "in1"), distance: distance, **policy).once
-                                                  .pass_thru
+                flexmock(source.out1_port.to_actual_port.component)
+                    .should_receive(:distance_to)
+                    .with(sink.in1_port.to_actual_port.component)
+                    .and_return(distance = flexmock)
+                mock_raw_port(source_task, "out1")
+                    .should_receive(:connect_to)
+                    .with(mock_raw_port(sink_task, "in1"), distance: distance, **policy)
+                    .once.pass_thru
                 source.out1_port.connect_to sink.in1_port, policy
                 ConnectionManagement.update(plan)
             end
@@ -31,19 +34,21 @@ module Syskit
                 source.out1_port.connect_to sink.in1_port
                 ConnectionManagement.update(plan)
                 source.out2_port.connect_to sink.in2_port
-                mock_raw_port(source_task, "out2").should_receive(:connect_to)
-                                                  .with(mock_raw_port(sink_task, "in2"), Hash).once
-                                                  .pass_thru
+                mock_raw_port(source_task, "out2")
+                    .should_receive(:connect_to)
+                    .with(mock_raw_port(sink_task, "in2"), Hash).once
+                    .pass_thru
                 ConnectionManagement.update(plan)
             end
 
-            def test_it_removes_a_new_connection_when_an_existing_edge_is_updated_between_tasks
+            def test_it_creates_a_new_connection_when_an_existing_edge_is_updated_between_tasks
                 source.out1_port.connect_to sink.in1_port
                 source.out2_port.connect_to sink.in2_port
                 ConnectionManagement.update(plan)
-                mock_raw_port(source_task, "out2").should_receive(:disconnect_from)
-                                                  .with(mock_raw_port(sink_task, "in2")).once
-                                                  .pass_thru
+                mock_raw_port(source_task, "out2")
+                    .should_receive(:disconnect_from)
+                    .with(mock_raw_port(sink_task, "in2")).once
+                    .pass_thru
                 source.out2_port.disconnect_from sink.in2_port
                 ConnectionManagement.update(plan)
             end
@@ -52,9 +57,10 @@ module Syskit
                 source.out1_port.connect_to sink.in1_port
                 ConnectionManagement.update(plan)
                 source.remove_sink sink
-                mock_raw_port(source_task, "out1").should_receive(:disconnect_from)
-                                                  .with(mock_raw_port(sink_task, "in1")).once
-                                                  .pass_thru
+                mock_raw_port(source_task, "out1")
+                    .should_receive(:disconnect_from)
+                    .with(mock_raw_port(sink_task, "in1")).once
+                    .pass_thru
                 ConnectionManagement.update(plan)
             end
         end

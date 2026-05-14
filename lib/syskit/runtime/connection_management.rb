@@ -532,8 +532,13 @@ module Syskit
             end
 
             # Partition a set of connections between the ones that can be
-            # performed right now, and those that must wait for the involved
-            # tasks' state to change
+            # performed right now and those that must be done at the very end of the
+            # modification process
+            #
+            # We perform early changes that involve connections where one of the two tasks
+            # is not running, at the connection is in effect already inactive. When both
+            # tasks are active, we want to make sure that all the other changes can be
+            # performed as fast as possible.
             #
             # @param connections the connections, specified as
             #            (source_task, sink_task) => Hash[
@@ -542,25 +547,27 @@ module Syskit
             #
             #   note that the source and sink task type are unspecified.
             #
-            # @param [Hash<Object,Symbol>] a cache of the task states, as a
-            #   mapping from a source/sink task object as used in the
-            #   connections hash to the state name
+            # @param [Hash] connections the connections to partition
             # @param [String] the kind of operation that will be done. It is
             #   purely used to display debugging information
-            # @param [#[]] an object that maps the objects used as tasks in
-            #   connections and states to an object that responds to
-            #   {#rtt_state}, to evaluate the object's state.
-            # @return [Array,Hash] the set of connections that can be performed
-            #   right away, and the set of connections that require a state change
-            #   in the tasks
+            # @param [#[]] to_syskit_task an object that maps the orocos task to the
+            #   syskit task that represents it in the plan. The assumption is that
+            #   running orocos tasks must have a corresponding syskit task in the plan
+            #
+            # @return [(Hash,Hash)] the connections split into early and late connections
             def partition_early_late(connections, kind, to_syskit_task)
                 early, late = connections.partition do |(source_task, sink_task), port_pairs|
-                    source_is_running = (syskit_task = to_syskit_task[source_task]) && syskit_task.running?
-                    sink_is_running   = (syskit_task = to_syskit_task[sink_task])   && syskit_task.running?
+                    source_is_running =
+                        (syskit_task = to_syskit_task[source_task]) &&
+                        syskit_task.running?
+                    sink_is_running   =
+                        (syskit_task = to_syskit_task[sink_task]) &&
+                        syskit_task.running?
                     early = !source_is_running || !sink_is_running
 
                     debug do
-                        debug "#{port_pairs.size} #{early ? 'early' : 'late'} #{kind} connections from #{source_task} to #{sink_task}"
+                        debug "#{port_pairs.size} #{early ? 'early' : 'late'} #{kind} " \
+                              "connections from #{source_task} to #{sink_task}"
                         debug "  source running?: #{source_is_running}"
                         debug "  sink   running?: #{sink_is_running}"
                         break
@@ -570,7 +577,17 @@ module Syskit
                 [early, Hash[late]]
             end
 
-            # Partition new connections between
+            # Partition new connections between the ones that can be applied right now,
+            # and the ones that must wait for one of the two involved components to be
+            # configured
+            #
+            # This handles components that have dynamic ports. For these dynamic ports, if
+            # the task is not yet configured, we must wait for it to be to make sure
+            # the port will be available.
+            #
+            # @param [Hash] new new connections as
+            #     { [source_task, sink_task] => { [source_port, sink_port] => policy } }
+            # @return [(Hash,Hash)] held connections and ready connections
             def new_connections_partition_held_ready(new)
                 additions_held = {}
                 additions_ready = {}
@@ -624,12 +641,30 @@ module Syskit
                 [additions_held, additions_ready]
             end
 
-            # Apply the connection changes that can be applied
+            # From a set of desired removals and additions, apply everything that can be
+            # and return the rest
+            #
+            # Some connections need specific conditions on the task's state to be applied.
+            # See documentation of {#new_connections_partition_held_ready} and
+            # {#partition_early_late}. The method partitions these connections and either
+            # applies everything (if possible), or returns what could not be applied.
+            #
+            # Disconnections are applied first
+            #
+            # @param [Hash] new connections that should be added as
+            #     { [source_task, sink_task] => { [source_port, sink_port] => policy } }
+            # @param [Hash] removed connections that should be removed
+            # @return [(Hash,Hash)] remaining new and removed connections (respectively).
+            #   Empty if all connections have been applied
             def apply_connection_changes(new, removed)
-                additions_held, additions_ready = new_connections_partition_held_ready(new)
+                additions_held, additions_ready =
+                    new_connections_partition_held_ready(new)
 
                 early_removal, late_removal     =
-                    partition_early_late(removed, "removed", method(:find_setup_syskit_task_context_from_orocos_task))
+                    partition_early_late(
+                        removed, "removed",
+                        method(:find_setup_syskit_task_context_from_orocos_task)
+                    )
                 early_additions, late_additions =
                     partition_early_late(additions_ready, "added", proc { |v| v })
 
@@ -690,6 +725,29 @@ module Syskit
                     !t.execution_agent.finished? && !t.execution_agent.ready_to_die?
             end
 
+            # Main update loop
+            #
+            # Connection management uses three graphs:
+            # - DataFlow: component graph, where the edge info are hashes of pairs
+            #   [source_port, sink_port] (as names) to the connection policy. It includes
+            #   compositions, in which case source_port and sink_port are of the same
+            #   direction (both out or both in)
+            # - RequiredDataFlow: a reduction of DataFlow in which vertices are only
+            #   Syskit::TaskContext
+            # - ActualDataFlow: actual connections that have been created between remote
+            #   tasks
+            #
+            # The job of this method is to make sure RequiredDataFlow and ActualDataFlow
+            # are up-to-date. This is happening incrementally. Some changes cannot be
+            # applied until the underlying components are in a compatible state (think
+            # dynamic ports and configurations for example). The method saves these
+            # "pending" connections in {DataFlow#pending_tasks} and will try to apply
+            # them repeatedly until they (1) are not needed anymore or (2) they are
+            # applied
+            #
+            # Syskit::Component whose connections have changed are queued in the dataflow
+            # graph's {DataFlow#modified_tasks}. Whenever this set is _not empty_, we
+            # update RequiredDataFlow and then do a diff against ActualDataFlow.
             def update
                 # Don't do anything if the engine is deploying
                 return if plan.syskit_has_async_resolution?
@@ -709,6 +767,8 @@ module Syskit
                 )
 
                 unless tasks.empty?
+                    # Inject the tasks from the pending tasks in `tasks` so that their
+                    # changes are re-evaluated and re-injected in `pending_changes`
                     dataflow_graph.pending_changes&.first&.each do |t|
                         tasks << t if active_task?(t)
                     end
@@ -745,42 +805,52 @@ module Syskit
                     end
                 end
 
-                if dataflow_graph.pending_changes
-                    main_tasks, new, removed = dataflow_graph.pending_changes
-                    debug "#{main_tasks.size} tasks in pending"
-                    main_tasks.delete_if { |t| !active_task?(t) }
-                    debug "#{main_tasks.size} tasks after inactive removal"
-                    new.delete_if do |(source_task, sink_task), _|
-                        !active_task?(source_task) || !active_task?(sink_task)
-                    end
-                    if removed_connections_require_network_update?(removed)
-                        dataflow_graph.pending_changes = [main_tasks, new, removed]
-                        Runtime.apply_requirement_modifications(plan, force: true)
-                        return
-                    end
+                return unless dataflow_graph.pending_changes
 
-                    debug "applying pending changes from the data flow graph"
-                    new, removed = apply_connection_changes(new, removed)
-                    dataflow_graph.pending_changes =
-                        unless new.empty? && removed.empty?
-                            [main_tasks, new, removed]
-                        end
-
-                    if dataflow_graph.pending_changes
-                        debug do
-                            debug "some connection changes could not be applied in this pass"
-                            main_tasks, new, removed = dataflow_graph.pending_changes
-                            additions = new.inject(0) { |count, (_, ports)| count + ports.size }
-                            removals  = removed.inject(0) { |count, (_, ports)| count + ports.size }
-                            debug "  #{additions} new connections pending"
-                            debug "  #{removals} removed connections pending"
-                            debug "  involving #{main_tasks.size} tasks"
-                            break
-                        end
-                    else
-                        debug "successfully applied pending changes"
-                    end
+                main_tasks, new, removed = dataflow_graph.pending_changes
+                new_count = connections_count(new)
+                removed_count = connections_count(removed)
+                main_tasks.delete_if { |t| !active_task?(t) }
+                debug "#{main_tasks.size} tasks after inactive removal"
+                new.delete_if do |(source_task, sink_task), _|
+                    !active_task?(source_task) || !active_task?(sink_task)
                 end
+                debug "#{main_tasks.size} tasks in pending (#{new_count} to add, " \
+                      "#{removed_count} to remove)"
+
+                if removed_connections_require_network_update?(removed)
+                    debug "removed connection from static ports of running " \
+                          "components, triggering a network generation"
+                    dataflow_graph.pending_changes = [main_tasks, new, removed]
+                    Runtime.apply_requirement_modifications(plan, force: true)
+                    return
+                end
+
+                debug "applying pending changes from the data flow graph"
+                new, removed = apply_connection_changes(new, removed)
+
+                if new.empty? && removed.empty?
+                    debug "successfully applied all pending changes"
+                    dataflow_graph.pending_changes = nil
+                    return
+                end
+
+                dataflow_graph.pending_changes = [main_tasks, new, removed]
+                debug do
+                    debug "some connection changes could not be applied in this pass"
+                    additions = new.inject(0) { |count, (_, ports)| count + ports.size }
+                    removals  = removed.inject(0) { |count, (_, ports)| count + ports.size }
+                    debug "  #{additions} new connections pending"
+                    debug "  #{removals} removed connections pending"
+                    debug "  involving #{main_tasks.size} tasks"
+                    break
+                end
+
+                nil
+            end
+
+            def connections_count(connections)
+                connections.sum { _2.size }
             end
         end
     end
