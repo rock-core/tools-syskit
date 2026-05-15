@@ -536,7 +536,7 @@ module Syskit
             # modification process
             #
             # We perform early changes that involve connections where one of the two tasks
-            # is not running, at the connection is in effect already inactive. When both
+            # is not running, as the connection is in effect already inactive. When both
             # tasks are active, we want to make sure that all the other changes can be
             # performed as fast as possible.
             #
