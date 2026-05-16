@@ -536,7 +536,7 @@ module Syskit
             # modification process
             #
             # We perform early changes that involve connections where one of the two tasks
-            # is not running, at the connection is in effect already inactive. When both
+            # is not running, as the connection is in effect already inactive. When both
             # tasks are active, we want to make sure that all the other changes can be
             # performed as fast as possible.
             #
@@ -555,14 +555,10 @@ module Syskit
             #   running orocos tasks must have a corresponding syskit task in the plan
             #
             # @return [(Hash,Hash)] the connections split into early and late connections
-            def partition_early_late(connections, kind, to_syskit_task)
+            def partition_early_late(connections, kind)
                 early, late = connections.partition do |(source_task, sink_task), port_pairs|
-                    source_is_running =
-                        (syskit_task = to_syskit_task[source_task]) &&
-                        syskit_task.running?
-                    sink_is_running   =
-                        (syskit_task = to_syskit_task[sink_task]) &&
-                        syskit_task.running?
+                    source_is_running = orocos_task_is_running?(source_task)
+                    sink_is_running = orocos_task_is_running?(sink_task)
                     early = !source_is_running || !sink_is_running
 
                     debug do
@@ -575,6 +571,32 @@ module Syskit
                     early
                 end
                 [early, Hash[late]]
+            end
+
+            # Determine if an orocos task is already running
+            #
+            # This implementation is not simply task.running? as it is rather expensive
+            # (requires a remote call). It find whether we have a syskit task with the
+            # given underlying orocos task and checks if that one is running instead
+            #
+            # @param [Orocos::TaskContext,Syskit::TaskContext] task when given a syskit
+            #   taskcontext, the method answers the question "is there *any* task context"
+            #   with the same underlying component that is running"
+            def orocos_task_is_running?(task)
+                if task.respond_to?(:orocos_task)
+                    # 'task' is a syskit task, but we want to know if there are
+                    # *any* syskit task with the same underlying orocos task that is
+                    # currently running. Not only this one.
+                    orocos_task = task.orocos_task
+                    return false unless orocos_task # not deployed
+                else
+                    orocos_task = task
+                end
+
+                syskit_task = @orocos_task_to_setup_syskit_task[orocos_task]
+                return false unless syskit_task
+
+                syskit_task.running?
             end
 
             # Partition new connections between the ones that can be applied right now,
@@ -661,12 +683,9 @@ module Syskit
                     new_connections_partition_held_ready(new)
 
                 early_removal, late_removal     =
-                    partition_early_late(
-                        removed, "removed",
-                        method(:find_setup_syskit_task_context_from_orocos_task)
-                    )
+                    partition_early_late(removed, "removed")
                 early_additions, late_additions =
-                    partition_early_late(additions_ready, "added", proc { |v| v })
+                    partition_early_late(additions_ready, "added")
 
                 modified_tasks = Set.new
                 log_timepoint_group "early_disconnections" do

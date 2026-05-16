@@ -53,7 +53,32 @@ module Syskit
                 ConnectionManagement.update(plan)
             end
 
-            def test_it_removes_connections_when_edges_are_removed_updated_between_tasks
+            def test_it_recreates_a_connection_if_a_policy_is_updated
+                source.out1_port.connect_to sink.in1_port, init: nil
+                source_name = source.out1_port.to_actual_port.component.orocos_name
+                sink_name = sink.in1_port.to_actual_port.component.orocos_name
+                events = record_events do
+                    ConnectionManagement.update(plan)
+                    source.out1_port.connect_to(
+                        sink.in1_port, init: nil, size: 4, type: :buffer
+                    )
+                    ConnectionManagement.update(plan)
+                end
+                events = events.find_all do |ev|
+                    %I[syskit_connect syskit_disconnect].include?(ev.name)
+                end
+                events = events.map { |ev| [ev.name, *ev.args] }
+                expected = [
+                    [:syskit_connect, :success, source_name, "out1", sink_name, "in1",
+                     { init: nil }],
+                    [:syskit_disconnect, source_name, "out1", sink_name, "in1"],
+                    [:syskit_connect, :success, source_name, "out1", sink_name, "in1",
+                     { type: :buffer, init: nil, size: 4 }]
+                ]
+                assert_equal expected, events
+            end
+
+            def test_it_removes_connections_when_edges_are_removed_between_tasks
                 source.out1_port.connect_to sink.in1_port
                 ConnectionManagement.update(plan)
                 source.remove_sink sink
@@ -819,75 +844,144 @@ module Syskit
             end
 
             describe "#partition_early_late" do
-                attr_reader :manager, :connections, :source, :sink
+                attr_reader :source, :sink
 
                 before do
-                    @manager = ConnectionManagement.new(plan)
-                    @source = flexmock
-                    @sink = flexmock
-                    @connections = Hash[[source, sink] => {}]
+                    @task_m = Syskit::TaskContext.new_submodel
+                    @source = syskit_stub_and_deploy(@task_m)
+                    @sink = syskit_stub_and_deploy(@task_m)
                 end
 
-                def make_syskit_task_map(source_state, sink_state)
-                    source_state = unless source_state.nil?
-                                       flexmock(running?: source_state)
-                                   end
-                    sink_state = unless sink_state.nil?
-                                     flexmock(running?: sink_state)
-                                 end
-                    map = flexmock
-                    map.should_receive(:[]).with(source).and_return(source_state)
-                    map.should_receive(:[]).with(sink).and_return(sink_state)
-                    map
+                def manager
+                    ConnectionManagement.new(plan)
                 end
 
                 it "returns a hash for the late connections" do
                     # The return type of early is really #each, but for 'late'
-                    # we need a map
-                    _, late = manager.partition_early_late(
-                        connections, "", make_syskit_task_map(true, true)
-                    )
+                    # we need a map. Make sure the method returns one
+                    connections = { [@source, @sink] => {} }
+
+                    _, late = manager.partition_early_late(connections, "")
                     assert_kind_of Hash, late
                 end
 
-                it "interprets the absence of a syskit task for the source as stopped" do
-                    early, late = manager.partition_early_late(
-                        connections, "", make_syskit_task_map(nil, true)
-                    )
-                    assert_equal connections.to_a, early
-                    assert_equal({}, late)
+                describe "when given syskit tasks" do
+                    before do
+                        @connections = { [source, sink] => {} }
+                    end
+
+                    it "interprets a source task that is not deployed as not running" do
+                        syskit_configure_and_start(sink)
+                        early, late = manager.partition_early_late(@connections, "")
+                        assert_equal @connections.to_a, early
+                        assert_equal({}, late)
+                    end
+
+                    it "interprets a sink task that is not deployed as not running" do
+                        syskit_configure_and_start(source)
+                        early, late = manager.partition_early_late(@connections, "")
+                        assert_equal @connections.to_a, early
+                        assert_equal({}, late)
+                    end
+
+                    it "places in early connections involving a non-running source" do
+                        syskit_start_execution_agents(@source)
+                        syskit_configure_and_start(@sink)
+                        early, late = manager.partition_early_late(@connections, "")
+                        assert_equal @connections.to_a, early
+                        assert_equal({}, late)
+                    end
+
+                    it "places in early connections involving a non-running sink" do
+                        syskit_start_execution_agents(@sink)
+                        syskit_configure_and_start(@source)
+                        early, late = manager.partition_early_late(@connections, "")
+                        assert_equal @connections.to_a, early
+                        assert_equal({}, late)
+                    end
+
+                    it "places in late connections involving running source and sink" do
+                        syskit_configure_and_start(@source)
+                        syskit_configure_and_start(@sink)
+                        early, late = manager.partition_early_late(@connections, "")
+                        assert_equal [], early
+                        assert_equal @connections, late
+                    end
+
+                    it "places in late connections involving non-running source syskit " \
+                       "tasks when there is another syskit task with the same " \
+                       "underlying component that is running" do
+                        old_source = @source.execution_agent.task(@source.orocos_name)
+                        syskit_configure_and_start(old_source)
+                        syskit_configure_and_start(@sink)
+                        early, late = manager.partition_early_late(@connections, "")
+                        assert_equal [], early
+                        assert_equal @connections, late
+                    end
+
+                    it "places in late connections involving non-running sink syskit " \
+                       "tasks when there is another syskit task with the same " \
+                       "underlying component that is running" do
+                        old_sink = @sink.execution_agent.task(@sink.orocos_name)
+                        syskit_configure_and_start(@source)
+                        syskit_configure_and_start(old_sink)
+                        early, late = manager.partition_early_late(@connections, "")
+                        assert_equal [], early
+                        assert_equal @connections, late
+                    end
                 end
 
-                it "interprets the absence of a syskit task for the sink as stopped" do
-                    early, late = manager.partition_early_late(
-                        connections, "", make_syskit_task_map(true, nil)
-                    )
-                    assert_equal connections.to_a, early
-                    assert_equal({}, late)
-                end
+                describe "when given orocos tasks" do
+                    before do
+                        syskit_start_execution_agents(source)
+                        syskit_start_execution_agents(sink)
+                        @connections = { [source.orocos_task, sink.orocos_task] => {} }
+                    end
 
-                it "places in early connections involving a non-running source" do
-                    early, late = manager.partition_early_late(
-                        connections, "", make_syskit_task_map(false, true)
-                    )
-                    assert_equal connections.to_a, early
-                    assert_equal({}, late)
-                end
+                    it "places in early connections involving a non-running source" do
+                        syskit_configure_and_start(@sink)
+                        early, late = manager.partition_early_late(@connections, "")
+                        assert_equal @connections.to_a, early
+                        assert_equal({}, late)
+                    end
 
-                it "places in early connections involving a non-running sink" do
-                    early, late = manager.partition_early_late(
-                        connections, "", make_syskit_task_map(true, false)
-                    )
-                    assert_equal connections.to_a, early
-                    assert_equal({}, late)
-                end
+                    it "places in early connections involving a non-running sink" do
+                        syskit_start_execution_agents(@sink)
+                        syskit_configure_and_start(@source)
+                        early, late = manager.partition_early_late(@connections, "")
+                        assert_equal @connections.to_a, early
+                        assert_equal({}, late)
+                    end
 
-                it "places in late connections involving running source and sink" do
-                    early, late = manager.partition_early_late(
-                        connections, "", make_syskit_task_map(true, true)
-                    )
-                    assert_equal [], early
-                    assert_equal connections, late
+                    it "places in late connections involving running source and sink" do
+                        syskit_configure_and_start(@source)
+                        syskit_configure_and_start(@sink)
+                        early, late = manager.partition_early_late(@connections, "")
+                        assert_equal [], early
+                        assert_equal @connections, late
+                    end
+
+                    it "places in late connections involving a running source " \
+                       "even if there are both running and non-running syskit tasks " \
+                       "with said orocos task" do
+                        other_source = @source.execution_agent.task(@source.orocos_name)
+                        syskit_configure_and_start(other_source)
+                        syskit_configure_and_start(@sink)
+                        early, late = manager.partition_early_late(@connections, "")
+                        assert_equal [], early
+                        assert_equal @connections, late
+                    end
+
+                    it "places in late connections involving a running sink " \
+                       "even if there are both running and non-running syskit tasks " \
+                       "with said orocos task" do
+                        other_sink = @sink.execution_agent.task(@sink.orocos_name)
+                        syskit_configure_and_start(other_sink)
+                        syskit_configure_and_start(@source)
+                        early, late = manager.partition_early_late(@connections, "")
+                        assert_equal [], early
+                        assert_equal @connections, late
+                    end
                 end
             end
 
@@ -933,6 +1027,37 @@ module Syskit
                     end
 
                     include ConnectionExecutionSharedTest
+
+                    it "sequences policy changes across task reconfigurations" do
+                        ConnectionManagement.make_own_logger "conn", Logger::DEBUG
+                        source.out1_port.connect_to sink.in1_port, init: nil
+                        syskit_configure_and_start(source)
+                        syskit_configure_and_start(sink)
+                        ConnectionManagement.update(plan)
+
+                        source_name = source.orocos_name
+                        sink_name = sink.orocos_name
+
+                        new_source = source.execution_agent.task(source.orocos_name)
+                        new_source.should_configure_after source.stop_event
+                        new_source.out1_port.connect_to(
+                            sink.in1_port, type: :buffer, size: 4, init: nil
+                        )
+
+                        events = record_events do
+                            ConnectionManagement.update(plan)
+                        end
+                        events = events.find_all do |ev|
+                            %I[syskit_connect syskit_disconnect].include?(ev.name)
+                        end
+                        events = events.map { |ev| [ev.name, *ev.args] }
+                        expected = [
+                            [:syskit_disconnect, source_name, "out1", sink_name, "in1"],
+                            [:syskit_connect, :success, source_name, "out1", sink_name, "in1",
+                             { type: :buffer, init: nil, size: 4 }]
+                        ]
+                        assert_equal expected, events
+                    end
                 end
 
                 describe "between a composition and a task" do
