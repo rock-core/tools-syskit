@@ -45,6 +45,7 @@ module Syskit
                     mapped_tasks = apply_in_transaction(
                         trsc, root_tasks, remote_task: remote_task
                     )
+                    mapped_tasks = mapped_tasks.transform_values { |t| trsc.may_unwrap(t) }
                     trsc.commit_transaction
                     mapped_tasks
                 end
@@ -85,19 +86,19 @@ module Syskit
 
                 syskit_tasks.each do |plan_t|
                     replacement_t = merge_solver.replacement_for(plan_t)
-                    mapped_tasks[plan_t] = trsc.may_unwrap(replacement_t)
+                    mapped_tasks[plan_t] = trsc[replacement_t]
                 end
 
                 trsc_new_roots = Set.new
                 syskit_roots.each do |root_t, status|
-                    replacement_t = mapped_tasks[root_t] || root_t
+                    replacement_t = mapped_tasks[root_t] || trsc[root_t]
                     if replacement_t != root_t
                         if root_t.planning_task && !replacement_t.planning_task
                             replacement_t.planned_by trsc[root_t.planning_task]
                         end
                         trsc.send("add_#{status}", replacement_t) if status
                     end
-                    trsc_new_roots << trsc[replacement_t]
+                    trsc_new_roots << replacement_t
                 end
 
                 NetworkGeneration::SystemNetworkGenerator

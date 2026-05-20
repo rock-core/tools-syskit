@@ -64,9 +64,11 @@ module Syskit
                 # we will have to investigate whether we could implement one with
                 # the other (probably), but in the meantime we must keep both
                 # in sync
+                # apply_in_plan(@plan, root_tasks, remote_task: false)
                 mapped_tasks = @plan.in_transaction do |trsc|
                     mapped_tasks =
                         stub_network.apply_in_transaction(trsc, root_tasks)
+                    mapped_tasks = mapped_tasks.transform_values { trsc.may_unwrap(_1) }
                     trsc.commit_transaction
                     mapped_tasks
                 end

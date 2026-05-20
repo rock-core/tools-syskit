@@ -553,10 +553,8 @@ module Syskit
             if has_free_deployment
                 pp.text "#{task}: multiple possible deployments, choose one with " \
                         "#prefer_deployed_tasks(deployed_task_name)"
-                deployment_hints.each do |hint|
-                    pp.text "  current hints: " \
-                            "#{deployment_hints.map(&:to_s).join(', ')}"
-                end
+                pp.text "  current hints: " \
+                        "#{deployment_hints.map(&:to_s).join(', ')}"
             elsif candidates.empty?
                 pp.text "#{task}: no deployments available"
             else

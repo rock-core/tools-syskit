@@ -507,6 +507,7 @@ module Syskit
                 self.assertions += 1
                 atomic_actions = actions.map { AtomicActions(_1) }
                 ProfileAssertions.each_combination(*atomic_actions) do |test_actions|
+                    # here
                     t = syskit_deploy(
                         *test_actions.map(&:with_example_arguments),
                         compute_policies: compute_policies,
