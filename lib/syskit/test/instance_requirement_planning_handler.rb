@@ -2,6 +2,7 @@
 
 require "roby/test/spec"
 require "syskit/test/execution_expectations"
+require "syskit/test/expect_execution"
 
 module Syskit
     module Test # :nodoc:
@@ -182,5 +183,7 @@ module Syskit
         )
 
         Roby::Test::ExecutionExpectations.include ExecutionExpectations
+        Roby::Test::TeardownPlans.include ExpectExecution
+        Minitest::Test.include ExpectExecution
     end
 end
