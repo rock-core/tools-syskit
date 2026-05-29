@@ -7,17 +7,33 @@ module Syskit
             #
             # Central class that manages data readers for ports
             class PortReadManager
+                include MainThreadRestrictions
+
                 def initialize(
                     connection_executor: self.class.default_connection_executor,
                     disconnection_executor: self.class.default_disconnection_executor,
                     read_executor: self.class.default_read_executor
                 )
+                    update_main_thread
+
                     @callbacks = {}
                     @pollers = Concurrent::AtomicReference.new({})
 
                     @connection_executor = connection_executor
                     @disconnection_executor = disconnection_executor
                     @read_executor = read_executor
+                end
+
+                # @api private
+                #
+                # Internal access method for the callback map
+                #
+                # ONLY use this method to access @callbacks, it validates that it is
+                # being accessed from the main thread
+                def callbacks
+                    ensure_in_main_thread
+
+                    @callbacks
                 end
 
                 CONNECTION_DEFAULT_THREADS = 20
@@ -140,7 +156,7 @@ module Syskit
                         needs_last_received_value: true
                     )
 
-                    (@callbacks[port] ||= []) << callback
+                    (callbacks[port] ||= []) << callback
                     ensure_reader_uptodate(port)
                     propagate_last_received_value(port)
                     Roby.disposable do
@@ -160,7 +176,7 @@ module Syskit
                 # This is not meant to be called directly. Use the disposable
                 # returned by {#register_callback} instead.
                 def deregister_callback(port, callback)
-                    return unless (callbacks = @callbacks[port])
+                    return unless (callbacks = self.callbacks[port])
 
                     callbacks.delete(callback)
                     if callbacks.empty?
@@ -217,7 +233,7 @@ module Syskit
                 # Update a poller's period to match the callbacks currently listening
                 # to it
                 def update_poller_period(poller)
-                    poller.period = @callbacks[poller.port].map(&:period).min
+                    poller.period = callbacks[poller.port].map(&:period).min
                 end
 
                 # Return the Reader for the given port
@@ -293,7 +309,7 @@ module Syskit
                 #
                 # @return [Integer]
                 def required_policy_for(port)
-                    return unless (callbacks = @callbacks[port])
+                    return unless (callbacks = self.callbacks[port])
 
                     buffer_size = callbacks.map { _1.buffer_size }.max
                     init = callbacks.map { _1.init }.inject(&:|)

@@ -7,9 +7,11 @@ module Syskit
         module Async
             # In-process name service
             #
-            # It is exclusively filled using information that comes from the async
+            # It is exclusively filled based on information that comes from the async
             # {Client}
             class NameService < Orocos::NameServiceBase
+                include MainThreadRestrictions
+
                 # A new NameService instance
                 #
                 # @param [Hash<String,Orocos::TaskContext>] tasks The tasks which are
@@ -21,6 +23,8 @@ module Syskit
                     port_read_manager: PortReadManager.new
                 )
                     super()
+
+                    update_main_thread
 
                     @iors = Concurrent::AtomicReference.new({})
                     @registered_tasks = Concurrent::Hash.new
@@ -54,10 +58,14 @@ module Syskit
                 # After this call, any task not in the tasks parameter will have been
                 # removed from the name server
                 #
-                # @param [#ior,#name] list of IOR and name of remote tasks to resolve
+                # @param [#ior,#name] list of IOR and name of remote tasks to resolve.
+                #   This list is complete, that is it contains all the tasks that the
+                #   name server should know about
                 # @return [Array<String>] list of task names that are either known, or
                 #   that are being discovered
                 def async_update_tasks(tasks)
+                    ensure_in_main_thread
+
                     iors = tasks.each_with_object({}) { |t, h| h[t.name] = t.ior }
                     @iors.set(iors)
 
@@ -127,6 +135,8 @@ module Syskit
                 #
                 # Create a future that discovers a remote task
                 def async_discover_task(task)
+                    ensure_in_main_thread
+
                     future = Concurrent::Promises.future_on(@discovery_executor) do
                         ior = @iors.get[task.name]
                         # ior will be nil if the task has been removed from the task
@@ -140,6 +150,8 @@ module Syskit
                 #
                 # Process the tasks that have been (asynchronously) discovered
                 def resolve_discovered_tasks
+                    ensure_in_main_thread
+
                     while (async_discovery = pop_discovered_task)
                         register(
                             async_discovery.async_task,
@@ -165,6 +177,8 @@ module Syskit
                 # @return [AsyncDiscovery,nil] a valid resolved task or nil if there are
                 #   none so far
                 def pop_discovered_task
+                    ensure_in_main_thread
+
                     loop do
                         return unless (async_discovery = pop_finished_discovery)
                         next unless finished_discovery_validate_ior(async_discovery)
@@ -183,6 +197,8 @@ module Syskit
                 #
                 # @return [AsyncDiscovery]
                 def pop_finished_discovery
+                    ensure_in_main_thread
+
                     async_discovery = @discovery.each_value.find(&:resolved?)
                     return unless async_discovery
 
