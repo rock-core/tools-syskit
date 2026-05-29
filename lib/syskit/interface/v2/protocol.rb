@@ -9,6 +9,67 @@ module Syskit
             module Protocol
                 ROBY_TASK_MEMBERS = Roby::Interface::V2::Protocol::Task.new.members
 
+                OroGenDynamicPortModel =
+                    Struct.new(:name_pattern, :type_name, :input, keyword_init: true)
+                OroGenPortModel =
+                    Struct.new(:name, :type_name, :input, keyword_init: true)
+                OroGenPropertyModel = Struct.new(:name, :type_name, keyword_init: true)
+                OroGenAttributeModel = Struct.new(:name, :type_name, keyword_init: true)
+                OroGenModel = Struct.new(
+                    :name, :project_name, :states,
+                    :properties, :attributes, :ports, :dynamic_ports,
+                    keyword_init: true
+                )
+
+                def self.marshal_orogen_model_dynamic_ports(task_model)
+                    task_model.each_dynamic_port.map do |model|
+                        OroGenDynamicPortModel.new(
+                            name_pattern: model.name,
+                            type_name: model.type.name, input: model.input?
+                        )
+                    end
+                end
+
+                def self.marshal_orogen_model_ports(task_model)
+                    task_model.each_port.map do |model|
+                        OroGenPortModel.new(
+                            name: model.name, type_name: model.type.name,
+                            input: model.input?
+                        )
+                    end
+                end
+
+                def self.marshal_orogen_model_properties(task_model)
+                    task_model.each_property.map do |model|
+                        OroGenPropertyModel.new(
+                            name: model.name, type_name: model.type.name
+                        )
+                    end
+                end
+
+                def self.marshal_orogen_model_attributes(task_model)
+                    task_model.each_attribute.map do |model|
+                        OroGenAttributeModel.new(
+                            name: model.name, type_name: model.type.name
+                        )
+                    end
+                end
+
+                def self.marshal_orogen_model(model)
+                    states = model.each_state.to_a
+                    ports = marshal_orogen_model_ports(model)
+                    dynamic_ports = marshal_orogen_model_dynamic_ports(model)
+                    properties = marshal_orogen_model_properties(model)
+                    attributes = marshal_orogen_model_attributes(model)
+
+                    OroGenModel.new(
+                        name: model.name, project_name: model.project.name,
+                        states: states,
+                        properties: properties, attributes: attributes,
+                        ports: ports, dynamic_ports: dynamic_ports
+                    )
+                end
+
                 DeviceModel = Struct.new(:name, keyword_init: true)
                 MasterDeviceInstance = Struct.new(:name, :model, keyword_init: true) do
                     def pretty_print(pp)
