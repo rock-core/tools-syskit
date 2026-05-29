@@ -151,6 +151,11 @@ module Syskit
                     @discovery[task.name] = AsyncDiscovery.new(task: task, future: future)
                 end
 
+                def wait_and_resolve_all_pending_discoveries
+                    @discovery.each_value { _1.future.wait }
+                    resolve_discovered_tasks
+                end
+
                 # @api private
                 #
                 # Process the tasks that have been (asynchronously) discovered

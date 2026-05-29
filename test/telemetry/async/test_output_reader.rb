@@ -206,7 +206,8 @@ module Syskit
                 def make_async_task(name)
                     t = make_ruby_task name
                     async = Orocos.allow_blocking_calls do
-                        TaskContext.discover(t, port_read_manager: @port_read_manager)
+                        TaskContext.discover(name, t.ior, t.model,
+                                             port_read_manager: @port_read_manager)
                     end
                     [t, async]
                 end

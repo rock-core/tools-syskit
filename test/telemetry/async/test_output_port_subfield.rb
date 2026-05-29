@@ -113,11 +113,12 @@ module Syskit
                 end
 
                 def make_async_task(name)
-                    t = make_ruby_task name
-                    async = Orocos.allow_blocking_calls do
-                        TaskContext.discover(t, port_read_manager: @port_read_manager)
+                    task = make_ruby_task(name)
+                    async_task = Orocos.allow_blocking_calls do
+                        TaskContext.discover(task, task.ior, task.model,
+                                             port_read_manager: @port_read_manager)
                     end
-                    [t, async]
+                    [task, async_task]
                 end
 
                 def assert_polling_eventually(period: 0.01, timeout: 2, &block)

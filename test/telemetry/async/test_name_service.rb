@@ -243,14 +243,9 @@ module Syskit
 
                 describe "#ior" do
                     it "returns the IOR of a registered task" do
-                        _, task = make_deployed_task("test", "some")
-                        async_task = Orocos.allow_blocking_calls do
-                            TaskContext.discover(
-                                task, port_read_manager: PortReadManager.new
-                            )
-                        end
-                        assert_equal "test", async_task.name
-                        @ns.register(async_task)
+                        deployed_task, task = make_deployed_task("test", "some")
+                        @ns.async_update_tasks([deployed_task])
+                        @ns.wait_and_resolve_all_pending_discoveries
                         assert_equal task.ior, @ns.ior("test")
                     end
 

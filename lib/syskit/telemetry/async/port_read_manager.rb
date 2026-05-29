@@ -114,7 +114,8 @@ module Syskit
                     def schedule_read_if_needed(now, executor)
                         return if next_time && next_time > now
 
-                        self.read_future = reader.raw_read_new(executor)
+                        self.read_future =
+                            reader.raw_read_with_result(executor, nil, false)
                     end
 
                     def prepare_next_read(now)
@@ -262,17 +263,18 @@ module Syskit
                         return
                     end
 
-                    if poller.propagate_last_received_value && poller.last_value &&
-                       !poller.resolved_read?
-                        dispatch_last_received_value(poller)
-                    end
-
                     if !poller.scheduled_read?
                         poller.schedule_read_if_needed(now, @read_executor)
                     elsif poller.resolved_read?
                         dispatch_read_result(poller)
                         poller.prepare_next_read(now)
                     end
+
+                    if poller.propagate_last_received_value && poller.last_value
+                        dispatch_last_received_value(poller)
+                    end
+
+                    poller.propagate_last_received_value = false
                 end
 
                 # Time in seconds returned by CLOCK_MONOTONIC
@@ -287,21 +289,31 @@ module Syskit
 
                 # Send read data to registered callbacks
                 def dispatch_read_result(poller)
-                    fulfilled, value, reason = poller.result
-                    if fulfilled
-                        @callbacks[poller.port].each { |c| c.dispatch(value) }
-                        poller.last_value = value
-                        poller.propagate_last_received_value = false
-                    else
+                    fulfilled, read_result, reason = poller.result
+                    unless fulfilled
                         warn "failed to read #{poller.port}: #{reason}"
+                        return
                     end
+
+                    unless read_result # no data
+                        poller.last_value = nil
+                        return
+                    end
+
+                    flow, value = read_result
+                    return unless flow == Orocos::NEW_DATA
+
+                    callbacks[poller.port].each { |c| c.dispatch(value) }
+                    poller.last_value = value
+                    poller.propagate_last_received_value = false
                 end
 
                 # Send last received value to the callbacks that require it
                 def dispatch_last_received_value(poller)
-                    @callbacks[poller.port].each do |c|
-                        c.dispatch(poller.last_value)
+                    if (value = poller.last_value)
+                        callbacks[poller.port].each { _1.dispatch(value) }
                     end
+
                     poller.propagate_last_received_value = false
                 end
 

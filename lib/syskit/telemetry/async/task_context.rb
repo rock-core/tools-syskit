@@ -86,7 +86,8 @@ module Syskit
                     )
                 end
 
-                # Create a TaskContext object from
+                # Create a TaskContext object from the information returned by
+                # {.async_discovery}
                 def self.from_async_discovery(discovered, port_read_manager:)
                     async_task = new(
                         discovered.task.name,
@@ -98,6 +99,21 @@ module Syskit
                     async_task.discover_ports(discovered.ports)
                     async_task.reachable!(discovered.task)
                     async_task
+                end
+
+                # Synchronously discover remote task info and return the corresponding
+                # {TaskContext} object
+                #
+                # This must be called within the main application thread, and must be
+                # wrapped in a Orocos.allow_blocking_calls call. This is meant as a helper
+                # for specific cases (essentially unit tests and scripts)
+                def self.discover(name, ior, orogen_model, port_read_manager:)
+                    discovered = Orocos.allow_blocking_calls do
+                        TaskContext.async_discovery(name, ior, orogen_model)
+                    end
+                    TaskContext.from_async_discovery(
+                        discovered, port_read_manager: port_read_manager
+                    )
                 end
 
                 def initialize(name, port_read_manager:, model:)
