@@ -110,8 +110,8 @@ module Syskit
                 AsyncDiscovery = Struct.new(
                     :task, :future, :ior, :async_task, keyword_init: true
                 ) do
-                    def update_from_result
-                        fulfilled, (ior, async_task), reason = future.result
+                    def update_from_result(port_read_manager:)
+                        fulfilled, (ior, discovered), reason = future.result
                         unless fulfilled
                             raise AsyncDiscoveryError,
                                   "unexpected error during asynchronous " \
@@ -119,7 +119,11 @@ module Syskit
                         end
 
                         self.ior = ior
-                        self.async_task = async_task
+                        return unless discovered
+
+                        self.async_task = TaskContext.from_async_discovery(
+                            discovered, port_read_manager: port_read_manager
+                        )
                     end
 
                     def wait
@@ -139,6 +143,7 @@ module Syskit
 
                     future = Concurrent::Promises.future_on(@discovery_executor) do
                         ior = @iors.get[task.name]
+
                         # ior will be nil if the task has been removed from the task
                         # set while the future was pending
                         discover_task(task.name, ior, task.orogen_model_name) if ior
@@ -182,7 +187,7 @@ module Syskit
                     loop do
                         return unless (async_discovery = pop_finished_discovery)
                         next unless finished_discovery_validate_ior(async_discovery)
-                        next unless async_discovery.async_task
+                        next unless async_discovery.async_task # error during resolution
 
                         return async_discovery
                     end
@@ -203,7 +208,9 @@ module Syskit
                     return unless async_discovery
 
                     @discovery.delete(async_discovery.task.name)
-                    async_discovery.update_from_result
+                    async_discovery.update_from_result(
+                        port_read_manager: @port_read_manager
+                    )
                     async_discovery
                 end
 
@@ -246,17 +253,10 @@ module Syskit
                 #   resolve the task, and the async taskcontext that represents it. The
                 #   task is nil if the resolution failed
                 def discover_task(name, ior, orogen_model_name)
-                    task = Orocos::TaskContext.new(
-                        ior,
-                        name: name,
-                        model: orogen_model_from_name(orogen_model_name)
-                    )
+                    orogen_model = orogen_model_from_name(orogen_model_name)
+                    discovered = TaskContext.async_discovery(name, ior, orogen_model)
 
-                    async_task = TaskContext.discover(
-                        task, port_read_manager: @port_read_manager
-                    )
-
-                    [ior, async_task]
+                    [ior, discovered]
                 rescue StandardError => e
                     warn "Failed discovery of task #{name}: #{e.message}"
                     e.backtrace.each do |line|

@@ -64,54 +64,43 @@ module Syskit
                     @states_index_to_symbols
                 end
 
-                # Discover information about a Orocos::TaskContext and create the
-                # corresponding {TaskContext}
+                Discovered = Struct.new(
+                    :task, :orogen_model, :attributes, :properties, :ports,
+                    keyword_init: true
+                )
+
+                # Discover information about a Orocos::TaskContext
                 #
                 # This is meant to be called in a separate thread
-                def self.discover(task, port_read_manager:)
-                    async_task = TaskContext.new(
-                        task.name, port_read_manager: port_read_manager
+                #
+                # @return [Discovered]
+                def self.async_discovery(name, ior, orogen_model)
+                    task = Orocos::TaskContext.new(ior, name: name, model: orogen_model)
+
+                    Discovered.new(
+                        task: task,
+                        orogen_model: orogen_model,
+                        attributes: task.attribute_names.map { task.attribute(_1) },
+                        properties: task.property_names.map { task.property(_1) },
+                        ports: task.port_names.map { task.port(_1) }
                     )
+                end
 
-                    # Already do an initial discovery of all the task's interface objects
-                    discover_attributes(async_task, task)
-                    discover_properties(async_task, task)
-                    discover_ports(async_task, task)
-
-                    # We can do this here ONLY BECAUSE we're populating an initial
-                    # state. Further updates need to call the `discover_` methods in
-                    # the main thread
-                    async_task.reachable!(task)
+                # Create a TaskContext object from
+                def self.from_async_discovery(discovered, port_read_manager:)
+                    async_task = new(
+                        discovered.task.name,
+                        model: discovered.orogen_model,
+                        port_read_manager: port_read_manager
+                    )
+                    async_task.discover_attributes(discovered.attributes)
+                    async_task.discover_properties(discovered.properties)
+                    async_task.discover_ports(discovered.ports)
+                    async_task.reachable!(discovered.task)
                     async_task
                 end
 
-                # @api private
-                #
-                # Discover a remote task's attributes
-                def self.discover_attributes(async_task, task)
-                    raw_attributes = task.attribute_names.map { task.attribute(_1) }
-                    async_task.discover_attributes(raw_attributes)
-                end
-
-                # @api private
-                #
-                # Discover a remote task's properties
-                def self.discover_properties(async_task, task)
-                    raw_properties = task.property_names.map { task.property(_1) }
-                    async_task.discover_properties(raw_properties)
-                end
-
-                # @api private
-                #
-                # Discover a remote task's ports
-                def self.discover_ports(async_task, task)
-                    raw_ports = task.port_names.map { task.port(_1) }
-                    async_task.discover_ports(raw_ports)
-                end
-
-                def initialize(
-                    name, port_read_manager:, model: self.class.dummy_orogen_model(name)
-                )
+                def initialize(name, port_read_manager:, model:)
                     super()
 
                     @name = name
