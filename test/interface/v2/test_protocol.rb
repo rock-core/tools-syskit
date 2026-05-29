@@ -79,6 +79,77 @@ module Syskit
                         assert_equal "Dev", marshalled.model.name
                     end
                 end
+
+                describe "orogen model support" do
+                    it "transmits the state symbols" do
+                        project = OroGen::Spec::Project.new(OroGen::Loaders::RTT.new)
+                        model = OroGen::Spec::TaskContext.new(project, "A")
+                        model.runtime_states "runtime_custom"
+                        model.error_states "error_custom"
+                        model.exception_states "exception_custom"
+                        model.fatal_states "fatal_custom"
+
+                        marshalled = Protocol.marshal_orogen_model(model)
+
+                        expected = [
+                            ["INIT", :toplevel],
+                            ["PRE_OPERATIONAL", :toplevel],
+                            ["FATAL_ERROR", :toplevel],
+                            ["EXCEPTION", :toplevel],
+                            ["STOPPED", :toplevel],
+                            ["RUNNING", :toplevel],
+                            ["RUNTIME_ERROR", :toplevel],
+                            ["error_custom", :error],
+                            ["exception_custom", :exception],
+                            ["fatal_custom", :fatal],
+                            ["runtime_custom", :runtime]
+                        ]
+                        assert_equal expected, marshalled.states
+                    end
+
+                    it "marshals the model and its elements" do
+                        project = OroGen::Spec::Project.blank
+                        project.name "bla"
+                        registry = Typelib::CXXRegistry.new
+                        registry.each(with_aliases: false) do
+                            project.loader.register_type_model(_1, true)
+                        end
+                        model = OroGen::Spec::TaskContext.new(project, "A")
+                        model.attribute "a", "/int64_t"
+                        model.property "p", "/int8_t"
+                        model.input_port "in", "/int16_t"
+                        model.output_port "out", "/int32_t"
+                        model.dynamic_input_port(/i/, "/float")
+                        model.dynamic_output_port(/o/, "/double")
+
+                        marshalled = Protocol.marshal_orogen_model(model)
+
+                        assert_equal "A", marshalled.name
+                        assert_equal "bla", marshalled.project_name
+
+                        ports = marshalled.ports.map { _1.to_h }
+                        assert_equal(
+                            Set[{ name: "in", type_name: "/int16_t", input: true },
+                                { name: "out", type_name: "/int32_t", input: false }],
+                            ports.to_set
+                        )
+
+                        dynamic_ports = marshalled.dynamic_ports.map { _1.to_h }
+                        assert_equal(
+                            Set[
+                                { name_pattern: /i/, type_name: "/float", input: true },
+                                { name_pattern: /o/, type_name: "/double", input: false }
+                            ],
+                            dynamic_ports.to_set
+                        )
+
+                        properties = marshalled.properties.map { _1.to_h }
+                        assert_equal([{ name: "p", type_name: "/int8_t" }], properties)
+
+                        attributes = marshalled.attributes.map { _1.to_h }
+                        assert_equal([{ name: "a", type_name: "/int64_t" }], attributes)
+                    end
+                end
             end
         end
     end
