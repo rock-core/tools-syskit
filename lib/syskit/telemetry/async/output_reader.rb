@@ -32,6 +32,10 @@ module Syskit
                     end
                 end
 
+                def to_s
+                    "#{port}.reader<#{object_id}>"
+                end
+
                 def raw_reader
                     @reader.get
                 end

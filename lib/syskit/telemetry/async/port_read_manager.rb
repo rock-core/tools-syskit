@@ -87,7 +87,7 @@ module Syskit
                             "poller %<name>s: connected=%<connected>s " \
                             "scheduled=%<scheduled>s " \
                             "next_time=%<next_time>.3f (in %<next_time_delta_ms>i ms)",
-                            name: port.full_name,
+                            name: port.to_s,
                             next_time: next_time || 0,
                             next_time_delta_ms: next_time_delta_ms || 0,
                             connected: connected? ? "yes" : "no",

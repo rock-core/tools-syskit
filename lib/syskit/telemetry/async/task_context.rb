@@ -130,6 +130,10 @@ module Syskit
                     @current_state = nil
                 end
 
+                def to_s
+                    "TaskContext:#{name}<#{object_id}>"
+                end
+
                 @dummy_orogen_models = Concurrent::Hash.new
 
                 def self.dummy_orogen_model(name)
