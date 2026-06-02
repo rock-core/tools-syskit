@@ -252,7 +252,9 @@ module Syskit
                     @name_service&.dispose
 
                     @port_read_manager = Async::PortReadManager.new
+                    @remote_system = Async::RemoteSystem.new
                     @name_service = Async::NameService.new(
+                        @remote_system,
                         port_read_manager: @port_read_manager
                     )
                 end
@@ -604,6 +606,12 @@ module Syskit
                     ) do |updated, removed|
                         update_current_deployments(updated, removed)
                         process_current_deployments
+                    end
+
+                    return unless @name_service.missing_orogen_models?
+
+                    polling_call(["syskit"], "system_definitions") do |sysdef|
+                        @remote_system.update_from_protocol(sysdef)
                     end
                 end
 

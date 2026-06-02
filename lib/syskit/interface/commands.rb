@@ -16,6 +16,12 @@ module Syskit
             command :deployments,
                     "returns information about running deployments"
 
+            def system_definitions
+                V2::Protocol.marshal_system_definitions(Roby.app.default_loader)
+            end
+            command :system_definitions,
+                    "transmits definition of orogen models and typelib types"
+
             # Return incremental update about deployments
             #
             # @return [Protocol::Deployment]

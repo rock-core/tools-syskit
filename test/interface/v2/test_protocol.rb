@@ -80,6 +80,15 @@ module Syskit
                     end
                 end
 
+                describe "typelib registry support" do
+                    it "transmits the registry as XML" do
+                        registry = Typelib::CXXRegistry.new
+                        marshalled = Protocol.marshal_typelib_registry(registry)
+
+                        assert_equal marshalled.xml, registry.to_xml
+                    end
+                end
+
                 describe "orogen model support" do
                     it "transmits the state symbols" do
                         project = OroGen::Spec::Project.new(OroGen::Loaders::RTT.new)
