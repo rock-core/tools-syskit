@@ -61,6 +61,7 @@ module Syskit
 
                 plan.syskit_cancel_async_resolution
                 plan.syskit_join_current_resolution
+                plan.syskit_pending_forced_resolution = false
             end
 
             def teardown_registered_plans

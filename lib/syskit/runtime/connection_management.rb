@@ -769,7 +769,10 @@ module Syskit
             # update RequiredDataFlow and then do a diff against ActualDataFlow.
             def update
                 # Don't do anything if the engine is deploying
-                return if plan.syskit_has_async_resolution?
+                if plan.syskit_has_async_resolution?
+                    debug "connection: skipping, async resolution in progress"
+                    return
+                end
 
                 update_pending_changes_from_modified_tasks
                 add_dangling_connections_to_pending_changes

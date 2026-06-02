@@ -9,12 +9,76 @@ module Syskit
             attr_reader :task
 
             before do
-                task_m = Syskit::RubyTaskContext.new_submodel do
+                @task_m = task_m = Syskit::RubyTaskContext.new_submodel do
                     input_port "in", "/int"
                     output_port "out", "/int"
                 end
                 use_ruby_tasks task_m => "test", on: "stubs"
                 @task = syskit_deploy_configure_and_start(task_m)
+            end
+
+            describe "handling of apply_requirement_modifications" do
+                it "finishes within the test the resolutions " \
+                   "created during the generation block" do
+                    plan.add(@task_m.as_plan)
+                    expect_execution { Syskit::Runtime.apply_requirement_modifications(plan, force: true) }
+                        .process_async_resolutions(true)
+                        .to_achieve { !plan.syskit_has_async_resolution? }
+                end
+
+                it "finishes at the end of the test the resolutions " \
+                   "created during the generation block" do
+                    plan.add(@task_m.as_plan)
+                    expect_execution { Syskit::Runtime.apply_requirement_modifications(plan, force: true) }
+                        .process_async_resolutions(true)
+                        .to_run
+
+                    refute plan.syskit_has_async_resolution?
+                end
+
+                it "does not wait for resolutions to stop if disabled" do
+                    plan.add(@task_m.as_plan)
+                    expect_execution { Syskit::Runtime.apply_requirement_modifications(plan, force: true) }
+                        .process_async_resolutions(false)
+                        .to_run
+
+                    assert plan.syskit_has_async_resolution?
+                end
+
+                it "finishes within the test the resolutions " \
+                   "created during the execution" do
+                    plan.add(@task_m.as_plan)
+                    applied = false
+                    expect_execution
+                        .process_async_resolutions(true)
+                        .poll do
+                            unless applied
+                                Syskit::Runtime.apply_requirement_modifications(
+                                    plan, force: true
+                                )
+                                applied = true
+                            end
+                        end.to_achieve { !plan.syskit_has_async_resolution? }
+                end
+
+                it "finishes at the end of the test resolutions " \
+                   "created during the execution" do
+                    plan.add(@task_m.as_plan)
+                    done = false
+                    expect_execution
+                        .process_async_resolutions(true)
+                        .poll do
+                            unless done
+                                Syskit::Runtime.apply_requirement_modifications(
+                                    plan, force: true
+                                )
+                                done = true
+                            end
+                        end
+                        .to_run
+
+                    refute plan.syskit_has_async_resolution?
+                end
             end
 
             describe "#have_one_new_sample" do
