@@ -9,6 +9,22 @@ module Syskit
             module Protocol
                 ROBY_TASK_MEMBERS = Roby::Interface::V2::Protocol::Task.new.members
 
+                SystemDefinitions =
+                    Struct.new(:orogen_models, :registry, keyword_init: true)
+
+                # Marshal information from an orogen loader's into a SystemDefinitions
+                # struct
+                def self.marshal_system_definitions(loader)
+                    registry = marshal_typelib_registry(loader.registry)
+                    orogen_models = loader.loaded_task_models.each_value.map do |m|
+                        marshal_orogen_model(m)
+                    end
+
+                    SystemDefinitions.new(
+                        orogen_mogels: orogen_models, registry: registry
+                    )
+                end
+
                 OroGenDynamicPortModel =
                     Struct.new(:name_pattern, :type_name, :input, keyword_init: true)
                 OroGenPortModel =
@@ -68,6 +84,11 @@ module Syskit
                         properties: properties, attributes: attributes,
                         ports: ports, dynamic_ports: dynamic_ports
                     )
+                end
+
+                TypelibRegistry = Struct.new :xml, keyword_init: true
+                def self.marshal_typelib_registry(registry)
+                    TypelibRegistry.new(xml: registry.to_xml)
                 end
 
                 DeviceModel = Struct.new(:name, keyword_init: true)
