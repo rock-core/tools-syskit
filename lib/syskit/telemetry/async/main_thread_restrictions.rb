@@ -3,15 +3,24 @@
 module Syskit
     module Telemetry
         module Async
-            # Module providing common functionality to validate that some methods are
-            # called within the main thread
+            # Module providing common functionality to validate the thread some methods
+            # are called from
+            #
+            # Set the "main" thread, that is the thread we want these methods to be called
+            # from, by calling {#update_main_thread} and then call
+            # {#ensure_in_main_thread} to enforce the restriction.
+            #
+            # This is usually meant to be used in an event-loop kind of application that
+            # spawns futures/promises, to make sure thread-unsafe methods are not called
+            # in a separate thread.
             module MainThreadRestrictions
                 # Make a thread the main thread
                 #
                 # Usually called in an object's constructor
                 #
                 # @param [Thread] thread the thread that will become 'main', by default
-                #    the current thread
+                #    the current thread. When running on a UI, it will usually be called
+                #    from within the thread of the UI event loop
                 def update_main_thread(thread = Thread.current)
                     @__main_thread = thread
                 end
