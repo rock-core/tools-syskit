@@ -22,13 +22,13 @@ module Syskit
                 def initialize(parent = nil)
                     super(parent, auto_resize: false)
 
-                    @ui_scheduler_state = SchedulerView.new
-                    add_widget @ui_scheduler_state
+                    @ui_scheduler_state = SchedulerView.new(self)
+                    add_widget(@ui_scheduler_state)
 
-                    @ui_exception_view = Roby::GUI::ExceptionView.new
+                    @ui_exception_view = Roby::GUI::ExceptionView.new(self)
+                    add_widget(@ui_exception_view)
                     connect(ui_exception_view, SIGNAL("fileOpenClicked(const QUrl&)"),
                             self, SIGNAL("fileOpenClicked(const QUrl&)"))
-                    add_widget ui_exception_view
                     ui_exception_view.hide
                     @job_status = nil
                 end
@@ -79,7 +79,6 @@ module Syskit
                     else
                         ui_exception_view.show
                     end
-                    children_size_updated
                 end
             end
         end
