@@ -64,7 +64,7 @@ module Syskit
                     @states_index_to_symbols
                 end
 
-                Discovered = Struct.new(
+                DiscoveredInterface = Struct.new(
                     :task, :orogen_model, :attributes, :properties, :ports,
                     keyword_init: true
                 )
@@ -73,11 +73,11 @@ module Syskit
                 #
                 # This is meant to be called in a separate thread
                 #
-                # @return [Discovered]
-                def self.async_discovery(name, ior, orogen_model)
+                # @return [DiscoveredInterface]
+                def self.discover_interface(name, ior, orogen_model)
                     task = Orocos::TaskContext.new(ior, name: name, model: orogen_model)
 
-                    Discovered.new(
+                    DiscoveredInterface.new(
                         task: task,
                         orogen_model: orogen_model,
                         attributes: task.attribute_names.map { task.attribute(_1) },
@@ -87,8 +87,8 @@ module Syskit
                 end
 
                 # Create a TaskContext object from the information returned by
-                # {.async_discovery}
-                def self.from_async_discovery(discovered, port_read_manager:)
+                # {.discover}
+                def self.from_discovered_interface(discovered, port_read_manager:)
                     async_task = new(
                         discovered.task.name,
                         model: discovered.orogen_model,
@@ -109,9 +109,9 @@ module Syskit
                 # for specific cases (essentially unit tests and scripts)
                 def self.discover(name, ior, orogen_model, port_read_manager:)
                     discovered = Orocos.allow_blocking_calls do
-                        TaskContext.async_discovery(name, ior, orogen_model)
+                        TaskContext.discover_interface(name, ior, orogen_model)
                     end
-                    TaskContext.from_async_discovery(
+                    TaskContext.from_discovered_interface(
                         discovered, port_read_manager: port_read_manager
                     )
                 end

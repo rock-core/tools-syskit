@@ -121,7 +121,7 @@ module Syskit
                         self.ior = ior
                         return unless discovered
 
-                        self.async_task = TaskContext.from_async_discovery(
+                        self.async_task = TaskContext.from_discovered_interface(
                             discovered, port_read_manager: port_read_manager
                         )
                     end
@@ -259,7 +259,7 @@ module Syskit
                 #   task is nil if the resolution failed
                 def discover_task(name, ior, orogen_model_name)
                     orogen_model = orogen_model_from_name(orogen_model_name)
-                    discovered = TaskContext.async_discovery(name, ior, orogen_model)
+                    discovered = TaskContext.discover_interface(name, ior, orogen_model)
 
                     [ior, discovered]
                 rescue StandardError => e
