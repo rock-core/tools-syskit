@@ -250,6 +250,33 @@ module Syskit
                     assert_equal({ stubs => ["old_log_file.log"] }, rotated_logs)
                 end
 
+                it "calls the blocks registered with on_log_rotation" do
+                    mock = flexmock
+                    mock.should_receive(:called).once
+                    app.syskit_on_log_rotation { mock.called }
+                    app.syskit_rotate_logs
+                end
+
+                it "stop calling the blocks registered when disposed" do
+                    mock = flexmock
+                    mock.should_receive(:called).never
+                    handler = app.syskit_on_log_rotation { mock.called }
+                    handler.dispose
+                    app.syskit_rotate_logs
+                end
+
+                it "stop calling the blocks registered when the block raised" do
+                    mock = flexmock
+                    mock.should_receive(:called).once
+                    flexmock(::Robot).should_receive(:warn).at_least.once
+                    app.syskit_on_log_rotation do
+                        mock.called
+                        raise "some error"
+                    end
+                    app.syskit_rotate_logs
+                    app.syskit_rotate_logs
+                end
+
                 it "returns an empty list of process servers " \
                    "if log transfer is disabled" do
                     conf = Syskit.conf.process_server_config_for("localhost")
