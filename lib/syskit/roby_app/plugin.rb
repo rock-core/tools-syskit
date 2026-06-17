@@ -205,6 +205,8 @@ module Syskit
                           "cannot enable log transfer without log rotation"
                 end
 
+                Roby.warn "built-in log transfer is deprecated. Use the transfer " \
+                          "functionality of `syskit log_runtime_archive` instead"
                 conf = Syskit.conf.log_transfer
                 conf.target_dir ||= log_dir
                 @syskit_log_transfer_manager = LogTransferManager.new(conf)
@@ -309,7 +311,7 @@ module Syskit
 
                 if Syskit.conf.log_rotation_period
                     @log_rotation_poll_handler =
-                        app.execution_engine.every(Syskit.conf.log_rotation_period) do
+                        app.execution_engine.every(Syskit.conf.log_rotation_period, immediate: false) do
                             app.syskit_log_rotation_poll_handler
                         end
                 end
@@ -329,6 +331,33 @@ module Syskit
 
                 syskit_log_initiate_transfer(rotated_logs) unless rotated_logs.empty?
                 syskit_log_transfer_poll_state
+            end
+
+            # @api private
+            #
+            # Call the blocks registered with {#syskit_on_log_rotation} while doing
+            # error handling
+            #
+            # @see syskit_rotate_logs
+            def syskit_call_rotation_handlers
+                @syskit_log_rotation_handlers&.delete_if do |h|
+                    h.call
+                    false
+                rescue StandardError => e
+                    ::Robot.warn "disabling log rotation handler #{h} because it raised"
+                    Roby.log_exception_with_backtrace(e, ::Robot, :warn)
+                    true
+                end
+            end
+
+            # Register a block called during log rotation
+            #
+            # @return [#dispose] a disposable that will de-register the callback
+            # @see syskit_rotate_logs
+            def syskit_on_log_rotation(&block)
+                @syskit_log_rotation_handlers ||= []
+                @syskit_log_rotation_handlers << block
+                Roby.disposable { @syskit_log_rotation_handlers.delete(block) }
             end
 
             # Hook called by the main application to undo what {.prepare} did
@@ -1066,14 +1095,41 @@ module Syskit
                 rest_api.mount REST_API => "/syskit"
             end
 
+            # Perform log rotation
+            #
+            # Syskit provides two mechanisms to rotate logs. An in-plan mechanism,
+            # and a callback-based mechanism.
+            #
+            # In-plan: the method looks for any task that provides the
+            # `Syskit::LoggerService` task service. See below for the requirements on
+            # these tasks.
+            #
+            # The callbacks registered via {#syskit_on_log_rotation} are then called
+            # in sequence. Callbacks that raise are autoamtically disabled.
+            #
+            # The tasks processed by the in-plan step are expected to have two methods:
+            # `log_server_name` and `rotate_log`. `log_server_name` returns a key that
+            # is used for log transfer. In-process log transfer is now deprecated in
+            # favor of `syskit log_runtime_archive`, so this method may return any value
+            # as long as the in-process transfer is disabled. `rotate_log` must return
+            # the list of the names of the logs that have been closed because of the
+            # rotation (i.e. the 'old files')
+            #
+            # @return [Hash<Object, Array>] a map from the keys returned by the
+            #   log_server_name methods to the list of old files rotated under
+            #   that key
             def syskit_rotate_logs
-                plan.find_tasks(Syskit::LoggerService)
-                    .running.each_with_object({}) do |task, rotated_logs|
+                result =
+                    plan.find_tasks(Syskit::LoggerService)
+                        .running.each_with_object({}) do |task, rotated_logs|
                         process_server = Syskit.conf.process_server_config_for(
                             task.log_server_name
                         )
                         (rotated_logs[process_server] ||= []).concat(task.rotate_log)
                     end
+
+                syskit_call_rotation_handlers
+                result
             end
         end
     end
