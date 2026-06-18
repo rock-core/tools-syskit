@@ -187,6 +187,14 @@ module Syskit
                     Syskit::Placeholder
                 end
 
+                def instanciate(
+                    plan, _context = DependencyInjectionContext.new,
+                    task_arguments: {}, **
+                )
+                    plan.add(task = new(**task_arguments))
+                    task
+                end
+
                 # Create a task model that is an aggregate of all the provided
                 # models (components and services)
                 #
@@ -208,6 +216,7 @@ module Syskit
                     model.concrete_model = nil
                     model.include task_extension
                     model.extend  self
+                    model.extend  self::Creation
                     model.proxied_component_model = task_model
                     model.proxied_data_service_models = service_models.dup
                     model.update_proxy_mappings
