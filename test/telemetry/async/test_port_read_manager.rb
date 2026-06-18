@@ -152,10 +152,64 @@ module Syskit
 
                         Orocos.allow_blocking_calls { @task.out.write 42 }
                         execute_all(@read_executor)
-                        assert_equal 42, @poller.read_future.value
+                        assert_equal [1, 42], @poller.read_future.value
                         @manager.poll
 
                         assert_equal [42], @received_samples
+                    end
+
+                    it "propagates a new received sample" do
+                        execute_all(@connection_executor)
+                        @manager.poll
+
+                        assert @poller.reader.connected?
+                        assert @poller.read_future
+
+                        Orocos.allow_blocking_calls { @task.out.write 42 }
+                        execute_all(@read_executor)
+                        assert_equal [1, 42], @poller.read_future.value
+                        @manager.poll
+
+                        assert_equal 42, @poller.last_value
+                        assert_equal [42], @received_samples
+                    end
+
+                    it "propagates a new value received after an existing one" do
+                        execute_all(@connection_executor)
+                        @manager.poll
+
+                        Orocos.allow_blocking_calls { @task.out.write 42 }
+                        read_next_sample
+                        assert_equal 42, @poller.last_value
+
+                        Orocos.allow_blocking_calls { @task.out.write 21 }
+                        read_next_sample
+                        assert_equal 21, @poller.last_value
+                        assert_equal [42, 21], @received_samples
+                    end
+
+                    it "does not propagate anything if a new read indicates " \
+                       "no new values" do
+                        execute_all(@connection_executor)
+                        @manager.poll
+
+                        Orocos.allow_blocking_calls { @task.out.write 42 }
+                        read_next_sample
+                        read_next_sample
+                        assert_equal 42, @poller.last_value
+                        assert_equal [42], @received_samples
+                    end
+
+                    it "resets the last value to nil if the reader is disconnected" do
+                        execute_all(@connection_executor)
+                        @manager.poll
+
+                        Orocos.allow_blocking_calls { @task.out.write 42 }
+                        read_next_sample
+                        assert_equal 42, @poller.last_value
+                        Orocos.allow_blocking_calls { @task.out.disconnect_all }
+                        read_next_sample
+                        assert_nil @poller.last_value
                     end
 
                     it "reschedules the second read based on the end of the first" do
@@ -210,6 +264,17 @@ module Syskit
                         assert @poller.read_future
                     end
 
+                    def read_next_sample
+                        unless @poller.read_future
+                            freeze_monotonic_time(@poller.next_time + 1e-6)
+                            @manager.poll
+                        end
+
+                        execute_all(@read_executor)
+                        @poller.read_future.wait
+                        @manager.poll
+                    end
+
                     def freeze_monotonic_time(time = @manager.monotonic_time)
                         @frozen_time = time
                         flexmock(@manager)
@@ -235,7 +300,8 @@ module Syskit
                 def make_async_task(name)
                     t = make_ruby_task name
                     async = Orocos.allow_blocking_calls do
-                        TaskContext.discover(t, port_read_manager: @manager)
+                        TaskContext.discover(name, t.ior, t.model,
+                                             port_read_manager: @manager)
                     end
                     [t, async]
                 end

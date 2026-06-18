@@ -41,6 +41,10 @@ module Syskit
                     @type = type
                 end
 
+                def to_s
+                    "#{task_context}.#{name}<#{object_id},#{type.name}>"
+                end
+
                 def eql?(other)
                     other.task_context.eql?(task_context) &&
                         other.name == name &&

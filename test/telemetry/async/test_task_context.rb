@@ -330,9 +330,10 @@ module Syskit
                 end
 
                 def discover_task(task)
-                    Orocos.allow_blocking_calls do
-                        TaskContext.discover(task, port_read_manager: @port_read_manager)
-                    end
+                    TaskContext.discover(
+                        task.name, task.ior, task.model,
+                        port_read_manager: @port_read_manager
+                    )
                 end
 
                 def assert_polling_eventually(period: 0.01, timeout: 2, &block)

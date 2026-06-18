@@ -7,17 +7,33 @@ module Syskit
             #
             # Central class that manages data readers for ports
             class PortReadManager
+                include MainThreadRestrictions
+
                 def initialize(
                     connection_executor: self.class.default_connection_executor,
                     disconnection_executor: self.class.default_disconnection_executor,
                     read_executor: self.class.default_read_executor
                 )
+                    update_main_thread
+
                     @callbacks = {}
                     @pollers = Concurrent::AtomicReference.new({})
 
                     @connection_executor = connection_executor
                     @disconnection_executor = disconnection_executor
                     @read_executor = read_executor
+                end
+
+                # @api private
+                #
+                # Internal access method for the callback map
+                #
+                # ONLY use this method to access @callbacks, it validates that it is
+                # being accessed from the main thread
+                def callbacks
+                    ensure_in_main_thread
+
+                    @callbacks
                 end
 
                 CONNECTION_DEFAULT_THREADS = 20
@@ -87,7 +103,7 @@ module Syskit
                             "poller %<name>s: connected=%<connected>s " \
                             "scheduled=%<scheduled>s " \
                             "next_time=%<next_time>.3f (in %<next_time_delta_ms>i ms)",
-                            name: port.full_name,
+                            name: port.to_s,
                             next_time: next_time || 0,
                             next_time_delta_ms: next_time_delta_ms || 0,
                             connected: connected? ? "yes" : "no",
@@ -98,7 +114,8 @@ module Syskit
                     def schedule_read_if_needed(now, executor)
                         return if next_time && next_time > now
 
-                        self.read_future = reader.raw_read_new(executor)
+                        self.read_future =
+                            reader.raw_read_with_result(executor, nil, false)
                     end
 
                     def prepare_next_read(now)
@@ -140,7 +157,7 @@ module Syskit
                         needs_last_received_value: true
                     )
 
-                    (@callbacks[port] ||= []) << callback
+                    (callbacks[port] ||= []) << callback
                     ensure_reader_uptodate(port)
                     propagate_last_received_value(port)
                     Roby.disposable do
@@ -160,7 +177,7 @@ module Syskit
                 # This is not meant to be called directly. Use the disposable
                 # returned by {#register_callback} instead.
                 def deregister_callback(port, callback)
-                    return unless (callbacks = @callbacks[port])
+                    return unless (callbacks = self.callbacks[port])
 
                     callbacks.delete(callback)
                     if callbacks.empty?
@@ -217,7 +234,7 @@ module Syskit
                 # Update a poller's period to match the callbacks currently listening
                 # to it
                 def update_poller_period(poller)
-                    poller.period = @callbacks[poller.port].map(&:period).min
+                    poller.period = callbacks[poller.port].map(&:period).min
                 end
 
                 # Return the Reader for the given port
@@ -246,17 +263,18 @@ module Syskit
                         return
                     end
 
-                    if poller.propagate_last_received_value && poller.last_value &&
-                       !poller.resolved_read?
-                        dispatch_last_received_value(poller)
-                    end
-
                     if !poller.scheduled_read?
                         poller.schedule_read_if_needed(now, @read_executor)
                     elsif poller.resolved_read?
                         dispatch_read_result(poller)
                         poller.prepare_next_read(now)
                     end
+
+                    if poller.propagate_last_received_value && poller.last_value
+                        dispatch_last_received_value(poller)
+                    end
+
+                    poller.propagate_last_received_value = false
                 end
 
                 # Time in seconds returned by CLOCK_MONOTONIC
@@ -271,21 +289,31 @@ module Syskit
 
                 # Send read data to registered callbacks
                 def dispatch_read_result(poller)
-                    fulfilled, value, reason = poller.result
-                    if fulfilled
-                        @callbacks[poller.port].each { |c| c.dispatch(value) }
-                        poller.last_value = value
-                        poller.propagate_last_received_value = false
-                    else
+                    fulfilled, read_result, reason = poller.result
+                    unless fulfilled
                         warn "failed to read #{poller.port}: #{reason}"
+                        return
                     end
+
+                    unless read_result # no data
+                        poller.last_value = nil
+                        return
+                    end
+
+                    flow, value = read_result
+                    return unless flow == Orocos::NEW_DATA
+
+                    callbacks[poller.port].each { |c| c.dispatch(value) }
+                    poller.last_value = value
+                    poller.propagate_last_received_value = false
                 end
 
                 # Send last received value to the callbacks that require it
                 def dispatch_last_received_value(poller)
-                    @callbacks[poller.port].each do |c|
-                        c.dispatch(poller.last_value)
+                    if (value = poller.last_value)
+                        callbacks[poller.port].each { _1.dispatch(value) }
                     end
+
                     poller.propagate_last_received_value = false
                 end
 
@@ -293,7 +321,7 @@ module Syskit
                 #
                 # @return [Integer]
                 def required_policy_for(port)
-                    return unless (callbacks = @callbacks[port])
+                    return unless (callbacks = self.callbacks[port])
 
                     buffer_size = callbacks.map { _1.buffer_size }.max
                     init = callbacks.map { _1.init }.inject(&:|)

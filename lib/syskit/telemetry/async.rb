@@ -1,5 +1,7 @@
 # frozen_string_literal: true
 
+require "syskit/telemetry/async/main_thread_restrictions"
+
 require "syskit/telemetry/async/name_service"
 require "syskit/telemetry/async/task_context"
 require "syskit/telemetry/async/interface_object"

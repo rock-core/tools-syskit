@@ -7,9 +7,11 @@ module Syskit
         module Async
             # In-process name service
             #
-            # It is exclusively filled using information that comes from the async
+            # It is exclusively filled based on information that comes from the async
             # {Client}
             class NameService < Orocos::NameServiceBase
+                include MainThreadRestrictions
+
                 # A new NameService instance
                 #
                 # @param [Hash<String,Orocos::TaskContext>] tasks The tasks which are
@@ -21,6 +23,8 @@ module Syskit
                     port_read_manager: PortReadManager.new
                 )
                     super()
+
+                    update_main_thread
 
                     @iors = Concurrent::AtomicReference.new({})
                     @registered_tasks = Concurrent::Hash.new
@@ -54,10 +58,14 @@ module Syskit
                 # After this call, any task not in the tasks parameter will have been
                 # removed from the name server
                 #
-                # @param [#ior,#name] list of IOR and name of remote tasks to resolve
+                # @param [#ior,#name] list of IOR and name of remote tasks to resolve.
+                #   This list is complete, that is it contains all the tasks that the
+                #   name server should know about
                 # @return [Array<String>] list of task names that are either known, or
                 #   that are being discovered
                 def async_update_tasks(tasks)
+                    ensure_in_main_thread
+
                     iors = tasks.each_with_object({}) { |t, h| h[t.name] = t.ior }
                     @iors.set(iors)
 
@@ -102,8 +110,8 @@ module Syskit
                 AsyncDiscovery = Struct.new(
                     :task, :future, :ior, :async_task, keyword_init: true
                 ) do
-                    def update_from_result
-                        fulfilled, (ior, async_task), reason = future.result
+                    def update_from_result(port_read_manager:)
+                        fulfilled, (ior, discovered), reason = future.result
                         unless fulfilled
                             raise AsyncDiscoveryError,
                                   "unexpected error during asynchronous " \
@@ -111,7 +119,11 @@ module Syskit
                         end
 
                         self.ior = ior
-                        self.async_task = async_task
+                        return unless discovered
+
+                        self.async_task = TaskContext.from_discovered_interface(
+                            discovered, port_read_manager: port_read_manager
+                        )
                     end
 
                     def wait
@@ -127,8 +139,11 @@ module Syskit
                 #
                 # Create a future that discovers a remote task
                 def async_discover_task(task)
+                    ensure_in_main_thread
+
                     future = Concurrent::Promises.future_on(@discovery_executor) do
                         ior = @iors.get[task.name]
+
                         # ior will be nil if the task has been removed from the task
                         # set while the future was pending
                         discover_task(task.name, ior, task.orogen_model_name) if ior
@@ -136,10 +151,17 @@ module Syskit
                     @discovery[task.name] = AsyncDiscovery.new(task: task, future: future)
                 end
 
+                def wait_and_resolve_all_pending_discoveries
+                    @discovery.each_value { _1.future.wait }
+                    resolve_discovered_tasks
+                end
+
                 # @api private
                 #
                 # Process the tasks that have been (asynchronously) discovered
                 def resolve_discovered_tasks
+                    ensure_in_main_thread
+
                     while (async_discovery = pop_discovered_task)
                         register(
                             async_discovery.async_task,
@@ -165,10 +187,12 @@ module Syskit
                 # @return [AsyncDiscovery,nil] a valid resolved task or nil if there are
                 #   none so far
                 def pop_discovered_task
+                    ensure_in_main_thread
+
                     loop do
                         return unless (async_discovery = pop_finished_discovery)
                         next unless finished_discovery_validate_ior(async_discovery)
-                        next unless async_discovery.async_task
+                        next unless async_discovery.async_task # error during resolution
 
                         return async_discovery
                     end
@@ -183,11 +207,15 @@ module Syskit
                 #
                 # @return [AsyncDiscovery]
                 def pop_finished_discovery
+                    ensure_in_main_thread
+
                     async_discovery = @discovery.each_value.find(&:resolved?)
                     return unless async_discovery
 
                     @discovery.delete(async_discovery.task.name)
-                    async_discovery.update_from_result
+                    async_discovery.update_from_result(
+                        port_read_manager: @port_read_manager
+                    )
                     async_discovery
                 end
 
@@ -230,17 +258,10 @@ module Syskit
                 #   resolve the task, and the async taskcontext that represents it. The
                 #   task is nil if the resolution failed
                 def discover_task(name, ior, orogen_model_name)
-                    task = Orocos::TaskContext.new(
-                        ior,
-                        name: name,
-                        model: orogen_model_from_name(orogen_model_name)
-                    )
+                    orogen_model = orogen_model_from_name(orogen_model_name)
+                    discovered = TaskContext.discover_interface(name, ior, orogen_model)
 
-                    async_task = TaskContext.discover(
-                        task, port_read_manager: @port_read_manager
-                    )
-
-                    [ior, async_task]
+                    [ior, discovered]
                 rescue StandardError => e
                     warn "Failed discovery of task #{name}: #{e.message}"
                     e.backtrace.each do |line|
