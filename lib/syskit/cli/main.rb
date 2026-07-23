@@ -41,6 +41,20 @@ module Syskit
                  "commands related to monitoring and commanding a running Syskit system"
             subcommand "telemetry", Telemetry::CLI
 
+            desc "bundle_dir NAME", "print the directory of a bundle"
+            def bundle_dir(name)
+                require "rock/bundle" unless defined?(Rock::Bundles)
+
+                bundle = Rock::Bundles.each_bundle.find { |b| b.name == name }
+                if bundle
+                    puts bundle.path
+                else
+                    $stderr.puts "No bundle named '#{name}' found."
+                    $stderr.puts "Available bundles are: #{Rock::Bundles.each_bundle.map(&:name).sort.join(', ')}"
+                    exit 1
+                end
+            end
+
             no_commands do
                 def setup_interface(*, **)
                     interface_version = options[:interface_version] || 1

@@ -61,6 +61,33 @@ module Roby
                     assert_command_stops run_cmd
                 end
             end
+
+            describe "bundle_dir" do
+                it "returns the absolute path of an existing bundle" do
+                    require "tmpdir"
+                    Dir.mktmpdir do |dir|
+                        bundle_dir = File.join(dir, "my_temp_bundle")
+                        FileUtils.mkdir_p(File.join(bundle_dir, "config"))
+                        FileUtils.touch(File.join(bundle_dir, "config", "bundle.yml"))
+
+                        set_environment_variable("ROCK_BUNDLE_PATH", dir)
+                        cmd = run_command_and_stop "syskit bundle_dir my_temp_bundle"
+                        assert_equal File.realdirpath(bundle_dir), File.realdirpath(cmd.stdout.strip)
+                        assert_equal 0, cmd.exit_status
+                    end
+                end
+
+                it "returns an error for a non-existent bundle" do
+                    require "tmpdir"
+                    Dir.mktmpdir do |dir|
+                        set_environment_variable("ROCK_BUNDLE_PATH", dir)
+                        cmd = run_command_and_stop "syskit bundle_dir non_existent_bundle_test_cli",
+                                                   fail_on_error: false
+                        assert_match /No bundle named 'non_existent_bundle_test_cli' found/, cmd.stderr
+                        assert_equal 1, cmd.exit_status
+                    end
+                end
+            end
         end
     end
 end
