@@ -88,6 +88,123 @@ module Roby
                     end
                 end
             end
+
+            describe "config" do
+                before do
+                    run_command_and_stop "roby gen app"
+                    write_file "config/robots/gazebo.yml", <<~YAML
+                        system_definitions:
+                          sdf_model_parameters:
+                            param1: value1
+                            param2: value2
+                            array_param: [1, 2]
+                          enable_something: false
+                        other_config:
+                          something: value3
+                    YAML
+                    write_file "config/robots/gazebo_test.yml", <<~YAML
+                        system_definitions:
+                          sdf_model_parameters:
+                            param2: overriden_value2
+                            array_param: [3]
+                    YAML
+                    # Declare the robot and alias in app.yml so Roby knows about it
+                    write_file "config/app.yml", <<~YAML
+                        robots:
+                          aliases:
+                            test_alias: gazebo_test
+                          robots:
+                            gazebo_test: gazebo
+                    YAML
+                end
+
+                it "prints the full configuration of a given robot when no keys are specified" do
+                    cmd = run_command_and_stop "syskit config gazebo_test"
+                    expected = {
+                        "system_definitions" => {
+                            "sdf_model_parameters" => {
+                                "param1" => "value1",
+                                "param2" => "overriden_value2",
+                                "array_param" => [1, 2, 3]
+                            },
+                            "enable_something" => false
+                        },
+                        "other_config" => {
+                            "something" => "value3"
+                        }
+                    }
+                    assert_equal expected, YAML.safe_load(cmd.stdout)
+                end
+
+                it "prints the value of a single key when --key is specified" do
+                    cmd = run_command_and_stop "syskit config gazebo_test --key system_definitions.sdf_model_parameters.param1"
+                    assert_equal "value1", YAML.safe_load(cmd.stdout)
+                end
+
+                it "properly preserves boolean false values when --key is specified" do
+                    cmd = run_command_and_stop "syskit config gazebo_test --key system_definitions.enable_something"
+                    assert_equal false, YAML.safe_load(cmd.stdout)
+                end
+
+                it "returns an error for a non-existent key" do
+                    cmd = run_command_and_stop "syskit config gazebo_test --key non_existent", fail_on_error: false
+                    assert_match /Key 'non_existent' not found/, cmd.stderr
+                    assert_equal 1, cmd.exit_status
+                end
+
+                it "supports cumulative key filtering when multiple --key options are specified" do
+                    cmd = run_command_and_stop "syskit config gazebo_test --key system_definitions.sdf_model_parameters.param1 --key other_config.something"
+                    expected = {
+                        "system_definitions" => {
+                            "sdf_model_parameters" => {
+                                "param1" => "value1"
+                            }
+                        },
+                        "other_config" => {
+                            "something" => "value3"
+                        }
+                    }
+                    assert_equal expected, YAML.safe_load(cmd.stdout)
+                end
+
+                it "runs the command from a specific bundle when --from-bundle is specified" do
+                    require "tmpdir"
+                    Dir.mktmpdir do |dir|
+                        bundle_dir = File.join(dir, "my_temp_bundle")
+                        FileUtils.mkdir_p(File.join(bundle_dir, "config", "robots"))
+                        FileUtils.touch(File.join(bundle_dir, "config", "bundle.yml"))
+                        File.write(File.join(bundle_dir, "config", "robots", "gazebo.yml"), <<~YAML)
+                            system_definitions:
+                              enable_something: true
+                        YAML
+                        File.write(File.join(bundle_dir, "config", "app.yml"), <<~YAML)
+                            robots:
+                              robots:
+                                gazebo: gazebo
+                        YAML
+
+                        set_environment_variable("ROCK_BUNDLE_PATH", dir)
+                        cmd = run_command_and_stop "syskit config gazebo --from-bundle my_temp_bundle"
+                        expected = {
+                            "system_definitions" => {
+                                "enable_something" => true
+                            }
+                        }
+                        assert_equal expected, YAML.safe_load(cmd.stdout)
+                        assert_equal 0, cmd.exit_status
+                    end
+                end
+
+                it "returns an error for a non-existent bundle with --from-bundle" do
+                    require "tmpdir"
+                    Dir.mktmpdir do |dir|
+                        set_environment_variable("ROCK_BUNDLE_PATH", dir)
+                        cmd = run_command_and_stop "syskit config gazebo --from-bundle non_existent_bundle_test_cli", fail_on_error: false
+                        assert_match /No bundle named 'non_existent_bundle_test_cli' found/, cmd.stderr
+                        assert_equal 1, cmd.exit_status
+                    end
+                end
+            end
         end
     end
 end
