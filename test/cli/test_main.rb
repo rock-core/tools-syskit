@@ -99,6 +99,7 @@ module Roby
                             param2: value2
                             array_param: [1, 2]
                           enable_something: false
+                          nil_param: null
                         other_config:
                           something: value3
                     YAML
@@ -127,7 +128,8 @@ module Roby
                                 "param2" => "overriden_value2",
                                 "array_param" => [1, 2, 3]
                             },
-                            "enable_something" => false
+                            "enable_something" => false,
+                            "nil_param" => nil
                         },
                         "other_config" => {
                             "something" => "value3"
@@ -144,6 +146,17 @@ module Roby
                 it "properly preserves boolean false values when --key is specified" do
                     cmd = run_command_and_stop "syskit config gazebo_test --key system_definitions.enable_something"
                     assert_equal false, YAML.safe_load(cmd.stdout)
+                end
+
+                it "properly preserves explicit nil values when --key is specified" do
+                    cmd = run_command_and_stop "syskit config gazebo_test --key system_definitions.nil_param"
+                    assert_nil YAML.safe_load(cmd.stdout)
+                end
+
+                it "returns an error when querying a nested key inside a non-hash value" do
+                    cmd = run_command_and_stop "syskit config gazebo_test --key system_definitions.enable_something.nested", fail_on_error: false
+                    assert_match /Key 'system_definitions.enable_something.nested' not found/, cmd.stderr
+                    assert_equal 1, cmd.exit_status
                 end
 
                 it "returns an error for a non-existent key" do

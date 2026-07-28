@@ -80,88 +80,47 @@ module Syskit
                 app.setup_robot_names_from_config_dir
                 app.robot(robot_name)
 
+                merger = proc do |_, old_val, new_val|
+                    if old_val.is_a?(Hash) && new_val.is_a?(Hash)
+                        old_val.merge(new_val, &merger)
+                    elsif old_val.is_a?(Array) && new_val.is_a?(Array)
+                        old_val + new_val
+                    else
+                        new_val
+                    end
+                end
+
                 config_path = ["config", "robots", "ROBOT.yml"]
                 merged_hash = app.find_files(
                     *config_path, all: true, order: :specific_last
-                ).each_with_object({}) do |path, sysdef_hash|
+                ).each_with_object({}) do |path, config_hash|
                     values = YAML.safe_load(File.read(path)) || {}
-
-                    # Define a recursive merging rule
-                    merger = proc do |key, old_val, new_val|
-                        if old_val.is_a?(Hash) && new_val.is_a?(Hash)
-                            # If both are hashes, merge them recursively
-                            old_val.merge(new_val, &merger)
-                        elsif old_val.is_a?(Array) && new_val.is_a?(Array)
-                            # If both are arrays, combine them
-                            old_val + new_val
-                        else
-                            # For simple values the newer file wins
-                            new_val
-                        end
-                    end
-                    sysdef_hash.merge!(values, &merger)
+                    config_hash.merge!(values, &merger)
                 end
 
                 if options[:key].empty?
                     result = merged_hash
-                elsif options[:key].size == 1
-                    key_query = options[:key].first
-                    keys = key_query.split(".")
-
-                    current = merged_hash
-                    has_key = true
-                    keys.each do |k|
-                        if current.is_a?(Hash) && current.has_key?(k)
-                            current = current[k]
-                        else
-                            has_key = false
-                            break
-                        end
-                    end
-
-                    if !has_key
-                        $stderr.puts "Error: Key '#{key_query}' not found."
-                        exit 1
-                    end
-
-                    result = current
                 else
-                    # Process cumulative key filtering
-                    merger = proc do |key, old_val, new_val|
-                        if old_val.is_a?(Hash) && new_val.is_a?(Hash)
-                            old_val.merge(new_val, &merger)
-                        elsif old_val.is_a?(Array) && new_val.is_a?(Array)
-                            old_val + new_val
-                        else
-                            new_val
-                        end
-                    end
-
-                    accumulated_hash = {}
-                    options[:key].each do |key_query|
+                    resolved_queries = options[:key].map do |key_query|
                         keys = key_query.split(".")
+                        parent = keys.size > 1 ? merged_hash.dig(*keys[0...-1]) : merged_hash
 
-                        current = merged_hash
-                        has_key = true
-                        keys.each do |k|
-                            if current.is_a?(Hash) && current.has_key?(k)
-                                current = current[k]
-                            else
-                                has_key = false
-                                break
-                            end
-                        end
-
-                        if !has_key
+                        unless parent.is_a?(Hash) && parent.has_key?(keys.last)
                             $stderr.puts "Error: Key '#{key_query}' not found."
                             exit 1
                         end
 
-                        # Reconstruct the nested hash for this path
-                        nested_path_hash = keys.reverse.reduce(current) { |v, k| { k => v } }
-                        accumulated_hash = accumulated_hash.merge(nested_path_hash, &merger)
+                        [keys, merged_hash.dig(*keys)]
                     end
-                    result = accumulated_hash
+
+                    if resolved_queries.size == 1
+                        result = resolved_queries.first.last
+                    else
+                        result = resolved_queries.reduce({}) do |accum, (keys, value)|
+                            nested_path_hash = keys.reverse.reduce(value) { |v, k| { k => v } }
+                            accum.merge(nested_path_hash, &merger)
+                        end
+                    end
                 end
 
                 puts YAML.dump(result)
